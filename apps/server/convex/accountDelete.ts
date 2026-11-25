@@ -33,6 +33,7 @@ const AFTER_CONVERSATIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["team_memberships", "by_user_id", "user_id"],
   ["directory_team_mappings", "by_user_id", "user_id"],
   ["client_state", "by_user_id", "user_id"],
+  ["run_leases", "by_owner", "owner_user_id"],
   ["authAccounts", "userIdAndProvider", "userId"],
 ];
 

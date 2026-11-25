@@ -1070,6 +1070,7 @@ export async function requestExecutionSuccessorInDb(
     expectedCurrentEpoch: number;
     policy: SuccessorPolicy;
     target: TargetInput;
+    fencingToken?: string;
     now: number;
   },
 ): Promise<{ created: boolean; epoch: number; admissionBoundary: number }> {
@@ -1165,6 +1166,7 @@ export async function requestExecutionSuccessorInDb(
     );
   }
 
+  await assertActiveRunLease(ctx, current, args.fencingToken, args.now);
   const epoch = args.expectedCurrentEpoch + 1;
   const admissionBoundary = head.next_conversation_sequence;
   await insertRequestedBinding(ctx, conversation, epoch, args.target, args.now);
@@ -1829,11 +1831,12 @@ export async function disposePreReadyBindingInDb(
   return { state: "stopped" };
 }
 
-function assertReadyFence(
+async function assertReadyFence(
+  ctx: DbCtx,
   head: any,
   binding: any,
   fence: ReadyBindingFence,
-): void {
+): Promise<void> {
   if (
     head.protocol_state !== "fenced" ||
     head.current_epoch !== fence.executionEpoch
@@ -1856,7 +1859,7 @@ function assertReadyFence(
       "ready binding does not match epoch, configuration, owner device, daemon boot, runtime, or agent",
     );
   }
-  assertActiveRunLease(binding, fence.fencingToken, Date.now());
+  await assertActiveRunLease(ctx, binding, fence.fencingToken, Date.now());
 }
 
 function claimedPermitWire(attempt: any): any {
@@ -1925,7 +1928,7 @@ export async function claimNextDeliveryInDb(
   );
   if (!head)
     fail("EXECUTION_HEAD_MISSING", "conversation has no execution head");
-  assertReadyFence(head, binding, args);
+  await assertReadyFence(ctx, head, binding, args);
 
   if (head.active_delivery_attempt_id !== undefined) {
     const activeAttempt = await ctx.db.get(head.active_delivery_attempt_id);
@@ -2058,6 +2061,7 @@ export async function rejectHeadDeliveryInDb(
     conversationSequence: number;
     executionEpoch: number;
     reason: string;
+    fencingToken?: string;
     now: number;
   },
 ): Promise<{ rejected: true }> {
@@ -2087,6 +2091,10 @@ export async function rejectHeadDeliveryInDb(
   ) {
     return { rejected: true };
   }
+  const epoch = head.current_epoch ?? args.executionEpoch;
+  const binding = await executionBinding(ctx, args.conversationId, epoch);
+  if (binding)
+    await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   const message = orderedNonterminalMessages(
     await fencedMessages(ctx, args.conversationId),
     head,
@@ -2141,7 +2149,7 @@ async function verifyAttemptFence(
   if (!head || !message || !attempt) {
     fail("DELIVERY_PERMIT_NOT_FOUND", "head, message, or attempt is missing");
   }
-  assertReadyFence(head, binding, fence);
+  await assertReadyFence(ctx, head, binding, fence);
   const exact =
     attemptMatchesFence(attempt, fence, userId) &&
     String(head.active_delivery_attempt_id) === String(fence.attemptId) &&
@@ -2633,13 +2641,9 @@ export async function abandonAmbiguousAndResendInDb(
 export async function publishRuntimeDispositionInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: {
+  args: Omit<ReadyBindingFence, "executionEpoch"> & {
     conversationId: Id<"conversations">;
     epoch: number;
-    configurationRevision: number;
-    ownerDeviceId: string;
-    daemonBootId: string;
-    runtimeId: string;
     disposition: "stopped" | "quarantined";
     reason: string;
     now: number;
@@ -2704,6 +2708,7 @@ export async function publishRuntimeDispositionInDb(
       );
     }
   }
+  await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   await ctx.db.patch(binding._id, {
     state: args.disposition,
     stopped_reason: args.reason,
@@ -3840,16 +3845,13 @@ export const getExecutionAuthority = query({
         q.eq("conversation_id", args.conversation_id),
       )
       .collect();
-    const activeAttempt = head.active_delivery_attempt_id
-      ? await ctx.db.get(
-          head.active_delivery_attempt_id as Id<"delivery_attempts">,
-        )
-      : null;
-    const { run_claim_ids, ...publicHead } = head;
+    const attemptId = head.active_delivery_attempt_id as
+      | Id<"delivery_attempts">
+      | undefined;
     return {
-      head: publicHead,
-      bindings: bindings.map(({ fencing_token, ...binding }) => binding),
-      activeAttempt,
+      head,
+      bindings: bindings.map(({ claim_id, ...binding }) => binding),
+      activeAttempt: attemptId ? await ctx.db.get(attemptId) : null,
     };
   },
 });

@@ -99,18 +99,7 @@ export async function findTokenDoc(
     .first();
 }
 
-export async function verifyApiToken(
-  ctx: DbCtx,
-  token: string,
-  // Default false: every authenticated CLI mutation reads this one api_tokens
-  // doc, so writing last_used_at here turned a pure read auth check into a
-  // shared document write that ALL of a user's concurrent writes (50+ sessions)
-  // read. Patching it forced OCC conflicts across every in-flight write, and
-  // under load that compounded into a total write path stall. Auth is now a
-  // pure read; only the daemon heartbeat refreshes last_used_at.
-  updateLastUsed: boolean = false,
-  tables: AuthTables = resolveTables(),
-): Promise<{ userId: GenericId<"users">; tokenId: GenericId<"api_tokens"> } | null> {
+async function verifiedTokenDoc(ctx: DbCtx, token: string, tables: AuthTables) {
   const tokenDoc = await findTokenDoc(ctx, token, tables);
 
   if (!tokenDoc) {
@@ -137,6 +126,33 @@ export async function verifyApiToken(
   if (!deviceBindingAllowsDoc(tokenDoc, token)) {
     return null;
   }
+
+  return tokenDoc;
+}
+
+export async function verifyDeviceApiToken(
+  ctx: DbCtx,
+  token: string,
+  tables: AuthTables = resolveTables(),
+): Promise<{ userId: GenericId<"users">; deviceId: string } | null> {
+  const doc = await verifiedTokenDoc(ctx, token, tables);
+  return doc?.device_id ? { userId: doc.user_id, deviceId: doc.device_id } : null;
+}
+
+export async function verifyApiToken(
+  ctx: DbCtx,
+  token: string,
+  // Default false: every authenticated CLI mutation reads this one api_tokens
+  // doc, so writing last_used_at here turned a pure read auth check into a
+  // shared document write that ALL of a user's concurrent writes (50+ sessions)
+  // read. Patching it forced OCC conflicts across every in-flight write, and
+  // under load that compounded into a total write path stall. Auth is now a
+  // pure read; only the daemon heartbeat refreshes last_used_at.
+  updateLastUsed: boolean = false,
+  tables: AuthTables = resolveTables(),
+): Promise<{ userId: GenericId<"users">; tokenId: GenericId<"api_tokens"> } | null> {
+  const tokenDoc = await verifiedTokenDoc(ctx, token, tables);
+  if (!tokenDoc) return null;
 
   if (updateLastUsed && Date.now() - (tokenDoc.last_used_at || 0) > TOKEN_LAST_USED_THROTTLE_MS) {
     try {

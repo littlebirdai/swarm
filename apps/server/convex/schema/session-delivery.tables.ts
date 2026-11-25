@@ -184,7 +184,6 @@ export const sessionDeliveryTables = {
     protocol_state: v.union(v.literal("legacy-quiescing"), v.literal("fenced")),
     protocol_version: v.number(),
     last_pane_instance: v.optional(v.number()),
-    run_claim_ids: v.optional(v.array(v.string())),
     current_epoch: v.optional(v.number()),
     pending_epoch: v.optional(v.number()),
     admission_epoch: v.optional(v.number()),
@@ -325,10 +324,6 @@ export const sessionDeliveryTables = {
     owner_device_id: v.string(),
     daemon_boot_id: v.string(),
     claim_id: v.optional(v.string()),
-    fencing_token: v.optional(v.string()),
-    lease_boot_id: v.optional(v.string()),
-    lease_expires_at: v.optional(v.number()),
-    lease_released_at: v.optional(v.number()),
     requested_agent: v.union(
       v.literal("claude"),
       v.literal("codex"),
@@ -430,6 +425,21 @@ export const sessionDeliveryTables = {
     created_at: v.number(),
     updated_at: v.number(),
   }).index("by_conversation_epoch", ["conversation_id", "epoch"]),
+
+  run_leases: defineTable({
+    conversation_id: v.id("conversations"),
+    owner_user_id: v.id("users"),
+    binding_id: v.id("execution_bindings"),
+    claim_id: v.string(),
+    boot: v.string(),
+    fencing_token: v.string(),
+    expires_at: v.number(),
+    released_at: v.optional(v.number()),
+    retain_until: v.number(),
+  })
+    .index("by_conversation_claim", ["conversation_id", "claim_id"])
+    .index("by_owner", ["owner_user_id"])
+    .index("by_retention", ["retain_until"]),
 
   // Every retry gets a fresh attempt row; delivery_id and sequence stay stable.
   // An ambiguous attempt remains the conversation-global slot owner until an

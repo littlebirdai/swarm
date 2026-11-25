@@ -1,57 +1,72 @@
 import { ConvexError } from "convex/values";
+import { verifyDeviceApiToken } from "@platform/auth/convex";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { verifyApiToken } from "../../apiTokens";
 
 const LEASE_MS = 30_000;
+const RECEIPT_MS = 7 * 24 * 60 * 60_000;
+const MAX_CLAIM_LENGTH = 128;
 const RUN_LEASE_VERSION = 1 as const;
 
-type Lease = Pick<
+type Binding = Pick<
   Doc<"execution_bindings">,
-  | "daemon_boot_id"
-  | "lease_boot_id"
-  | "lease_expires_at"
-  | "lease_released_at"
-  | "fencing_token"
+  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id"
 >;
 type Address = { bearer: string; conversation_id: Id<"conversations"> };
 type Fence = Address & { run: number; fencing_token: string };
 
-function remainingLease(binding: Lease, now: number): number {
-  if (
-    binding.fencing_token === undefined ||
-    binding.lease_released_at !== undefined ||
-    binding.lease_boot_id !== binding.daemon_boot_id
-  )
-    return 0;
-  return Math.max(0, (binding.lease_expires_at ?? now) - now);
+function loadClaim(
+  ctx: Pick<MutationCtx, "db">,
+  conversationId: Id<"conversations">,
+  claimId: string,
+) {
+  return ctx.db
+    .query("run_leases")
+    .withIndex("by_conversation_claim", (q) =>
+      q.eq("conversation_id", conversationId).eq("claim_id", claimId),
+    )
+    .unique();
 }
 
-export function assertActiveRunLease(
-  binding: Lease,
+function remainingLease(
+  binding: Binding,
+  lease: Doc<"run_leases"> | null,
+  now: number,
+) {
+  if (
+    !lease ||
+    lease.binding_id !== binding._id ||
+    lease.boot !== binding.daemon_boot_id ||
+    lease.released_at !== undefined
+  )
+    return 0;
+  return Math.max(0, lease.expires_at - now);
+}
+
+export async function assertActiveRunLease(
+  ctx: Pick<MutationCtx, "db">,
+  binding: Binding,
   fencingToken: string | undefined,
   now: number,
-): void {
-  if (binding.fencing_token === undefined) return;
+): Promise<void> {
+  if (binding.claim_id === undefined) return;
+  const lease = await loadClaim(ctx, binding.conversation_id, binding.claim_id);
   if (
-    binding.fencing_token !== fencingToken ||
-    remainingLease(binding, now) === 0
+    fencingToken === undefined ||
+    lease?.fencing_token !== fencingToken ||
+    remainingLease(binding, lease, now) === 0
   )
     throw new ConvexError({
       code: "STALE_RUN_LEASE",
-      message: "The current run lease is required for delivery",
+      message: "The current run lease is required for this operation",
     });
 }
 
 async function ownedRun(ctx: MutationCtx, args: Address) {
-  const auth = await verifyApiToken(ctx, args.bearer);
+  const auth = await verifyDeviceApiToken(ctx, args.bearer);
   if (!auth) return null;
-  const [token, conversation] = await Promise.all([
-    ctx.db.get(auth.tokenId),
-    ctx.db.get(args.conversation_id),
-  ]);
+  const conversation = await ctx.db.get(args.conversation_id);
   if (
-    !token?.device_id ||
     conversation?.user_id !== auth.userId ||
     conversation.execution_protocol_state !== "fenced"
   )
@@ -78,7 +93,7 @@ async function ownedRun(ctx: MutationCtx, args: Address) {
   if (
     binding?.state !== "ready" ||
     binding.owner_user_id !== auth.userId ||
-    binding.owner_device_id !== token.device_id
+    binding.owner_device_id !== auth.deviceId
   )
     return null;
   return { head, binding };
@@ -90,49 +105,62 @@ export async function claimRunLease(
   ctx: MutationCtx,
   args: Address & { machine: string; boot: string; claim_id: string },
 ) {
+  if (!args.claim_id.trim() || args.claim_id.length > MAX_CLAIM_LENGTH)
+    return stale;
   const owned = await ownedRun(ctx, args);
   if (
     !owned ||
     owned.binding.owner_device_id !== args.machine ||
-    owned.binding.daemon_boot_id !== args.boot ||
-    args.claim_id.length === 0
+    owned.binding.daemon_boot_id !== args.boot
   )
     return stale;
 
   const { binding, head } = owned;
   const now = Date.now();
-  const leaseMs = remainingLease(binding, now);
-  let fencingToken = binding.fencing_token;
+  const requested = await loadClaim(ctx, args.conversation_id, args.claim_id);
+  let leaseMs = LEASE_MS;
+  let fencingToken: string;
   if (binding.claim_id === args.claim_id) {
+    if (!requested) return stale;
+    leaseMs = remainingLease(binding, requested, now);
     if (leaseMs === 0) return stale;
+    fencingToken = requested.fencing_token;
   } else {
-    if (head.run_claim_ids?.includes(args.claim_id)) return stale;
-    if (leaseMs > 0)
-      return {
-        v: RUN_LEASE_VERSION,
-        status: "busy",
-        retry_after_ms: leaseMs,
-      } as const;
+    if (requested) return stale;
+    if (binding.claim_id !== undefined) {
+      const active = await loadClaim(
+        ctx,
+        args.conversation_id,
+        binding.claim_id,
+      );
+      const retryAfter = remainingLease(binding, active, now);
+      if (retryAfter > 0)
+        return {
+          v: RUN_LEASE_VERSION,
+          status: "busy",
+          retry_after_ms: retryAfter,
+        } as const;
+    }
     fencingToken = crypto.randomUUID();
-    await ctx.db.patch(binding._id, {
+    await ctx.db.insert("run_leases", {
+      conversation_id: args.conversation_id,
+      owner_user_id: binding.owner_user_id,
+      binding_id: binding._id,
       claim_id: args.claim_id,
+      boot: args.boot,
       fencing_token: fencingToken,
-      lease_boot_id: args.boot,
-      lease_expires_at: now + LEASE_MS,
-      lease_released_at: undefined,
+      expires_at: now + LEASE_MS,
+      retain_until: now + LEASE_MS + RECEIPT_MS,
     });
-    await ctx.db.patch(head._id, {
-      run_claim_ids: [...(head.run_claim_ids ?? []), args.claim_id],
-    });
+    await ctx.db.patch(binding._id, { claim_id: args.claim_id });
   }
-  if (fencingToken === undefined) return stale;
   return {
     v: RUN_LEASE_VERSION,
     status: "granted",
     session: String(binding.conversation_id),
     run: binding.epoch,
     fencing_token: fencingToken,
-    lease_ms: binding.claim_id === args.claim_id ? leaseMs : LEASE_MS,
+    lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
   } as const;
 }
@@ -142,18 +170,29 @@ async function currentClaim(ctx: MutationCtx, args: Fence, now: number) {
   if (
     !owned ||
     owned.binding.epoch !== args.run ||
-    owned.binding.fencing_token !== args.fencing_token ||
-    remainingLease(owned.binding, now) === 0
+    owned.binding.claim_id === undefined
   )
     return null;
-  return owned.binding;
+  const lease = await loadClaim(
+    ctx,
+    args.conversation_id,
+    owned.binding.claim_id,
+  );
+  return lease?.fencing_token === args.fencing_token &&
+    remainingLease(owned.binding, lease, now) > 0
+    ? lease
+    : null;
 }
 
 export async function renewRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
-  const binding = await currentClaim(ctx, args, now);
-  if (!binding) return stale;
-  await ctx.db.patch(binding._id, { lease_expires_at: now + LEASE_MS });
+  const lease = await currentClaim(ctx, args, now);
+  if (!lease) return stale;
+  const expiresAt = now + LEASE_MS;
+  await ctx.db.patch(lease._id, {
+    expires_at: expiresAt,
+    retain_until: expiresAt + RECEIPT_MS,
+  });
   return {
     v: RUN_LEASE_VERSION,
     status: "renewed",
@@ -163,8 +202,8 @@ export async function renewRunLease(ctx: MutationCtx, args: Fence) {
 
 export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
-  const binding = await currentClaim(ctx, args, now);
-  if (!binding) return stale;
-  await ctx.db.patch(binding._id, { lease_released_at: now });
+  const lease = await currentClaim(ctx, args, now);
+  if (!lease) return stale;
+  await ctx.db.patch(lease._id, { released_at: now });
   return { v: RUN_LEASE_VERSION, status: "released" } as const;
 }
