@@ -4723,7 +4723,7 @@
   "apps/cli/src/terminal/terminalColors.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/cli/src/terminal/terminalHub.integration.test.ts": {
+  "apps/cli/src/terminal/terminalHub.e2e.test.ts": {
     "swarm/no-comments": 36
   },
   "apps/cli/src/terminal/terminalHub.test.ts": {
@@ -5669,7 +5669,7 @@
   "apps/cli/src/workspace/backends/types.ts": {
     "swarm/no-comments": 16
   },
-  "apps/cli/src/workspace/chrome.test.ts": {
+  "apps/cli/src/workspace/chrome.e2e.test.ts": {
     "swarm/no-comments": 23
   },
   "apps/cli/src/workspace/chrome.ts": {

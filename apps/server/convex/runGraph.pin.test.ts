@@ -6,7 +6,14 @@
 // real mutations under convex-test: two checkouts push the same slug,
 // interleaved, and each run's card, resume, agent set and supersession come
 // from its own graph.
-import { describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import schema from "./schema";
@@ -99,6 +106,13 @@ const unionPush = (n: number) => ({
   ),
 });
 
+beforeEach(() => {
+  setSystemTime(new Date());
+});
+afterEach(() => {
+  setSystemTime();
+});
+
 async function setup() {
   const t = convexTest(schema, allModules);
   const owner = await t.run(async (ctx) => {
@@ -112,8 +126,10 @@ async function setup() {
     } as any);
     return u;
   });
-  const push = (body: Record<string, any>) =>
-    t.mutation(api.workflows.upsert, { api_token: TOKEN, ...body });
+  const push = (body: Record<string, any>) => {
+    setSystemTime(Date.now() + 1);
+    return t.mutation(api.workflows.upsert, { api_token: TOKEN, ...body });
+  };
   /** `cast workflow run`: its push, then the run it creates, naming the version the push left. */
   const start = async (
     body: Record<string, any>,
