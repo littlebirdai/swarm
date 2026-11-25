@@ -27026,10 +27026,10 @@
   "apps/web/server/mcpForward.ts": {
     "swarm/no-comments": 5
   },
-  "apps/web/server/responsePolicy.test.ts": {
+  "apps/web/server/response-policy.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/server/responsePolicy.ts": {
+  "apps/web/server/response-policy.ts": {
     "swarm/no-comments": 30
   },
   "apps/web/server/share.ts": {

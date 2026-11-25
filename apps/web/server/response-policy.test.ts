@@ -5,7 +5,7 @@ import {
   createResponsePolicy,
   cspReportEndpoint,
   responsePolicy,
-} from "./responsePolicy";
+} from "./response-policy";
 
 const DSN = "https://publickey@o123.ingest.us.sentry.io/456";
 

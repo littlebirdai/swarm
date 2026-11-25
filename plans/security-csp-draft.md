@@ -1,6 +1,6 @@
 # PARENT-10: document policy draft (report-only)
 
-The policy lives in `packages/web/server/responsePolicy.ts` as `DOCUMENT_POLICY`. It is sent only as `Content-Security-Policy-Report-Only`, so no browser blocks anything. Violation reports go to Sentry's CSP security endpoint, which is built from `VITE_SENTRY_DSN`. Reports are sent only from a Railway deploy, for 10% of HTML documents, with at most 120 reporting documents per hour for each server process. One document covers a whole app session, because the SPA does not reload the page.
+The policy lives in `packages/web/server/response-policy.ts` as `DOCUMENT_POLICY`. It is sent only as `Content-Security-Policy-Report-Only`, so no browser blocks anything. Violation reports go to Sentry's CSP security endpoint, which is built from `VITE_SENTRY_DSN`. Reports are sent only from a Railway deploy, for 10% of HTML documents, with at most 120 reporting documents per hour for each server process. One document covers a whole app session, because the SPA does not reload the page.
 
 ## Sources and why each is needed
 
