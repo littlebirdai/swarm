@@ -31,15 +31,23 @@ describe("summarizeFiles", () => {
   test("collapses files to areas, top paths and schema paths", () => {
     const s = summarizeFiles([
       { filename: "apps/server/convex/schema.ts", additions: 4, deletions: 1 },
+      {
+        filename: "apps/server/convex/schema/tasks.tables.ts",
+        additions: 2,
+        deletions: 1,
+      },
       { filename: "apps/web/a.tsx", additions: 100, deletions: 20 },
       { filename: "apps/web/b.tsx", additions: 1, deletions: 0 },
     ]);
     expect(s.areas).toEqual({
-      server: { touches: 1, insertions: 4, deletions: 1, generated: 0 },
+      server: { touches: 2, insertions: 6, deletions: 2, generated: 0 },
       web: { touches: 2, insertions: 101, deletions: 20, generated: 0 },
     });
     expect(s.top_paths[0]).toBe("apps/web/a.tsx");
-    expect(s.schema_paths).toEqual(["apps/server/convex/schema.ts"]);
+    expect(s.schema_paths).toEqual([
+      "apps/server/convex/schema.ts",
+      "apps/server/convex/schema/tasks.tables.ts",
+    ]);
   });
 });
 

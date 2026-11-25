@@ -35,7 +35,7 @@ is a strict improvement, not a regression, and it avoids inventing a coverage ma
 Superseded by [durable sync delivery](sync-outbox.md): domain saves now enqueue
 per-entity work atomically; short delivery transactions advance the scope counter.
 
-Two new tables (see schema.ts):
+Two new tables (see `apps/server/convex/schema/sync.tables.ts`):
 
 ```
 sync_heads:   { scope_key, position, floor, updated_at }         index by_scope

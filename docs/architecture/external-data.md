@@ -263,7 +263,7 @@ New derived names in `triggerEvents.ts`: `error_new`, `error_regressed`,
 `error_spike`, `job_failed`, `check_failed`, `check_recovered`,
 `metric_alert`, `metric_recovered`, `deploy`. Every transition a group kind
 can make, apart from `resolved`, has a name a trigger can be armed on. `event_filter` gains `source` (a source name),
-hoisted into one shared validator that schema.ts and agentTasks.ts import. The
+hoisted into one shared validator that `schema/schedules.tables.ts` and `agentTasks.ts` import. The
 CLI gets `--source <name|src-N>` for these names, and the web trigger form
 keeps it on save. Create and edit resolve it against the sources of the
 workspace the trigger fires in and store the canonical name

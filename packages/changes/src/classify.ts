@@ -80,7 +80,7 @@ function areaParts(path: string): { area: string; sub: string | null } {
 }
 
 const SCHEMA_PATH =
-  /(^|\/)schema\.ts$|(^|\/)migrations\/|\.sql$|(^|\/)prisma\//;
+  /(^|\/)schema\.ts$|^apps\/server\/convex\/schema\/[^/]+\.tables\.ts$|(^|\/)migrations\/|\.sql$|(^|\/)prisma\//;
 
 /**
  * Files no one wrote by hand: lockfiles, drizzle snapshots, generated code,

@@ -300,7 +300,7 @@ All generation lives in a new module `apps/server/convex/changes.ts` (functions)
 7. **Assign releases**: a story gets "shipped in X" when the first release of a surface whose paths cover the story's area comes after its last commit.
 8. **Compute risk signals** (code decides, the model only words them):
    - `skew`: backend-path commits landed after the latest backend deploy marker while a web ship is newer than those commits. Suppressed when the team has no backend deploy markers (no false alarms).
-   - `schema`: touches `schema.ts`, `migrations/`, `*.sql`, `prisma/`.
+   - `schema`: touches `schema.ts`, `apps/server/convex/schema/*.tables.ts`, `migrations/`, `*.sql`, `prisma/`.
    - `revert`: a revert commit.
    - `bulk`: over 1,500 changed lines with no PR, no team-visible session and no task.
    - `blocked`: a team-visible blocked insight linked to the story.

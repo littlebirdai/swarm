@@ -275,7 +275,7 @@ below the floor forever and trip the retention alarm).
   thin upsert in the owner's scope, a removal appends nothing); churn exemption unchanged.
 - Client unit: patch onto base with a pending lock (lock wins, ack retires it); full row
   path; no base → byIds; partial → refetch; fact strip; unset; delete → authorized absence.
-- Guard tests (syncLog.test.ts): `access_key` appears only in syncLog.ts, schema.ts,
+- Guard tests (syncLog.test.ts): `access_key` appears only in syncLog.ts, schema/sync.tables.ts,
   changeLog.ts and lib/accessKeys.ts (the builder); lib/access.ts never mentions `scope_key` or
   `sync_actions`; every task_comments insert goes through insertTaskComment; the log's
   fan-out and `visibleInTeamList` agree with the stamp predicate over generated documents.

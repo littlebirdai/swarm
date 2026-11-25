@@ -12,7 +12,7 @@ feature's refusal, not an empty list.
 
 ## What's in it
 
-- **Schema** (`apps/server/convex/schema.ts`): `anchors`, `anchor_channels`, `slack_events`,
+- **Schema** (`apps/server/convex/schema/` and `apps/server/convex/slackSchema.ts`): `anchors`, `anchor_channels`, `slack_events`,
   `slack_installations` tables; `users.is_bot`/`bot_kind`; `conversations.persistent`/`acting_user_id`/`anchor_id`.
 - **Core** (`anchors.ts`): `provisionStandingAgent` (seating), `wakeAnchor`, `rebriefAnchor`,
   `resolveAnchorForScope`, `listAnchors`, `decommissionAnchor`; the never-complete guard in
