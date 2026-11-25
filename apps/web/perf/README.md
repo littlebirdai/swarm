@@ -20,6 +20,49 @@ The budgets also check that a rename arriving through the feed reaches its card.
 
 DOM mutations are counted under the mounted tree and inside every shadow root from the moment it is attached (the harness wraps `attachShadow`). The diff viewer draws its lines in a shadow root outside React, so the diff's 18 records are its host going in plus the viewer's own draw; a redraw would add to them. A diff over 200 rows draws windowed (`components/diff/virtualizer.ts`): the harness gives that diff's scroller (`data-perf-viewport`) the viewport's height and reports each element the Virtualizer observes as on screen, as a browser's IntersectionObserver does on observe. The 32 layout reads are the windowing's own: finding the scroller and measuring it and the file's offset in it.
 
+## Store budgets
+
+The CI budget job runs these checks in fresh processes. Run only the store
+checks with `bun perf/budgets.ts store` and the first paint checks with
+`bun perf/budgets.ts boot`, from `apps/web`.
+
+| Budget                            |   Measured |      Limit | Fixture                                                                                                               | Deliberate regression and failing value        |
+| --------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Task list bytes                   | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                 | Keep comment threads on task rows → 32,019,997 |
+| Pull request list bytes           |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                    | Keep details on pull request rows → 34,354,946 |
+| Cached conversation message rows  |     80,000 |     80,000 | Visit 420 conversations with 200 messages each and retain 400                                                         | Raise the conversation cap to 401 → 80,200     |
+| Cached conversation message bytes | 14,884,801 | 15,033,650 | Same visits, with one inline image per conversation                                                                   | Store each message body twice → 22,584,801     |
+| Retained sessions                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip session retention → 1,300                 |
+| Retained conversations            |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip conversation retention → 1,300            |
+| Retained docDetails               |        200 |        200 | 220 recent rows                                                                                                       | Raise the cap by one → 201                     |
+| Retained taskComments             |      1,500 |      1,500 | 1,600 recent rows                                                                                                     | Raise the cap by one → 1,501                   |
+| Retained pullRequestDetails       |         12 |         12 | 24 recent rows                                                                                                        | Raise the cap by one → 13                      |
+| Retained deployReach              |        300 |        300 | 320 recent rows                                                                                                       | Raise the cap by one → 301                     |
+| Retained runGraphs                |         40 |         40 | 60 recent rows                                                                                                        | Raise the cap by one → 41                      |
+| Retained deployDetails            |         50 |         50 | 70 recent rows                                                                                                        | Raise the cap by one → 51                      |
+| Retained externalEvents           |      2,000 |      2,000 | 2,100 recent rows for one team                                                                                        | Raise the cap by one → 2,001                   |
+| Retained settingsData             |          1 |          1 | One current row and one retired row                                                                                   | Keep the retired row → 2                       |
+| Retained mySends                  |     10,000 |     10,000 | 10,100 recent rows                                                                                                    | Raise the cap by one → 10,001                  |
+| First paint read groups           |         21 |         21 | Signed-in boot with a cached conversation in focus                                                                    | Move tasks to the critical phase → 22          |
+| First paint IndexedDB tables      |         20 |         20 | Same boot                                                                                                             | Read deferred tasks without timing → 21        |
+| First paint IndexedDB rows        |      2,822 |      2,822 | 1,300 sessions and their twins, a 200-message focused transcript, one row per other collection and system metadata    | Read sessions twice → 4,122                    |
+| Streamed batch row writes         |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write               | Rewrite all 200 messages → 202                 |
+| Rename action row writes          |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
+| Follower populated collections    |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
+
+The byte limits add 1% rounded up for small changes to the stored row shape.
+The count limits add zero rows or tables. The retention fixture omits
+exceptions such as pinned sessions that can exceed a cap. The 200 rows per
+conversation model a warm tail. A user can load more history in memory.
+
+Byte counts measure UTF-8 JSON for the named store maps. IndexedDB counts
+come from fake IndexedDB through Dexie. Boot counts row values that reach
+Dexie before the store marks client state ready. The logical names come from
+the critical storage timing sample. Pending input and metadata use separate
+names and share a table. Writes count individual inserts, updates and deletes
+before a server acknowledgment. These checks use no elapsed time or heap
+measurements.
+
 ## What the timing measures
 
 The primary is `cpu.work`: CPU time of the bench process during the action. That covers React, the store and the app's own code, plus jsdom's DOM work. It leaves out style, layout and paint, which jsdom does not do, so it is not the browser's main-thread time. Because jsdom's DOM operations are slower than a browser's, DOM-heavy cases are dominated by jsdom: opening the long diff costs about 6 s of CPU here and much less in Chrome. A/B differences still point the right way because both sides pay the same jsdom cost. React also runs its development build here (plain bun leaves `NODE_ENV` unset, and `act()` and `<Profiler onRender>` need the development build), so `cpu.work` includes development-only work such as owner stacks and warnings that production never pays. Page-level cases (strobe `web()` targets in a real Chromium, measuring `main.work`, layout shift and frames) would need the app to boot offline against a mocked backend, which it cannot do today.

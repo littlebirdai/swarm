@@ -99,7 +99,7 @@ function text(length: number): string {
 }
 const cid = (prefix: string, n: number) =>
   `${prefix}${String(n).padStart(32 - prefix.length, "0")}`;
-const bytes = (v: unknown) => JSON.stringify(v).length;
+const bytes = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 const mb = (n: number) => `${(n / 1e6).toFixed(1)} MB`;
 const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
@@ -380,82 +380,91 @@ function makePullRequests() {
 const state = () => useInboxStore.getState() as any;
 const collectionBytes = (key: string) => bytes(state()[key] ?? {});
 
-// ── Tasks ──
-const tasks = makeTasks();
-const taskFat = bytes(Object.fromEntries(tasks.map((t) => [t._id, t])));
-const taskCommentBytes = tasks.reduce((n, t) => n + bytes(t.comments), 0);
-console.log(
-  `tasks: ${tasks.length} rows, ${tasks.reduce((n, t) => n + t.comments.length, 0)} comments (measured ${MEASURED.tasks.comments})`,
-);
-console.log(
-  `  synthetic rows with comments on them: ${mb(taskFat)}, comments ${mb(taskCommentBytes)}   (measured ${mb(MEASURED.tasks.rowBytes)}, comments ${mb(MEASURED.tasks.commentBytes)})`,
-);
-useInboxStore.setState({
-  tasks: {},
-  taskComments: {},
-  pullRequests: {},
-  pullRequestDetails: {},
-  pending: {},
-} as any);
-for (let i = 0; i < tasks.length; i += 100)
-  state().syncTable("tasks", tasks.slice(i, i + 100), { isDelta: true });
-const taskThin = collectionBytes("tasks");
-console.log(`  BEFORE  tasks list rows: ${mb(taskFat)}`);
-console.log(
-  `  AFTER   tasks list rows: ${mb(taskThin)}   threads held: ${mb(collectionBytes("taskComments"))} (nothing opened)`,
-);
-// The line app open: it reads the thread of every problem.
-holdTaskThreads(tasks.filter((t) => t.cause));
-console.log(
-  `  AFTER, with the line open (${MEASURED.tasks.causeRows} problems' threads): list rows ${mb(collectionBytes("tasks"))} + threads ${mb(collectionBytes("taskComments"))}`,
-);
+export function measureDetailRows(report: (line: string) => void = () => {}) {
+  seed = 0x2f6e2b1;
+  // ── Tasks ──
+  const tasks = makeTasks();
+  const taskFat = bytes(Object.fromEntries(tasks.map((t) => [t._id, t])));
+  const taskCommentBytes = tasks.reduce((n, t) => n + bytes(t.comments), 0);
+  report(
+    `tasks: ${tasks.length} rows, ${tasks.reduce((n, t) => n + t.comments.length, 0)} comments (measured ${MEASURED.tasks.comments})`,
+  );
+  report(
+    `  synthetic rows with comments on them: ${mb(taskFat)}, comments ${mb(taskCommentBytes)}   (measured ${mb(MEASURED.tasks.rowBytes)}, comments ${mb(MEASURED.tasks.commentBytes)})`,
+  );
+  useInboxStore.setState({
+    tasks: {},
+    taskComments: {},
+    pullRequests: {},
+    pullRequestDetails: {},
+    pending: {},
+  } as any);
+  for (let i = 0; i < tasks.length; i += 100)
+    state().syncTable("tasks", tasks.slice(i, i + 100), { isDelta: true });
+  const taskThin = collectionBytes("tasks");
+  report(`  BEFORE  tasks list rows: ${mb(taskFat)}`);
+  report(
+    `  AFTER   tasks list rows: ${mb(taskThin)}   threads held: ${mb(collectionBytes("taskComments"))} (nothing opened)`,
+  );
+  // The line app open: it reads the thread of every problem.
+  holdTaskThreads(tasks.filter((t) => t.cause));
+  report(
+    `  AFTER, with the line open (${MEASURED.tasks.causeRows} problems' threads): list rows ${mb(collectionBytes("tasks"))} + threads ${mb(collectionBytes("taskComments"))}`,
+  );
 
-// ── Pull requests ──
-const prs = makePullRequests();
-const prFat = bytes(Object.fromEntries(prs.map((p) => [p._id, p])));
-const part = (f: string) =>
-  prs.reduce((n, p) => n + (p[f] === undefined ? 0 : bytes(p[f])), 0);
-console.log(
-  `\npull requests: ${prs.length} rows, ${prs.reduce((n, p) => n + (p.files?.length ?? 0), 0)} files (measured ${MEASURED.prs.files}), ${prs.reduce((n, p) => n + (p.commits?.length ?? 0), 0)} commits (measured ${MEASURED.prs.commits}), ${prs.reduce((n, p) => n + (p.checks?.length ?? 0), 0)} checks (measured ${MEASURED.prs.checks})`,
-);
-console.log(
-  `  synthetic rows with detail on them: ${mb(prFat)}: files ${mb(part("files"))}, commits ${mb(part("commits"))}, checks ${mb(part("checks"))}, body ${mb(part("body"))}`,
-);
-console.log(
-  `  measured:                           ${mb(MEASURED.prs.rowBytes)}: files ${mb(MEASURED.prs.filesBytes)}, commits ${mb(MEASURED.prs.commitsBytes)}, checks ${mb(MEASURED.prs.checksBytes)}, body ${mb(MEASURED.prs.bodyBytes)}`,
-);
-state().syncTable("pullRequests", prs, { isDelta: true });
-console.log(`  BEFORE  pullRequests list rows: ${mb(prFat)}`);
-console.log(
-  `  AFTER   pullRequests list rows: ${mb(collectionBytes("pullRequests"))}   detail held: ${mb(collectionBytes("pullRequestDetails"))} (nothing opened)`,
-);
-const full = prs.filter((p) => p.files);
-const typical = [...full].sort((a, b) => bytes(a.files) - bytes(b.files))[
-  Math.floor(full.length / 2)
-];
-applyPullRequestAnswer(typical);
-console.log(
-  `  AFTER, one pull request's page open (the median one): detail held ${(collectionBytes("pullRequestDetails") / 1e3).toFixed(0)} KB; the mean detail is ${((part("files") + part("commits") + part("checks")) / full.length / 1e3).toFixed(0)} KB`,
-);
-// What the cache carries across a restart, and so what every window reads at boot: the retention cap.
-useInboxStore.setState({ pullRequestDetails: {} } as any);
-for (const p of full.slice(0, MAX_CACHED_PULL_REQUEST_DETAILS))
-  applyPullRequestAnswer(p);
-console.log(
-  `  AFTER, kept across a restart (the cap, ${MAX_CACHED_PULL_REQUEST_DETAILS} opened pull requests): detail held ${mb(collectionBytes("pullRequestDetails"))}`,
-);
-useInboxStore.setState({ pullRequestDetails: {} } as any);
-const heaviest = [...full]
-  .sort((a, b) => bytes(b.files) - bytes(a.files))
-  .slice(0, MAX_CACHED_PULL_REQUEST_DETAILS);
-for (const p of heaviest) applyPullRequestAnswer(p);
-console.log(
-  `  AFTER, the same cap filled with the ${MAX_CACHED_PULL_REQUEST_DETAILS} heaviest: detail held ${mb(collectionBytes("pullRequestDetails"))}`,
-);
+  // ── Pull requests ──
+  const prs = makePullRequests();
+  const prFat = bytes(Object.fromEntries(prs.map((p) => [p._id, p])));
+  const part = (f: string) =>
+    prs.reduce((n, p) => n + (p[f] === undefined ? 0 : bytes(p[f])), 0);
+  report(
+    `\npull requests: ${prs.length} rows, ${prs.reduce((n, p) => n + (p.files?.length ?? 0), 0)} files (measured ${MEASURED.prs.files}), ${prs.reduce((n, p) => n + (p.commits?.length ?? 0), 0)} commits (measured ${MEASURED.prs.commits}), ${prs.reduce((n, p) => n + (p.checks?.length ?? 0), 0)} checks (measured ${MEASURED.prs.checks})`,
+  );
+  report(
+    `  synthetic rows with detail on them: ${mb(prFat)}: files ${mb(part("files"))}, commits ${mb(part("commits"))}, checks ${mb(part("checks"))}, body ${mb(part("body"))}`,
+  );
+  report(
+    `  measured:                           ${mb(MEASURED.prs.rowBytes)}: files ${mb(MEASURED.prs.filesBytes)}, commits ${mb(MEASURED.prs.commitsBytes)}, checks ${mb(MEASURED.prs.checksBytes)}, body ${mb(MEASURED.prs.bodyBytes)}`,
+  );
+  state().syncTable("pullRequests", prs, { isDelta: true });
+  const prThin = collectionBytes("pullRequests");
+  report(`  BEFORE  pullRequests list rows: ${mb(prFat)}`);
+  report(
+    `  AFTER   pullRequests list rows: ${mb(prThin)}   detail held: ${mb(collectionBytes("pullRequestDetails"))} (nothing opened)`,
+  );
+  const full = prs.filter((p) => p.files);
+  const typical = [...full].sort((a, b) => bytes(a.files) - bytes(b.files))[
+    Math.floor(full.length / 2)
+  ];
+  applyPullRequestAnswer(typical);
+  report(
+    `  AFTER, one pull request's page open (the median one): detail held ${(collectionBytes("pullRequestDetails") / 1e3).toFixed(0)} KB; the mean detail is ${((part("files") + part("commits") + part("checks")) / full.length / 1e3).toFixed(0)} KB`,
+  );
+  // What the cache carries across a restart, and so what every window reads at boot: the retention cap.
+  useInboxStore.setState({ pullRequestDetails: {} } as any);
+  for (const p of full.slice(0, MAX_CACHED_PULL_REQUEST_DETAILS))
+    applyPullRequestAnswer(p);
+  report(
+    `  AFTER, kept across a restart (the cap, ${MAX_CACHED_PULL_REQUEST_DETAILS} opened pull requests): detail held ${mb(collectionBytes("pullRequestDetails"))}`,
+  );
+  useInboxStore.setState({ pullRequestDetails: {} } as any);
+  const heaviest = [...full]
+    .sort((a, b) => bytes(b.files) - bytes(a.files))
+    .slice(0, MAX_CACHED_PULL_REQUEST_DETAILS);
+  for (const p of heaviest) applyPullRequestAnswer(p);
+  report(
+    `  AFTER, the same cap filled with the ${MAX_CACHED_PULL_REQUEST_DETAILS} heaviest: detail held ${mb(collectionBytes("pullRequestDetails"))}`,
+  );
 
-const before = taskFat + prFat;
-const after = taskThin + collectionBytes("pullRequests");
-console.log(
-  `\nboth lists, always loaded in every window: ${mb(before)} before, ${mb(after)} after (${Math.round((1 - after / before) * 100)}% less)`,
-);
-process.exit(0);
+  const before = taskFat + prFat;
+  const after = taskThin + prThin;
+  report(
+    `\nboth lists, always loaded in every window: ${mb(before)} before, ${mb(after)} after (${Math.round((1 - after / before) * 100)}% less)`,
+  );
+  return { tasks: taskThin, pullRequests: prThin };
+}
+
+if (import.meta.main) {
+  measureDetailRows(console.log);
+  process.exit(0);
+}
