@@ -1,30 +1,16 @@
-import { describe, expect, mock, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { describe, expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import {
+  classifyUserMessage,
+  FOLD_KEPT_USER_KINDS,
+  isStickyWorthy,
+} from "../conversation/classify";
+import { EscalationDivider } from "../conversation/blocks/systemBlocks";
+import { IdentityPrefsOverride } from "../../hooks/useIdentityPrefs";
+import { DEFAULT_IDENTITY_PREFS } from "../../lib/sessionIdentity";
 
-// The session pill asks Convex for the row it names; only the transport is
-// faked, the pill and the divider are real.
-const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-  useMutation: () => async () => undefined,
-  useAction: () => async () => undefined,
-  useConvex: () => ({ query: async () => null, mutation: async () => null }),
-}));
-const { classifyUserMessage, FOLD_KEPT_USER_KINDS, isStickyWorthy } =
-  await import("../conversation/classify");
-const { EscalationDivider } =
-  await import("../conversation/blocks/systemBlocks");
-const { IdentityPrefsOverride } = await import("../../hooks/useIdentityPrefs");
-const { DEFAULT_IDENTITY_PREFS } = await import("../../lib/sessionIdentity");
-
-// A session that moved between its role and the person while `cast escalate`
-// existed (retired, org-staffing.md S28) left one machine message in both
-// threads; it still renders as an inline divider: the role's face, the move,
-// the whole line as markdown, the time. Never a bubble, never a sticky human
-// prompt. The wire is a literal: nothing writes it any more.
 const wire = [
   '<session-escalation move="handed" by="role" role="or-8" handle="calling" name="Calling" avatar="fox" session="jx7abcd" title="Market growth mandate" to="Ashot" at="1790000000000">',
   "how a market is **filled** is yours to call\n\n- 40 seats now\n- or 80 after the pilot",
@@ -32,15 +18,12 @@ const wire = [
 ].join("\n");
 const backWire =
   '<session-escalation move="back" by="person" role="or-8" handle="calling" name="Calling" session="jx7abcd" to="Ashot" at="1">\n\n</session-escalation>';
-// The role's face is its character, which needs Characters on (off by
-// default); static markup reads the store's initial state, so say it here.
-const render = (node: React.ReactNode) =>
-  renderToStaticMarkup(
-    <MemoryRouter>
-      <IdentityPrefsOverride.Provider value={DEFAULT_IDENTITY_PREFS}>
-        {node}
-      </IdentityPrefsOverride.Provider>
-    </MemoryRouter>,
+const mount = (node: React.ReactNode) =>
+  mountWeb(
+    <IdentityPrefsOverride.Provider value={DEFAULT_IDENTITY_PREFS}>
+      {node}
+    </IdentityPrefsOverride.Provider>,
+    { setup: (backend) => backend.set(api.conversations.webGet, pending) },
   );
 
 describe("escalation divider", () => {
@@ -58,7 +41,7 @@ describe("escalation divider", () => {
     expect(isStickyWorthy(kind)).toBe(false);
   });
 
-  test("in the child's thread: the face, 'this session', the whole line as markdown, no pill", () => {
+  test("in the child's thread: the face, 'this session', the whole line as markdown, no pill", async () => {
     const kind = classifyUserMessage({
       _id: "m1",
       role: "user",
@@ -66,24 +49,27 @@ describe("escalation divider", () => {
       timestamp: 1,
     });
     if (kind.kind !== "session_escalation") throw new Error("kind");
-    const html = render(
+    const { container } = await mount(
       <EscalationDivider
         escalation={kind.escalation}
         conversationShortId="jx7abcd"
         timestamp={1_790_000_000_000}
       />,
     );
-    expect(html).toContain('data-switch-divider="escalation-handed"');
-    expect(html).toContain("@calling handed this session to Ashot");
-    expect(html).toContain("<strong>filled</strong>");
-    expect(html).toContain("<li>40 seats now</li>");
-    expect(html).toContain("or 80 after the pilot");
-    // The role's face is drawn; the session pill is not (it is this thread).
-    expect(html).toMatch(/<img[^>]*alt="Calling"/);
-    expect(html).not.toContain(">jx7abcd<");
+    expect(container.innerHTML).toContain(
+      'data-switch-divider="escalation-handed"',
+    );
+    expect(container.innerHTML).toContain(
+      "@calling handed this session to Ashot",
+    );
+    expect(container.innerHTML).toContain("<strong>filled</strong>");
+    expect(container.innerHTML).toContain("<li>40 seats now</li>");
+    expect(container.innerHTML).toContain("or 80 after the pilot");
+    expect(container.innerHTML).toMatch(/<img[^>]*alt="Calling"/);
+    expect(container.innerHTML).not.toContain(">jx7abcd<");
   });
 
-  test("in the role's thread: the session is named by its pill; a hand back has no body", () => {
+  test("in the role's thread: the session is named by its pill; a hand back has no body", async () => {
     const kind = classifyUserMessage({
       _id: "m1",
       role: "user",
@@ -91,15 +77,15 @@ describe("escalation divider", () => {
       timestamp: 1,
     });
     if (kind.kind !== "session_escalation") throw new Error("kind");
-    const html = render(
+    const { container, rerender } = await mount(
       <EscalationDivider
         escalation={kind.escalation}
         conversationShortId="jx7rolee"
         timestamp={1_790_000_000_000}
       />,
     );
-    expect(html).toContain("@calling handed jx7abcd to Ashot");
-    expect(html).toContain("jx7abcd");
+    expect(container.innerHTML).toContain("@calling handed jx7abcd to Ashot");
+    expect(container.innerHTML).toContain("jx7abcd");
     const back = classifyUserMessage({
       _id: "m2",
       role: "user",
@@ -107,14 +93,16 @@ describe("escalation divider", () => {
       timestamp: 2,
     });
     if (back.kind !== "session_escalation") throw new Error("kind");
-    const backHtml = render(
-      <EscalationDivider
-        escalation={back.escalation}
-        conversationShortId="jx7abcd"
-        timestamp={2}
-      />,
+    await rerender(
+      <IdentityPrefsOverride.Provider value={DEFAULT_IDENTITY_PREFS}>
+        <EscalationDivider
+          escalation={back.escalation}
+          conversationShortId="jx7abcd"
+          timestamp={2}
+        />
+      </IdentityPrefsOverride.Provider>,
     );
-    expect(backHtml).toContain("this session is back with @calling");
-    expect(backHtml).not.toContain("data-switch-divider-body");
+    expect(container.innerHTML).toContain("this session is back with @calling");
+    expect(container.innerHTML).not.toContain("data-switch-divider-body");
   });
 });

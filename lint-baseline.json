@@ -15288,9 +15288,6 @@
   "apps/web/components/__tests__/TeamDomainBanner.mount.test.tsx": {
     "swarm/no-comments": 6
   },
-  "apps/web/components/__tests__/TeamFindableNudge.mount.test.tsx": {
-    "swarm/no-comments": 3
-  },
   "apps/web/components/__tests__/TeamShareNudge.mount.test.tsx": {
     "swarm/no-comments": 4
   },
@@ -15302,9 +15299,6 @@
   },
   "apps/web/components/__tests__/accountUsageChip.flyout.test.ts": {
     "swarm/no-comments": 11
-  },
-  "apps/web/components/__tests__/actionSubmenuAssign.test.tsx": {
-    "swarm/no-comments": 8
   },
   "apps/web/components/__tests__/agentReportRail.guard.test.ts": {
     "swarm/no-comments": 2
@@ -15395,9 +15389,6 @@
   },
   "apps/web/components/__tests__/documentDetailLoading.test.tsx": {
     "swarm/no-comments": 5
-  },
-  "apps/web/components/__tests__/escalationDivider.test.tsx": {
-    "swarm/no-comments": 10
   },
   "apps/web/components/__tests__/escapeForwardGate.guard.test.ts": {
     "swarm/no-comments": 19
@@ -15554,9 +15545,6 @@
   "apps/web/components/__tests__/org.degrade.test.tsx": {
     "swarm/no-comments": 12
   },
-  "apps/web/components/__tests__/paletteTeammates.test.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/components/__tests__/paneFocusDeps.guard.test.ts": {
     "swarm/no-comments": 6
   },
@@ -15577,9 +15565,6 @@
   },
   "apps/web/components/__tests__/recoverableRenderError.test.tsx": {
     "swarm/no-comments": 17
-  },
-  "apps/web/components/__tests__/reviveDivider.test.tsx": {
-    "swarm/no-comments": 3
   },
   "apps/web/components/__tests__/roleBrief.test.ts": {
     "swarm/no-comments": 3
@@ -16530,9 +16515,6 @@
     "swarm/ime-safe-key-handlers": 3,
     "swarm/no-comments": 18,
     "swarm/no-native-title-with-aria-label": 1
-  },
-  "apps/web/components/chat/ChatAttachments.markup.test.tsx": {
-    "swarm/no-comments": 1
   },
   "apps/web/components/chat/ChatAttachments.tsx": {
     "swarm/no-comments": 14
@@ -18219,7 +18201,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/components/line/widgets/__tests__/ProductView.mount.test.tsx": {
-    "swarm/no-comments": 11
+    "swarm/no-comments": 5
   },
   "apps/web/components/line/widgets/actionSlots.tsx": {
     "swarm/no-comments": 13
@@ -21570,9 +21552,6 @@
   },
   "apps/web/hooks/__tests__/useSyncTaskThreads.mount.test.tsx": {
     "swarm/no-comments": 20
-  },
-  "apps/web/hooks/__tests__/useSyncTrial.error.test.tsx": {
-    "swarm/no-comments": 3
   },
   "apps/web/hooks/__tests__/useTeamRoster.roles.test.ts": {
     "swarm/no-comments": 4

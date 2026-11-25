@@ -1,67 +1,40 @@
-// Mounts ProductView (external-data.md X8, views) in jsdom with the mint
-// action stubbed: a source with no views draws nothing or its fallback, a
-// refused mint falls back and names the grant page, a minted url frames the
-// view and sizes it only from its own frame's protocol messages, a frame
-// error falls back, and a page opens at most LIVE_PLAYERS_MAX by itself.
-import { afterAll, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
+import { expect, test } from "bun:test";
+import { act, type ReactElement } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
 import { replaceGlobals } from "../../../../test-helpers/globals";
-import { closeDomWindow } from "../../../../test-helpers/domGlobals";
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://local.codecast.sh/line",
-  pretendToBeVisual: true,
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-const { createRoot } = await import("react-dom/client");
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
+import { mountWeb } from "../../../../test-helpers/mountWeb";
+import {
+  ProductView,
+  ProductViewPill,
+  type ProductViewMint,
+} from "../ProductView";
+import { LIVE_PLAYERS_MAX } from "../../../ops/ReplayMomentEmbed";
 
 const ORIGIN = "https://admin.union.example";
 const CONTACT = "2b7c1d5e-9f3a-4c61-8e2d-0a1b2c3d4e5f";
-let answer: (ref: string) => unknown = () => null;
-const minted: string[] = [];
-const realConvex = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...realConvex,
-  useAction:
-    () =>
-    async ({ ref }: { ref: string }) => {
-      minted.push(ref);
-      return answer(ref);
-    },
-}));
-
-const { useInboxStore } = await import("../../../../store/inboxStore");
-const { ProductView, ProductViewPill } = await import("../ProductView");
-const { LIVE_PLAYERS_MAX } = await import("../../../ops/ReplayMomentEmbed");
-
+let answer: (ref: string) => ProductViewMint | null;
+let minted: string[] = [];
 let viewer = 0;
-async function mount(el: React.ReactElement) {
-  // A new viewer per mount empties the page's mint cache, so each test asks afresh.
-  useInboxStore.setState({ currentUser: { _id: `u${++viewer}` } } as never);
-  const host = document.createElement("div");
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(el);
+
+async function mount(element: ReactElement) {
+  const user = { _id: `product-view-viewer-${++viewer}` };
+  const web = await mountWeb(<div data-test-view>{element}</div>, {
+    path: "/line",
+    setup: (backend, store) => {
+      replaceGlobals({ IntersectionObserver: undefined });
+      store.syncTable("currentUser", user);
+      backend.action(api.sources.appViews.mint, ({ ref, workspace }) => {
+        expect(workspace).toBe(`user:${user._id}`);
+        minted.push(ref);
+        return answer(ref);
+      });
+    },
   });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
-  return { host, unmount: () => act(() => root.unmount()) };
+  return {
+    ...web,
+    host: web.container.querySelector<HTMLElement>("[data-test-view]")!,
+    unmount: web.close,
+  };
 }
 const ref = (id = CONTACT) => ({
   app: "union",
@@ -69,7 +42,7 @@ const ref = (id = CONTACT) => ({
   id,
   at: null,
 });
-const ok = (r: string) => ({
+const ok = (r: string): ProductViewMint => ({
   ok: true,
   app: "Union",
   view: "conversation",
@@ -83,7 +56,7 @@ test("an app with no such view draws nothing where asked to hide, else its fallb
   answer = () => null;
   let m = await mount(<ProductView viewRef={ref()} hideWhenNone />);
   expect(m.host.innerHTML).toBe("");
-  m.unmount();
+  await m.unmount();
   m = await mount(
     <ProductView viewRef={ref()} fallback={<p data-ours>our text</p>} />,
   );
@@ -92,7 +65,7 @@ test("an app with no such view draws nothing where asked to hide, else its fallb
   ).toBe("fallback");
   expect(m.host.querySelector("[data-ours]")?.textContent).toBe("our text");
   expect(m.host.querySelector("iframe")).toBeNull();
-  m.unmount();
+  await m.unmount();
 });
 
 test("a refused mint falls back and links the grant page", async () => {
@@ -111,11 +84,11 @@ test("a refused mint falls back and links the grant page", async () => {
   expect(m.host.querySelector(".pv-why a")?.getAttribute("href")).toBe(
     "https://codecast.sh/ops/sources/so-3/grant",
   );
-  m.unmount();
+  await m.unmount();
 });
 
 test("a connection that cannot frame the view never prints its config error to the reader (ct-58683)", async () => {
-  const refused = () => ({
+  const refused = (): ProductViewMint => ({
     ok: false,
     app: "Union",
     view: "call",
@@ -131,27 +104,21 @@ test("a connection that cannot frame the view never prints its config error to t
     "can't be shown here",
   );
   expect(m.host.querySelector("[data-ours]")).not.toBeNull();
-  m.unmount();
+  await m.unmount();
   // Where the host already shows the finding's own words and link, a refusal draws nothing at all.
   m = await mount(<ProductView viewRef={ref()} eager hideWhenUnframed />);
   expect(m.host.innerHTML).toBe("");
-  m.unmount();
+  await m.unmount();
   // A pill whose view cannot open reads as the view's name, never a button that does nothing.
   m = await mount(<ProductViewPill viewRef={ref()} />);
-  const realOpen = window.open;
-  (window as any).open = () => null;
   await act(async () => {
     (m.host.querySelector("button") as HTMLButtonElement).click();
   });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
-  (window as any).open = realOpen;
   expect(m.host.querySelector("button")).toBeNull();
   expect(m.host.querySelector("[data-failed]")?.textContent).not.toContain(
     "fly.dev",
   );
-  m.unmount();
+  await m.unmount();
 });
 
 test("a minted url frames the view, sized only by its own frame's tagged messages; an error falls back", async () => {
@@ -171,11 +138,11 @@ test("a minted url frames the view, sized only by its own frame's tagged message
   const post = (
     data: unknown,
     origin = ORIGIN,
-    source: any = frame.contentWindow,
+    source: Window | null = frame.contentWindow,
   ) =>
     act(() => {
       window.dispatchEvent(
-        new dom.window.MessageEvent("message", { data, origin, source }),
+        new m.dom.window.MessageEvent("message", { data, origin, source }),
       );
     });
   await post(
@@ -212,7 +179,7 @@ test("a minted url frames the view, sized only by its own frame's tagged message
   expect(m.host.querySelector(".pv-why")?.getAttribute("title")).toBe(
     "token expired",
   );
-  m.unmount();
+  await m.unmount();
 });
 
 test("a page opens at most a few views by itself; the rest wait for a click", async () => {
@@ -237,12 +204,9 @@ test("a page opens at most a few views by itself; the rest wait for a click", as
   await act(async () => {
     (waiting[0] as HTMLButtonElement).click();
   });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
   expect(minted.length).toBe(n);
   expect(m.host.querySelectorAll("iframe").length).toBe(n);
-  m.unmount();
+  await m.unmount();
 });
 
 test("a minted url on codecast's own site is never framed: it falls back and says why", async () => {
@@ -252,8 +216,8 @@ test("a minted url on codecast's own site is never framed: it falls back and say
     app: "Union",
     view: "conversation",
     title: "Conversation",
-    url: "https://codecast.sh/a/slug?token=t",
-    origin: "https://codecast.sh",
+    url: "https://embed.app.test/a/slug?token=t",
+    origin: "https://embed.app.test",
     expires_at: new Date(Date.now() + 600_000).toISOString(),
   });
   const m = await mount(
@@ -267,7 +231,7 @@ test("a minted url on codecast's own site is never framed: it falls back and say
   expect(m.host.querySelector(".pv-why")?.getAttribute("title")).toContain(
     "codecast's own site",
   );
-  m.unmount();
+  await m.unmount();
 });
 
 test("a fallback that names the thing shows at once, before the view is near or minted, and when no app has the view (ct-58683)", async () => {
@@ -285,5 +249,5 @@ test("a fallback that names the thing shows at once, before the view is near or 
     "Eric called Carmit",
   );
   expect(m.host.querySelector(".pv-head")).toBeNull();
-  m.unmount();
+  await m.unmount();
 });
