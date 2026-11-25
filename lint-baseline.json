@@ -14079,9 +14079,6 @@
     "swarm/no-comments": 5,
     "swarm/no-native-title-with-aria-label": 1
   },
-  "apps/web/app/settings/sync/page.mount.test.tsx": {
-    "swarm/no-comments": 26
-  },
   "apps/web/app/settings/sync/page.tsx": {
     "react/purity": 2,
     "swarm/ime-safe-key-handlers": 1,
@@ -19495,9 +19492,6 @@
     "react/refs": 8,
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 98
-  },
-  "apps/web/components/org/RecordGroupRow.mount.test.tsx": {
-    "swarm/no-comments": 27
   },
   "apps/web/components/org/RecordGroupRow.tsx": {
     "swarm/no-comments": 16

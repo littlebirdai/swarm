@@ -1,451 +1,418 @@
-// The Sync page before the first session ever syncs: a typed path is a row
-// with a share menu the moment it is added, and a "never share" lock files
-// its row under its own group. A user who has not started the daemon reads
-// that everything is private, and can write rules before anything uploads.
-// Run: cd apps/web && bun test app/settings/sync/page.mount.test.tsx
-import { test } from "bun:test";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../../../components/__tests__/mockInboxStore";
+import { afterEach, expect, spyOn, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import type { FunctionReturnType } from "convex/server";
+import { act } from "react";
+import { testFaker } from "@codecast/test-helpers/faker";
+import type { LocalFolder } from "../../../lib/fsBrowse";
+import { flushSyncPublishes } from "../../../store/syncTransaction";
+import { webBuilders } from "../../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { waitForDom } from "../../../test-helpers/waitForDom";
+import SyncPage from "./page";
 
-restoreInboxStoreAfterAll();
-import assert from "node:assert/strict";
+const DAY = 86_400_000;
+const HEALTH = "/Users/me/health";
+const CLONE = "/Users/me/src/app-clone";
+const SITE = "/Users/me/src/site";
+const QUIET = "/Users/me/src/quiet";
+const OUTREACH = "/Users/me/src/old/outreach";
+const LIVE = "/Users/me/src/live";
+const users = api.users;
+const seed = "settings/sync/page.mount.test.tsx";
+type RecentProject = FunctionReturnType<
+  typeof users.getRecentProjectsWithGitInfo
+>[number];
+type Mapping = FunctionReturnType<
+  typeof users.getDirectoryTeamMappings
+>[number];
+type Store = Awaited<ReturnType<typeof mountWeb>>["store"];
 
-async function verify() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh/settings/sync", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLInputElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "MouseEvent",
-    "PointerEvent",
-    "getComputedStyle",
-    "ResizeObserver",
-  ]) {
-    const value = (dom.window as any)[key];
-    if (value !== undefined)
-      Object.defineProperty(globalThis, key, {
-        value,
-        configurable: true,
-        writable: true,
-      });
-  }
-  if (!(globalThis as any).ResizeObserver)
-    (globalThis as any).ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    };
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
-
-  // The fixtures every hook answers from; a test flips them between renders.
-  const fx: any = {
-    user: {
-      _id: "u_me",
-      sync_mode: "all",
-      sync_projects: [] as string[],
-      active_team_id: null,
-    },
-    teams: [] as any[],
-    syncProjects: [] as any[],
-    directoryMappings: [] as any[],
-    sessions: { rows: [] as any[], total: 0, truncated: false },
+function recentProject(
+  row: Pick<
+    RecentProject,
+    "path" | "is_git_repo" | "session_count" | "last_active"
+  > &
+    Partial<RecentProject>,
+): RecentProject {
+  return {
+    git_remote_url: undefined,
+    repository: undefined,
+    first_active: row.last_active,
+    auto_share: false,
+    private: false,
+    mapped_directly: false,
+    share_since: null,
+    team_id: null,
+    ...row,
   };
-  const calls: string[] = [];
-  const toasts: string[] = [];
-  const state: any = {
-    get teams() {
-      return fx.teams;
-    },
-    currentUser: fx.user,
-    // The cloud agent rows read the machine roster (no machines: no connect notes).
-    machineRoster: [],
-    setPrivacy: () => {},
-    setTeamMembershipVisibility: () => {},
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
-    getState: () => state,
-    setState: () => {},
-  });
-  mock.module("../../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: () => state,
-  }));
-  mock.module("../../../hooks/useSyncSettings", () => ({
-    useSettingsData: (name: string) => ({ data: fx[name] }),
-  }));
-  mock.module("../../../hooks/useCurrentUser", () => ({
-    useCurrentUser: () => ({ user: fx.user }),
-  }));
-  // Exact counts answer at once: a path with no sessions reads as zero.
-  const zero = {
-    count: 0,
-    first_started_at: null,
-    last_started_at: null,
-    truncated: false,
-    older: 0,
-    older_than_day: 0,
-    hidden: 0,
-    manually_shared: 0,
-  };
-  const summaries = new Proxy({}, { get: () => zero, has: () => true });
-  mock.module("../../../hooks/useShareSummaries", () => ({
-    useShareSummaries: () => ({ summaries, loading: false, reload: () => {} }),
-  }));
-  mock.module("../../../hooks/useQueryNoThrow", () => ({
-    useQueryNoThrow: (_q: any, args: any) => ({
-      data: args === "skip" ? undefined : fx.sessions,
-    }),
-  }));
-  mock.module("../../../components/settings/TeamVisibilityControl", () => ({
-    TeamVisibilityControl: () => null,
-  }));
-  mock.module("../../../lib/fsBrowse", () => ({
-    fetchLocalSessions: async () => fx.local ?? null,
-    fetchPathsExist: async (_c: any, paths: string[]) => ({
-      home: "/Users/me",
-      exists: Object.fromEntries(
-        paths.map((p) => [p, !(fx.gone ?? []).includes(p)]),
-      ),
-    }),
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  mock.module("sonner", () => ({
-    toast: Object.assign((m: string) => toasts.push(m), {
-      success: (m: string) => toasts.push(`ok:${m}`),
-      error: (m: string) => toasts.push(`err:${m}`),
-      info: (m: string) => toasts.push(`info:${m}`),
-    }),
-  }));
-  const convexReact = await import("convex/react");
-  const { getFunctionName } = await import("convex/server");
-  mock.module("convex/react", () => ({
-    ...convexReact,
-    useMutation: (ref: any) => {
-      const name = getFunctionName(ref).replace(/^.*[:.]/, "");
-      return async (args: any) => {
-        calls.push(`${name}:${JSON.stringify(args)}`);
-        if (fx.failNext) {
-          fx.failNext = false;
-          throw new Error("Server Error");
-        }
-        return {};
-      };
-    },
-  }));
+}
 
-  const { createRoot } = await import("react-dom/client");
-  const { default: SyncPage } = await import("./page");
-  const root = createRoot(document.getElementById("root")!);
-  const text = () => document.body.textContent ?? "";
-  const buttons = () =>
-    [...document.querySelectorAll("button")] as HTMLButtonElement[];
-  const byText = (label: string) =>
-    buttons().find((b) => b.textContent?.trim() === label);
-  const render = async () => {
-    await act(async () => {
-      root.render(React.createElement(SyncPage));
-    });
-  };
-
-  // ── nothing synced yet: the page says everything is private, and how to write a rule first ──
-  await render();
-  assert.match(text(), /Nothing has synced yet, so nothing is shared/);
-  assert.match(text(), /add a folder above/);
-  assert.ok(
-    !/Start a coding session/.test(text()),
-    "the old empty state is gone",
-  );
-
-  // ── a typed path lands in the chosen folders list, with sync all on ──
-  // On a team with nothing synced: still the empty state, no team header pointing at nothing.
-  fx.teams = [
-    { _id: "t_team", name: "Union", visibility: "full", member_count: 3 },
-  ];
-  await render();
-  assert.match(text(), /Nothing has synced yet, so nothing is shared/);
-  assert.ok(
-    !/Nothing shared with Union/.test(text()) && !/teammates/.test(text()),
-    "no empty team header",
-  );
-  assert.equal(
-    byText("+ Add path"),
-    undefined,
-    "with nothing listed the add row is simply open",
-  );
-  const input = document.querySelector<HTMLInputElement>(
-    'input[placeholder^="Full path of a folder"]',
-  )!;
-  assert.ok(input, "the add row has the path field");
-  const setValue = (v: string) => {
+function changeInput(el: HTMLInputElement, value: string) {
+  return act(async () => {
     Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
       "value",
-    )!.set!.call(input, v);
-    input.dispatchEvent(
-      new (dom.window as any).Event("input", { bubbles: true }),
-    );
-  };
-  // An empty field has nothing to add: the button says so by being disabled,
-  // not by swallowing the click (a user rage clicked it fifteen times).
-  assert.equal(
-    byText("Add")!.disabled,
-    true,
-    "Add is disabled while the field is empty",
-  );
-  await act(async () => {
-    setValue("   ");
+    )!.set!.call(el, value);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  assert.equal(byText("Add")!.disabled, true, "whitespace is still empty");
-  await act(async () => {
-    setValue("notes");
-  });
-  assert.equal(byText("Add")!.disabled, false, "a typed path enables Add");
-  await act(async () => {
-    byText("Add")!.click();
-  });
-  assert.equal(calls.length, 0, "a relative path writes nothing");
-  assert.match(toasts.pop() ?? "", /^err:Type the full path/);
-  // A failed save keeps the typed path and says so, rather than clearing the
-  // field and leaving nothing behind.
-  await act(async () => {
-    setValue("/Users/me/health/");
-  });
-  fx.failNext = true;
-  await act(async () => {
-    byText("Add")!.click();
-  });
-  calls.pop();
-  assert.match(toasts.pop() ?? "", /^err:Could not add health/);
-  assert.equal(
-    input.value,
-    "/Users/me/health/",
-    "the path stays in the field to try again",
-  );
-  await act(async () => {
-    byText("Add")!.click();
-  });
-  assert.equal(
-    calls.pop(),
-    'updateSyncSettings:{"sync_projects":["/Users/me/health"]}',
-    "the trailing slash is dropped and the path is stored",
-  );
-  assert.match(toasts.pop() ?? "", /^ok:health added/);
+}
 
-  // ── the stored path is a row with its own share menu, sessions or none ──
-  fx.user = { ...fx.user, sync_projects: ["/Users/me/health"] };
-  state.currentUser = fx.user;
-  fx.teams = [
-    { _id: "t_team", name: "Union", visibility: "full", member_count: 3 },
-  ];
-  await render();
-  assert.match(text(), /Private — only you/);
-  assert.match(text(), /no sessions yet/);
-  const menu = buttons().find(
-    (b) => b.getAttribute("aria-label") === "Who can open health",
-  );
-  assert.ok(menu, "the typed row carries the share menu");
-  assert.match(menu!.textContent ?? "", /Only me/);
-  assert.ok(
-    !/Never shared — locked/.test(text()),
-    "no locked group without a lock",
+const click = (el: HTMLElement) => act(async () => el.click());
+const text = () => document.body.textContent ?? "";
+const buttons = () => [...document.querySelectorAll("button")];
+const byText = (label: string) =>
+  buttons().find((b) => b.textContent?.trim() === label);
+const byLabel = (label: string) =>
+  buttons().find((b) => b.getAttribute("aria-label") === label) ?? null;
+const panel = () => document.querySelector("[data-share-panel]");
+const panelText = () => panel()?.textContent ?? "";
+const chips = () => [
+  ...panel()!.querySelectorAll<HTMLButtonElement>("[role=radio]"),
+];
+const apply = () => [...panel()!.querySelectorAll("button")].at(-1)!;
+const scopes = () => [
+  ...panel()!.querySelectorAll<HTMLInputElement>("input[name=share-scope]"),
+];
+const toastShown = (type: string, title: string) =>
+  act(() =>
+    waitForDom(document.body, () =>
+      [
+        ...document.querySelectorAll(
+          '[data-sonner-toast][data-type="' + type + '"] [data-title]',
+        ),
+      ].some((node) => node.textContent === title),
+    ),
   );
 
-  // ── the trigger opens one panel under the row: every choice in one line, nothing repeated per team ──
-  assert.equal(
-    document.querySelector("[data-share-panel]"),
-    null,
-    "closed until asked",
-  );
-  await act(async () => {
-    menu!.click();
-  });
-  const panel = () => document.querySelector("[data-share-panel]")!;
-  assert.ok(panel(), "the panel opens inline");
-  const chips = () =>
-    [...panel().querySelectorAll("[role=radio]")] as HTMLButtonElement[];
-  assert.deepEqual(
-    chips().map((c) => c.textContent),
-    ["Only me", "Union", "Never share"],
-  );
-  assert.equal(
-    chips()[0].getAttribute("aria-checked"),
-    "true",
-    "the current rule is picked",
-  );
-  const apply = () =>
-    [...panel().querySelectorAll("button")].at(-1) as HTMLButtonElement;
-  assert.equal(
-    apply().textContent,
-    "Close",
-    "nothing to apply until the choice changes",
-  );
-  // A team: the sentence, the scope, the sessions, and the default covers the past.
-  fx.sessions = {
-    rows: [
-      {
-        _id: "c1",
-        title: "Appointment notes",
-        started_at: Date.now() - 86_400_000,
-        message_count: 4,
-        is_private: true,
-        team_visibility: null,
-      },
-      {
-        _id: "c2",
-        title: "Old scan",
-        started_at: Date.now() - 5 * 86_400_000,
-        message_count: 2,
-        is_private: true,
-        team_visibility: "private",
-      },
-    ],
-    total: 2,
-    truncated: false,
+let restoreFetch: (() => void) | undefined;
+afterEach(() => {
+  restoreFetch?.();
+  restoreFetch = undefined;
+});
+
+function fixtures() {
+  const { conversation, teamMember } = webBuilders(seed);
+  const faker = testFaker(seed);
+  const id = () => faker.string.alphanumeric({ length: 32, casing: "lower" });
+  const now = Date.now();
+  const member = teamMember.build();
+  const team = {
+    _id: id() as Id<"teams">,
+    name: "Union",
+    visibility: "full",
+    member_count: 3,
   };
-  await act(async () => {
-    chips()[1].click();
+  const lock = (path: string, repository?: string): Mapping => ({
+    _id: id() as Id<"directory_team_mappings">,
+    path_prefix: path,
+    team_id: null,
+    team_name: null,
+    auto_share: false,
+    private: true,
+    share_since: undefined,
+    repository,
+    created_at: now,
   });
-  assert.match(
-    panel().textContent ?? "",
+  const appointment = conversation.build({
+    title: "Appointment notes",
+    started_at: now - DAY,
+    message_count: 4,
+  });
+  const oldScan = conversation.build({
+    title: "Old scan",
+    started_at: now - 5 * DAY,
+    message_count: 2,
+    team_visibility: "private",
+  });
+  const state = {
+    user: {
+      ...member,
+      sync_mode: "all" as "all" | "selected",
+      sync_projects: [] as string[],
+      sync_excluded: [] as string[],
+    },
+    teams: [] as (typeof team)[],
+    projects: [] as RecentProject[],
+    mappings: [] as Mapping[],
+    local: null as LocalFolder[] | null,
+    gone: [] as string[],
+    failNext: false,
+  };
+  const requests: URL[] = [];
+  const reply = async (...[target, options]: Parameters<typeof fetch>) => {
+    const url = new URL(String(target));
+    requests.push(url);
+    if (
+      url.origin !== "http://127.0.0.1:42871" ||
+      new Headers(options?.headers).get("Authorization") !==
+        "Bearer test-daemon"
+    ) {
+      return new Response(null, { status: 403 });
+    }
+    if (url.pathname === "/fs/sessions") {
+      return Response.json(state.local ? { folders: state.local } : null);
+    }
+    if (url.pathname === "/fs/exists") {
+      const paths = url.searchParams.getAll("p");
+      return Response.json({
+        home: "/Users/me",
+        exists: Object.fromEntries(
+          paths.map((path) => [path, !state.gone.includes(path)]),
+        ),
+      });
+    }
+    return new Response(null, { status: 404 });
+  };
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(reply, { preconnect: fetch.preconnect }),
+  );
+  restoreFetch = () => fetchSpy.mockRestore();
+
+  const syncViewer = (store: ReturnType<Store["getState"]>) => {
+    store.syncTable("currentUser", state.user);
+    store.syncTable("teams", state.teams);
+    flushSyncPublishes();
+  };
+  const load = (expectFailedSave = false) =>
+    mountWeb(<SyncPage />, {
+      path: "/settings/sync",
+      dispatch: true,
+      expectedConsoleErrors: expectFailedSave
+        ? [
+            /\[CONVEX M\(users:updateSyncSettings\)\].*Server Error/,
+            /^Failed to add folder:/,
+          ]
+        : [],
+      setup(backend, store) {
+        localStorage.setItem("CAST_TERM_ENDPOINT", "42871:test-daemon");
+        syncViewer(store);
+        backend.set(api.accountSwitch.listAccountProfiles, { devices: [] });
+        backend.set(api.devices.listDevices, []);
+        backend.mutation(api.dispatch.dispatch, ({ action }) =>
+          action === "setPrivacy"
+            ? null
+            : new Error("Unexpected store action: " + action),
+        );
+        backend.set(users.getRecentProjectsWithGitInfo, ({ limit }) =>
+          limit === 100 ? state.projects : [],
+        );
+        backend.set(users.getDirectoryTeamMappings, () => state.mappings);
+        backend.set(users.shareImpactForPaths, ({ path_prefixes, since }) =>
+          Object.fromEntries(
+            path_prefixes.map((path) => {
+              const hasHistory = path === HEALTH && since !== undefined;
+              return [
+                path,
+                {
+                  count: hasHistory ? 2 : 0,
+                  first_started_at: hasHistory ? oldScan.started_at : null,
+                  last_started_at: hasHistory ? appointment.started_at : null,
+                  truncated: false,
+                  older: 0,
+                  older_than_day: 0,
+                  hidden: hasHistory ? 1 : 0,
+                  manually_shared: 0,
+                },
+              ];
+            }),
+          ),
+        );
+        backend.set(
+          users.listConversationsForPath,
+          ({ path_prefixes, limit }) =>
+            path_prefixes.length === 1 &&
+            path_prefixes[0] === HEALTH &&
+            limit === 50
+              ? {
+                  rows: [appointment, oldScan].map((row) => ({
+                    _id: row._id,
+                    title: row.title ?? null,
+                    started_at: row.started_at,
+                    message_count: row.message_count,
+                    is_private: row.is_private,
+                    team_visibility: row.team_visibility ?? null,
+                    auto_shared: false,
+                    path: HEALTH,
+                  })),
+                  total: 2,
+                  truncated: false,
+                }
+              : { rows: [], total: 0, truncated: false },
+        );
+        backend.mutation(api.pathStats.refreshPathStats, { queued: 0 });
+        backend.mutation(users.updateSyncSettings, () => {
+          if (!state.failNext) return member._id;
+          state.failNext = false;
+          return new Error("Server Error");
+        });
+        backend.mutation(users.updateDirectoryTeamMapping, undefined);
+      },
+    });
+  return { appointment, load, lock, now, requests, state, syncViewer, team };
+}
+
+type Mount = Awaited<ReturnType<typeof mountWeb>>;
+const writes = (root: Mount) =>
+  root.backend.mutations.filter(
+    ({ name }) => name !== "pathStats:refreshPathStats",
+  );
+
+test("a typed path stays private until it is shared, and a lock moves its row", async () => {
+  const { appointment, load, lock, now, state, syncViewer, team } = fixtures();
+  const root = await load(true);
+  expect(text()).toMatch(/Nothing has synced yet, so nothing is shared/);
+  expect(text()).toMatch(/add a folder above/);
+  expect(text()).not.toMatch(/Start a coding session/);
+
+  state.teams = [team];
+  await act(async () => syncViewer(root.store.getState()));
+  expect(text()).toMatch(/Nothing has synced yet, so nothing is shared/);
+  expect(text()).not.toMatch(/Nothing shared with Union|teammates/);
+  expect(byText("+ Add path")).toBeUndefined();
+  const input = document.querySelector<HTMLInputElement>(
+    'input[placeholder^="Full path of a folder"]',
+  );
+  expectPresent(input);
+  expect(byText("Add")?.disabled).toBe(true);
+  await changeInput(input, "   ");
+  expect(byText("Add")?.disabled).toBe(true);
+  await changeInput(input, "notes");
+  expect(byText("Add")?.disabled).toBe(false);
+  await click(byText("Add")!);
+  expect(writes(root)).toEqual([]);
+  await toastShown("error", "Type the full path");
+
+  await changeInput(input, HEALTH + "/");
+  state.failNext = true;
+  await click(byText("Add")!);
+  await toastShown("error", "Could not add health");
+  expect(input.value).toBe(HEALTH + "/");
+  await click(byText("Add")!);
+  expect(writes(root).at(-1)).toEqual({
+    name: "users:updateSyncSettings",
+    args: { sync_projects: [HEALTH] },
+  });
+  await toastShown("success", "health added");
+
+  state.user = { ...state.user, sync_projects: [HEALTH] };
+  await act(async () => syncViewer(root.store.getState()));
+  expect(text()).toMatch(/Private — only you/);
+  expect(text()).toMatch(/no sessions yet/);
+  const menu = byLabel("Who can open health");
+  expectPresent(menu);
+  expect(menu.textContent).toMatch(/Only me/);
+  expect(text()).not.toMatch(/Never shared — locked/);
+
+  expectAbsent(panel());
+  await click(menu);
+  expectPresent(panel());
+  expect(chips().map((chip) => chip.textContent)).toEqual([
+    "Only me",
+    "Union",
+    "Never share",
+  ]);
+  expect(chips()[0].getAttribute("aria-checked")).toBe("true");
+  expect(apply().textContent).toBe("Close");
+  await click(chips()[1]);
+  expect(panelText()).toMatch(
     /Union \(2 teammates\) will see the whole conversation for health/,
   );
-  const all = panel().querySelector<HTMLInputElement>(
-    "input[type=radio][name=share-scope]",
-  )!;
-  assert.ok(all.checked, "Everything, past sessions included, is the default");
-  assert.match(panel().textContent ?? "", /Appointment notes/);
-  assert.match(panel().textContent ?? "", /hidden by hand/);
-  assert.equal(apply().textContent, "Share with Union");
-  // Untick one session: it stays private, and the write locks it.
-  await act(async () => {
-    panel()
-      .querySelector<HTMLInputElement>(
-        "input[aria-label='Share \"Appointment notes\"']",
-      )!
-      .click();
-  });
-  assert.match(panel().textContent ?? "", /1 kept private/);
-  await act(async () => {
-    apply().click();
-  });
-  const write = calls.find((c) => c.startsWith("updateDirectoryTeamMapping:"))!;
-  assert.ok(write, "the rule is written");
-  const args = JSON.parse(write.slice(write.indexOf(":") + 1));
-  assert.deepEqual(
-    { team: args.team_id, past: args.include_past, keep: args.lock_private },
-    { team: "t_team", past: true, keep: ["c1"] },
-  );
-  assert.equal(
-    document.querySelector("[data-share-panel]"),
-    null,
-    "the panel closes after the write",
-  );
-  calls.length = 0;
+  expect(scopes()[0].checked).toBe(true);
+  expect(panelText()).toMatch(/Appointment notes/);
+  expect(panelText()).toMatch(/hidden by hand/);
+  expect(apply().textContent).toBe("Share with Union");
 
-  // ── a lock files the row under its own group and the trigger says so ──
-  fx.directoryMappings = [
-    {
-      _id: "dm1",
-      path_prefix: "/Users/me/health",
-      team_id: null,
-      team_name: null,
-      auto_share: false,
-      private: true,
-      share_since: null,
+  const session = (title: string) =>
+    panel()?.querySelector<HTMLInputElement>(
+      "[aria-label='Share \"" + title + "\"']",
+    ) ?? null;
+  expectPresent(session("Old scan"));
+  const filter =
+    panel()?.querySelector<HTMLInputElement>(
+      '[aria-label="Filter sessions by title"]',
+    ) ?? null;
+  expectPresent(filter);
+  await changeInput(filter, "appointment");
+  expectAbsent(session("Old scan"));
+  const shared = session("Appointment notes");
+  expectPresent(shared);
+  await click(shared);
+  expect(panelText()).toMatch(/1 kept private/);
+  await click(apply());
+  expect(
+    writes(root).find(({ name }) => name === "dispatch:dispatch"),
+  ).toMatchObject({
+    args: { action: "setPrivacy", args: [appointment._id, true] },
+  });
+  expect(
+    writes(root).find(
+      ({ name }) => name === "users:updateDirectoryTeamMapping",
+    ),
+  ).toEqual({
+    name: "users:updateDirectoryTeamMapping",
+    args: {
+      path_prefix: HEALTH,
+      team_id: team._id,
+      auto_share: true,
+      include_past: true,
+      lock_private: [appointment._id],
     },
-  ];
-  await render();
-  assert.match(text(), /Never shared — locked by you/);
-  const locked = buttons().find(
-    (b) => b.getAttribute("aria-label") === "Who can open health",
-  )!;
-  assert.match(locked.textContent ?? "", /Never shared/);
-  assert.ok(
-    !/Private — only you\s*1/.test(text()),
-    "the locked row left the private group",
-  );
+  });
+  expectAbsent(panel());
+  await toastShown("success", "health now shares with Union");
 
-  // ── a checkout the server resolved to a lock through its repository reads the same ──
-  fx.directoryMappings = [
-    {
-      _id: "dm2",
-      path_prefix: "/Users/me/src/app",
-      team_id: null,
-      team_name: null,
-      auto_share: false,
-      private: true,
-      repository: "acme/app",
-    },
-  ];
-  fx.syncProjects = [
-    {
-      path: "/Users/me/src/app-clone",
-      is_git_repo: true,
-      session_count: 2,
-      last_active: Date.now(),
-      repository: "acme/app",
-      team_id: null,
-      private: true,
-      mapped_directly: false,
-    },
-  ];
-  fx.user = { ...fx.user, sync_projects: [] };
-  state.currentUser = fx.user;
-  await render();
-  assert.match(text(), /Never shared — locked by you/);
+  state.mappings = [lock(HEALTH)];
+  await act(async () => {
+    root.backend.set(users.getDirectoryTeamMappings, state.mappings);
+  });
+  await act(async () => flushSyncPublishes());
+  expect(text()).toMatch(/Never shared — locked by you/);
+  expect(byLabel("Who can open health")?.textContent).toMatch(/Never shared/);
+  expect(text()).not.toMatch(/Private — only you\s*1/);
+
+  state.user = { ...state.user, sync_projects: [] };
+  await act(async () => {
+    syncViewer(root.store.getState());
+    root.backend.set(users.getDirectoryTeamMappings, [
+      lock("/Users/me/src/app", "acme/app"),
+    ]);
+    root.backend.set(users.getRecentProjectsWithGitInfo, ({ limit }) =>
+      limit === 100
+        ? [
+            recentProject({
+              path: CLONE,
+              is_git_repo: true,
+              session_count: 2,
+              last_active: now,
+              repository: "acme/app",
+              private: true,
+            }),
+          ]
+        : [],
+    );
+  });
+  await act(async () => flushSyncPublishes());
+  expect(text()).toMatch(/Never shared — locked by you/);
   const clone = buttons().find((b) =>
     (b.getAttribute("aria-label") ?? "").startsWith("Who can open app"),
-  )!;
-  assert.match(clone.textContent ?? "", /Never shared/);
-  assert.match(
-    clone.textContent ?? "",
-    /\(repo\)/,
-    "inherited through the repository",
   );
-
-  // ── the sharing copy says what is not listed is private ──
-  assert.match(
-    text(),
+  expect(clone?.textContent).toMatch(/Never shared/);
+  expect(clone?.textContent).toMatch(/\(repo\)/);
+  expect(text()).toMatch(
     /Everything is private to you until you share a repository/,
   );
+  await root.close();
+});
 
-  await act(async () => {
-    root.unmount();
-  });
-
-  // ── choosing what to sync: a folder that never synced shows this machine's numbers ──
-  const DAY = 86_400_000;
-  const now = Date.now();
-  fx.user = { ...fx.user, sync_mode: "selected", sync_projects: [] };
-  state.currentUser = fx.user;
-  fx.syncProjects = [];
-  fx.directoryMappings = [];
-  fx.sessions = { rows: [], total: 0, truncated: false };
-  fx.local = [
+test("sharing an unsynced folder counts local sessions and starts sync before sharing", async () => {
+  const { load, now, state, team } = fixtures();
+  state.user = { ...state.user, sync_mode: "selected" };
+  state.teams = [team];
+  state.local = [
     {
-      path: "/Users/me/src/site",
+      path: SITE,
       repository: "me/site",
       sessions: 3,
       claude: 2,
@@ -458,167 +425,99 @@ async function verify() {
       exists: true,
     },
   ];
-  calls.length = 0;
-  const root2 = createRoot(document.getElementById("root")!);
-  await act(async () => {
-    root2.render(React.createElement(SyncPage));
-  });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
-  assert.match(text(), /Not syncing/);
-  assert.match(text(), /3 sessions on this machine · active/);
-  assert.match(text(), /not synced/);
-  const site = buttons().find(
-    (b) => b.getAttribute("aria-label") === "Who can open site",
-  )!;
-  assert.ok(site, "an unsynced folder can be shared from its row");
-  await act(async () => {
-    site.click();
-  });
-  const panel2 = document.querySelector("[data-share-panel]")!;
-  await act(async () => {
-    ([...panel2.querySelectorAll("[role=radio]")] as HTMLButtonElement[])
-      .find((c) => c.textContent === "Union")!
-      .click();
-  });
-  const p2 = () =>
-    document.querySelector("[data-share-panel]")!.textContent ?? "";
-  assert.match(p2(), /3 sessions, /, "the band counts this machine's sessions");
-  assert.match(
-    p2(),
+  const root = await load();
+  expect(text()).toMatch(/Not syncing/);
+  expect(text()).toMatch(/3 sessions on this machine · active/);
+  expect(text()).toMatch(/not synced/);
+  const site = byLabel("Who can open site");
+  expectPresent(site);
+  await click(site);
+  await click(chips().find((chip) => chip.textContent === team.name)!);
+  expect(panelText()).toMatch(/3 sessions, /);
+  expect(panelText()).toMatch(
     /Sharing starts syncing this folder, past sessions included/,
   );
-  // From today keeps all three private: the count comes from each session's time.
-  await act(async () => {
-    (
-      document.querySelectorAll(
-        "[data-share-panel] input[name=share-scope]",
-      )[1] as HTMLInputElement
-    ).click();
+  await click(scopes()[1]);
+  expect(panelText()).toMatch(/The 3 sessions before that stay private/);
+  await click(apply());
+  const [startSync, share] = writes(root);
+  expect(startSync).toEqual({
+    name: "users:updateSyncSettings",
+    args: { sync_mode: "selected", sync_projects: [SITE] },
   });
-  assert.match(p2(), /The 3 sessions before that stay private/);
-  await act(async () => {
-    (
-      [...document.querySelectorAll("[data-share-panel] button")].at(
-        -1,
-      ) as HTMLButtonElement
-    ).click();
+  expect(share).toMatchObject({
+    name: "users:updateDirectoryTeamMapping",
+    args: { path_prefix: SITE, team_id: team._id, include_past: false },
   });
-  assert.equal(
-    calls[0],
-    'updateSyncSettings:{"sync_mode":"selected","sync_projects":["/Users/me/src/site"]}',
-    "sync turns on first",
-  );
-  assert.match(
-    calls[1] ?? "",
-    /^updateDirectoryTeamMapping:.*"team_id":"t_team"/,
-  );
-  await act(async () => {
-    root2.unmount();
-  });
+  await root.close();
+});
 
-  // ── a folder that moved: its old path is grouped apart and says so ──
-  fx.local = null;
-  fx.user = { ...fx.user, sync_mode: "all", sync_projects: [] };
-  state.currentUser = fx.user;
-  fx.syncProjects = [
-    {
-      path: "/Users/me/src/old/outreach",
+test("a moved folder is listed separately below a live folder", async () => {
+  const { load, now, requests, state, team } = fixtures();
+  state.teams = [team];
+  state.projects = [
+    recentProject({
+      path: OUTREACH,
       is_git_repo: false,
       session_count: 250,
       last_active: now - 200 * DAY,
-      team_id: null,
-    },
-    {
-      path: "/Users/me/src/live",
+    }),
+    recentProject({
+      path: LIVE,
       is_git_repo: true,
       session_count: 3,
       last_active: now,
-      team_id: null,
-    },
+    }),
   ];
-  fx.gone = ["/Users/me/src/old/outreach"];
-  const root3 = createRoot(document.getElementById("root")!);
-  await act(async () => {
-    root3.render(React.createElement(SyncPage));
-  });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
-  const t3 = text();
-  assert.match(t3, /No longer on this machine: moved or deleted/);
-  assert.match(t3, /Folder moved or deleted on this machine/);
-  assert.ok(
-    t3.indexOf("live") < t3.indexOf("No longer on this machine"),
-    "the live folder lists above the moved one",
+  state.gone = [OUTREACH];
+  const root = await load();
+  expect(text()).toMatch(/No longer on this machine: moved or deleted/);
+  expect(text()).toMatch(/Folder moved or deleted on this machine/);
+  expectPresent(byLabel("Who can open live"));
+  expect(text().indexOf("live")).toBeLessThan(
+    text().indexOf("No longer on this machine"),
   );
-  await act(async () => {
-    root3.unmount();
-  });
+  expect(
+    requests
+      .filter((url) => url.pathname === "/fs/exists")
+      .at(-1)
+      ?.searchParams.getAll("p")
+      .sort(),
+  ).toEqual([LIVE, OUTREACH].sort());
+  await root.close();
+});
 
-  // ── with every folder syncing, one folder turns off by itself; new folders keep syncing ──
-  fx.gone = [];
-  fx.syncProjects = [
-    {
-      path: "/Users/me/src/quiet",
+test("sync all can exclude one folder, then turn it back on", async () => {
+  const { load, now, state, team } = fixtures();
+  state.teams = [team];
+  state.projects = [
+    recentProject({
+      path: QUIET,
       is_git_repo: true,
       session_count: 0,
       last_active: now,
-      team_id: null,
-    },
+    }),
   ];
-  calls.length = 0;
-  const root4 = createRoot(document.getElementById("root")!);
-  await act(async () => {
-    root4.render(React.createElement(SyncPage));
-  });
   const quiet = () =>
     document.querySelector<HTMLButtonElement>('[aria-label="Sync quiet"]');
-  assert.ok(
-    quiet(),
-    "each folder has its own sync switch while everything syncs",
-  );
-  await act(async () => {
-    quiet()!.click();
+  let root = await load();
+  const enabled = quiet();
+  expectPresent(enabled);
+  await click(enabled);
+  expect(writes(root)[0]).toEqual({
+    name: "users:updateSyncSettings",
+    args: { sync_excluded: [QUIET] },
   });
-  assert.equal(
-    calls[0],
-    'updateSyncSettings:{"sync_excluded":["/Users/me/src/quiet"]}',
-    "turning one folder off excludes it and keeps sync all",
-  );
-  await act(async () => {
-    root4.unmount();
-  });
-  fx.user = {
-    ...fx.user,
-    sync_mode: "all",
-    sync_projects: [],
-    sync_excluded: ["/Users/me/src/quiet"],
-  };
-  state.currentUser = fx.user;
-  calls.length = 0;
-  const root5 = createRoot(document.getElementById("root")!);
-  await act(async () => {
-    root5.render(React.createElement(SyncPage));
-  });
-  assert.match(text(), /except the 1 you turned off below/);
-  assert.match(text(), /Not syncing/);
-  await act(async () => {
-    quiet()!.click();
-  });
-  assert.equal(
-    calls[0],
-    'updateSyncSettings:{"sync_excluded":[]}',
-    "turning it back on lifts the exclusion",
-  );
-  await act(async () => {
-    root5.unmount();
-  });
-}
+  await root.close();
 
-test(
-  "the sync page: typed paths are rows, a lock has its own group",
-  verify,
-  60_000,
-);
+  state.user = { ...state.user, sync_excluded: [QUIET] };
+  root = await load();
+  expect(text()).toMatch(/except the 1 you turned off below/);
+  expect(text()).toMatch(/Not syncing/);
+  await click(quiet()!);
+  expect(writes(root)[0]).toEqual({
+    name: "users:updateSyncSettings",
+    args: { sync_excluded: [] },
+  });
+  await root.close();
+});

@@ -11,12 +11,14 @@
   ],
   "files": [
     "app/projects/[id]/ProjectHeader.mount.test.tsx",
+    "app/settings/sync/page.mount.test.tsx",
     "components/ObjectReveal.mount.test.tsx",
     "components/__tests__/documentDetailLoading.test.tsx",
     "components/__tests__/seatSessionPage.mount.test.tsx",
     "components/__tests__/teamBarFace.test.tsx",
     "components/company/CompanyDocument.mount.test.tsx",
     "components/goals/GoalsDocument.mount.test.tsx",
+    "components/org/RecordGroupRow.mount.test.tsx",
     "components/org/company/sheets/GoalSheet.mount.test.tsx",
     "components/org/scope/ScopePage.mount.test.tsx",
     "components/org/scope/ScopeSettings.mount.test.tsx"
