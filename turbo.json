@@ -1,12 +1,38 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": ["tsconfig.json", "patches/**"],
   "tasks": {
     "build": {
       "cache": false,
       "passThroughEnv": ["RAILWAY_GIT_COMMIT_SHA", "GIT_SHA"]
     },
-    "lint": {},
-    "typecheck": {},
+    "build:check": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/desktop/**",
+        "$TURBO_ROOT$/apps/server/**",
+        "$TURBO_ROOT$/apps/web/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/platform/**",
+        "!$TURBO_ROOT$/apps/**/node_modules/**",
+        "!$TURBO_ROOT$/packages/**/node_modules/**",
+        "!$TURBO_ROOT$/platform/**/node_modules/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/apps/*/dist/**",
+        "!$TURBO_ROOT$/apps/**/*.test.ts",
+        "!$TURBO_ROOT$/apps/**/*.test.tsx",
+        "!$TURBO_ROOT$/packages/*/test/**"
+      ],
+      "env": ["VITE_*", "NODE_ENV"],
+      "passThroughEnv": ["NODE_OPTIONS"],
+      "outputs": []
+    },
+    "lint": {
+      "cache": false
+    },
+    "typecheck": {
+      "cache": false
+    },
     "test": {
       "cache": false
     }

@@ -30,6 +30,7 @@ const WORKFLOW_PATH = new URL(
 // Bun's YAML parser: no dependency, and the same runtime CI pins.
 const workflow = Bun.YAML.parse(await Bun.file(WORKFLOW_PATH).text()) as {
   jobs: Record<string, any>;
+  env: Record<string, string>;
 };
 
 const jobs = workflow.jobs;
@@ -84,8 +85,9 @@ describe("ci.yml job graph", () => {
           `${name} sets Node.js up itself`,
         ).toBe(false);
         expect(
-          uses.startsWith("actions/cache@"),
-          `${name} caches the bun store itself`,
+          uses.startsWith("actions/cache@") &&
+            !String(step.with.path).startsWith(".turbo/"),
+          `${name} caches something other than a Turborepo or typecheck state`,
         ).toBe(false);
         expect(step.run, `${name} runs the root install itself`).not.toBe(
           "bun install",
@@ -389,7 +391,10 @@ describe("matrices", () => {
   };
   const STEPS: Record<string, Array<[string | undefined, string]>> = {
     build: [
-      ["matrix.target == 'web'", "bunx vite build --sourcemap false"],
+      [
+        "matrix.target == 'web'",
+        "bunx turbo run build:check --filter=@codecast/web",
+      ],
       [
         "matrix.target == 'other'",
         'bun build scripts/precompress.mjs scripts/carry-assets.mjs scripts/prerender.mjs scripts/indexnow.mjs ../../scripts/ci/verify-telemetry-key.mjs --target=node --packages=external --outdir="$RUNNER_TEMP/web-build-scripts"',
@@ -413,7 +418,10 @@ describe("matrices", () => {
       ["matrix.shard == 'budgets'", "scripts/perf-budgets.sh"],
     ],
     "test-cli": [
-      [undefined, "sudo apt-get update && sudo apt-get install -y tmux"],
+      [
+        undefined,
+        "sudo apt-get install -y tmux || { sudo apt-get update && sudo apt-get install -y tmux; }",
+      ],
       [
         "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
         "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5",
@@ -464,6 +472,30 @@ describe("matrices", () => {
           expect(steps[i].run, job).toBe(command);
       });
     }
+  });
+
+  test("the web build check is vite's build, cached on every source it reads", () => {
+    const read = (file: string) =>
+      JSON.parse(
+        readFileSync(new URL(`../../${file}`, import.meta.url), "utf8"),
+      );
+    expect(read("apps/web/package.json").scripts["build:check"]).toBe(
+      "vite build --sourcemap false",
+    );
+    const { tasks } = read("turbo.json");
+    for (const name of ["build", "lint", "typecheck", "test"])
+      expect(tasks[name].cache, name).toBe(false);
+    for (const source of [
+      "apps/desktop",
+      "apps/server",
+      "apps/web",
+      "packages",
+      "platform",
+    ])
+      expect(tasks["build:check"].inputs).toContain(
+        `$TURBO_ROOT$/${source}/**`,
+      );
+    expect(workflow.env.TURBO_TELEMETRY_DISABLED).toBe("1");
   });
 
   test("every split run names its whole count", () => {

@@ -13,6 +13,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
 jobs:
   # Why a job and not `on.pull_request.paths`: path filters drop the checks
   # from the run entirely, so a branch protection rule waiting on `verify`
@@ -152,7 +155,7 @@ jobs:
 
       # Some cli files in the set are e2e suites that drive a real tmux server.
       - name: Install tmux
-        run: sudo apt-get update && sudo apt-get install -y tmux
+        run: sudo apt-get install -y tmux || { sudo apt-get update && sudo apt-get install -y tmux; }
 
       - uses: ./.github/actions/setup-bun
 
@@ -185,6 +188,15 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
+      # Turborepo skips the bundle when no source it reads has changed.
+      - name: Turborepo cache
+        if: matrix.target == 'web'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          restore-keys: turbo-${{ runner.os }}-
+
       - name: Build the web app
         if: matrix.target == 'web'
         # The web bundle outgrew V8's default heap on the runner: on 2026-10-24
@@ -192,10 +204,9 @@ jobs:
         # The rest of the web build script prepares the files to serve
         # (compression, prerender). CI serves nothing, so it only proves below
         # that those scripts load.
-        working-directory: apps/web
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: bunx vite build --sourcemap false
+        run: bunx turbo run build:check --filter=@codecast/web
 
       - name: Load the scripts that follow the web bundle
         if: matrix.target == 'other'
@@ -224,6 +235,15 @@ jobs:
       # mobile, with the native TypeScript compiler. The programs of one runner
       # run at the same time, each with one checker: more checkers repeat most
       # of each other's work.
+      # The compiler's incremental state: it checks again only the files that
+      # changed, by content, and the files that depend on them.
+      - name: Incremental typecheck state
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/typecheck
+          key: typecheck-${{ runner.os }}-${{ matrix.programs }}-${{ github.sha }}-${{ github.run_attempt }}
+          restore-keys: typecheck-${{ runner.os }}-${{ matrix.programs }}-
+
       - name: Typecheck
         run: bun scripts/ci/typecheck.ts ${{ matrix.programs }}
 
@@ -326,7 +346,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install tmux (e2e tests need a real tmux server)
-        run: sudo apt-get update && sudo apt-get install -y tmux
+        run: sudo apt-get install -y tmux || { sudo apt-get update && sudo apt-get install -y tmux; }
 
       - uses: ./.github/actions/setup-bun
 
@@ -620,6 +640,9 @@ jobs:
       # The terminal liveness case needs a tmux server as well as darwin.
       - name: Install tmux
         if: ${{ !cancelled() }}
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install tmux
 
       - name: Unit and e2e tests (cli files that only run on darwin)
