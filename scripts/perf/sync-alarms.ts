@@ -1,3 +1,7 @@
+import { METRIC_WATCH_LIMITS } from "../../packages/ingest/src/ingest";
+import { monitorProblem } from "../../packages/ingest/src/metricMonitor";
+import { parseDuration } from "../../packages/time/src/index";
+
 const minute = 60_000;
 
 export const syncAlarms = {
@@ -8,7 +12,8 @@ FROM events WHERE event = 'inbox_digest_heartbeat' AND timestamp >= now() - INTE
 HAVING count() > 0`,
     threshold: 0.01,
     direction: "above",
-    interval_ms: 15 * minute,
+    every: "15m",
+    no_data_after: 3,
   },
   selfHealSpend: {
     name: "Inbox self-heal requests per active replica hour",
@@ -17,7 +22,8 @@ FROM events WHERE event = 'inbox_digest_heartbeat' AND timestamp >= now() - INTE
 HAVING count() > 0`,
     threshold: 1,
     direction: "above",
-    interval_ms: 15 * minute,
+    every: "15m",
+    no_data_after: 3,
   },
   forcedResyncs: {
     name: "Forced scope resyncs per hour",
@@ -26,7 +32,8 @@ FROM events WHERE event IN ('synclog_resync', 'synclog_apply') AND timestamp >= 
 HAVING count() > 0`,
     threshold: 5,
     direction: "above",
-    interval_ms: 15 * minute,
+    every: "15m",
+    no_data_after: 3,
   },
   oldestPendingAge: {
     name: "Oldest pending outbox age in ms",
@@ -35,8 +42,22 @@ FROM events WHERE event = 'sync_outbox_status' AND timestamp >= now() - INTERVAL
 HAVING count() > 0`,
     threshold: 2 * minute,
     direction: "above",
-    interval_ms: minute,
+    every: "1m",
+    no_data_after: 3,
   },
 } as const;
+
+for (const alarm of Object.values(syncAlarms)) {
+  const interval = parseDuration(alarm.every);
+  const problem = monitorProblem(alarm);
+  if (problem) throw new Error(`${alarm.name}: ${problem}`);
+  if (
+    interval < METRIC_WATCH_LIMITS.interval_min_ms ||
+    interval > METRIC_WATCH_LIMITS.interval_max_ms
+  )
+    throw new Error(
+      `${alarm.name}: the poll interval is outside the watch limits`,
+    );
+}
 
 if (import.meta.main) console.log(JSON.stringify(syncAlarms, null, 2));
