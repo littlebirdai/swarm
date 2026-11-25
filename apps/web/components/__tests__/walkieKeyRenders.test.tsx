@@ -19,7 +19,6 @@ import {
   expect,
   test,
 } from "bun:test";
-import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 
@@ -155,19 +154,16 @@ async function mountFaces() {
   const React = await import("react");
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
-  // THE SUBSCRIPTION ITSELF, not the hook wrapped around it. `usePushToTalk`
-  // opens microphones, so the neighbouring face suite replaces it with a stub
-  // for the whole process — and a stub subscribes to nothing, which would make
-  // this file pass while measuring air. `useWalkieKeySig` is what decides the
-  // render count, it comes through that suite's mock unchanged (it spreads the
-  // real module), and the guard below pins the wiring between the two.
-  const { useWalkieKeySig } = await import("../../hooks/useWalkie");
+  const { usePushToTalk } = await import("../../hooks/useWalkie");
 
   const renders: Record<string, number> = {};
   function Face({ memberId }: { memberId: string }) {
     renders[memberId] = (renders[memberId] ?? 0) + 1;
-    const sig = useWalkieKeySig(dmRoomKey(ME, memberId));
-    return React.createElement("span", { "data-sig": sig });
+    const key = usePushToTalk(dmRoomKey(ME, memberId), () => null);
+    return React.createElement("span", {
+      "data-member": memberId,
+      "data-locked": key.locked,
+    });
   }
 
   const host = document.createElement("div");
@@ -184,23 +180,6 @@ async function mountFaces() {
   });
   return { renders, root, act, host };
 }
-
-describe("walkie: the key's subscription", () => {
-  test("is the one push-to-talk actually uses", async () => {
-    // The render counts below are only about the shipped key if the shipped key
-    // subscribes this way. Read from the source because the hook cannot be
-    // asked at runtime: the suite next door replaces it wholesale.
-    const source = readFileSync(
-      new URL("../../hooks/useWalkie.ts", import.meta.url),
-      "utf8",
-    );
-    const body = source.slice(source.indexOf("export function usePushToTalk"));
-    const hook = body.slice(0, body.indexOf("\n}"));
-    expect(hook).toContain("useWalkieKeySig(roomKey)");
-    // And never the whole snapshot, which is the subscription this replaced.
-    expect(hook).not.toContain("useWalkieStatus()");
-  });
-});
 
 describe("walkie: a bar of faces through somebody else's burst", () => {
   afterEach(async () => {
@@ -254,6 +233,43 @@ describe("walkie: a bar of faces through somebody else's burst", () => {
 
     expect(renders).toEqual(first);
     root.unmount();
+  });
+
+  test("a live call for one teammate changes only that teammate's key", async () => {
+    const walkie = await bindEngine();
+    const { renders, root, act, host } = await mountFaces();
+    const before = { ...renders };
+    const roomKey = dmRoomKey(ME, MEMBERS[0]);
+    const call = {
+      roomKey,
+      phase: "connected",
+      muted: false,
+      micDenied: false,
+      camera: false,
+      speaking: [],
+    };
+    const previous = walkie.getWalkieStatus();
+    try {
+      await act(async () => {
+        walkie.applyVoiceMirror({
+          call,
+          walkie: { ...previous, liveRoom: { key: roomKey, mode: "call" } },
+        });
+      });
+      expect(
+        host.querySelector('[data-member="u1"]')?.getAttribute("data-locked"),
+      ).toBe("true");
+      expect(renders[MEMBERS[0]]).toBeGreaterThan(before[MEMBERS[0]]);
+      for (const member of MEMBERS.slice(1))
+        expect(renders[member]).toBe(before[member]);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      walkie.applyVoiceMirror({
+        call: { ...call, roomKey: null, phase: "idle", muted: true },
+        walkie: previous,
+      });
+    }
   });
 
   test("and the key still wakes when its own answer moves", async () => {

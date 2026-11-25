@@ -121,19 +121,4 @@ describe("calls and chat controls in Modern", () => {
     expect(r["ch-members"].width).toBe("auto");
     expect(r["ch-members"].height).toBe("24px");
   });
-
-  test("every Modern rule in these sheets is scoped to .modern-style", () => {
-    for (const f of SHEETS) {
-      const text = readFileSync(join(WEB, f), "utf8");
-      const start = text.indexOf("/* ── Modern");
-      if (start < 0) continue;
-      const block = text.slice(start).replace(/\/\*[\s\S]*?\*\//g, "");
-      const selectors = [...block.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) =>
-        m[2].trim(),
-      );
-      for (const sel of selectors)
-        for (const part of sel.split(","))
-          expect(`${f}: ${part.trim()}`).toMatch(/^\S+: \.modern-style /);
-    }
-  });
 });

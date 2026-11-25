@@ -249,3 +249,67 @@ test("a closed card's X is a Kill that asks first (it would cancel the trigger);
     useInboxStore.setState({ convCommand: realConvCommand } as any);
   }
 });
+
+test.each([
+  ["Stashed", { inbox_stashed_at: NOW - 30_000 }],
+  ["Snoozed", { inbox_snoozed_until: NOW + 3_600_000 }],
+])(
+  "%s X waits for confirmation before killing a working session",
+  async (bucket, placement) => {
+    const sessionId = id("working");
+    const killed: string[] = [];
+    const owner = {};
+    const { _setDispatch, _clearDispatch } = useInboxStore.getState();
+    useInboxStore.setState({
+      sessions: {
+        [sessionId]: {
+          ...row(sessionId, "Working session"),
+          ...placement,
+          inbox_dismissed_at: undefined,
+          is_idle: false,
+          agent_status: "working",
+        },
+      },
+    } as Parameters<typeof useInboxStore.setState>[0]);
+    const inbox = await mountInbox();
+    _setDispatch(
+      async (action, args) => {
+        if (action === "killSession") killed.push(args[0]);
+      },
+      { owner },
+    );
+    try {
+      const header = [
+        ...inbox.host.querySelectorAll("[data-sv-hidden-label]"),
+      ].find((el) => el.textContent?.startsWith(bucket));
+      expect(header?.textContent).toBe(`${bucket} (1)`);
+      await act(async () =>
+        (header!.closest("button") as HTMLButtonElement).click(),
+      );
+      const kill = blockOf(
+        inbox.host,
+        sessionId,
+      )?.querySelector<HTMLButtonElement>('button[aria-label="Kill"]');
+      expect(kill).toBeTruthy();
+      await act(async () => kill!.click());
+      expect(killed).toEqual([]);
+      expect(
+        document.querySelector("[data-switch-review]")?.textContent,
+      ).toContain("Working session");
+      const confirm = document.querySelector<HTMLButtonElement>(
+        "[data-switch-confirm]",
+      );
+      expect(confirm).toBeTruthy();
+      await act(async () => {
+        confirm!.click();
+        inbox.host
+          .querySelector(`[data-session-id="${sessionId}"]`)!
+          .parentElement!.dispatchEvent(new Event("animationend"));
+      });
+      expect(killed).toEqual([sessionId]);
+    } finally {
+      await inbox.unmount();
+      _clearDispatch(owner);
+    }
+  },
+);

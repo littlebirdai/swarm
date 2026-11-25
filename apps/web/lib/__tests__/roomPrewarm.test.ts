@@ -1,22 +1,8 @@
 import { replaceGlobals } from "../../test-helpers/globals";
 // THE CONNECTION HELD OPEN AHEAD OF THE FIRST WORD.
 //
-// A walkie burst is only audible once the speaker's media connection is up, and
-// that connection is the slow part of the whole feature — 1.0s into a room this
-// client had touched, up to 12.7s into a cold one. Those seconds are not lost
-// words (the recorder runs from t=0) but they are recorded rather than heard,
-// which is the difference between a walkie and voicemail.
-//
-// So the room is connected before the gesture: opening a DM, or a pointer
-// resting on a face. Every test here is about what that must NOT cost, because
-// each one is a way of taking something from a person who only moved a mouse:
-// a microphone they never opened, a seat in a room they never entered, a dock
-// that appears on its own, six connections for one bar of faces, or a
-// connection held forever.
-//
-// The last group is the payoff — the claim reusing the warm room — and it is
-// mutation-checked: with the reuse removed, the join mints a second token and
-// performs a second handshake, which is the 12.7 seconds coming back.
+// Prewarming holds the media connection before a gesture without opening
+// a live microphone, taking a call seat, or leaving the room connected forever.
 
 import {
   afterAll,
@@ -29,6 +15,7 @@ import {
 } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConnectionState } from "livekit-client";
+import { huddleRoomOptions } from "../calls/livekitMedia";
 import { useInboxStore } from "../../store/inboxStore";
 
 // ── the world ───────────────────────────────────────────────────────────────
@@ -541,15 +528,39 @@ describe("the claim spends it", () => {
     await callManager.leaveCall();
   });
 
-  test("a join elsewhere stands the prewarm down instead of letting it evict the call", async () => {
-    await warmUp(ROOM);
-    const stale = FakeRoom.made[0];
-    await callManager.joinCall(OTHER);
-    // mintAccessToken signs the identity as the user id, so a prewarm left
-    // connected under it is a duplicate identity waiting to happen.
-    expect(stale.disconnects).toBe(1);
-    expect(prewarm.prewarmedRoomKey()).toBe(null);
-    await callManager.leaveCall();
+  test("a cold join releases a prewarm in another room and gives LiveKit the same media settings", async () => {
+    const { clientState } = useInboxStore.getState();
+    const devices = {
+      micDeviceId: "mic-1",
+      cameraDeviceId: "cam-2",
+      speakerDeviceId: "out-3",
+    };
+    useInboxStore.setState({
+      clientState: {
+        ...clientState,
+        ui: {
+          ...clientState?.ui,
+          call_mic_device_id: devices.micDeviceId,
+          call_camera_device_id: devices.cameraDeviceId,
+          call_speaker_device_id: devices.speakerDeviceId,
+        },
+      },
+    } as Pick<ReturnType<typeof useInboxStore.getState>, "clientState">);
+    try {
+      await warmUp(ROOM);
+      const stale = FakeRoom.made[0];
+      await callManager.joinCall(OTHER);
+      expect(stale.disconnects).toBe(1);
+      expect(prewarm.prewarmedRoomKey()).toBe(null);
+      const expected = huddleRoomOptions(devices);
+      expect(FakeRoom.made.map(({ opts }) => opts)).toEqual([
+        expected,
+        expected,
+      ]);
+    } finally {
+      await callManager.leaveCall();
+      useInboxStore.setState({ clientState });
+    }
   });
 });
 

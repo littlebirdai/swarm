@@ -15104,7 +15104,7 @@
     "swarm/no-comments": 9
   },
   "apps/web/components/SessionWorktreeChip.test.tsx": {
-    "swarm/no-comments": 6
+    "swarm/no-comments": 1
   },
   "apps/web/components/SessionWorktreeChip.tsx": {
     "swarm/no-comments": 2
@@ -15717,7 +15717,7 @@
     "swarm/no-comments": 1
   },
   "apps/web/components/__tests__/walkieKeyRenders.test.tsx": {
-    "swarm/no-comments": 56
+    "swarm/no-comments": 46
   },
   "apps/web/components/__tests__/walkieKeyRing.test.tsx": {
     "swarm/no-comments": 25
@@ -17416,7 +17416,7 @@
     "swarm/no-comments": 3
   },
   "apps/web/components/decisions/__tests__/sessionCardReasoning.mount.test.tsx": {
-    "swarm/no-comments": 29
+    "swarm/no-comments": 23
   },
   "apps/web/components/decisions/__tests__/shipArmMovedAway.mount.test.tsx": {
     "swarm/no-comments": 13
@@ -23595,7 +23595,7 @@
     "swarm/no-comments": 26
   },
   "apps/web/lib/__tests__/roomPrewarm.test.ts": {
-    "swarm/no-comments": 138
+    "swarm/no-comments": 122
   },
   "apps/web/lib/__tests__/roomThreadSeen.test.ts": {
     "swarm/no-comments": 4

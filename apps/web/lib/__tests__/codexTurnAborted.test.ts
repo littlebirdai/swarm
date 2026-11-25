@@ -1,6 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { classifyUserMessage } from "../../components/conversation/classify";
 import {
   isCodexTurnAbortedMessage,
   isNoiseUserMessage,
@@ -31,18 +30,22 @@ describe("isCodexTurnAbortedMessage", () => {
   });
 });
 
-test("ConversationView classifies <turn_aborted> without consulting agent_type", () => {
-  const src = readFileSync(
-    join(import.meta.dir, "../../components/conversation/classify.ts"),
-    "utf8",
-  );
-  const line = src
-    .split("\n")
-    .find(
-      (l) =>
-        l.includes("isCodexTurnAbortedMessage(") && l.includes("interrupt"),
-    );
-  expect(line).toBeDefined();
-  expect(line).not.toMatch(/agentType/);
-  expect(src).not.toMatch(/agentType === "codex" && isCodexTurnAborted/);
-});
+test.each(["claude_code", "codex", undefined])(
+  "a Codex turn-aborted notice still renders as an interrupt with agent %s",
+  (agentType) => {
+    const message = { _id: "m", role: "user", timestamp: 1, content: notice };
+    expect(classifyUserMessage(message, agentType)).toEqual({
+      kind: "interrupt",
+      tone: "amber",
+    });
+    expect(
+      classifyUserMessage(
+        {
+          ...message,
+          content: "why does <turn_aborted> render as text?",
+        },
+        agentType,
+      ),
+    ).toEqual({ kind: "normal" });
+  },
+);

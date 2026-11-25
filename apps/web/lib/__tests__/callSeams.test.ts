@@ -34,6 +34,11 @@ import { ConnectionState, DisconnectReason, RoomEvent } from "livekit-client";
 import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { RING_STUB_MS } from "../calls/ringStubs";
+import {
+  SCREEN_SHARE_CAPTURE,
+  SCREEN_SHARE_PUBLISH,
+} from "../calls/livekitMedia";
+import type { LocalParticipant } from "livekit-client";
 
 // ── the world ───────────────────────────────────────────────────────────────
 //
@@ -56,6 +61,11 @@ class FakeRoom {
     identity: "me",
     name: "Me",
     metadata: undefined as string | undefined,
+    setScreenShareEnabled: mock(
+      async (
+        ..._args: Parameters<LocalParticipant["setScreenShareEnabled"]>
+      ) => ({ track: {} }),
+    ),
     setMicrophoneEnabled: async () => {},
     publishTrack: async (t: any) => ({
       muted: false,
@@ -867,4 +877,17 @@ describe("the walkie's own linger is drawn, not hidden", () => {
       ),
     ).toBe("none");
   });
+});
+
+test("starting a screen share passes capture and publish settings to LiveKit", async () => {
+  await callManager.joinCall(ROOM);
+  try {
+    await callManager.setScreenShare(true);
+    const participant = FakeRoom.made[0].localParticipant;
+    expect(participant.setScreenShareEnabled.mock.calls).toEqual([
+      [true, SCREEN_SHARE_CAPTURE, SCREEN_SHARE_PUBLISH],
+    ]);
+  } finally {
+    await callManager.leaveCall();
+  }
 });
