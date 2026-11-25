@@ -27,6 +27,7 @@ const PACKAGE_AREAS = [
   "decisions",
   "deploys",
   "diff",
+  "edge-client",
   "edge-contract",
   "effect-kit",
   "entities",

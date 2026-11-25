@@ -1,0 +1,19 @@
+{
+  "name": "@codecast/edge-client",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./effect": "./src/effect.ts"
+  },
+  "dependencies": {
+    "@codecast/edge-contract": "workspace:*",
+    "@codecast/effect-kit": "workspace:*",
+    "effect": "catalog:"
+  }
+}
