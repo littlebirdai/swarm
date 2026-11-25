@@ -131,3 +131,27 @@ test("editing a trigger stores its previous agent and routing settings", async (
     ...settings,
   });
 });
+
+test("a person who creates a plan from a template stores a human source", async () => {
+  const { t, user } = await setup();
+  const template = await t.run(({ db }) =>
+    db.insert("plan_templates", {
+      user_id: user,
+      name: "Incident response",
+      goal_template: "Restore service",
+      task_templates: [],
+      created_at: 1,
+      updated_at: 1,
+    }),
+  );
+  await t.mutation(api.plans.createFromTemplate, {
+    api_token: apiToken,
+    template_id: template,
+  });
+  const plan = await t.run(({ db }) => db.query("plans").unique());
+  expect(plan).toMatchObject({
+    user_id: user,
+    title: "Incident response",
+    source: "human",
+  });
+});

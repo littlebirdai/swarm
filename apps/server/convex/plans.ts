@@ -245,6 +245,7 @@ export const createFromTemplate = mutation({
       title,
       goal: template.goal_template,
       status: "active",
+      source: "human",
       progress: {
         total: template.task_templates.length,
         done: 0,
@@ -262,7 +263,7 @@ export const createFromTemplate = mutation({
       ],
       created_at: now,
       updated_at: now,
-    } as any);
+    });
 
     const taskIds: Id<"tasks">[] = [];
     const taskShortIds: string[] = [];
