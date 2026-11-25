@@ -1,6 +1,12 @@
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
+import { hasInterruptsOnly } from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Result from "effect/Result";
+import * as Semaphore from "effect/Semaphore";
+import type * as Scope from "effect/Scope";
 import type { CloseOutcome } from "@codecast/provider-contract";
 import type { RpcId } from "./acp-schema";
 import {
@@ -20,7 +26,11 @@ const maxFrameBytes = 8 * 1024 * 1024;
 export const processError = (code: string, message: string, cause?: unknown) =>
   new AdapterError({ code, message, cause });
 
-export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
+export function spawnAcp(
+  options: ProviderAdapterOptions,
+  cwd: string,
+  scope: Scope.Scope,
+) {
   const child = Bun.spawn({
     cmd: [...(options.command ?? ["grok", "agent", "stdio"])],
     cwd,
@@ -33,7 +43,8 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
   const stdout = child.stdout.getReader();
   const stderr = child.stderr.getReader();
   let closing = false;
-  let writing = false;
+  const writer = Semaphore.makeUnsafe(1);
+  const isClosed = () => closing || scope.state._tag === "Closed";
   let nextId = 0;
   let stderrError: AdapterError | undefined;
   const pending = new Map<
@@ -43,6 +54,8 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
   let groupResult: CloseOutcome | undefined;
   function stopGroup(): CloseOutcome {
     if (groupResult) return groupResult;
+    if (child.pid <= 0 || child.exitCode !== null || child.signalCode !== null)
+      return (groupResult = closed);
     try {
       process.kill(-child.pid, "SIGKILL");
     } catch (error) {
@@ -59,16 +72,30 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
     return (groupResult = closed);
   }
 
-  const exit = child.exited.then((code) => {
-    stopGroup();
-    return child.signalCode ?? (code === 0 ? "exited" : `exit-${code}`);
-  });
+  const exit = child.exited.then(
+    (code) => child.signalCode ?? (code === 0 ? "exited" : `exit-${code}`),
+  );
   const drainStderr = async () => {
     try {
-      while (true) {
-        const { done, value } = await stderr.read();
-        if (done) break;
-        options.onStderr?.(Buffer.from(value).toString().slice(0, 500));
+      let inPrivateKey = false;
+      for await (const { line, base64Fragment } of readFrames(stderr, 8192)) {
+        if (isClosed()) break;
+        if (base64Fragment) continue;
+        const redacted = withoutSecrets(line);
+        let safe = "";
+        let offset = 0;
+        for (const marker of redacted.matchAll(
+          /-----(BEGIN|END) [A-Z0-9 ]{0,40}?PRIVATE KEY-----/g,
+        )) {
+          if (!inPrivateKey) {
+            safe += redacted.slice(offset, marker.index);
+            if (marker[1] === "BEGIN") safe += "[redacted:private-key]";
+          }
+          inPrivateKey = marker[1] === "BEGIN";
+          offset = marker.index + marker[0].length;
+        }
+        if (!inPrivateKey) safe += redacted.slice(offset);
+        if (safe) options.onStderr?.(safe.slice(0, 500));
       }
     } catch (cause) {
       if (!closing) {
@@ -83,103 +110,93 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
   };
   void drainStderr();
 
-  async function* frames(): AsyncGenerator<
-    Pick<RawProviderFrame, "line" | "base64Fragment">
-  > {
-    let parts: Buffer[] = [];
-    let length = 0;
-    let fragment = 0;
-    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-    function decode(bytes: Buffer) {
-      try {
-        return { line: decoder.decode(bytes) };
-      } catch {
-        return {
-          line: bytes.toString("base64"),
-          base64Fragment: { index: 0, last: true },
-        };
-      }
-    }
-
-    while (true) {
-      const { done, value } = await stdout.read();
-      if (stderrError) throw stderrError;
-      if (done) break;
-      const chunk = Buffer.from(
-        value.buffer,
-        value.byteOffset,
-        value.byteLength,
-      );
-      let start = 0;
-      while (start < chunk.length) {
-        const newline = chunk.indexOf(10, start);
-        const part = chunk.subarray(start, newline < 0 ? undefined : newline);
-        if (fragment > 0 || length + part.length > maxFrameBytes) {
-          if (length > 0) {
-            yield {
-              line: Buffer.concat(parts, length).toString("base64"),
-              base64Fragment: { index: fragment++, last: false },
-            };
-          }
-          yield {
-            line: part.toString("base64"),
-            base64Fragment: { index: fragment++, last: newline >= 0 },
-          };
-        } else {
-          parts.push(part);
-          length += part.length;
-          if (newline < 0) break;
-          yield decode(Buffer.concat(parts, length));
-        }
-        length = 0;
-        parts = [];
-        if (newline < 0) break;
-        fragment = 0;
-        start = newline + 1;
-      }
-    }
-    if (fragment > 0)
-      yield { line: "", base64Fragment: { index: fragment, last: true } };
-    else if (length > 0) yield decode(Buffer.concat(parts, length));
+  async function* frames() {
+    yield* readFrames(stdout, maxFrameBytes);
+    if (stderrError) throw stderrError;
   }
 
-  function write(...messages: object[]) {
-    return Effect.tryPromise({
-      try: async () => {
-        if (closing || child.exitCode !== null)
-          throw processError("channel-closed", "ACP input is closed");
-        if (writing)
-          throw processError(
-            "channel-busy",
-            "Another ACP write is still pending",
+  const write = Effect.fn("acp.write")(function* <E>(
+    prepare: () => Result.Result<readonly object[], E>,
+    onFlush?: () => void,
+  ) {
+    let started = false;
+    const worker = yield* Effect.forkIn(
+      Semaphore.withPermit(
+        writer,
+        Effect.callback<void, E | AdapterError>((resume) => {
+          if (
+            isClosed() ||
+            child.exitCode !== null ||
+            child.signalCode !== null
+          ) {
+            resume(
+              Effect.fail(
+                processError("channel-closed", "ACP input is closed"),
+              ),
+            );
+            return;
+          }
+          const planned = prepare();
+          if (planned._tag === "Failure") {
+            resume(Effect.fail(planned.failure));
+            return;
+          }
+          started = true;
+          const send = async () => {
+            await child.stdin.write(
+              planned.success
+                .map(
+                  (message) =>
+                    JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n",
+                )
+                .join(""),
+            );
+            await child.stdin.flush();
+          };
+          void send().then(
+            () => resume(onFlush ? Effect.sync(onFlush) : Effect.void),
+            (cause) =>
+              resume(
+                Effect.fail(
+                  processError(
+                    "write-failed",
+                    "Could not write ACP input",
+                    cause,
+                  ),
+                ),
+              ),
           );
-        writing = true;
-        try {
-          child.stdin.write(
-            messages
-              .map(
-                (message) =>
-                  JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n",
-              )
-              .join(""),
-          );
-          await child.stdin.flush();
-        } finally {
-          writing = false;
-        }
-      },
-      catch: (cause) =>
-        cause instanceof AdapterError
-          ? cause
-          : processError("write-failed", "Could not write ACP input", cause),
-    }).pipe(
+        }),
+      ),
+      scope,
+      { startImmediately: true },
+    );
+    return yield* Fiber.join(worker).pipe(
+      Effect.catchCause((cause) =>
+        isClosed() && hasInterruptsOnly(cause)
+          ? Effect.fail(
+              processError(
+                started ? "write-interrupted" : "channel-closed",
+                "ACP input is closed",
+              ),
+            )
+          : Effect.failCause(cause),
+      ),
       Effect.timeoutOrElse({
         duration: "30 seconds",
         orElse: () =>
-          Effect.fail(processError("write-timeout", "ACP input did not drain")),
+          Effect.fail(
+            processError(
+              started ? "write-timeout" : "write-queue-timeout",
+              "ACP input did not drain",
+            ),
+          ),
       }),
+      Effect.ensuring(
+        Effect.suspend(() => (started ? Effect.void : Fiber.interrupt(worker))),
+      ),
     );
-  }
+  });
 
   const request = Effect.fn("acp.request")(function* (
     method: string,
@@ -187,27 +204,17 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
   ) {
     const response = yield* Deferred.make<unknown, AdapterError>();
     const id = ++nextId;
-    pending.set(id, { method, response });
-    const awaitResponse = Deferred.await(response).pipe(
-      Effect.ensuring(
-        Effect.sync(() => {
-          pending.delete(id);
-        }),
-      ),
-    );
     return {
       id,
-      discard: Effect.sync(() => {
-        pending.delete(id);
-      }),
-      send: write({ id, method, params }).pipe(
-        Effect.onError(() =>
-          Effect.sync(() => {
-            pending.delete(id);
-          }),
-        ),
-      ),
-      awaitResponse,
+      send<E = never>(beforeWrite?: () => Result.Result<void, E>) {
+        return write(() => {
+          const planned = beforeWrite?.();
+          if (planned?._tag === "Failure") return Result.fail(planned.failure);
+          pending.set(id, { method, response });
+          return Result.succeed([{ id, method, params }]);
+        });
+      },
+      awaitResponse: Deferred.await(response),
     };
   });
 
@@ -221,7 +228,10 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
     if (!deferred) return false;
     pending.delete(Number(id));
     yield* error
-      ? Deferred.fail(deferred, processError("rpc-rejected", error.message))
+      ? Deferred.fail(
+          deferred,
+          processError("rpc-rejected", withoutSecrets(error.message)),
+        )
       : Deferred.succeed(deferred, result);
     return true;
   });
@@ -267,4 +277,60 @@ export function spawnAcp(options: ProviderAdapterOptions, cwd: string) {
     release,
     exit,
   };
+}
+
+async function* readFrames(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  limit: number,
+): AsyncGenerator<Pick<RawProviderFrame, "line" | "base64Fragment">> {
+  let parts: Buffer[] = [];
+  let length = 0;
+  let fragment = 0;
+  const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+  function decode(bytes: Buffer) {
+    try {
+      return { line: decoder.decode(bytes) };
+    } catch {
+      return {
+        line: bytes.toString("base64"),
+        base64Fragment: { index: 0, last: true },
+      };
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+    let start = 0;
+    while (start < chunk.length) {
+      const newline = chunk.indexOf(10, start);
+      const part = chunk.subarray(start, newline < 0 ? undefined : newline);
+      if (fragment > 0 || length + part.length > limit) {
+        if (length > 0) {
+          yield {
+            line: Buffer.concat(parts, length).toString("base64"),
+            base64Fragment: { index: fragment++, last: false },
+          };
+        }
+        yield {
+          line: part.toString("base64"),
+          base64Fragment: { index: fragment++, last: newline >= 0 },
+        };
+      } else {
+        parts.push(part);
+        length += part.length;
+        if (newline < 0) break;
+        yield decode(Buffer.concat(parts, length));
+      }
+      length = 0;
+      parts = [];
+      if (newline < 0) break;
+      fragment = 0;
+      start = newline + 1;
+    }
+  }
+  if (fragment > 0)
+    yield { line: "", base64Fragment: { index: fragment, last: true } };
+  else if (length > 0) yield decode(Buffer.concat(parts, length));
 }

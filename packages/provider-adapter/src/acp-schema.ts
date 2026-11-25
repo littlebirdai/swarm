@@ -36,7 +36,7 @@ export const Initialize = Schema.Struct({
   ),
 });
 
-export const LoadSession = Schema.Struct({});
+export const LoadSession = Schema.NullOr(Schema.Struct({}));
 export const NewSession = Schema.Struct({ sessionId: identifier });
 export const PromptResult = Schema.Struct({ stopReason: identifier });
 
@@ -81,10 +81,12 @@ export const SessionUpdate = Schema.Union([
     sessionUpdate: Schema.Literal("tool_call_update"),
     toolCallId: identifier,
     status: Schema.optionalKey(
-      Schema.Literals(["pending", "in_progress", "completed", "failed"]),
+      Schema.NullOr(
+        Schema.Literals(["pending", "in_progress", "completed", "failed"]),
+      ),
     ),
     rawOutput: Schema.optionalKey(json),
-    content: Schema.optionalKey(Schema.Array(json)),
+    content: Schema.optionalKey(Schema.NullOr(Schema.Array(json))),
   }),
   Schema.Struct({
     sessionUpdate: Schema.Literal("available_commands_update"),
@@ -103,13 +105,13 @@ export const SessionUpdate = Schema.Union([
 export const Permission = Schema.Struct({
   sessionId: identifier,
   toolCall: Schema.Struct({
-    toolCallId: identifier,
-    title: Schema.optionalKey(identifier),
+    toolCallId: Schema.optionalKey(identifier),
+    title: Schema.optionalKey(Schema.NullOr(identifier)),
   }),
   options: Schema.Array(
     Schema.Struct({
       optionId: identifier,
-      name: Schema.String,
+      name: Schema.optionalKey(Schema.String),
       kind: Schema.Literals([
         "allow_once",
         "allow_always",

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import {
   appendFileSync,
+  closeSync,
   readdirSync,
   readFileSync,
   unlinkSync,
@@ -26,7 +27,7 @@ function record(action: string, message: object) {
   );
 }
 
-function reply(id: number | string, result: object = {}) {
+function reply(id: number | string, result: object | null = {}) {
   send({ id, result });
 }
 
@@ -37,8 +38,8 @@ rpc.on("line", (line) => {
     case "initialize":
       reply(id, {
         protocolVersion: Number(process.env.ACP_PROTOCOL_VERSION ?? 1),
-        agentInfo: { name: "fake", version: "1.0.13" },
-        agentCapabilities: { loadSession: true },
+        _meta: { agentVersion: process.env.ACP_AGENT_VERSION ?? "1.0.13" },
+        agentCapabilities: { loadSession: !process.env.ACP_LOAD_DISABLED },
       });
       break;
     case "session/new":
@@ -54,6 +55,11 @@ rpc.on("line", (line) => {
         writeFileSync(join(directory, "descendant"), String(descendant.pid));
       }
       reply(id, { sessionId });
+      if (process.env.ACP_CLOSE_STDIN) {
+        rpc.close();
+        closeSync(0);
+        writeFileSync(join(directory, "stdin-closed"), "");
+      }
       break;
     case "session/load":
       sessionId = params.sessionId;
@@ -68,7 +74,22 @@ rpc.on("line", (line) => {
           },
         },
       });
-      reply(id);
+      for (
+        let index = 0;
+        index < Number(process.env.ACP_LOAD_BURST ?? 0);
+        index++
+      )
+        send({
+          method: "session/update",
+          params: {
+            sessionId,
+            update: {
+              sessionUpdate: "available_commands_update",
+              availableCommands: [],
+            },
+          },
+        });
+      reply(id, null);
       break;
     case "session/prompt":
       promptId = id;
@@ -80,6 +101,11 @@ rpc.on("line", (line) => {
       break;
     default:
       if (result?.outcome) record("answer", message);
+      else if (id === "unknown-request")
+        writeFileSync(
+          join(directory, "unsupported-seen"),
+          JSON.stringify(message.error),
+        );
       else if (String(id).startsWith("barrier:"))
         writeFileSync(join(directory, String(id)), "");
   }
@@ -94,7 +120,16 @@ watch(directory, () => {
     unlinkSync(path);
     if (command.exit) process.exit(0);
     if (command.complete && promptId !== undefined)
-      reply(promptId, { stopReason: "end_turn" });
+      reply(
+        promptId,
+        command.complete === "malformed" ? {} : { stopReason: "end_turn" },
+      );
+    if (command.promptError && promptId !== undefined)
+      send({
+        id: promptId,
+        error: { code: -32000, message: command.promptError },
+      });
+    if (command.stderr) process.stderr.write(command.stderr);
     if (command.frame) send(command.frame);
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.barrier)

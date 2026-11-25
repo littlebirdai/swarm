@@ -1,22 +1,24 @@
+import { existsSync } from "node:fs";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import type {
   AnswerRequest,
   ControlOutcome,
   DeliveryOutcome,
   InterruptRequest,
-  ProviderEvent,
   ResumeSpec,
   StartSpec,
   SteerRequest,
 } from "@codecast/provider-contract";
-import { fail, type Done } from "effect/Cause";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
+import * as Clock from "effect/Clock";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import * as Queue from "effect/Queue";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
-import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
+import { makeAcpEvents, pendingPromptLimit, type Emit } from "./acp-events";
 import { permissionChoice, promptBlocks } from "./acp-input";
 import { processError, spawnAcp, AdapterError } from "./acp-process";
 import {
@@ -46,7 +48,6 @@ type DurablePayload = {
     "kind" | "body"
   >;
 }[CanonicalEvent["kind"]];
-type Emit = (event: ProviderEvent) => void;
 type Disposition = RawProviderFrame["disposition"];
 
 interface Turn {
@@ -59,7 +60,6 @@ interface Turn {
   assistantIndex: number;
 }
 
-const bufferCapacity = 32;
 const requestTimeout = "30 seconds";
 const promptTimeout = "1 hour";
 const maxMessageLength = 1024 * 1024;
@@ -70,9 +70,14 @@ export const openAcp = Effect.fn("acp.open")(function* (
 ) {
   const transport = yield* Effect.acquireRelease(
     Effect.try({
-      try: () => spawnAcp(options, spec.cwd),
+      try: () => spawnAcp(options, spec.cwd, scope),
       catch: (cause) =>
-        processError("spawn-failed", "Could not start ACP process", cause),
+        cause instanceof Error &&
+        "code" in cause &&
+        cause.code === "ENOENT" &&
+        existsSync(spec.cwd)
+          ? processError("binary-missing", "ACP executable was not found")
+          : processError("spawn-failed", "Could not start ACP process", cause),
     }),
     (transport) =>
       Effect.flatMap(Effect.promise(transport.release), (result) =>
@@ -82,21 +87,16 @@ export const openAcp = Effect.fn("acp.open")(function* (
       ),
   ).pipe(Scope.provide(scope));
 
-  const events = yield* Queue.bounded<ProviderEvent, AdapterError | Done>(
-    bufferCapacity,
-  );
-  const publisher = yield* Semaphore.make(1);
-  let opened = false;
+  const events = yield* makeAcpEvents();
+  const clock = yield* Clock.Clock;
+  const emit = events.emit;
   let checkpoint = "checkpoint" in spec ? spec.checkpoint : undefined;
   let seq = spec.afterSeq;
   let unknownCount = 0;
   let turnNumber = 0;
   let turn: Turn | undefined;
-  let subscriptionEnded = false;
-  let overflowed = false;
   let sessionClosed = false;
   let runtimeEnded = false;
-  let readerClaimed = false;
   const prompts = new Map<
     string,
     {
@@ -105,32 +105,6 @@ export const openAcp = Effect.fn("acp.open")(function* (
       turnId: string | null;
     }
   >();
-
-  function publish(build: (emit: Emit) => void) {
-    return Semaphore.withPermit(
-      publisher,
-      Effect.suspend(() => {
-        const batch: ProviderEvent[] = [];
-        build((event) => batch.push(event));
-        if (
-          subscriptionEnded ||
-          overflowed ||
-          sessionClosed ||
-          batch.length === 0
-        )
-          return Effect.void;
-        if (
-          !opened &&
-          Queue.sizeUnsafe(events) + batch.length > bufferCapacity
-        ) {
-          overflowed = true;
-          Queue.failCauseUnsafe(events, overflow);
-          return Effect.void;
-        }
-        return Effect.asVoid(Queue.offerAll(events, batch));
-      }),
-    );
-  }
 
   function durable(
     emit: Emit,
@@ -145,7 +119,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
       run: spec.run,
       turn: turnId,
       seq: ++seq,
-      at: Date.now(),
+      at: clock.currentTimeMillisUnsafe(),
     });
   }
 
@@ -190,7 +164,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
       source: "provider",
       session: spec.session,
       run: spec.run,
-      at: Date.now(),
+      at: clock.currentTimeMillisUnsafe(),
       turn: active.id,
       kind: "message.delta",
       body: {
@@ -246,7 +220,10 @@ export const openAcp = Effect.fn("acp.open")(function* (
             body: {
               call_id: update.toolCallId,
               output: {
-                inline: update.rawOutput ?? [...(update.content ?? [])],
+                inline:
+                  update.rawOutput === undefined
+                    ? [...(update.content ?? [])]
+                    : update.rawOutput,
               },
               is_error: update.status === "failed",
             },
@@ -334,29 +311,29 @@ export const openAcp = Effect.fn("acp.open")(function* (
           line,
           error || decoded._tag === "Success" ? "decoded" : "unknown",
         );
+        yield* events.awaitSpace();
         const active = turn;
         if (active?.rpcId === id) {
-          yield* publish((emit) => {
-            if (error || decoded._tag === "Failure")
-              durable(emit, {
-                kind: "error",
-                body: {
-                  class: "acp-prompt",
-                  message: error?.message ?? "ACP did not report a stop reason",
-                  retryable: false,
-                },
-              });
-            if (error || decoded._tag === "Success")
-              finishTurn(
-                emit,
-                active,
-                error
-                  ? "rpc-rejected"
-                  : decoded._tag === "Success"
-                    ? decoded.success.stopReason
-                    : "unknown",
-              );
-          });
+          if (error || decoded._tag === "Failure")
+            durable(emit, {
+              kind: "error",
+              body: {
+                class: "acp-prompt",
+                message: error
+                  ? withoutSecrets(error.message)
+                  : "ACP did not report a stop reason",
+                retryable: false,
+              },
+            });
+          finishTurn(
+            emit,
+            active,
+            error
+              ? "rpc-rejected"
+              : decoded._tag === "Success"
+                ? decoded.success.stopReason
+                : "unknown",
+          );
         }
       } else {
         const schema =
@@ -387,37 +364,52 @@ export const openAcp = Effect.fn("acp.open")(function* (
         const prompt_id = `${spec.run}:permission:${typeof id}:${id}`;
         const { toolCall, options } = permission.success;
         yield* retain(line, "decoded");
-        yield* publish((emit) => {
-          prompts.set(prompt_id, {
-            id,
-            choices: options,
-            turnId: turn?.id ?? null,
-          });
-          durable(emit, {
-            kind: "prompt.opened",
-            body: {
-              prompt_id,
-              kind: "permission",
-              tool_call_id:
-                toolCall.toolCallId.length <= 256 && toolCall.toolCallId.trim()
-                  ? toolCall.toolCallId
-                  : undefined,
-              tool_name:
-                toolCall.title &&
-                toolCall.title.length <= 128 &&
-                toolCall.title.trim()
-                  ? toolCall.title
-                  : undefined,
-            },
-          });
+        yield* events.awaitSpace();
+        if (prompts.has(prompt_id)) return;
+        if (prompts.size >= pendingPromptLimit) {
+          yield* transport.write(() =>
+            Result.succeed([
+              { id, result: { outcome: { outcome: "cancelled" } } },
+            ]),
+          );
+          return;
+        }
+        prompts.set(prompt_id, {
+          id,
+          choices: options,
+          turnId: turn?.id ?? null,
+        });
+        durable(emit, {
+          kind: "prompt.opened",
+          body: {
+            prompt_id,
+            kind: "permission",
+            tool_call_id:
+              toolCall.toolCallId &&
+              toolCall.toolCallId.length <= 256 &&
+              toolCall.toolCallId.trim()
+                ? toolCall.toolCallId
+                : undefined,
+            tool_name:
+              toolCall.title &&
+              toolCall.title.length <= 128 &&
+              toolCall.title.trim()
+                ? toolCall.title
+                : undefined,
+          },
         });
       } else {
         yield* retain(line, "unknown");
-        yield* Effect.ignore(
-          transport.write({
-            id,
-            error: { code: -32601, message: "Unsupported ACP client request" },
-          }),
+        yield* transport.write(() =>
+          Result.succeed([
+            {
+              id,
+              error: {
+                code: -32601,
+                message: "Unsupported ACP client request",
+              },
+            },
+          ]),
         );
       }
     } else if (
@@ -427,15 +419,15 @@ export const openAcp = Effect.fn("acp.open")(function* (
       const update = yield* Effect.result(
         Schema.decodeUnknownEffect(Update)(params),
       );
-      if (update._tag === "Success" && update.success._meta?.isReplay) {
-        yield* retain(line, "replay");
-        return;
-      }
       if (
         update._tag === "Success" &&
         checkpoint &&
         update.success.sessionId === checkpoint
       ) {
+        if (update.success._meta?.isReplay) {
+          yield* retain(line, "replay");
+          return;
+        }
         const decoded = yield* Effect.result(
           Schema.decodeUnknownEffect(SessionUpdate)(update.success.update),
         );
@@ -455,8 +447,10 @@ export const openAcp = Effect.fn("acp.open")(function* (
             line,
             outOfTurn || oversizedUser ? "unknown" : "decoded",
           );
-          if (!outOfTurn && !oversizedUser)
-            yield* publish((emit) => project(emit, payload));
+          if (!outOfTurn && !oversizedUser) {
+            yield* events.awaitSpace();
+            project(emit, payload);
+          }
           return;
         }
       }
@@ -474,17 +468,22 @@ export const openAcp = Effect.fn("acp.open")(function* (
     Stream.runForEach(receive),
     Effect.andThen(Effect.promise(() => transport.exit)),
     Effect.tap((reason) =>
-      publish((emit) => {
-        runtimeEnded = true;
-        if (turn) finishTurn(emit, turn, reason);
-        prompts.clear();
-        durable(emit, { kind: "session.ended", body: { reason } });
-      }).pipe(Effect.andThen(Queue.end(events))),
+      events.awaitSpace().pipe(
+        Effect.andThen(
+          Effect.sync(() => {
+            runtimeEnded = true;
+            if (turn) finishTurn(emit, turn, reason);
+            prompts.clear();
+            durable(emit, { kind: "session.ended", body: { reason } });
+          }),
+        ),
+        Effect.andThen(events.end),
+      ),
     ),
     Effect.onExit((exit) =>
       Effect.gen(function* () {
         runtimeEnded = true;
-        if (exit._tag === "Failure") Queue.failCauseUnsafe(events, exit.cause);
+        if (exit._tag === "Failure") yield* events.fail(exit.cause);
         yield* transport.failPending(
           processError("channel-ended", "ACP output ended"),
         );
@@ -493,20 +492,13 @@ export const openAcp = Effect.fn("acp.open")(function* (
     Effect.ignoreCause,
   );
   yield* Effect.forkIn(pump, scope);
-  const unsubscribe = Effect.sync(() => {
-    subscriptionEnded = true;
-  }).pipe(
-    Effect.andThen(Queue.end(events)),
-    Effect.andThen(Effect.ignoreCause(Queue.clear(events))),
-    Effect.asVoid,
-  );
   yield* Scope.addFinalizer(
     scope,
     Effect.sync(() => {
       sessionClosed = true;
       prompts.clear();
       transport.fence();
-    }).pipe(Effect.andThen(unsubscribe)),
+    }).pipe(Effect.andThen(events.unsubscribe)),
   );
 
   const roundTrip = Effect.fn("acp.roundTrip")(function* (
@@ -515,7 +507,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     timeout: typeof requestTimeout | typeof promptTimeout,
   ) {
     const request = yield* transport.request(method, params);
-    return yield* Effect.andThen(request.send, request.awaitResponse).pipe(
+    return yield* Effect.andThen(request.send(), request.awaitResponse).pipe(
       Effect.timeoutOrElse({
         duration: timeout,
         orElse: () =>
@@ -525,7 +517,18 @@ export const openAcp = Effect.fn("acp.open")(function* (
   });
 
   const established = yield* Effect.result(
-    establishSession(options, spec, roundTrip),
+    establishSession(options, spec, roundTrip).pipe(
+      Effect.flatMap((sessionId) =>
+        events.open()
+          ? Effect.succeed(sessionId)
+          : Effect.fail(
+              processError(
+                "event-overflow",
+                "ACP events overflowed before opening the session",
+              ),
+            ),
+      ),
+    ),
   );
   if (established._tag === "Failure") {
     yield* Effect.exit(Scope.close(scope, Exit.void));
@@ -540,7 +543,6 @@ export const openAcp = Effect.fn("acp.open")(function* (
   }
   const sessionId = established.success;
   checkpoint = sessionId;
-  opened = true;
 
   function validFence(expected: { run: number; fencing_token: string }) {
     return (
@@ -588,55 +590,65 @@ export const openAcp = Effect.fn("acp.open")(function* (
       sessionId,
       prompt: blocks.success,
     });
-    const beforeWrite = checkSteer(request);
-    if (beforeWrite) {
-      yield* rpc.discard;
-      return beforeWrite;
-    }
-    const active: Turn = {
-      id: `${spec.run}:${++turnNumber}`,
-      rpcId: rpc.id,
-      request,
-      userText: "",
-      userEmitted: false,
-      assistantText: "",
-      assistantIndex: 0,
-    };
-    turn = active;
-    const start = publish((emit) =>
-      durable(emit, { kind: "turn.started", body: {} }),
-    );
-    yield* Effect.forkIn(start, scope, { startImmediately: true });
-    const sent = yield* Effect.result(rpc.send);
-    if (sent._tag === "Failure") {
-      const { code, message } = sent.failure;
-      if (code === "channel-busy" || code === "channel-closed") {
-        yield* publish((emit) => finishTurn(emit, active, "write-refused"));
-        return code === "channel-busy" ? refused(code, message) : closed;
-      }
-      return inDoubt("unknown", code, message);
-    }
+    const began = Deferred.makeUnsafe<Turn | undefined>();
     yield* Effect.forkIn(
-      rpc.awaitResponse.pipe(
-        Effect.timeoutOrElse({
-          duration: promptTimeout,
-          orElse: () =>
-            publish((emit) => {
-              if (turn === active)
-                durable(emit, {
-                  kind: "error",
-                  body: {
-                    class: "acp-prompt-timeout",
-                    message: "ACP prompt timed out",
-                    retryable: false,
-                  },
-                });
-            }),
-        }),
-        Effect.ignore,
+      Deferred.await(began).pipe(
+        Effect.flatMap((active) =>
+          active
+            ? rpc.awaitResponse.pipe(
+                Effect.timeoutOrElse({
+                  duration: promptTimeout,
+                  orElse: () =>
+                    Effect.sync(() => {
+                      if (turn === active)
+                        durable(emit, {
+                          kind: "error",
+                          body: {
+                            class: "acp-prompt-timeout",
+                            message: "ACP prompt timed out",
+                            retryable: false,
+                          },
+                        });
+                    }),
+                }),
+                Effect.ignore,
+              )
+            : Effect.void,
+        ),
       ),
       scope,
     );
+    const sent = yield* Effect.result(
+      rpc
+        .send(() => {
+          const beforeWrite = checkSteer(request);
+          if (beforeWrite) return Result.fail(beforeWrite);
+          const active: Turn = {
+            id: `${spec.run}:${++turnNumber}`,
+            rpcId: rpc.id,
+            request,
+            userText: "",
+            userEmitted: false,
+            assistantText: "",
+            assistantIndex: 0,
+          };
+          turn = active;
+          durable(emit, { kind: "turn.started", body: {} });
+          Deferred.doneUnsafe(began, Effect.succeed(active));
+          return Result.succeed(undefined);
+        })
+        .pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              Deferred.doneUnsafe(began, Effect.succeed(undefined));
+            }),
+          ),
+        ),
+    );
+    if (sent._tag === "Failure")
+      return sent.failure instanceof AdapterError
+        ? writeOutcome(sent.failure)
+        : sent.failure;
     return inDoubt(
       "best-effort",
       "no-receipt",
@@ -644,8 +656,17 @@ export const openAcp = Effect.fn("acp.open")(function* (
     );
   });
 
-  const writeControl = (...messages: object[]) =>
-    Effect.result(transport.write(...messages)).pipe(
+  function writeOutcome({ code, message }: AdapterError) {
+    if (code === "channel-closed") return closed;
+    if (code === "write-queue-timeout") return refused(code, message);
+    return inDoubt("unknown", code, message);
+  }
+
+  function writeControl<Failure>(
+    plan: () => Result.Result<readonly object[], Failure>,
+    onFlush?: () => void,
+  ) {
+    return Effect.result(transport.write(plan, onFlush)).pipe(
       Effect.map((result) => {
         if (result._tag === "Success")
           return inDoubt(
@@ -653,95 +674,85 @@ export const openAcp = Effect.fn("acp.open")(function* (
             "no-control-ack",
             "ACP does not acknowledge this control write",
           );
-        const { code, message } = result.failure;
-        if (code === "channel-busy") return refused(code, message);
-        if (code === "channel-closed") return closed;
-        return inDoubt("unknown", code, message);
+        return result.failure instanceof AdapterError
+          ? writeOutcome(result.failure)
+          : result.failure;
       }),
     );
+  }
 
-  const interrupt = Effect.fn("acp.interrupt")(function* (
-    request: InterruptRequest,
-  ): Effect.fn.Return<ControlOutcome<"turn">> {
-    if (sessionClosed || runtimeEnded) return closed;
-    if (!validFence(request.expected) || request.expected.turn !== turn?.id)
-      return staleTurn();
-    const pendingPrompts = [...prompts].filter(
-      ([, prompt]) => prompt.turnId === request.expected.turn,
-    );
-    for (const [id] of pendingPrompts) prompts.delete(id);
-    const result = yield* writeControl(
-      ...pendingPrompts.map(([, prompt]) => ({
-        id: prompt.id,
-        result: { outcome: { outcome: "cancelled" } },
-      })),
-      { method: "session/cancel", params: { sessionId } },
-    );
-    if (
-      result.status === "refused" &&
-      !sessionClosed &&
-      turn?.id === request.expected.turn
-    )
-      for (const [id, prompt] of pendingPrompts) prompts.set(id, prompt);
-    return result;
-  });
+  const interrupt = Effect.fn("acp.interrupt")(
+    (request: InterruptRequest): Effect.Effect<ControlOutcome<"turn">> =>
+      writeControl<ControlOutcome<"turn">>(() => {
+        if (sessionClosed || runtimeEnded) return Result.fail(closed);
+        if (!validFence(request.expected) || request.expected.turn !== turn?.id)
+          return Result.fail(staleTurn());
+        const pendingPrompts = [...prompts].filter(
+          ([, prompt]) => prompt.turnId === request.expected.turn,
+        );
+        for (const [id] of pendingPrompts) prompts.delete(id);
+        return Result.succeed([
+          ...pendingPrompts.map(([, prompt]) => ({
+            id: prompt.id,
+            result: { outcome: { outcome: "cancelled" } },
+          })),
+          { method: "session/cancel", params: { sessionId } },
+        ]);
+      }),
+  );
 
   const answer = Effect.fn("acp.answer")(function* (
     request: AnswerRequest,
   ): Effect.fn.Return<ControlOutcome<"prompt">> {
-    if (sessionClosed || runtimeEnded) return closed;
     const { prompt_id } = request.expected;
-    const prompt = prompts.get(prompt_id);
-    if (!validFence(request.expected) || !prompt) {
-      return {
-        status: "stale",
-        observed: {
-          kind: "prompt",
-          run: spec.run,
-          prompt_id: [...prompts.keys()].at(-1) ?? null,
-        },
-      };
-    }
-    const choice = permissionChoice(request.answer, prompt.choices);
-    if (choice === undefined)
-      return refused(
-        "invalid-option",
-        "Answer must select an available ACP permission option",
-      );
-    prompts.delete(prompt_id);
-    const result = yield* writeControl({
-      id: prompt.id,
-      result: {
-        outcome:
-          choice === null
-            ? { outcome: "cancelled" }
-            : { outcome: "selected", optionId: choice },
-      },
-    });
-    if (
-      result.status === "refused" &&
-      !sessionClosed &&
-      (turn?.id ?? null) === prompt.turnId
-    )
-      prompts.set(prompt_id, prompt);
-    if (
-      !sessionClosed &&
-      !runtimeEnded &&
-      result.status === "in-doubt" &&
-      result.reason === "best-effort"
-    ) {
-      yield* publish((emit) =>
-        durable(
-          emit,
+    let turnId: string | null = null;
+    return yield* writeControl<ControlOutcome<"prompt">>(
+      () => {
+        if (sessionClosed || runtimeEnded) return Result.fail(closed);
+        const prompt = prompts.get(prompt_id);
+        if (!validFence(request.expected) || !prompt)
+          return Result.fail({
+            status: "stale",
+            observed: {
+              kind: "prompt",
+              run: spec.run,
+              prompt_id: [...prompts.keys()].at(-1) ?? null,
+            },
+          });
+        const choice = permissionChoice(request.answer, prompt.choices);
+        if (choice === undefined)
+          return Result.fail(
+            refused(
+              "invalid-option",
+              "Answer must select an available ACP permission option",
+            ),
+          );
+        prompts.delete(prompt_id);
+        turnId = prompt.turnId;
+        return Result.succeed([
           {
-            kind: "prompt.settled",
-            body: { prompt_id, by: request.by, answer: request.answer },
+            id: prompt.id,
+            result: {
+              outcome:
+                choice === null
+                  ? { outcome: "cancelled" }
+                  : { outcome: "selected", optionId: choice },
+            },
           },
-          prompt.turnId,
-        ),
-      );
-    }
-    return result;
+        ]);
+      },
+      () => {
+        if (!sessionClosed && !runtimeEnded)
+          durable(
+            emit,
+            {
+              kind: "prompt.settled",
+              body: { prompt_id, by: request.by, answer: request.answer },
+            },
+            turnId,
+          );
+      },
+    );
   });
 
   const close = yield* Effect.cached(
@@ -761,22 +772,11 @@ export const openAcp = Effect.fn("acp.open")(function* (
     getCheckpoint: () => sessionId,
     getUnknownPayloadCount: () => unknownCount,
     recoveredReceipts: [],
-    events: Stream.unwrap(
-      Effect.gen(function* () {
-        if (readerClaimed || subscriptionEnded) return Stream.empty;
-        readerClaimed = true;
-        yield* Effect.addFinalizer(() => unsubscribe);
-        return Stream.fromQueue(events);
-      }),
-    ),
-    unsubscribe,
+    events: events.events,
+    unsubscribe: events.unsubscribe,
     steer,
     interrupt,
     answer,
     close,
   };
 });
-
-const overflow = fail(
-  processError("event-overflow", "ACP event buffer is full"),
-);

@@ -48,6 +48,7 @@ const acpLayer = (options: ProviderAdapterOptions) =>
             if (
               [
                 "spawn-failed",
+                "binary-missing",
                 "initialize-failed",
                 "protocol-version",
                 "agent-version",

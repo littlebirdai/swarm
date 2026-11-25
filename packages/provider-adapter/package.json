@@ -16,6 +16,7 @@
     "@codecast/edge-contract": "workspace:*",
     "@codecast/effect-kit": "workspace:*",
     "@codecast/provider-contract": "workspace:*",
+    "@codecast/secrets": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

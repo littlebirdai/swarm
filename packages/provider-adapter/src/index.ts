@@ -50,23 +50,42 @@ export function createProviderAdapter(
 ): ProviderAdapterClient {
   let runtime: Promise<ProviderAdapterClient> | undefined;
   let disposing: Promise<void> | undefined;
-  async function load(signal?: AbortSignal) {
-    signal?.throwIfAborted();
-    if (disposing) throw new Error("Provider adapter is disposed");
-    const loaded = await (runtime ??= import("./facade").then(
-      ({ createEffectAdapter }) => createEffectAdapter(options),
-    ));
-    if (disposing) throw new Error("Provider adapter is disposed");
-    return loaded;
+  async function run<A>(
+    operation: (adapter: ProviderAdapterClient) => Promise<A>,
+    signal?: AbortSignal,
+  ) {
+    try {
+      signal?.throwIfAborted();
+      if (disposing) throw new Error("Provider adapter is disposed");
+      runtime ??= import("./facade")
+        .then(({ createEffectAdapter }) => createEffectAdapter(options))
+        .catch((error: unknown) => {
+          runtime = undefined;
+          throw error;
+        });
+      const loaded = await runtime;
+      signal?.throwIfAborted();
+      if (disposing) throw new Error("Provider adapter is disposed");
+      return await operation(loaded);
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw error;
+    }
   }
 
   return {
     provider: providerOffer(options.provider),
-    observe: async (spec, signal) => (await load(signal)).observe(spec, signal),
-    start: async (spec, signal) => (await load(signal)).start(spec, signal),
-    resume: async (spec, signal) => (await load(signal)).resume(spec, signal),
+    observe: (spec, signal) =>
+      run((adapter) => adapter.observe(spec, signal), signal),
+    start: (spec, signal) =>
+      run((adapter) => adapter.start(spec, signal), signal),
+    resume: (spec, signal) =>
+      run((adapter) => adapter.resume(spec, signal), signal),
     dispose: () =>
       (disposing ??=
-        runtime?.then((adapter) => adapter.dispose()) ?? Promise.resolve()),
+        runtime?.then(
+          (adapter) => adapter.dispose(),
+          () => {},
+        ) ?? Promise.resolve()),
   };
 }
