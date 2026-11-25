@@ -56,7 +56,7 @@ export function problems(
         `${file}: ${calls} module mocks, the baseline says ${limit}. Run this test with RATCHET_PRUNE=1.`,
       );
   }
-  return out.toSorted();
+  return out.sort();
 }
 
 test("the number of module mocks in each file only goes down", () => {
