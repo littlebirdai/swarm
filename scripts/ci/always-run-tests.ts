@@ -61,7 +61,12 @@ export const SUITES: Array<{
   },
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.
-  { job: "test-web", dir: "apps/web", roots: ["."], flags: ["--parallel=2"] },
+  {
+    job: "test-web",
+    dir: "apps/web",
+    roots: ["."],
+    flags: ["--parallel=2", "--timeout=20000"],
+  },
   {
     job: "test-mobile",
     dir: "apps/mobile",
@@ -104,6 +109,7 @@ async function runSuite(suite: (typeof SUITES)[number]): Promise<boolean> {
     cwd: join(ROOT, suite.dir),
     stdout: "pipe",
     stderr: "pipe",
+    timeout: 300_000,
   });
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),

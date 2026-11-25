@@ -1,0 +1,706 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`pinned content every job's steps are the reviewed ones 1`] = `
+{
+  "build": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "if": "matrix.target == 'web'",
+        "name": "Turborepo cache",
+        "uses": "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+        "with": {
+          "key": "turbo-\${{ runner.os }}-\${{ github.sha }}-\${{ github.run_attempt }}",
+          "path": ".turbo/cache",
+          "restore-keys": "turbo-\${{ runner.os }}-",
+        },
+      },
+      {
+        "env": {
+          "NODE_OPTIONS": "--max-old-space-size=8192",
+        },
+        "if": "matrix.target == 'web'",
+        "name": "Build the web app",
+        "run": "BUILD_NODE_VERSION="$(node --version)" bunx turbo run build:check --filter=@codecast/web",
+      },
+      {
+        "if": "matrix.target == 'other'",
+        "name": "Load the scripts that follow the web bundle",
+        "run": "bun build scripts/precompress.mjs scripts/carry-assets.mjs scripts/prerender.mjs scripts/indexnow.mjs ../../scripts/ci/verify-telemetry-key.mjs --target=node --packages=external --outdir="$RUNNER_TEMP/web-build-scripts"",
+        "working-directory": "apps/web",
+      },
+      {
+        "if": "matrix.target == 'other'",
+        "name": "Build everything else",
+        "run": "bun run build --filter='!@codecast/web'",
+      },
+    ],
+  },
+  "ci-contract": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+        "with": {
+          "deps": "none",
+        },
+      },
+      {
+        "name": "Unit tests (ci scripts + workflow contract)",
+        "run": "bun test scripts/ci/",
+      },
+    ],
+  },
+  "code_paths": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "with": {
+          "fetch-depth": 0,
+          "filter": "blob:none",
+          "sparse-checkout": 
+".github
+scripts
+"
+,
+        },
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+        "with": {
+          "deps": "none",
+        },
+      },
+      {
+        "env": {
+          "EVENT_NAME": "\${{ github.event_name }}",
+          "PR_BASE_SHA": "\${{ github.event.pull_request.base.sha }}",
+          "PR_HEAD_SHA": "\${{ github.event.pull_request.head.sha }}",
+          "PUSH_BEFORE_SHA": "\${{ github.event.before }}",
+          "PUSH_SHA": "\${{ github.sha }}",
+        },
+        "id": "diff",
+        "name": "List changed paths",
+        "run": 
+"set -uo pipefail
+list="$RUNNER_TEMP/changed-paths.txt"
+: > "$list"
+base="" head=""
+if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_SHA" ] && [ -n "$PR_HEAD_SHA" ]; then
+  base="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA" || true)"
+  head="$PR_HEAD_SHA"
+elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE_SHA" ] \\
+  && [ "$PUSH_BEFORE_SHA" != "0000000000000000000000000000000000000000" ] \\
+  && git cat-file -e "$PUSH_BEFORE_SHA^{commit}" 2>/dev/null; then
+  base="$PUSH_BEFORE_SHA"
+  head="$PUSH_SHA"
+fi
+if [ -n "$base" ]; then
+  echo "Diffing $base..$head ($EVENT_NAME)"
+  # A failed diff must not leave a partial list behind.
+  git diff --name-only --no-renames "$base" "$head" > "$list.tmp" && mv "$list.tmp" "$list"
+else
+  echo "No diff base for this $EVENT_NAME event: running every job"
+fi
+echo "list=$list" >> "$GITHUB_OUTPUT"
+echo "Changed paths:"
+cat "$list"
+"
+,
+      },
+      {
+        "id": "scope",
+        "name": "Classify changed paths",
+        "run": "bun scripts/ci/changed-path-scope.ts < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+      },
+      {
+        "id": "computer_scope",
+        "name": "Classify computer changes",
+        "run": "bun scripts/ci/changed-path-scope.ts --computer-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+      },
+      {
+        "id": "injection_scope",
+        "name": "Classify injection-path changes",
+        "run": "bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+      },
+    ],
+  },
+  "computer-macos": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "if": "matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'",
+        "name": "Swift unit tests (helper core)",
+        "run": "swift test",
+        "working-directory": "apps/cli/native/computer-use-macos",
+      },
+      {
+        "env": {
+          "CODECAST_SKIP_SIGN": "1",
+        },
+        "if": "matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'",
+        "name": "Build and sign the computer helper",
+        "run": "bun scripts/computer-verify.ts build --out "$RUNNER_TEMP/helper.tar"",
+        "working-directory": "apps/cli",
+      },
+      {
+        "env": {
+          "CODECAST_COMPUTER_HELPER_APP": "\${{ runner.temp }}/unpacked/codecast computer.app",
+          "CODECAST_COMPUTER_HELPER_TAR": "\${{ runner.temp }}/helper.tar",
+        },
+        "if": "matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'",
+        "name": "Unit and e2e tests (cast computer, ungranted half)",
+        "run": "bun run test:computer",
+        "working-directory": "apps/cli",
+      },
+      {
+        "env": {
+          "HOMEBREW_NO_AUTO_UPDATE": "1",
+          "HOMEBREW_NO_INSTALL_CLEANUP": "1",
+        },
+        "if": "\${{ !cancelled() }}",
+        "name": "Install tmux",
+        "run": "brew install tmux",
+      },
+      {
+        "if": "\${{ !cancelled() }}",
+        "name": "Unit and e2e tests (cli files that only run on darwin)",
+        "run": "bun test --isolate --timeout=60000 --shard=\${{ matrix.shard }}/3 src/antigravityLocal.test.ts src/browser/appIdentity.native.test.ts src/browser/bridge/host.test.ts src/ccAccounts.background.test.ts src/ccKeychain.callers.test.ts src/cloud/reach.test.ts src/config/managedPolicy.test.ts src/daemon.liveness-terminal.e2e.test.ts src/daemon.process-terminal.e2e.test.ts src/daemon.watchdog-supervision.test.ts src/desktopUpdate.test.ts src/disclaim.test.ts src/heicImage.test.ts src/keychainLock.test.ts src/remote/device.async.test.ts src/resourceMonitor.parseEtime.test.ts src/resourceMonitor.test.ts src/sim/sim.test.ts src/supervision.recovery.e2e.test.ts src/tmuxSessionServer.e2e.test.ts src/workers/scanWatcher.test.ts",
+        "working-directory": "apps/cli",
+      },
+    ],
+  },
+  "lint": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "with": {
+          "fetch-depth": 0,
+          "filter": "blob:none",
+        },
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "env": {
+          "LINT_BASE_SHA": "\${{ github.event.pull_request.base.sha }}",
+        },
+        "name": "Lint with Oxlint",
+        "run": "bun run lint",
+      },
+    ],
+  },
+  "test-always": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "name": "Install tmux",
+        "run": "sudo apt-get install -y tmux || { sudo apt-get update && sudo apt-get install -y tmux; }",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Check formatting",
+        "run": "bun run format:check",
+      },
+      {
+        "name": "Always-run tests (every package)",
+        "run": "bun scripts/ci/always-run-tests.ts",
+      },
+      {
+        "name": "Tests outside packages/ (scripts, infra)",
+        "run": 
+"bun test ./scripts/line.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
+node --test infra/call-face-worker/turns.test.mjs
+"
+,
+      },
+    ],
+  },
+  "test-cli": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "name": "Install tmux (e2e tests need a real tmux server)",
+        "run": "sudo apt-get install -y tmux || { sudo apt-get update && sudo apt-get install -y tmux; }",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "env": {
+          "DAEMON_BUILD_ID_CHECK": "1",
+        },
+        "if": "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
+        "name": "Unit tests (cli package)",
+        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=\${{ matrix.suite }}/8 --bail=5",
+        "working-directory": "apps/cli",
+      },
+      {
+        "env": {
+          "SUITE": "\${{ matrix.suite }}",
+        },
+        "if": "startsWith(matrix.suite, 'tmux-')",
+        "name": "E2E files (cli package)",
+        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="\${SUITE#tmux-}/8" --bail=5",
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "Unit tests (evals package)",
+        "run": "bun test src/ --parallel",
+        "working-directory": "apps/evals",
+      },
+      {
+        "if": "matrix.suite == 'e2e'",
+        "name": "E2E messaging pipeline (real tmux + fake-claude shim)",
+        "run": 
+"set -e
+for attempt in 1 2 3; do
+  echo "::group::E2E attempt $attempt"
+  if bun test src/messaging.e2e.test.ts --timeout=60000; then
+    echo "::endgroup::"
+    echo "E2E passed on attempt $attempt"
+    exit 0
+  fi
+  echo "::endgroup::"
+  echo "::warning::E2E attempt $attempt failed; retrying"
+  tmux kill-server 2>/dev/null || true
+  sleep 2
+done
+echo "::error::E2E failed all 3 attempts — likely a real regression"
+exit 1
+"
+,
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
+        "name": "Injection suites (captured frames; real-client cells skip without agent binaries)",
+        "run": 
+"set -e
+# shellcheck disable=SC2016 # the \${...} below is a JS template, not bash
+bun -e '
+  const { MATRIX_CLIENTS, matrixClientAvailable } = await import("./src/test-helpers/messagingHarness.ts");
+  const found = MATRIX_CLIENTS.filter(matrixClientAvailable);
+  const absent = MATRIX_CLIENTS.filter((client) => !found.includes(client));
+  console.log(\`real-client cells run for: [\${found.join(", ")}]; self-skip for: [\${absent.join(", ")}]\`);
+  if (found.length === 0) console.log("::notice::Injection suites: no agent binary on this runner, so every real-client cell skipped. Only the captured-frame suites ran.");
+  process.exit(0);
+'
+for attempt in 1 2 3; do
+  echo "::group::Injection suites attempt $attempt"
+  if bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000; then
+    echo "::endgroup::"
+    echo "Injection suites passed on attempt $attempt"
+    exit 0
+  fi
+  echo "::endgroup::"
+  echo "::warning::Injection suites attempt $attempt failed; retrying"
+  tmux kill-server 2>/dev/null || true
+  sleep 2
+done
+echo "::error::Injection suites failed all 3 attempts — likely a real regression"
+exit 1
+"
+,
+        "working-directory": "apps/cli",
+      },
+    ],
+  },
+  "test-convex": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Unit tests (convex package)",
+        "run": "bun test convex/ scripts/ --timings=test-timings.json --shard=\${{ matrix.shard }}/3",
+        "working-directory": "apps/server",
+      },
+    ],
+  },
+  "test-electron": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Allow the Electron sandbox, and a display for it",
+        "run": 
+"set -euo pipefail
+if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+fi
+if ! command -v xvfb-run >/dev/null; then
+  sudo apt-get update && sudo apt-get install -y xvfb
+fi
+"
+,
+      },
+      {
+        "name": "Unit tests (electron package)",
+        "run": "xvfb-run -a bun run test",
+        "working-directory": "apps/desktop",
+      },
+    ],
+  },
+  "test-mobile": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Unit and guard tests (mobile package)",
+        "run": "bun test --isolate",
+        "working-directory": "apps/mobile",
+      },
+    ],
+  },
+  "test-platform": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+        "with": {
+          "deps": "none",
+        },
+      },
+      {
+        "name": "Vendored mirror integrity",
+        "run": "scripts/vendor-platform.sh --check-manifest",
+      },
+      {
+        "name": "Unit tests (vendored platform packages)",
+        "run": "scripts/vendor-platform.sh --test",
+      },
+    ],
+  },
+  "test-shared": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Workspace library tests, including packages/ratchet",
+        "run": "bun scripts/ci/package-tests.ts",
+      },
+    ],
+  },
+  "test-web": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "env": {
+          "SIM_OUT": "\${{ runner.temp }}/sim",
+        },
+        "if": "matrix.shard != 'budgets'",
+        "name": "Unit tests (web package)",
+        "run": "bun test --parallel=3 --timeout=20000 --timings=test-timings.json --shard=\${{ matrix.shard }}/10",
+        "working-directory": "apps/web",
+      },
+      {
+        "if": "matrix.shard == 'budgets'",
+        "name": "Perf budgets (web)",
+        "run": "scripts/perf-budgets.sh",
+        "working-directory": "apps/web",
+      },
+      {
+        "if": "failure()",
+        "name": "Upload sim artifacts",
+        "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+        "with": {
+          "if-no-files-found": "ignore",
+          "name": "sim-artifacts-\${{ matrix.shard }}",
+          "path": "\${{ runner.temp }}/sim",
+          "retention-days": 14,
+        },
+      },
+    ],
+  },
+  "typecheck": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+      },
+      {
+        "name": "Typecheck",
+        "run": "bun scripts/ci/typecheck.ts \${{ matrix.programs }}",
+      },
+    ],
+  },
+  "verify": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "env": {
+          "BUILD": "\${{ needs.build.result }}",
+          "BUILD_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_build }}",
+          "CI_CONTRACT": "\${{ needs.ci-contract.result }}",
+          "CODE_PATHS": "\${{ needs.code_paths.result }}",
+          "LINT": "\${{ needs.lint.result }}",
+          "LINT_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_lint }}",
+          "TEST_ALWAYS": "\${{ needs.test-always.result }}",
+          "TEST_CLI": "\${{ needs.test-cli.result }}",
+          "TEST_CLI_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_cli }}",
+          "TEST_CONVEX": "\${{ needs.test-convex.result }}",
+          "TEST_CONVEX_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_convex }}",
+          "TEST_ELECTRON": "\${{ needs.test-electron.result }}",
+          "TEST_ELECTRON_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_electron }}",
+          "TEST_MOBILE": "\${{ needs.test-mobile.result }}",
+          "TEST_MOBILE_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_mobile }}",
+          "TEST_PLATFORM": "\${{ needs.test-platform.result }}",
+          "TEST_PLATFORM_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_platform }}",
+          "TEST_SHARED": "\${{ needs.test-shared.result }}",
+          "TEST_SHARED_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_shared }}",
+          "TEST_WEB": "\${{ needs.test-web.result }}",
+          "TEST_WEB_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_web }}",
+          "TYPECHECK": "\${{ needs.typecheck.result }}",
+          "TYPECHECK_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_typecheck }}",
+        },
+        "name": "Require every check",
+        "run": 
+"failed=0
+# The ungated jobs. If code_paths or ci-contract did not succeed, the
+# gates below were computed by code nobody verified; test-always runs
+# on every change because no gate can cover it.
+if [ "$CODE_PATHS" != "success" ]; then
+  echo "code_paths: expected success, got $CODE_PATHS"
+  failed=1
+fi
+if [ "$CI_CONTRACT" != "success" ]; then
+  echo "ci-contract: expected success, got $CI_CONTRACT"
+  failed=1
+fi
+if [ "$TEST_ALWAYS" != "success" ]; then
+  echo "test-always: expected success, got $TEST_ALWAYS"
+  failed=1
+fi
+check_job() {
+  name="$1" result="$2" should="$3"
+  if [ "$should" = "true" ]; then
+    if [ "$result" != "success" ]; then
+      echo "$name: expected success, got $result"
+      failed=1
+    fi
+  elif [ "$result" != "skipped" ]; then
+    echo "$name: expected skipped, got $result"
+    failed=1
+  fi
+}
+check_job build "$BUILD" "$BUILD_SHOULD_RUN"
+check_job typecheck "$TYPECHECK" "$TYPECHECK_SHOULD_RUN"
+check_job lint "$LINT" "$LINT_SHOULD_RUN"
+check_job test-convex "$TEST_CONVEX" "$TEST_CONVEX_SHOULD_RUN"
+check_job test-web "$TEST_WEB" "$TEST_WEB_SHOULD_RUN"
+check_job test-cli "$TEST_CLI" "$TEST_CLI_SHOULD_RUN"
+check_job test-platform "$TEST_PLATFORM" "$TEST_PLATFORM_SHOULD_RUN"
+check_job test-shared "$TEST_SHARED" "$TEST_SHARED_SHOULD_RUN"
+check_job test-mobile "$TEST_MOBILE" "$TEST_MOBILE_SHOULD_RUN"
+check_job test-electron "$TEST_ELECTRON" "$TEST_ELECTRON_SHOULD_RUN"
+exit "$failed"
+"
+,
+      },
+    ],
+  },
+}
+`;
+
+exports[`pinned content turbo.json and the typecheck command are the reviewed ones 1`] = `
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": [
+    "tsconfig.json",
+    "packages/tsconfig/*.json",
+    "patches/**",
+  ],
+  "tasks": {
+    "build": {
+      "cache": false,
+      "passThroughEnv": [
+        "RAILWAY_GIT_COMMIT_SHA",
+        "GIT_SHA",
+      ],
+    },
+    "build:check": {
+      "env": [
+        "VITE_*",
+        "NODE_ENV",
+        "BUILD_NODE_VERSION",
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/desktop/**",
+        "$TURBO_ROOT$/apps/server/**",
+        "$TURBO_ROOT$/apps/web/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/platform/**",
+        "!$TURBO_ROOT$/apps/**/node_modules/**",
+        "!$TURBO_ROOT$/packages/**/node_modules/**",
+        "!$TURBO_ROOT$/platform/**/node_modules/**",
+        "!$TURBO_ROOT$/apps/**/.turbo/**",
+        "!$TURBO_ROOT$/apps/*/dist/**",
+        "!$TURBO_ROOT$/apps/**/*.test.ts",
+        "!$TURBO_ROOT$/apps/**/*.test.tsx",
+        "!$TURBO_ROOT$/packages/*/test/**",
+      ],
+      "outputs": [],
+      "passThroughEnv": [
+        "NODE_OPTIONS",
+      ],
+    },
+    "lint": {
+      "cache": false,
+    },
+    "test": {
+      "cache": false,
+    },
+    "typecheck": {
+      "cache": false,
+    },
+  },
+}
+`;
+
+exports[`pinned content turbo.json and the typecheck command are the reviewed ones 2`] = `
+"import { join } from "node:path";
+
+const ROOT = join(import.meta.dir, "..", "..");
+
+export const LOCAL_ONLY_PROGRAMS = ["mobile"];
+
+export async function typecheckPrograms(): Promise<Record<string, string>> {
+  const config = Bun.TOML.parse(
+    await Bun.file(join(ROOT, ".codecast/check.toml")).text(),
+  ) as { projects: Record<string, string> };
+  return Object.fromEntries(
+    Object.entries(config.projects).filter(
+      ([name]) => !LOCAL_ONLY_PROGRAMS.includes(name),
+    ),
+  );
+}
+
+if (import.meta.main) {
+  const programs = await typecheckPrograms();
+  const names = process.argv.slice(2);
+  if (names.length === 0) names.push(...Object.keys(programs));
+  const unknown = names.filter((name) => !Object.hasOwn(programs, name));
+  if (unknown.length > 0) {
+    console.error(\`::error::Unknown typecheck programs: \${unknown.join(", ")}\`);
+    process.exit(1);
+  }
+  const failed: string[] = [];
+  await Promise.all(
+    names.map(async (name) => {
+      const started = performance.now();
+      const proc = Bun.spawn(
+        [
+          join(ROOT, "node_modules/.bin/tsgo"),
+          "--noEmit",
+          "--checkers",
+          "1",
+          "--incremental",
+          "false",
+          "-p",
+          programs[name],
+        ],
+        { cwd: ROOT, stdio: ["inherit", "inherit", "inherit"] },
+      );
+      const code = await proc.exited;
+      const seconds = Math.round((performance.now() - started) / 1000);
+      console.log(\`\${name}: exit \${code} in \${seconds}s\`);
+      if (code !== 0) failed.push(name);
+    }),
+  );
+  if (failed.length > 0) {
+    console.error(\`::error::Typecheck failed in \${failed.join(", ")}\`);
+    process.exit(1);
+  }
+}
+"
+`;

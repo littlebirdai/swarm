@@ -53,6 +53,7 @@ test("when every load retry fails, the window shows the recovery page pointed ba
   failLoad(win, appUrl);
   await new Promise((r) => setTimeout(r, 520));
   assert.equal(win.last("loadURL")[0], appUrl);
+  win.webContents.emit("did-finish-load");
 });
 
 test("a crashed renderer shows the recovery page for the page it was on; a clean exit does not", () => {

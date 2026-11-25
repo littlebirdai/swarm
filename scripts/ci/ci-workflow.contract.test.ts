@@ -86,8 +86,8 @@ describe("ci.yml job graph", () => {
         ).toBe(false);
         expect(
           uses.startsWith("actions/cache@") &&
-            !String(step.with.path).startsWith(".turbo/"),
-          `${name} caches something other than a Turborepo or typecheck state`,
+            step.with.path !== ".turbo/cache",
+          `${name} caches something other than the Turborepo cache`,
         ).toBe(false);
         expect(
           /^bun install( --frozen-lockfile)?$/.test(String(step.run ?? "")),
@@ -373,7 +373,7 @@ describe("matrices", () => {
       programs: ["web sim", "cli convex", "evals playground packages"],
     },
     "test-convex": { shard: [1, 2, 3] },
-    "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, "budgets"] },
+    "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "budgets"] },
     "test-cli": {
       suite: [
         1,
@@ -382,10 +382,16 @@ describe("matrices", () => {
         4,
         5,
         6,
+        7,
+        8,
         "tmux-1",
         "tmux-2",
         "tmux-3",
         "tmux-4",
+        "tmux-5",
+        "tmux-6",
+        "tmux-7",
+        "tmux-8",
         "evals",
         "e2e",
       ],
@@ -396,7 +402,7 @@ describe("matrices", () => {
     build: [
       [
         "matrix.target == 'web'",
-        "bunx turbo run build:check --filter=@codecast/web",
+        'BUILD_NODE_VERSION="$(node --version)" bunx turbo run build:check --filter=@codecast/web',
       ],
       [
         "matrix.target == 'other'",
@@ -416,7 +422,7 @@ describe("matrices", () => {
     "test-web": [
       [
         "matrix.shard != 'budgets'",
-        "bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8",
+        "bun test --parallel=3 --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/10",
       ],
       ["matrix.shard == 'budgets'", "scripts/perf-budgets.sh"],
     ],
@@ -427,11 +433,11 @@ describe("matrices", () => {
       ],
       [
         "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
-        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5",
+        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5",
       ],
       [
         "startsWith(matrix.suite, 'tmux-')",
-        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5',
+        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
       ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],
@@ -514,6 +520,39 @@ describe("matrices", () => {
         expect(numbers, job).toHaveLength(Number(shard[2]));
       }
     }
+  });
+});
+
+describe("pinned content", () => {
+  test("every job's steps are the reviewed ones", () => {
+    expect((workflow as any).defaults).toBeUndefined();
+    expect(Object.keys(workflow).toSorted()).toEqual([
+      "concurrency",
+      "env",
+      "jobs",
+      "name",
+      "on",
+    ]);
+    expect(workflow.env).toEqual({ TURBO_TELEMETRY_DISABLED: "1" });
+    const pinned = Object.fromEntries(
+      Object.entries(jobs).map(([name, job]) => [
+        name,
+        {
+          env: job.env,
+          defaults: job.defaults,
+          services: job.services,
+          steps: job.steps,
+        },
+      ]),
+    );
+    expect(pinned).toMatchSnapshot();
+  });
+
+  test("turbo.json and the typecheck command are the reviewed ones", () => {
+    const read = (file: string) =>
+      readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+    expect(JSON.parse(read("turbo.json"))).toMatchSnapshot();
+    expect(read("scripts/ci/typecheck.ts")).toMatchSnapshot();
   });
 });
 
