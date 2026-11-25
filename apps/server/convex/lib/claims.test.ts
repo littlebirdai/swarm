@@ -103,7 +103,6 @@ test("only a second sender materializes the lone turn starter's baton", async ()
   expect(await f.rows()).toEqual([
     expect.objectContaining({
       kind: "steer",
-      purpose: "turn_baton",
       holder: f.ana,
       lease_until: start + 30_000,
     }),
@@ -196,13 +195,13 @@ test("pane changes keep one terminal row and fence the replaced pane", async () 
   expect(await f.rows()).toEqual([
     expect.objectContaining({
       kind: "steer",
-      resource_id: f.baton.id,
+      conversation_id: f.baton.id,
       holder: f.ben,
       token: 1,
     }),
     expect.objectContaining({
       kind: "terminal",
-      resource_id: f.pane.id,
+      conversation_id: f.pane.id,
       pane_instance: 2,
       holder: f.ana,
       token: 2,
@@ -558,9 +557,8 @@ test("the final safe token cannot roll over", async () => {
   await f.t.run(({ db }) =>
     db.insert("claims", {
       kind: "terminal",
-      resource_id: f.pane.id,
+      conversation_id: f.pane.id,
       pane_instance: f.pane.paneInstance,
-      purpose: "typing_lease",
       token: Number.MAX_SAFE_INTEGER,
       lease_until: 0,
       request_id: "last",

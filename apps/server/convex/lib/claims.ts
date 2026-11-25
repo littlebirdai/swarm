@@ -60,8 +60,8 @@ type ClaimResult =
 function findClaim(db: DatabaseReader, resource: ClaimKey) {
   return db
     .query("claims")
-    .withIndex("by_kind_resource", (q) =>
-      q.eq("kind", resource.kind).eq("resource_id", resource.id),
+    .withIndex("by_conversation_kind", (q) =>
+      q.eq("conversation_id", resource.id).eq("kind", resource.kind),
     )
     .unique();
 }
@@ -99,10 +99,10 @@ export async function claim(
   if (input.kind === "terminal" && !isValidPaneInstance(input.paneInstance))
     return { status: "invalid_pane" };
 
-  const matchesTerminal = row?.kind === "terminal" && input.kind === "terminal";
-  if (matchesTerminal && input.paneInstance < row.pane_instance)
-    return { status: "wrong_pane" };
-  const newPane = matchesTerminal && input.paneInstance > row.pane_instance;
+  const currentPane = row?.pane_instance ?? 0;
+  const pane = input.kind === "terminal" ? input.paneInstance : 0;
+  if (pane < currentPane) return { status: "wrong_pane" };
+  const newPane = row !== null && pane > currentPane;
   const stale = { status: "stale_request", currentToken } as const;
   if (row?.request_id === input.requestId) {
     if (row.request_holder !== input.holder) return stale;
@@ -118,7 +118,7 @@ export async function claim(
 
   if (newPane) {
     await ctx.db.patch("claims", row._id, {
-      pane_instance: input.paneInstance,
+      pane_instance: pane,
       holder: undefined,
       lease_until: 0,
       request_id: input.requestId,
@@ -140,20 +140,12 @@ export async function claim(
   };
   if (row) {
     await ctx.db.patch("claims", row._id, lease);
-  } else if (input.kind === "steer") {
-    await ctx.db.insert("claims", {
-      ...lease,
-      kind: input.kind,
-      resource_id: input.id,
-      purpose: "turn_baton",
-    });
   } else {
     await ctx.db.insert("claims", {
       ...lease,
+      conversation_id: input.id,
       kind: input.kind,
-      resource_id: input.id,
-      pane_instance: input.paneInstance,
-      purpose: "typing_lease",
+      ...(input.kind === "terminal" ? { pane_instance: pane } : {}),
     });
   }
   return { status: "held", token: lease.token, remainingMs: duration };
@@ -167,7 +159,7 @@ function checkHeldClaim(
   if (
     resource.kind === "terminal" &&
     (!isValidPaneInstance(resource.paneInstance) ||
-      (row?.kind === "terminal" && row.pane_instance !== resource.paneInstance))
+      (row && row.pane_instance !== resource.paneInstance))
   ) {
     return { status: "wrong_pane" };
   }

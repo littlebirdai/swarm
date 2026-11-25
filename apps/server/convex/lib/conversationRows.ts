@@ -26,6 +26,7 @@ export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
     ["composer_suggestions", "by_conversation_id"],
     ["suggestion_outcomes", "by_conversation_id"],
     ["pending_messages", "by_conversation_id"],
+    ["claims", "by_conversation_kind"],
     ["pending_permissions", "by_conversation_status"],
     ["session_decisions", "by_conversation_status"],
     ["session_goals", "by_conversation"],

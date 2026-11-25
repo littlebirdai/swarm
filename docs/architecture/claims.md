@@ -10,7 +10,7 @@ A lone driver uses the implied right when the row is free. The lone request has 
 
 Put each protected write inside `withHeldClaim`. Its callback receives the same mutation context. A refusal skips the callback. Renew, release, and revoke also check the holder, token, deadline, and pane where applicable.
 
-Keep expired and cleared rows indefinitely so tokens survive releases and pane restarts. The server-only rows store lease metadata and a non-secret request receipt.
+Keep expired and cleared rows while the conversation exists, so tokens survive releases and pane restarts. Deleting the conversation deletes its rows. Its ID is not used again, and callers must refuse a claim for a conversation that does not exist. The server-only rows store lease metadata and a non-secret request receipt.
 
 ## Model trace
 

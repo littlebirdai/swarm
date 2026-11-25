@@ -3,31 +3,16 @@ import { v } from "convex/values";
 import { followViewValidator } from "../lib/followView";
 
 export const sessionSharingTables = {
-  claims: defineTable(
-    v.union(
-      v.object({
-        kind: v.literal("steer"),
-        resource_id: v.id("conversations"),
-        purpose: v.literal("turn_baton"),
-        holder: v.optional(v.id("users")),
-        token: v.number(),
-        lease_until: v.number(),
-        request_id: v.string(),
-        request_holder: v.id("users"),
-      }),
-      v.object({
-        kind: v.literal("terminal"),
-        resource_id: v.id("conversations"),
-        pane_instance: v.number(),
-        purpose: v.literal("typing_lease"),
-        holder: v.optional(v.id("users")),
-        token: v.number(),
-        lease_until: v.number(),
-        request_id: v.string(),
-        request_holder: v.id("users"),
-      }),
-    ),
-  ).index("by_kind_resource", ["kind", "resource_id"]),
+  claims: defineTable({
+    conversation_id: v.id("conversations"),
+    kind: v.union(v.literal("steer"), v.literal("terminal")),
+    pane_instance: v.optional(v.number()),
+    holder: v.optional(v.id("users")),
+    token: v.number(),
+    lease_until: v.number(),
+    request_id: v.string(),
+    request_holder: v.id("users"),
+  }).index("by_conversation_kind", ["conversation_id", "kind"]),
 
   share_redemptions: defineTable({
     conversation_id: v.id("conversations"),
