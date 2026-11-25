@@ -46,6 +46,18 @@ The heartbeat handlers use `lib/sessionStatusWriter.ts` for the registry patch a
 
 [Status writer]: ../../apps/server/convex/lib/sessionStatusWriter.ts
 
+## Heartbeat replay gaps
+
+The replay compares the legacy agent status with the contract's turn state. It supplies each provider event only when the fixture observes it.
+
+| Missing event   | Legacy agent status  | Contract turn state | Reason                                             |
+| --------------- | -------------------- | ------------------- | -------------------------------------------------- |
+| `turn.started`  | `working`            | No turn             | A heartbeat has no turn ID or start event.         |
+| `prompt.opened` | `permission_blocked` | Running             | A heartbeat has no prompt ID or open event.        |
+| `turn.ended`    | `idle`               | Blocked             | A heartbeat gives no evidence that the turn ended. |
+
+A later matching provider event closes each gap in the fixture. A stale heartbeat cannot change the stored agent status after the turn ends.
+
 ## Pending-message healers
 
 These paths also change delivery state. Their delivery fields are outside the status guard.
