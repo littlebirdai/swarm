@@ -263,7 +263,9 @@ export default defineSchema(
       // account (slackSync): one per installation, named after the workspace, and
       // every line it authors carries an `external_author` snapshot of the real
       // Slack person so the UI renders them, not the bridge.
-      bot_kind: v.optional(v.union(v.literal("anchor"), v.literal("slack"))),
+      bot_kind: v.optional(
+        v.union(v.literal("anchor"), v.literal("slack"), v.literal("role")),
+      ),
       active_team_id: v.optional(v.id("teams")),
       daemon_last_seen: v.optional(v.number()),
       last_message_sent_at: v.optional(v.number()),
