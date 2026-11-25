@@ -14549,9 +14549,6 @@
   "apps/web/components/EntityCardRows.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/EntityIdPill.deployRuns.test.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/components/EntityIdPill.references.test.tsx": {
     "swarm/no-comments": 120
   },
@@ -15606,7 +15603,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/components/__tests__/stationStrip.mount.test.tsx": {
-    "swarm/no-comments": 19
+    "swarm/no-comments": 10
   },
   "apps/web/components/__tests__/tabContentEntryStale.test.tsx": {
     "swarm/no-comments": 7
@@ -15655,9 +15652,6 @@
   },
   "apps/web/components/__tests__/walkieStrip.test.tsx": {
     "swarm/no-comments": 31
-  },
-  "apps/web/components/__tests__/workflowContextPanel.mount.test.tsx": {
-    "swarm/no-comments": 8
   },
   "apps/web/components/activity/ActivityFilters.tsx": {
     "swarm/no-comments": 9,
@@ -17345,9 +17339,6 @@
   },
   "apps/web/components/deploys/__tests__/DeployDetail.mount.test.tsx": {
     "swarm/no-comments": 2
-  },
-  "apps/web/components/deploys/__tests__/FocusChip.mount.test.tsx": {
-    "swarm/no-comments": 3
   },
   "apps/web/components/deploys/deployRecord.test.ts": {
     "swarm/no-comments": 1
@@ -19733,9 +19724,6 @@
   "apps/web/components/org/scope/ConversationWithPanel.tsx": {
     "swarm/no-comments": 20
   },
-  "apps/web/components/org/scope/PersonGoals.test.tsx": {
-    "swarm/no-comments": 3
-  },
   "apps/web/components/org/scope/PersonGoals.tsx": {
     "swarm/no-comments": 7
   },
@@ -20915,9 +20903,6 @@
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 35
   },
-  "apps/web/components/team/__tests__/WorkspaceSharePicker.empty.mount.test.tsx": {
-    "swarm/no-comments": 3
-  },
   "apps/web/components/team/__tests__/shareImpactBand.test.tsx": {
     "swarm/no-comments": 3
   },
@@ -21499,9 +21484,6 @@
   "apps/web/hooks/__tests__/useInboxDigestCompare.test.ts": {
     "swarm/no-comments": 7
   },
-  "apps/web/hooks/__tests__/useJumpToDecisionAsk.test.tsx": {
-    "swarm/no-comments": 9
-  },
   "apps/web/hooks/__tests__/useLiveInboxSessions.test.ts": {
     "swarm/no-comments": 3
   },
@@ -21537,9 +21519,6 @@
   },
   "apps/web/hooks/__tests__/useSyncChanges.test.ts": {
     "swarm/no-comments": 9
-  },
-  "apps/web/hooks/__tests__/useSyncCollection.authGate.test.tsx": {
-    "swarm/no-comments": 12
   },
   "apps/web/hooks/__tests__/useSyncConversationCommits.test.ts": {
     "swarm/no-comments": 3
@@ -22439,9 +22418,6 @@
   },
   "apps/web/hooks/useRunVerify.ts": {
     "swarm/no-comments": 1
-  },
-  "apps/web/hooks/useRunWorkflow.mount.test.tsx": {
-    "swarm/no-comments": 6
   },
   "apps/web/hooks/useRunnerSilence.ts": {
     "swarm/no-comments": 2

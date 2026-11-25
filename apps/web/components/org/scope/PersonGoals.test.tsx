@@ -1,32 +1,32 @@
-import { expect, mock, test } from "bun:test";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { expect, test } from "bun:test";
+import { act } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { webBuilders } from "../../../test-helpers/builders";
+import { pending } from "../../../test-helpers/testConvex";
+import { PersonGoals } from "./PersonGoals";
+import type { BriefPerson } from "./scopeTypes";
 
-// The pill resolves a short id through the store and Convex; this test is
-// about the goal rows, so the pill is the id as text.
-mock.module("../../EntityIdPill", () => ({
-  EntityIdPill: ({ shortId }: { shortId: string }) => (
-    <span data-pill>{shortId}</span>
-  ),
-}));
-const { PersonGoals } = await import("./PersonGoals");
+const matched = webBuilders("PersonGoals.test.tsx").task.build({
+  short_id: "ct-7",
+  title: "R6",
+});
 
 const NOW = Date.parse("2026-09-19T15:00:00Z");
 const H = 3_600_000;
-const person = (over: Record<string, unknown>) =>
-  ({
-    user_id: "u1",
-    name: "Ashot",
-    has_section: true,
-    goals: [],
-    sessions_changed: [],
-    sessions_total: 0,
-    stalled_high: 0,
-    ...over,
-  }) as any;
+const person = (over: Partial<BriefPerson>): BriefPerson => ({
+  user_id: "u1",
+  name: "Ashot",
+  has_section: true,
+  goals: [],
+  sessions_changed: [],
+  sessions_total: 0,
+  stalled_high: 0,
+  ...over,
+});
 
-test("each goal shows what is matched to it, what moved and what stalled", () => {
-  const html = renderToStaticMarkup(
+test("each goal shows what is matched to it, what moved and what stalled", async () => {
+  const { container, navigationLog } = await mountWeb(
     <PersonGoals
       own
       roleHandle="head"
@@ -64,17 +64,31 @@ test("each goal shows what is matched to it, what moved and what stalled", () =>
         ],
       })}
     />,
+    {
+      setup: (backend, store) => {
+        backend.set(api.tasks.webGet, pending);
+        store.syncTable("tasks", [matched]);
+      },
+    },
   );
-  expect(html).toContain('data-person-goals="2"');
-  expect(html).toContain("Ship org roles");
-  expect(html).toContain('<span data-pill="true">ct-7</span>');
-  expect(html).toContain("ct-7 in_progress · moved 2h ago");
-  expect(html).toContain('data-goal-stalled="1"');
-  expect(html).toContain("nothing matched · stalled");
+  expect(container.innerHTML).toContain('data-person-goals="2"');
+  expect(container.innerHTML).toContain("Ship org roles");
+  const pill = container.querySelector<HTMLAnchorElement>(
+    `a[href="/tasks/${matched._id}"]`,
+  );
+  expect(pill?.textContent).toContain(matched.title);
+  expect(container.innerHTML).toContain("ct-7 in_progress · moved 2h ago");
+  expect(container.innerHTML).toContain('data-goal-stalled="1"');
+  expect(container.innerHTML).toContain("nothing matched · stalled");
+  await act(() => pill!.click());
+  expect(navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: `/tasks/${matched._id}`,
+  });
 });
 
-test("a person with no focus section is told how to give the role their focus, in their own voice or the reader's", () => {
-  const own = renderToStaticMarkup(
+test("a person with no focus section is told how to give the role their focus, in their own voice or the reader's", async () => {
+  const { container, rerender } = await mountWeb(
     <PersonGoals
       own
       roleHandle="head"
@@ -82,12 +96,13 @@ test("a person with no focus section is told how to give the role their focus, i
       person={person({ has_section: false })}
     />,
   );
-  expect(own).toContain("You report to @head");
-  expect(own).toContain("it doesn&#x27;t know your focus yet");
-  // It says to tell the role, never to write a heading called "Goals" (a goal is an initiative row only).
-  expect(own).toContain("three to five priorities in the conversation");
-  expect(own).not.toContain("## Goals");
-  const other = renderToStaticMarkup(
+  expect(container.textContent).toContain("You report to @head");
+  expect(container.textContent).toContain("it doesn't know your focus yet");
+  expect(container.textContent).toContain(
+    "three to five priorities in the conversation",
+  );
+  expect(container.textContent).not.toContain("## Goals");
+  await rerender(
     <PersonGoals
       own={false}
       roleHandle="head"
@@ -95,5 +110,5 @@ test("a person with no focus section is told how to give the role their focus, i
       person={person({ has_section: false })}
     />,
   );
-  expect(other).toContain("Ashot reports to @head");
+  expect(container.textContent).toContain("Ashot reports to @head");
 });
