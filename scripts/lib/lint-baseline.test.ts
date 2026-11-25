@@ -2,9 +2,12 @@ import { expect, test } from "bun:test";
 import {
   carryRenames,
   compareLintCounts,
+  matchLintTransfers,
   parseRenames,
   staleFiles,
+  type DiagnosticSpans,
 } from "./lint-baseline";
+import { diagnosticSpanText } from "./oxlint";
 
 test("reports a count that grew", () => {
   const { grew } = compareLintCounts(
@@ -115,4 +118,105 @@ test("names the baseline files that no longer exist", () => {
     "deleted.ts",
     "moved.ts",
   ]);
+});
+
+function spans(
+  entries: Record<string, Record<string, string[]>>,
+): DiagnosticSpans {
+  return new Map(
+    Object.entries(entries).map(([file, rules]) => [
+      file,
+      {
+        source: Object.values(rules).flat().join("\n"),
+        rules: new Map(Object.entries(rules)),
+      },
+    ]),
+  );
+}
+
+test("matches only removed occurrences of the same rule and text", () => {
+  const before = spans({ "source.ts": { comments: ["same", "same", "stay"] } });
+  const after = spans({
+    "source.ts": { comments: ["same", "stay"] },
+    "split.ts": {
+      comments: ["same", "same", "stay", "edited"],
+      other: ["same"],
+    },
+  });
+  const matched = matchLintTransfers(
+    [{ file: "source.ts", rule: "comments", before: 3, after: 2 }],
+    [
+      { file: "split.ts", rule: "other", before: 0, after: 1 },
+      { file: "split.ts", rule: "comments", before: 0, after: 4 },
+    ],
+    before,
+    after,
+  );
+  expect(matched.map(({ before }) => before)).toEqual([0, 1]);
+});
+
+test("shares each donor budget across files and reassigns overlapping matches", () => {
+  const before = spans({
+    "a.ts": { comments: ["shared", "unique"] },
+    "b.ts": { comments: ["shared"] },
+  });
+  const after = spans({
+    "a.ts": { comments: ["replacement"] },
+    "new-1.ts": { comments: ["shared"] },
+    "new-2.ts": { comments: ["unique"] },
+    "new-3.ts": { comments: ["unique"] },
+  });
+  const donations = [
+    { file: "a.ts", rule: "comments", before: 2, after: 1 },
+    { file: "b.ts", rule: "comments", before: 1, after: 0 },
+  ];
+  const requests = ["new-1.ts", "new-2.ts", "new-3.ts"].map((file) => ({
+    file,
+    rule: "comments",
+    before: 0,
+    after: 1,
+  }));
+  expect(
+    matchLintTransfers(donations, requests.slice(0, 2), before, after).map(
+      ({ before }) => before,
+    ),
+  ).toEqual([1, 1]);
+  expect(
+    matchLintTransfers(donations, requests, before, after).reduce(
+      (total, { before }) => total + before,
+      0,
+    ),
+  ).toBe(2);
+  expect(
+    matchLintTransfers(
+      donations.slice(0, 1),
+      requests.slice(0, 2),
+      before,
+      after,
+    ).reduce((total, { before }) => total + before, 0),
+  ).toBe(1);
+});
+
+test("extracts UTF-8 byte spans and trims each line", () => {
+  const prefix = 'const name = "é🙂"; ';
+  const span = "/* héllo\r\n    * world  \r\n    */";
+  const source = Buffer.from(prefix + span + "\n");
+  expect(
+    diagnosticSpanText(
+      {
+        severity: "error",
+        message: "Code comments are forbidden.",
+        labels: [
+          {
+            span: {
+              line: 1,
+              offset: Buffer.byteLength(prefix),
+              length: Buffer.byteLength(span),
+            },
+          },
+        ],
+      },
+      source,
+    ),
+  ).toBe("/* héllo\n* world\n*/");
 });

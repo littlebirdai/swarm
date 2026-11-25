@@ -2,13 +2,40 @@ import path from "node:path";
 
 export const LINT_ROOT = path.resolve(import.meta.dir, "../..");
 
-type OxlintDiagnostic = {
+export type OxlintDiagnostic = {
   filename?: string;
   code?: string;
   severity: "error" | "warning";
   message: string;
-  labels?: { span: { line: number } }[];
+  labels?: { span: { line: number; offset: number; length: number } }[];
 };
+
+export function diagnosticSpanText(
+  diagnostic: OxlintDiagnostic,
+  source: Buffer,
+): string | undefined {
+  const span = diagnostic.labels?.[0]?.span;
+  if (!span) return;
+  const { offset, length } = span;
+  if (
+    !Number.isSafeInteger(offset) ||
+    !Number.isSafeInteger(length) ||
+    offset < 0 ||
+    length <= 0 ||
+    offset + length > source.length
+  ) {
+    return;
+  }
+  return lintSourceText(source.subarray(offset, offset + length)) || undefined;
+}
+
+export function lintSourceText(source: Buffer): string {
+  return source
+    .toString("utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .join("\n");
+}
 
 type OxlintReport = {
   diagnostics: OxlintDiagnostic[];
