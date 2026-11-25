@@ -51,7 +51,9 @@ function claim(
       : { observation, completed: new Set<CommandKey>() };
   if (
     record.observation !== observation ||
-    record.pending.has(key) ||
+    (key === "submit"
+      ? record.pending.has(key)
+      : record.pending.get(key) === observation) ||
     outcome.completed.has(key)
   )
     return false;
@@ -71,16 +73,22 @@ function settle(
   observation: Observation,
   key: CommandKey,
   change: (outcome: Outcome) => Outcome,
+  token = observation,
 ) {
-  update(id, (current) => ({
-    ...current,
-    pending: new Map([...current.pending].filter(([item]) => item !== key)),
-    outcome:
-      current.observation === observation &&
-      current.outcome?.observation === observation
-        ? change(current.outcome)
-        : current.outcome,
-  }));
+  update(id, (current) => {
+    if (current.pending.get(key) !== token) return current;
+    const pending = new Map(current.pending);
+    pending.delete(key);
+    return {
+      ...current,
+      pending,
+      outcome:
+        current.observation === observation &&
+        current.outcome?.observation === observation
+          ? change(current.outcome)
+          : current.outcome,
+    };
+  });
 }
 
 export function useComposerControl(
@@ -124,14 +132,22 @@ export function useComposerControl(
       ])
     : null;
   useWatchEffect(() => {
-    if (!scopedId || observed === null || receiptKey === null) return;
-    const current = operations.getState()[scopedId];
+    const current = operations.getState()[conversationId];
+    if (observed === null || receiptKey === null) {
+      if (current?.observation || current?.receipt)
+        update(conversationId, (record) => ({
+          ...record,
+          observation: undefined,
+          receipt: undefined,
+        }));
+      return;
+    }
     if (
       current?.observation?.key === observed &&
       current.receipt?.key === receiptKey
     )
       return;
-    update(scopedId, (record) => ({
+    update(conversationId, (record) => ({
       ...record,
       observation:
         record.observation?.key === observed
@@ -142,7 +158,7 @@ export function useComposerControl(
           ? record.receipt
           : { key: receiptKey },
     }));
-  }, [scopedId, observed, receiptKey]);
+  }, [conversationId, observed, receiptKey]);
   if (!shared) return null;
 
   const { baton } = shared;
@@ -195,10 +211,16 @@ export function useComposerControl(
         sendState = { kind: "in-doubt" };
         if (payload && !retry) addRetry(payload);
       } finally {
-        settle(conversationId, observation, "submit", (current) => ({
-          ...current,
-          send: sendState ? { receipt, state: sendState } : undefined,
-        }));
+        settle(
+          conversationId,
+          observation,
+          "submit",
+          (current) => ({
+            ...current,
+            send: sendState ? { receipt, state: sendState } : undefined,
+          }),
+          receipt,
+        );
       }
       return false;
     };
@@ -253,8 +275,12 @@ export function useComposerControl(
     }
   }
 
+  const pendingControl = (key: ControlCommand["kind"]) =>
+    !!observation && record.pending.get(key) === observation;
+
   return {
     ...view,
+    submitting: view.submitting || record.pending.has("submit"),
     facts: currentFacts,
     expected,
     begin,
@@ -270,13 +296,13 @@ export function useComposerControl(
       view.request && outcome?.completed.has("ask")
         ? ("requested" as const)
         : view.request,
-    askPending: record.pending.has("ask"),
+    askPending: pendingControl("ask"),
     takeoverPending:
-      record.pending.has("takeover") || !!outcome?.completed.has("takeover"),
+      pendingControl("takeover") || !!outcome?.completed.has("takeover"),
     interruptPending:
-      record.pending.has("interrupt") || !!outcome?.completed.has("interrupt"),
+      pendingControl("interrupt") || !!outcome?.completed.has("interrupt"),
     cancelPending:
-      record.pending.has("cancel-takeover") ||
+      pendingControl("cancel-takeover") ||
       !!outcome?.completed.has("cancel-takeover"),
   };
 }

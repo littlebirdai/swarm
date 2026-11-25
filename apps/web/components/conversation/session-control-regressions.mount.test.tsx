@@ -363,3 +363,81 @@ test("a second Escape after acceptance does not interrupt the same turn again", 
     { kind: "interrupt", expected: { kind: "turn", turn: "t1" } },
   ]);
 });
+
+test("returning from solo clears the previous shared outcome for the same facts", async () => {
+  const conv = id();
+  const fake = fakeBaton();
+  const shared = fake.control(conv, { driver: ana });
+  const solo = { enabled: true, conversationId: conv, shared: null } as const;
+  const ui = await mountComposer(owner(conv, shared));
+
+  await act(() => button(ui.container, "Take over").click());
+  await act(() =>
+    ui.dom.window.document
+      .querySelector<HTMLButtonElement>("[data-switch-confirm]")!
+      .click(),
+  );
+  await fake.reply("accepted");
+  expect(button(ui.container, "Take over").disabled).toBe(true);
+  await ui.type("Retained draft");
+  await ui.press("Enter");
+  await fake.reply("stale");
+  expect(ui.container.textContent).toContain("Turn ended");
+  await act(() => button(ui.container, "Interrupt").click());
+  await fake.reply("refused");
+  expect(ui.container.textContent).toContain("Control request refused");
+
+  await ui.rerender(owner(conv, solo));
+  await ui.rerender(owner(conv, shared));
+  expect(button(ui.container, "Take over").disabled).toBe(false);
+  expect(ui.container.textContent).not.toContain("Turn ended");
+  expect(ui.container.textContent).not.toContain("Control request refused");
+  expect(ui.box().value).toBe("Retained draft");
+});
+
+test("an old interrupt cannot block or release the interrupt for a newer turn", async () => {
+  const conv = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(owner(conv, fake.control(conv)), {
+    clock: true,
+  });
+  await ui.press("Escape");
+  expect(button(ui.container, "Interrupt").disabled).toBe(true);
+  await ui.rerender(owner(conv, fake.control(conv, { turn: "t2" })));
+  expect(button(ui.container, "Interrupt").disabled).toBe(false);
+  await ui.clock!.advance(450);
+  await ui.press("Escape");
+  expect(fake.commands).toEqual([
+    { kind: "interrupt", expected: { kind: "turn", turn: "t1" } },
+    { kind: "interrupt", expected: { kind: "turn", turn: "t2" } },
+  ]);
+  await fake.reply("accepted");
+  expect(button(ui.container, "Interrupt").disabled).toBe(true);
+  await ui.clock!.advance(450);
+  await ui.press("Escape");
+  expect(fake.commands).toHaveLength(2);
+  await fake.reply("refused");
+  expect(button(ui.container, "Interrupt").disabled).toBe(false);
+});
+
+test("a newer server receipt leaves Send disabled until the pending command settles", async () => {
+  const conv = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(owner(conv, fake.control(conv)));
+  await ui.type("First draft");
+  await ui.press("Enter");
+  await ui.type("Second draft");
+  for (const turn of ["t1", "t2"]) {
+    await ui.rerender(
+      owner(conv, fake.control(conv, { turn, sendState: { kind: "saved" } })),
+    );
+    expect(ui.container.textContent).toContain("Saved");
+    expect(ui.container.textContent).not.toContain("Saving");
+    expect(button(ui.container, "Send").disabled).toBe(true);
+    await ui.press("Enter");
+    expect(fake.commands).toHaveLength(1);
+  }
+  await fake.reply("accepted");
+  expect(button(ui.container, "Send").disabled).toBe(false);
+  expect(ui.box().value).toBe("Second draft");
+});
