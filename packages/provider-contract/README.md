@@ -4,13 +4,15 @@ The machine service uses one `ProviderAdapter` for an exact agent and version.
 `observe` opens a transcript stream. An observed session can also send
 best-effort input to a bound pane. `start` and `resume` open an owned session
 with a structured control channel. An owned session exposes a provider
-checkpoint for a later run.
+checkpoint for a later run. Call `getCheckpoint()` when you need to save or
+resume it. This live read returns the latest checkpoint known to the adapter.
+The provider can change it during a run.
 
 The adapter uses promises for requests and an async iterable for events.
 Plain TypeScript can await and iterate them directly. An Effect adapter can
 bridge scoped operations and a stream at this boundary while keeping its
 services, scopes and Schema decoders in the adapter package. Expected
-operation failures resolve to tagged outcomes. Unexpected defects may reject
+operation failures resolve to tagged outcomes. Unexpected defects can reject
 a request or fail the iterator and reach the supervisor.
 
 ## Capabilities
@@ -39,42 +41,64 @@ Owned sessions can send at idle even without `steer-mid-turn`.
 ## Delivery and lifetime
 
 A steer carries the delivery ID and the expected run, turn and fencing token.
-A paste also names the pane instance. An interrupt requires an active turn,
-and an answer also requires the prompt ID. Compare the expected state with
-the current position immediately before the effect. A null turn means
-confirmed idle. If the position cannot be verified, refuse before effect.
-A `stale` return reports the current position without exposing the token.
-`unsupported`, `refused`, `stale` and `closed` have no agent or pane effect.
+A paste also names a positive integer pane instance. An interrupt requires the
+active turn. An answer requires the run, fencing token and pending prompt ID.
+Compare the guard with the current position immediately before the effect.
+A null turn means confirmed idle. Refuse before effect if you cannot verify the
+position. Stale results identify the observed turn, prompt or pane. A prompt
+observation can report a null run or prompt ID. The terminal observation omits
+the fencing token. The machine can map it to the edge terminal observation
+with a null token. `unsupported`, `refused`, `stale` and `closed` have no agent
+or pane effect.
 
-`accepted` means the provider has durably recorded the delivery. A retry
-with the same delivery ID under a valid fence returns `duplicate` with the
-same receipt, without sending again or emitting another receipt event.
-`resume` exposes recovered receipts for reconciliation, including receipts
-recorded under an earlier run of the session. The machine service records
-delivery start before invoking the adapter and decides when to retry. Without
-receipts, a completed paste is `in-doubt` with reason `best-effort`. An
-unconfirmed effect is `in-doubt` with reason `unknown`. The machine can
-reconcile these outcomes using transcript evidence.
+`accepted` means the provider durably recorded the delivery. A retry with the
+same delivery ID first checks the fence. A valid retry returns `duplicate`
+with the same receipt and emits no second receipt event. If the adapter
+supports resume, it exposes recovered receipts from earlier runs of the
+session. The machine records delivery start before it calls the adapter.
+
+A clean write without a durable receipt returns `in-doubt` with reason
+`best-effort`. This includes a successful paste, SDK enqueue, or structured
+transport acknowledgment without durable receipt support. Use reason
+`unknown` when a crash or timeout prevents the adapter from determining
+whether the write took effect. Both reasons carry a diagnostic code and
+message. The machine can reconcile the outcome with transcript evidence.
+
+A turn can end between the local check and a write on an unfenced wire. If
+the adapter learns of the turn end after the write, settle the operation
+from the write evidence. Return `accepted` for durable acceptance or
+`in-doubt` when the adapter lacks that evidence. A `stale` result requires
+proof that the write had no effect.
 
 For interrupt and answer, `applied` means the provider confirmed the control
-operation. These operations do not mint inbox delivery receipts. An open
-operation with an unknown effect is also `in-doubt`. The caller must resolve
-the old runtime before starting another run.
+operation. These operations do not emit inbox delivery receipts. If the
+effect of an open is unknown, the caller must resolve the old runtime before
+it starts another run.
 
-One consumer reads the session's event stream. Each event uses the edge
-contract's envelope, kind and body directly. Durable events have increasing
-`seq` values above the supplied `afterSeq`. Transient `message.delta` events
-use the edge contract's unsequenced shape. The machine service coordinates
-sequence ownership when changing sources. Terminal frames travel through the
-relay. Provider payload decoding and retention of undecodable raw payloads
-belong to the adapters.
+One consumer reads each session's event stream. Each event uses the edge
+contract's envelope, kind and body. Durable events have increasing `seq`
+values above the supplied `afterSeq`. Use `0` when the session has no
+committed events. Transient `message.delta` events use the edge contract's
+unsequenced shape. The machine coordinates sequence ownership when it
+changes sources. Terminal frames travel through the relay. Adapters decode
+provider payloads and retain undecodable raw payloads.
+
+The adapter bounds pending events and applies backpressure when the reader
+falls behind. A source that cannot pause needs a bounded handoff to durable
+storage or an explicit stream failure. It cannot silently drop durable events.
+The iterator's `return()` releases the subscription and completes pending
+reads and event writes. The caller still closes the session to release its
+runtime resources. A process exit emits `session.ended` before the stream
+completes. An unexpected adapter defect rejects the iterator.
 
 Concurrent and repeated `close` calls share one result and release the
-session once. Closing observation releases its watch and paste access.
-Closing ownership also stops its process and control channel. After close
-settles, pending reads complete and no event can surface, even if a late
-provider notification arrives. If release fails, close reports the failure
-and the machine still needs proof before replacing the runtime.
+session once. Close fences new writes and any operation that still waits to
+write. A write already in progress settles according to its evidence.
+Closing observation releases its watch and paste access. Closing ownership
+also stops its process and control channel. After close settles, pending
+reads complete and late notifications cannot surface. If release fails,
+close returns the same typed failure on each call and keeps the stream and
+controls closed. The machine still needs proof before it replaces the runtime.
 
 ## Existing driver mapping
 
@@ -102,11 +126,9 @@ provider process must establish which resources it can close for its run.
 ## Adapter tests
 
 Import `providerConformance` from `@codecast/provider-contract/test` in a
-Bun test. Supply a fresh adapter and a controllable provider or pane for each
-case. Feed two ordered events through the provider boundary and supply their
-expected canonical records. Use the fixture's effect and release counts to
-report what actually reached the provider and what resources closed. The
-suite checks ordering, duplicate receipts across concurrent calls and
-resume, stale and unsupported results, and close behavior. A separate
-receipt-capable fixture exercises durable recovery because none of the
-present transport paths proves that guarantee.
+Bun test. Supply a fresh adapter with a controllable provider or pane for each
+case. Feed events through the provider boundary and supply their expected
+canonical records. Report the effects that reach the provider and the
+resources that close. The kit also needs a write gate, a backpressure probe,
+and a way to signal process exit and adapter defects. Separate fixtures exercise receipt
+recovery and deduplication with resume disabled.

@@ -12,7 +12,7 @@
     ".": "./src/index.ts",
     "./test": "./test/conformance.ts"
   },
-  "devDependencies": {
+  "dependencies": {
     "@codecast/edge-contract": "workspace:*"
   }
 }

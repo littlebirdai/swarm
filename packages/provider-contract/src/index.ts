@@ -20,13 +20,15 @@ export type DeliveryReceipt = Readonly<
 export interface SessionScope {
   readonly session: CanonicalEvent["session"];
   readonly run: CanonicalEvent["run"];
-  readonly afterSeq: CanonicalEvent["seq"];
+  readonly afterSeq: number;
 }
+
+export type PaneInstance = number;
 
 export interface ObserveSpec extends SessionScope {
   readonly transcript: string;
   readonly paste?: {
-    readonly pane_instance: string;
+    readonly pane_instance: PaneInstance;
     readonly fencing_token: string;
   };
 }
@@ -41,14 +43,19 @@ export interface ResumeSpec extends StartSpec {
   readonly checkpoint: string;
 }
 
-export interface SessionPosition {
+export interface RunFence {
   readonly run: SessionScope["run"];
-  readonly turn: CanonicalEvent["turn"];
   readonly fencing_token: string;
 }
 
+export interface SessionPosition extends RunFence {
+  readonly turn: CanonicalEvent["turn"];
+}
+
 export interface SteerRequest {
-  readonly expected: SessionPosition & { readonly pane_instance?: string };
+  readonly expected: SessionPosition & {
+    readonly pane_instance?: PaneInstance;
+  };
   readonly delivery_id: DeliveryReceipt["delivery_id"];
   readonly authors: readonly Extract<
     CanonicalEvent,
@@ -70,7 +77,7 @@ type PromptSettlement = Extract<
 >["body"];
 
 export interface AnswerRequest {
-  readonly expected: InterruptRequest["expected"] & {
+  readonly expected: RunFence & {
     readonly prompt_id: PromptSettlement["prompt_id"];
   };
   readonly by: PromptSettlement["by"];
@@ -88,19 +95,25 @@ export type Refused = {
   readonly message: string;
 };
 
+export type ObservedPosition =
+  | { readonly kind: "turn"; readonly turn: CanonicalEvent["turn"] }
+  | {
+      readonly kind: "prompt";
+      readonly run: SessionScope["run"] | null;
+      readonly prompt_id: PromptSettlement["prompt_id"] | null;
+    }
+  | { readonly kind: "terminal"; readonly pane_instance: PaneInstance | null };
+
 export type Stale = {
   readonly status: "stale";
-  readonly observed: {
-    readonly run: SessionScope["run"];
-    readonly turn: CanonicalEvent["turn"];
-    readonly prompt_id?: PromptSettlement["prompt_id"];
-    readonly pane_instance?: string;
-  };
+  readonly observed: ObservedPosition;
 };
 
 export type InDoubt = {
   readonly status: "in-doubt";
   readonly reason: "best-effort" | "unknown";
+  readonly code: string;
+  readonly message: string;
 };
 
 type ActionRefusal =
@@ -127,8 +140,18 @@ export type CloseOutcome =
       readonly message: string;
     };
 
+export interface ProviderEventIterator extends AsyncIterator<
+  ProviderEvent,
+  undefined,
+  undefined
+> {
+  return(): Promise<IteratorResult<ProviderEvent, undefined>>;
+}
+
 interface SessionOperations {
-  readonly events: AsyncIterable<ProviderEvent>;
+  readonly events: {
+    [Symbol.asyncIterator](): ProviderEventIterator;
+  };
   steer(request: SteerRequest): Promise<DeliveryOutcome>;
   interrupt(request: InterruptRequest): Promise<ControlOutcome>;
   answer(request: AnswerRequest): Promise<ControlOutcome>;
@@ -141,7 +164,7 @@ export interface ObservedSession extends SessionOperations {
 
 export interface OwnedSession extends SessionOperations {
   readonly mode: "own";
-  readonly checkpoint: string;
+  getCheckpoint(): string;
   readonly recoveredReceipts: readonly DeliveryReceipt[];
 }
 
@@ -149,7 +172,7 @@ export type OpenOutcome<S extends ObservedSession | OwnedSession> =
   | { readonly status: "opened"; readonly session: S }
   | Unsupported
   | Refused
-  | { readonly status: "in-doubt"; readonly reason: "unknown" };
+  | (InDoubt & { readonly reason: "unknown" });
 
 export interface ProviderAdapter {
   readonly provider: ProviderOffer;

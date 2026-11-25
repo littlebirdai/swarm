@@ -3,29 +3,50 @@ import type {
   ControlOutcome,
   DeliveryOutcome,
   DeliveryReceipt,
+  InDoubt,
+  ObservedPosition,
   ObservedSession,
   ObserveSpec,
   OwnedSession,
   ProviderAdapter,
-  ProviderEvent,
   ProviderOffer,
-  SessionPosition,
+  RunFence,
   StartSpec,
 } from "../src";
 import type { ProviderFixture } from "./conformance";
+import { fakeEventStream } from "./fake-event-stream";
 
 const scope = { session: "session-1", run: 1, afterSeq: 10 };
 const fence = "fence-1";
 const turn = "turn-1";
 const prompt = "prompt-1";
-const pane = "pane-1";
+const pane = 1;
 const checkpoint = "checkpoint";
 const author = { kind: "person", id: "owner" } as const;
+const bufferCapacity = 1;
+const closeFailure = {
+  status: "failed",
+  code: "CLOSE_FAILED",
+  message: "Release failed",
+} as const;
+const closed = { status: "closed" } as const;
+const bestEffort = {
+  status: "in-doubt",
+  reason: "best-effort",
+  code: "NO_DURABLE_RECEIPT",
+  message: "The transport accepted the write",
+} as const satisfies InDoubt;
+
+function stale(observed: ObservedPosition) {
+  return { status: "stale", observed } as const;
+}
 
 export function fakeProvider(
   provider: ProviderOffer,
-  interruptOutcome: ControlOutcome = { status: "applied" },
+  confirmations: { interrupt?: ControlOutcome; answer?: ControlOutcome } = {},
 ): ProviderFixture {
+  const interruptOutcome = confirmations.interrupt ?? { status: "applied" };
+  const answerOutcome = confirmations.answer ?? { status: "applied" };
   const has = (capability: ProviderOffer["capabilities"][number]) =>
     provider.capabilities.includes(capability);
   const mode = has("own") ? "own" : "observe";
@@ -33,10 +54,9 @@ export function fakeProvider(
   const applied: string[] = [];
   let releases = 0;
   let activeTurn: string | null = null;
-  let currentScope = scope;
-  let emit: (event: ProviderEvent) => void = () => {
-    throw new Error("Open the provider before feeding events");
-  };
+  let currentCheckpoint = checkpoint;
+  let nextWrite: (() => Promise<void>) | undefined;
+  let closeResult: CloseOutcome = closed;
 
   function bind(
     spec: Pick<StartSpec, "session" | "run" | "afterSeq">,
@@ -45,128 +65,154 @@ export function fakeProvider(
     paste?: ObserveSpec["paste"],
   ) {
     const { session, run, afterSeq } = spec;
-    currentScope = { session, run, afterSeq };
-    const buffered: ProviderEvent[] = [];
-    let waiting: ((result: IteratorResult<ProviderEvent>) => void) | undefined;
-    let closed = false;
-    const done = { done: true, value: undefined } as const;
+    const stream = fakeEventStream(bufferCapacity);
+    let seq = afterSeq;
+    let releaseResult: Promise<CloseOutcome> | undefined;
+    let exiting = false;
     const envelope = {
       v: 1,
       session,
       run,
       at: 1,
       source: sessionMode === "own" ? "provider" : "observed",
-      turn: null,
     } as const;
-    emit = (event) => {
-      if (closed) return;
-      if (waiting) {
-        waiting({ done: false, value: event });
-        waiting = undefined;
-      } else {
-        buffered.push(event);
-      }
+    const matchesFence = (expected: RunFence) =>
+      expected.run === run && expected.fencing_token === fencingToken;
+    const isClosed = () => releaseResult !== undefined || exiting;
+    const yieldBeforeWrite = () => {
+      const pause = nextWrite;
+      nextWrite = undefined;
+      return pause?.();
     };
-    const events: AsyncIterable<ProviderEvent> = {
-      [Symbol.asyncIterator]() {
-        return {
-          async next() {
-            if (closed) return done;
-            const value = buffered.shift();
-            if (value) return { done: false, value };
-            const next = Promise.withResolvers<IteratorResult<ProviderEvent>>();
-            waiting = next.resolve;
-            return next.promise;
-          },
-        };
-      },
-    };
-    const matches = (expected: SessionPosition) =>
-      expected.run === run &&
-      expected.turn === activeTurn &&
-      expected.fencing_token === fencingToken;
-    const observed = () => ({ run, turn: activeTurn });
 
-    return {
-      events,
+    const script = {
+      async sendEvent(index: number) {
+        if (isClosed()) return;
+        await stream.emit(
+          index === 0
+            ? { ...envelope, turn, seq: ++seq, kind: "turn.started", body: {} }
+            : {
+                ...envelope,
+                turn,
+                seq: ++seq,
+                kind: "message.assistant",
+                body: { message_id: `answer-${index}`, text: "hello" },
+              },
+        );
+      },
+      async processExit() {
+        if (isClosed()) return;
+        exiting = true;
+        await stream.emit({
+          ...envelope,
+          turn: null,
+          seq: ++seq,
+          kind: "session.ended",
+          body: { reason: "process-exited" },
+        });
+        stream.end();
+      },
+      async streamDefect(error: Error) {
+        exiting = true;
+        stream.end(error);
+      },
+      waitForBackpressure: stream.waitForBackpressure,
+    };
+
+    const operations = {
+      events: stream.events,
       async steer(request): Promise<DeliveryOutcome> {
-        if (closed) return { status: "closed" };
+        if (isClosed()) return closed;
         if (sessionMode === "observe" && !paste)
           return { status: "unsupported", requires: "paste-target" };
+        const pause = yieldBeforeWrite();
+        if (pause) await pause;
+        if (isClosed()) return closed;
         if (
           activeTurn !== null &&
           (sessionMode === "observe" || !has("steer-mid-turn"))
         )
           return { status: "unsupported", requires: "steer-mid-turn" };
         if (paste && request.expected.pane_instance !== paste.pane_instance)
-          return {
-            status: "stale",
-            observed: { ...observed(), pane_instance: paste.pane_instance },
-          };
-        if (!matches(request.expected))
-          return { status: "stale", observed: observed() };
+          return stale({
+            kind: "terminal",
+            pane_instance: paste.pane_instance,
+          });
+        if (
+          !matchesFence(request.expected) ||
+          request.expected.turn !== activeTurn
+        )
+          return stale({ kind: "turn", turn: activeTurn });
         const existing =
           sessionMode === "own" ? receipts.get(request.delivery_id) : undefined;
         if (existing) return { status: "duplicate", receipt: existing };
         applied.push("steer");
-        if (sessionMode === "observe" || !has("receipts"))
-          return {
-            status: "in-doubt",
-            reason: sessionMode === "observe" ? "best-effort" : "unknown",
-          };
+        if (sessionMode === "observe" || !has("receipts")) return bestEffort;
         const receipt = { delivery_id: request.delivery_id };
         receipts.set(request.delivery_id, receipt);
-        emit({
+        await stream.emit({
           ...envelope,
-          seq: afterSeq + 1,
+          turn: activeTurn,
+          seq: ++seq,
           kind: "receipt",
           body: receipt,
         });
         return { status: "accepted", receipt };
       },
       async interrupt(request): Promise<ControlOutcome> {
-        if (closed) return { status: "closed" };
+        if (isClosed()) return closed;
         if (sessionMode !== "own")
           return { status: "unsupported", requires: "owned-session" };
         if (!has("interrupt"))
           return { status: "unsupported", requires: "interrupt" };
-        if (!matches(request.expected))
-          return { status: "stale", observed: observed() };
+        const pause = yieldBeforeWrite();
+        if (pause) await pause;
+        if (isClosed()) return closed;
+        if (
+          !matchesFence(request.expected) ||
+          request.expected.turn !== activeTurn
+        )
+          return stale({ kind: "turn", turn: activeTurn });
         applied.push("interrupt");
         return interruptOutcome;
       },
       async answer(request): Promise<ControlOutcome> {
-        if (closed) return { status: "closed" };
+        if (isClosed()) return closed;
         if (sessionMode !== "own")
           return { status: "unsupported", requires: "owned-session" };
         if (!has("prompts"))
           return { status: "unsupported", requires: "prompts" };
-        if (!matches(request.expected) || request.expected.prompt_id !== prompt)
-          return {
-            status: "stale",
-            observed: { ...observed(), prompt_id: prompt },
-          };
+        const pause = yieldBeforeWrite();
+        if (pause) await pause;
+        if (isClosed()) return closed;
+        const pendingPrompt = activeTurn === null ? null : prompt;
+        if (
+          !matchesFence(request.expected) ||
+          request.expected.prompt_id !== pendingPrompt
+        )
+          return stale({ kind: "prompt", run, prompt_id: pendingPrompt });
         applied.push("answer");
-        return { status: "applied" };
+        return answerOutcome;
       },
-      async close(): Promise<CloseOutcome> {
-        if (!closed) {
-          closed = true;
+      close(): Promise<CloseOutcome> {
+        if (!releaseResult) {
           releases++;
-          buffered.length = 0;
-          waiting?.(done);
-          waiting = undefined;
+          releaseResult = stream.discard().then(() => closeResult);
         }
-        return { status: "closed" };
+        return releaseResult;
       },
     } satisfies Omit<ObservedSession, "mode">;
+    return { operations, script };
   }
 
+  let currentScript: ReturnType<typeof bind>["script"];
   function owned(spec: StartSpec) {
+    const { operations, script } = bind(spec, "own", spec.fencing_token);
+    currentScript = script;
     const session = {
-      ...bind(spec, "own", spec.fencing_token),
+      ...operations,
       mode: "own",
-      checkpoint,
+      getCheckpoint: () => currentCheckpoint,
       recoveredReceipts: [...receipts.values()],
     } satisfies OwnedSession;
     return { status: "opened", session } as const;
@@ -175,16 +221,14 @@ export function fakeProvider(
   const adapter = {
     provider,
     async observe(spec) {
-      const session = {
-        ...bind(
-          spec,
-          "observe",
-          spec.paste?.fencing_token ?? fence,
-          spec.paste,
-        ),
-        mode: "observe",
-      } satisfies ObservedSession;
-      return { status: "opened", session };
+      const { operations, script } = bind(
+        spec,
+        "observe",
+        spec.paste?.fencing_token ?? fence,
+        spec.paste,
+      );
+      currentScript = script;
+      return { status: "opened", session: { ...operations, mode: "observe" } };
     },
     async start(spec) {
       return has("own")
@@ -192,76 +236,74 @@ export function fakeProvider(
         : { status: "unsupported", requires: "own" };
     },
     async resume(spec) {
-      return has("resume")
-        ? owned(spec)
-        : { status: "unsupported", requires: "resume" };
+      if (!has("resume")) return { status: "unsupported", requires: "resume" };
+      if (spec.checkpoint !== currentCheckpoint)
+        return {
+          status: "refused",
+          code: "CHECKPOINT_MISSING",
+          message: "Checkpoint was not found",
+        };
+      return owned(spec);
     },
   } satisfies ProviderAdapter;
 
-  const start = { ...scope, cwd: "/workspace", fencing_token: fence };
-  const expected = { run: scope.run, turn: null, fencing_token: fence };
-  const active = { ...expected, turn };
-  const fixture: ProviderFixture = {
+  const start = { cwd: "/workspace", fencing_token: fence };
+  const expected = { run: scope.run, fencing_token: fence };
+  return {
     adapter,
     mode,
+    scope,
     steer: {
       delivery_id: "delivery-1",
       expected: {
         ...expected,
+        turn: null,
         ...(mode === "observe" ? { pane_instance: pane } : {}),
       },
       authors: [author],
       input: [{ type: "text", text: "hello" }],
     },
-    interrupt: { expected: active },
+    interrupt: { expected: { ...expected, turn } },
     answer: {
-      expected: { ...active, prompt_id: prompt },
+      expected: { ...expected, prompt_id: prompt },
       by: author,
       answer: true,
     },
-    get orderedEvents(): ProviderFixture["orderedEvents"] {
-      const eventScope = {
-        v: 1,
-        session: currentScope.session,
-        run: currentScope.run,
-        at: 2,
-        source: mode === "own" ? "provider" : "observed",
-        turn,
-      } as const;
-      return [
-        {
-          ...eventScope,
-          kind: "turn.started",
-          seq: currentScope.afterSeq + 2,
-          body: {},
-        },
-        {
-          ...eventScope,
-          kind: "message.assistant",
-          seq: currentScope.afterSeq + 3,
-          body: { message_id: "answer-1", text: "hello" },
-        },
-      ];
-    },
-    nonReceiptDelivery: mode === "own" ? "unknown" : "best-effort",
-    open: () =>
+    orderedEvents: [
+      { kind: "turn.started", body: {} },
+      {
+        kind: "message.assistant",
+        body: { message_id: "answer-1", text: "hello" },
+      },
+    ],
+    nonReceiptDelivery: bestEffort,
+    interruptOutcome,
+    answerOutcome,
+    bufferCapacity,
+    open: (position) =>
       mode === "own"
-        ? adapter.start(start)
+        ? adapter.start({ ...position, ...start })
         : adapter.observe({
-            ...scope,
+            ...position,
             transcript: "/transcript",
             paste: { pane_instance: pane, fencing_token: fence },
           }),
     resumeSpec: (saved) => ({
+      ...scope,
       ...start,
       checkpoint: saved,
       run: 2,
       fencing_token: "fence-2",
       afterSeq: 20,
     }),
-    async sendEvent(index) {
-      emit(fixture.orderedEvents[index]);
+    async advanceCheckpoint() {
+      currentCheckpoint = "updated-checkpoint";
+      return currentCheckpoint;
     },
+    sendEvent: (index) => currentScript.sendEvent(index),
+    processExit: () => currentScript.processExit(),
+    streamDefect: (error) => currentScript.streamDefect(error),
+    waitForBackpressure: () => currentScript.waitForBackpressure(),
     async atActiveTurn(run) {
       activeTurn = turn;
       try {
@@ -270,8 +312,20 @@ export function fakeProvider(
         activeTurn = null;
       }
     },
+    pauseBeforeWrite() {
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      nextWrite = () => {
+        entered.resolve();
+        return release.promise;
+      };
+      return { entered: entered.promise, release: release.resolve };
+    },
+    failClose() {
+      closeResult = closeFailure;
+      return closeFailure;
+    },
     effects: () => [...applied],
     releases: () => releases,
   };
-  return fixture;
 }

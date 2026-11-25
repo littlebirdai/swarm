@@ -1025,7 +1025,7 @@
     "packages/provider-contract": {
       "name": "@codecast/provider-contract",
       "version": "0.0.1",
-      "devDependencies": {
+      "dependencies": {
         "@codecast/edge-contract": "workspace:*",
       },
     },

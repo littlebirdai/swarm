@@ -43,12 +43,26 @@ const dialects = {
   },
 } as const satisfies Record<string, ProviderOffer>;
 
+const cancelSent = {
+  status: "in-doubt",
+  reason: "best-effort",
+  code: "CANCEL_SENT",
+  message: "The cancel notification was written",
+} as const;
+
+const answerSent = {
+  status: "in-doubt",
+  reason: "best-effort",
+  code: "ANSWER_SENT",
+  message: "The transport accepted the answer",
+} as const;
+
 for (const [name, provider] of Object.entries(dialects)) {
   providerConformance(name, () =>
-    fakeProvider(
-      provider,
-      name === "acp" ? { status: "in-doubt", reason: "unknown" } : undefined,
-    ),
+    fakeProvider(provider, {
+      interrupt: name === "acp" ? cancelSent : undefined,
+      answer: name === "app-server" || name === "acp" ? answerSent : undefined,
+    }),
   );
 }
 
@@ -144,27 +158,6 @@ test("an owned-capable provider can open a read-only observation", async () => {
   }
 });
 
-test("ACP cancel has no immediate receipt while app-server can confirm the request", async () => {
-  const acp = fakeProvider(dialects.acp, {
-    status: "in-doubt",
-    reason: "unknown",
-  });
-  const appServer = fakeProvider(dialects["app-server"]);
-  for (const [fixture, result] of [
-    [acp, { status: "in-doubt", reason: "unknown" }],
-    [appServer, { status: "applied" }],
-  ] as const) {
-    const opened = await fixture.open();
-    if (opened.status !== "opened") throw new Error("Expected ownership");
-    try {
-      expect(
-        await fixture.atActiveTurn(() =>
-          opened.session.interrupt(fixture.interrupt),
-        ),
-      ).toEqual(result);
-      expect(fixture.effects()).toEqual(["interrupt"]);
-    } finally {
-      await opened.session.close();
-    }
-  }
-});
+providerConformance("receipts without resume", () =>
+  fakeProvider({ ...dialects.sdk, capabilities: ["own", "receipts"] }),
+);
