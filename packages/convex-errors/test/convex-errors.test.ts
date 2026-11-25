@@ -3,7 +3,7 @@ import {
   argumentValidationProblem,
   cliErrorMessage,
   humanizeConvexError,
-} from "../src/convexErrors";
+} from "../src/convex-errors";
 
 describe("humanizeConvexError", () => {
   test("structured ConvexError data answers with its message", () => {
