@@ -932,7 +932,6 @@
     "src/workers/ingestTransport.test.ts": 256,
     "src/workers/ingestUsage.test.ts": 261,
     "src/workers/ingestValidation.test.ts": 264,
-    "src/workers/jsonAllocationFacts.test.ts": 265,
     "src/workers/messagesSdkReceipt.test.ts": 420,
     "src/workers/messagesSdkResponse.test.ts": 398,
     "src/workers/operations.resourceSnapshot.test.ts": 250,
