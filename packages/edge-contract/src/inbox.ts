@@ -16,6 +16,7 @@ import {
 import { readV1 } from "./version";
 import { response } from "./response";
 import { fence } from "./claims";
+import { readExpectedTurn, readObservedTurn } from "./expected";
 
 const actorFields = { kind: oneOf("person", "agent"), id: nonEmptyString };
 export const actor = object(actorFields);
@@ -48,6 +49,7 @@ const permitsNextResponse = response(
       ...responseDelivery,
       state: oneOf("new", "started"),
       input: array(inputPart),
+      expected: optional(readExpectedTurn),
     }),
     empty: responseObject({ v: readV1, status: oneOf("empty") }),
     stale: responseObject({ v: readV1, status: oneOf("stale") }),
@@ -84,6 +86,11 @@ const initialSettlement = tagged("outcome", {
   rejected: settledAttempt,
   in_doubt: settledAttempt,
   failed: object(failed),
+  stale: object({
+    ...settlement,
+    outcome: oneOf("stale"),
+    observed: readObservedTurn,
+  }),
 });
 const evidence = {
   resolution_evidence: (value: unknown, path: string) => {

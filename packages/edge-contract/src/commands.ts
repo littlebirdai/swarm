@@ -12,6 +12,7 @@ import { readV1 } from "./version";
 import { response } from "./response";
 import { fence } from "./claims";
 import { daemon } from "./link";
+import { readExpected, readObserved } from "./expected";
 
 const command = {
   command_id: nonEmptyString,
@@ -26,17 +27,31 @@ const commandsNextResponse = response(
       status: oneOf("command"),
       ...command,
       claim: optional(responseObject(fence)),
+      expected: optional(readExpected),
     }),
     empty: responseObject({ v: readV1, status: oneOf("empty") }),
   }),
 );
-const commandsResultRequest = object({
+const commandResult = {
   v: readV1,
   ...daemon,
   command_id: nonEmptyString,
   claim: optional(object(fence)),
+};
+const finishedCommand = object({
+  ...commandResult,
   outcome: oneOf("completed", "failed", "unsupported"),
   output: json,
+});
+const commandsResultRequest = tagged("outcome", {
+  completed: finishedCommand,
+  failed: finishedCommand,
+  unsupported: finishedCommand,
+  stale: object({
+    ...commandResult,
+    outcome: oneOf("stale"),
+    observed: readObserved,
+  }),
 });
 const commandsResultResponse = response(
   responseObject({

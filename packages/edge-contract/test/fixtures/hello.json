@@ -3,7 +3,7 @@
     "machine": "machine-laptop",
     "boot": "boot-1",
     "versions": [1],
-    "capabilities": ["delivery-permit-v1"],
+    "capabilities": ["delivery-permit-v1", "expected"],
     "providers": [
       {
         "name": "claude",

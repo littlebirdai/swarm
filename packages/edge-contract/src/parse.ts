@@ -96,6 +96,11 @@ function readFields<S extends Shape>(
   return parsed as Fields<S>;
 }
 
+export const nullable =
+  <T>(read: Reader<T>): Reader<T | null> =>
+  (value, path) =>
+    value === null ? null : read(value, path);
+
 export const optional = <T>(read: Reader<T>) => ({ optional: read });
 
 export function tagged<

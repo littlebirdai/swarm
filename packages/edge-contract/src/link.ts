@@ -12,6 +12,8 @@ import {
 import { readServerBehind, readUpgradeRequired, readV1 } from "./version";
 import { response } from "./response";
 
+export const EXPECTED_CAPABILITY = "expected";
+
 export const daemon = {
   machine: nonEmptyString,
   boot: nonEmptyString,

@@ -21,6 +21,7 @@ export {
   type MessageDelta,
 } from "./envelope";
 export {
+  EXPECTED_CAPABILITY,
   parseHelloRequest,
   parseHelloResponse,
   parseHeartbeatRequest,
@@ -34,6 +35,13 @@ export {
   type PolicyGetRequest,
   type PolicyGetResponse,
 } from "./link";
+export {
+  matchesExpected,
+  type Expected,
+  type Observed,
+  type PaneInstance,
+} from "./expected";
+export { classifyPrompt, type PromptOpened } from "./prompts";
 export * from "./events";
 export * from "./commands";
 export {

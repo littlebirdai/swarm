@@ -54,6 +54,27 @@ results for commands that carry a claim. The server checks the current claim
 and its expiry before it accepts a claimed write. The daemon reuses its
 `claim_id` when it retries the same acquisition request.
 
+### Prompt details
+
+The body of `prompt.opened` can carry four optional fields. Text limits use
+UTF-16 code units.
+
+- `tool_call_id` has a limit of 256.
+- `tool_name` has a limit of 128.
+- `summary` is a redacted single line with a limit of 500.
+- `rule_request` has `permission`, `patterns`, `always`, and an optional
+  boolean `opaque`. It uses the same fields as the permission rule request.
+  The permission name has a limit of 80. The arrays have limits of 32
+  `patterns` and 8 `always` entries, each up to 1,000 code units.
+  An opaque request with one pattern and no `always` entries can carry up to
+  32,000 code units in its pattern.
+
+The machine must redact the summary before it sends the event. The server
+decides whether the prompt is routine. It can verify a read inside the
+workspace or a question that runs no code. Pass that verification to
+`classifyPrompt`. Missing details, an opaque request, or missing verification
+give an escalation.
+
 ## Blobs
 
 `blobs.put` carries the lowercase hexadecimal SHA-256 digest of the decoded
@@ -73,7 +94,8 @@ queues by default. The server can issue steer after the session owner grants
 it to that sender.
 
 The permit's `seq` orders deliveries within the session. The daemon echoes
-the permit fields, including `attempt_id`. A permit marked `started` or a
+the delivery fields, including `attempt_id`. The `expected` field stays on
+the permit. A permit marked `started` or a
 start response of `already_started` requires recovery before another effect.
 The daemon checks the transcript for the original effect. If the result is
 uncertain, it reports `in_doubt`. It reports `failed` with `retryable` only
@@ -82,6 +104,40 @@ issue another attempt.
 
 `delivery.settle` is the source of delivery outcomes. A receipt event records
 only the observed delivery ID.
+
+### Guarded actions
+
+A daemon that checks `expected` advertises `EXPECTED_CAPABILITY` (`"expected"`)
+in its `hello` request. The server sends guarded steers and commands only to
+daemons that advertise this capability. A guarded steer queues if the daemon
+does not advertise it.
+
+`permits.next` can include a turn guard. `commands.next` can include any
+of these guards.
+
+| Action             | `expected`                                                          |
+| ------------------ | ------------------------------------------------------------------- |
+| Steer or interrupt | `{ "kind": "turn", "turn": "turn-1" }`                              |
+| Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`           |
+| Terminal input     | `{ "kind": "terminal", "pane_instance": 4, "fencing_token": "17" }` |
+
+A null `turn` names the state with no current turn. The pane instance is a
+positive safe integer that identifies one pane lifetime within a session.
+Use a new instance when the pane restarts. The terminal `fencing_token`
+is the typing lease token encoded as text. The daemon compares it for
+equality. The server alone orders the tokens.
+
+The server checks the guard when it starts the action. The daemon checks
+it again immediately before the effect. Both can use `matchesExpected`.
+An absent guard keeps the existing behavior. A mismatch prevents the
+effect.
+
+The daemon reports a mismatch with `outcome: "stale"` and a required
+`observed` field in `delivery.settle` or `commands.result`. Use the same
+kind as the guard and report the current values. Use null for an absent
+turn, prompt ID, pane instance, or typing lease token. A prompt observation
+always includes the current run epoch. Only a stale outcome carries
+`observed`. A stale command result has no `output`.
 
 ### Resolving an in-doubt attempt
 

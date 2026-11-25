@@ -19,20 +19,7 @@ import responseVariants from "./fixtures/response-variants.json";
 import errors from "./fixtures/errors.json";
 import inlineToolResult from "./fixtures/tool-result-inline.json";
 
-function expectParsed(result: edge.EdgeParseResult<unknown>, value: unknown) {
-  expect(result).toEqual({ ok: true, value });
-}
-
-function expectParseError(
-  result: edge.EdgeParseResult<unknown>,
-  code: edge.EdgeParseErrorCode,
-  path: string,
-) {
-  if (result.ok) throw new Error(`Expected ${code} at ${path}`);
-  expect(result.error).toBeInstanceOf(edge.EdgeParseError);
-  expect(result.error.code).toBe(code);
-  expect(result.error.path).toBe(path);
-}
+import { expectParsed, expectParseError } from "./assertions";
 
 const verbs = [
   ["hello", hello, edge.parseHelloRequest, edge.parseHelloResponse],
