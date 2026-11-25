@@ -8213,6 +8213,7 @@ let heartbeatTailnet:
       typeof import("@codecast/machines/peerTransport").heartbeatTailnetField
     >
   | undefined;
+let edgeLink: Promise<typeof import("./daemon-edge-link.js")> | undefined;
 async function sendHeartbeat(): Promise<void> {
   if (
     hasActiveCloudWork(
@@ -8409,6 +8410,14 @@ async function sendHeartbeat(): Promise<void> {
       }
       log(`Heartbeat failed: ${response.status} ${text}`);
       return;
+    }
+    if (process.env.CODECAST_EDGE_V1 === "1") {
+      const edge = { siteUrl, bearer: config.auth_token, boot: BOOT_ID };
+      void (edgeLink ??= import("./daemon-edge-link.js"))
+        .then((m) =>
+          m.reportEdgeHeartbeat(edge, managedHeartbeatSessions.size, log),
+        )
+        .catch(() => log("[EDGE] Link failed"));
     }
     resetAuthFailureCount();
     // Same endpoint as the command poll: a beat that lands is proof the
@@ -45250,8 +45259,8 @@ async function main(): Promise<void> {
   };
 
   setupCommandSubscription();
-
   const shutdown = async () => {
+    await edgeLink?.then((m) => m.closeEdgeConnection()).catch(() => {});
     closeDaemonWorkers();
     stopEvalsBridge();
     void mirrorProcess

@@ -74,8 +74,10 @@ import {
   preflight as repoPublicPreflight,
   PUBLIC_REPO_PREFIXES as repoPublicPrefixes,
 } from "./repoPublicHttp";
+import { registerEdgeRoutes } from "./lib/edge/routes";
 
 const http = httpRouter();
+registerEdgeRoutes(http);
 // A `cast` route on this router: POST + OPTIONS, the device-binding gate and the CLI error shape (lib/cliRoute.ts).
 // A decision's 1-5 weight from `cast decide --impact`, on ask and on edit.
 const decisionImpactOf = (body: any) => ({
