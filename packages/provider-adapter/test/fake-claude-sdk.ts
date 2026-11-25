@@ -35,8 +35,19 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     response(frame.request_id, {
       claude_code_version: process.env.FIXTURE_CLAUDE_VERSION ?? "2.1.319",
     });
+    if (process.env.FIXTURE_INIT_FRAME)
+      send({
+        type: "system",
+        subtype: "init",
+        session_id: checkpoint,
+        uuid: "startup",
+        model: "startup-model",
+      });
+    if (process.env.FIXTURE_INIT_EXIT)
+      process.stdout.write("", () => process.exit(7));
     return;
   }
+  if (frame.response?.request_id === "hold-write") return;
   appendFileSync(join(directory, "writes"), line + "\n");
   if (
     frame.type === "control_request" &&
@@ -56,6 +67,7 @@ watch(directory, () => {
     unlinkSync(path);
     for (const frame of command.frames ?? [])
       send({ session_id: checkpoint, ...frame });
+    if (command.stderr) process.stderr.write(command.stderr + "\n");
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.exit)
       process.stdout.write("", () => process.exit(command.exit));

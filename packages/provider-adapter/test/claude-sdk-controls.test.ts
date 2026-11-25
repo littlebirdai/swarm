@@ -1,3 +1,4 @@
+import { readEvent, requireOpened } from "./provider-fixture";
 import { expect } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,6 +12,7 @@ import { ProviderAdapter, providerAdapterLayer } from "../src/effect";
 import {
   answer,
   approval,
+  claudeCase,
   fence,
   fixture,
   installClaudeFixtureHooks,
@@ -18,7 +20,6 @@ import {
   interruptReply,
   noAnswerAck,
   noReceipt,
-  requireOpened,
   runningFrame,
   steer,
 } from "./claude-sdk-fixture";
@@ -57,17 +58,14 @@ it.effect("initialize retains a wrong version and refuses to open", () =>
   }),
 );
 
-it.effect("an interrupt passes 35 unread events and uses its own reply", () =>
-  Effect.promise(async () => {
-    const fake = fixture({ FIXTURE_HOLD_INTERRUPTS: "1" });
-    const { session } = requireOpened(await fake.client.start(fake.spec));
+claudeCase(
+  "an interrupt passes 35 unread events and uses its own reply",
+  async (session, fake) => {
     const events = session.events[Symbol.asyncIterator]();
     fake.send({ frames: [runningFrame] });
     await fake.retained(runningFrame.uuid);
     const pending = session.interrupt(interrupt);
-    expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-      true,
-    );
+    await fake.wrote(1);
     const id = fake.observed()[0]!.request_id!;
     fake.send({
       frames: [
@@ -83,41 +81,36 @@ it.effect("an interrupt passes 35 unread events and uses its own reply", () =>
         kind: "context",
         body: { data: { model: index === 32 ? "full" : `model-${index}` } },
       });
-  }),
+  },
+  { FIXTURE_HOLD_INTERRUPTS: "1" },
 );
 
-it.effect(
+claudeCase(
   "a full event buffer preserves exit order and releases a pending interrupt",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture({ FIXTURE_HOLD_INTERRUPTS: "1" });
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      fake.send({ frames: [runningFrame] });
-      await fake.retained(runningFrame.uuid);
-      const pending = session.interrupt(interrupt);
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
-      fake.send({
-        frames: Array.from({ length: 35 }, (_, index) =>
-          fake.eventFrame(index),
-        ),
-        exit: 7,
-      });
-      expect(await pending).toMatchObject({
-        status: "in-doubt",
-        reason: "unknown",
-        code: "channel-ended",
-      });
-      const result = await Array.fromAsync(session.events);
-      expect(result.map(({ kind }) => kind)).toEqual([
-        "turn.started",
-        ...Array(35).fill("context"),
-        "turn.ended",
-        "session.ended",
-      ]);
-      expect(result.at(-1)).toMatchObject({ body: { reason: "exit-7" } });
-    }),
+  async (session, fake) => {
+    fake.send({ frames: [runningFrame] });
+    await fake.retained(runningFrame.uuid);
+    const pending = session.interrupt(interrupt);
+    await fake.wrote(1);
+    fake.send({
+      frames: Array.from({ length: 35 }, (_, index) => fake.eventFrame(index)),
+      exit: 7,
+    });
+    expect(await pending).toMatchObject({
+      status: "in-doubt",
+      reason: "unknown",
+      code: "channel-ended",
+    });
+    const result = await Array.fromAsync(session.events);
+    expect(result.map(({ kind }) => kind)).toEqual([
+      "turn.started",
+      ...Array(35).fill("context"),
+      "turn.ended",
+      "session.ended",
+    ]);
+    expect(result.at(-1)).toMatchObject({ body: { reason: "exit-7" } });
+  },
+  { FIXTURE_HOLD_INTERRUPTS: "1" },
 );
 
 it.effect(
@@ -129,9 +122,7 @@ it.effect(
       fake.send({ frames: [runningFrame] });
       await fake.retained(runningFrame.uuid);
       const pending = session.interrupt(interrupt);
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
+      await fake.wrote(1);
       fake.send({
         frames: Array.from({ length: 110 }, (_, index) =>
           fake.eventFrame(index),
@@ -211,15 +202,14 @@ it.effect(
     }),
 );
 
-it.effect("repeated delivery and prompt IDs do not resend or reopen", () =>
-  Effect.promise(async () => {
-    const fake = fixture();
-    const { session } = requireOpened(await fake.client.start(fake.spec));
-    const events = session.events[Symbol.asyncIterator]();
+claudeCase(
+  "repeated delivery and prompt IDs do not resend or reopen",
+  async (session, fake) => {
+    const next = readEvent(session);
     expect(await session.steer(steer)).toEqual(noReceipt);
     fake.send({ frames: [runningFrame, approval, approval] });
-    expect((await events.next()).value).toMatchObject({ kind: "turn.started" });
-    expect((await events.next()).value).toMatchObject({
+    expect(await next()).toMatchObject({ kind: "turn.started" });
+    expect(await next()).toMatchObject({
       kind: "prompt.opened",
     });
     expect(
@@ -230,12 +220,12 @@ it.effect("repeated delivery and prompt IDs do not resend or reopen", () =>
       code: "delivery-seen",
     });
     expect(await session.answer(answer)).toEqual(noAnswerAck);
-    expect((await events.next()).value).toMatchObject({
+    expect(await next()).toMatchObject({
       kind: "prompt.settled",
       body: { answer: { option_id: "allow" } },
     });
     fake.send({ frames: [approval, fake.eventFrame(10)] });
-    expect((await events.next()).value).toMatchObject({ kind: "context" });
+    expect(await next()).toMatchObject({ kind: "context" });
     expect(await session.answer(answer)).toMatchObject({ status: "stale" });
     expect(fake.observed().map(({ type }) => type)).toEqual([
       "user",
@@ -246,225 +236,206 @@ it.effect("repeated delivery and prompt IDs do not resend or reopen", () =>
       updatedInput: { command: "pwd" },
       toolUseID: "tool-1",
     });
-  }),
+  },
 );
 
-it.effect(
+claudeCase(
   "a late result from an earlier UUID leaves the current turn active",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      expect(await session.steer(steer)).toEqual(noReceipt);
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
-      const uuid = fake.observed()[0]!.uuid!;
-      const result = {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        user_message_uuids: [uuid],
-        uuid: "result",
-      };
-      fake.send({ frames: [runningFrame, result] });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.started",
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "message.user",
-      });
-      expect((await events.next()).value).toMatchObject({ kind: "turn.ended" });
-      fake.send({
-        frames: [
-          { ...runningFrame, uuid: "other-turn" },
-          { ...result, uuid: "late-result" },
-          fake.eventFrame(10),
-        ],
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.started",
-      });
-      expect((await events.next()).value).toMatchObject({ kind: "context" });
-      expect(
-        await session.interrupt({
-          expected: { ...fence, turn: "claude-sdk:1:2" },
-        }),
-      ).toEqual({ status: "applied" });
-    }),
+  async (session, fake) => {
+    const next = readEvent(session);
+    expect(await session.steer(steer)).toEqual(noReceipt);
+    await fake.wrote(1);
+    const uuid = fake.observed()[0]!.uuid!;
+    const result = {
+      type: "result",
+      subtype: "success",
+      is_error: false,
+      user_message_uuids: [uuid],
+      uuid: "result",
+    };
+    fake.send({ frames: [runningFrame, result] });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+    });
+    expect(await next()).toMatchObject({
+      kind: "message.user",
+    });
+    expect(await next()).toMatchObject({ kind: "turn.ended" });
+    fake.send({
+      frames: [
+        { ...runningFrame, uuid: "other-turn" },
+        { ...result, uuid: "late-result" },
+        fake.eventFrame(10),
+      ],
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+    });
+    expect(await next()).toMatchObject({ kind: "context" });
+    expect(
+      await session.interrupt({
+        expected: { ...fence, turn: "claude-sdk:1:2" },
+      }),
+    ).toEqual({ status: "applied" });
+  },
 );
 
-it.effect(
+claudeCase(
   "ask-user answers map question IDs to original question text on the wire",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      const questions = [
+  async (session, fake) => {
+    const next = readEvent(session);
+    const questions = [
+      {
+        question: "Which color?",
+        options: [{ label: "Blue" }, { label: "Orange" }],
+      },
+      {
+        question: "Which shapes?",
+        multiSelect: true,
+        options: [{ label: "Circle" }, { label: "Square" }],
+      },
+    ];
+    fake.send({
+      frames: [
+        runningFrame,
         {
-          question: "Which color?",
-          options: [{ label: "Blue" }, { label: "Orange" }],
-        },
-        {
-          question: "Which shapes?",
-          multiSelect: true,
-          options: [{ label: "Circle" }, { label: "Square" }],
-        },
-      ];
-      fake.send({
-        frames: [
-          runningFrame,
-          {
-            ...approval,
-            request: {
-              ...approval.request,
-              tool_name: "AskUserQuestion",
-              input: { questions },
-            },
+          ...approval,
+          request: {
+            ...approval.request,
+            tool_name: "AskUserQuestion",
+            input: { questions },
           },
-        ],
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.started",
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "prompt.opened",
-        body: { kind: "question" },
-      });
-      const context = (await events.next()).value;
-      expect(context).toMatchObject({
-        kind: "context",
-        body: { data: { prompt_id: answer.expected.prompt_id } },
-      });
-      expect(
-        await session.answer({
-          ...answer,
-          answer: { answers: { "0": { answers: ["Blue"] } } },
-        }),
-      ).toMatchObject({
-        status: "refused",
-        code: "invalid-answer",
-      });
-      expect(fake.observed()).toEqual([]);
-      expect(
-        await session.answer({
-          ...answer,
-          answer: {
-            answers: {
-              "0": { answers: ["Orange"] },
-              "1": { answers: ["Circle", "Square"] },
-            },
-          },
-        }),
-      ).toEqual(noAnswerAck);
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
-      expect(fake.observed()[0]?.response?.response).toEqual({
-        behavior: "allow",
-        toolUseID: "tool-1",
-        updatedInput: {
-          questions,
+        },
+      ],
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+    });
+    expect(await next()).toMatchObject({
+      kind: "prompt.opened",
+      body: { kind: "question" },
+    });
+    const context = await next();
+    expect(context).toMatchObject({
+      kind: "context",
+      body: { data: { prompt_id: answer.expected.prompt_id } },
+    });
+    expect(
+      await session.answer({
+        ...answer,
+        answer: { answers: { "0": { answers: ["Blue"] } } },
+      }),
+    ).toMatchObject({
+      status: "refused",
+      code: "invalid-answer",
+    });
+    expect(fake.observed()).toEqual([]);
+    expect(
+      await session.answer({
+        ...answer,
+        answer: {
           answers: {
-            "Which color?": "Orange",
-            "Which shapes?": "Circle, Square",
+            "0": { answers: ["Orange"] },
+            "1": { answers: ["Circle", "Square"] },
           },
         },
-      });
-    }),
+      }),
+    ).toEqual(noAnswerAck);
+    await fake.wrote(1);
+    expect(fake.observed()[0]?.response?.response).toEqual({
+      behavior: "allow",
+      toolUseID: "tool-1",
+      updatedInput: {
+        questions,
+        answers: {
+          "Which color?": "Orange",
+          "Which shapes?": "Circle, Square",
+        },
+      },
+    });
+  },
 );
 
-it.effect(
+claudeCase(
   "provider cancellation retires the prompt without an actorless settlement",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      fake.send({
-        frames: [
-          runningFrame,
-          approval,
-          {
-            type: "control_cancel_request",
-            request_id: approval.request_id,
-          },
-          approval,
-          fake.eventFrame(0),
-        ],
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.started",
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "prompt.opened",
-      });
-      expect((await events.next()).value).toMatchObject({ kind: "context" });
-      expect(await session.answer(answer)).toMatchObject({
-        status: "stale",
-        observed: { kind: "prompt", prompt_id: null },
-      });
-      expect(fake.observed()).toEqual([]);
-    }),
+  async (session, fake) => {
+    const next = readEvent(session);
+    fake.send({
+      frames: [
+        runningFrame,
+        approval,
+        {
+          type: "control_cancel_request",
+          request_id: approval.request_id,
+        },
+        approval,
+        fake.eventFrame(0),
+      ],
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+    });
+    expect(await next()).toMatchObject({
+      kind: "prompt.opened",
+    });
+    expect(await next()).toMatchObject({ kind: "context" });
+    expect(await session.answer(answer)).toMatchObject({
+      status: "stale",
+      observed: { kind: "prompt", prompt_id: null },
+    });
+    expect(fake.observed()).toEqual([]);
+  },
 );
 
-it.effect(
+claudeCase(
   "idle before lifecycle completion does not start a phantom turn",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      expect(await session.steer(steer)).toEqual(noReceipt);
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
-      const command_uuid = fake.observed()[0]!.uuid!;
-      fake.send({
-        frames: [
-          runningFrame,
-          {
-            type: "command_lifecycle",
-            state: "started",
-            command_uuid,
-            uuid: "start-input",
-          },
-          { ...runningFrame, state: "idle", uuid: "now-idle" },
-          {
-            type: "command_lifecycle",
-            state: "completed",
-            command_uuid,
-            uuid: "late-completion",
-          },
-          fake.eventFrame(0),
-        ],
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.started",
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "message.user",
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "turn.ended",
-        body: { reason: "no-result" },
-      });
-      expect((await events.next()).value).toMatchObject({
-        kind: "context",
-        turn: null,
-      });
-      expect(await session.steer({ ...steer, delivery_id: "second" })).toEqual(
-        noReceipt,
-      );
-    }),
+  async (session, fake) => {
+    const next = readEvent(session);
+    expect(await session.steer(steer)).toEqual(noReceipt);
+    await fake.wrote(1);
+    const command_uuid = fake.observed()[0]!.uuid!;
+    fake.send({
+      frames: [
+        runningFrame,
+        {
+          type: "command_lifecycle",
+          state: "started",
+          command_uuid,
+          uuid: "start-input",
+        },
+        { ...runningFrame, state: "idle", uuid: "now-idle" },
+        {
+          type: "command_lifecycle",
+          state: "completed",
+          command_uuid,
+          uuid: "late-completion",
+        },
+        fake.eventFrame(0),
+      ],
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+    });
+    expect(await next()).toMatchObject({
+      kind: "message.user",
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.ended",
+      body: { reason: "no-result" },
+    });
+    expect(await next()).toMatchObject({
+      kind: "context",
+      turn: null,
+    });
+    expect(await session.steer({ ...steer, delivery_id: "second" })).toEqual(
+      noReceipt,
+    );
+  },
 );
 
-it.effect("local images use SDK base64 blocks before the text", () =>
-  Effect.promise(async () => {
-    const fake = fixture();
-    const { session } = requireOpened(await fake.client.start(fake.spec));
+claudeCase(
+  "local images use SDK base64 blocks before the text",
+  async (session, fake) => {
     const path = join(fake.spec.cwd, "fixture.png");
     const bytes = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1EAAAAASUVORK5CYII=",
@@ -477,9 +448,7 @@ it.effect("local images use SDK base64 blocks before the text", () =>
         input: [...steer.input, { type: "local-image", path }],
       }),
     ).toEqual(noReceipt);
-    expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-      true,
-    );
+    await fake.wrote(1);
     expect(fake.observed()[0]?.message).toEqual({
       role: "user",
       content: [
@@ -494,7 +463,7 @@ it.effect("local images use SDK base64 blocks before the text", () =>
         { type: "text", text: "fixture input" },
       ],
     });
-  }),
+  },
 );
 
 it.effect(

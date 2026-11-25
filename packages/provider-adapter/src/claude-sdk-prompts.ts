@@ -108,36 +108,31 @@ export const prepareAnswer = Effect.fn("claude-sdk.prepare-answer")(function* (
   const { input, tool_use_id: toolUseID } = wire.request;
   const entry =
     body && typeof body === "object" && !Array.isArray(body) ? body : undefined;
+  const selector = entry && Object.keys(entry).length === 1 ? entry : undefined;
   const choice =
-    entry && Object.keys(entry).length === 1
-      ? details.offered.find(({ id }) => id === entry.option_id)
+    selector && Object.hasOwn(selector, "option_id")
+      ? details.offered.find(({ id }) => id === selector.option_id)
       : undefined;
-  if (
-    body === null ||
-    choice?.id === "deny" ||
-    (!details.questions && entry?.behavior === "deny")
-  )
+  const behavior =
+    choice?.id ??
+    (selector && Object.hasOwn(selector, "behavior")
+      ? selector.behavior
+      : undefined);
+  if (!details.questions || body === null) {
+    if (body !== null && behavior !== "allow" && behavior !== "deny") return;
+    if (body === null && !details.questions) return;
+    const allowed = behavior === "allow";
     return {
-      response: {
-        behavior: "deny",
-        message: "The user denied the request.",
-        toolUseID,
-      },
-      publicAnswer: choice
-        ? { option_id: choice.id }
-        : body === null
-          ? null
-          : { behavior: "deny" },
+      response: allowed
+        ? { behavior: "allow", updatedInput: input, toolUseID }
+        : {
+            behavior: "deny",
+            message: "The user denied the request.",
+            toolUseID,
+          },
+      publicAnswer: body,
     };
-  if (!details.questions)
-    return choice?.id === "allow" || entry?.behavior === "allow"
-      ? {
-          response: { behavior: "allow", updatedInput: input, toolUseID },
-          publicAnswer: choice
-            ? { option_id: choice.id }
-            : { behavior: "allow" },
-        }
-      : undefined;
+  }
   if (choice) {
     const question = details.questions[0]!;
     const label = question.options[Number(choice.id)]!.label;

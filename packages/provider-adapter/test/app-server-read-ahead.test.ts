@@ -1,3 +1,5 @@
+import { readEvent, requireOpened } from "./provider-fixture";
+import { appServerCase } from "./app-server-fixture";
 import { expect, spyOn } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
 import type { ProviderOwnedSession } from "../src";
@@ -10,7 +12,6 @@ import {
   fixture,
   installAppServerFixtureHooks,
   interrupt,
-  requireOpened,
   scope,
   steer,
   threadId,
@@ -45,128 +46,105 @@ for (const [label, command, code] of [
   ["stderr failure", { stderr: "fixture stderr fault" }, "stderr-handler"],
   ["overflow", { largeFrames: 6 }, "output-overflow"],
 ] as const) {
-  it.effect(
+  appServerCase(
     `${label} settles every pending control while events are paused`,
-    () =>
-      Effect.promise(async () => {
-        const fake = fixture({
-          FIXTURE_HOLD_ALL_STEERS: "1",
-          FIXTURE_READ_FAILURE: label === "stdout failure" ? "1" : "",
-          FIXTURE_CLOSE_STDOUT: label === "EOF" ? "1" : "",
-        });
-        const { session } = requireOpened(await fake.client.start(fake.spec));
-        try {
-          expect(await session.steer(steer)).toEqual(bestEffort);
-          const events = session.events[Symbol.asyncIterator]();
-          expect((await events.next()).value?.kind).toBe("turn.started");
-          await fill(fake);
-          const request = { ...steer, expected: { ...steer.expected, turn } };
-          const calls = [session.steer(request), session.steer(request)];
-          expect(
-            await waitFor(() => fake.observed().length === 3, 1500, 5),
-          ).toBe(true);
-          await fake.wrote(command, false);
-          expect(await settled(Promise.all(calls))).toEqual([
-            expect.objectContaining({ status: "in-doubt", code }),
-            expect.objectContaining({ status: "in-doubt", code }),
-          ]);
-          expect(await settled(session.interrupt(interrupt))).toEqual({
-            status: "closed",
-          });
-          expect(await settled(session.steer(request))).toEqual({
-            status: "closed",
-          });
-          expect(await settled(session.answer(answer))).toEqual({
-            status: "closed",
-          });
-          expect(fake.observed()).toHaveLength(3);
-        } finally {
-          await session.close();
-        }
-      }),
+    async (session, fake) => {
+      expect(await session.steer(steer)).toEqual(bestEffort);
+      const events = session.events[Symbol.asyncIterator]();
+      expect((await events.next()).value?.kind).toBe("turn.started");
+      await fill(fake);
+      const request = { ...steer, expected: { ...steer.expected, turn } };
+      const calls = [session.steer(request), session.steer(request)];
+      expect(await waitFor(() => fake.observed().length === 3, 1500, 5)).toBe(
+        true,
+      );
+      await fake.wrote(command, false);
+      expect(await settled(Promise.all(calls))).toEqual([
+        expect.objectContaining({ status: "in-doubt", code }),
+        expect.objectContaining({ status: "in-doubt", code }),
+      ]);
+      expect(await settled(session.interrupt(interrupt))).toEqual({
+        status: "closed",
+      });
+      expect(await settled(session.steer(request))).toEqual({
+        status: "closed",
+      });
+      expect(await settled(session.answer(answer))).toEqual({
+        status: "closed",
+      });
+      expect(fake.observed()).toHaveLength(3);
+    },
+    {
+      FIXTURE_HOLD_ALL_STEERS: "1",
+      FIXTURE_READ_FAILURE: label === "stdout failure" ? "1" : "",
+      FIXTURE_CLOSE_STDOUT: label === "EOF" ? "1" : "",
+    },
   );
 }
 
-it.effect("terminal start reply events wait for a paused consumer", () =>
-  Effect.promise(async () => {
-    const fake = fixture({
-      FIXTURE_REPLY_ONLY: "1",
-      FIXTURE_TERMINAL_START: "1",
-    });
-    const { session } = requireOpened(await fake.client.start(fake.spec));
-    try {
-      await fill(fake);
-      for (let index = 0; index < 26; index++)
-        expect(await settled(session.steer(steer))).toEqual(bestEffort);
-      const events = session.events[Symbol.asyncIterator]();
-      for (let index = 0; index <= 32; index++)
-        expect((await events.next()).value).toMatchObject({
-          kind: "context",
-          body: { data: { name: String(index) } },
-        });
-      for (let index = 1; index <= 26; index++) {
-        expect((await events.next()).value).toMatchObject({
-          kind: "turn.started",
-          turn: `actual-turn-${index}`,
-        });
-        expect((await events.next()).value).toMatchObject({
-          kind: "turn.ended",
-          turn: `actual-turn-${index}`,
-        });
-      }
-    } finally {
-      await session.close();
+appServerCase(
+  "terminal start reply events wait for a paused consumer",
+  async (session, fake) => {
+    await fill(fake);
+    for (let index = 0; index < 26; index++)
+      expect(await settled(session.steer(steer))).toEqual(bestEffort);
+    const events = session.events[Symbol.asyncIterator]();
+    for (let index = 0; index <= 32; index++)
+      expect((await events.next()).value).toMatchObject({
+        kind: "context",
+        body: { data: { name: String(index) } },
+      });
+    for (let index = 1; index <= 26; index++) {
+      expect((await events.next()).value).toMatchObject({
+        kind: "turn.started",
+        turn: `actual-turn-${index}`,
+      });
+      expect((await events.next()).value).toMatchObject({
+        kind: "turn.ended",
+        turn: `actual-turn-${index}`,
+      });
     }
-  }),
+  },
+  {
+    FIXTURE_REPLY_ONLY: "1",
+    FIXTURE_TERMINAL_START: "1",
+  },
 );
 
-it.effect(
+appServerCase(
   "a refused turn start permits immediate retry while events are paused",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture({ FIXTURE_HOLD_START: "1" });
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      try {
-        await fill(fake);
-        const first = session.steer(steer);
-        expect(await waitFor(() => fake.observed().length === 1, 1500, 5)).toBe(
-          true,
-        );
-        await fake.wrote({ rejectStart: true }, false);
-        expect(await settled(first)).toMatchObject({
-          status: "refused",
-          code: "rpc-rejected",
-        });
-        const retry = session.steer(steer);
-        expect(await waitFor(() => fake.observed().length === 2, 1500, 5)).toBe(
-          true,
-        );
-        await fake.wrote({ ackStart: true }, false);
-        expect(await settled(retry)).toEqual(bestEffort);
-      } finally {
-        await session.close();
-      }
-    }),
+  async (session, fake) => {
+    await fill(fake);
+    const first = session.steer(steer);
+    expect(await waitFor(() => fake.observed().length === 1, 1500, 5)).toBe(
+      true,
+    );
+    await fake.wrote({ rejectStart: true }, false);
+    expect(await settled(first)).toMatchObject({
+      status: "refused",
+      code: "rpc-rejected",
+    });
+    const retry = session.steer(steer);
+    expect(await waitFor(() => fake.observed().length === 2, 1500, 5)).toBe(
+      true,
+    );
+    await fake.wrote({ ackStart: true }, false);
+    expect(await settled(retry)).toEqual(bestEffort);
+  },
+  { FIXTURE_HOLD_START: "1" },
 );
 
-it.effect(
+appServerCase(
   "a control sent after the event buffer is full settles without a reader",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      try {
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        const events = session.events[Symbol.asyncIterator]();
-        expect((await events.next()).value?.kind).toBe("turn.started");
-        await fill(fake);
-        expect(await settled(session.interrupt(interrupt))).toEqual({
-          status: "applied",
-        });
-      } finally {
-        await session.close();
-      }
-    }),
+  async (session, fake) => {
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    const events = session.events[Symbol.asyncIterator]();
+    expect((await events.next()).value?.kind).toBe("turn.started");
+    await fill(fake);
+    expect(await settled(session.interrupt(interrupt))).toEqual({
+      status: "applied",
+    });
+  },
 );
 
 it.effect(
@@ -187,8 +165,8 @@ it.effect(
       const { session } = requireOpened(await fake.client.start(fake.spec));
       try {
         expect(await session.steer(steer)).toEqual(bestEffort);
-        const events = session.events[Symbol.asyncIterator]();
-        expect((await events.next()).value?.kind).toBe("turn.started");
+        const next = readEvent(session);
+        expect((await next())?.kind).toBe("turn.started");
         await fake.wrote(
           {
             frame: {
@@ -235,11 +213,11 @@ it.effect(
         );
 
         release.resolve();
-        expect((await events.next()).value).toMatchObject({
+        expect(await next()).toMatchObject({
           kind: "context",
           body: { data: { name: "paused retention" } },
         });
-        expect((await events.next()).value).toMatchObject({
+        expect(await next()).toMatchObject({
           kind: "message.user",
           body: { delivery_id: request.delivery_id, authors: request.authors },
         });
@@ -254,20 +232,16 @@ it.effect(
     }),
 );
 
-it.effect("read-ahead is capped by bytes even below the frame limit", () =>
-  Effect.promise(async () => {
-    const fake = fixture({ FIXTURE_LARGE_START: "1" });
-    const { session } = requireOpened(await fake.client.start(fake.spec));
-    try {
-      await fill(fake);
-      expect(await settled(session.steer(steer))).toMatchObject({
-        status: "in-doubt",
-        code: "output-overflow",
-      });
-    } finally {
-      await session.close();
-    }
-  }),
+appServerCase(
+  "read-ahead is capped by bytes even below the frame limit",
+  async (session, fake) => {
+    await fill(fake);
+    expect(await settled(session.steer(steer))).toMatchObject({
+      status: "in-doubt",
+      code: "output-overflow",
+    });
+  },
+  { FIXTURE_LARGE_START: "1" },
 );
 
 it.effect("draining releases read-ahead bytes across more than 32 MiB", () =>
@@ -299,9 +273,9 @@ it.effect("EOF settles an approval queued behind a blocked stdin write", () =>
     try {
       expect(await session.steer(steer)).toEqual(bestEffort);
       await fake.wrote({ frame: approval() });
-      const events = session.events[Symbol.asyncIterator]();
-      expect((await events.next()).value?.kind).toBe("turn.started");
-      expect((await events.next()).value?.kind).toBe("prompt.opened");
+      const next = readEvent(session);
+      expect((await next())?.kind).toBe("turn.started");
+      expect((await next())?.kind).toBe("prompt.opened");
       const gate = fake.contract.pauseBeforeWrite?.();
       if (!gate) throw new Error("Expected a fixture write gate");
       try {

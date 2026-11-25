@@ -7,7 +7,12 @@ import { diagnostic, type DurablePayload } from "./provider-events";
 const rememberedIds = 4_096;
 const pendingSends = 128;
 
-type Send = { request: SteerRequest; text: string; emitted?: true };
+type Send = {
+  request: SteerRequest;
+  text: string;
+  emitted?: true;
+  terminal?: true;
+};
 type Projection = Effect.Effect<void>[];
 type ScopedFrame = Extract<typeof Frame.Type, { session_id: string }>;
 
@@ -22,12 +27,12 @@ export function claudeTurns(
 ) {
   const sends = new Map<string, Send>();
   const seen = new Set<string>();
-  const activeCommands = new Set<string>();
   let turnIndex = 0;
   let active:
     | { id: string; error?: { class: string; message: string } }
     | undefined;
   let reset = false;
+  let resultEnded = false;
   const event = (payload: DurablePayload) =>
     durable(payload, active?.id ?? null);
 
@@ -43,6 +48,7 @@ export function claudeTurns(
 
   function begin(work: Projection) {
     if (active) return;
+    resultEnded = false;
     active = { id: `claude-sdk:${run}:${++turnIndex}` };
     work.push(event({ kind: "turn.started", body: {} }));
   }
@@ -50,7 +56,6 @@ export function claudeTurns(
   function observedSend(uuid: string, work: Projection) {
     const send = sends.get(uuid);
     if (!send || send.emitted) return;
-    activeCommands.add(uuid);
     send.emitted = true;
     work.push(
       event({
@@ -78,13 +83,7 @@ export function claudeTurns(
       );
     }
     work.push(event({ kind: "turn.ended", body: { reason } }));
-    if (reason === "no-result") {
-      for (const id of activeCommands) {
-        if (sends.delete(id)) remember(`finished:${id}`);
-      }
-    }
     active = undefined;
-    activeCommands.clear();
     onEnd();
   }
 
@@ -92,6 +91,7 @@ export function claudeTurns(
     frame: ScopedFrame,
     work: Projection,
   ) {
+    if ("parent_tool_use_id" in frame && frame.parent_tool_use_id) return false;
     if (!remember(`frame:${frame.uuid}`)) return false;
     if (
       frame.session_id !== checkpoint &&
@@ -106,8 +106,9 @@ export function claudeTurns(
     if (frame.session_id !== checkpoint) return false;
     if (frame.type === "system") {
       if (frame.subtype === "init") {
-        if (frame.user_message_uuids?.some((id) => sends.has(id))) begin(work);
-        for (const id of frame.user_message_uuids ?? []) observedSend(id, work);
+        if (active)
+          for (const id of frame.user_message_uuids ?? [])
+            observedSend(id, work);
         if (frame.model || frame.permissionMode)
           work.push(
             event({
@@ -126,52 +127,62 @@ export function claudeTurns(
       ) {
         begin(work);
       } else {
-        finish("no-result", work);
+        if (!resultEnded) {
+          for (const id of sends.keys()) remember(`finished:${id}`);
+          sends.clear();
+          finish("no-result", work);
+        }
+        resultEnded = false;
         reset = false;
       }
     } else if (frame.type === "conversation_reset") {
-      reset = !!active;
+      if (!active) return false;
+      reset = true;
     } else if (frame.type === "command_lifecycle") {
       const id = frame.command_uuid;
-      if (sends.has(id)) {
-        if (frame.state === "started" || frame.state === "completed") {
-          begin(work);
-          observedSend(id, work);
-        }
-        if (frame.state === "completed" || frame.state === "cancelled") {
+      const send = sends.get(id);
+      if (!send || send.terminal) return false;
+      if (frame.state === "queued") resultEnded = false;
+      if (frame.state === "started") {
+        begin(work);
+        observedSend(id, work);
+      } else if (frame.state === "completed" || frame.state === "cancelled") {
+        if (active) send.terminal = true;
+        else {
           sends.delete(id);
           remember(`finished:${id}`);
         }
       }
     } else if (frame.type === "result") {
+      if (!active) return false;
       const ids =
         frame.user_message_uuids ??
         (frame.user_message_uuid ? [frame.user_message_uuid] : []);
-      if (
-        ids.length &&
-        ids.every((id) => seen.has(`finished:${id}`) && !activeCommands.has(id))
-      )
+      if (ids.length && ids.every((id) => seen.has(`finished:${id}`)))
         return false;
-      if (ids.some((id) => sends.has(id))) begin(work);
-      for (const id of ids) {
-        observedSend(id, work);
-        if (sends.delete(id)) remember(`finished:${id}`);
+      for (const id of ids) observedSend(id, work);
+      for (const [id, send] of sends) {
+        if (ids.includes(id) || send.terminal) {
+          sends.delete(id);
+          remember(`finished:${id}`);
+        }
       }
-      if (active) {
-        const interrupted = frame.terminal_reason === "aborted_streaming";
-        if (frame.is_error && !interrupted)
-          active.error ??= {
-            class: frame.subtype === "success" ? "claude-turn" : frame.subtype,
-            message:
-              diagnostic(frame.result ?? frame.errors?.join(" ")) ||
-              "Claude turn failed",
-          };
-        finish(
-          interrupted ? "interrupted" : active.error ? "failed" : "completed",
-          work,
-        );
-        reset = false;
-      }
+      const interrupted = frame.terminal_reason === "aborted_streaming";
+      if (interrupted || !frame.is_error) active.error = undefined;
+      else
+        active.error ??= {
+          class: frame.subtype === "success" ? "claude-turn" : frame.subtype,
+          message:
+            diagnostic(frame.result) ||
+            diagnostic(frame.errors?.join(" ")) ||
+            "Claude turn failed",
+        };
+      finish(
+        interrupted ? "interrupted" : frame.is_error ? "failed" : "completed",
+        work,
+      );
+      reset = false;
+      resultEnded = true;
     } else if (active) {
       const content = frame.message.content;
       const blocks =
@@ -224,7 +235,7 @@ export function claudeTurns(
           }),
         );
       }
-    }
+    } else return false;
     return true;
   });
 

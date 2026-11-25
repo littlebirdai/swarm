@@ -1,12 +1,16 @@
-import { afterEach, beforeEach, expect, spyOn } from "bun:test";
 import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+  commands,
+  fixtureAdapter,
+  readWrites,
+  fixtureHooks,
+  ownedCase,
+  interceptInput,
+  writeGate,
+  type Intercept,
+} from "./provider-fixture";
+import { expect } from "bun:test";
+import type { ProviderOwnedSession } from "../src";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -52,40 +56,9 @@ export const noAnswerAck = {
   message: "Claude SDK does not acknowledge the prompt reply",
 } as const;
 
-const realKill = process.kill.bind(process);
-const denied = Object.assign(new Error("fixture kill denied"), {
-  code: "EPERM",
-});
-const groups = new Map<number, { signals: number; fail: boolean }>();
-const cleanups: (() => Promise<void>)[] = [];
-
-export function installClaudeFixtureHooks() {
-  beforeEach(() => {
-    spyOn(process, "kill").mockImplementation((pid, signal) => {
-      const group = groups.get(-pid);
-      if (group) {
-        group.signals++;
-        if (group.fail) throw denied;
-      }
-      return realKill(pid, signal);
-    });
-  });
-  afterEach(async () => {
-    try {
-      for (const cleanup of cleanups.splice(0)) await cleanup();
-    } finally {
-      groups.clear();
-      (process.kill as ReturnType<typeof spyOn>).mockRestore();
-    }
-  });
-}
-
-export function requireOpened<T extends { status: string }>(
-  result: T,
-): Extract<T, { status: "opened" }> {
-  if (result.status !== "opened") throw new Error(JSON.stringify(result));
-  return result as Extract<T, { status: "opened" }>;
-}
+const executable = join(import.meta.dir, "fake-claude-sdk.ts");
+const hooks = fixtureHooks(executable);
+export const installClaudeFixtureHooks = hooks.install;
 
 const buffer = 32;
 export const runningFrame = {
@@ -127,17 +100,31 @@ export function fixture(env: Record<string, string> = {}) {
   let running = false;
   let started = false;
   let fault: Error | undefined;
-  let group: { signals: number; fail: boolean } | undefined;
-  let pid: number | undefined;
-  let counter = 0;
+  let session: ProviderOwnedSession | undefined;
+  let intercept: Intercept | undefined;
+  const command = commands(directory);
+  const send = (entry: object) => {
+    void command(entry, false);
+  };
+  const gate = writeGate('"request_id":"hold-write"', () =>
+    send({
+      frames: [
+        {
+          type: "control_request",
+          request_id: "hold-write",
+          request: { subtype: "fixture-gate" },
+        },
+      ],
+    }),
+  );
   const options = {
     provider,
-    command: [
-      process.execPath,
-      join(import.meta.dir, "fake-claude-sdk.ts"),
-      directory,
-    ] as const,
+    command: [process.execPath, executable, directory] as const,
     env,
+    onStderr() {
+      if (env.FIXTURE_STDERR_FAILURE)
+        throw new Error("fixture stderr callback");
+    },
     retainRaw(frame: RawProviderFrame) {
       if (frame.line === "fixture defect" && fault) throw fault;
       raw.push(frame);
@@ -146,25 +133,20 @@ export function fixture(env: Record<string, string> = {}) {
   };
   const client = createProviderAdapter(options);
   const spec = { ...scope, ...fence, cwd: directory };
-  const observed = (): Write[] =>
-    existsSync(writesPath)
-      ? readFileSync(writesPath, "utf8")
-          .trimEnd()
-          .split("\n")
-          .map((line) => JSON.parse(line))
-      : [];
-  cleanups.push(async () => {
-    await client.dispose();
-    if (group?.fail && pid) realKill(-pid, "SIGKILL");
-    rmSync(directory, { recursive: true, force: true });
-  });
-
-  function send(command: object) {
-    const index = String(++counter).padStart(6, "0");
-    const temp = join(directory, `${index}.tmp`);
-    writeFileSync(temp, JSON.stringify(command));
-    renameSync(temp, join(directory, `${index}.command`));
-  }
+  const observed = () => readWrites<Write>(writesPath);
+  const processFixture = hooks.attach(
+    directory,
+    async () => {
+      gate.release();
+      await client.dispose();
+    },
+    !!env.FIXTURE_DENY_KILL,
+  );
+  processFixture.spawn((child) =>
+    interceptInput(child, (data, write) =>
+      gate.intercept(data, write, intercept),
+    ),
+  );
 
   async function retained(needle: string) {
     expect(
@@ -176,38 +158,6 @@ export function fixture(env: Record<string, string> = {}) {
     ).toBe(true);
   }
 
-  function attach(result: Awaited<ReturnType<typeof client.start>>) {
-    if (result.status !== "opened") return result;
-    const owned = result.session;
-    generation++;
-    running = true;
-    started = false;
-    pid = Number(readFileSync(join(directory, "pid"), "utf8"));
-    group = { signals: 0, fail: false };
-    groups.set(pid, group);
-    async function track<T extends { status: string }>(run: () => Promise<T>) {
-      const previous = observed().length;
-      const result = await run();
-      if (result.status === "in-doubt")
-        expect(await waitFor(() => observed().length > previous, 2500, 5)).toBe(
-          true,
-        );
-      return result;
-    }
-    return {
-      ...result,
-      session: {
-        ...owned,
-        steer: (request: SteerRequest) => track(() => owned.steer(request)),
-        answer: (request: AnswerRequest) => track(() => owned.answer(request)),
-        close: () => {
-          running = false;
-          return owned.close();
-        },
-      },
-    };
-  }
-
   const eventFrame = (index: number, gen = generation) => ({
     type: "system",
     subtype: "init",
@@ -215,11 +165,21 @@ export function fixture(env: Record<string, string> = {}) {
     model: index === buffer ? "full" : `model-${index}`,
   });
   const contract: ProviderFixture = {
-    adapter: {
-      ...client,
-      start: async (next) => attach(await client.start(next)),
-      resume: async (next) => attach(await client.resume(next)),
-    },
+    adapter: fixtureAdapter(
+      client,
+      gate,
+      () => observed().length,
+      ["steer", "answer"],
+      (opened) => {
+        session = opened;
+        running = true;
+        generation++;
+        started = false;
+      },
+      () => {
+        running = false;
+      },
+    ),
     mode: "own",
     scope,
     steer,
@@ -244,6 +204,27 @@ export function fixture(env: Record<string, string> = {}) {
       return this.adapter.start({ ...spec, ...next });
     },
     resumeSpec: (checkpoint) => ({ ...spec, run: 2, checkpoint }),
+    async advanceCheckpoint() {
+      const checkpoint = crypto.randomUUID();
+      send({
+        frames: [
+          runningFrame,
+          { type: "conversation_reset", uuid: "fixture-reset" },
+          { ...eventFrame(10), session_id: checkpoint },
+          {
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            session_id: checkpoint,
+            uuid: "fixture-reset-result",
+          },
+        ],
+      });
+      expect(
+        await waitFor(() => session?.getCheckpoint() === checkpoint, 2500, 5),
+      ).toBe(true);
+      return checkpoint;
+    },
     async sendEvent(index) {
       if (!running) return;
       const frame = eventFrame(index);
@@ -274,11 +255,8 @@ export function fixture(env: Record<string, string> = {}) {
       fault = error;
       send({ raw: "fixture defect" });
     },
-    failClose() {
-      if (!group) throw new Error("No fixture group");
-      group.fail = true;
-      return { status: "failed", code: "kill-failed", message: String(denied) };
-    },
+    failClose: processFixture.failClose,
+    pauseBeforeWrite: gate.pause,
     effects: () =>
       observed().map(({ type }): ProviderEffect =>
         type === "user"
@@ -287,7 +265,7 @@ export function fixture(env: Record<string, string> = {}) {
             ? "interrupt"
             : "answer",
       ),
-    releases: () => group?.signals ?? 0,
+    releases: processFixture.releases,
   };
 
   return {
@@ -295,12 +273,25 @@ export function fixture(env: Record<string, string> = {}) {
     contract,
     spec,
     send,
+    frames: (...frames: object[]) => send({ frames }),
+    disposition: (needle: string) =>
+      raw.find(({ line }) => line.includes(needle))?.disposition,
     raw,
     retained,
     observed,
     options,
     eventFrame,
+    async wrote(count: number) {
+      expect(await waitFor(() => observed().length === count, 2500, 5)).toBe(
+        true,
+      );
+    },
+    interceptWrite: (write: Intercept) => {
+      intercept = write;
+    },
     sessionEnv: () =>
       JSON.parse(readFileSync(join(directory, "session-env"), "utf8")),
   };
 }
+
+export const claudeCase = ownedCase(fixture);

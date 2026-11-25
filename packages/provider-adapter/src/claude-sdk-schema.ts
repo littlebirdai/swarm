@@ -1,10 +1,8 @@
 import * as Schema from "effect/Schema";
 import { json } from "./provider-json";
 
-const id = Schema.String.check(
-  Schema.isPattern(/\S/u),
-  Schema.isMaxLength(256),
-);
+const text = Schema.String.check(Schema.isPattern(/\S/u));
+const id = text.check(Schema.isMaxLength(256));
 const uuid = Schema.String.check(
   Schema.isPattern(
     /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu,
@@ -49,15 +47,22 @@ export const Prompt = Schema.Struct({
   }),
 });
 
+export const UnhandledRequest = Schema.fromJsonString(
+  Schema.Struct({
+    type: Schema.Literal("control_request"),
+    request_id: id,
+  }),
+);
+
 export const Questions = Schema.Struct({
   questions: Schema.Array(
     Schema.Struct({
-      question: id,
+      question: text,
       header: Schema.optional(Schema.String),
       multiSelect: Schema.optional(Schema.Boolean),
       options: Schema.Array(
         Schema.Struct({
-          label: id,
+          label: text,
           description: Schema.optional(Schema.String),
         }),
       ),
@@ -117,6 +122,7 @@ const frame = Schema.Union([
   Schema.Struct({
     type: Schema.Literals(["assistant", "user"]),
     ...scoped,
+    parent_tool_use_id: Schema.optional(Schema.NullOr(id)),
     message: Schema.Struct({
       content: Schema.Union([Schema.String, Schema.Array(json)]),
     }),
@@ -125,6 +131,7 @@ const frame = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("result"),
     ...scoped,
+    parent_tool_use_id: Schema.optional(Schema.NullOr(id)),
     ...commandIds,
     user_message_uuid: Schema.optional(Schema.NullOr(uuid)),
     subtype: id,

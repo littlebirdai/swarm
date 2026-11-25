@@ -1,3 +1,5 @@
+import { requireOpened } from "./provider-fixture";
+import { acpCase } from "./acp-fixture";
 import { expect } from "bun:test";
 import {
   existsSync,
@@ -36,14 +38,6 @@ function openEffect(fake: ReturnType<typeof fixture>) {
   ).pipe(Effect.provide(providerAdapterLayer(fake.options)));
 }
 
-function requireOpened<T extends { status: string }>(
-  result: T,
-): Extract<T, { status: "opened" }> {
-  expect(result.status).toBe("opened");
-  if (result.status !== "opened") throw new Error(JSON.stringify(result));
-  return result as Extract<T, { status: "opened" }>;
-}
-
 function permission(sessionId: string, id = "permission") {
   return {
     id,
@@ -69,34 +63,28 @@ function context(sessionId: string) {
   };
 }
 
-it.effect(
+acpCase(
   "an EPIPE rejects the native write and leaves an in-doubt delivery",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture({ ACP_CLOSE_STDIN: "1" });
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      try {
-        expect(
-          await waitFor(
-            () => existsSync(join(fake.directory, "stdin-closed")),
-            2500,
-            5,
-          ),
-        ).toBe(true);
-        expect(
-          await session.steer({
-            ...steer,
-            input: [{ type: "text", text: "x".repeat(600_000) }],
-          }),
-        ).toMatchObject({
-          status: "in-doubt",
-          reason: "unknown",
-          code: "write-failed",
-        });
-      } finally {
-        await session.close();
-      }
-    }),
+  async (session, fake) => {
+    expect(
+      await waitFor(
+        () => existsSync(join(fake.directory, "stdin-closed")),
+        2500,
+        5,
+      ),
+    ).toBe(true);
+    expect(
+      await session.steer({
+        ...steer,
+        input: [{ type: "text", text: "x".repeat(600_000) }],
+      }),
+    ).toMatchObject({
+      status: "in-doubt",
+      reason: "unknown",
+      code: "write-failed",
+    });
+  },
+  { ACP_CLOSE_STDIN: "1" },
 );
 
 it.effect("a rejected write can still have a late prompt reply", () =>
@@ -535,55 +523,41 @@ it.effect("resume refuses an event burst before the consumer can open", () =>
   }),
 );
 
-it.effect(
+acpCase(
   "updates for another session stay raw and do not publish canonical events",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      try {
-        await fake.wrote({ frame: context("other-session") });
-        await fake.wrote({ frame: context(session.getCheckpoint()) });
-        await fake.contract.processExit();
-        const events = session.events[Symbol.asyncIterator]();
-        expect(await events.next()).toMatchObject({
-          value: { kind: "context", seq: 11 },
-        });
-        expect(await events.next()).toMatchObject({
-          value: { kind: "session.ended", seq: 12 },
-        });
-        expect(
-          fake.raw.find(({ line }) => line.includes("other-session"))
-            ?.disposition,
-        ).toBe("unknown");
-      } finally {
-        await session.close();
-      }
-    }),
+  async (session, fake) => {
+    await fake.wrote({ frame: context("other-session") });
+    await fake.wrote({ frame: context(session.getCheckpoint()) });
+    await fake.contract.processExit();
+    const events = session.events[Symbol.asyncIterator]();
+    expect(await events.next()).toMatchObject({
+      value: { kind: "context", seq: 11 },
+    });
+    expect(await events.next()).toMatchObject({
+      value: { kind: "session.ended", seq: 12 },
+    });
+    expect(
+      fake.raw.find(({ line }) => line.includes("other-session"))?.disposition,
+    ).toBe("unknown");
+  },
 );
 
-it.effect("a permission request for another session never opens a prompt", () =>
-  Effect.promise(async () => {
-    const fake = fixture();
-    const { session } = requireOpened(await fake.client.start(fake.spec));
-    try {
-      await fake.wrote({ frame: permission("other-session") });
-      expect(await session.answer(answer)).toMatchObject({
-        status: "stale",
-        observed: { prompt_id: null },
-      });
-      await fake.contract.processExit();
-      expect(await session.events[Symbol.asyncIterator]().next()).toMatchObject(
-        { value: { kind: "session.ended", seq: 11 } },
-      );
-      expect(
-        fake.raw.find(({ line }) => line.includes("other-session"))
-          ?.disposition,
-      ).toBe("unknown");
-    } finally {
-      await session.close();
-    }
-  }),
+acpCase(
+  "a permission request for another session never opens a prompt",
+  async (session, fake) => {
+    await fake.wrote({ frame: permission("other-session") });
+    expect(await session.answer(answer)).toMatchObject({
+      status: "stale",
+      observed: { prompt_id: null },
+    });
+    await fake.contract.processExit();
+    expect(await session.events[Symbol.asyncIterator]().next()).toMatchObject({
+      value: { kind: "session.ended", seq: 11 },
+    });
+    expect(
+      fake.raw.find(({ line }) => line.includes("other-session"))?.disposition,
+    ).toBe("unknown");
+  },
 );
 
 it.effect(
