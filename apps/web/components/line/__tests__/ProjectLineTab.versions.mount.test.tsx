@@ -1,78 +1,8 @@
-// Mounts a project's Line tab in jsdom and reads its Versions table
-// (the-line-end-to-end.md LE14): every run is accounted for (a Stopped
-// column beside shipped, revised and dropped), and each row leads with what
-// that version changed, its graph hash kept in that change's tooltip.
-import { afterAll, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
-
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh/line", pretendToBeVisual: true },
-);
-const matchMedia = (q: string) => ({
-  matches: false,
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
-});
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  matchMedia,
-  // The tab embeds the line workspace, whose panes measure themselves.
-  ResizeObserver: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-dom.window.HTMLElement.prototype.scrollTo = () => {};
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-// Same mocks as LinePage.senseEvals.mount.test.tsx: bun shares mock.module
-// across the files of one run, so the two must agree.
-mock.module("../../../hooks/useSyncCollection", () => ({
-  useSyncCollection: () => ({ ready: true }),
-  useFeederError: () => {},
-  entityIdArgs: () => "skip",
-  applyCollectionFeed: () => {},
-  keyRowsBy: (rows: any[]) => rows ?? [],
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push() {}, replace() {} }),
-  usePathname: () => "/projects/p1",
-  useSearchParams: () => new URLSearchParams("tab=line"),
-}));
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: null }),
-}));
-// A review row reads its fix branch through an action (useFixBranch); no app answers in a test.
-const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useAction: () => async () => ({ ok: false, error: "no app in a test" }),
-}));
-
-const { useInboxStore } = await import("../../../store/inboxStore");
-const { ProjectLineTab } = await import("../ProjectLineTab");
+import { expect, test } from "bun:test";
+import { useInboxStore } from "../../../store/inboxStore";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { holdLineWorkspaceFeeds } from "../../../test-helpers/lineWorkspaceBackend";
+import { ProjectLineTab } from "../ProjectLineTab";
 
 const ME = "u1";
 const WS = `user:${ME}`;
@@ -127,59 +57,63 @@ const line = (
 });
 
 test("versions say what changed and account for every run, stopped ones included", async () => {
-  useInboxStore.setState({
-    currentUser: { _id: ME, name: "Me" },
-    clientStateInitialized: true,
-    clientState: { ...(useInboxStore.getState() as any).clientState, ui: {} },
-    teams: [],
-    teamMembers: [],
-    signals: {},
-    projects: { p1: project },
-    tasks: {
-      t1: {
-        _id: "t1",
-        short_id: "ct-1",
-        title: "cause",
-        status: "done",
-        workspace: WS,
-        project_id: "p1",
-        created_at: now - 10 * DAY,
-        updated_at: now,
-        cause: {
-          signal_count: 1,
-          first_seen: now - 10 * DAY,
-          last_seen: now - DAY,
-        },
+  const { container: host, close } = await mountWeb(
+    <ProjectLineTab projectId="p1" />,
+    {
+      path: "/projects/p1?tab=line",
+      authenticated: true,
+      setup(backend, store) {
+        window.innerWidth = 1400;
+        store.syncTable("currentUser", { _id: ME, name: "Me" });
+        useInboxStore.setState({ clientStateInitialized: true });
+        store.syncTable("projects", [project]);
+        store.syncTable("tasks", [
+          {
+            _id: "t1",
+            short_id: "ct-1",
+            title: "cause",
+            status: "done",
+            workspace: WS,
+            project_id: "p1",
+            created_at: now - 10 * DAY,
+            updated_at: now,
+            cause: {
+              signal_count: 1,
+              first_seen: now - 10 * DAY,
+              last_seen: now - DAY,
+            },
+          },
+        ]);
+        store.syncTable("workflowRuns", [
+          line(
+            "a",
+            now - 8 * DAY,
+            "1111111111111111",
+            nodesV1,
+            [n("ground", 1), n("prove", 2, "failed")],
+            "failed",
+          ),
+          line("b", now - 7 * DAY, "1111111111111111", nodesV1, [
+            n("ground", 1),
+            n("decide", 2),
+            n("drop", 3),
+          ]),
+          line("c", now - 2 * DAY, "2222222222222222", nodesV2, [
+            n("ground", 1),
+            n("decide", 2),
+            n("ship", 3),
+            n("watch", 4),
+          ]),
+          {
+            ...line("decoy", now, "3333333333333333", nodesV2, [n("ship", 1)]),
+            project_id: "outside",
+            workspace: "user:another",
+          },
+        ]);
+        holdLineWorkspaceFeeds(backend);
       },
     },
-    workflowRuns: {
-      a: line(
-        "a",
-        now - 8 * DAY,
-        "1111111111111111",
-        nodesV1,
-        [n("ground", 1), n("prove", 2, "failed")],
-        "failed",
-      ),
-      b: line("b", now - 7 * DAY, "1111111111111111", nodesV1, [
-        n("ground", 1),
-        n("decide", 2),
-        n("drop", 3),
-      ]),
-      c: line("c", now - 2 * DAY, "2222222222222222", nodesV2, [
-        n("ground", 1),
-        n("decide", 2),
-        n("ship", 3),
-        n("watch", 4),
-      ]),
-    },
-  } as any);
-  const host = document.createElement("div");
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(React.createElement(ProjectLineTab, { projectId: "p1" }));
-  });
+  );
   const rows = Object.fromEntries(
     [...host.querySelectorAll<HTMLElement>("[data-line-version]")].map((r) => [
       r.dataset.lineVersion,
@@ -206,8 +140,5 @@ test("versions say what changed and account for every run, stopped ones included
   expect(
     host.querySelector("[data-line-versions] thead")?.textContent,
   ).toContain("Stopped");
-  await act(async () => {
-    root.unmount();
-  });
-  host.remove();
+  await close();
 }, 30_000);

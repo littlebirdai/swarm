@@ -1,105 +1,23 @@
-// The gate a hand made scope gain waits at (org-roles-run-work.md R1), and the
-// scope editor that mounts it: a gain that moves nothing writes by itself, a
-// gain that moves sessions says how many and offers the one edit before the
-// write, and an edit that only removes never waits.
-// Run: bun test components/org/TakeoverGate.mount.test.tsx
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import assert from "node:assert/strict";
-import { afterAll, describe, it, mock } from "bun:test";
+import { describe, it } from "bun:test";
+import { act, type ReactNode } from "react";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
+import { TakeoverGate } from "./TakeoverEdit";
+import { GatedScopeEditor } from "./scope/ScopeEditors";
+import { ORG_FIXTURE } from "./orgFixture";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh", pretendToBeVisual: true },
-);
-const DOM_GLOBALS = [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "HTMLButtonElement",
-  "HTMLInputElement",
-  "HTMLSelectElement",
-  "Element",
-  "Node",
-  "NodeFilter",
-  "MutationObserver",
-  "CustomEvent",
-  "Event",
-  "getComputedStyle",
-];
-const priorGlobals = new Map(
-  DOM_GLOBALS.map((key) => [
-    key,
-    Object.getOwnPropertyDescriptor(globalThis, key),
-  ]),
-);
-for (const key of DOM_GLOBALS)
-  Object.defineProperty(globalThis, key, {
-    value: (dom.window as any)[key],
-    configurable: true,
-    writable: true,
-  });
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-afterAll(() => {
-  for (const [key, desc] of priorGlobals) {
-    if (desc) Object.defineProperty(globalThis, key, desc);
-    else delete (globalThis as any)[key];
-  }
-  delete (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
-});
-
-const React = await import("react");
-const { act } = React;
-// What the server answers the count with, one entry per item asked; undefined
-// is "not answered yet". `asked` is what the gate sent.
-let answer: unknown[] | undefined = [null];
-const asked: any[] = [];
-mock.module("../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: (_q: unknown, args: any) => {
-    if (args !== "skip") asked.push(args);
-    return { data: args === "skip" ? undefined : answer };
-  },
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-// Keep the module's other exports: the scope editor's graph reaches useActiveWorkspaceKey.
-const realWorkspace = {
-  ...(await import("../../hooks/useWorkspaceCollection")),
-};
-mock.module("../../hooks/useWorkspaceCollection", () => ({
-  ...realWorkspace,
-  useWorkspaceCollection: (key: string) =>
-    key === "projects"
-      ? [
-          { _id: "p-growth", title: "Growth", status: "active" },
-          { _id: "p-billing", title: "Billing", status: "active" },
-        ]
-      : [],
-}));
-// The chip on each scope row reads the store; it is not under test here.
-mock.module("../charter/ProjectLeadChip", () => ({
-  ProjectLeadChip: () => null,
-  ProjectLeadMark: () => null,
-  HireLeadDialog: () => null,
-}));
-mock.module("../../hooks/useProjectLead", () => ({
-  useProjectLead: () => ({
-    project: undefined,
-    roles: null,
-    lead: { kind: "none" },
-    otherWorkspace: false,
-  }),
-}));
-
-const { createRoot } = await import("react-dom/client");
-const { TakeoverGate } = await import("./TakeoverEdit");
-const { GatedScopeEditor } = await import("./scope/ScopeEditors");
-const { ORG_FIXTURE } = await import("./orgFixture");
+const fixtures = webBuilders("TakeoverGate.mount.test.tsx");
+type Preview = FunctionReturnType<typeof api.orgInit.takeoverPreview>;
+let answer: Preview | typeof pending;
 
 const WS = { kind: "team" as const, id: "fixture-team", name: "Acme" };
-const moves = (n: number) => [
+const moves = (n: number): Preview => [
   {
     sessions: Array.from({ length: n }, (_, i) => `jx7000${i}`),
     kept_in_front: [],
@@ -107,12 +25,39 @@ const moves = (n: number) => [
     phrase: "",
   },
 ];
-let root = createRoot(document.getElementById("root")!);
-const mount = async (node: React.ReactNode) => {
-  await act(async () => root.unmount());
-  root = createRoot(document.getElementById("root")!);
-  await act(async () => root.render(node as never));
+let web: Awaited<ReturnType<typeof mountWeb>>;
+const mount = async (node: ReactNode) => {
+  web = await mountWeb(node, {
+    path: "/org/or-1",
+    setup(backend, store) {
+      store.syncTable("currentUser", { _id: "fixture-user-me" });
+      store.syncTable("clientState", { ui: { active_team_id: WS.id } });
+      store.syncTable("orgTree", ORG_FIXTURE);
+      store.syncTable("projects", [
+        fixtures.project.build({
+          _id: "p-growth",
+          title: "Growth",
+          workspace: "team:fixture-team",
+        }),
+        fixtures.project.build({
+          _id: "p-billing",
+          title: "Billing",
+          workspace: "team:fixture-team",
+        }),
+        fixtures.project.build({
+          _id: "p-outside",
+          title: "Private project",
+          workspace: "team:away",
+        }),
+      ]);
+      backend.set(api.orgInit.takeoverPreview, answer);
+    },
+  });
 };
+const asked = () =>
+  web.backend.queryRequests
+    .filter(({ name }) => name === "orgInit:takeoverPreview")
+    .map(({ args }) => args);
 const q = <T extends Element = HTMLElement>(sel: string) =>
   document.querySelector<T>(sel);
 
@@ -135,7 +80,7 @@ describe("TakeoverGate", () => {
   });
 
   it("until the server answers, the write waits and the button is off", async () => {
-    answer = undefined;
+    answer = pending;
     const confirmed: unknown[] = [];
     await mount(
       <TakeoverGate
@@ -172,7 +117,7 @@ describe("TakeoverGate", () => {
         onCancel={() => cancelled++}
       />,
     );
-    assert.deepEqual(asked.at(-1), {
+    assert.deepEqual(asked().at(-1), {
       team_id: "fixture-team",
       items: [{ handle: "growth", add: ["project:p-growth"] }],
     });
@@ -208,14 +153,14 @@ describe("GatedScopeEditor", () => {
     handle: "growth",
     scope: { project_ids: ["p-growth"], plan_ids: [] },
     scope_names: { projects: [{ id: "p-growth", title: "Growth" }], plans: [] },
-  } as any;
+  };
   const pick = async (value: string) =>
     act(async () => {
       const select = q<HTMLSelectElement>(
         'select[aria-label="Add to its area"]',
       )!;
       select.value = value;
-      select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
   it("a gain that moves sessions shows in the editor at once and is written only after the person confirms", async () => {
@@ -229,6 +174,8 @@ describe("GatedScopeEditor", () => {
         onChange={(...a) => writes.push(a)}
       />,
     );
+    expectAbsent(q('select option[value="project:p-outside"]'));
+    expectPresent(q('select option[value="project:p-billing"]'));
     await pick("project:p-billing");
     assert.ok(
       q('[data-scope-project="p-billing"]'),
@@ -265,6 +212,7 @@ describe("GatedScopeEditor", () => {
     );
     assert.equal(q('[data-scope-project="p-billing"]'), null);
     assert.deepEqual(writes, []);
+    await waitForPopupClose();
     await pick("project:p-billing");
     await act(async () =>
       q<HTMLInputElement>("[data-takeover-leave-input]")!.click(),
@@ -295,11 +243,11 @@ describe("GatedScopeEditor", () => {
     assert.deepEqual(writes, [
       [{ project_ids: ["p-growth", "p-billing"], plan_ids: [] }, undefined],
     ]);
-    const before = asked.length;
+    const before = asked().length;
     await act(async () =>
       q<HTMLButtonElement>('[data-scope-project="p-growth"] button')!.click(),
     );
     assert.deepEqual(writes.at(-1), [{ project_ids: [], plan_ids: [] }]);
-    assert.equal(asked.length, before, "a removal asks the server nothing");
+    assert.equal(asked().length, before, "a removal asks the server nothing");
   });
 });
