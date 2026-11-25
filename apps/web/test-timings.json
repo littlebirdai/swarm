@@ -1342,7 +1342,7 @@
     "store/__tests__/idbCache.native.test.ts": 272,
     "store/__tests__/idbCacheWriteBehind.native.test.ts": 254,
     "store/__tests__/idbCollectionDiff.test.ts": 252,
-    "store/__tests__/idbIncrementalPersist.test.ts": 5780,
+    "store/__tests__/idb-incremental-persist.test.ts": 5780,
     "store/__tests__/inboxConvergenceSim.test.ts": 8144,
     "store/__tests__/inboxDigestCompare.test.ts": 328,
     "store/__tests__/inboxDigestIdentity.test.ts": 341,
