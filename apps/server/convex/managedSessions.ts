@@ -1,6 +1,9 @@
 import { heartbeatOf, managedHeartbeatPage } from "./lib/sessionHeartbeat";
 import {
   applyHeartbeat,
+  ensureHostedManagedSession,
+  writeAgentStatus,
+  type AgentStatusWrite,
   writeSessionHeartbeat,
 } from "./lib/sessionStatusWriter";
 import { statusWriteIsStale } from "./lib/heartbeatPatch";
@@ -980,18 +983,6 @@ export const updateAgentStatus = mutation({
   },
 });
 
-type AgentStatusWrite = {
-  conversation_id: Id<"conversations">;
-  agent_status: typeof agentStatusValidator.type;
-  client_ts?: number;
-  permission_mode?: Doc<"managed_sessions">["permission_mode"];
-  open_tasks?: Doc<"managed_sessions">["open_tasks"];
-  presumed?: boolean;
-  hibernated_at?: number | null;
-  session_boundary?: boolean;
-  turn_completed_at?: number;
-};
-
 // The hosted assistant's status writer (plan pl-840): the same status write
 // as updateAgentStatus, with every reaction (needs-input check, live activity,
 // huddle settle, injected acks), for a conversation whose turns run in this
@@ -1027,48 +1018,6 @@ export async function applyHostedAgentStatus(
   return await applyAgentStatus(ctx, session, args);
 }
 
-/** The managed_sessions row a hosted conversation's status lives on, created
- *  when missing. No process stands behind it (pid 0, no pane), and it is
- *  marked `hosted`: its heartbeat proves a running turn, not a daemon, so the
- *  user-wide daemon liveness and the stale-row reaper both skip it. Refuses a
- *  local conversation: the flag is permanent, and on a daemon's row it would
- *  hide that daemon from liveness and keep its dead row from the reaper. */
-export async function ensureHostedManagedSession(
-  ctx: MutationCtx,
-  conversation: Doc<"conversations">,
-): Promise<Doc<"managed_sessions">> {
-  if (!isHostedAgentType(conversation.agent_type)) {
-    throw new Error(
-      "Only a hosted assistant conversation has a hosted status row",
-    );
-  }
-  const existing = await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) =>
-      q.eq("conversation_id", conversation._id),
-    )
-    .first();
-  if (existing) {
-    if (existing.hosted) return existing;
-    await ctx.db.patch(existing._id, { hosted: true });
-    return { ...existing, hosted: true };
-  }
-  const now = Date.now();
-  const id = await ctx.db.insert("managed_sessions", {
-    session_id: conversation.session_id,
-    conversation_id: conversation._id,
-    user_id: conversation.user_id,
-    pid: 0,
-    started_at: now,
-    last_heartbeat: 0,
-    agent_status: "idle",
-    agent_status_updated_at: now,
-    hosted: true,
-  });
-  await writeSessionHeartbeat(ctx, id, conversation.user_id, 0);
-  return (await ctx.db.get(id))!;
-}
-
 // Everything updateAgentStatus does once the writer is known to own the
 // session and the write is fresh.
 async function applyAgentStatus(
@@ -1076,56 +1025,7 @@ async function applyAgentStatus(
   session: Doc<"managed_sessions">,
   args: AgentStatusWrite,
 ) {
-  const patch: Record<string, any> = {
-    agent_status: args.agent_status,
-    agent_status_write_at: args.client_ts ?? Date.now(),
-    // undefined deletes the field: the flag describes THIS settle, so any
-    // write that does not claim a boundary clears the previous claim.
-    agent_status_boundary: args.session_boundary === true ? true : undefined,
-  };
-  // The turn stamp is not cleared the same way: the daemon re-publishes a
-  // parked settle without re-deriving it, and the next turn overwrites it.
-  if (args.turn_completed_at !== undefined) {
-    patch.turn_completed_at = args.turn_completed_at;
-  }
-
-  if (args.permission_mode !== undefined) {
-    patch.permission_mode = args.permission_mode;
-  }
-  if (args.hibernated_at !== undefined) {
-    // undefined in a patch deletes the field, which is how a resume clears
-    // the park stamp.
-    patch.hibernated_at =
-      args.hibernated_at === null ? undefined : args.hibernated_at;
-  }
-  if (args.open_tasks !== undefined) {
-    // Re-stamp the time even when the list is unchanged: freshness is the
-    // signal (a stale report stops vouching for "waiting"). The overlay is
-    // keyed on the doc changing anyway, and settles are not hot.
-    patch.open_tasks = args.open_tasks;
-    patch.open_tasks_at = Date.now();
-  }
-
-  // Advance the change-time only on an actual change so the field stays a
-  // "when did the agent enter this status" signal (idle detection relies on
-  // it). Redundant same-status updates — e.g. PreToolUse re-firing "working"
-  // each tool call — must not reset it.
-  if (args.agent_status !== session.agent_status) {
-    patch.agent_status_updated_at = args.client_ts ?? Date.now();
-  }
-
-  // Active status updates prove the daemon is alive — refresh heartbeat too.
-  // This prevents stale-heartbeat inference from overriding a valid status update
-  // (e.g. after daemon restart before the heartbeat interval kicks in).
-  if (ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
-    const at = Date.now();
-    patch.last_heartbeat = at;
-    await writeSessionHeartbeat(ctx, session._id, session.user_id, at);
-  }
-
-  if (Object.keys(patch).length > 0) {
-    await ctx.db.patch(session._id, patch);
-  }
+  const patch = await writeAgentStatus(ctx, session, args);
 
   // A turn just ended. A session in a huddle (fed its live transcript)
   // answers in the room: its reply is mirrored into the huddle chat, and

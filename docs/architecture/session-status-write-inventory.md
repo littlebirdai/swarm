@@ -6,9 +6,9 @@ The table gives the closest `@codecast/session-contract` fact for each writer. A
 
 | File                      | Writer                                                                                    | Field                                               | Trigger and caller                                                                                                           | Contract fact or gap                                                                                                        |
 | ------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `managedSessions.ts`      | `ensureHostedManagedSession`                                                              | Agent status and change time                        | The hosted engine creates its first registry row.                                                                            | Initial state. Gap for the explicit legacy `idle` value before a run claim.                                                 |
+| [Status writer]           | `ensureHostedManagedSession`                                                              | Agent status and change time                        | The hosted engine creates its first registry row.                                                                            | Initial state. Gap for the explicit legacy `idle` value before a run claim.                                                 |
 | [Status writer]           | `applyHeartbeat`                                                                          | Agent status and stamps                             | The daemon calls `heartbeat` or `heartbeatBatch` with a status observation.                                                  | `provider.event` or run facts, if the observation has the necessary evidence. Gap for a bare status and a client time.      |
-| `managedSessions.ts`      | `applyAgentStatus`                                                                        | Agent status and stamps, turn completion, park time | The daemon calls `updateAgentStatus`. The hosted engine calls `applyHostedAgentStatus`.                                      | `provider.event` for start, prompt, and end. Gap for an uncorrelated settle or a park stamp.                                |
+| [Status writer]           | `writeAgentStatus`                                                                        | Agent status and stamps, turn completion, park time | The daemon calls `updateAgentStatus`. The hosted engine calls `applyHostedAgentStatus`.                                      | `provider.event` for start, prompt, and end. Gap for an uncorrelated settle or a park stamp.                                |
 | `messages.ts`             | `addMessage`                                                                              | Agent status and change time                        | Transcript ingest finds an assistant message or tool reply.                                                                  | `provider.event` with `turn.started` when the event identifies a turn. Gap for a status inferred from message shape.        |
 | `messages.ts`             | `writeMessageBatch`                                                                       | Agent status probe                                  | Batch ingest records evidence for a deferred check.                                                                          | Gap. The probe belongs to the adapter.                                                                                      |
 | `messages.ts`             | `projectAgentStatusOnAddMessages`                                                         | Agent status and change time                        | A scheduled check reads the probe and projects agent status.                                                                 | Same evidence gap as `addMessage`.                                                                                          |
@@ -42,7 +42,7 @@ Dispatch can also send the thread pin through `favoriteViewWrites.ts` and `patch
 
 The guard is file level. It finds literal keys and direct assignments of the distinctive fields only, and not `conversations.status` or the thread state. It can miss an indirect or computed write. It also matches a type or a read projection that has one of the field names. Put such a file in the list, with the reason.
 
-The heartbeat handlers use `lib/sessionStatusWriter.ts` for the registry patch and side-row writes. Authorization, registry lookups, and scheduled checks remain in `managedSessions.ts`.
+The heartbeat handlers use `lib/sessionStatusWriter.ts` for the registry patch and side-row writes. The same module writes daemon and hosted status and creates the hosted registry row. Authorization, the daemon lookup, and reactions to status changes remain in `managedSessions.ts`.
 
 [Status writer]: ../../apps/server/convex/lib/sessionStatusWriter.ts
 
@@ -57,6 +57,25 @@ The replay compares the legacy agent status with the contract's turn state. It s
 | `turn.ended`    | `idle`               | Blocked             | A heartbeat gives no evidence that the turn ended. |
 
 A later matching provider event closes each gap in the fixture. A stale heartbeat cannot change the stored agent status after the turn ends.
+
+## Managed status write rules
+
+Each report replaces the boundary flag. A report without a boundary clears that flag. The writer keeps the last turn completion time until a report supplies a new one. A resume can clear the park time with `hibernated_at: null`.
+
+The writer changes `agent_status_updated_at` only when the status changes. Idle detection uses that time. A fresh report of open tasks refreshes their timestamp even when the list is the same. An active status refreshes the heartbeat so a stale heartbeat does not override the report.
+
+The hosted row has no daemon process. Its heartbeat shows that a hosted turn is active. Daemon liveness and stale-row cleanup skip this row. The writer refuses to mark a local session as hosted so that cleanup can still find it.
+
+## Managed status replay gaps
+
+The replay sends status reports through `updateAgentStatus`. It supplies the reducer with the provider events that the fixture observes.
+
+| Report                        | Legacy registry | Contract turn | Reason                                                                                      |
+| ----------------------------- | --------------- | ------------- | ------------------------------------------------------------------------------------------- |
+| Presumed work                 | Working         | No turn       | The report can paint the session as working before the provider starts a turn.              |
+| Session boundary              | Idle            | Running       | A boundary report can reset the visible status without a turn end event.                    |
+| Uncorrelated completion stamp | Idle            | Running       | The legacy path can release turn work on a timestamp that identifies no provider turn.      |
+| Hibernate                     | Parked          | Ended         | The registry stores a park timestamp. The reducer accepts park state as a projection input. |
 
 ## Pending-message healers
 
