@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import {
   heartbeatOf,
   heartbeatsFor,
@@ -2005,7 +2006,11 @@ export const createConversation = mutation({
       }
       // Adopt an unowned conversation; never steal one another device owns
       // (explicit ownership transfers go through sessionOwnership).
-      if (args.owner_device_id && !existing.owner_device_id) {
+      if (
+        args.owner_device_id &&
+        !existing.owner_device_id &&
+        !fencedMoveRefusal(existing)
+      ) {
         patch.owner_device_id = args.owner_device_id;
       }
       if (Object.keys(patch).length > 0) {
@@ -15794,6 +15799,8 @@ export const reconfigureSession = mutation({
       conv.cloud_placement === "pending" &&
       args.target_device_id
     ) {
+      const reason = fencedMoveRefusal(conv);
+      if (reason) return { reconfigured: false as const, reason };
       const target = await ctx.db
         .query("devices")
         .withIndex("by_user_device", (q: any) =>

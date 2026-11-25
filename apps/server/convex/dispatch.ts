@@ -6099,8 +6099,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   ) => {
     const fn = (SESSION_COMMANDS as Record<string, any>)[command];
     if (!fn) throw new Error(`convCommand: unknown command ${command}`);
+    let result;
     try {
-      return await (ctx as any).runMutation(fn, {
+      result = await (ctx as any).runMutation(fn, {
         conversation_id: convId,
         ...(extraArgs || {}),
       });
@@ -6111,6 +6112,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         `convCommand ${command} conv=${convId} user=${userId}: ${e?.message ?? e}`,
       );
     }
+    if (command === "reconfigureSession" && result?.reconfigured === false)
+      throw new ConvexError(result.reason);
+    return result;
   },
 };
 

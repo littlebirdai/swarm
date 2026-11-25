@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 /**
  * Bulk session migration: move MANY sessions between a local machine and a
@@ -243,10 +244,13 @@ export function heldReason(
     _id: string;
     session_id?: string;
     is_subagent?: boolean;
+    execution_protocol_state?: string;
     parent_conversation_id?: string;
   },
   facts: MovabilityFacts,
 ): string | null {
+  const refusal = fencedMoveRefusal(c);
+  if (refusal) return refusal;
   const id = String(c._id);
   // A step's session is named by its conversation short id, its session id, or (tmux runtime) only by its parent run.
   const isStep =
@@ -819,6 +823,8 @@ export async function performBeginSession(
     });
     return { ok: false as const, reason: error };
   };
+  const refusal = fencedMoveRefusal(conv);
+  if (refusal) return fail(refusal);
   if (
     conv.migration &&
     conv.migration.migration_id.toString() !== row._id.toString()
@@ -832,7 +838,6 @@ export async function performBeginSession(
   if (conv.owner_device_id === row.to_device_id)
     return fail("already on the destination");
   if (!conv.session_id) return fail("the session has no transcript yet");
-
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
@@ -847,7 +852,6 @@ export async function performBeginSession(
     return fail("the session is already on a cloud host");
   if (row.direction === "to_local" && !owner?.is_remote)
     return fail("the session is no longer on a cloud host");
-
   const managed = conv.session_id
     ? await ctx.db
         .query("managed_sessions")
@@ -856,7 +860,6 @@ export async function performBeginSession(
         )
         .first()
     : null;
-
   await ctx.db.patch(conv._id, {
     migration: {
       batch_id: row.batch_id,

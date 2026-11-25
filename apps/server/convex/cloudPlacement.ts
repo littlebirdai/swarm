@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 /**
  * Parking a session on the cloud host: the leaf every creator goes through.
@@ -411,6 +412,7 @@ export async function parkOnCloudHost(
     leaveOut?: string[];
   } = {},
 ): Promise<Id<"daemon_commands"> | null> {
+  fencedMoveRefusal(conv, "throw");
   // Every cloud park passes here (web creates, dispatch, moves, re-parks).
   await requireTeamPolicyAllows(
     ctx,

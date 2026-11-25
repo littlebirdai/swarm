@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -198,6 +199,16 @@ export const mergeDuplicateUser = internalMutation({
       throw new Error(
         `email mismatch — from=${from.email} to=${to.email}; aborting to avoid merging unrelated accounts`,
       );
+    }
+
+    if (!args.dry_run) {
+      const fenced = await ctx.db
+        .query("conversations")
+        .withIndex("by_user_id", (q) => q.eq("user_id", args.from_user_id))
+        .filter((q) => q.neq(q.field("execution_protocol_state"), undefined))
+        .first();
+      const refusal = fenced && fencedMoveRefusal(fenced);
+      if (refusal) throw new Error(refusal);
     }
 
     const perTable: Record<string, number> = {};
