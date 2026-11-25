@@ -283,7 +283,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, budgets]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, budgets]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -297,17 +297,17 @@ jobs:
         # jsdom window installed on globalThis outlives the file that made it.
         # One mount test then decides what hundreds of later files see, so a
         # test passes alone and fails in the suite depending on file order.
-        # --parallel: one worker process per CPU. bun keeps every isolated
+        # --parallel: three workers leave a CPU free. bun keeps every isolated
         # file's global alive until its process exits (a file that imports the
         # store holds ~8 MB after a full GC), so the whole suite in one process
-        # climbed past 11 GB. Eight shards of four workers keep each process small.
+        # climbed past 11 GB. Ten shards of three workers keep each process small.
         # --timeout: the workers share the CPUs, which stretches a test that
         # takes 3 of its default 5 seconds alone.
         # SIM_OUT: where the multiplayer sim writes each run's report and
         # events (docs/architecture/sync-sim.md), uploaded below on failure.
         env:
           SIM_OUT: ${{ runner.temp }}/sim
-        run: bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8
+        run: bun test --parallel=3 --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/10
 
       # The exact counts behind the perf benches (apps/web/perf/README.md).
       # Plain bun, not bun test: the test preload stands in for the diff viewer.
@@ -333,7 +333,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [1, 2, 3, 4, 5, 6, tmux-1, tmux-2, tmux-3, tmux-4, evals, e2e]
+        suite:
+          [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            tmux-1,
+            tmux-2,
+            tmux-3,
+            tmux-4,
+            tmux-5,
+            tmux-6,
+            tmux-7,
+            tmux-8,
+            evals,
+            e2e,
+          ]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -362,16 +382,16 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5
 
       # The e2e files drive real tmux panes against wall-clock bounds, so they
-      # run two at a time and away from the unit tests, which use every CPU.
+      # run one at a time and away from the unit tests, which use the CPUs.
       - name: E2E files (cli package)
         if: startsWith(matrix.suite, 'tmux-')
         working-directory: apps/cli
         env:
           SUITE: ${{ matrix.suite }}
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.

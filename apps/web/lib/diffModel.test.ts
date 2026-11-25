@@ -203,11 +203,12 @@ describe("buildDiffModel + diffRows", () => {
       { length: 5000 },
       (_, i) => `const b${i} = ${i};`,
     ).join("\n");
-    const start = performance.now();
+    const start = process.cpuUsage();
     const rows = diffRows(buildDiffModel({ oldStr, newStr, startLine: 3 }));
+    const { user, system } = process.cpuUsage(start);
     expect(rows.length).toBe(10_000);
     expect(rows[0]).toMatchObject({ type: "removed", oldNum: 3 });
     expect(rows[5000]).toMatchObject({ type: "added", newNum: 3 });
-    expect(performance.now() - start).toBeLessThan(2000);
+    expect((user + system) / 1000).toBeLessThan(2000);
   });
 });

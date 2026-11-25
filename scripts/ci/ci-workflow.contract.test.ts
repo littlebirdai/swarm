@@ -373,7 +373,7 @@ describe("matrices", () => {
       programs: ["web sim", "cli convex", "evals playground packages"],
     },
     "test-convex": { shard: [1, 2, 3] },
-    "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, "budgets"] },
+    "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "budgets"] },
     "test-cli": {
       suite: [
         1,
@@ -416,7 +416,7 @@ describe("matrices", () => {
     "test-web": [
       [
         "matrix.shard != 'budgets'",
-        "bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8",
+        "bun test --parallel=3 --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/10",
       ],
       ["matrix.shard == 'budgets'", "scripts/perf-budgets.sh"],
     ],
@@ -427,11 +427,11 @@ describe("matrices", () => {
       ],
       [
         "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
-        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5",
+        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5",
       ],
       [
         "startsWith(matrix.suite, 'tmux-')",
-        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5',
+        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
       ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],

@@ -272,7 +272,7 @@ node --test infra/call-face-worker/turns.test.mjs
         },
         "if": "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
         "name": "Unit tests (cli package)",
-        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=\${{ matrix.suite }}/6 --bail=5",
+        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=\${{ matrix.suite }}/8 --bail=5",
         "working-directory": "apps/cli",
       },
       {
@@ -281,7 +281,7 @@ node --test infra/call-face-worker/turns.test.mjs
         },
         "if": "startsWith(matrix.suite, 'tmux-')",
         "name": "E2E files (cli package)",
-        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="\${SUITE#tmux-}/4" --bail=5",
+        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="\${SUITE#tmux-}/8" --bail=5",
         "working-directory": "apps/cli",
       },
       {
@@ -472,7 +472,7 @@ fi
         },
         "if": "matrix.shard != 'budgets'",
         "name": "Unit tests (web package)",
-        "run": "bun test --parallel --timeout=20000 --timings=test-timings.json --shard=\${{ matrix.shard }}/8",
+        "run": "bun test --parallel=3 --timeout=20000 --timings=test-timings.json --shard=\${{ matrix.shard }}/10",
         "working-directory": "apps/web",
       },
       {
