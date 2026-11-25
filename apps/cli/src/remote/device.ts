@@ -29,6 +29,10 @@ import * as path from "node:path";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { getMachineKey, hardwareId } from "../machine-key.js";
 import { defaultConfigDir } from "../config/configDir.js";
+import {
+  publishPrivateFile,
+  readPublishedFile,
+} from "../publish-private-file.js";
 
 const DEVICE_BINDING_FILE = path.join(
   defaultConfigDir(),
@@ -98,15 +102,37 @@ export function deviceId(): string {
   } catch {
     seed = `${os.hostname()}:${os.platform()}:${os.homedir()}`;
   }
-  const { id, persist } = resolveDeviceIdentity({
+  const inputs = {
     hardwareUUID: hardwareId(),
     legacyId: deriveDeviceId(seed, "codecast-device-id-v1"),
-    binding: readDeviceBinding(),
-    deriveCloneId: (hw) => deriveDeviceId(seed, "codecast-device-id-v2", hw),
-  });
-  if (persist) writeDeviceBinding(persist);
-  cachedDeviceId = id;
-  return id;
+    deriveCloneId: (hw: string) =>
+      deriveDeviceId(seed, "codecast-device-id-v2", hw),
+  };
+  let binding = readDeviceBinding();
+  let identity = resolveDeviceIdentity({ ...inputs, binding: binding ?? null });
+  if (identity.persist && !binding) {
+    try {
+      if (
+        !publishPrivateFile(
+          DEVICE_BINDING_FILE,
+          JSON.stringify(identity.persist),
+        )
+      ) {
+        binding = readPublishedFile(readDeviceBinding);
+        if (binding === null) {
+          writeDeviceBinding(identity.persist);
+          binding = readDeviceBinding();
+        }
+        identity = resolveDeviceIdentity({
+          ...inputs,
+          binding: binding ?? null,
+        });
+      }
+    } catch {}
+  }
+  if (identity.persist && binding) writeDeviceBinding(identity.persist);
+  cachedDeviceId = identity.id;
+  return cachedDeviceId;
 }
 
 function deriveDeviceId(
@@ -138,9 +164,16 @@ export function previousDeviceId(): string | undefined {
   }
 }
 
-function readDeviceBinding(): DeviceBinding | null {
+function readDeviceBinding(): DeviceBinding | null | undefined {
+  let contents: string;
   try {
-    const b = JSON.parse(fs.readFileSync(DEVICE_BINDING_FILE, "utf8"));
+    if (!fs.statSync(DEVICE_BINDING_FILE).isFile()) return undefined;
+    contents = fs.readFileSync(DEVICE_BINDING_FILE, "utf8");
+  } catch {
+    return undefined;
+  }
+  try {
+    const b = JSON.parse(contents);
     if (
       typeof b?.hw === "string" &&
       typeof b?.id === "string" &&

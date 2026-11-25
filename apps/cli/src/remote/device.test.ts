@@ -1,10 +1,150 @@
 import { describe, test, expect } from "bun:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import {
   resolveDeviceIdentity,
   resolveDeviceLabel,
   resolveRemoteDevice,
   resolveStableHostname,
 } from "./device.js";
+
+test.each([
+  ["uses the binding from a concurrent first run", "link-race"],
+  ["creates the binding if hard links are unavailable", "exclusive-create"],
+  ["waits for a partial binding from a concurrent first run", "exclusive-race"],
+  ["recovers a binding left incomplete by a failed write", "incomplete"],
+  ["follows a dangling binding symlink", "symlink"],
+  ["returns a stable ID when binding publication fails", "write-denied"],
+  ["does not wait for a directory at the binding path", "directory"],
+  ["does not wait for an unreadable binding file", "read-denied"],
+])("%s", (_name, scenario) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-device-"));
+  const bindingFile = path.join(dir, ".device_binding.json");
+  const binding = { hw: "test-hardware", id: "fedcba9876543210" };
+  const script = `
+    import { spyOn } from "bun:test";
+    import * as fs from "node:fs";
+    import * as machineKey from "./src/machine-key.ts";
+    import { deviceId } from "./src/remote/device.ts";
+
+    const [bindingFile, bindingJson, scenario] = process.argv.slice(1);
+    spyOn(machineKey, "hardwareId").mockReturnValue(JSON.parse(bindingJson).hw);
+    spyOn(machineKey, "getMachineKey").mockImplementation(() => {
+      throw new Error("Could not read machine key");
+    });
+    if (["exclusive-create", "exclusive-race", "incomplete"].includes(scenario)) {
+      spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), { code: "ENOTSUP" });
+      });
+    }
+    if (scenario === "write-denied") {
+      spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Binding write denied"), { code: "EACCES" });
+      });
+    }
+    let waits = 0;
+    if (scenario === "directory" || scenario === "read-denied") {
+      spyOn(Atomics, "wait").mockImplementation(() => {
+        waits++;
+        throw new Error("Unexpected wait");
+      });
+    }
+    if (scenario === "directory") fs.mkdirSync(bindingFile);
+    if (scenario === "read-denied") {
+      fs.writeFileSync(bindingFile, bindingJson, { mode: 0o600 });
+      const read = fs.readFileSync;
+      spyOn(fs, "readFileSync").mockImplementation((...args) => {
+        if (args[0] === bindingFile) throw Object.assign(new Error("Binding read denied"), { code: "EACCES" });
+        return read(...args);
+      });
+    }
+    if (scenario === "symlink") fs.symlinkSync("identity/device.json", bindingFile, "file");
+    if (scenario === "incomplete") fs.writeFileSync(bindingFile, "{", { mode: 0o600 });
+    if (scenario.endsWith("-race")) {
+      const partial = scenario === "exclusive-race";
+      const stat = fs.statSync;
+      const intercept = spyOn(fs, "statSync").mockImplementation((...args) => {
+        if (args[0] !== bindingFile) return stat(...args);
+        try {
+          return stat(...args);
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+          intercept.mockRestore();
+          fs.writeFileSync(bindingFile, partial ? "{" : bindingJson, { flag: "wx", mode: 0o600 });
+          throw err;
+        }
+      });
+      if (partial) {
+        const read = fs.readFileSync;
+        const partialRead = spyOn(fs, "readFileSync").mockImplementation((...args) => {
+          const contents = read(...args);
+          if (args[0] === bindingFile) {
+            partialRead.mockRestore();
+            fs.writeFileSync(bindingFile, bindingJson);
+          }
+          return contents;
+        });
+      }
+    }
+    console.log(deviceId());
+    console.log(deviceId());
+    console.log(waits);
+  `;
+  try {
+    const child = Bun.spawnSync(
+      [
+        process.execPath,
+        "-e",
+        script,
+        bindingFile,
+        JSON.stringify(binding),
+        scenario,
+      ],
+      {
+        cwd: path.resolve(import.meta.dir, "../.."),
+        env: { ...process.env, CODECAST_DIR: dir },
+        timeout: 5_000,
+        stderr: "inherit",
+      },
+    );
+    expect(child.exitCode).toBe(0);
+    const [id, cachedId, waits] = child.stdout.toString().trim().split("\n");
+    expect(id).toMatch(/^[0-9a-f]{16}$/);
+    expect(cachedId).toBe(id);
+    if (scenario === "directory" || scenario === "read-denied") {
+      expect(waits).toBe("0");
+      if (scenario === "directory")
+        expect(fs.statSync(bindingFile).isDirectory()).toBe(true);
+      else
+        expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual(
+          binding,
+        );
+      expect(fs.readdirSync(dir)).toEqual([".device_binding.json"]);
+      return;
+    }
+    if (scenario === "write-denied") {
+      expect(fs.readdirSync(dir)).toEqual([]);
+      return;
+    }
+    if (scenario.endsWith("-race")) expect(id).toBe(binding.id);
+    expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual({
+      hw: binding.hw,
+      id,
+    });
+    if (process.platform !== "win32") {
+      expect(fs.statSync(bindingFile).mode & 0o777).toBe(0o600);
+    }
+    if (scenario === "symlink") {
+      expect(fs.readlinkSync(bindingFile)).toBe("identity/device.json");
+      expect(fs.readdirSync(path.join(dir, "identity"))).toEqual([
+        "device.json",
+      ]);
+    } else expect(fs.readdirSync(dir)).toEqual([".device_binding.json"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 /**
  * Regression for the "Xiaomi-12-Lite" device-label bug: macOS overwrites the

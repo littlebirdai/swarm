@@ -30,6 +30,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { defaultConfigDir } from "./config/configDir.js";
+import {
+  publishPrivateFile,
+  readPublishedFile,
+} from "./publish-private-file.js";
 
 export const MACHINE_KEY_LEN = 32;
 
@@ -82,17 +86,19 @@ export function resolveMachineKey(
     } catch {}
   }
 
-  let key: Buffer | null = null;
-  try {
-    const existing = fs.readFileSync(keyFile);
-    if (existing.length >= MACHINE_KEY_LEN) key = existing;
-  } catch {}
-
+  let key = readMachineKey(keyFile);
   if (!key) {
-    key = crypto.randomBytes(MACHINE_KEY_LEN);
-    writeSecretFile(keyFile, key);
-    if (hostid) writeSecretFile(hostidFile, hostid + "\n");
-    return { secret: key, previousSecret: readPrev(prevFile), rotated: false };
+    const candidate = crypto.randomBytes(MACHINE_KEY_LEN);
+    if (publishPrivateFile(keyFile, candidate)) {
+      key = candidate;
+    } else {
+      key = readPublishedFile(() => readMachineKey(keyFile)) ?? null;
+      if (!key) {
+        writeSecretFile(keyFile, candidate);
+        key = fs.readFileSync(keyFile);
+      }
+    }
+    recorded = "";
   }
 
   // No hardware id on this platform/environment → binding disabled, key as-is.
@@ -127,6 +133,16 @@ export function resolveMachineKey(
   writeSecretFile(keyFile, rotated);
   writeSecretFile(hostidFile, hostid + "\n");
   return { secret: rotated, previousSecret: key, rotated: true };
+}
+
+function readMachineKey(file: string): Buffer | null {
+  try {
+    const key = fs.readFileSync(file);
+    return key.length >= MACHINE_KEY_LEN ? key : null;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    return null;
+  }
 }
 
 function rotateKey(key: Buffer, hostid: string): Buffer {
