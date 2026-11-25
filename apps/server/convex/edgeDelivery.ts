@@ -13,6 +13,7 @@ import {
   completeDeliveryInDb,
   ExecutionAuthorityError,
   failDeliveryBeforeEffectInDb,
+  finishTerminalDelivery,
   markDeliveryAmbiguousInDb,
   resolveAmbiguousDeliveryInDb,
   startDeliveryInDb,
@@ -57,8 +58,9 @@ const refusedFences = new Set([
   "DELIVERY_PERMIT_NOT_FOUND",
   "DELIVERY_PERMIT_FENCE_MISMATCH",
   "DELIVERY_ATTEMPT_STATE_MISMATCH",
-  "CONVERSATION_SAFETY_BLOCKED",
 ]);
+const rejectedCode = "EDGE_DELIVERY_REJECTED";
+const finalFailureCode = "EDGE_DELIVERY_FAILED_FINAL";
 
 async function withFence<T>(
   refusal: T,
@@ -153,8 +155,7 @@ async function deliveryContext(
     fields.sender.id !== args.sender.id
   )
     return null;
-  requireTextDelivery(message);
-  return { owner: run.owner, fence, attempt, fields };
+  return { owner: run.owner, fence, attempt, fields, message };
 }
 
 export const next = internalMutation({
@@ -164,7 +165,8 @@ export const next = internalMutation({
       const run = await runContext(ctx, args);
       if (!run) return stale;
       const result = await claimNextDeliveryInDb(ctx, run.owner, run.fence);
-      if (result.state === "empty") return { v: v1, status: "empty" };
+      if (result.state === "empty" || result.state === "waiting-for-successor")
+        return { v: v1, status: "empty" };
 
       const attemptId =
         result.state === "claimed"
@@ -217,8 +219,9 @@ export const start = internalMutation({
     withFence<DeliveryStartResponse>(rejected, async () => {
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return rejected;
-      const { owner, fence, attempt, fields } = delivery;
+      const { owner, fence, attempt, fields, message } = delivery;
       await startDeliveryInDb(ctx, owner, fence);
+      requireTextDelivery(message);
       return {
         ...fields,
         v: v1,
@@ -230,6 +233,40 @@ export const start = internalMutation({
     }),
 });
 
+async function finishEdgeDelivery(
+  ctx: MutationCtx,
+  owner: Doc<"users">["_id"],
+  fence: PermitFence & { now: number },
+  rejection?: { code: string; reason: string; evidence?: string },
+) {
+  const states = !rejection
+    ? ["delivery-started"]
+    : rejection.evidence === undefined
+      ? ["claimed", "delivery-started"]
+      : ["delivery-started", "ambiguous"];
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    owner,
+    fence,
+    states,
+  );
+  if (
+    head.active_delivery_state !== attempt.state ||
+    message.delivery_status !== attempt.state
+  )
+    throw new ExecutionAuthorityError(
+      "DELIVERY_ATTEMPT_STATE_MISMATCH",
+      "delivery slot does not match its attempt",
+    );
+  await finishTerminalDelivery(ctx, head, message, attempt, {
+    attemptState: rejection ? "failed-before-effect" : "correlated-delivered",
+    messageState: rejection ? "rejected" : "correlated-delivered",
+    rejection,
+    resolutionEvidence: rejection?.evidence,
+    now: fence.now,
+  });
+}
+
 export const settle = internalMutation({
   args: {
     ...deliveryFence,
@@ -238,46 +275,66 @@ export const settle = internalMutation({
       v.literal("duplicate"),
       v.literal("failed"),
       v.literal("in_doubt"),
+      v.literal("rejected"),
     ),
     detail: v.optional(v.string()),
-    retryable: v.optional(v.literal(true)),
+    retryable: v.optional(v.boolean()),
     resolution_evidence: v.optional(v.string()),
   },
   handler: (ctx, args): Promise<DeliverySettleResponse> =>
     withFence<DeliverySettleResponse>(stale, async () => {
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return stale;
+      requireTextDelivery(delivery.message);
       const { owner, fence, attempt } = delivery;
-      const { outcome, resolution_evidence } = args;
+      const { outcome, resolution_evidence: evidence } = args;
       const applied = outcome === "applied" || outcome === "duplicate";
-      const completedState = applied ? "delivered" : "failed-before-effect";
-      if (resolution_evidence !== undefined) {
-        const resolvedState = applied ? "correlated-delivered" : completedState;
-        if (
-          attempt.state === resolvedState &&
-          attempt.resolution_evidence === resolution_evidence
-        )
-          return { v: v1, status: "duplicate" };
-        await resolveAmbiguousDeliveryInDb(ctx, owner, {
-          ...fence,
-          resolution: applied ? "correlated-delivered" : "proven-no-effect",
-          resolutionEvidence: resolution_evidence,
-        });
-        return { v: v1, status: "recorded" };
-      }
+      const rejection =
+        outcome === "rejected"
+          ? rejectedCode
+          : outcome === "failed" && args.retryable === false
+            ? finalFailureCode
+            : undefined;
+      const recordedRejection =
+        attempt.failure_code === rejectedCode ||
+        attempt.failure_code === finalFailureCode
+          ? attempt.failure_code
+          : undefined;
+      const completedState = applied
+        ? outcome === "duplicate" || evidence !== undefined
+          ? "correlated-delivered"
+          : "delivered"
+        : "failed-before-effect";
       if (
         (outcome === "in_doubt" && attempt.state === "ambiguous") ||
         (outcome !== "in_doubt" &&
           attempt.state === completedState &&
-          attempt.resolution_evidence === undefined)
+          attempt.resolution_evidence === evidence &&
+          recordedRejection === rejection)
       )
         return { v: v1, status: "duplicate" };
+      if (attempt.state === "ambiguous" && evidence === undefined)
+        throw new ConvexError("resolution_evidence_required");
       if (outcome === "in_doubt") {
         await markDeliveryAmbiguousInDb(ctx, owner, {
           ...fence,
           failureCode: "EDGE_DELIVERY_IN_DOUBT",
           failureMessage: args.detail ?? "The daemon could not verify delivery",
         });
+      } else if (rejection) {
+        await finishEdgeDelivery(ctx, owner, fence, {
+          code: rejection,
+          reason: "The daemon could not deliver this message",
+          evidence,
+        });
+      } else if (evidence !== undefined) {
+        await resolveAmbiguousDeliveryInDb(ctx, owner, {
+          ...fence,
+          resolution: applied ? "correlated-delivered" : "proven-no-effect",
+          resolutionEvidence: evidence,
+        });
+      } else if (outcome === "duplicate") {
+        await finishEdgeDelivery(ctx, owner, fence);
       } else if (applied) {
         await completeDeliveryInDb(ctx, owner, fence);
       } else {

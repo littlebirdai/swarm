@@ -108,6 +108,7 @@ function workAction<T>(
     status: string;
     retry_after_ms?: number;
   }>,
+  renewal?: true,
 ) {
   return httpAction(async (ctx, request) => {
     if (process.env.CODECAST_EDGE_DELIVERY_V1 !== "1") {
@@ -135,8 +136,11 @@ function workAction<T>(
     if (!parsed.ok) return edgeError(400, EDGE_ERROR_CODES.INVALID);
 
     try {
+      if (!(await ctx.runQuery(internal.edgeLink.isDeviceBearer, { bearer })))
+        return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
       const admission = await ctx.runMutation(internal.edgeLink.admit, {
         bearer,
+        renewal,
       });
       if (admission.status === "unauthorized")
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
@@ -157,11 +161,12 @@ function workAction<T>(
             : { "Retry-After": String(Math.ceil(retryAfter / 1_000)) },
       });
     } catch (error) {
-      if (
-        error instanceof ConvexError &&
-        error.data === "edge-delivery-unsupported"
-      )
-        return edgeError(422, EDGE_ERROR_CODES.INVALID);
+      if (error instanceof ConvexError) {
+        if (error.data === "edge-delivery-unsupported")
+          return edgeError(422, EDGE_ERROR_CODES.INVALID);
+        if (error.data === "resolution_evidence_required")
+          return edgeError(422, error.data);
+      }
       return edgeError(503, EDGE_ERROR_CODES.UNAVAILABLE, true, 1_000);
     }
   });
@@ -220,6 +225,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
           run,
           fencing_token,
         }),
+      true,
     ),
   });
   http.route({
@@ -254,16 +260,11 @@ export function registerEdgeRoutes(http: HttpRouter) {
     path: "/edge/v1/delivery.settle",
     method: "POST",
     handler: workAction(parseDeliverySettleRequest, (ctx, bearer, body) => {
-      if (
-        body.outcome === "stale" ||
-        body.outcome === "rejected" ||
-        (body.outcome === "failed" && !body.retryable)
-      )
+      if (body.outcome === "stale")
         throw new ConvexError("edge-delivery-unsupported");
       return ctx.runMutation(internal.edgeDelivery.settle, {
         ...body,
         outcome: body.outcome,
-        retryable: body.outcome === "failed" ? true : undefined,
         bearer,
       });
     }),

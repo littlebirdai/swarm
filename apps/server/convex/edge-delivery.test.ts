@@ -11,6 +11,8 @@ import {
   type PermitsNextRequest,
 } from "@codecast/edge-contract";
 import { api } from "./_generated/api";
+import http from "./http";
+import { asUser } from "../test-helpers/database.testkit";
 import {
   boot,
   leaseMs,
@@ -366,7 +368,12 @@ test("in-doubt settlement holds the same attempt until evidence resolves it", as
   });
   expect(
     await f.call("delivery.settle", { ...permit, outcome: "applied" }),
-  ).toEqual(stale);
+  ).toEqual({
+    v: 1,
+    status: "error",
+    code: "resolution_evidence_required",
+    retryable: false,
+  });
   const resolve = {
     ...permit,
     outcome: "applied",
@@ -401,16 +408,12 @@ test("retryable no-effect settlement keeps the delivery ID and sequence and repl
   expect(await f.call("delivery.settle", failure)).toMatchObject({
     status: "duplicate",
   });
+  expect(
+    await f.call("delivery.settle", { ...failure, retryable: false }),
+  ).toEqual(stale);
   const retry = await f.permit(fence);
   expect(retry).toEqual({ ...permit, attempt_id: expect.any(String) });
   expect(retry.attempt_id).not.toBe(permit.attempt_id);
-  expect(
-    await f.call("delivery.settle", { ...failure, retryable: false }),
-  ).toMatchObject({
-    status: "error",
-    code: "invalid",
-    retryable: false,
-  });
   expect((await f.t.run(({ db }) => db.get(f.message)))?.retry_count).toBe(1);
 });
 
@@ -511,6 +514,9 @@ test("an unleased daemon can claim as before, but only the run holder can start 
   expect(await f.call("delivery.start", permit)).toMatchObject({
     status: "started",
   });
+  expect(await f.call("release", fence)).toMatchObject({ status: "released" });
+  delete process.env[flag];
+  await expect(f.deliver()).rejects.toThrow("STALE_RUN_LEASE");
 });
 
 test("work enforces the flag, body size, and strict contract parsing before DB admission", async () => {
@@ -546,24 +552,238 @@ test("work enforces the flag, body size, and strict contract parsing before DB a
   ).toEqual([]);
 });
 
-test("work rate limits return a typed wait and do not extend the lease", async () => {
+test("delivery bursts do not spend the budget for 60 renewing sessions", async () => {
   const f = await fixture();
   const fence = await f.grant();
   for (let index = 0; index < 119; index++)
     expect(await f.call("claim", f.claimBody)).toMatchObject({
       status: "granted",
     });
-  setSystemTime(new Date(start + 25_000));
-  const limited = await f.post("renew", fence);
+  setSystemTime(new Date(start + 15_000));
+  const limited = await f.post("permits.next", fence);
   expect(limited.status).toBe(429);
-  expect(limited.headers.get("Retry-After")).toBe("35");
+  expect(limited.headers.get("Retry-After")).toBe("45");
   expect(await limited.json()).toEqual({
     v: 1,
     status: "error",
     code: "rate_limited",
     retryable: true,
-    retry_after_ms: 35_000,
+    retry_after_ms: 45_000,
   });
-  setSystemTime(new Date(start + 60_000));
+  for (const elapsed of [15_000, 30_000, 45_000, 60_000, 60_001]) {
+    setSystemTime(new Date(start + elapsed));
+    for (let index = 0; index < 60; index++)
+      expect(await f.call("renew", fence)).toMatchObject({ status: "renewed" });
+  }
+  expect((await f.post("renew", fence)).status).toBe(429);
+  setSystemTime(new Date(start + 90_001));
   expect(await f.call("renew", fence)).toEqual(stale);
+});
+
+test("unauthenticated delivery never enters a mutation", async () => {
+  const f = await fixture();
+  const [action] = http.lookup("/edge/v1/claim", "POST")!;
+  const writes: string[] = [];
+  const response = await action._handler(
+    {
+      runQuery: f.t.query,
+      runMutation: async () => {
+        writes.push("mutation");
+        return { status: "unauthorized" };
+      },
+    } as Parameters<typeof action._handler>[0],
+    new Request("https://test.example/edge/v1/claim", {
+      method: "POST",
+      headers: { authorization: "Bearer unknown-bearer" },
+      body: JSON.stringify(f.claimBody),
+    }),
+  );
+  expect(response.status).toBe(401);
+  expect(writes).toEqual([]);
+});
+
+test("permits wait for the successor without moving the head", async () => {
+  const f = await fixture();
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.head, {
+      pending_epoch: 2,
+      admission_epoch: 2,
+      pending_policy: "drain-current",
+    });
+    await db.patch(f.message, { execution_epoch: 2 });
+  });
+  expect(await f.call("permits.next", await f.grant())).toEqual({
+    v: 1,
+    status: "empty",
+  });
+  expect(
+    (await f.t.run(({ db }) => db.get(f.head)))?.next_nonterminal_sequence,
+  ).toBe(1);
+});
+
+test("recovery evidence settles a started attempt without an intermediate report", async () => {
+  const f = await fixture();
+  const permit = await f.permit(await f.grant());
+  await f.call("delivery.start", permit);
+  const settlement = {
+    ...permit,
+    outcome: "applied",
+    resolution_evidence: "Found the receipt",
+  };
+  expect(await f.call("delivery.settle", settlement)).toMatchObject({
+    status: "recorded",
+  });
+  expect(await f.call("delivery.settle", settlement)).toMatchObject({
+    status: "duplicate",
+  });
+  expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
+    "correlated-delivered",
+  );
+});
+
+test("proven no effect requeues the message and a replay needs the same evidence", async () => {
+  const f = await fixture();
+  const fence = await f.grant();
+  const permit = await f.permit(fence);
+  await f.call("delivery.start", permit);
+  await f.call("delivery.settle", { ...permit, outcome: "in_doubt" });
+  const failure = { ...permit, outcome: "failed", retryable: true };
+  const resolution = {
+    ...failure,
+    resolution_evidence: "No paste in transcript",
+  };
+  expect(await f.call("delivery.settle", resolution)).toMatchObject({
+    status: "recorded",
+  });
+  expect(await f.call("delivery.settle", resolution)).toMatchObject({
+    status: "duplicate",
+  });
+  expect(await f.call("delivery.settle", failure)).toEqual(stale);
+  expect((await f.t.run(({ db }) => db.get(f.message)))?.retry_count).toBe(1);
+  const retry = await f.permit(fence);
+  expect(retry).toMatchObject({
+    delivery_id: permit.delivery_id,
+    seq: permit.seq,
+  });
+  expect(retry.attempt_id).not.toBe(permit.attempt_id);
+});
+
+for (const scenario of ["rejected", "failed", "recovered failure"] as const) {
+  test(`terminal settlement advances the queue and shows the reason (${scenario})`, async () => {
+    const f = await fixture();
+    await f.t.run(async ({ db }) => {
+      const row = await db.get(f.message);
+      if (!row) throw new Error("Expected first message");
+      const { _id, _creationTime, ...message } = row;
+      await db.insert("pending_messages", {
+        ...message,
+        client_id: "second",
+        delivery_id: "second",
+        conversation_sequence: 2,
+        created_at: start + 1,
+      });
+      await db.patch(f.head, { next_conversation_sequence: 3 });
+    });
+    const fence = await f.grant();
+    const permit = await f.permit(fence);
+    if (scenario !== "rejected") await f.call("delivery.start", permit);
+    if (scenario === "recovered failure")
+      await f.call("delivery.settle", { ...permit, outcome: "in_doubt" });
+    const failure =
+      scenario === "rejected"
+        ? { outcome: "rejected" }
+        : {
+            outcome: "failed",
+            retryable: false,
+            ...(scenario === "recovered failure"
+              ? { resolution_evidence: "Proved there was no effect" }
+              : {}),
+          };
+    const settle = { ...permit, ...failure };
+    expect(await f.call("delivery.settle", { ...settle, seq: 2 })).toEqual(
+      stale,
+    );
+    expect(await f.call("delivery.settle", settle)).toMatchObject({
+      status: "recorded",
+    });
+    expect(await f.call("delivery.settle", settle)).toMatchObject({
+      status: "duplicate",
+    });
+    expect(
+      await f.call("delivery.settle", { ...permit, outcome: "applied" }),
+    ).toEqual(stale);
+    const next = await f.permit(fence);
+    expect(next).toMatchObject({ delivery_id: "second", seq: 2 });
+    await f.call("delivery.start", next);
+    expect(
+      await f.call("delivery.settle", { ...next, outcome: "applied" }),
+    ).toMatchObject({ status: "recorded" });
+    const queue = await asUser(f.t, f.owner).query(
+      api.pendingMessages.cliQueue,
+      {
+        session: f.conversation,
+      },
+    );
+    expect(queue.queued).toEqual([]);
+    expect(queue.cancelled).toMatchObject([
+      {
+        message_id: f.message,
+        status: "cancelled",
+        hold_reason: "The daemon could not deliver this message",
+      },
+    ]);
+  });
+}
+
+test("a stale daemon report is refused without settling the attempt", async () => {
+  const f = await fixture();
+  const permit = await f.permit(await f.grant());
+  await f.call("delivery.start", permit);
+  const response = await f.post("delivery.settle", {
+    ...permit,
+    outcome: "stale",
+    observed: { kind: "turn", turn: null },
+  });
+  expect(response.status).toBe(422);
+  expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
+    "delivery-started",
+  );
+});
+
+for (const outcome of ["applied", "duplicate"] as const) {
+  test(`settle replays only the same success outcome (${outcome})`, async () => {
+    const f = await fixture();
+    const permit = await f.permit(await f.grant());
+    await f.call("delivery.start", permit);
+    const settlement = { ...permit, outcome };
+    expect(await f.call("delivery.settle", settlement)).toMatchObject({
+      status: "recorded",
+    });
+    expect(await f.call("delivery.settle", settlement)).toMatchObject({
+      status: "duplicate",
+    });
+    expect(
+      await f.call("delivery.settle", {
+        ...permit,
+        outcome: outcome === "applied" ? "duplicate" : "applied",
+      }),
+    ).toEqual(stale);
+  });
+}
+
+test("safety blocks permits and starts with the same typed response", async () => {
+  const f = await fixture();
+  const fence = await f.grant();
+  const permit = await f.permit(fence);
+  await f.t.run(({ db }) =>
+    db.patch(f.conversation, { pending_api_error_kind: "safety" }),
+  );
+  const next = await f.post("permits.next", fence);
+  const begin = await f.post("delivery.start", permit);
+  expect(next.status).toBe(503);
+  expect(begin.status).toBe(next.status);
+  expect(await begin.json()).toEqual(await next.json());
+  expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
+    "claimed",
+  );
 });
