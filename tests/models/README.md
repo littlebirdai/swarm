@@ -74,6 +74,8 @@ The runner uses one worker, seed 1, and fingerprint index 0. It selects a path
 for each named action sequence, with state order as the tie breaker. It compares
 each action and full state with the committed fixture. The action list in
 `Next` must match trace coverage, including actions with no code counterpart.
+The runner reports model actions and actions that drive code. Each replay
+checks that its mapped steps call the reducer or exercise the lease transport.
 
 ```sh
 bun tests/models/run-models.ts --traces
@@ -88,7 +90,8 @@ cached JAR. The 13 Bun tests take about 110 ms including startup.
 
 ### Lease
 
-Five traces cover 7 of 7 model actions. The harness gives each worker its own
+Five traces cover 7 of 7 model actions. Five actions drive the lease client.
+The harness gives each worker its own
 `EdgeClient` layer. The transport returns scripted replies. TestClock controls
 lease time. The test observes work through scoped acquisition and teardown.
 
@@ -108,30 +111,34 @@ retains the first worker in `mine` after the second worker claims. This violates
 the model's `OneSessionWorking` rule. The client already stopped work at the
 local deadline. In `late-renew`, TLC resumes the same lease after lapse. The
 client can issue a raw renew but does not resume the work scope. The model has
-no local stop margin or transport response for stale renewal. The trace includes
-explicit checks for both.
+no local stop margin or transport response for stale renewal. The traces include
+checks for the margin and a stale response to a raw renew after reclaim.
+`Renew` requires `~live` in TLC, so the model cannot express renewal during
+live work. The replays do not cover extension of the in-scope deadline or
+suppression of release after an in-scope stale response.
 
 ### Delivery
 
-Eight traces cover 14 of 14 model actions. The harness passes facts through
+Eight traces cover 14 of 14 model actions. Ten actions drive the reducer.
+The harness passes facts through
 `sessionMachine.apply` and observes the resulting inbox, run and effects.
 
-| Model action      | Code call and observed state                                                                                                                                                                  |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Claim`           | `delivery.permitted` moves the row to `claimed` with an attempt for the current run.                                                                                                          |
-| `Start`           | `delivery.start` moves the row to `delivery-started` and emits one `delivery.apply` effect.                                                                                                   |
-| `Apply`           | Host input and durable deduplication have no code in this reducer. TLC supplies the outcome for the next `Ack`.                                                                               |
-| `Ack`             | `delivery.settle` records the supplied `applied` or `duplicate` result as `delivered`.                                                                                                        |
-| `DaemonRestarts`  | Daemon memory has no code in this reducer.                                                                                                                                                    |
-| `Requeue`         | `delivery.returned` moves an unstarted attempt to `pending`.                                                                                                                                  |
-| `ReportAmbiguous` | `delivery.settle` with `in_doubt` moves the row to `ambiguous`.                                                                                                                               |
-| `HostDies`        | `run.processExited` marks the reducer run stopped. Process death detection is outside the reducer.                                                                                            |
-| `Reopen`          | `run.successorAuthorized`, `run.claimed`, and `run.runtimeReady` advance the run. The reducer retires the old permit at authorization.                                                        |
-| `Supersede`       | Observe the retired permit. For a started own-mode attempt, pass `delivery.reconciled` with receipt evidence if TLC records a receipt. Without evidence the reducer leaves the row ambiguous. |
-| `Correlate`       | A provider `receipt` event moves the row to `correlated-delivered`.                                                                                                                           |
-| `SendAgain`       | `inbox.abandoned` with a replacement abandons the first row. Replay continues with the new delivery ID.                                                                                       |
-| `Done`            | TLC stutter. No call.                                                                                                                                                                         |
-| `Parked`          | TLC bound. No call.                                                                                                                                                                           |
+| Model action      | Code call and observed state                                                                                                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Claim`           | `delivery.permitted` moves the row to `claimed` with an attempt for the current run.                                                                                                                                                                 |
+| `Start`           | `delivery.start` moves the row to `delivery-started` and emits one `delivery.apply` effect.                                                                                                                                                          |
+| `Apply`           | Host input and durable deduplication have no code in this reducer. TLC supplies the outcome for the next `Ack`.                                                                                                                                      |
+| `Ack`             | `delivery.settle` records the supplied `applied` or `duplicate` result as `delivered`.                                                                                                                                                               |
+| `DaemonRestarts`  | Daemon memory has no code in this reducer.                                                                                                                                                                                                           |
+| `Requeue`         | `delivery.returned` moves an unstarted attempt to `pending`.                                                                                                                                                                                         |
+| `ReportAmbiguous` | `delivery.settle` with `in_doubt` moves the row to `ambiguous`.                                                                                                                                                                                      |
+| `HostDies`        | `run.processExited` marks the reducer run stopped. Process death detection is outside the reducer.                                                                                                                                                   |
+| `Reopen`          | `run.successorAuthorized`, `run.claimed`, and `run.runtimeReady` advance the run. The reducer retires the old permit at authorization.                                                                                                               |
+| `Supersede`       | Observe the retired permit. For a started own-mode attempt, pass `delivery.reconciled` with a receipt or evidence of a receipt scan. The reducer records delivery when the scan finds a receipt and returns the row to `pending` when it finds none. |
+| `Correlate`       | A provider `receipt` event moves the row to `correlated-delivered`.                                                                                                                                                                                  |
+| `SendAgain`       | `inbox.abandoned` with a replacement abandons the first row. Replay continues with the new delivery ID.                                                                                                                                              |
+| `Done`            | TLC stutter. No call.                                                                                                                                                                                                                                |
+| `Parked`          | TLC bound. No call.                                                                                                                                                                                                                                  |
 
 The status projection maps `waiting` to `pending`, `started` to
 `delivery-started`, and both delivered code statuses to `delivered`.
@@ -144,7 +151,7 @@ proof, and effect execution have no implementation in this reducer.
 In the successor traces, the reducer retires the permit during `Reopen`.
 TLC retires it during the subsequent `Supersede`. In
 `successor-without-receipt`, TLC returns a started attempt to `waiting` on
-receipt absence. The reducer has no fact that proves receipt absence, so it
-keeps the row ambiguous without reconciliation evidence. In `paste-resend`,
-TLC reuses the original row and counts two host inputs. The reducer keeps the
+receipt absence. The reducer returns the row to `pending` when it receives
+the receipt scan as reconciliation evidence. In `paste-resend`, TLC reuses
+the original row and counts two host inputs. The reducer keeps the
 abandoned row and submits a new ID. The replay checks both row outcomes.

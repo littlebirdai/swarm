@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import traces from "../../../tests/models/fixtures/delivery-traces.json";
+import { modelOnlyActions } from "../../../tests/models/trace-cases";
 import { sessionMachine, type SessionFact } from "../src/session-machine";
 import { event, pending, request as firstRequest } from "./fixtures";
 
@@ -10,6 +11,7 @@ for (const [name, trace] of Object.entries(traces)) {
     let reducer = pending;
     let id = firstRequest.delivery_id;
     let seq = firstRequest.seq;
+    let factCount = 0;
     let outcome: "applied" | "duplicate" = "applied";
 
     function request() {
@@ -28,6 +30,7 @@ for (const [name, trace] of Object.entries(traces)) {
 
     function apply(fact: SessionFact) {
       const result = sessionMachine.apply(reducer, fact);
+      factCount++;
       reducer = result.state;
       expect(result.effects).toEqual(
         fact.kind === "delivery.start"
@@ -94,7 +97,9 @@ for (const [name, trace] of Object.entries(traces)) {
           ...request(),
           kind: "delivery.reconciled",
           applied: before.rc,
-          evidence: before.rc ? "receipt from successor host" : "",
+          evidence: before.rc
+            ? "receipt from successor host"
+            : "receipt scan from successor host",
         });
       },
       Correlate: () =>
@@ -131,7 +136,7 @@ for (const [name, trace] of Object.entries(traces)) {
       Parked: null,
     };
 
-    function compare(model: State, before: State, action: string) {
+    function compare(model: State, action: string) {
       const status = {
         waiting: "pending",
         claimed: "claimed",
@@ -142,13 +147,6 @@ for (const [name, trace] of Object.entries(traces)) {
       let expected = status[model.st as keyof typeof status];
       if (model.pEpoch !== 0 && model.pEpoch < model.epoch) {
         expected = model.st === "claimed" ? "pending" : "ambiguous";
-      }
-      if (
-        action === "Supersede" &&
-        before.st === "started" &&
-        model.st === "waiting"
-      ) {
-        expected = "ambiguous";
       }
 
       const row = reducer.inbox.find((entry) => entry.delivery_id === id);
@@ -174,12 +172,18 @@ for (const [name, trace] of Object.entries(traces)) {
       );
     }
 
-    compare(trace.initial, trace.initial, "Init");
+    compare(trace.initial, "Init");
     let before = trace.initial;
     for (const { action, state } of trace.steps) {
       expect(Object.hasOwn(transitions, action)).toBe(true);
+      const previousFactCount = factCount;
+      const shouldDriveCode =
+        !modelOnlyActions.Delivery.includes(action) &&
+        (action !== "Supersede" ||
+          (before.st === "started" && state.st !== "ambiguous"));
       transitions[action as keyof typeof transitions]?.(before, state);
-      compare(state, before, action);
+      expect(factCount > previousFactCount, action).toBe(shouldDriveCode);
+      compare(state, action);
       before = state;
     }
   });

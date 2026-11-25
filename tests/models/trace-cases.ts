@@ -70,3 +70,11 @@ export const traceCases = {
     ],
   ],
 } satisfies Record<string, Case[]>;
+
+export const modelOnlyActions: Record<
+  keyof typeof traceCases,
+  readonly string[]
+> = {
+  Lease: ["Finished", "OutOfTokens"],
+  Delivery: ["Apply", "DaemonRestarts", "Done", "Parked"],
+};

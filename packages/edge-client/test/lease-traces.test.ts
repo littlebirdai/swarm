@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import { join, type Fiber } from "effect/Fiber";
 import { adjust } from "effect/testing/TestClock";
 import traces from "../../../tests/models/fixtures/lease-traces.json";
+import { modelOnlyActions } from "../../../tests/models/trace-cases";
 import claimFixture from "../../edge-contract/test/fixtures/claim.json";
 import { EdgeClient, type EdgeError } from "../src/effect";
 import type { EdgeRequests, EdgeTransport } from "../src";
@@ -34,12 +35,18 @@ for (const [name, trace] of Object.entries(traces)) {
       const clients = new Map<Worker, Client>();
       const script: Step[] = [];
       const exchanges: Parameters<Step>[0][] = [];
+      const transportFailures: unknown[] = [];
       const transport: EdgeTransport = (operation, request, signal) => {
         const exchange = { operation, request, signal };
         exchanges.push(exchange);
-        const step = script.shift();
-        if (!step) throw new Error(`Unexpected ${operation}`);
-        return step(exchange);
+        try {
+          const step = script.shift();
+          if (!step) throw new Error(`Unexpected ${operation}`);
+          return step(exchange);
+        } catch (error) {
+          transportFailures.push(error);
+          throw error;
+        }
       };
       for (const worker of workers) {
         clients.set(
@@ -192,7 +199,16 @@ for (const [name, trace] of Object.entries(traces)) {
                 before.mine[candidate] === before.token && before.token !== 0,
             ) ??
             "w1";
+          const exchangeCount = exchanges.length;
+          const shouldDriveCode =
+            !modelOnlyActions.Lease.includes(action) &&
+            (action !== "Complete" ||
+              (before.live && before.mine[worker] === before.token));
           yield* handler(before, state, worker);
+          expect(transportFailures).toEqual([]);
+          expect(exchanges.length > exchangeCount, action).toBe(
+            shouldDriveCode,
+          );
           const modelWorker = workers.find(
             (candidate) =>
               state.live &&
@@ -208,6 +224,12 @@ for (const [name, trace] of Object.entries(traces)) {
         }).pipe(Effect.withSpan(action));
         before = state;
       }
+      for (const worker of holders.keys()) {
+        yield* stop(worker, before.mine[worker]);
+      }
+      expect([...active]).toEqual([]);
+      expect(script).toHaveLength(0);
+      expect(transportFailures).toEqual([]);
     }),
   );
 }

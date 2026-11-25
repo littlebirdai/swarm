@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseRuleSections } from "./config-rules";
-import { type ModelState, traceCases } from "./trace-cases";
+import { modelOnlyActions, type ModelState, traceCases } from "./trace-cases";
 import { parseTlcResult } from "./tlc-result";
 
 type Edge = { action: string; target: string };
@@ -156,7 +156,8 @@ async function dumpGraph(
 }
 
 export async function checkTraces(java: string, jar: string, update: boolean) {
-  for (const [model, cases] of Object.entries(traceCases)) {
+  for (const model of Object.keys(traceCases) as (keyof typeof traceCases)[]) {
+    const cases = traceCases[model];
     const source = await Bun.file(join(import.meta.dir, `${model}.tla`)).text();
     const next = /^Next ==\s+([\s\S]+?)^\s*\n\s*Spec ==/m.exec(source)?.[1];
     const [prefix, ...disjunctions] =
@@ -182,6 +183,13 @@ export async function checkTraces(java: string, jar: string, update: boolean) {
         `${model}: Next has [${actions}], traces cover [${covered}]`,
       );
     }
+    const modelOnly = new Set(modelOnlyActions[model]);
+    for (const action of modelOnly) {
+      if (!covered.includes(action)) {
+        throw new Error(`${model}: unknown model-only action ${action}`);
+      }
+    }
+    const codeActions = covered.filter((action) => !modelOnly.has(action));
     const graphs = new Map<string, Awaited<ReturnType<typeof dumpGraph>>>();
     const path = join(
       import.meta.dir,
@@ -214,7 +222,7 @@ export async function checkTraces(java: string, jar: string, update: boolean) {
       throw new Error(`${model}: unexpected committed trace names`);
     }
     console.log(
-      `${model}: ${cases.length} replay traces cover ${covered.length}/${actions.length} actions`,
+      `${model}: ${cases.length} replay traces cover ${covered.length}/${actions.length} model actions, ${codeActions.length}/${actions.length} actions drive code`,
     );
   }
 }
