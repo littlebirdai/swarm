@@ -13,15 +13,53 @@ const dir = mkdtempSync(join(tmpdir(), "swarm-inventory-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 mkdirSync(join(dir, "scripts"));
 mkdirSync(join(dir, "convex"));
-copyFileSync(
-  join(import.meta.dir, "prod-diff.ts"),
-  join(dir, "scripts/prod-diff.ts"),
+for (const file of ["prod-diff.ts", "swarm-inventory.ts"]) {
+  copyFileSync(join(import.meta.dir, file), join(dir, "scripts", file));
+}
+const schema = {
+  tables: [
+    {
+      tableName: "sessions",
+      indexes: [
+        { indexDescriptor: "by_created", fields: ["created", "owner"] },
+      ],
+      stagedDbIndexes: [{ indexDescriptor: "by_staged", fields: ["owner"] }],
+      searchIndexes: [
+        {
+          indexDescriptor: "search",
+          searchField: "body",
+          filterFields: ["room", "owner"],
+        },
+      ],
+      vectorIndexes: [
+        {
+          indexDescriptor: "vector",
+          vectorField: "embedding",
+          dimensions: 12,
+          filterFields: ["room", "owner"],
+        },
+      ],
+    },
+  ],
+};
+writeFileSync(
+  join(dir, "convex/sessions.ts"),
+  `
+export const hidden = { isQuery: true, isInternal: true };
+export const update = { isMutation: true, isPublic: true };
+`,
+);
+writeFileSync(
+  join(dir, "convex/crons.ts"),
+  `
+export default { isCrons: true, crons: { "hourly sweep": {} } };
+`,
 );
 writeFileSync(
   join(dir, "convex/schema.ts"),
   `
 if (process.env.CONVEX_DEPLOY_KEY) throw new Error("tree subprocess received the deploy key");
-export default { export: () => JSON.stringify({ tables: [{ tableName: "sessions", indexes: [] }] }) };
+export default { export: () => JSON.stringify(${JSON.stringify(schema)}) };
 `,
 );
 writeFileSync(
@@ -33,28 +71,39 @@ globalThis.fetch = async (url, opts) => {
       opts.headers.Authorization !== "Convex " + process.env.CONVEX_DEPLOY_KEY) {
     throw new Error("unexpected production request");
   }
-  const { path } = JSON.parse(opts.body);
+  const { path, args } = JSON.parse(opts.body);
   const prod = JSON.parse(process.env.FAKE_PROD_INVENTORY);
-  const value = path === "_system/cli/modules:apiSpec" ? prod.spec :
+  let value = path === "_system/cli/modules:apiSpec" ? prod.spec :
     path === "_system/frontend/getSchemas" ? prod.schemas : undefined;
+  if (path === "_system/cli/tableData" && args.table === "_cron_jobs" && args.order === "asc") {
+    const cursor = args.paginationOpts.cursor;
+    value = cursor === null ? prod.crons[0] : cursor === "second" ? prod.crons[1] : undefined;
+  }
+  if (value === undefined) throw new Error("unexpected system query or cursor");
   return Response.json({ status: "success", value });
 };
 `,
 );
 
-const fn = { identifier: "sessions.js:list", functionType: "Query" };
+const publicVisibility = { kind: "public" };
+const fn = {
+  identifier: "sessions.js:list",
+  functionType: "Query",
+  visibility: publicVisibility,
+};
 const route = {
   method: "POST",
   path: "/cli/heartbeat",
   functionType: "HttpAction",
 };
-const index = { indexDescriptor: "by_owner" };
+const index = { indexDescriptor: "by_owner", fields: ["owner"] };
 
 function gate(
   spec: unknown[],
   tables: unknown[],
   allowlist: unknown = {},
   schemas?: object,
+  crons: unknown[] = [{ page: [{ name: "hourly sweep" }], isDone: true }],
 ) {
   const r = Bun.spawnSync(
     [
@@ -72,6 +121,7 @@ function gate(
         CONVEX_DEPLOY_KEY: "prod:test-deployment|fake-test-value",
         FAKE_PROD_INVENTORY: JSON.stringify({
           spec,
+          crons,
           schemas: schemas ?? { active: JSON.stringify({ tables }) },
         }),
       },
@@ -121,5 +171,143 @@ test("fails closed when a production inventory response is incomplete", () => {
 test("allows a deploy with no removals", () => {
   const result = gate([], [sessions]);
   expect(result.code).toBe(0);
-  expect(result.err).toContain("0 drops, 0 adds");
+  expect(result.err).toContain("0 drops");
+});
+
+test.each([
+  ["fn:sessions:hidden", { ...fn, identifier: "sessions.js:hidden" }],
+  [
+    "fn:sessions:update",
+    { ...fn, identifier: "sessions.js:update", functionType: "Action" },
+  ],
+] as const)(
+  "blocks a function kind or visibility change to %s",
+  (name, before) => {
+    const result = gate([before], [sessions]);
+    expect(result.code).toBe(1);
+    expect(result.err).toContain(`CHANGED ${name}`);
+    expect(result.err).toContain(`UNAPPROVED ${name}`);
+  },
+);
+
+test("accepts widening function visibility without changing its kind", () => {
+  const before = {
+    identifier: "sessions.js:update",
+    functionType: "Mutation",
+    visibility: { kind: "internal" },
+  };
+  expect(gate([before], [sessions]).code).toBe(0);
+});
+
+test.each([
+  [
+    "index:sessions.by_staged",
+    { indexes: [{ indexDescriptor: "by_staged", fields: ["owner"] }] },
+  ],
+  [
+    "index:sessions.by_created",
+    {
+      indexes: [
+        {
+          indexDescriptor: "by_created",
+          fields: ["owner", "created", "_creationTime"],
+        },
+      ],
+    },
+  ],
+  [
+    "index:sessions.search",
+    {
+      searchIndexes: [
+        {
+          indexDescriptor: "search",
+          searchField: "title",
+          filterFields: ["room", "owner"],
+        },
+      ],
+    },
+  ],
+  [
+    "index:sessions.vector",
+    {
+      vectorIndexes: [
+        {
+          indexDescriptor: "vector",
+          vectorField: "embedding",
+          dimensions: 24,
+          filterFields: ["room", "owner"],
+        },
+      ],
+    },
+  ],
+] as const)(
+  "blocks an index definition or active-state change to %s",
+  (name, before) => {
+    const result = gate([], [{ ...sessions, ...before }]);
+    expect(result.code).toBe(1);
+    expect(result.err).toContain(`UNAPPROVED ${name}`);
+  },
+);
+
+test("accepts equivalent indexes and a compatible staged promotion", () => {
+  const result = gate(
+    [],
+    [
+      {
+        ...sessions,
+        stagedDbIndexes: [
+          {
+            indexDescriptor: "by_created",
+            fields: ["created", "owner", "_creationTime"],
+          },
+        ],
+        searchIndexes: [
+          {
+            indexDescriptor: "search",
+            searchField: "body",
+            filterFields: ["owner", "room"],
+          },
+        ],
+        vectorIndexes: [
+          {
+            indexDescriptor: "vector",
+            vectorField: "embedding",
+            dimensions: 12,
+            filterFields: ["owner", "room"],
+          },
+        ],
+      },
+    ],
+  );
+  expect(result.code).toBe(0);
+});
+
+test("blocks a removed cron on a later inventory page and warns about unused exceptions", () => {
+  const crons = [
+    {
+      page: [{ name: "hourly sweep" }],
+      isDone: false,
+      continueCursor: "second",
+    },
+    { page: [{ name: "retired job" }], isDone: true },
+  ];
+  const result = gate(
+    [],
+    [sessions],
+    { "cron:unrelated job": "Old migration" },
+    undefined,
+    crons,
+  );
+  expect(result.code).toBe(1);
+  expect(result.err).toContain("UNAPPROVED cron:retired job");
+  expect(result.err).toContain("UNUSED ALLOWLIST cron:unrelated job");
+  expect(
+    gate(
+      [],
+      [sessions],
+      { "cron:retired job": "Old migration" },
+      undefined,
+      crons,
+    ).code,
+  ).toBe(0);
 });

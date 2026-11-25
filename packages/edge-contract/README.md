@@ -20,7 +20,8 @@ variant requires v2.
 
 ### Release compatibility checks
 
-The CI contract job reads the latest frozen daemon requests with the
+After the first release, the CI contract job reads the latest daemon requests
+frozen in the base commit with the
 current package and reads current responses with the parser from the
 frozen source commit. It checks additive response and policy fields and
 unfamiliar error codes. The backend inventory check reports missing public
@@ -38,9 +39,8 @@ with the PR base or previous main commit and rejects edits, additions, and
 deletions in frozen directories. Make future fixture changes under
 `test/fixtures/` and add a version directory at the next release.
 
-`0.0.1-preview` is a prerelease baseline from the reviewed v1 source.
-Swarm has no shipped edge v1 daemon or server in this baseline. Freeze
-the first released version when its client and server ship.
+Freeze the first released version when its client and server ship. Until
+then, CI runs the current wire tests and the freeze guard tests.
 
 ## Backpressure and limits
 

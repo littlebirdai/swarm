@@ -244,6 +244,7 @@ describe("watcher deployment selection", () => {
         CONVEX_SELF_HOSTED_URL: "",
         CONVEX_SELF_HOSTED_ADMIN_KEY: "",
         CONVEX_PROVISION_HOST: "",
+        CONVEX_OVERRIDE_ACCESS_TOKEN: "",
       });
     },
   );
@@ -251,6 +252,7 @@ describe("watcher deployment selection", () => {
   test.each([
     "prod:production",
     "dev:fine-deer-603",
+    "dev:FINE-DEER-603",
     "preview:preview",
     "untyped-name",
     "dev:prod:production",
@@ -271,6 +273,7 @@ describe("watcher deployment selection", () => {
     "CONVEX_SELF_HOSTED_URL",
     "CONVEX_SELF_HOSTED_ADMIN_KEY",
     "CONVEX_PROVISION_HOST",
+    "CONVEX_OVERRIDE_ACCESS_TOKEN",
   ])("refuses %s even with a dev deployment", (key) =>
     expect(() =>
       devEnv({

@@ -48,5 +48,6 @@ git show "$HEAD_SHA:scripts/swarm-production-drops.json" |
 require_current_main
 
 cd "$ROOT/apps/server"
-unset CONVEX_DEPLOYMENT
+export CONVEX_DEPLOYMENT="" CONVEX_SELF_HOSTED_URL="" CONVEX_SELF_HOSTED_ADMIN_KEY=""
+export CONVEX_PROVISION_HOST="" CONVEX_OVERRIDE_ACCESS_TOKEN=""
 "$CONVEX_BIN" deploy -y

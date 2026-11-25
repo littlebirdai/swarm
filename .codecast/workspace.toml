@@ -43,10 +43,7 @@ memory_gb = 12
 
 # How `cast ship checkout` lands everything uncommitted in this shared
 # checkout: commits by session, replayed onto origin/main in memory, checked
-# here, pushed straight to main. Convex deploys before the push when the
-# shipped commits touch it (CLAUDE.md "Deploy convex BEFORE you push"); its own
-# typecheck is off because `cast check` just ran over the same tree, convex
-# included. Web ships itself: Railway builds every push to main. Tests run in
+# here, pushed straight to main. Railway builds web on every push to main. Tests run in
 # CI, not here: a day's ship touches a hundred test files across packages with
 # their own runners, and the fix-forward trigger answers a red run.
 [ship]
@@ -63,6 +60,5 @@ when = ["apps/web/**", "packages/**", "platform/**"]
 run = "apps/web/scripts/typing-guard.sh"
 stage = "before_push"
 
-# Convex: Swarm deploys its backend separately with scripts/deploy-backend.sh,
-# and deploys are deferred, so cast ship runs no backend deploy before a push.
-# apps/server/deploy.sh is Codecast's and refuses in Swarm.
+# Swarm production deploys are paused. The manual GitHub workflow is the
+# production path. cast ship runs no backend deploy.

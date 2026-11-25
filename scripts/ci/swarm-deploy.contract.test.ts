@@ -72,7 +72,7 @@ exit "\${FAKE_DIFF_EXIT:-0}"`,
     "node_modules/.bin/convex": `#!/bin/bash
 set -eu
 [ "$PWD" = "$FAKE_ROOT/apps/server" ]
-[ -z "\${CONVEX_DEPLOYMENT:-}" ]
+[ "$CONVEX_DEPLOYMENT$CONVEX_SELF_HOSTED_URL$CONVEX_SELF_HOSTED_ADMIN_KEY$CONVEX_PROVISION_HOST$CONVEX_OVERRIDE_ACCESS_TOKEN" = "" ]
 printf 'push %s\\n' "$*" >> "$FAKE_TRACE"`,
     "apps/server/.keep": "",
     "scripts/swarm-production-drops.json":

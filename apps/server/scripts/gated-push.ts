@@ -323,7 +323,8 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     env.CONVEX_DEPLOY_KEY ||
     env.CONVEX_SELF_HOSTED_URL ||
     env.CONVEX_SELF_HOSTED_ADMIN_KEY ||
-    env.CONVEX_PROVISION_HOST
+    env.CONVEX_PROVISION_HOST ||
+    env.CONVEX_OVERRIDE_ACCESS_TOKEN
   ) {
     throw new Error(
       "The Swarm watcher accepts only Convex dev deployments. Remove deploy keys and server overrides from the dev environment.",
@@ -337,7 +338,7 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     "utf8",
   ).trim();
   if (
-    deployment.split(":").at(-1) === production ||
+    deployment.split(":").at(-1)?.toLowerCase() === production.toLowerCase() ||
     (deployment &&
       !/^(?:(?:dev|local):[\w-]+|anonymous-[\w-]+)$/.test(deployment))
   ) {
@@ -354,6 +355,7 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     CONVEX_SELF_HOSTED_URL: "",
     CONVEX_SELF_HOSTED_ADMIN_KEY: "",
     CONVEX_PROVISION_HOST: "",
+    CONVEX_OVERRIDE_ACCESS_TOKEN: "",
   };
 }
 

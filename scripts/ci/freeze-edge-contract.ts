@@ -5,10 +5,36 @@ import { runTreeChild } from "../../apps/server/scripts/prod-diff";
 export const root = join(import.meta.dir, "../..");
 export const releasePath = "packages/edge-contract/test/releases";
 
-export function git(...args: string[]): string {
-  const result = Bun.spawnSync(["git", ...args], { cwd: root });
+export function git(cwd: string, ...args: string[]): string {
+  const result = Bun.spawnSync(["git", ...args], { cwd });
   if (!result.success) throw new Error(result.stderr.toString().trim());
   return result.stdout.toString();
+}
+
+export function releaseBaseline(repo: string, requested: string | undefined) {
+  const readGit = (...args: string[]) => git(repo, ...args).trim();
+  let base: string;
+  try {
+    if (!requested) base = readGit("merge-base", "HEAD", "origin/main");
+    else {
+      if (!/^[a-f0-9]{40}$/.test(requested)) throw new Error("invalid base");
+      base = readGit("rev-parse", "--verify", `${requested}^{commit}`);
+    }
+  } catch {
+    base = readGit("rev-parse", "--verify", "HEAD~1");
+  }
+  if (!base) base = readGit("rev-parse", "--verify", "HEAD~1");
+  const paths = readGit("ls-tree", "-d", "--name-only", base, `${releasePath}/`)
+    .split("\n")
+    .filter(Boolean);
+  const changed =
+    paths.length > 0 &&
+    (readGit("diff", "--name-only", base, "--", ...paths) ||
+      readGit("ls-files", "--others", "--exclude-standard", "--", ...paths));
+  if (changed) throw new Error(`frozen release contents changed:\n${changed}`);
+  return paths
+    .map((path) => path.slice(releasePath.length + 1))
+    .sort(Bun.semver.order);
 }
 
 export async function fixtureHashes(dir: string, files: string[]) {
@@ -59,20 +85,26 @@ export function readClientInventory(text: string): string[] {
     });
 }
 
-if (import.meta.main) {
-  const [version] = process.argv.slice(2);
+export async function freezeRelease(
+  repo: string,
+  version: string | undefined,
+  inventory: () => Promise<string[]>,
+) {
   if (!version || !/^\d+\.\d+\.\d+(?:-[a-z0-9-]+)?$/.test(version))
     throw new Error(
       "usage: bun scripts/ci/freeze-edge-contract.ts <release-version>",
     );
-  const revision = git("rev-parse", "HEAD").trim();
+  const revision = git(repo, "rev-parse", "HEAD").trim();
   const fixtures = "packages/edge-contract/test/fixtures";
   const sources = ["apps/cli/src", "apps/web", "apps/mobile", "packages"];
-  git("diff", "--exit-code", "HEAD", "--", "apps/server/convex", ...sources);
-  const files = git("ls-tree", "--name-only", revision, `${fixtures}/`)
+  if (git(repo, "status", "--porcelain", "--untracked-files=all"))
+    throw new Error(
+      "freeze the release from a clean checkout with no untracked files",
+    );
+  const files = git(repo, "ls-tree", "--name-only", revision, `${fixtures}/`)
     .trim()
     .split("\n");
-  const sourceFiles = git("ls-files", "-z", "--", ...sources)
+  const sourceFiles = git(repo, "ls-files", "-z", "--", ...sources)
     .split("\0")
     .filter(
       (file) =>
@@ -82,27 +114,27 @@ if (import.meta.main) {
     );
   const chunks = [];
   for (const file of sourceFiles)
-    chunks.push(await readFile(join(root, file), "utf8"));
+    chunks.push(await readFile(join(repo, file), "utf8"));
   const source = chunks.join("\n");
-  const inventory = clientInventory(await runTreeChild("public"), source);
+  const references = clientInventory(await inventory(), source);
   if (
-    !inventory.some((name) => name.startsWith("fn:")) ||
-    !inventory.some((name) => name.startsWith("http:"))
+    !references.some((name) => name.startsWith("fn:")) ||
+    !references.some((name) => name.startsWith("http:"))
   ) {
     throw new Error(
       "expected both function and HTTP references in the release",
     );
   }
-  const dir = join(root, releasePath, version);
-  await mkdir(join(root, releasePath), { recursive: true });
+  const dir = join(repo, releasePath, version);
+  await mkdir(join(repo, releasePath), { recursive: true });
   await mkdir(dir);
   for (const path of files) {
     await writeFile(
       join(dir, path.slice(fixtures.length + 1)),
-      git("show", `${revision}:${path}`),
+      git(repo, "show", `${revision}:${path}`),
     );
   }
-  const groups = Map.groupBy(inventory, (name) => {
+  const groups = Map.groupBy(references, (name) => {
     const end = name.startsWith("fn:")
       ? name.lastIndexOf(":") + 1
       : (name.match(/^http:\w+ (?:\/[^/]+){0,2}\//)?.[0].length ??
@@ -122,3 +154,6 @@ if (import.meta.main) {
     JSON.stringify({ revision, hashes }, null, 2) + "\n",
   );
 }
+
+if (import.meta.main)
+  await freezeRelease(root, process.argv[2], () => runTreeChild("public"));

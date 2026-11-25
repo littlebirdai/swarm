@@ -21,13 +21,16 @@ holds a copy of the key can use it with a standalone Convex CLI.
 
 The workflow verifies that its clean checkout still matches the tip of
 `main` before and after the inventory check. It reads the production
-function, HTTP route, index, and schema table inventories and compares them
-with the checkout. An unreadable inventory or an unapproved removal stops the
-deploy. For an intentional removal, add the exact printed inventory name and
+function, HTTP route, cron, index, and schema table inventories and compares
+them with the checkout. It blocks unreadable inventories and unapproved
+removals. It also blocks function kind changes or public functions that become internal, index definition
+changes, and active indexes that become staged. Convex component inventories
+are outside this check. For an intentional removal, add the exact printed inventory name and
 a review reason to `scripts/swarm-production-drops.json` in the reviewed
 change. For example, `"index:sessions.by_legacy_id": "Migration verified"`
 allows that index removal. Include the migration or client compatibility
-evidence in the review and remove the entry after the deploy that uses it.
+evidence in the review. The gate warns when an allowlist entry has no matching
+change. Remove the entry after the deploy that uses it.
 
 The Swarm watcher accepts only dev and local deployments. It also rejects
 the production deployment's name when it appears with a dev label. The
