@@ -12,7 +12,7 @@ import { appShellFiles, precacheScope } from "../../plugins/precacheScope";
 describe("offline app shell precache", () => {
   test("keeps executable shell assets and excludes content media", () => {
     expect(APP_SHELL_GLOB_PATTERNS).toContain(
-      "**/*.{js,css,html,ico,png,svg,woff2}",
+      "**/*.{js,css,html,ico,png,svg,woff2,wasm}",
     );
     expect(APP_SHELL_GLOB_IGNORES).toEqual([
       "docs/**",
@@ -59,7 +59,7 @@ describe("offline app shell precache", () => {
     "assets/inbox.js": chunk("assets/inbox.js", {
       facadeModuleId: "/web/app/inbox/page.tsx",
       dynamicImports: ["assets/diff.js"],
-      assets: ["assets/inbox.woff2"],
+      assets: ["assets/inbox.woff2", "assets/storage.wasm"],
     }),
     "assets/diff.js": chunk("assets/diff.js", {
       facadeModuleId: "/web/components/diff/PierreDiff.tsx",
@@ -91,6 +91,7 @@ describe("offline app shell precache", () => {
       "assets/inbox.woff2",
       "assets/main.css",
       "assets/main.js",
+      "assets/storage.wasm",
     ]);
   });
 
@@ -105,12 +106,14 @@ describe("offline app shell precache", () => {
       "assets/rust.js",
       "assets/landing.js",
       "assets/icon-star.js",
+      "assets/storage.wasm",
     ].map((url) => ({ url, revision: null, size: 1 }));
     const { manifest } = await scope.manifestTransform(entries);
     expect(manifest.map((e) => e.url)).toEqual([
       "index.html",
       "favicon.ico",
       "assets/main.js",
+      "assets/storage.wasm",
     ]);
   });
 
