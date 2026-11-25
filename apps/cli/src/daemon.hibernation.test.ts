@@ -499,7 +499,7 @@ describe("the subagent activity recorder", () => {
 
 // Three one-line call sites carry rules that no reachable test can fail on:
 // deleting any of them leaves every test green and the rule silently gone. The
-// source is the assertion, in the style of daemon.loopBudget.guard.test.ts.
+// source is the assertion, in the style of daemon.loop-budget.guard.test.ts.
 describe("the wiring that has no other witness", () => {
   const src = fs.readFileSync(path.join(SRC_DIR, "daemon.ts"), "utf8");
 

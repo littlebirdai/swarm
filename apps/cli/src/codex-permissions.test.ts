@@ -1,3 +1,4 @@
+import { functionBlock } from "./test-helpers/sourceRegion.js";
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -153,10 +154,7 @@ describe("configured Codex permissions", () => {
       const source = readFileSync(join(import.meta.dir, "daemon.ts"), "utf8");
       const start = source.indexOf("function resolveCodexPermissionDefaults(");
       expect(start).toBeGreaterThan(-1);
-      const body = source.slice(
-        start,
-        source.indexOf("\ninterface ConversationCache", start),
-      );
+      const body = functionBlock(source, "resolveCodexPermissionDefaults").text;
       const resolve = new Function(
         "buildLaunchArgs",
         "getAgentArgs",

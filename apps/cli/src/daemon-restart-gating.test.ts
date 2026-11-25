@@ -373,7 +373,7 @@ describe("daemon restart gating", () => {
   test("a refused claim is bounded, narrow, and forgets the command it skipped", () => {
     // Read a window around the claim, not a balanced body: executeRemoteCommand
     // is thousands of lines of command handlers with braces inside strings.
-    const daemon = src("daemon.ts");
+    const daemon = src("daemon-commands/dispatch.ts");
     const claimAt = daemon.indexOf("const claim = await takePrimedClaim(");
     expect(claimAt).toBeGreaterThan(-1);
     const claimBlock = daemon.slice(claimAt, claimAt + 1200);
@@ -424,14 +424,16 @@ describe("daemon restart gating", () => {
     ]);
     // And the old per-path loops are gone: one call site, inside the batch.
     expect(
-      daemon.split(/(?<!function )executeRemoteCommand\(/).length - 1,
+      (daemon + src("daemon-commands/dispatch.ts")).split(
+        /(?<!function )executeRemoteCommand\(/,
+      ).length - 1,
     ).toBe(1);
   });
 
   // Priming ahead of the owner guard is safe only because the guard hands the
   // lease back when it defers the command to the device that owns the session.
   test("the owner guard gives back a lease it primed", () => {
-    const daemon = src("daemon.ts");
+    const daemon = src("daemon-commands/dispatch.ts");
     const at = daemon.indexOf(
       "leave the rest of the command for the owner device",
     );

@@ -386,7 +386,7 @@ const ROWS: Row[] = [
     mustContain: "syncHealthFields",
   },
   {
-    file: D,
+    file: "terminal/daemon-bridge.ts",
     name: "healSqueezedAgentWindows",
     kind: "function",
     minLines: 8,
@@ -803,6 +803,13 @@ const ROWS: Row[] = [
     mustContain: "restoreRepairs",
   },
   // Timers outside daemon.ts.
+  {
+    file: "terminal/daemon-bridge.ts",
+    name: "startTerminalMaintenance",
+    kind: "function",
+    minLines: 15,
+    mustContain: "reapStaleTerminalSessions",
+  },
   {
     file: "browser/focusSentinel.ts",
     name: "startFocusSentinel",

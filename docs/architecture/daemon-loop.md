@@ -26,7 +26,7 @@ An `async` function that parses a whole transcript before its first `await` stil
 blocks the loop. A worker crash must not turn a large job into an unbounded
 main-process fallback.
 
-`apps/cli/src/daemon.loopBudget.guard.test.ts` checks named hot-path source
+`apps/cli/src/daemon.loop-budget.guard.test.ts` checks named hot-path source
 regions. It checks direct calls, not the transitive call graph. New expensive
 callees need their own region. Its two current exceptions cover the small daemon
 state merge and a memoized project-directory stat. The test rejects stale
@@ -396,7 +396,7 @@ worker crash recovery, cancellation, transcript correctness and owned-resource
 cleanup, not just latency on successful requests. Keep the broad CLI, typecheck,
 packaging and guard gates tied to the source actually being released.
 
-Use rooted test paths, for example `bun test ./src/daemon.loopBudget.guard.test.ts`
+Use rooted test paths, for example `bun test ./src/daemon.loop-budget.guard.test.ts`
 from `apps/cli`. The Darwin Bun filter-path traversal issue can exhaust file
 descriptors when an unrooted filter walks the monorepo. The full CLI gate belongs
 in an isolated environment: legacy tests that inspect the default tmux server

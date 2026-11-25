@@ -17,10 +17,21 @@ const ownerSource = functionBlock(source, "resumeOwnerVerdict").text.replace(
   "export ",
   "",
 );
+const accountSource = readFileSync(
+  new URL("./daemon-commands/account.ts", import.meta.url),
+  "utf8",
+);
 const switchSource = blockAt(
-  source,
-  source.indexOf('      case "switch_account": {'),
+  accountSource,
+  accountSource.indexOf('case "switch_account": {'),
 ).text;
+const switchPhase = functionBlock(
+  readFileSync(
+    new URL("./daemon-commands/switch-account.ts", import.meta.url),
+    "utf8",
+  ),
+  "switchAccount",
+).text.replace(/^export /, "");
 type Resume = (
   id: string,
   content: string,
@@ -143,17 +154,20 @@ function harness() {
     ${ownedSource}
     ${ownerSource}
     ${resumeSource}
-    async function switchAccount(parsed) {
+    ${switchPhase}
+    async function runSwitchAccount(parsed) {
       const commandArgs = JSON.stringify(parsed), commandId = "test-command";
-      let result, error;
+      const commandOutcome = {};
+      const daemon = { ...daemonDeps, autoResumeSession };
       switch ("switch_account") { ${switchSource} }
-      return { result, error };
+      return { result: commandOutcome.result, error: commandOutcome.error };
     }
   `);
   const runtime = new Function(
     ...Object.keys(deps),
-    `${code}; return { resume: autoResumeSession, switchAccount };`,
-  )(...Object.values(deps)) as {
+    "daemonDeps",
+    `${code}; return { resume: autoResumeSession, switchAccount: runSwitchAccount };`,
+  )(...Object.values(deps), deps) as {
     resume: Resume;
     switchAccount: (
       args: Record<string, unknown>,
@@ -570,11 +584,13 @@ test("daemon wires one shared account gate without wrapping the Codex app-server
   expect(
     source.match(/const accountLifecycleGate = new AccountLifecycleGate\(\);/g),
   ).toHaveLength(1);
-  expect(switchSource).toContain("accountLifecycleGate.acquireSwitch()");
+  expect(switchPhase).toContain("accountLifecycleGate.acquireSwitch()");
   expect(resumeSource).toContain(
     "accountLifecycleGate.acquireResume(agentTypeHint)",
   );
-  expect(switchSource).not.toContain("markAppServerConversationResumable(");
+  expect(switchSource + switchPhase).not.toContain(
+    "markAppServerConversationResumable(",
+  );
   expect(resumeSource).not.toContain("markAppServerConversationResumable(");
   expect(resumeSource).not.toContain("new CodexAppServer(");
 });

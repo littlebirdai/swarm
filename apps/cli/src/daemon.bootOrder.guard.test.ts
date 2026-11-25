@@ -10,7 +10,7 @@
 // So the order is an invariant, not a preference, and a source guard is the
 // cheapest way to hold it. Put a network call, a tmux scan or a tree walk back
 // in front of the listen and this fails by name. The loop budget guard
-// (daemon.loopBudget.guard.test.ts) covers what may run inside that window;
+// (daemon.loop-budget.guard.test.ts) covers what may run inside that window;
 // this one covers where the window ends.
 
 import { describe, expect, test } from "bun:test";

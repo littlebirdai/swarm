@@ -110,10 +110,14 @@ function fixture(writeSucceeded = true) {
   const hookState = hookBody.slice(0, hookEnd);
   const hook = `function receiveHook(data) { const prev = undefined; const sessionId = "sid"; ${hookState} classifyBypassBlock(awaitingAskUserQuestion, sessionId, data.status, data.permission_mode, data.message); sendAgentStatus(syncServiceRef, "conv", sessionId, data.status); }`;
 
-  const streamAt = source.indexOf("startPaneStream(target, {");
+  const terminalSource = fs.readFileSync(
+    new URL("./terminal/daemon-bridge.ts", import.meta.url),
+    "utf8",
+  );
+  const streamAt = terminalSource.indexOf("startPaneStream(target, {");
   const write = blockAt(
-    source,
-    source.indexOf("write: (pane, bytes)", streamAt),
+    terminalSource,
+    terminalSource.indexOf("write: (pane, bytes)", streamAt),
   )
     .text.trim()
     .replace(/^write: /, "")
@@ -187,10 +191,14 @@ test("unrelated panes and pasted bytes never infer a turn end", async () => {
 });
 
 test("guarded Escape observes only a successful send or signal", async () => {
-  const start = source.indexOf('      case "escape": {');
-  const body = source.slice(
+  const inputSource = fs.readFileSync(
+    new URL("./daemon-commands/session-input.ts", import.meta.url),
+    "utf8",
+  );
+  const start = inputSource.indexOf('case "escape": {');
+  const body = inputSource.slice(
     start,
-    source.indexOf('      case "rewind":', start),
+    inputSource.indexOf('case "rewind":', start),
   );
   const sent: string[] = [],
     observed: unknown[] = [];
@@ -232,8 +240,8 @@ test("guarded Escape observes only a successful send or signal", async () => {
       observed.push(intent),
   };
   const run = compile(
-    `return async (pressedAt = Date.now()) => { let result, error; const commandArgs = JSON.stringify({ conversation_id: "conv", pressed_at: pressedAt }); switch ("escape") { ${body} } return {result, error}; };`,
-    deps,
+    `return async (pressedAt = Date.now()) => { const commandOutcome = {}; const commandArgs = JSON.stringify({ conversation_id: "conv", pressed_at: pressedAt }); switch ("escape") { ${body} } return {result: commandOutcome.result, error: commandOutcome.error}; };`,
+    { ...deps, daemon: deps },
   );
   await run(clock - 60_001);
   expect(observed).toEqual([]);
@@ -259,10 +267,14 @@ test("guarded Escape observes only a successful send or signal", async () => {
 // Escape that finds no turn to stop has no settle coming, so the daemon
 // releases the row itself; one that stops a turn leaves it to the settle.
 test("a stop-and-send Escape releases its queued message only when there is no turn to stop", async () => {
-  const start = source.indexOf('      case "escape": {');
-  const body = source.slice(
+  const inputSource = fs.readFileSync(
+    new URL("./daemon-commands/session-input.ts", import.meta.url),
+    "utf8",
+  );
+  const start = inputSource.indexOf('case "escape": {');
+  const body = inputSource.slice(
     start,
-    source.indexOf('      case "rewind":', start),
+    inputSource.indexOf('case "rewind":', start),
   );
   const released: string[] = [];
   let hook = "working",
@@ -299,8 +311,8 @@ test("a stop-and-send Escape releases its queued message only when there is no t
     logConvexFailure: () => {},
   };
   const run = compile(
-    `return async (release) => { let result, error; const commandArgs = JSON.stringify({ conversation_id: "conv", pressed_at: Date.now(), release_queued: release }); switch ("escape") { ${body} } return {result, error}; };`,
-    deps,
+    `return async (release) => { const commandOutcome = {}; const commandArgs = JSON.stringify({ conversation_id: "conv", pressed_at: Date.now(), release_queued: release }); switch ("escape") { ${body} } return {result: commandOutcome.result, error: commandOutcome.error}; };`,
+    { ...deps, daemon: deps },
   );
   expect((await run(true)).result).toBe("escape_sent");
   expect(released).toEqual([]);

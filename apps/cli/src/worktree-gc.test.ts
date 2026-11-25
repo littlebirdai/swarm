@@ -42,10 +42,13 @@ afterEach(() => {
 });
 
 test("daemon GC is opt-in for retirement, never account or agent recycling", () => {
-  const source = fs.readFileSync(
-    path.join(import.meta.dir, "daemon.ts"),
-    "utf8",
-  );
+  const source = fs.readFileSync(import.meta.dir + "/daemon.ts", "utf8");
+  const commandDir = path.join(import.meta.dir, "daemon-commands");
+  const commandSource = fs
+    .readdirSync(commandDir)
+    .filter((file) => file.endsWith(".ts"))
+    .map((file) => fs.readFileSync(path.join(commandDir, file), "utf8"))
+    .join("\n");
   const kill = source.slice(
     source.indexOf("async function killConversationBackends("),
     source.indexOf("async function killConversationBackendsForAgentSwitch("),
@@ -57,7 +60,7 @@ test("daemon GC is opt-in for retirement, never account or agent recycling", () 
   // Only the explicit kill command retires, and a kill that says the worktree is
   // someone else's (a workflow station's, shared by its run) keeps it.
   expect(
-    source
+    (source + commandSource)
       .match(/killConversationBackends\(\s*\w+,\s*\w+,\s*[^)]*?\)(?=;)/g)
       ?.map((call) =>
         call
@@ -67,7 +70,7 @@ test("daemon GC is opt-in for retirement, never account or agent recycling", () 
   ).toEqual([
     "killConversationBackends(conversationId, sessionIdHint, parsed.keep_workspace !== true)",
   ]);
-  expect(source).toMatch(
+  expect(commandSource).toMatch(
     /killConversationBackends\(\s*convId,\s*sessionIds\[convId\],?\s*\)/,
   );
 });

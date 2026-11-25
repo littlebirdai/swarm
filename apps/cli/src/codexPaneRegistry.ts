@@ -152,7 +152,7 @@ export async function seedCodexPanes(): Promise<CodexPane[]> {
  *
  * Async throughout: this runs on the daemon's loop, where one synchronous write
  * stalls delivery, injection and the heartbeat alike
- * (daemon.loopBudget.guard.test.ts). Temp file plus rename, without the fsyncs
+ * (daemon.loop-budget.guard.test.ts). Temp file plus rename, without the fsyncs
  * atomicWriteFile does — the reconcile rebuilds this from tmux, so durability
  * across a power cut buys nothing.
  */

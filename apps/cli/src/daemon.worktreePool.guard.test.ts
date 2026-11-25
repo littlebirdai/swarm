@@ -5,7 +5,7 @@
 // dead pool looks exactly like a cold create. This guard reads the source
 // rather than booting the daemon, which no unit test can afford.
 //
-// The loop-budget guard (daemon.loopBudget.guard.test.ts) covers the other
+// The loop-budget guard (daemon.loop-budget.guard.test.ts) covers the other
 // half: that nothing in these paths blocks the event loop.
 
 import { describe, expect, test } from "bun:test";

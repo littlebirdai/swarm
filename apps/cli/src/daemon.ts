@@ -1,4 +1,27 @@
 #!/usr/bin/env node
+import {
+  commandLogContext,
+  executeRemoteCommand,
+} from "./daemon-commands/dispatch.js";
+import type {
+  DaemonCommandDeps,
+  ConversationCache,
+  ReparentedCheckout,
+  RestoredWork,
+  GitInfo,
+  LogLevel,
+  RemoteLog,
+  PermissionMode,
+  PermissionModeIo,
+  PermissionModeStep,
+  ResumeOptions,
+  ResumeFatalReason,
+  StartedSessionInfo,
+  LaunchPromptCarry,
+  SessionFileInfo,
+  ClaudeSessionInfo,
+  ClaimAnswer,
+} from "./daemon-commands/dependencies.js";
 import { LOGIN_PATH_FILENAME } from "./loginShellPath.js";
 import {
   parsePollMessage,
@@ -6,12 +29,11 @@ import {
   pollMenuSteps,
 } from "./pollMessage.js";
 import { ClaudeSdkBackend } from "./claudeSdk/backend.js";
-import { chooseClaudeBackend, sdkBackendRefusal } from "./claudeSdk/select.js";
+import { sdkBackendRefusal } from "./claudeSdk/select.js";
 import { stepTimer } from "./stepTimer.js";
 import {
   BackendSwitchHoldError,
   backendSwitchHeld,
-  cancelBackendSwitch,
   switchClaudeBackend,
 } from "./claudeSdk/switchBackend.js";
 import type { SdkLaunchSpec } from "./claudeSdk/options.js";
@@ -49,13 +71,9 @@ import {
 import {
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
-  agentForksNatively,
   agentReconstitutes,
-  findModelOption,
   fromConvexAgentType,
-  modelOptionKey,
   localAgentClient,
-  isHostedAgentType,
   type AgentClientId,
   type AgentPaneReadiness,
   type PaneTerminalModes,
@@ -64,12 +82,9 @@ import { RESUME_BURST_SPACING_MS } from "@codecast/usage/usageLimits";
 import {
   SNIPPET_CATALOG,
   type DeviceSnippetSettings,
-  snippetBySlug,
 } from "@codecast/snippets/snippets";
 import {
   STABLE_ENV_CONVERSATION_ID,
-  STABLE_ENV_EXCLUDE,
-  STABLE_ENV_MODE,
   type StableLaunchPrefs,
 } from "@codecast/snippets/stableContext";
 import {
@@ -89,19 +104,13 @@ import { type ResourceProcess } from "@codecast/machines/systemResources";
 import { worktreeOfPath } from "@codecast/machines/worktrees";
 import { isHomeDirectoryPath } from "@codecast/machines/machineSwitch";
 import { type AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
-import { CODEX_EFFORT_LEVELS } from "@codecast/agent-clients/modelOptions";
-import { isCloudAgentActionName } from "@codecast/agent-clients/cloudAgents";
+
 import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncOn,
 } from "@codecast/agent-clients/cloudSessionSync";
-import {
-  isMachineSetting,
-  MACHINE_SETTINGS,
-  machineSettingValues,
-} from "@codecast/agent-clients/harnessHooks";
-import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
-import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
+import { machineSettingValues } from "@codecast/agent-clients/harnessHooks";
+
 import {
   ACTIVE_AGENT_STATUSES,
   DECLARED_VERDICT_STATUSES,
@@ -115,7 +124,7 @@ import {
   verdictFromProbe,
 } from "@codecast/sessions/liveness";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
-import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
+
 import {
   codePasteSignInUrl,
   deviceCodePrompt,
@@ -178,9 +187,7 @@ import {
 } from "./workers/ingestDeadline.js";
 import { selfExecInfo } from "./selfExec.js";
 import {
-  cursorPassBoundary,
   readCodexSessionMetaHeadAsync,
-  readCompleteLines,
   readCompleteLinesSync,
   readIngestWindow,
   sessionMetaHeadCut,
@@ -212,8 +219,6 @@ import { randomUUID, createHash, randomBytes } from "node:crypto";
 import * as http from "http";
 import { Database } from "bun:sqlite";
 import {
-  childErrorDetail,
-  execSync,
   execFileSync,
   exec,
   execFile,
@@ -239,12 +244,12 @@ import {
   type PersistedCodexThread,
 } from "./codexTurnRecovery.js";
 import {
+  parseProcessTable,
   descendantRows,
   findOtherDaemonRows,
   isAgentCommand,
   killProcessTree,
   liveTmuxServerPid,
-  parseProcessTable,
   reapTargets,
   restoreTmuxServerSocket,
   sameProcess,
@@ -341,10 +346,8 @@ import {
   formatHarnessChange,
   harnessCauseEnv,
   markHarnessChangesSent,
-  removeHarnessFile,
   unsentHarnessChanges,
   withHarnessCause,
-  writeHarnessFile,
   type HarnessChange,
 } from "./harness.js";
 import {
@@ -366,10 +369,6 @@ import {
 } from "./remote/device.js";
 import {
   UNSAFE_PATH_RE,
-  cloneDestination,
-  creatableStartFolder,
-  excludedFolderStartError,
-  missingFolderError,
   missingResumeFolderError,
   noLocalCheckoutBannerActionable,
   noLocalCheckoutError,
@@ -524,9 +523,6 @@ import {
   FLEET_GATE_ACCOUNT,
   fleetStoreLaunches,
   maintainFleetStore,
-  switchFleetTo,
-  fleetStoreDir,
-  saveProfile,
   getAccountsHeartbeatPayloadAsync,
   autoSaveActiveProfile,
   migrateLegacyProfileNames,
@@ -535,7 +531,6 @@ import {
   resnapshotIfActiveFresher,
   verifyActiveIdentity,
   readOauthAccount,
-  deleteProfile,
   readActiveCredentialAsync,
   credentialHealth,
   activeAccountSummary,
@@ -559,7 +554,6 @@ import {
   sameAccountFingerprint,
   attributeFingerprintToProfile,
   writeAccountToken,
-  removeAccountToken,
 } from "./ccAccounts.js";
 import {
   STATUSLINE_HOOK_PATH,
@@ -575,10 +569,7 @@ import {
 } from "./cursorWatcher.js";
 import { buildDisclaimShellPrefix } from "./disclaim.js";
 import { resolveCastInvocation } from "./castInvocation.js";
-import {
-  parseAgentToolSetupArgs,
-  runAgentToolSetup,
-} from "./agentToolSetup.js";
+
 import {
   CursorTranscriptWatcher,
   cursorTranscriptSessionId,
@@ -592,9 +583,8 @@ import {
   getCodexAccountsHeartbeatPayload,
   migrateLegacyCodexProfileNames,
   refreshCodexUsageSnapshots,
-  resolveCodexAccount,
 } from "./codexAccounts.js";
-import { redeemCodexResetCredit } from "./codexResetCredit.js";
+
 import {
   codexPaneListFormat,
   markCodexPaneEnded,
@@ -617,7 +607,6 @@ import {
   opencodeDbPath,
   assembleOpencodeSession,
   sessionExistsInOpencodeDb,
-  resolveOpencodeSessionCwd,
 } from "./opencodeStorage.js";
 import { OpencodeServer } from "./opencodeServer.js";
 import {
@@ -680,7 +669,6 @@ import {
 } from "./headlessRuns.js";
 import {
   CodexAppServer,
-  threadForkTimeoutMsForBytes,
   threadItemsToMessages,
   type ApprovalPolicy,
   type SandboxPolicy,
@@ -745,14 +733,14 @@ import {
   type SourceRestartState,
 } from "./sourceRestart.js";
 import { sweepHostDisk } from "./hostDiskSweep.js";
-import { diskFullFailReason, diskFullHold, freeDiskShare } from "./diskFull.js";
+import { diskFullHold, freeDiskShare } from "./diskFull.js";
 import { createWorktreeLegacy, type WorktreeResult } from "./worktreeLegacy.js";
 import {
   BUILD_ID_RE,
   BUILD_ID_VALUE_RE,
   daemonBuildUnchanged,
 } from "./daemonBuildGate.js";
-import { decideEscape, turnLooksActive } from "./escapeInterrupt.js";
+
 import {
   markSynced,
   markExamined,
@@ -836,10 +824,9 @@ import {
 } from "./reconciliation.js";
 import { SubagentFinishTracker } from "./subagentFinish.js";
 import {
+  isProjectAllowedToSync,
   TEST_SCRATCH_DIRNAME,
   isTestArtifactPath,
-  isProjectAllowedToSync,
-  launchScopeRefusal,
   markLaunched,
   transcriptScopeRefusal,
   wasLaunched,
@@ -925,11 +912,7 @@ import {
 import { ScanCancelled, yieldScanBatch } from "./scanBatch.js";
 import { recentScan } from "./workers/scanJobs.js";
 import type { ScanJob, ScanRow } from "./workers/scanTypes.js";
-import {
-  SUSPEND_GAP_MIN_MS,
-  clocksDisagree,
-  sawSuspend,
-} from "./suspendClock.js";
+import { SUSPEND_GAP_MIN_MS, sawSuspend } from "./suspendClock.js";
 export {
   SUSPEND_GAP_MIN_MS,
   clocksDisagree,
@@ -957,7 +940,6 @@ import {
   attachTerminalServer,
   authorizeLocalRequest,
   handleTerminalHttp,
-  reapStaleTerminalSessions,
   type TerminalServerOptions,
 } from "./terminal/terminalServer.js";
 import {
@@ -996,16 +978,14 @@ import {
   isSafeStatusSessionId,
 } from "./statusSpool.js";
 import {
-  startPaneStream,
-  isPaneStreaming,
-  writePane,
-} from "./terminal/paneStream.js";
-import {
-  attachWatchServer,
-  defaultWatchDeps,
-  runWatchSession,
-} from "./browser/watchServer.js";
-import { startWatchRelay, type RelayAnswer } from "./browser/watchRelay.js";
+  ensureTmuxPaneWide,
+  startTerminalMaintenance,
+  TMUX_SIZE_ARGS,
+  TMUX_WINDOW_HEIGHT,
+  TMUX_WINDOW_WIDTH,
+} from "./terminal/daemon-bridge.js";
+import { attachWatchServer } from "./browser/watchServer.js";
+
 import { handleBrowserFocusHttp } from "./browser/focusHttp.js";
 import { handleNotificationHttp } from "./notificationDelivery.js";
 import { handleFsBrowseHttp } from "./fs/browseHttp.js";
@@ -1022,10 +1002,7 @@ import { VaultMirror, httpMirrorTransport } from "./vault/vaultMirror.js";
 import { enumerateLocalRootsAsync, MAX_PROJECT_ROOTS } from "./projectRoots.js";
 import {
   buildStableContext,
-  ensureStableHookForLaunch,
-  prepareLaunchStableContext,
   recordStableContext,
-  refreshStableCache,
   warmStableCaches,
   STABLE_WARM_EVERY_MS,
   type BuildStableContextOptions,
@@ -1033,12 +1010,7 @@ import {
 } from "./stableContext.js";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { writeStoredConfig } from "./config/storedConfig.js";
-import {
-  configDirTarget,
-  fenceAdmits,
-  fenceTargetOf,
-  type FenceKind,
-} from "./configFence.js";
+import { fenceAdmits, fenceTargetOf, type FenceKind } from "./configFence.js";
 import {
   AwakeIdleClock,
   captureProcessSnapshot,
@@ -1071,7 +1043,6 @@ import {
   type BootPacingTier,
 } from "./bootPacing.js";
 import {
-  followsCredentialStore,
   orcaPaneKeyOf,
   terminalProgramOf,
   terminalProgramOnTty,
@@ -1132,7 +1103,6 @@ import {
   buildNonClaudeResumeCommand,
   chooseClaudeAutoTrim,
   combineClaudeResumeFlags,
-  copyJsonlAsSession,
   extractJsonlPermissionMode,
   isForkArtifactSessionId,
   isWorkflowAgentTranscriptPath,
@@ -1145,7 +1115,6 @@ import {
   resumeTmuxName,
   rewriteSubagentJsonlToUuid,
   upgradedLegacyResumeTmuxName,
-  grokStableRulesFragment,
 } from "./resumeCommand.js";
 import { ClaudeCloudWatcher, cloudEventUuid } from "./claudeCloud.js";
 import {
@@ -1166,7 +1135,6 @@ import {
   cloudMirrorRepoFacts,
 } from "./cloudAgents/poll.js";
 import {
-  conventionSeed,
   resolveLocalProjectPath,
   resolveLocalRepoPath,
   resolveResumeCwd,
@@ -1229,8 +1197,6 @@ import {
 import { MintFlowControl, submitApprovalCode } from "./mintFlowControl.js";
 import {
   getProviderKeyPublicKey,
-  applyProviderKeyCommand,
-  decryptProviderKeyPayload,
   type ProviderKeyVerifier,
 } from "./providerKeyCrypto.js";
 import type { LoopFreezeSummary, LoopFreezeState } from "./loopFreezeState.js";
@@ -1830,30 +1796,6 @@ async function refuseResumeNoLocalCheckout(
     `Cannot auto-resume ${short}: recorded cwd ${recordedCwd ?? "<unknown>"} not found locally; refusing (no $HOME fallback)`,
   );
   return refused;
-}
-
-// Deterministic per-remote checkout dir for a reparented session. Keyed by a
-// hash of the remote so two repos with the same basename never collide.
-/** A source-published working tree replayed into a reparent checkout. */
-interface RestoredWork {
-  /** The session's real branch, from the snapshot — not the remote's default. */
-  branch: string;
-  /** True when uncommitted work was reproduced here. */
-  appliedWork: boolean;
-  applyError?: string;
-}
-
-/** What ensureReparentedCheckout prepared for a reparented session to resume in. */
-interface ReparentedCheckout {
-  path: string;
-  /** True when this machine cloned the repo just now; false when a checkout was already here. */
-  cloned: boolean;
-  /** The session ran in a bare home folder and resumes in this machine's home. */
-  homeFolder?: boolean;
-  remote?: string;
-  branch?: string;
-  /** Set when the source's working-tree snapshot was found and replayed. */
-  restored?: RestoredWork;
 }
 
 // Clone `remote` into `dest` with this machine's own git credentials (SSH or a
@@ -2711,10 +2653,6 @@ function resolveCodexPermissionDefaults(config?: Config | null) {
   return codexPermissionsFromArgs(binaryArgs);
 }
 
-interface ConversationCache {
-  [sessionId: string]: string;
-}
-
 interface PendingMessages {
   [sessionId: string]: Array<{
     uuid?: string;
@@ -2806,19 +2744,6 @@ const EVENT_LOOP_LAG_THRESHOLD_MS = 60 * 1000; // 1 minute of lag = frozen
 // (DAEMON_HEARTBEAT_STALE_MS) so the shell script and the compiled pass agree.
 const STUCK_CONNECTION_THRESHOLD_MS = 3 * 60 * 1000; // 3 min disconnected = stuck, trigger self-heal
 const SELF_HEAL_COOLDOWN_MS = 10 * 60 * 1000; // 10 min between self-heal restarts
-
-type LogLevel = "debug" | "info" | "warn" | "error";
-
-interface RemoteLog {
-  level: LogLevel;
-  message: string;
-  metadata?: {
-    session_id?: string;
-    error_code?: string;
-    stack?: string;
-  };
-  timestamp: number;
-}
 
 let remoteLogQueue: RemoteLog[] = [];
 let syncServiceRef: SyncService | null = null;
@@ -3319,18 +3244,6 @@ const lastHeartbeatLogged = new Map<
   { status: string; ts: number; since: number }
 >();
 const HEARTBEAT_LOG_THROTTLE_MS = 5 * 60 * 1000;
-
-// AgentStatus is imported from @codecast/sessions/agentStatus (the single source of
-// truth). The old local union here was missing "starting", which would have made
-// a CLI-first status addition throw on every heartbeatBatch validation and mark
-// live sessions dead fleet-wide.
-type PermissionMode =
-  | "default"
-  | "plan"
-  | "acceptEdits"
-  | "bypassPermissions"
-  | "dontAsk"
-  | "auto";
 const PERMISSION_MODES: ReadonlySet<string> = new Set([
   "default",
   "plan",
@@ -3381,15 +3294,6 @@ export function parsePermissionModeFooter(
   }
   return undefined;
 }
-
-export type PermissionModeIo = {
-  press: () => Promise<void>;
-  readMode: () => Promise<PermissionMode | undefined>;
-  sleep?: (ms: number) => Promise<void>;
-};
-export type PermissionModeStep =
-  | { mode: PermissionMode; presses: number }
-  | { error: string };
 const PERMISSION_MODE_LABEL: Record<PermissionMode, string> = {
   default: "default",
   plan: "plan mode",
@@ -4874,29 +4778,7 @@ function startHookServer(): http.Server {
   watchServerHandle = attachWatchServer(server, terminalServerOptions());
   startVaultMirror();
 
-  // Reap idle panel terminals on boot and periodically (see terminalServer.ts).
-  setTimeout(() => {
-    void reapStaleTerminalSessions(log);
-  }, 30_000).unref?.();
-  const terminalReapTimer = setInterval(
-    () => {
-      void reapStaleTerminalSessions(log);
-    },
-    6 * 60 * 60 * 1000,
-  );
-  terminalReapTimer.unref?.();
-  // Agent windows left squeezed by a viewer the previous daemon took down
-  // with it (see healSqueezedAgentWindows).
-  setTimeout(() => {
-    void healSqueezedAgentWindows();
-  }, 15_000).unref?.();
-  const squeezeHealTimer = setInterval(
-    () => {
-      void healSqueezedAgentWindows();
-    },
-    5 * 60 * 1000,
-  );
-  squeezeHealTimer.unref?.();
+  startTerminalMaintenance(tmuxExec, log);
   // Bounce unprovoked raises by agent-driven Chromes (see focusSentinel.ts).
   void startFocusSentinel(log).then((t) => t?.unref?.());
 
@@ -5625,16 +5507,6 @@ export async function releaseStrandedCommandClaims(
     log(`Released ${released} command claim(s) stranded by a previous daemon`);
   return released;
 }
-
-// Claim answers already in flight for a batch of commands. All three delivery
-// paths hand the daemon a list and then execute it one at a time, so a claim
-// started inside the executor cost one round trip per command before any of
-// them ran. Starting them together makes a batch cost one round trip.
-type ClaimAnswer = {
-  claimed?: boolean;
-  released?: boolean;
-  reason?: string;
-} | null;
 const primedClaims = new Map<string, Promise<ClaimAnswer>>();
 const pendingAgentSwitches = new Map<string, string>();
 const pendingSessionStarts = new Map<string, string>();
@@ -5771,7 +5643,13 @@ async function executeCommandBatch(
       log(
         `[${source}] Executing command: ${cmd.command} (${cmd.id})${commandLogContext(cmd.args)}`,
       );
-      const run = executeRemoteCommand(cmd.id, cmd.command, config, cmd.args);
+      const run = executeRemoteCommand(
+        daemonCommandDeps,
+        cmd.id,
+        cmd.command,
+        config,
+        cmd.args,
+      );
       if (DETACHED_COMMANDS.has(cmd.command))
         void run.catch((err) =>
           log(
@@ -6013,26 +5891,6 @@ function republishLineProfileSoon(
       );
     for (const done of entry.waiting) done(outcome);
   })();
-}
-
-/** Report a command's outcome to the server (a later report replaces an earlier one). */
-async function postCommandResult(
-  siteUrl: string,
-  apiToken: string,
-  commandId: string,
-  result?: string,
-  error?: string,
-): Promise<void> {
-  await fetch(`${siteUrl}/cli/command-result`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_token: apiToken,
-      command_id: commandId,
-      result,
-      error,
-    }),
-  });
 }
 
 async function fencedTarget(
@@ -10075,5102 +9933,6 @@ function transcriptWarningLevel(warning: string): LogLevel {
   return /allowance exhausted/.test(warning) ? "debug" : "info";
 }
 
-const OUTCOME_LOGGED_COMMANDS = new Set([
-  "kill_session",
-  "start_session",
-  "resume_session",
-  "fork_session",
-  "hibernate_session",
-  "move_to_device",
-  "switch_account",
-  "escape",
-  "rewind",
-]);
-
-// Which conversation a command acts on and who asked for it, for the
-// "Executing command" line: a kill used to log only its command id, so finding
-// what tore a session down meant dumping daemon_commands from prod.
-function commandLogContext(args: string | undefined): string {
-  if (!args) return "";
-  try {
-    const parsed = JSON.parse(args);
-    const conv =
-      typeof parsed?.conversation_id === "string"
-        ? ` conv=${parsed.conversation_id.slice(0, 12)}`
-        : "";
-    const cause =
-      typeof parsed?.cause === "string" ? ` cause=${parsed.cause}` : "";
-    return conv + cause;
-  } catch {
-    return "";
-  }
-}
-
-async function executeRemoteCommand(
-  commandId: string,
-  command: string,
-  config: Config,
-  commandArgs?: string,
-): Promise<void> {
-  const siteUrl = config.convex_url?.replace(".cloud", ".site");
-  if (!siteUrl || !config.auth_token) return;
-
-  let result: string | undefined;
-  let error: string | undefined;
-  // Work that must follow this command's report (a line edit's republish,
-  // whose own report has to land after the first one).
-  let afterReport: (() => void) | undefined;
-
-  // Single-owner guard: skip session-targeted commands for conversations owned
-  // by ANOTHER device (local peer OR a remote Mac the session was moved to),
-  // online or not. Both daemons poll the same user-scoped command queue and
-  // moveSessionToDevice enqueues an UNtargeted resume_session, so without this
-  // the non-owner daemon races the owner — e.g. after a move-to-remote the local
-  // daemon would resume a local copy and answer in parallel with the remote
-  // (split-brain). A person reclaims a session from a dead owner with the
-  // header chip, which restamps the owner before any command reaches this daemon.
-  const SESSION_COMMANDS = new Set([
-    "resume_session",
-    "fork_session",
-    "kill_session",
-    "send_keys",
-    "set_permission_mode",
-    "escape",
-    "rewind",
-    "hibernate_session",
-    "switch_claude_backend",
-    "rewind_files",
-  ]);
-  if (SESSION_COMMANDS.has(command) && commandArgs && syncServiceRef) {
-    try {
-      const parsedArgs = JSON.parse(commandArgs);
-      const convId = parsedArgs?.conversation_id;
-      if (convId) {
-        const info = await syncServiceRef.getConversationOwnerInfo(convId);
-        if (ownedByAnotherDevice(info)) {
-          log(
-            `[OWNER] skipping ${command} for ${String(convId).slice(0, 12)} — owned by device ${info?.ownerDeviceId.slice(0, 8)}${info?.ownerIsRemote ? " (remote)" : ""} (not ${deviceId().slice(0, 8)})`,
-          );
-          // …except a kill, which ALWAYS sweeps this machine's own panes first.
-          // Routing the command to the owner is still right (it holds the rest of
-          // the backends), but a pane physically here is only reachable from here:
-          // deferring to the owner left owner-mismatched panes unkillable from
-          // every device. The sweep is safe to run twice — it is has-session
-          // guarded and idempotent — and the owner==local case never reaches it.
-          if (command === "kill_session") {
-            const sessionIdHint =
-              typeof parsedArgs?.session_id === "string" &&
-              parsedArgs.session_id
-                ? parsedArgs.session_id
-                : undefined;
-            const swept = await killLocalPanesForConversation(
-              convId,
-              sessionIdHint,
-              "OWNER",
-            );
-            // The owner runs the real teardown, but the local delivery/resume
-            // caches are OURS and would otherwise survive the kill and suppress
-            // (or resurrect) the next message. Always clear them — and always say
-            // so: a silent swept-0 is indistinguishable from the command never
-            // arriving, which is how this path stayed invisible.
-            await clearConversationDeliveryAndResumeState(
-              convId,
-              sessionIdHint,
-              "OWNER",
-            );
-            log(
-              swept > 0
-                ? `[OWNER] kill_session for ${String(convId).slice(0, 12)} swept ${swept} local pane(s) and cleared in-flight resume state before deferring to the owner`
-                : `[OWNER] kill_session for ${String(convId).slice(0, 12)} — no local panes; cleared in-flight resume state`,
-            );
-          }
-          // A lease primed for this batch would otherwise sit here unheld
-          // until the grace window, blocking a peer daemon on this machine.
-          discardPrimedClaim(commandId, siteUrl, config.auth_token);
-          return; // leave the rest of the command for the owner device
-        }
-      }
-    } catch {
-      /* on any error, fall through and execute (fail-open) */
-    }
-  }
-
-  // Claim the command before running it. Two daemons can share a device (both
-  // sides of an upgrade, a rogue self spawn) and both poll the same queue, so
-  // without this both execute every command: a resume runs twice, a kill races
-  // a resume. One insertion covers all three delivery paths (subscription, 10s
-  // poll, heartbeat embedded) because all three funnel through here.
-  //
-  // The answer is usually already in flight: executeCommandBatch primes the
-  // whole batch together, so N commands cost one round trip instead of N. The
-  // lease is scoped to this device, so priming ahead of the owner guard cannot
-  // take work away from the machine that owns the session. What it can do is
-  // hold a lease this daemon then defers, and the owner guard hands that back.
-  //
-  // It fails OPEN on purpose. Only the two answers that mean another daemon
-  // owns the work skip: held_by_other and already_executed. A 404 from an older
-  // server, a network error, a timeout, an auth failure, a missing row or a
-  // malformed body all execute. A claim endpoint that is missing, unreachable
-  // or wedged must never wedge every command on the machine, which is far worse
-  // than the double execution this prevents.
-  //
-  // The request is bounded for the same reason the heartbeat is: a socket that
-  // opens and never answers must not stall the batch behind it.
-  const claim = await takePrimedClaim(commandId, siteUrl, config.auth_token);
-  if (
-    claim &&
-    claim.claimed === false &&
-    (claim.reason === "held_by_other" || claim.reason === "already_executed")
-  ) {
-    // The caller already marked this id as handled here. For a live hold, undo
-    // that: the holder can die before executing, and once the lease lapses the
-    // 10s poll offers the command again. Keep the marking for already_executed,
-    // which is final.
-    if (claim.reason === "held_by_other") forgetProcessedCommand(commandId);
-    log(`[CLAIM] skipping ${command} (${commandId}): ${claim.reason}`);
-    return;
-  }
-  // Held from here until the result is reported, so a graceful stop in between
-  // gives the command back instead of stranding it for the grace window.
-  if (claim?.claimed) holdClaim(commandId);
-
-  try {
-    switch (command) {
-      case "status": {
-        const state = readDaemonState();
-        result = JSON.stringify({
-          version: daemonVersion,
-          platform,
-          pid: process.pid,
-          uptime: process.uptime(),
-          autostart: isAutostartEnabled(),
-          lastSync: state?.lastSyncTime,
-          queueSize: state?.pendingQueueSize,
-          stats: {
-            messagesSynced: syncStats.messagesSynced,
-            conversationsCreated: syncStats.conversationsCreated,
-            activeSessions: syncStats.sessionsActive.size,
-          },
-        });
-        log(`[REMOTE] Status requested, responding`);
-        break;
-      }
-      case "version": {
-        result = daemonVersion || "unknown";
-        log(`[REMOTE] Version requested: ${result}`);
-        break;
-      }
-      case "get_terminal_endpoint": {
-        // The web's integrated terminal asks every live daemon for its
-        // loopback endpoint, then connects to whichever answers on 127.0.0.1
-        // — only the machine the browser is physically on is reachable, so
-        // multi-device resolution falls out for free.
-        //
-        // Never answer port 0. Asked before the listen resolves, wait for it:
-        // an answer of 0 is one the web has to discard anyway, and a device
-        // that stays silent is a case discover() already handles.
-        const port =
-          hookServerPort ||
-          (await Promise.race([
-            hookListening,
-            new Promise<number>((r) => setTimeout(() => r(0), 5000)),
-          ]));
-        if (port === 0) {
-          error = "terminal endpoint not listening yet";
-          log(`[REMOTE] Terminal endpoint requested before listen`);
-          break;
-        }
-        result = JSON.stringify({
-          port,
-          token: terminalToken(),
-          device_id: deviceId(),
-          tmux: hasTmux(),
-        });
-        log(`[REMOTE] Terminal endpoint requested (port ${port})`);
-        break;
-      }
-      case "stream_pane": {
-        // A browser on another machine wants to watch a pane here. It can't
-        // reach the loopback PTY, so publish the pane's screen to the relay
-        // instead, and take keystrokes back on the same request. It stops on
-        // its own when the viewer's lease lapses; the lease is also what
-        // authorizes input (apps/cli/src/terminal/paneStream.ts).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const target = typeof parsed.target === "string" ? parsed.target : "";
-        if (!isValidPaneTarget(target)) {
-          error = `stream_pane: invalid target ${JSON.stringify(parsed.target)}`;
-          break;
-        }
-        if (!hasTmux()) {
-          error = "stream_pane: tmux is not installed on this machine";
-          break;
-        }
-        const alreadyRunning = isPaneStreaming(target);
-        // Frames go out through redactSecrets: take the Vault's current values
-        // first, as a `cast vault` read does, so one stored a moment ago is in.
-        if (!alreadyRunning) await refreshKnownVault();
-        startPaneStream(target, {
-          log,
-          write: (pane, bytes) => {
-            if (writePane(pane, bytes)) observePaneInput(pane, bytes);
-          },
-          push: async (msg) => {
-            try {
-              const res = await fetch(`${siteUrl}/cli/terminal/frame`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  api_token: config.auth_token,
-                  device_id: deviceId(),
-                  ...msg,
-                }),
-              });
-              if (!res.ok) return null;
-              return (await res.json()) as {
-                stop: boolean;
-                input?: string;
-                fast?: boolean;
-              };
-            } catch {
-              return null;
-            }
-          },
-        });
-        result = JSON.stringify({
-          target,
-          streaming: true,
-          already: alreadyRunning,
-        });
-        log(
-          `[PANE] Streaming ${target} for a remote viewer${alreadyRunning ? " (already running)" : ""}`,
-        );
-        break;
-      }
-      case "stream_browser": {
-        // A viewer on another machine wants to watch the browser tab a
-        // session here drives. It can't reach the loopback watch socket, so
-        // run the same watch session and publish it to the relay; the
-        // viewer's lease stops it (apps/cli/src/browser/watchRelay.ts).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        if (
-          !isValidBrowserStreamKey(parsed.key) ||
-          (parsed.session_uuid !== undefined &&
-            !isValidBrowserStreamKey(parsed.session_uuid)) ||
-          (parsed.tmux_session !== undefined &&
-            !isValidBrowserStreamKey(parsed.tmux_session))
-        ) {
-          error = `stream_browser: invalid args ${JSON.stringify(parsed)}`;
-          break;
-        }
-        const started = startWatchRelay(
-          {
-            key: parsed.key,
-            session_uuid: parsed.session_uuid,
-            tmux_session: parsed.tmux_session,
-          },
-          {
-            log,
-            startSession: (opts, sink) =>
-              runWatchSession(opts, sink, defaultWatchDeps()),
-            now: () => Date.now(),
-            sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-            push: async (msg) => {
-              try {
-                const res = await fetch(`${siteUrl}/cli/browser/frame`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    api_token: config.auth_token,
-                    device_id: deviceId(),
-                    ...msg,
-                  }),
-                });
-                if (!res.ok) return null;
-                return (await res.json()) as RelayAnswer;
-              } catch {
-                return null;
-              }
-            },
-          },
-        );
-        result = JSON.stringify({
-          key: parsed.key,
-          streaming: true,
-          already: !started,
-        });
-        log(
-          `[BROWSER-RELAY] Streaming ${parsed.key} for a remote viewer${started ? "" : " (already running)"}`,
-        );
-        break;
-      }
-      case "restart": {
-        log(`[REMOTE] Restart requested`);
-        result = "restarting";
-        // Report result first, then restart
-        await fetch(`${siteUrl}/cli/command-result`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_token: config.auth_token,
-            command_id: commandId,
-            result,
-          }),
-        });
-        setTimeout(() => {
-          restartDaemonProcess("remote restart command");
-        }, 1000);
-        return;
-      }
-      case "force_update": {
-        result = "updating";
-        // Report result first, then update
-        await fetch(`${siteUrl}/cli/command-result`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_token: config.auth_token,
-            command_id: commandId,
-            result,
-          }),
-        });
-        setTimeout(() => void runSelfUpdate("remote update command"), 1000);
-        return;
-      }
-      case "export_folder": {
-        const svc = syncServiceRef;
-        if (!svc) {
-          error = "export_folder: not connected";
-          break;
-        }
-        const { exportFolder, FOLDER_BUNDLE_MEDIA_TYPE } =
-          await import("./folderSync.js");
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const out = await exportFolder(parsed, {
-          home: process.env.HOME || require("os").homedir(),
-          upload: (bytes) =>
-            svc.uploadBytes(
-              bytes,
-              FOLDER_BUNDLE_MEDIA_TYPE,
-              "Folder",
-              5 * 60_000,
-            ),
-          log,
-          onGrantDone: (g) =>
-            log(
-              `[FOLDER] direct link for ${parsed.path} closed: ${g.reason} (${g.bytes} bytes)`,
-            ),
-        });
-        result = JSON.stringify(out);
-        const how = out.ok
-          ? "direct" in out
-            ? `granted a direct link on ${out.direct.ip}:${out.direct.port}`
-            : "sent through the relay"
-          : out.reason;
-        log(
-          `[FOLDER] export_folder ${parsed.path}: ${how}${"direct_skipped" in out && out.direct_skipped ? ` (direct skipped: ${out.direct_skipped})` : ""}`,
-        );
-        break;
-      }
-      case "export_session": {
-        const svc = syncServiceRef;
-        if (!svc) {
-          error = "export_session: not connected";
-          break;
-        }
-        const { FOLDER_BUNDLE_MEDIA_TYPE } = await import("./folderSync.js");
-        const { exportSession } = await import("./sessionTransfer.js");
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const home = process.env.HOME || require("os").homedir();
-        const out = await exportSession(parsed, {
-          home,
-          projectsDirs: claudeProjectsDirs(home),
-          upload: (bytes) =>
-            svc.uploadBytes(
-              bytes,
-              FOLDER_BUNDLE_MEDIA_TYPE,
-              "Transcript",
-              5 * 60_000,
-            ),
-          log,
-          onGrantDone: (g) =>
-            log(
-              `[SESSION] direct link for ${parsed.conversation_id} closed: ${g.reason} (${g.bytes} bytes)`,
-            ),
-        });
-        result = JSON.stringify(out);
-        log(
-          `[SESSION] export_session ${parsed.conversation_id}: ${out.ok ? ("direct" in out ? "granted a direct link" : "sent through the relay") : out.reason}`,
-        );
-        break;
-      }
-      case "cap_publish": {
-        const { runCapPublishCommand } =
-          await import("./capabilities/kitPublish.js");
-        const outcome = await runCapPublishCommand(commandArgs, {
-          siteUrl,
-          apiToken: config.auth_token,
-          userId: config.user_id,
-          home: process.env.HOME || require("os").homedir(),
-          deviceId: deviceId(),
-        });
-        if ("error" in outcome) error = outcome.error;
-        else result = outcome.result;
-        log(
-          `[capabilities] cap_publish ${"error" in outcome ? `failed: ${outcome.error.slice(0, 160)}` : "published"}`,
-        );
-        break;
-      }
-      case "reinstall": {
-        const currentVersion = daemonVersion || "unknown";
-        log(`[REMOTE] Reinstall requested from v${currentVersion}`);
-        result = "reinstalling";
-        await fetch(`${siteUrl}/cli/command-result`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_token: config.auth_token,
-            command_id: commandId,
-            result,
-          }),
-        }).catch(() => {});
-        await flushRemoteLogs();
-        setTimeout(() => {
-          try {
-            execSync(
-              "curl -fsSL --proto '=https' --proto-redir '=https' https://codecast.sh/install | sh",
-              { timeout: 120000, stdio: "ignore" },
-            );
-            logLifecycle(
-              "reinstall_complete",
-              `Reinstalled from v${currentVersion}`,
-            );
-          } catch (e) {
-            logLifecycle(
-              "reinstall_failed",
-              `Failed from v${currentVersion}: ${e instanceof Error ? e.message : String(e)}`,
-            );
-          }
-          flushRemoteLogs().finally(() => {
-            setTimeout(() => process.exit(0), 500);
-          });
-        }, 1000);
-        return;
-      }
-      case "run_workflow": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const workflowRunId = parsed.workflow_run_id;
-        if (!workflowRunId) {
-          error = "Missing workflow_run_id";
-          break;
-        }
-        const started = await launchWorkflowRun(
-          siteUrl,
-          config.auth_token,
-          workflowRunId,
-        );
-        if ("error" in started) error = started.error;
-        else
-          result = JSON.stringify({
-            tmux_session: started.tmux_session,
-            workflow_run_id: workflowRunId,
-          });
-        break;
-      }
-      case "start_session": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const startSteps = stepTimer();
-        // A hosted conversation runs in codecast's backend; no machine starts it.
-        if (isHostedAgentType(parsed.agent_type)) {
-          error = "hosted conversation: no machine starts it";
-          break;
-        }
-        const rawAgentType = parsed.agent_type;
-        // Registry-driven normalization (accepts either the convex spelling or the
-        // client id; unknown/claude → "claude"). Replaces a hand-rolled ternary that
-        // silently downgraded any client it didn't enumerate (e.g. opencode) to claude.
-        const agentType: AgentClientId = fromConvexAgentType(rawAgentType);
-        const rawPath: string =
-          parsed.project_path || process.env.HOME || "/tmp";
-        const conversationId: string | undefined = parsed.conversation_id;
-        const expectedSessionId: string | undefined = parsed.session_id;
-        const isolated: boolean = parsed.isolated === true;
-        const worktreeName: string | undefined = parsed.worktree_name;
-        // Per-session launch overrides from the web picker (shared-contract
-        // option key + effort level). Unknown values are dropped here, never
-        // passed through to the CLI.
-        const requestedModelKey: string | undefined =
-          typeof parsed.model === "string" ? parsed.model : undefined;
-        const requestedEffort: string | undefined =
-          typeof parsed.effort === "string" ? parsed.effort : undefined;
-        // `cast spawn --as`: the resolved definition rides the payload; its tool
-        // policy and prompt are applied after the argv allowlist (see below).
-        const requestedDefinition: AgentDefinitionSpec | undefined =
-          parsed.definition &&
-          typeof parsed.definition === "object" &&
-          typeof parsed.definition.name === "string"
-            ? parsed.definition
-            : undefined;
-        // Per-session Claude account: a saved profile whose credential store is
-        // exported into this launch's env, so the session runs on that account
-        // while the keychain login (and every other session) stays put.
-        // Validated by name shape here; a profile with no launch credential is
-        // logged and the launch falls back to the keychain (accountSourcePrefix).
-        // No account asked for = the launch profile when a token switch set
-        // one (the fleet runs there, not on the keychain), else the keychain.
-        const requestedAccount: string | undefined =
-          agentType === "claude"
-            ? typeof parsed.cc_account === "string" &&
-              /^[a-z0-9][a-z0-9._-]{0,40}$/i.test(parsed.cc_account)
-              ? parsed.cc_account
-              : undefined
-            : undefined;
-        // Per-session stable-context prefs from the new-session page. Same
-        // ride-along contract as model/effort: unknown values dropped here.
-        const stablePrefs: StableLaunchPrefs = {
-          ...(parsed.stable_mode === "team" ||
-          parsed.stable_mode === "solo" ||
-          parsed.stable_mode === "off"
-            ? { stable_mode: parsed.stable_mode }
-            : {}),
-          ...(Array.isArray(parsed.stable_exclude)
-            ? {
-                stable_exclude: parsed.stable_exclude.filter(
-                  (x: unknown): x is string =>
-                    typeof x === "string" && /^[a-z0-9-]+$/i.test(x),
-                ),
-              }
-            : {}),
-        };
-
-        // A blank-project start (quick-create) defaults to $HOME — fine on the
-        // user's own Mac, wrong on a remote box (the session would mislabel as
-        // /Users/<remote-user> and run outside any checkout). The local fleet
-        // serves these; a remote only runs starts that name a real project.
-        if (!parsed.project_path && isRemoteDevice()) {
-          log(
-            `[REMOTE] start_session: blank project on a remote device — staying silent`,
-          );
-          break;
-        }
-
-        // A conversation on the fenced execution rail (or quiescing onto it)
-        // gets its runtime exclusively from the execution coordinator. This
-        // legacy channel spawning one anyway would be a second, unmanaged
-        // runtime beside the coordinator's binding — the split-brain the fence
-        // exists to prevent. The gate re-checks at delivery time because a
-        // start_session enqueued BEFORE the fence transition can arrive after.
-        if (conversationId && syncServiceRef) {
-          const protocolState = (
-            await syncServiceRef
-              .getProjectInfo(conversationId)
-              .catch(() => null)
-          )?.execution_protocol_state;
-          startSteps.mark("projectInfo");
-          if (protocolState) {
-            log(
-              `start_session refused: conversation ${conversationId} is ${protocolState} — runtime is coordinator-owned`,
-            );
-            break;
-          }
-        }
-
-        // A cloud agent choice (a provider's cloud model key) runs on the
-        // provider's machines, not in a pane here: record it, and the first
-        // delivered message creates the agent.
-        const cloudStart = conversationId
-          ? await cloudAgents.start(
-              agentType,
-              conversationId,
-              parsed.project_path,
-              requestedModelKey,
-              parsed.prompt,
-            )
-          : null;
-        startSteps.mark("cloud");
-        if (cloudStart) {
-          if (cloudStart.error) error = cloudStart.error;
-          break;
-        }
-
-        const shortId = Math.random().toString(36).slice(2, 8);
-        // Deterministic name keyed by conversation_id so kill/restart is a single
-        // `tmux kill-session -t cc-<agent>-<convId>` with no lookup tables involved.
-        const convSuffix = conversationId ? conversationId.slice(-12) : shortId;
-        const tmuxSession = `cc-${agentType}-${convSuffix}`;
-
-        // Assign claude's session id up front. `claude --session-id <uuid>` writes
-        // its transcript to <uuid>.jsonl, so the daemon knows the JSONL path before
-        // the process starts — no filesystem/process discovery, no cwd-based
-        // matching, no hijack races. Reuse a caller-supplied id only if it's a real
-        // UUID (the conversation_id is not), otherwise mint one.
-        const assignedClaudeSessionId =
-          agentType === "claude"
-            ? expectedSessionId && CLAUDE_UUID_RE.test(expectedSessionId)
-              ? expectedSessionId
-              : randomUUID()
-            : undefined;
-
-        // Resolve a usable local cwd. If `rawPath` doesn't exist on this
-        // machine (conversation came from another host or was forked from
-        // someone else's session), look up a local checkout for the same
-        // git_remote_url. Refuse to start the session if no local checkout
-        // exists — silently falling back to $HOME hides the problem and
-        // makes the user's messages land in a totally wrong agent context.
-        let cwd: string;
-        const validatedRaw = validatePath(rawPath);
-        if (validatedRaw) {
-          cwd = validatedRaw;
-        } else if (conversationId && syncServiceRef) {
-          const projectInfo = await syncServiceRef
-            .getProjectInfo(conversationId)
-            .catch(() => null);
-          const recordedRoot = projectInfo?.git_root ?? null;
-          let resolved = await resolveLocalProjectPath({
-            projectPath: projectInfo?.project_path ?? rawPath,
-            gitRoot: recordedRoot,
-            gitRemoteUrl: projectInfo?.git_remote_url ?? null,
-            findCandidates: (url) =>
-              syncServiceRef!.findLocalCheckouts(url).catch(() => []),
-          });
-          // Fallback mirroring the resume path (resolveResumeCwd): when the
-          // git-remote lookup can't place the session — no remote recorded, or
-          // the remote string differs across machines (SSH vs HTTPS) so the
-          // exact-match candidate query misses — fall back to the
-          // user/learned/convention resolver. Key it on the REPO ROOT so its
-          // basename is the repo name (not a leaf subdir like "outreach"), then
-          // re-append the in-repo subpath. start_session lacked this step, so a
-          // foreign recorded path that resume could repair still refused here.
-          if (!resolved) {
-            // Seed with the recorded git_root only when rawPath lives under it
-            // (conventionSeed): a root stamped off an unrelated conversation
-            // that exists locally would otherwise win verbatim and launch the
-            // session in the wrong repo.
-            const rootSeed = conventionSeed(rawPath, recordedRoot);
-            const localRepoRoot = resolveLocalRepo(rootSeed);
-            if (localRepoRoot) {
-              const subpath =
-                rootSeed !== rawPath ? rawPath.slice(rootSeed.length) : "";
-              const full = subpath
-                ? path.join(localRepoRoot, subpath)
-                : localRepoRoot;
-              const placed = validatePath(full) ?? localRepoRoot;
-              resolved = {
-                path: placed,
-                remapped: true,
-                reason: `convention-resolved ${rawPath} → ${placed}`,
-              };
-            }
-          }
-          if (!resolved) {
-            // Don't clobber a session another device already owns. With device
-            // routing this daemon shouldn't even receive a start_session it can't
-            // run, but if it does (untargeted broadcast fallback), the machine
-            // that actually has the checkout wins — we stay silent rather than
-            // stamping a bogus "clone it first" banner over a live session.
-            const owner = await syncServiceRef
-              .getConversationOwner(conversationId)
-              .catch(() => null);
-            if (owner && owner !== deviceId()) {
-              log(
-                `[REMOTE] start_session: no local checkout, but ${String(conversationId).slice(0, 12)} is owned by ${owner.slice(0, 8)} — staying silent`,
-              );
-              break;
-            }
-            // The repo is the person's, and this is one of their machines:
-            // bring the checkout here rather than refuse. Clone it to the same
-            // place under home it holds on the machine the session was started
-            // for, else take the folder from another of their machines.
-            const clone = cloneDestination(
-              rawPath,
-              projectInfo,
-              process.env.HOME,
-            );
-            if (
-              clone &&
-              projectInfo?.git_remote_url &&
-              (await cloneCheckout(
-                projectInfo.git_remote_url,
-                clone.root,
-                "[START]",
-              ))
-            ) {
-              recordProjectMapping(path.basename(clone.root), clone.root);
-              const placed = validatePath(clone.cwd) ?? clone.root;
-              resolved = {
-                path: placed,
-                remapped: true,
-                reason: `cloned ${projectInfo.git_remote_url} → ${clone.root}`,
-              };
-            }
-            if (!resolved) {
-              const fetched = await fetchFolderFromPeers(
-                conversationId,
-                rawPath,
-              );
-              if (fetched)
-                resolved = {
-                  path: fetched,
-                  remapped: true,
-                  reason: `fetched ${rawPath} from another machine → ${fetched}`,
-                };
-            }
-            const creatable = resolved
-              ? null
-              : creatableStartFolder(rawPath, process.env.HOME, projectInfo);
-            if (creatable) {
-              try {
-                fs.mkdirSync(creatable, { recursive: true });
-                resolved = {
-                  path: creatable,
-                  remapped: false,
-                  reason: `created ${creatable}`,
-                };
-                log(`[REMOTE] start_session created folder ${creatable}`);
-              } catch (err) {
-                log(
-                  `[REMOTE] start_session could not create ${creatable}: ${err instanceof Error ? err.message : err}`,
-                );
-              }
-            }
-          }
-          if (!resolved) {
-            const remote = projectInfo?.git_remote_url ?? null;
-            // Unlike a background resume, a start always has a person waiting on
-            // its first message, so it never refuses in silence: with nothing to
-            // clone, the banner names the folder this machine lacks.
-            error = noLocalCheckoutBannerActionable({
-              remote,
-              recordedPath: rawPath,
-            })
-              ? noLocalCheckoutError(remote, rawPath)
-              : missingFolderError(rawPath);
-            log(`[REMOTE] start_session refused: ${error}`);
-            syncServiceRef
-              .setSessionError(conversationId, error)
-              .catch(() => {});
-            break;
-          }
-          cwd = resolved.path;
-          if (resolved.remapped) {
-            log(`[REMOTE] start_session remapped path: ${resolved.reason}`);
-          }
-        } else {
-          error = `Project path ${rawPath} doesn't exist`;
-          log(`[REMOTE] start_session refused: ${error}`);
-          break;
-        }
-
-        // Atomic pre-spawn claim: this daemon has resolved a runnable cwd, so now
-        // race for ownership BEFORE spawning. Targeted commands already own the
-        // conversation (no-op win). For a broadcast start_session (target couldn't
-        // be resolved → every daemon with the checkout reaches here), Convex
-        // serializes the claim so exactly one daemon wins; the losers skip,
-        // preventing a double-spawn across machines.
-        if (conversationId && syncServiceRef) {
-          startSteps.mark("cwd");
-          // The session's SessionStart hook renders its stable context from the
-          // cache with no network wait; read it now so this session's own org
-          // read and a fresh feed are there by the time the hook runs.
-          const stableOpts = stableLaunchOptions(
-            activeConfig ?? config,
-            cwd,
-            stablePrefs,
-            conversationId,
-          );
-          if (stableOpts) {
-            void (
-              agentType === "claude"
-                ? prepareLaunchStableContext(activeConfig ?? config, {
-                    ...stableOpts,
-                    session: conversationId,
-                  })
-                : refreshStableCache(activeConfig ?? config, stableOpts)
-            ).catch(() => {});
-          }
-          const claim =
-            await syncServiceRef.claimConversationForStart(conversationId);
-          startSteps.mark("claim");
-          if (!claim.won) {
-            log(
-              `[REMOTE] start_session: ${String(conversationId).slice(0, 12)} owned by ${claim.owner?.slice(0, 8) ?? "another live device"} — skipping spawn`,
-            );
-            break;
-          }
-          // A launch is the person's choice to see this session in codecast, so
-          // its transcript syncs even outside their selected folders. A folder
-          // they excluded outright never uploads: say so on the session rather
-          // than run an agent whose replies would never arrive.
-          let scopeRefusal = launchScopeRefusal(cwd, activeConfig ?? config);
-          // The folder may have been synced moments ago (the banner's Sync
-          // folder): read the person's lists fresh before refusing on them.
-          if (scopeRefusal && !scopeRefusal.startsWith("excluded path")) {
-            const fresh = await syncServiceRef
-              .getSyncSettings()
-              .catch(() => null);
-            if (fresh) {
-              applyServerSyncSettings(fresh);
-              scopeRefusal = launchScopeRefusal(cwd, activeConfig ?? config);
-            }
-          }
-          if (scopeRefusal) {
-            error = excludedFolderStartError(
-              cwd,
-              scopeRefusal.startsWith("excluded path"),
-            );
-            log(`[REMOTE] start_session refused: ${scopeRefusal}`);
-            syncServiceRef
-              .setSessionError(conversationId, error)
-              .catch(() => {});
-            break;
-          }
-          markLaunched({ conversationId, sessionId: assignedClaudeSessionId });
-        }
-
-        // One backend per conversation. A cross-agent reconfigure (Codex<->Claude)
-        // or a same-agent restart enqueues a fresh start_session; tear down whatever
-        // backend is currently bound BEFORE spawning so the prior agent's app-server
-        // thread or tmux can't keep answering in parallel (the split-brain that
-        // strands the first user turn and orphans a welcome-screen pane). This is
-        // agent-agnostic, so it also clears stale delivery/resume state for the
-        // Codex path, which previously only the tmux path did.
-        if (conversationId) {
-          const torn = await teardownConversationBackendsLive(conversationId, {
-            interruptActiveTurn: true,
-          });
-          startSteps.mark("teardown");
-          // Reset delivery/resume state only when a live backend was actually
-          // torn down (a real reconfigure/restart). A brand-new conversation
-          // (cast spawn) has nothing to tear down, and its FIRST message is
-          // typically already in flight waiting for this very start_session to
-          // register the tmux — wiping the in-flight/dedup state here let the
-          // subscription re-process that message and inject the briefing twice
-          // (ct-40212 incident, msg ns74720h).
-          if (torn.killedAppServer || torn.killedTmux || torn.killedSdk) {
-            await clearConversationDeliveryAndResumeState(
-              conversationId,
-              undefined,
-              "RECONFIG",
-            );
-          }
-        }
-
-        // Before any worktree is made, so a refused start leaves none behind.
-        if (agentType === "codex" && codexAppServerInstance?.binaryMissing) {
-          error =
-            "Codex is not installed. Install it from https://codex.openai.com then restart your daemon.";
-          if (conversationId) {
-            syncServiceRef
-              ?.setSessionError(conversationId, error)
-              .catch(() => {});
-          }
-          break;
-        }
-
-        let worktreeResult: WorktreeResult | null = null;
-
-        if (isolated && cwd) {
-          const gitRoot = (() => {
-            try {
-              return execSync("git rev-parse --show-toplevel", {
-                cwd,
-                encoding: "utf-8",
-                stdio: ["pipe", "pipe", "ignore"],
-              }).trim();
-            } catch {
-              return null;
-            }
-          })();
-          if (gitRoot) {
-            const wtName = worktreeName || `session-${shortId}`;
-            const made = await createWorktree(gitRoot, wtName);
-            // An isolated session never works in the main checkout: a line hand
-            // there edits and commits on the checkout's own branch. A worktree
-            // that cannot be made fails the start, and the run's station fails
-            // with why. A full disk also stops the machine taking line runs
-            // (diskFull.ts).
-            if ("error" in made) {
-              error =
-                diskFullFailReason(
-                  gitRoot,
-                  `could not make worktree ${wtName}: ${made.error}`,
-                ) ?? `could not make worktree ${wtName}: ${made.error}`;
-              log(`[WORKTREE] start refused: ${error}`);
-              if (conversationId)
-                syncServiceRef
-                  ?.setSessionError(conversationId, error)
-                  .catch(() => {});
-              break;
-            }
-            worktreeResult = made;
-            cwd = worktreeResult.worktreePath;
-            log(
-              `[WORKTREE] Created isolated worktree: ${worktreeResult.worktreeName} at ${cwd}`,
-            );
-          }
-        }
-
-        // `cast stable off` removes the Claude SessionStart hook, but the
-        // new-session picker can opt one session back into Team/Solo. Install
-        // the gated hook before spawning so its exported override is actually
-        // consumed. Idempotent for machines already configured for stable mode.
-        ensureStableHookForLaunch(agentType, config.stable_mode, stablePrefs);
-
-        // Binary is a registry lookup; the per-client arg construction lives in
-        // launchCommand.ts (buildLaunchArgs, unit-tested per client). The daemon
-        // keeps the impure pieces: reading the config accessor + flag helpers, the
-        // one-time codex-bypass notification, and the arg sanitizer.
-        const binary = launchBinary(agentType, { warn: log });
-        // A start carries a picker key ("opus") or a stored model id ("claude-opus-5-5"); both name one option.
-        const requestedModelOpt = requestedModelKey
-          ? (findModelOption(agentType, requestedModelKey) ??
-            findModelOption(
-              agentType,
-              modelOptionKey(requestedModelKey, agentType),
-            ))
-          : undefined;
-        const { binaryArgs: rawLaunchArgs, notifyCodexBypass } =
-          buildLaunchArgs({
-            agentType,
-            configuredArgs: getConfiguredAgentArgs(agentType, config),
-            permFlags: getPermissionFlags(agentType, config),
-            defaultFlags: getDefaultParamFlags(
-              agentType as AgentClientId,
-              config,
-            ),
-            modelAlias: requestedModelOpt?.cliAlias,
-            requestedEffort,
-            assignedClaudeSessionId,
-            hasCodexPermissionMode: !!config.agent_permission_modes?.codex,
-          });
-        if (notifyCodexBypass) {
-          const flagFile = path.join(CONFIG_DIR, ".codex-bypass-notified");
-          if (!fs.existsSync(flagFile)) {
-            fs.writeFileSync(flagFile, new Date().toISOString());
-            if (conversationId) {
-              syncServiceRef
-                ?.createSessionNotification({
-                  conversation_id: conversationId,
-                  type: "info" as any,
-                  title: "Codex running in full-access mode",
-                  message:
-                    "Codex is running without permission prompts by default. Configure with: cast config codex_args",
-                })
-                .catch(() => {});
-            }
-          }
-        }
-        let binaryArgs = sanitizeBinaryArgs(rawLaunchArgs);
-        // Export the per-session stable-context choice (and the conversation id,
-        // so the SessionStart hook records against it directly with no lookup
-        // race). Values are validated above / Convex ids — shell-safe tokens.
-        const stableEnvVars: Record<string, string> = {
-          ...(stablePrefs.stable_mode
-            ? { [STABLE_ENV_MODE]: stablePrefs.stable_mode }
-            : {}),
-          ...(stablePrefs.stable_exclude?.length
-            ? { [STABLE_ENV_EXCLUDE]: stablePrefs.stable_exclude.join(",") }
-            : {}),
-          ...(conversationId && /^[a-z0-9]+$/i.test(conversationId)
-            ? { [STABLE_ENV_CONVERSATION_ID]: conversationId }
-            : {}),
-        };
-        const stableEnvParts = Object.entries(stableEnvVars).map(
-          ([k, v]) => `${k}=${v}`,
-        );
-        const stableEnv = stableEnvParts.length
-          ? ` ${stableEnvParts.join(" ")}`
-          : "";
-        // PORT_<NAME> and the worktree identity from the workspace state, for
-        // any cwd inside a codecast worktree — the ones this daemon made
-        // (--isolated) and the ones `cast spawn --cloud` acquired on this host
-        // before placing the session here. A session can then bind the port it
-        // was allocated (vite --port "$PORT_WEB") instead of guessing from the
-        // index. Same shell-safe token rule as the stable env above.
-        // On the host, plus the laptop's forwarded ssh-agent while a bridge
-        // is up (cloud/agentBridge.ts) — "" everywhere else.
-        const wtEnvRaw = [worktreeEnvPrefix(cwd), hostAgentSocketEnv()]
-          .filter(Boolean)
-          .join(" ");
-        const wtEnv = wtEnvRaw ? ` ${wtEnvRaw}` : "";
-        // Which launch this pane is running (ct-49532): recorded before the
-        // command is built, so a hook post from the process that occupied this
-        // pane before now carries a superseded token and is dropped.
-        const launchToken = launchTokenLedger().issue(
-          tmuxSession,
-          assignedClaudeSessionId || undefined,
-        );
-        const launchTokenEnvPart = launchTokenEnv(launchToken);
-        // A shell's CLAUDE_CODE_EFFORT_LEVEL would beat the --effort this launch passes.
-        const launchScrub = binaryArgs.includes("--effort")
-          ? agentEnvScrub(undefined, { effortSet: true })
-          : AGENT_ENV_SCRUB;
-        const envPrefix = worktreeResult
-          ? `${launchScrub}${launchTokenEnvPart} AGENT_RESOURCE_INDEX=${worktreeResult.portIndex}${wtEnv}${stableEnv}`
-          : `${launchScrub}${launchTokenEnvPart}${wtEnv}${stableEnv}`;
-        // Managed provider keys (opencode/pi) are sourced from a 0600 file so the
-        // key never lands in `ps`/the pane; "" when nothing is managed (pl-207).
-        const keyPrefix = providerKeySourcePrefix(agentType, CONFIG_DIR);
-        // Same file-not-argv rule for the per-session Claude account store.
-        // An empty prefix means the account did not resolve to a launch file and
-        // the launch falls back to the keychain login — which the OAuth refresh
-        // gate must then treat as held. Attribute what runs, not what was asked.
-        const { prefix: accountPrefix, account: launchedAccount } =
-          agentType === "claude"
-            ? launchAccountPrefix(requestedAccount, log)
-            : { prefix: "", account: undefined };
-        // Launch through the disclaim wrapper so the agent is TCC
-        // self-responsible: privacy prompts name the agent (its own signed
-        // identity), not codecast/bun (see disclaim.ts). The wrapper execs
-        // plain argv, which works here because envPrefix starts with `env`.
-        let cmdText = `${accountPrefix}${keyPrefix}${disclaimPrefix()}${envPrefix} ${[binary, ...binaryArgs].join(" ")}`;
-        if (
-          agentType === "antigravity" &&
-          cwd &&
-          (
-            await import("./antigravityLocal.js")
-          ).ensureAntigravityFolderTrusted(cwd)
-        ) {
-          // Same reason as grok below: agy's first-launch trust dialog comes
-          // before any transcript, so the session could never bind behind it.
-          log(`antigravity folder trust granted for ${cwd}`);
-        }
-        if (agentType === "grok") {
-          // Pre-trust the cwd so grok does not park on the first-launch folder
-          // dialog. The pane classifier still answers `y` if the dialog appears.
-          if (cwd && ensureGrokFolderTrusted(cwd)) {
-            log(`grok folder trust granted for ${cwd}`);
-          }
-          // The feed rides `--rules` (grok has no hook channel for context); the
-          // fragment is a shell substitution, so it is appended to the typed
-          // command after the argv allowlist, never passed through it.
-          try {
-            const rulesFile = await writeGrokStableRulesFile(
-              config,
-              cwd,
-              stablePrefs,
-              conversationId || `launch-${Date.now()}`,
-              conversationId,
-            );
-            cmdText += grokStableRulesFragment(rulesFile);
-          } catch (err) {
-            log(
-              `grok stable rules skipped: ${err instanceof Error ? err.message : String(err)}`,
-              "warn",
-            );
-          }
-        }
-        if (requestedDefinition) {
-          // Tool flags are shell-escaped (deny rules carry parens and `*`) and
-          // the prompt rides a 0600 file through `$(cat …)`, both appended
-          // after the allowlist exactly like grok's rules fragment.
-          // Loaded inside the one command that launches from a definition (boot graph guard).
-          const { definitionLaunchFragment } = await import("./agentLaunch.js");
-          const frag = definitionLaunchFragment(
-            requestedDefinition,
-            agentType,
-            {
-              dir: path.join(CONFIG_DIR, "agent-prompts"),
-              key: conversationId || `launch-${Date.now()}`,
-              escape: shellEscapeForSh,
-            },
-          );
-          cmdText += frag.fragment;
-          if (frag.warning)
-            log(
-              `[definition ${requestedDefinition.name}] ${frag.warning}`,
-              "warn",
-            );
-        }
-
-        let codexThreadId: string | null = null;
-        const codexPermissions = codexPermissionsFromArgs(binaryArgs);
-        const codexApprovalPolicy = codexPermissions.approvalPolicy;
-        const activeCodexAppServer =
-          agentType === "codex"
-            ? await readyCodexAppServer().catch((err) => {
-                log(
-                  `[codex-app-server] login refresh before session start failed: ${err instanceof Error ? err.message : String(err)}`,
-                );
-                return null;
-              })
-            : null;
-        if (agentType === "codex" && activeCodexAppServer) {
-          try {
-            const sandbox = codexPermissions.sandbox;
-            const builtContext = await buildCodexStableContext(
-              config,
-              cwd,
-              stablePrefs,
-              conversationId || undefined,
-            );
-            const resp = await startCodexThreadThenRecordStableContext(
-              () =>
-                activeCodexAppServer.threadStart({
-                  cwd,
-                  sandbox,
-                  approvalPolicy: codexApprovalPolicy,
-                  ...(builtContext
-                    ? { developerInstructions: builtContext.text }
-                    : {}),
-                  ...(requestedModelOpt?.cliAlias
-                    ? { model: requestedModelOpt.cliAlias }
-                    : {}),
-                  ...(requestedEffort &&
-                  (CODEX_EFFORT_LEVELS as readonly string[]).includes(
-                    requestedEffort,
-                  )
-                    ? { config: { model_reasoning_effort: requestedEffort } }
-                    : {}),
-                }),
-              builtContext && conversationId
-                ? () => {
-                    void recordStableContext(config, {
-                      conversation_id: conversationId,
-                      data: builtContext.data,
-                    });
-                  }
-                : undefined,
-            );
-            codexThreadId = resp.thread.id;
-            log(
-              `[codex-app-server] pre-created thread ${codexThreadId.slice(0, 8)} (approvalPolicy=${codexApprovalPolicy})`,
-            );
-          } catch (err) {
-            log(
-              `[codex-app-server] thread pre-create failed, falling back: ${err instanceof Error ? err.message : String(err)}`,
-            );
-          }
-        }
-
-        if (agentType === "codex" && codexThreadId) {
-          const resultObj: Record<string, any> = {
-            agent_type: agentType,
-            project_path: cwd,
-            app_server_thread_id: codexThreadId,
-          };
-          if (worktreeResult) {
-            resultObj.worktree_name = worktreeResult.worktreeName;
-            resultObj.worktree_branch = worktreeResult.worktreeBranch;
-            resultObj.worktree_path = worktreeResult.worktreePath;
-            resultObj.port_index = worktreeResult.portIndex;
-          }
-          result = JSON.stringify(resultObj);
-          log(
-            `[REMOTE] Started ${agentType} session via app-server: ${codexThreadId.slice(0, 8)} (cwd: ${cwd})`,
-          );
-          if (conversationId) {
-            const initialManagedSessionId = getInitialManagedSessionId(
-              agentType,
-              expectedSessionId,
-              codexThreadId,
-            );
-            registerAppServerConversation(conversationId, codexThreadId, {
-              cwd,
-              approvalPolicy: codexApprovalPolicy,
-              sandbox: codexPermissions.sandbox,
-              persist: true,
-            });
-            // This device now owns and runs the session — claim it and clear any
-            // stale "clone it first" error a different device may have left.
-            syncServiceRef
-              ?.claimSession(conversationId)
-              .catch(logConvexFailure);
-            if (initialManagedSessionId && syncServiceRef) {
-              syncServiceRef
-                .markSessionActive(conversationId)
-                .catch(logConvexFailure);
-              syncServiceRef
-                .registerManagedSession(
-                  initialManagedSessionId,
-                  process.pid,
-                  undefined,
-                  conversationId,
-                )
-                .catch(logConvexFailure);
-              syncServiceRef
-                .updateSessionAgentStatus(conversationId, "connected")
-                .catch(logConvexFailure);
-              ensureManagedSessionHeartbeat(initialManagedSessionId);
-            }
-            log(
-              `[codex-app-server] registered conv=${conversationId.slice(0, 12)} -> thread=${codexThreadId.slice(0, 8)}`,
-            );
-          }
-          break;
-        }
-
-        // A Claude session on the SDK backend runs in a host process instead of
-        // a pane. Everything above (cwd, worktree, launch argv, account, stable
-        // context, launch token) is the same launch; only the transport differs.
-        // A refusal or a host that does not come up starts the tmux session below.
-        if (
-          agentType === "claude" &&
-          conversationId &&
-          assignedClaudeSessionId &&
-          claudeSdkBackend &&
-          chooseClaudeBackend(
-            parsed.backend,
-            process.env,
-            (activeConfig ?? config).claude_backend,
-          ) === "sdk"
-        ) {
-          startSteps.mark("prep");
-          const refusal = await sdkBackendRefusal(binary);
-          startSteps.mark("version");
-          if (refusal) {
-            log(
-              `[claude-sdk] ${conversationId.slice(0, 12)} starts in tmux: ${refusal}`,
-              "warn",
-            );
-          } else {
-            try {
-              // A start replaces whatever host ran the conversation, on purpose.
-              turnClaims().releaseConversation(conversationId);
-              await startClaudeSdkSession({
-                conversationId,
-                sessionId: assignedClaudeSessionId,
-                cwd,
-                binary,
-                binaryArgs,
-                definition: requestedDefinition,
-                portIndex: worktreeResult?.portIndex,
-                stableEnvVars,
-                launchToken,
-                account: requestedAccount,
-                steps: startSteps,
-              });
-              const resultObj: Record<string, any> = {
-                sdk_session: assignedClaudeSessionId,
-                agent_type: agentType,
-                project_path: cwd,
-              };
-              if (worktreeResult) {
-                resultObj.worktree_name = worktreeResult.worktreeName;
-                resultObj.worktree_branch = worktreeResult.worktreeBranch;
-                resultObj.worktree_path = worktreeResult.worktreePath;
-                resultObj.port_index = worktreeResult.portIndex;
-              }
-              result = JSON.stringify(resultObj);
-              startSteps.mark("host");
-              log(
-                `[REMOTE] Started claude session ${assignedClaudeSessionId.slice(0, 8)} on the SDK backend (cwd: ${cwd}) [START-TIMING] ${startSteps.summary()}`,
-              );
-              touchHostActivity();
-              break;
-            } catch (err) {
-              log(
-                `[claude-sdk] host for ${conversationId.slice(0, 12)} did not start, starting tmux instead: ${err instanceof Error ? err.message : String(err)}`,
-                "warn",
-              );
-              turnClaims().releaseConversation(conversationId);
-              await claudeSdkBackend
-                .stop(conversationId, { forget: true })
-                .catch(() => {});
-            }
-          }
-        }
-
-        if (!hasTmux()) {
-          error = "tmux is not installed";
-          break;
-        }
-
-        // A message already waiting for this conversation (a spawn's brief)
-        // rides the launch command as claude's prompt argument. Pasted into
-        // the composer it would reach the model wrapped as third party text,
-        // which a fresh worker may decline to act on (launchPrompt.ts).
-        const launchPrompt =
-          agentType === "claude" && conversationId
-            ? await waitingLaunchPrompt(conversationId)
-            : null;
-        if (launchPrompt) cmdText += launchPrompt.fragment;
-
-        try {
-          // Kill-before-create makes start_session idempotent: clicking the folder
-          // switcher repeatedly just keeps respawning into the latest cwd.
-          if (conversationId) {
-            // Belt-and-suspenders: also kill an untracked tmux that happens to use
-            // this agent's deterministic name. The teardown above already handled
-            // the tracked backend, started-session registry, and delivery state.
-            try {
-              await tmuxExec(["kill-session", "-t", tmuxSession]);
-            } catch {}
-          }
-          await tmuxExec(
-            [
-              "new-session",
-              "-d",
-              ...TMUX_SIZE_ARGS,
-              "-s",
-              tmuxSession,
-              "-c",
-              cwd,
-            ],
-            { timeout: 5000 },
-          );
-          // Tag the tmux so warm-restart can rebuild startedSessionTmux from `tmux ls`.
-          if (conversationId) {
-            await setTmuxSessionOption(
-              tmuxSession,
-              "@codecast_conversation_id",
-              conversationId,
-            ).catch(() => {});
-          }
-          await setTmuxSessionOption(
-            tmuxSession,
-            "@codecast_agent_type",
-            agentType,
-          ).catch(() => {});
-          await setTmuxSessionOption(
-            tmuxSession,
-            "@codecast_project_path",
-            cwd,
-          ).catch(() => {});
-          if (agentType === "claude") {
-            // The OAuth refresh gate: this pane holds the machine's active
-            // credential unless it was pinned to a dormant profile's store. The
-            // stamp carries the same account name accountSourcePrefix exports as
-            // CODECAST_CC_ACCOUNT, so the gate survives a daemon restart even for
-            // panes started by an older build (ct-49526).
-            if (launchedAccount) {
-              await setTmuxSessionOption(
-                tmuxSession,
-                "@codecast_cc_account",
-                launchedAccount,
-              ).catch(() => {});
-            }
-            markClaudeSessionLive(tmuxSession, launchedAccount);
-          }
-          await stampCodexPaneAccount(agentType, tmuxSession, conversationId);
-          if (launchPrompt && conversationId && assignedClaudeSessionId) {
-            carryLaunchPrompt(
-              launchPrompt.messageId,
-              {
-                conversationId,
-                tmuxSession,
-                projectPath: cwd,
-                sessionId: assignedClaudeSessionId,
-                transcript: path.join(
-                  process.env.HOME || "",
-                  ".claude",
-                  "projects",
-                  claudeProjectDirName(cwd),
-                  `${assignedClaudeSessionId}.jsonl`,
-                ),
-              },
-              launchPrompt.text,
-            );
-          }
-          await typeIntoPane(tmuxSession, cmdText);
-          const resultObj: Record<string, any> = {
-            tmux_session: tmuxSession,
-            agent_type: agentType,
-            project_path: cwd,
-          };
-          if (worktreeResult) {
-            resultObj.worktree_name = worktreeResult.worktreeName;
-            resultObj.worktree_branch = worktreeResult.worktreeBranch;
-            resultObj.worktree_path = worktreeResult.worktreePath;
-            resultObj.port_index = worktreeResult.portIndex;
-          }
-          result = JSON.stringify(resultObj);
-          log(
-            `[REMOTE] Started ${agentType} session in tmux: ${tmuxSession} (cwd: ${cwd})`,
-          );
-          touchHostActivity();
-          if (conversationId) {
-            const initialManagedSessionId =
-              assignedClaudeSessionId ??
-              getInitialManagedSessionId(agentType, expectedSessionId);
-            startedSessionTmux.set(conversationId, {
-              tmuxSession,
-              projectPath: cwd,
-              startedAt: Date.now(),
-              agentType,
-              sessionId: initialManagedSessionId,
-              worktreeName: worktreeResult?.worktreeName,
-              worktreeBranch: worktreeResult?.worktreeBranch,
-              worktreePath: worktreeResult?.worktreePath,
-            });
-            log(
-              `[REMOTE] Registered started session tmux for conversation ${conversationId.slice(0, 12)}`,
-            );
-            // This device now owns and runs the session — claim it and clear any
-            // stale "clone it first" error a different device may have left.
-            syncServiceRef
-              ?.claimSession(conversationId)
-              .catch(logConvexFailure);
-            if (initialManagedSessionId) {
-              registerManagedStartedSession(
-                conversationId,
-                initialManagedSessionId,
-                tmuxSession,
-              );
-            }
-            if (agentType === "claude") {
-              // `--session-id <uuid>` makes the JSONL deterministically named and
-              // ensures it lands in THIS conversation's tmux, so discovery
-              // tmux-exact-matches it (no cwd-fallback hijack) and the server's
-              // session_id already equals the uuid (no mismatch/overwrite). We do
-              // NOT pre-register conversationCache here: that would let
-              // deliverMessage resolve sessionId immediately and skip the
-              // readiness-gated started-tmux path, injecting the first message
-              // into a still-booting prompt. Let discovery/the watcher link it.
-              discoverAndLinkSession(conversationId, tmuxSession, cwd).catch(
-                (err) => {
-                  log(
-                    `Session discovery failed for ${conversationId.slice(0, 12)}: ${err}`,
-                  );
-                },
-              );
-            }
-          }
-        } catch (spawnErr) {
-          error = `Failed to start session: ${spawnErr instanceof Error ? spawnErr.message : String(spawnErr)}`;
-          log(`[REMOTE] start_session error: ${error}`);
-        }
-        break;
-      }
-      case "escape": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId = parsed.conversation_id;
-        if (!conversationId) {
-          error = "Missing conversation_id";
-          break;
-        }
-        // The web forwards every press and shows the interruption line at once;
-        // this handler holds the facts (see escapeInterrupt.ts) and decides.
-        const pressedAt =
-          typeof parsed.pressed_at === "number" ? parsed.pressed_at : null;
-        const lastInjectedAt = latestInjectionTsFor(conversationId);
-        // A "stop and send" (release_queued) left its message queued for the
-        // end of the turn the Escape stops. When there is no turn to stop, no
-        // settle will come to release it, so it goes now. A turn a newer
-        // message started keeps the row queued behind it.
-        const releaseStopAndSend = (): void => {
-          if (parsed.release_queued)
-            void syncServiceRef
-              ?.releaseQueued(conversationId)
-              .catch(logConvexFailure);
-        };
-        const skipEscape = (
-          verdict: { action: "skip"; reason: string },
-          where: string,
-        ): void => {
-          if (verdict.reason !== "message_injected_after_press")
-            releaseStopAndSend();
-          result = `escape_${verdict.reason}`;
-          log(
-            `[REMOTE] Escape skipped for ${conversationId.slice(0, 12)} (${where}): ${verdict.reason}${pressedAt ? ` pressed ${Date.now() - pressedAt}ms ago` : ""}${lastInjectedAt ? `, last injection ${Date.now() - lastInjectedAt}ms ago` : ""}`,
-          );
-        };
-
-        // A Claude SDK session: a real interrupt, answered once the turn has drained.
-        if (claudeSdkBackend?.owns(conversationId)) {
-          // The interrupt is sent now; its drain runs off the command queue, so a long turn's
-          // wind-down never holds the commands queued behind this one. A stop-and-send message
-          // is released once the turn has drained.
-          if (!claudeSdkBackend.isRunning(conversationId)) {
-            result = "escape_no_active_turn";
-            releaseStopAndSend();
-            break;
-          }
-          result = "escape_sent";
-          void claudeSdkBackend
-            .interrupt(conversationId)
-            .catch((err) =>
-              log(
-                `[claude-sdk] interrupt failed for ${conversationId.slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`,
-              ),
-            )
-            .finally(releaseStopAndSend);
-          break;
-        }
-
-        // A cloud agent: Escape cancels its running turn.
-        try {
-          const cloudEscape = await cloudAgents.interrupt(conversationId);
-          if (cloudEscape) {
-            result =
-              cloudEscape === "sent" ? "escape_sent" : "escape_no_active_turn";
-            if (cloudEscape !== "sent") releaseStopAndSend();
-            break;
-          }
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-          break;
-        }
-
-        const escapeThreadId =
-          appServerConversations.get(conversationId) ??
-          persistedAppServerThreads.get(conversationId)?.threadId;
-        if (escapeThreadId) {
-          const activeTurnId = findActiveTurnForThread(escapeThreadId);
-          const persisted = persistedAppServerThreads.get(conversationId);
-          if (persisted?.activeTurnId) {
-            persistedAppServerThreads.set(
-              conversationId,
-              settledCodexRecord(persisted, persisted.activeTurnId),
-            );
-            persistAppServerThreadRegistrations();
-          }
-          // turn/start is the app-server's injection; its mark is this daemon's clock.
-          const turnStartedAt = turnStartedAtFor(escapeThreadId);
-          const verdict = decideEscape({
-            pressedAt,
-            now: Date.now(),
-            lastInjectedAt:
-              Math.max(lastInjectedAt ?? 0, turnStartedAt ?? 0) || null,
-            turnActive: !!activeTurnId && !!codexAppServerInstance?.running,
-          });
-          if (verdict.action === "skip") {
-            skipEscape(
-              verdict,
-              `app-server thread ${escapeThreadId.slice(0, 8)}`,
-            );
-            break;
-          }
-          await codexAppServerInstance!.turnInterrupt(
-            escapeThreadId,
-            activeTurnId!,
-          );
-          result = "escape_interrupted";
-          log(
-            `[REMOTE] Interrupted app-server turn ${activeTurnId!.slice(0, 8)} on thread ${escapeThreadId.slice(0, 8)}`,
-          );
-          break;
-        }
-
-        const sessionId = await resolveCommandSessionId(conversationId);
-        if (!sessionId) {
-          releaseStopAndSend();
-          error = `No session found for conversation ${conversationId}`;
-          break;
-        }
-        const agentType = detectSessionAgentType(sessionId);
-        const { tmuxTarget, proc } = await resolveSessionCommandPane(
-          conversationId,
-          sessionId,
-          agentType,
-        );
-        if (!tmuxTarget && !proc) {
-          releaseStopAndSend();
-          error = `No running process for session ${sessionId.slice(0, 8)}`;
-          break;
-        }
-        const hookStatus = lastHookStatus.get(sessionId)?.status;
-        let paneState: TmuxLiveState | null = null;
-        if (tmuxTarget) {
-          try {
-            ({ state: paneState } = await captureTmuxLiveState(
-              tmuxTarget,
-              glyphlessPromptPattern(agentType),
-              25,
-            ));
-          } catch (captureErr) {
-            log(
-              `[REMOTE] Escape: could not read pane ${tmuxTarget} (${captureErr instanceof Error ? captureErr.message : String(captureErr)}); judging by hook status ${hookStatus ?? "unknown"}`,
-            );
-          }
-        }
-        const verdict = decideEscape({
-          pressedAt,
-          now: Date.now(),
-          lastInjectedAt,
-          turnActive: turnLooksActive(hookStatus, paneState),
-        });
-        if (verdict.action === "skip") {
-          skipEscape(
-            verdict,
-            `session ${sessionId.slice(0, 8)} pane=${paneState ?? "none"} hook=${hookStatus ?? "unknown"}`,
-          );
-          break;
-        }
-        if (tmuxTarget) {
-          await tmuxExec(["send-keys", "-t", tmuxTarget, "Escape", "Escape"]);
-          observeSessionInput(sessionId, { kind: "escape" });
-          result = "escape_sent";
-          log(
-            `[REMOTE] Sent double Escape to session ${sessionId.slice(0, 8)} via tmux ${tmuxTarget} (pane=${paneState ?? "unread"} hook=${hookStatus ?? "unknown"})`,
-          );
-        } else {
-          // A SIGINT reaching claude at its prompt EXITS the process (observed
-          // 2026-08-28: pid 41092 died on an escape sent to an idle session), so
-          // the no-pane path only runs once the hook status proves a turn.
-          try {
-            process.kill(proc!.pid, "SIGINT");
-            observeSessionInput(sessionId, { kind: "ctrl-c" });
-            result = "escape_sent_sigint";
-            log(
-              `[REMOTE] Sent SIGINT to session ${sessionId.slice(0, 8)} pid=${proc!.pid}`,
-            );
-          } catch (killErr) {
-            error = `Failed to send SIGINT to pid ${proc!.pid}: ${killErr}`;
-          }
-        }
-        break;
-      }
-      case "rewind": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId = parsed.conversation_id;
-        const stepsBack = parsed.steps_back;
-        if (!conversationId || stepsBack === undefined || stepsBack < 1) {
-          error = "Missing conversation_id or invalid steps_back";
-          break;
-        }
-        const cache = readConversationCache();
-        const reverse = buildReverseConversationCache(cache);
-        const sessionId = reverse[conversationId];
-        if (!sessionId) {
-          error = `No session found for conversation ${conversationId}`;
-          break;
-        }
-        const agentType = detectSessionAgentType(sessionId);
-        if (agentType !== "claude") {
-          error = `Rewind not yet supported for ${agentType} sessions`;
-          break;
-        }
-        const { tmuxTarget, proc } = await resolveSessionCommandPane(
-          conversationId,
-          sessionId,
-          agentType,
-        );
-        if (!proc && !tmuxTarget) {
-          error = `No running process for session ${sessionId.slice(0, 8)}`;
-          break;
-        }
-        if (!tmuxTarget) {
-          error = `No tmux pane found for session ${sessionId.slice(0, 8)}`;
-          break;
-        }
-
-        const safeSteps = Math.min(
-          Math.max(1, Math.floor(Number(stepsBack))),
-          50,
-        );
-
-        const PROMPT_RE = /[❯›]/;
-        const BUSY_RE =
-          /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏|Wandering|Vibing|Coasting|Working|thinking/;
-        const NAVIGATOR_RE = /Enter to continue/;
-        const RESTORE_RE = /Restore conversation/;
-
-        const captureLast = async (): Promise<string> => {
-          const { stdout } = await tmuxExec([
-            "capture-pane",
-            "-p",
-            "-J",
-            "-t",
-            tmuxTarget,
-            "-S",
-            "-8",
-          ]);
-          return stdout.split("\n").slice(-15).join("\n");
-        };
-
-        const isAtPrompt = async (): Promise<boolean> => {
-          const last = await captureLast();
-          return PROMPT_RE.test(last) && !BUSY_RE.test(last);
-        };
-
-        const waitFor = async (
-          test: (text: string) => boolean,
-          label: string,
-          maxWait = 10000,
-        ): Promise<boolean> => {
-          const start = Date.now();
-          while (Date.now() - start < maxWait) {
-            const last = await captureLast();
-            if (test(last)) return true;
-            await new Promise((r) => setTimeout(r, 300));
-          }
-          log(`[REWIND] Timed out waiting for: ${label}`);
-          return false;
-        };
-
-        // Step 1: Get to idle prompt (double Escape to interrupt if busy)
-        if (!(await isAtPrompt())) {
-          log(
-            `[REWIND] Session not at prompt, sending double Escape to interrupt`,
-          );
-          await tmuxExec(["send-keys", "-t", tmuxTarget, "Escape", "Escape"]);
-          const gotPrompt = await waitFor(
-            (text) => PROMPT_RE.test(text) && !BUSY_RE.test(text),
-            "prompt after interrupt",
-            30000,
-          );
-          if (!gotPrompt) {
-            error = "Timed out waiting for prompt after interrupt";
-            break;
-          }
-          log(`[REWIND] Got prompt after interrupt`);
-        }
-
-        // Step 2: Clear any existing text (double Escape clears in CC)
-        log(`[REWIND] Clearing prompt with double Escape`);
-        await tmuxExec(["send-keys", "-t", tmuxTarget, "Escape", "Escape"]);
-        await new Promise((r) => setTimeout(r, 300));
-
-        // Step 3: Navigate history with Up arrows
-        // First Up opens the visual navigator, subsequent Ups move back
-        log(`[REWIND] Sending ${safeSteps} Up arrows to open navigator`);
-        const upKeys = Array.from({ length: safeSteps }, () => "Up");
-        await tmuxExec(["send-keys", "-t", tmuxTarget, ...upKeys]);
-
-        // Step 4: Verify navigator opened
-        const navigatorOpened = await waitFor(
-          (text) => NAVIGATOR_RE.test(text),
-          "navigator to open",
-        );
-        if (!navigatorOpened) {
-          log(`[REWIND] Navigator did not open after ${safeSteps} Up arrows`);
-          error = `No message found at history position ${safeSteps}`;
-          break;
-        }
-
-        // Step 5: Select message in navigator (first Enter)
-        log(`[REWIND] Selecting message in navigator`);
-        await tmuxExec(["send-keys", "-t", tmuxTarget, "Enter"]);
-
-        // Step 6: Confirm "Restore conversation" (second Enter)
-        const atRestore = await waitFor(
-          (text) => RESTORE_RE.test(text),
-          "restore confirmation",
-        );
-        if (atRestore) {
-          log(`[REWIND] Confirming restore`);
-          await tmuxExec(["send-keys", "-t", tmuxTarget, "Enter"]);
-        } else {
-          log(`[REWIND] No restore confirmation shown, sending Enter anyway`);
-          await tmuxExec(["send-keys", "-t", tmuxTarget, "Enter"]);
-        }
-
-        // Wait for forked session prompt with the rewound message pre-filled
-        // Don't submit — let the user review/edit the message in the web UI
-        await waitFor(
-          (text) => PROMPT_RE.test(text) && !BUSY_RE.test(text),
-          "prompt with rewound message",
-          15000,
-        );
-
-        result = "rewind_sent";
-        log(
-          `[REWIND] Rewind ${stepsBack} steps sent to session ${sessionId.slice(0, 8)}`,
-        );
-        break;
-      }
-      case "send_keys": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId = parsed.conversation_id;
-        const keys = parsed.keys;
-        if (!conversationId || !keys) {
-          error = "Missing conversation_id or keys";
-          break;
-        }
-        const ALLOWED_KEYS = new Set([
-          "BTab",
-          "Escape",
-          "Enter",
-          "Tab",
-          "Up",
-          "Down",
-          "Left",
-          "Right",
-          "Space",
-          "BSpace",
-        ]);
-        const keyList = keys.split(" ");
-        const invalidKey = keyList.find((k: string) => !ALLOWED_KEYS.has(k));
-        if (invalidKey) {
-          error = `Key '${invalidKey}' not in allowlist`;
-          break;
-        }
-        const sessionId = await resolveCommandSessionId(conversationId);
-        if (!sessionId) {
-          error = `No session found for conversation ${conversationId}`;
-          break;
-        }
-        const { tmuxTarget, proc } = await resolveSessionCommandPane(
-          conversationId,
-          sessionId,
-          detectSessionAgentType(sessionId),
-        );
-        if (!proc && !tmuxTarget) {
-          error = `No running process for session ${sessionId.slice(0, 8)}`;
-          break;
-        }
-        if (tmuxTarget) {
-          const groups: string[][] = [];
-          for (const k of keyList) {
-            if (
-              k === "Escape" ||
-              k === "Enter" ||
-              (groups.length > 0 && k !== groups[groups.length - 1][0])
-            ) {
-              groups.push([k]);
-            } else if (groups.length === 0) {
-              groups.push([k]);
-            } else {
-              groups[groups.length - 1].push(k);
-            }
-          }
-          for (let i = 0; i < groups.length; i++) {
-            if (i > 0) {
-              const prevKey = groups[i - 1][0];
-              const needsDelay = prevKey === "Escape" || prevKey === "Enter";
-              await new Promise((r) => setTimeout(r, needsDelay ? 600 : 150));
-            }
-            await tmuxExec(["send-keys", "-t", tmuxTarget, ...groups[i]]);
-          }
-          result = "keys_sent";
-          log(
-            `[REMOTE] Sent ${keys} (${groups.length} groups) to session ${sessionId.slice(0, 8)} via tmux ${tmuxTarget}`,
-          );
-        } else {
-          error = `No tmux pane found for session ${sessionId.slice(0, 8)}`;
-        }
-        break;
-      }
-      // Shift+tab through Claude Code's permission modes and read back where
-      // it landed (stepPermissionMode). With `target`, press until the footer
-      // names that mode. The observed mode is published like a hook post, so
-      // the web's pill moves within the second instead of at the next turn.
-      case "set_permission_mode": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId = parsed.conversation_id;
-        const target =
-          typeof parsed.target === "string" ? parsed.target : undefined;
-        if (!conversationId) {
-          error = "Missing conversation_id";
-          break;
-        }
-        if (target && !PERMISSION_MODES.has(target)) {
-          error = `Unknown permission mode '${target}'`;
-          break;
-        }
-        // A Claude SDK session changes mode through its host: no footer to press.
-        if (claudeSdkBackend?.owns(conversationId)) {
-          const current = claudeSdkBackend.permissionModeFor(conversationId);
-          const mode = target ?? nextSdkPermissionMode(current);
-          if (await claudeSdkBackend.setPermissionMode(conversationId, mode)) {
-            result = mode;
-            log(
-              `[REMOTE] set_permission_mode: SDK session for ${conversationId.slice(0, 12)} now ${mode}`,
-            );
-          } else
-            error = `The Claude SDK session for ${conversationId} is not running`;
-          break;
-        }
-        const sessionId = await resolveCommandSessionId(conversationId);
-        if (!sessionId) {
-          error = `No session found for conversation ${conversationId}`;
-          break;
-        }
-        const { tmuxTarget } = await resolveSessionCommandPane(
-          conversationId,
-          sessionId,
-          detectSessionAgentType(sessionId),
-        );
-        if (!tmuxTarget) {
-          error = `No tmux pane found for session ${sessionId.slice(0, 8)}`;
-          break;
-        }
-        const capture = async () =>
-          (
-            await tmuxExec([
-              "capture-pane",
-              "-p",
-              "-J",
-              "-t",
-              tmuxTarget,
-              "-S",
-              "-8",
-            ])
-          ).stdout;
-        // One press-and-read at a time per pane: commands in one batch run
-        // concurrently, and two presses racing one footer read each report
-        // the other's landing mode (seen with a drained burst, 2026-09-12).
-        const outcome = await withPanePermissionModeLock(tmuxTarget, () =>
-          stepPermissionMode(
-            {
-              press: async () => {
-                await tmuxExec(["send-keys", "-t", tmuxTarget, "BTab"]);
-              },
-              readMode: async () => parsePermissionModeFooter(await capture()),
-            },
-            target as PermissionMode | undefined,
-          ),
-        );
-        if ("error" in outcome) {
-          error = outcome.error;
-          log(
-            `[REMOTE] set_permission_mode${target ? ` → ${target}` : ""} for session ${sessionId.slice(0, 8)} failed: ${outcome.error}`,
-          );
-          break;
-        }
-        recordObservedPermissionMode(
-          sessionId,
-          conversationId,
-          outcome.mode,
-          await capture(),
-        );
-        result = outcome.mode;
-        log(
-          `[REMOTE] set_permission_mode${target ? ` → ${target}` : ""}: session ${sessionId.slice(0, 8)} now ${outcome.mode} after ${outcome.presses} press(es) via tmux ${tmuxTarget}`,
-        );
-        break;
-      }
-      case "kill_session": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId = parsed.conversation_id;
-        if (!conversationId) {
-          error = "Missing conversation_id";
-          break;
-        }
-        const sessionIdHint =
-          typeof parsed.session_id === "string" && parsed.session_id
-            ? parsed.session_id
-            : undefined;
-        // A kill wins over a backend switch in progress: the switch stops without starting the other
-        // side, and the kill waits for it to let go so a resume behind this kill (a Restart) can run.
-        await cancelBackendSwitch(conversationId, sessionIdHint);
-        const switchKill =
-          parsed.switch_agent === true ||
-          pendingAgentSwitches.has(conversationId);
-        const killed = switchKill
-          ? await killConversationBackendsForAgentSwitch(
-              conversationId,
-              sessionIdHint,
-            )
-          : await killConversationBackends(
-              conversationId,
-              sessionIdHint,
-              parsed.keep_workspace !== true,
-            );
-        result = killed.result;
-        error = killed.error;
-        break;
-      }
-      // `cast hibernate <session>`: park the pane now. Being asked by a person
-      // excuses the fleet cap and the idle bar, never the safety rules: the
-      // same refusals the pass applies, through the same function.
-      case "hibernate_session": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const sessionId: string | undefined =
-          typeof parsed.session_id === "string" ? parsed.session_id : undefined;
-        const conversationId: string | undefined =
-          typeof parsed.conversation_id === "string"
-            ? parsed.conversation_id
-            : undefined;
-        if (!sessionId) {
-          error = "Missing session_id";
-          break;
-        }
-        // A session moving between backends is not parked; the switch decides where it runs.
-        if (backendSwitchHeld(sessionId, conversationId)) {
-          result = JSON.stringify({
-            parked: false,
-            reason: "switching backend",
-          });
-          error =
-            "not parked: the session is switching between the terminal and the Agent SDK";
-          break;
-        }
-        const outcome = await hibernateSessionNow(sessionId, conversationId);
-        result = outcome.result;
-        error = outcome.error;
-        break;
-      }
-      // "Update now" from the in-app banner: apply the published desktop release
-      // immediately (force quit + swap + relaunch) instead of waiting for the
-      // next app quit. Forced, so it stops a running app via SIGTERM/SIGKILL.
-      // Sent by a click, or by the web's below-floor gate on its own. Forced, so
-      // it runs from a source checkout, ignores the retry throttle and stops a
-      // running app; but never a reinstall of an app that is already current —
-      // the gate broadcasts to every daemon of the user, and a second Mac that
-      // is fine must stay untouched.
-      case "desktop_update": {
-        const { checkForDesktopUpdate } = await import("./desktopUpdate.js");
-        const applied = await checkForDesktopUpdate((msg) => log(msg), {
-          force: true,
-          reinstall: false,
-          warn: (msg) => logWarn(msg),
-        });
-        if (applied) {
-          result = "desktop_updated";
-        } else {
-          error =
-            "no desktop update applied (already current, app not installed, or unavailable)";
-        }
-        break;
-      }
-      // Swap the machine's active Claude Code account to a saved profile, then
-      // recycle the listed blocked sessions so they resume on the new account.
-      // Order matters: kill BEFORE enqueueing the continues — a still-alive
-      // claude process holds the old account's token in memory, so injecting
-      // first would just re-hit the old account's limit. The pending "continue"
-      // is what triggers the auto-resume that reads the fresh credential.
-      case "switch_account": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const profile: string | undefined =
-          typeof parsed.profile === "string" && parsed.profile
-            ? parsed.profile
-            : undefined;
-        const conversationIds: string[] = Array.isArray(parsed.conversation_ids)
-          ? parsed.conversation_ids
-          : [];
-        // Parked sessions on the fleet store: the switch moves them with the
-        // store, so they get only the continue, once Claude Code has re-read it.
-        const followIds: string[] = Array.isArray(parsed.follow_ids)
-          ? parsed.follow_ids
-          : [];
-        const sessionIds: Record<string, string> =
-          parsed.session_ids && typeof parsed.session_ids === "object"
-            ? parsed.session_ids
-            : {};
-        const sendContinue: boolean = parsed.continue_blocked !== false;
-        // The web paints its "continue" bubble the moment the user clicks and
-        // sends the client_id it painted with along the command. Enqueueing
-        // under that id makes the server echo REPLACE that bubble instead of
-        // adding a second one. Absent for server-initiated revives.
-        const continueClientIds: Record<string, string> =
-          parsed.client_ids && typeof parsed.client_ids === "object"
-            ? parsed.client_ids
-            : {};
-
-        // A mass continue paces one resume every 20s. Moving the fleet in the
-        // middle of that pace is how a click onto an empty account lasted
-        // thirty seconds and the continues came back on the spent one.
-        if (
-          profile &&
-          pacedAccountRevive &&
-          pacedAccountRevive.profile !== profile
-        ) {
-          log(
-            `[ACCOUNTS] not moving the fleet to "${profile}": paced continues are still going out on "${pacedAccountRevive.profile}"`,
-          );
-          result = JSON.stringify({
-            switched: null,
-            killed: 0,
-            continued: 0,
-            held_for: pacedAccountRevive.profile,
-          });
-          break;
-        }
-
-        // save_as mode: snapshot the CURRENT login as a named profile (the web
-        // Settings "save as profile" button). Pure save — no swap, no kills.
-        if (typeof parsed.save_as === "string" && parsed.save_as) {
-          try {
-            await verifyActiveIdentity();
-            const meta = saveProfile(parsed.save_as);
-            result = JSON.stringify({
-              saved: meta.name,
-              email: meta.email ?? null,
-            });
-            log(
-              `[ACCOUNTS] Saved active account as profile "${meta.name}"${meta.email ? ` (${meta.email})` : ""}`,
-            );
-            // Push the refreshed profile inventory upstream now — the Settings
-            // page is watching for it; don't make it wait a heartbeat cycle.
-            sendHeartbeat().catch(() => {});
-          } catch (err) {
-            error = `Profile save failed: ${err instanceof Error ? err.message : String(err)}`;
-          }
-          break;
-        }
-
-        // remove mode: forget a saved profile (the web Settings remove
-        // button). Pure deletion — no swap, no kills. deleteProfile guards the
-        // active login (auto-enroll would resurrect it a heartbeat later).
-        if (typeof parsed.remove === "string" && parsed.remove) {
-          try {
-            const meta = deleteProfile(parsed.remove);
-            result = JSON.stringify({
-              removed: parsed.remove,
-              email: meta.email ?? null,
-            });
-            log(
-              `[ACCOUNTS] Removed profile "${parsed.remove}"${meta.email ? ` (${meta.email})` : ""}`,
-            );
-            // Confirm the shrunken inventory upstream now — the web already
-            // hid the row optimistically and is waiting on this echo.
-            sendHeartbeat().catch(() => {});
-          } catch (err) {
-            error = `Profile remove failed: ${err instanceof Error ? err.message : String(err)}`;
-          }
-          break;
-        }
-
-        // refresh_usage mode: the web's refresh button. Probe every account's
-        // usage now (both providers), then heartbeat so the meters move
-        // before the command's caller stops watching.
-        if (parsed.refresh_usage === true) {
-          await Promise.all([
-            maintainCcUsageSnapshots("manual", { force: true }),
-            maintainCodexUsageSnapshot("manual", { force: true }),
-          ]);
-          await sendHeartbeat().catch(() => {});
-          result = JSON.stringify({ refreshed: true });
-          break;
-        }
-
-        if (parsed.cancel_mint === true) {
-          result = await mintFlow.run(async () => {
-            if (!mintFlow.cancel(parsed.mint_started_at))
-              return "mint_flow_already_ended";
-            await killTmuxSessionAndTree(MINT_FLOW_TMUX).catch(() => {});
-            fs.rmSync(mintUrlPath(), { force: true });
-            return "mint_flow_cancelled";
-          });
-          break;
-        }
-
-        if (parsed.mint_code) {
-          result = await mintFlow.run(async () => {
-            if (
-              !mintFlow.active ||
-              mintFlow.startedAt !== parsed.mint_started_at
-            )
-              throw new Error("This mint has ended. Start again.");
-            await submitApprovalCode(
-              (args) => tmuxExec(args, { timeout: 3000 }),
-              MINT_FLOW_TMUX,
-              decryptProviderKeyPayload(CONFIG_DIR, parsed.mint_code),
-            );
-            return "mint_code_submitted";
-          });
-          break;
-        }
-
-        // mint mode: mint a setup-token for ONE saved profile (the web's
-        // guided "mint a token"). Returns at once — the flow takes as long as
-        // the person's browser dance, far past any command TTL — and the
-        // watcher reports the outcome through reportMintFlow (see MINT-FLOW).
-        if (typeof parsed.mint === "string" && parsed.mint) {
-          try {
-            result = await startMintFlow(
-              parsed.mint,
-              parsed.force === true,
-              parsed.mint_started_at,
-            );
-          } catch (err) {
-            error = `Mint launch failed: ${err instanceof Error ? err.message : String(err)}`;
-            syncServiceRef
-              ?.reportMintFlow(
-                "rejected",
-                parsed.mint,
-                undefined,
-                error,
-                undefined,
-                parsed.mint_started_at,
-              )
-              .catch(() => {});
-          }
-          break;
-        }
-
-        // remove_token mode: forget a profile's minted token; its sessions
-        // fall back to the credential store on the next launch.
-        if (typeof parsed.remove_token === "string" && parsed.remove_token) {
-          try {
-            const existed = removeAccountToken(parsed.remove_token);
-            log(
-              `[MINT-FLOW] token for "${parsed.remove_token}" ${existed ? "removed" : "was not on file"}`,
-            );
-            sendHeartbeat().catch(() => {});
-            result = JSON.stringify({ removed: existed });
-          } catch (err) {
-            error = `Remove failed: ${err instanceof Error ? err.message : String(err)}`;
-          }
-          break;
-        }
-
-        // codex_reset_credit mode: spend one of the active ChatGPT account's
-        // rate-limit reset credits INSTEAD of switching accounts (ct-49529),
-        // then fall through to the ordinary no-switch revive so the parked
-        // sessions resume on the same account with clear windows.
-        //
-        // The server proposes; this machine decides. The config flag is
-        // re-read here because the device row it was reported through can be
-        // minutes stale, and the credit is spent from this machine's login.
-        // Any refusal breaks out with nothing killed and nothing continued —
-        // the sessions stay parked, and the loop's follow-up check falls
-        // through to a real switch.
-        if (parsed.codex_reset_credit) {
-          const requested: string | undefined =
-            typeof parsed.codex_reset_credit.profile === "string"
-              ? parsed.codex_reset_credit.profile
-              : undefined;
-          if (readConfig()?.codex_reset_credit_auto !== true) {
-            error =
-              "Codex reset-credit redemption is off on this machine (config codex_reset_credit_auto)";
-            log(
-              `[ACCOUNTS] Refused reset-credit redeem: not enabled in config`,
-            );
-            break;
-          }
-          try {
-            const target = resolveCodexAccount(requested);
-            if (!target.active) {
-              error = `Codex profile "${requested}" is not the active login — a credit is only worth spending on the account the parked sessions run`;
-              break;
-            }
-            const outcome = await redeemCodexResetCredit({
-              account: target.account,
-              codexHomeDir: target.home,
-              readWindows: () => {
-                const fresh = resolveCodexAccount(requested).usage;
-                return { session: fresh?.session, weekly: fresh?.weekly };
-              },
-            });
-            result = JSON.stringify(outcome);
-            if (outcome.status !== "redeemed" || outcome.outcome !== "reset") {
-              log(
-                `[ACCOUNTS] Reset credit not spent for "${target.name ?? target.account}": ` +
-                  (outcome.status === "refused"
-                    ? outcome.reason
-                    : outcome.outcome),
-              );
-              break;
-            }
-            log(
-              `[ACCOUNTS] Redeemed a Codex reset credit for "${target.name ?? target.account}" — windows cleared`,
-            );
-            // Re-probe now: the server holds off judging this account until a
-            // snapshot fetched after the redeem lands, exactly as after a switch.
-            maintainCodexUsageSnapshot("codex_reset_credit", { force: true })
-              .then(() => sendHeartbeat())
-              .catch(() => {});
-          } catch (err) {
-            error = `Codex reset-credit redeem failed: ${err instanceof Error ? err.message : String(err)}`;
-            break;
-          }
-        }
-
-        const gateWaitStarted = Date.now();
-        const releaseAccountSwitch = profile
-          ? await accountLifecycleGate.acquireSwitch()
-          : await accountLifecycleGate.acquireResume("claude");
-        const gateWaitMs = Date.now() - gateWaitStarted;
-        if (gateWaitMs > 250) {
-          log(
-            `[ACCOUNTS] ${profile ? `switch to "${profile}"` : "recovery"} waited ${gateWaitMs}ms for in-flight Claude launches to spawn`,
-          );
-        }
-        try {
-          let switched: string | null = null;
-          let fleetMoved = false;
-          if (profile) {
-            try {
-              // On the fleet store the store is rewritten and running
-              // sessions follow it. Otherwise the keychain when the saved
-              // login is usable, else the minted setup-token (the launch
-              // record: the fleet moves, the keychain login stays); the
-              // restarts below then carry the pins the server corrected.
-              const switchResult = await switchFleetTo(profile);
-              switched = switchResult.to;
-              fleetMoved = switchResult.mode === "fleet";
-              log(
-                switchResult.mode === "fleet"
-                  ? `[ACCOUNTS] Fleet store moved to "${profile}"${switchResult.toEmail ? ` (${switchResult.toEmail})` : ""}${switchResult.from ? ` from "${switchResult.from}"` : ""}; running sessions follow without a restart`
-                  : switchResult.mode === "token"
-                    ? `[ACCOUNTS] Switched fleet to "${profile}"${switchResult.toEmail ? ` (${switchResult.toEmail})` : ""} on its setup-token; the keychain login stays`
-                    : `[ACCOUNTS] ${switchResult.keptLive ? "Already on" : "Switched CC account to"} "${profile}"${switchResult.toEmail ? ` (${switchResult.toEmail})` : ""}${switchResult.from ? `, re-saved outgoing as "${switchResult.from}"` : ""}${switchResult.keptLive ? ", kept the live login" : ""}`,
-              );
-              // Remotes run on a pushed COPY of the keychain credential — refresh
-              // them now instead of waiting for the 30-min loop. A token switch
-              // changed nothing they receive.
-              if (switchResult.mode === "keychain")
-                pushCredentialToRemoteHosts("account_switch").catch(() => {});
-              // Surface the new active account in Settings without waiting a beat.
-              sendHeartbeat().catch(() => {});
-              // Probe the new account's meters now, not at the next 5-minute
-              // tick: the server's auto-switch loop holds off judging this
-              // account until a snapshot fetched after the switch lands.
-              maintainCcUsageSnapshots("account_switch")
-                .then(() => sendHeartbeat())
-                .catch(() => {});
-            } catch (err) {
-              // Don't tear anything down if the swap itself failed.
-              error = `Account switch failed: ${err instanceof Error ? err.message : String(err)}`;
-              break;
-            }
-          }
-
-          // The server counts every session on a fleet machine as a follower,
-          // but a `claude` started by hand reads the keychain, not the store,
-          // and would resume on the exhausted account forever. Restart those.
-          if (fleetMoved && followIds.length > 0) {
-            const reverse = buildReverseConversationCache(
-              readConversationCache(),
-            );
-            const storeDir = fleetStoreDir();
-            for (const convId of [...followIds]) {
-              const sessionId = reverse[convId];
-              const proc = sessionId
-                ? await findSessionProcess(sessionId, "claude")
-                : null;
-              if (!proc || followsCredentialStore(proc.pid, storeDir) !== false)
-                continue;
-              followIds.splice(followIds.indexOf(convId), 1);
-              conversationIds.push(convId);
-              sessionIds[convId] = sessionId;
-              log(
-                `[ACCOUNTS] ${shortId(sessionId)} (pid ${proc.pid}) is not on the fleet store; restarting it instead of following`,
-              );
-            }
-          }
-
-          let killed = 0;
-          let continued = 0;
-          for (const convId of conversationIds) {
-            try {
-              const out = await killConversationBackends(
-                convId,
-                sessionIds[convId],
-              );
-              if (
-                out.result &&
-                out.result !== "no_process" &&
-                out.result !== "no_session"
-              )
-                killed++;
-            } catch (err) {
-              log(
-                `[ACCOUNTS] Teardown failed for ${String(convId).slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`,
-              );
-            }
-          }
-          if (sendContinue && syncServiceRef) {
-            // Paced, not fired at once: each continue resumes a process whose
-            // first request carries the whole context, and twenty of those in
-            // the same half-minute trip the provider's per-minute cap — the
-            // fleet then parks on a 429 the CLI renders as a limit, and the
-            // loop rotates to the next account to do it again (2026-09-04).
-            // The spacing keeps the revive under the cap; the enqueue runs on
-            // after the command reports so the ack isn't held for minutes.
-            const sync = syncServiceRef;
-            const enqueueContinue = async (convId: string) => {
-              try {
-                // client_id keyed by command id: re-running the command can't
-                // double-queue, but a deliberate second switch still can.
-                await sync.enqueueUserMessage(
-                  convId,
-                  "continue",
-                  continueClientIds[convId] ||
-                    `acct-switch-${commandId}-${convId}`,
-                );
-                return true;
-              } catch (err) {
-                log(
-                  `[ACCOUNTS] Continue enqueue failed for ${String(convId).slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-                return false;
-              }
-            };
-            // A follower still holds the old account's credential until Claude
-            // Code re-reads the store, so its continue waits that out.
-            const followWaitMs =
-              followIds.length > 0 && switched ? FLEET_REREAD_WAIT_MS : 0;
-            const revive = [...conversationIds, ...followIds];
-            const immediate = followWaitMs === 0 ? revive.slice(0, 1) : [];
-            const rest = revive.slice(immediate.length);
-            for (const convId of immediate)
-              if (await enqueueContinue(convId)) continued++;
-            if (rest.length > 0) {
-              continued += rest.length;
-              if (profile) {
-                pacedAccountRevive = {
-                  profile,
-                  pending:
-                    (pacedAccountRevive?.profile === profile
-                      ? pacedAccountRevive.pending
-                      : 0) + rest.length,
-                };
-              }
-              const paceProfile = profile;
-              void (async () => {
-                try {
-                  if (followWaitMs)
-                    await new Promise((resolve) =>
-                      setTimeout(resolve, followWaitMs),
-                    );
-                  let sent = 0;
-                  for (const [i, convId] of rest.entries()) {
-                    if (i > 0 || immediate.length > 0)
-                      await new Promise((resolve) =>
-                        setTimeout(resolve, SWITCH_CONTINUE_SPACING_MS),
-                      );
-                    if (await enqueueContinue(convId)) sent++;
-                  }
-                  log(
-                    `[ACCOUNTS] paced continues done: ${sent}/${rest.length} enqueued ${SWITCH_CONTINUE_SPACING_MS / 1000}s apart after switch=${switched ?? "none"}`,
-                  );
-                } finally {
-                  if (
-                    paceProfile &&
-                    pacedAccountRevive?.profile === paceProfile
-                  ) {
-                    pacedAccountRevive.pending -= rest.length;
-                    if (pacedAccountRevive.pending <= 0)
-                      pacedAccountRevive = null;
-                  }
-                }
-              })();
-            }
-          }
-          result = JSON.stringify({ switched, killed, continued });
-          log(
-            `[ACCOUNTS] switch_account done: switched=${switched ?? "none"} killed=${killed}/${conversationIds.length} continued=${continued}${conversationIds.length > 1 ? ` (paced ${SWITCH_CONTINUE_SPACING_MS / 1000}s apart)` : ""}`,
-          );
-        } finally {
-          releaseAccountSwitch();
-        }
-        break;
-      }
-      // Web sign-in CTA: run the browser OAuth flow via `claude auth login` and
-      // report the outcome through completeLoginFlow (see the LOGIN-FLOW block).
-      // Returns immediately — the flow takes as long as the user's browser
-      // dance, far past any command TTL, so a detached watcher owns the rest.
-      case "start_login": {
-        if (isRemoteDevice()) {
-          error =
-            "Remote devices run a pushed copy of the primary's credential — sign in on the primary machine";
-          break;
-        }
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const email: string | undefined =
-          typeof parsed.email === "string" && parsed.email
-            ? parsed.email
-            : undefined;
-        // A profile sign-in repairs one saved login in its own store; the
-        // machine's keychain login stays as it is.
-        const profile: string | undefined =
-          typeof parsed.profile === "string" &&
-          /^[a-z0-9][a-z0-9._-]{0,40}$/i.test(parsed.profile)
-            ? parsed.profile
-            : undefined;
-        // The approval code from the code-paste page, typed into the waiting CLI.
-        if (typeof parsed.login_code === "string") {
-          try {
-            result = await submitLoginCode(parsed.login_code);
-          } catch (err) {
-            error = err instanceof Error ? err.message : String(err);
-          }
-          break;
-        }
-        try {
-          result = await startLoginFlow(
-            email,
-            parsed.force === true,
-            profile,
-            parsed.open_browser !== false,
-          );
-        } catch (err) {
-          error = `Sign-in launch failed: ${err instanceof Error ? err.message : String(err)}`;
-          // The web is watching cc_login_flow, not command errors — report the
-          // failure there too so the CTA comes back instead of spinning.
-          syncServiceRef
-            ?.completeLoginFlow("rejected", email, error, profile)
-            .catch(() => {});
-        }
-        break;
-      }
-      // fork_session = resume_session whose JSONL is materialized by the fork
-      // fast path (parsed.fork_fast_path) before the normal resume pipeline
-      // runs. A separate command name only for backward compat: daemons that
-      // predate the fast path must no-op it, not resume-and-reconstitute.
-      case "fork_session":
-      case "resume_session": {
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        // Refused before any delivery or resume bookkeeping: a hosted
-        // conversation runs in codecast's backend and no machine resumes it.
-        if (isHostedAgentType(parsed.agent_type)) {
-          error = "hosted conversation: no machine resumes it";
-          break;
-        }
-        const sessionId = parsed.session_id;
-        const conversationId = parsed.conversation_id;
-        const resumeOptions: ResumeOptions = {
-          ...USER_RESUME,
-          ...(typeof parsed.model === "string" ? { model: parsed.model } : {}),
-          ...(typeof parsed.effort === "string"
-            ? { effort: parsed.effort }
-            : {}),
-        };
-        if (!sessionId) {
-          error = "Missing session_id";
-          break;
-        }
-        if (conversationId) {
-          folderFetchFailures.forgetConversation(conversationId);
-          (await import("./sessionTransfer.js")).forgetSessionFetchFailures(
-            conversationId,
-          );
-          // A resume sent through codecast is a launch of a conversation that
-          // already lives there: its transcript syncs whatever the folder rules.
-          markLaunched({ conversationId, sessionId });
-        }
-        // A backend switch is moving this session and brings it back itself. A Restart, an agent
-        // switch or a repair now would rebuild or rebind it under the switch.
-        if (backendSwitchHeld(sessionId, conversationId)) {
-          error =
-            "This session is switching between the terminal and the Agent SDK; try again when it has moved";
-          break;
-        }
-        // A cloud agent session has no process on this machine to restart (a
-        // blank local pane would hijack it): its messages go to the provider,
-        // and a held one is tried again on its own.
-        if (conversationId && cloudAgents.forConversation(conversationId)) {
-          await clearConversationDeliveryAndResumeState(
-            conversationId,
-            sessionId,
-            "resume_session_cloud",
-          );
-          result = JSON.stringify({ cloud_agent: true });
-          break;
-        }
-        // A Restart of a Claude SDK conversation resumes in its own host or fails. The tmux repair,
-        // reconstitution and blank-pane paths below would put it in two backends at once, or bind
-        // the conversation to a session no process runs. Forks and agent switches go on below.
-        if (
-          conversationId &&
-          claudeSdkBackend?.owns(conversationId) &&
-          !parsed.fork &&
-          !parsed.switch_agent &&
-          !parsed.parent_session_id &&
-          (!parsed.agent_type ||
-            fromConvexAgentType(parsed.agent_type) === "claude")
-        ) {
-          try {
-            const client = await claudeSdkBackend.ensure(conversationId, {
-              userInitiated: true,
-            });
-            const sdkSession = claudeSdkBackend.sessionFor(conversationId);
-            const sdkCwd = claudeSdkBackend.specFor(conversationId)?.cwd;
-            if (client && sdkSession && sdkCwd) {
-              // Running again: active, connected, claimed and beating, as every tmux resume marks it.
-              await bindSdkSession(conversationId, sdkSession, sdkCwd);
-              result = JSON.stringify({ sdk_session: sdkSession });
-            } else error = `No Claude SDK session for ${conversationId}`;
-          } catch (err) {
-            error = `Could not resume the Claude SDK session: ${err instanceof Error ? err.message : String(err)}`;
-            syncServiceRef
-              ?.setSessionError(conversationId, error)
-              .catch(() => {});
-          }
-          break;
-        }
-        // Fresh-session guard. If the conversation just had a session spawned
-        // (startedSessionTmux still tracks it) and there's no linked Claude
-        // session_id yet, an auto-resume from the UI's stuck-banner heuristic
-        // will try `claude --resume <nanoid>` which can't succeed — the nanoid
-        // is the optimistic id from the inline new-session flow, not a real
-        // Claude UUID. We were churning through kill → repair → reconstitute
-        // → start-fresh for every such call, racing the tryStartedTmux path
-        // that was already about to deliver the user's first message.
-        //
-        // "Just" is the whole condition. A start record lives for a day, and a
-        // pane that never linked (started here while another device owned the
-        // conversation) sits in it that long. Treating that record as a boot in
-        // progress made a transfer to this machine return here with nothing
-        // started and no delivery scheduled. Past the boot window the pane is
-        // replaced: it is torn down and the resume below starts a current one.
-        if (conversationId) {
-          const startedEntry = startedSessionTmux.get(conversationId);
-          const linked =
-            !!startedEntry &&
-            !!buildReverseConversationCache(readConversationCache())[
-              conversationId
-            ];
-          const guard = startedSessionGuard(startedEntry, linked);
-          if (startedEntry && guard === "skip_booting") {
-            log(
-              `[REMOTE] Skipping resume for ${sessionId.slice(0, 8)} — conversation ${conversationId.slice(0, 12)} has a freshly started tmux (${startedEntry.tmuxSession}) that hasn't been linked yet; tryStartedTmux will handle delivery.`,
-            );
-            result = JSON.stringify({
-              skipped: true,
-              reason: "fresh_session_unlinked",
-            });
-            break;
-          }
-          if (startedEntry && guard === "replace_stale") {
-            log(
-              `[REMOTE] Replacing stale started tmux ${startedEntry.tmuxSession} for conversation ${conversationId.slice(0, 12)}: unlinked ${Math.round((Date.now() - startedEntry.startedAt) / 60_000)}m after start`,
-            );
-            await teardownConversationBackendsLive(conversationId);
-          }
-        }
-        let projectPath = parsed.project_path;
-        const forceReconstitute = parsed.force_reconstitute === true;
-        // Set by reparentSessionToDevice (cast pull): this session may be running
-        // on this machine for the first time, so its repo isn't checked out here.
-        const reparented = parsed.reparented === true;
-        // Registry-driven normalization; `undefined` means "claude / unspecified"
-        // (the downstream `|| "claude"` fallbacks and the findSessionFile detection
-        // path own that case). fromConvexAgentType handles both spellings and every
-        // client (opencode, pi, ...); claude then collapses back to undefined to
-        // preserve the original semantics.
-        const normalizedResumeAgent = fromConvexAgentType(parsed.agent_type);
-        const resumeAgentType: AgentClientId | undefined =
-          normalizedResumeAgent === "claude"
-            ? undefined
-            : normalizedResumeAgent;
-        // Skip if a resume is already in flight for this session. An in-place
-        // agent switch must not join that promise: it is the OLD agent, and
-        // adopting it would silently no-op the switch.
-        if (resumeInFlight.has(sessionId) && parsed.switch_agent !== true) {
-          log(
-            `[REMOTE] Resume already in flight for ${sessionId.slice(0, 8)}, skipping`,
-          );
-          result = JSON.stringify({
-            skipped: true,
-            reason: "resume_in_flight",
-          });
-          break;
-        }
-        if (conversationId && parsed.switch_agent !== true) {
-          const convFailures = conversationResumeFailures.get(conversationId);
-          if (
-            convFailures &&
-            convFailures.count >= CONVERSATION_RESUME_MAX_FAILURES
-          ) {
-            if (
-              Date.now() - convFailures.lastFailure <
-              CONVERSATION_RESUME_COOLDOWN_MS
-            ) {
-              log(
-                `[REMOTE] Resume circuit breaker for conv=${conversationId.slice(0, 12)}: ${convFailures.count} failures, cooling down`,
-              );
-              result = JSON.stringify({
-                skipped: true,
-                reason: "circuit_breaker",
-              });
-              break;
-            }
-            conversationResumeFailures.delete(conversationId);
-          }
-        }
-        // In-place agent switch: ignore the old transcript, rebuild as the
-        // TARGET agent under a new native session id, rebind this conversation.
-        // A live-pane reuse of the OLD agent would silently no-op the switch.
-        if (
-          parsed.switch_agent === true &&
-          conversationId &&
-          resumeAgentType !== "codex"
-        ) {
-          const targetAgent: AgentClientId = resumeAgentType || "claude";
-          log(
-            `[REMOTE] Agent switch conv=${conversationId.slice(0, 12)} ${sessionId.slice(0, 8)} → ${targetAgent}`,
-          );
-          resumeInFlight.delete(sessionId);
-          resumeInFlightStarted.delete(sessionId);
-          conversationResumeFailures.delete(conversationId);
-          // Interrupt the old backend for real. Dropping the live map (or the
-          // persisted record) without a turn interrupt leaves a Codex
-          // app-server thread running, and its output keeps landing on this
-          // conversation (ct-51691).
-          await teardownConversationBackendsLive(conversationId, {
-            interruptActiveTurn: true,
-          });
-          restartingSessionIds.set(sessionId, Date.now());
-          try {
-            const cwd = projectPath
-              ? await resolveResumeCwdOrRefuse({
-                  recordedCwd: projectPath,
-                  cwdOverride: projectPath,
-                  conversationId,
-                })
-              : null;
-            if (!cwd) {
-              await refuseResumeNoLocalCheckout(
-                sessionId,
-                conversationId,
-                projectPath,
-              );
-              error = "No local checkout for agent switch";
-              break;
-            }
-            let switched = false;
-            if (
-              config?.convex_url &&
-              config?.auth_token &&
-              mayReconstituteResumeTranscript(targetAgent)
-            ) {
-              try {
-                const siteUrl = config.convex_url.replace(".cloud", ".site");
-                const exportData = await fetchExport(
-                  siteUrl,
-                  config.auth_token,
-                  conversationId,
-                );
-                if (hasResumableMessages(exportData)) {
-                  const tailMessages = chooseClaudeAutoTrim(exportData);
-                  let newSessionId: string;
-                  let reconFilePath: string;
-                  if (targetAgent === "grok") {
-                    const files = generateGrokSession(exportData, {
-                      tailMessages,
-                      cwd,
-                    });
-                    ({ sessionId: newSessionId, filePath: reconFilePath } =
-                      writeGrokSession(files));
-                  } else if (targetAgent === "pi") {
-                    const pi = generatePiSession(exportData, {
-                      tailMessages,
-                      cwd,
-                    });
-                    newSessionId = pi.sessionId;
-                    reconFilePath = piSessionFilePath(pi.cwd, pi.sessionId);
-                    await writeRebuiltDeltaTranscript(
-                      "pi",
-                      pi.jsonl,
-                      reconFilePath,
-                      pi.sessionId,
-                    );
-                  } else if (targetAgent === "opencode") {
-                    const sesId = await rebuildOpencodeSession(exportData, cwd);
-                    if (!sesId)
-                      throw new Error("opencode serve sidecar unavailable");
-                    newSessionId = sesId;
-                    reconFilePath = "";
-                  } else {
-                    let reconJsonl: string;
-                    ({ jsonl: reconJsonl, sessionId: newSessionId } =
-                      generateClaudeCodeJsonl(exportData, {
-                        tailMessages,
-                        cwd,
-                      }));
-                    ({ filePath: reconFilePath } = writeClaudeCodeSession(
-                      reconJsonl,
-                      newSessionId,
-                      cwd,
-                    ));
-                  }
-                  if (reconFilePath)
-                    setPosition(reconFilePath, fs.statSync(reconFilePath).size);
-                  rebindConversationSession(
-                    sessionId,
-                    newSessionId,
-                    conversationId,
-                    cwd,
-                  );
-                  const resumed = await autoResumeSession(
-                    newSessionId,
-                    "",
-                    readTitleCache(),
-                    cwd,
-                    conversationId,
-                    targetAgent,
-                    resumeOptions,
-                  );
-                  if (resumed) {
-                    const cache = readConversationCache();
-                    cache[newSessionId] = conversationId;
-                    saveConversationCache(cache);
-                    syncServiceRef
-                      ?.markSessionActive(conversationId)
-                      .catch(logConvexFailure);
-                    conversationResumeFailures.delete(conversationId);
-                    await clearConversationDeliveryAndResumeState(
-                      conversationId,
-                      newSessionId,
-                      "agent_switch",
-                    );
-                    result = JSON.stringify({
-                      switched: true,
-                      session_id: newSessionId,
-                      agent_type: targetAgent,
-                    });
-                    log(
-                      `[REMOTE] Agent switch reconstituted ${sessionId.slice(0, 8)} → ${newSessionId.slice(0, 8)} (${targetAgent})`,
-                    );
-                    switched = true;
-                  }
-                }
-              } catch (switchErr) {
-                log(
-                  `[REMOTE] Agent switch reconstitution failed: ${switchErr instanceof Error ? switchErr.message : String(switchErr)}`,
-                );
-              }
-            }
-            if (!switched) {
-              error = `Failed to switch session ${sessionId.slice(0, 8)} to ${targetAgent}`;
-            }
-          } finally {
-            restartingSessionIds.delete(sessionId);
-          }
-          break;
-        }
-        // opencode API fork. The parent's real ses_ id rode down in
-        // parsed.parent_session_id (forkFromMessage). The session_id here is the
-        // synthetic forked-<id> placeholder — it can't resolve in opencode.db, so
-        // we mint a REAL forked ses_ via the serve sidecar, rebind this conversation
-        // onto it, and resume THAT. The convex copy (advanceForkCopy) already gave
-        // the fork its history; the sidecar fork just makes it a live, resumable
-        // opencode session. On any failure we log the reason and fall through to the
-        // generic path (blank spawn) — never a silent claim that a fork happened.
-        if (
-          resumeAgentType === "opencode" &&
-          parsed.fork_api === true &&
-          conversationId &&
-          typeof parsed.parent_session_id === "string" &&
-          parsed.parent_session_id !== sessionId &&
-          AGENT_CLIENTS.opencode.capabilities.forkApi === true
-        ) {
-          // Idempotency: the dispatch outbox is at-least-once, so a redelivered fork
-          // command must not mint a SECOND fork. If this conversation is already
-          // bound to a real ses_ id, the fork already happened — re-resume that id
-          // (autoResumeSession no-ops on a live pane) instead of forking again.
-          const reverseCache = buildReverseConversationCache(
-            readConversationCache(),
-          );
-          const boundReal = reverseCache[conversationId];
-          let realForkId: string | null =
-            typeof boundReal === "string" && boundReal.startsWith("ses_")
-              ? boundReal
-              : null;
-
-          if (!realForkId) {
-            const sidecar = await ensureOpencodeServer(config);
-            if (!sidecar) {
-              log(
-                `[REMOTE] opencode fork for conv ${conversationId.slice(0, 12)}: serve sidecar unavailable — falling back to blank spawn`,
-              );
-            } else {
-              try {
-                // fork_message_id (partial forks) truncates to match the convex copy;
-                // omitted at tip = a full fork. See forkFromMessage.
-                const forkMessageId =
-                  typeof parsed.fork_message_id === "string"
-                    ? parsed.fork_message_id
-                    : undefined;
-                const forked = await sidecar.fork(
-                  parsed.parent_session_id,
-                  forkMessageId ? { messageID: forkMessageId } : {},
-                );
-                realForkId = forked.id;
-                // Map real id → conversation BEFORE the watcher sees it (else it
-                // mints a doppelgänger), point convex at the real id, and baseline
-                // the watcher past the copied history (opencode re-mints message
-                // ids on fork, so re-syncing would duplicate).
-                const cache = readConversationCache();
-                cache[realForkId] = conversationId;
-                saveConversationCache(cache);
-                if (conversationCacheRef)
-                  conversationCacheRef[realForkId] = conversationId;
-                seedOpencodeForkSyncBaseline(realForkId);
-                const forkGitInfo = projectPath
-                  ? await getGitInfo(projectPath)
-                  : undefined;
-                void pushSessionIdBinding(
-                  conversationId,
-                  realForkId,
-                  projectPath || undefined,
-                  forkGitInfo?.repoRoot || forkGitInfo?.root,
-                  forkGitInfo?.remoteUrl,
-                );
-                log(
-                  `[REMOTE] opencode fork: ${parsed.parent_session_id.slice(0, 12)} → ${realForkId.slice(0, 12)} for conv ${conversationId.slice(0, 12)}`,
-                );
-              } catch (forkErr) {
-                log(
-                  `[REMOTE] opencode fork failed for conv ${conversationId.slice(0, 12)}: ${forkErr instanceof Error ? forkErr.message : String(forkErr)} — falling back to blank spawn`,
-                );
-              }
-            }
-          }
-
-          if (realForkId) {
-            restartingSessionIds.set(realForkId, Date.now());
-            const resumed = await autoResumeSession(
-              realForkId,
-              "",
-              readTitleCache(),
-              projectPath,
-              conversationId,
-              "opencode",
-              resumeOptions,
-            );
-            restartingSessionIds.delete(realForkId);
-            if (resumed) {
-              syncServiceRef
-                ?.markSessionActive(conversationId)
-                .catch(logConvexFailure);
-              conversationResumeFailures.delete(conversationId);
-              await clearConversationDeliveryAndResumeState(
-                conversationId,
-                realForkId,
-                "opencode_fork",
-              );
-              result = JSON.stringify({ forked: true, session_id: realForkId });
-              log(
-                `[REMOTE] opencode fork ${realForkId.slice(0, 12)} resumed for conv ${conversationId.slice(0, 12)}`,
-              );
-            } else {
-              error = `opencode fork ${realForkId.slice(0, 12)} resume failed`;
-            }
-            break; // fork committed — do NOT also blank-spawn a second session
-          }
-          // No real fork id (sidecar unavailable or fork threw): fall through to the
-          // generic path below, which blank-spawns opencode with the copied history.
-        }
-        // Fork fast path: materialize the new session's JSONL by copying the
-        // parent's local transcript (byte-stable message content → Claude's
-        // prompt cache stays warm), then let the normal resume pipeline take
-        // it from there. Emitted by forkFromMessage the moment the fork is
-        // created — the server-side message copy runs in parallel.
-        if (
-          parsed.fork_fast_path &&
-          parsed.parent_session_id &&
-          parsed.parent_session_id !== sessionId &&
-          !findSessionFile(sessionId)
-        ) {
-          let copied = false;
-          const parentFile = findSessionFile(parsed.parent_session_id);
-          if (parentFile && parentFile.agentType === "claude") {
-            try {
-              const newPath = copyJsonlAsSession(
-                parentFile.path,
-                parsed.parent_session_id,
-                sessionId,
-              );
-              if (newPath) {
-                // The server copy populates the fork conversation; start the
-                // watcher at EOF so the copied history isn't re-ingested.
-                setPosition(newPath, fs.statSync(newPath).size);
-                // Map session → conversation BEFORE the watcher can see the
-                // file, or it mints a doppelgänger conversation for it.
-                if (conversationId) {
-                  const cache = readConversationCache();
-                  cache[sessionId] = conversationId;
-                  saveConversationCache(cache);
-                  if (conversationCacheRef)
-                    conversationCacheRef[sessionId] = conversationId;
-                }
-                copied = true;
-                log(
-                  `[REMOTE] Fork fast path: copied parent JSONL ${parsed.parent_session_id.slice(0, 8)} → ${sessionId.slice(0, 8)}`,
-                );
-              }
-            } catch (copyErr) {
-              log(
-                `[REMOTE] Fork fast path copy failed for ${sessionId.slice(0, 8)}: ${copyErr instanceof Error ? copyErr.message : String(copyErr)}`,
-              );
-            }
-          }
-          if (!copied && parsed.fork_fast_path_strict) {
-            // Parent transcript isn't on this machine. Do NOT fall through to
-            // reconstitution — the server-side message copy may still be in
-            // flight and would rebuild a truncated history. The deferred
-            // command emitted at copy completion handles this fork instead.
-            log(
-              `[REMOTE] Fork fast path unavailable for ${sessionId.slice(0, 8)} (no local parent transcript), deferring to post-copy resume`,
-            );
-            result = JSON.stringify({
-              skipped: true,
-              reason: "fork_fast_path_unavailable",
-            });
-            break;
-          }
-        }
-        restartingSessionIds.set(sessionId, Date.now());
-        // Reparented onto this machine: ensure the repo is checked out locally
-        // (clone if missing) BEFORE resolving the resume cwd, so the resume and
-        // its reconstruct-from-Convex JSONL write have a real directory. If no
-        // checkout can be prepared, fall through — the normal resolution then
-        // surfaces the "clone it first" banner as usual.
-        // Where the session ran before this machine — captured before the
-        // reparent checkout repoints projectPath, so the notice can name it.
-        const priorCwd = projectPath;
-        let pendingForkParentId: string | undefined;
-        let reparentCheckout: ReparentedCheckout | undefined;
-        if (reparented) {
-          reparentCheckout = await ensureReparentedCheckout(
-            conversationId,
-            projectPath,
-            parsed.git_remote_url,
-          );
-          if (reparentCheckout) {
-            projectPath = reparentCheckout.path;
-            log(
-              `[REPARENT] ${sessionId.slice(0, 8)} resuming in ${reparentCheckout.cloned ? "fresh clone" : "existing checkout"} ${reparentCheckout.path}${reparentCheckout.branch ? ` on branch ${reparentCheckout.branch}` : ""}`,
-            );
-          }
-        }
-        if (
-          resumeAgentType === "codex" &&
-          (parsed.fork === true || forceReconstitute) &&
-          conversationId
-        ) {
-          let forkTimeoutMs = 0;
-          let forkFailed = false;
-          try {
-            const activeCodexAppServer = await readyCodexAppServer();
-            if (!activeCodexAppServer) {
-              throw new Error(
-                "Codex app-server is unavailable; cannot import fork history",
-              );
-            }
-            const exportData = await fetchExport(
-              siteUrl,
-              config.auth_token!,
-              conversationId,
-            );
-            const recordedCwd =
-              projectPath ||
-              exportData.conversation.project_path ||
-              exportData.conversation.git_root ||
-              undefined;
-            const cwd = await resolveResumeCwdOrRefuse({
-              recordedCwd,
-              cwdOverride: recordedCwd,
-              conversationId,
-            });
-            if (!cwd) {
-              await refuseResumeNoLocalCheckout(
-                sessionId,
-                conversationId,
-                recordedCwd || "unknown project",
-              );
-              result = JSON.stringify({
-                forked: false,
-                reason: "no_local_checkout",
-              });
-              break;
-            }
-            const { jsonl, sessionId: importSessionId } = generateCodexJsonl(
-              exportData,
-              { sessionId: randomUUID(), cwd },
-            );
-            const { filePath: importPath } = writeCodexSession(
-              jsonl,
-              importSessionId,
-              "codecast-fork",
-            );
-            const importBytes = fs.statSync(importPath).size;
-            setPosition(importPath, importBytes);
-            const { approvalPolicy, sandbox } =
-              resolveCodexPermissionDefaults(config);
-            pendingAppServerForkParents.add(importSessionId);
-            pendingForkParentId = importSessionId;
-            forkTimeoutMs = threadForkTimeoutMsForBytes(importBytes);
-            if (forkTimeoutMs > 60_000) {
-              log(
-                `[REMOTE] Codex history import is ${Math.ceil(importBytes / (1024 * 1024))} MiB; allowing ${Math.round(forkTimeoutMs / 1000)}s for thread/fork`,
-              );
-            }
-            const forked = await activeCodexAppServer.threadFork(
-              {
-                threadId: "",
-                path: importPath,
-                cwd,
-                ...(resumeOptions.model && resumeOptions.model !== "default"
-                  ? { model: resumeOptions.model }
-                  : {}),
-                ...(resumeOptions.effort &&
-                (CODEX_EFFORT_LEVELS as readonly string[]).includes(
-                  resumeOptions.effort,
-                )
-                  ? { config: { model_reasoning_effort: resumeOptions.effort } }
-                  : {}),
-                approvalPolicy,
-                sandbox,
-              },
-              forkTimeoutMs,
-            );
-            const realThreadId = forked.thread.id;
-            remapConversationSession(sessionId, realThreadId, conversationId);
-            registerAppServerConversation(conversationId, realThreadId, {
-              cwd,
-              persist: true,
-              approvalPolicy,
-              sandbox,
-            });
-            if (forked.thread.path && fs.existsSync(forked.thread.path)) {
-              setPosition(
-                forked.thread.path,
-                fs.statSync(forked.thread.path).size,
-              );
-            }
-            const forkGitInfo = await getGitInfo(cwd);
-            await pushSessionIdBinding(
-              conversationId,
-              realThreadId,
-              cwd,
-              forkGitInfo?.repoRoot || forkGitInfo?.root,
-              forkGitInfo?.remoteUrl,
-            );
-            syncServiceRef
-              ?.claimSession(conversationId)
-              .catch(logConvexFailure);
-            syncServiceRef
-              ?.markSessionActive(conversationId)
-              .catch(logConvexFailure);
-            syncServiceRef
-              ?.registerManagedSession(
-                realThreadId,
-                process.pid,
-                undefined,
-                conversationId,
-              )
-              .catch(logConvexFailure);
-            syncServiceRef
-              ?.updateSessionAgentStatus(conversationId, "connected")
-              .catch(logConvexFailure);
-            ensureManagedSessionHeartbeat(realThreadId);
-            conversationResumeFailures.delete(conversationId);
-            const switchingAgent = parsed.switch_agent === true;
-            await clearConversationDeliveryAndResumeState(
-              conversationId,
-              sessionId,
-              switchingAgent
-                ? "codex_app_server_switch"
-                : "codex_app_server_fork",
-            );
-            result = JSON.stringify({
-              ...(switchingAgent ? { switched: true } : { forked: true }),
-              session_id: realThreadId,
-              transport: "app-server",
-            });
-            log(
-              `[REMOTE] Codex ${switchingAgent ? "switch" : "fork"} ${sessionId.slice(0, 8)} imported as app-server thread ${realThreadId.slice(0, 8)} for conv ${conversationId.slice(0, 12)}`,
-            );
-          } catch (forkErr) {
-            const message =
-              forkErr instanceof Error ? forkErr.message : String(forkErr);
-            logError(
-              `[REMOTE] Codex app-server fork import failed for ${sessionId.slice(0, 8)}`,
-              forkErr instanceof Error ? forkErr : new Error(message),
-            );
-            error = `Codex history import failed: ${message}`;
-            forkFailed = true;
-            stopManagedSessionHeartbeat(sessionId);
-            await syncServiceRef
-              ?.unregisterManagedSession(sessionId)
-              .catch(logConvexFailure);
-            await syncServiceRef
-              ?.setSessionError(conversationId, error)
-              .catch(logConvexFailure);
-          } finally {
-            if (pendingForkParentId) {
-              // A fork that timed out on our side is usually still running in the
-              // app-server, which keeps writing the replayed history into the new
-              // rollout after we gave up. Keep the parent guarded for one more
-              // timeout window so the watcher pins that rollout at EOF instead of
-              // ingesting the replay as new messages (jx7652s, 2026-09-04).
-              const releasedParentId = pendingForkParentId;
-              if (forkFailed && forkTimeoutMs > 0) {
-                setTimeout(
-                  () => pendingAppServerForkParents.delete(releasedParentId),
-                  forkTimeoutMs,
-                ).unref();
-              } else {
-                pendingAppServerForkParents.delete(releasedParentId);
-              }
-            }
-            restartingSessionIds.delete(sessionId);
-          }
-          break;
-        }
-        // Native fork: the client copies its own session state under the new id
-        // (registry `forkCmd` — grok's `--resume <parent> --fork-session
-        // --session-id <new>`). The server offers it only for at-tip plain forks
-        // and passes the parent id; this branch never falls through to the
-        // rebuild path, because a client that forks natively is one whose
-        // transcript codecast cannot write. The new id must be one the client
-        // accepts, so a key it would reject is replaced by a fresh UUID and the
-        // row rebound — the same shape as a claude reconstitution. The
-        // session→conversation map is written BEFORE launch so the watcher
-        // links the child's transcript instead of minting a doppelgänger.
-        // No delivery-state reset afterwards: the branch's seed message is
-        // already in flight against this very launch (its delivery joined the
-        // in-flight resume), and clearing it re-delivers the seed (observed
-        // 2026-09-05). Nothing stale can exist for a session that never ran.
-        if (
-          parsed.fork === true &&
-          conversationId &&
-          resumeAgentType &&
-          agentForksNatively(resumeAgentType) &&
-          typeof parsed.parent_session_id === "string" &&
-          parsed.parent_session_id !== sessionId &&
-          !findSessionFile(sessionId)
-        ) {
-          const parentId = parsed.parent_session_id as string;
-          const nativeId = isValidResumeSessionId(resumeAgentType, sessionId)
-            ? sessionId
-            : randomUUID();
-          log(
-            `[REMOTE] Native fork ${parentId.slice(0, 8)} → ${nativeId.slice(0, 8)} (${resumeAgentType}) for conv ${conversationId.slice(0, 12)}`,
-          );
-          try {
-            const cache = readConversationCache();
-            cache[nativeId] = conversationId;
-            saveConversationCache(cache);
-            if (conversationCacheRef)
-              conversationCacheRef[nativeId] = conversationId;
-            if (nativeId !== sessionId) {
-              remapConversationSession(sessionId, nativeId, conversationId);
-              await pushSessionIdBinding(
-                conversationId,
-                nativeId,
-                projectPath || undefined,
-              );
-            }
-            const forked = await autoResumeSession(
-              nativeId,
-              "",
-              readTitleCache(),
-              projectPath,
-              conversationId,
-              resumeAgentType,
-              { ...resumeOptions, forkFromSessionId: parentId },
-            );
-            if (forked) {
-              syncServiceRef
-                ?.markSessionActive(conversationId)
-                .catch(logConvexFailure);
-              conversationResumeFailures.delete(conversationId);
-              result = JSON.stringify({ forked: true, session_id: nativeId });
-              log(
-                `[REMOTE] Native fork ${nativeId.slice(0, 8)} running for conv ${conversationId.slice(0, 12)}`,
-              );
-            } else {
-              error = `Native ${resumeAgentType} fork of ${parentId.slice(0, 8)} failed`;
-              await syncServiceRef
-                ?.setSessionError(conversationId, error)
-                .catch(logConvexFailure);
-            }
-          } finally {
-            restartingSessionIds.delete(sessionId);
-          }
-          break;
-        }
-        let resumed = false;
-        if (forceReconstitute) {
-          log(
-            `[REMOTE] Force-reconstituting session ${sessionId.slice(0, 8)} from DB${projectPath ? ` in ${projectPath}` : ""}`,
-          );
-          resumed = await repairAndResumeSession(
-            sessionId,
-            "",
-            readTitleCache(),
-            projectPath,
-            conversationId,
-            resumeAgentType,
-            resumeOptions,
-          );
-        } else {
-          log(
-            `[REMOTE] Force-resuming session ${sessionId.slice(0, 8)}${projectPath ? ` in ${projectPath}` : ""}`,
-          );
-          const outcome = await resumeOrRepair(
-            sessionId,
-            () =>
-              autoResumeSession(
-                sessionId,
-                "",
-                readTitleCache(),
-                projectPath,
-                conversationId,
-                resumeAgentType,
-                resumeOptions,
-              ),
-            () => {
-              log(
-                `[REMOTE] Auto-resume failed for ${sessionId.slice(0, 8)}, attempting repair...`,
-              );
-              return repairAndResumeSession(
-                sessionId,
-                "",
-                readTitleCache(),
-                projectPath,
-                conversationId,
-                resumeAgentType,
-                resumeOptions,
-              );
-            },
-          );
-          if (outcome === "cancelled") {
-            log(
-              `[REMOTE] Not resuming ${sessionId.slice(0, 8)}: its transcript transfer was cancelled`,
-            );
-            restartingSessionIds.delete(sessionId);
-            result = JSON.stringify({
-              skipped: true,
-              reason: "transfer_cancelled",
-            });
-            break;
-          }
-          resumed = outcome !== null;
-        }
-        if (resumed) {
-          if (conversationId) {
-            const cache = readConversationCache();
-            cache[sessionId] = conversationId;
-            saveConversationCache(cache);
-            if (syncServiceRef) {
-              syncServiceRef
-                .markSessionActive(conversationId)
-                .catch(logConvexFailure);
-              // Don't force "connected" here — autoResumeSession already publishes the
-              // accurate status (connected once the input prompt is visible, else resuming).
-              // Overriding it would re-report the false-live signal fix #1 removes.
-            }
-          }
-          restartingSessionIds.delete(sessionId);
-          if (conversationId) conversationResumeFailures.delete(conversationId);
-          // A resume revives the tmux pane just like a kill+restart does, so it shares the
-          // same redelivery contract: clear the local injection dedup and re-pend injected
-          // messages, else the re-queued pending message hits the "injected Ns ago" dedup
-          // branch and never reaches the freshly-resumed pane. (Server resumeSession already
-          // re-pends in Convex; this clears the *local* state that would otherwise suppress it.)
-          await clearConversationDeliveryAndResumeState(
-            conversationId,
-            sessionId,
-            "resume_session",
-          );
-          result = JSON.stringify({ resumed: true, session_id: sessionId });
-          log(`[REMOTE] Force-resume succeeded for ${sessionId.slice(0, 8)}`);
-          if (reparented && conversationId) {
-            await placeArrivedSession(
-              sessionId,
-              reparentCheckout?.path,
-              priorCwd,
-            );
-            await sendReparentNotice({
-              conversationId,
-              sessionId,
-              priorCwd,
-              checkout: reparentCheckout,
-              command: parsed,
-            });
-          }
-        } else if (conversationId && projectPath) {
-          // Reconstitution AND the blank-session fallback below both run in `cwd`.
-          // Resolve it to a real local checkout or refuse — never $HOME, which
-          // would reconstitute/spawn in the home dir and mislabel the project.
-          const cwd = await resolveResumeCwdOrRefuse({
-            recordedCwd: projectPath,
-            cwdOverride: projectPath,
-            conversationId,
-          });
-          if (!cwd) {
-            error = await refuseResumeNoLocalCheckout(
-              sessionId,
-              conversationId,
-              projectPath,
-            );
-            restartingSessionIds.delete(sessionId);
-            break;
-          }
-          log(
-            `[REMOTE] Resume failed for ${sessionId.slice(0, 8)}, reconstituting session from DB in ${cwd}...`,
-          );
-          let reconstituted = false;
-
-          // cursor-agent and opencode own their session stores (SQLite), and
-          // pi/grok own their JSONL trees under ~/.pi and ~/.grok — none of them
-          // may have a Claude JSONL fabricated for them. Skip DB reconstitution
-          // for every store-owning client (mayReconstituteResumeTranscript is
-          // the single predicate both resume sites share) and fall through to
-          // the fresh spawn below.
-          if (
-            config?.convex_url &&
-            config?.auth_token &&
-            mayReconstituteResumeTranscript(resumeAgentType)
-          ) {
-            try {
-              const siteUrl = config.convex_url.replace(".cloud", ".site");
-              const exportData = await fetchExport(
-                siteUrl,
-                config.auth_token!,
-                conversationId,
-              );
-              if (exportData.messages.length > 0) {
-                const reconAgent = resumeAgentType || "claude";
-                let reconJsonl: string;
-                let newSessionId: string;
-                let reconFilePath: string;
-                if (reconAgent === "codex") {
-                  ({ jsonl: reconJsonl, sessionId: newSessionId } =
-                    generateCodexJsonl(exportData, { sessionId, cwd }));
-                  ({ filePath: reconFilePath } = writeCodexSession(
-                    reconJsonl,
-                    newSessionId,
-                  ));
-                } else if (reconAgent === "grok") {
-                  const files = generateGrokSession(exportData, {
-                    tailMessages: chooseClaudeAutoTrim(exportData),
-                    cwd,
-                  });
-                  ({ sessionId: newSessionId, filePath: reconFilePath } =
-                    writeGrokSession(files));
-                } else if (reconAgent === "pi") {
-                  const pi = generatePiSession(exportData, {
-                    tailMessages: chooseClaudeAutoTrim(exportData),
-                    cwd,
-                  });
-                  newSessionId = pi.sessionId;
-                  reconFilePath = piSessionFilePath(pi.cwd, pi.sessionId);
-                  await writeRebuiltDeltaTranscript(
-                    "pi",
-                    pi.jsonl,
-                    reconFilePath,
-                    pi.sessionId,
-                  );
-                } else if (reconAgent === "opencode") {
-                  const sesId = await rebuildOpencodeSession(exportData, cwd);
-                  if (!sesId)
-                    throw new Error("opencode serve sidecar unavailable");
-                  newSessionId = sesId;
-                  reconFilePath = "";
-                } else {
-                  const TOKEN_BUDGET = CLAUDE_AUTO_TRIM_TARGET_TOKENS;
-                  const tailMessages = chooseClaudeTailMessagesForTokenBudget(
-                    exportData,
-                    TOKEN_BUDGET,
-                  );
-                  ({ jsonl: reconJsonl, sessionId: newSessionId } =
-                    generateClaudeCodeJsonl(exportData, {
-                      tailMessages,
-                      sessionId,
-                      cwd,
-                    }));
-                  ({ filePath: reconFilePath } = writeClaudeCodeSession(
-                    reconJsonl,
-                    newSessionId,
-                    cwd,
-                  ));
-                }
-                if (reconFilePath)
-                  setPosition(reconFilePath, fs.statSync(reconFilePath).size);
-                log(
-                  `[REMOTE] Reconstituted ${reconAgent} JSONL for ${sessionId.slice(0, 8)} (${exportData.messages.length} msgs)`,
-                );
-
-                const reconResumed = await autoResumeSession(
-                  newSessionId,
-                  "",
-                  readTitleCache(),
-                  cwd,
-                  conversationId,
-                  resumeAgentType,
-                  resumeOptions,
-                );
-                if (reconResumed) {
-                  rebindConversationSession(
-                    sessionId,
-                    newSessionId,
-                    conversationId,
-                    cwd,
-                  );
-                  if (syncServiceRef) {
-                    syncServiceRef
-                      .markSessionActive(conversationId)
-                      .catch(logConvexFailure);
-                    syncServiceRef
-                      .updateSessionAgentStatus(conversationId, "connected")
-                      .catch(logConvexFailure);
-                  }
-                  restartingSessionIds.delete(sessionId);
-                  if (conversationId)
-                    conversationResumeFailures.delete(conversationId);
-                  // Same redelivery contract as the plain-resume branch above — clear local
-                  // dedup so re-pended messages reach the reconstituted pane.
-                  await clearConversationDeliveryAndResumeState(
-                    conversationId,
-                    newSessionId,
-                    "resume_session_reconstitute",
-                  );
-                  result = JSON.stringify({
-                    reconstituted: true,
-                    session_id: newSessionId,
-                  });
-                  log(
-                    `[REMOTE] Reconstituted + resumed session ${sessionId.slice(0, 8)}`,
-                  );
-                  reconstituted = true;
-                  if (reparented) {
-                    // cwd (not projectPath): the refuse-or-resolve step above is
-                    // what actually decided where this session lives now.
-                    await placeArrivedSession(newSessionId, cwd, priorCwd);
-                    await sendReparentNotice({
-                      conversationId,
-                      sessionId: newSessionId,
-                      priorCwd,
-                      checkout:
-                        reparentCheckout?.path === cwd
-                          ? reparentCheckout
-                          : {
-                              path: cwd,
-                              cloned: false,
-                              branch: readBranch(cwd),
-                            },
-                      command: parsed,
-                    });
-                  }
-                }
-              }
-            } catch (reconErr) {
-              log(
-                `[REMOTE] Reconstitution failed for ${sessionId.slice(0, 8)}: ${reconErr instanceof Error ? reconErr.message : String(reconErr)}`,
-              );
-            }
-          }
-
-          // resume_session is only triggered by explicit user actions (kill & restart,
-          // repair). Always fall through to blank session — the user is asking us to restart,
-          // not silently give up. Clear any stale fatal reason so it doesn't block future
-          // auto-resume attempts either.
-          if (!reconstituted) {
-            resumeFatalReasons.delete(sessionId);
-          }
-
-          if (!reconstituted) {
-            const existingStarted = startedSessionTmux.get(conversationId);
-            if (
-              existingStarted &&
-              startedSessionGuard(existingStarted, false) === "skip_booting"
-            ) {
-              log(
-                `[REMOTE] Fresh session ${existingStarted.tmuxSession} already started for ${conversationId.slice(0, 12)}, skipping duplicate`,
-              );
-              result = JSON.stringify({
-                started_fresh: true,
-                tmux_session: existingStarted.tmuxSession,
-                deduplicated: true,
-              });
-              break;
-            }
-            const blankAgentType = resumeAgentType || "claude";
-            log(`[REMOTE] Starting blank ${blankAgentType} session in ${cwd}`);
-            const shortId = Math.random().toString(36).slice(2, 8);
-            const tmuxSession = `cc-${blankAgentType}-${shortId}`;
-            // Registry-sourced binary (adds pi; cursor -> cursor-agent) — the same
-            // launchBinary the fresh-start path uses, so no client is silently dropped
-            // to claude here.
-            const blankBinary = launchBinary(blankAgentType, { warn: log });
-            // Inject the default permission flags exactly like start_session and
-            // auto-resume. Building from config args alone here launched a bare
-            // `claude` that fell into the project's dontAsk default — the agent
-            // came back stranded with every tool denied.
-            // Without an assigned id, discovery waits for a transcript the
-            // pane never writes until someone types into it: a restart with
-            // nothing to redeliver left the pane unlinked and the conversation
-            // stuck on its old session id.
-            const blankSessionId =
-              blankAgentType === "claude" ? randomUUID() : undefined;
-            const safeBlankArgs = sanitizeBinaryArgs(
-              buildBlankLaunchArgs(blankAgentType, config, blankSessionId),
-            );
-            // Same account rule as every other Claude launch (blankLaunchAccount).
-            const blankAccount =
-              blankAgentType === "claude"
-                ? await blankLaunchAccount(conversationId)
-                : {
-                    prefix: "" as string,
-                    account: undefined as string | undefined,
-                  };
-            const blankCmdText = `${blankAccount.prefix}${AGENT_ENV_SCRUB}${launchTokenEnv(launchTokenLedger().issue(tmuxSession, blankSessionId))} ${[blankBinary, ...safeBlankArgs].join(" ")}`;
-            try {
-              await tmuxExec(
-                [
-                  "new-session",
-                  "-d",
-                  ...TMUX_SIZE_ARGS,
-                  "-s",
-                  tmuxSession,
-                  "-c",
-                  cwd,
-                ],
-                { timeout: 5000 },
-              );
-              // Tag like the other creation paths so this session is discoverable
-              // by conversation (findLiveTmuxForConversation / warm-restart). Without
-              // the tag it is orphaned: a later fresh-start can't see it and spawns
-              // a duplicate.
-              await setTmuxSessionOption(
-                tmuxSession,
-                "@codecast_conversation_id",
-                conversationId,
-              ).catch(() => {});
-              await setTmuxSessionOption(
-                tmuxSession,
-                "@codecast_agent_type",
-                blankAgentType,
-              ).catch(() => {});
-              await setTmuxSessionOption(
-                tmuxSession,
-                "@codecast_project_path",
-                cwd,
-              ).catch(() => {});
-              if (blankAgentType === "claude") {
-                if (blankAccount.account)
-                  await setTmuxSessionOption(
-                    tmuxSession,
-                    "@codecast_cc_account",
-                    blankAccount.account,
-                  ).catch(() => {});
-                markClaudeSessionLive(tmuxSession, blankAccount.account);
-              }
-              await stampCodexPaneAccount(
-                blankAgentType,
-                tmuxSession,
-                conversationId,
-              );
-              await typeIntoPane(tmuxSession, blankCmdText);
-              startedSessionTmux.set(conversationId, {
-                tmuxSession,
-                projectPath: cwd,
-                startedAt: Date.now(),
-                agentType: blankAgentType,
-                sessionId: blankSessionId,
-              });
-              discoverAndLinkSession(conversationId, tmuxSession, cwd).catch(
-                (err) => {
-                  log(
-                    `Session discovery failed for ${conversationId.slice(0, 12)}: ${err}`,
-                  );
-                },
-              );
-              // Same redelivery contract as the resume branches above: a first
-              // message that exhausted its budget against the old pane, or on
-              // the previous owner, has to reach this one.
-              await clearConversationDeliveryAndResumeState(
-                conversationId,
-                undefined,
-                "resume_session_blank",
-              );
-              result = JSON.stringify({
-                started_fresh: true,
-                tmux_session: tmuxSession,
-              });
-              // A blank pane links to the conversation only once a prompt shows up
-              // in it; this line names the new session so a pane that never links
-              // can be traced back to here.
-              log(
-                `[REMOTE] Started fresh session ${tmuxSession} for conversation ${conversationId.slice(0, 12)} newSid=${blankSessionId?.slice(0, 8) ?? "-"} (the old session could not be resumed)`,
-                "warn",
-              );
-            } catch (spawnErr) {
-              error = `Failed to start fresh session: ${spawnErr instanceof Error ? spawnErr.message : String(spawnErr)}`;
-            }
-          }
-        } else {
-          error = `Failed to resume session ${sessionId.slice(0, 8)} — session file may not exist locally`;
-        }
-        if (!resumed && conversationId) {
-          const prev = conversationResumeFailures.get(conversationId) || {
-            count: 0,
-            lastFailure: 0,
-          };
-          conversationResumeFailures.set(conversationId, {
-            count: prev.count + 1,
-            lastFailure: Date.now(),
-          });
-        }
-        break;
-      }
-      case "config_list": {
-        const home = process.env.HOME || "";
-        const claudeDir = path.join(home, ".claude");
-        const codexDir = path.join(home, ".codex");
-
-        type ConfigFile = {
-          path: string;
-          type: string;
-          label: string;
-          tool: string;
-        };
-        const files: ConfigFile[] = [];
-
-        const addFile = (
-          filePath: string,
-          type: string,
-          label: string,
-          tool: string,
-        ) => {
-          if (fs.existsSync(filePath))
-            files.push({ path: filePath, type, label, tool });
-        };
-
-        const addDir = (dir: string, type: string, tool: string) => {
-          if (!fs.existsSync(dir)) return;
-          try {
-            for (const f of fs.readdirSync(dir)) {
-              const fullPath = path.join(dir, f);
-              const stat = fs.statSync(fullPath);
-              if (stat.isDirectory()) {
-                // Skills are directories containing SKILL.md
-                const skillFile = path.join(fullPath, "SKILL.md");
-                if (fs.existsSync(skillFile)) {
-                  files.push({ path: skillFile, type, label: f, tool });
-                }
-              } else if (
-                f.endsWith(".md") ||
-                f.endsWith(".json") ||
-                f.endsWith(".toml")
-              ) {
-                files.push({
-                  path: fullPath,
-                  type,
-                  label: f.replace(/\.(md|json|toml)$/, ""),
-                  tool,
-                });
-              }
-            }
-          } catch {}
-        };
-
-        // Claude global files
-        addFile(
-          path.join(claudeDir, "CLAUDE.md"),
-          "instructions",
-          "Global CLAUDE.md",
-          "claude",
-        );
-        addFile(
-          path.join(claudeDir, "settings.json"),
-          "settings",
-          "settings.json",
-          "claude",
-        );
-        addFile(
-          path.join(claudeDir, "settings.local.json"),
-          "settings",
-          "settings.local.json",
-          "claude",
-        );
-        addFile(
-          path.join(claudeDir, "keybindings.json"),
-          "keybindings",
-          "keybindings.json",
-          "claude",
-        );
-        addDir(path.join(claudeDir, "agents"), "agent", "claude");
-        addDir(path.join(claudeDir, "commands"), "command", "claude");
-        addDir(path.join(claudeDir, "skills"), "skill", "claude");
-        addDir(path.join(claudeDir, "prompts"), "prompt", "claude");
-
-        // Codex global files
-        addFile(
-          path.join(codexDir, "AGENTS.md"),
-          "instructions",
-          "Global AGENTS.md",
-          "codex",
-        );
-        addFile(
-          path.join(codexDir, "AGENTS.override.md"),
-          "instructions",
-          "AGENTS.override.md",
-          "codex",
-        );
-        addFile(
-          path.join(codexDir, "config.toml"),
-          "settings",
-          "config.toml",
-          "codex",
-        );
-        addDir(path.join(codexDir, "prompts"), "command", "codex");
-        addDir(path.join(codexDir, "skills"), "skill", "codex");
-        if (fs.existsSync(path.join(codexDir, "rules"))) {
-          for (const f of fs.readdirSync(path.join(codexDir, "rules"))) {
-            files.push({
-              path: path.join(codexDir, "rules", f),
-              type: "rules",
-              label: f,
-              tool: "codex",
-            });
-          }
-        }
-
-        // Per-project files from known project paths
-        const args_parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const projectPaths: string[] = args_parsed.project_paths || [];
-        for (const pp of projectPaths) {
-          const p = validatePath(pp);
-          if (!p) continue;
-          const name = path.basename(p);
-          addFile(
-            path.join(p, "CLAUDE.md"),
-            "project_instructions",
-            `${name}/CLAUDE.md`,
-            "claude",
-          );
-          addFile(
-            path.join(p, "AGENTS.md"),
-            "project_instructions",
-            `${name}/AGENTS.md`,
-            "codex",
-          );
-          addFile(
-            path.join(p, ".claude", "settings.json"),
-            "project_settings",
-            `${name}/.claude/settings.json`,
-            "claude",
-          );
-          addFile(
-            path.join(p, ".claude", "settings.local.json"),
-            "project_settings",
-            `${name}/.claude/settings.local.json`,
-            "claude",
-          );
-          addFile(
-            path.join(p, ".mcp.json"),
-            "mcp",
-            `${name}/.mcp.json`,
-            "claude",
-          );
-          addFile(
-            path.join(p, ".codex", "config.toml"),
-            "project_settings",
-            `${name}/.codex/config.toml`,
-            "codex",
-          );
-          addDir(path.join(p, ".claude", "agents"), "project_agent", "claude");
-          addDir(path.join(p, ".claude", "skills"), "project_skill", "claude");
-          addDir(
-            path.join(p, ".claude", "commands"),
-            "project_command",
-            "claude",
-          );
-        }
-
-        result = JSON.stringify(files);
-        break;
-      }
-      case "config_read": {
-        const { file_path: readPath } = commandArgs
-          ? JSON.parse(commandArgs)
-          : {};
-        if (!readPath || typeof readPath !== "string") {
-          error = "Missing file_path";
-          break;
-        }
-        // The fence (configFence.ts), "read": what the writers admit, plus an
-        // agent config basename anywhere (config_list advertises project files).
-        const readTarget = await fencedTarget(readPath, "read");
-        if (!readTarget) {
-          error = "Path not allowed";
-          break;
-        }
-        if (!fs.existsSync(readTarget)) {
-          result = JSON.stringify({ content: null, exists: false });
-        } else {
-          const content = fs.readFileSync(readTarget, "utf-8");
-          result = JSON.stringify({ content, exists: true });
-        }
-        break;
-      }
-      case "config_write": {
-        const { file_path: writePath, content: writeContent } = commandArgs
-          ? JSON.parse(commandArgs)
-          : {};
-        if (
-          !writePath ||
-          typeof writePath !== "string" ||
-          typeof writeContent !== "string"
-        ) {
-          error = "Missing file_path or content";
-          break;
-        }
-        // The fence (configFence.ts): this user's ~/.claude and ~/.codex and
-        // agent config basenames inside a tracked project root, nothing else,
-        // all on the canonical path. A line profile is line_profile_edit's alone.
-        const realTarget = await fencedTarget(writePath, "config");
-        if (!realTarget) {
-          error = "Path not allowed";
-          break;
-        }
-        // A file the capability materializer owns keys for is written through
-        // its ledger, never over it: a raw whole-file write here would clobber
-        // owned keys and orphan the ledger, voiding the ownership argument the
-        // materializer rests on. The caller can pass override_owned after
-        // showing the user the conflict.
-        const { readLedger } = await import("./capabilities/ownedJson.js");
-        const parsedArgs = commandArgs ? JSON.parse(commandArgs) : {};
-        if (
-          Object.keys(readLedger(realTarget)).length > 0 &&
-          !parsedArgs.override_owned
-        ) {
-          error =
-            "File carries capability-managed keys; pass override_owned to replace it wholesale";
-          break;
-        }
-        withHarnessCause(EDITED_IN_CODECAST, () =>
-          writeHarnessFile(realTarget, writeContent, "edit"),
-        );
-        result = JSON.stringify({ success: true });
-        log(`[CONFIG] Wrote ${realTarget}`);
-        break;
-      }
-      case "line_profile_edit": {
-        // The app's edit of a project's .codecast/line.toml: key-level edits
-        // applied in place (comments survive), validated by the profile
-        // loader before anything is written, then republished so the app's
-        // copy follows. The read, edit and write stay inline so edits land in
-        // order; the republish (a cast cold start) runs off the command queue
-        // and the reply says it is pending. args: LineProfileEditArgs.
-        // Result: LineProfileEditReply.
-        const { runLineProfileEdit, removeLineFile } =
-          await import("./lineProfileEdit.js");
-        try {
-          let answered: string | undefined;
-          const reply = await runLineProfileEdit(
-            commandArgs ? JSON.parse(commandArgs) : {},
-            {
-              admit: (file) => fencedTarget(file, "line_profile"),
-              // A station edit may write `.codecast/line/` for the first time (LX5).
-              write: (file, content) => {
-                fs.mkdirSync(path.dirname(file), { recursive: true });
-                atomicWriteFile(
-                  file,
-                  content,
-                  fs.existsSync(file) ? {} : { mode: 0o644 },
-                );
-              },
-              remove: removeLineFile,
-              // After the reply is reported, the republish runs and reports again
-              // on this command with how it went.
-              publish: (root) => {
-                afterReport = () =>
-                  republishLineProfileSoon(root, (published) => {
-                    if (answered)
-                      void postCommandResult(
-                        siteUrl,
-                        config.auth_token!,
-                        commandId,
-                        JSON.stringify({ ...JSON.parse(answered), published }),
-                      ).catch(() => {});
-                  });
-                return { ok: "pending" };
-              },
-            },
-          );
-          result = answered = JSON.stringify(reply);
-          log(
-            `[CONFIG] Edited ${reply.file}${reply.changed ? "; republishing" : " (unchanged)"}`,
-          );
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "line_graph_edit": {
-        // The app's edit of one step of a published graph (line-workspace.md
-        // LW4): the prompt or script file the .cast names, in the checkout
-        // that published it, fenced, parsed before the write, written
-        // atomically, then pushed again so the app's copy and its versions
-        // follow. args: LineGraphEditArgs. Result: LineGraphEditReply.
-        const { runLineGraphEdit } = await import("./lineGraphEdit.js");
-        try {
-          let answered: string | undefined;
-          const reply = await runLineGraphEdit(
-            commandArgs ? JSON.parse(commandArgs) : {},
-            {
-              admit: (file) => fencedTarget(file, "line_graph"),
-              write: (file, content) =>
-                atomicWriteFile(
-                  file,
-                  content,
-                  fs.existsSync(file) ? {} : { mode: 0o644 },
-                ),
-              publish: (root, castAbs) => {
-                afterReport = () =>
-                  void runCastCommand(["workflow", "push", castAbs], {
-                    env: { CODECAST_CWD: root },
-                    timeoutMs: 120_000,
-                  }).then((res) => {
-                    const published =
-                      res.code === 0
-                        ? { ok: true }
-                        : {
-                            ok: false,
-                            detail:
-                              (res.stderr || res.stdout)
-                                .trim()
-                                .split("\n")
-                                .pop()
-                                ?.slice(0, 300) || `exit ${res.code}`,
-                          };
-                    if (!published.ok)
-                      log(
-                        `[CONFIG] Push of ${castAbs} after an edit failed: ${published.detail}`,
-                      );
-                    if (answered)
-                      void postCommandResult(
-                        siteUrl,
-                        config.auth_token!,
-                        commandId,
-                        JSON.stringify({ ...JSON.parse(answered), published }),
-                      ).catch(() => {});
-                  });
-                return { ok: "pending" };
-              },
-            },
-          );
-          result = answered = JSON.stringify(reply);
-          log(
-            `[CONFIG] Edited ${reply.node} in ${reply.target}${reply.changed ? "; pushing" : " (unchanged)"}`,
-          );
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "line_try": {
-        // Try (line-workspace.md LW4): a step's edited prompt run on past
-        // cases through the dry-run harness, writes refused. The command
-        // answers at once; each case reports to its line_tries row as it
-        // settles. args: LineTryArgs (lineTry.ts).
-        const tryMod = await import("./lineTry.js");
-        try {
-          const args = commandArgs ? JSON.parse(commandArgs) : {};
-          if (
-            typeof args.root !== "string" ||
-            typeof args.file !== "string" ||
-            !Array.isArray(args.cases)
-          )
-            throw new Error(
-              "line_try needs the graph's checkout, its file and the cases",
-            );
-          const castAbs = await fencedTarget(
-            path.join(args.root, args.file),
-            "line_graph",
-          );
-          if (!castAbs)
-            throw new Error(
-              `${path.join(args.root, args.file)} is not a graph in a project this machine tracks`,
-            );
-          const script = tryMod.harnessScriptPath();
-          if (!script)
-            throw new Error(
-              "Trying a step needs codecast's source on the machine that published the graph (the dry-run harness is not in this build)",
-            );
-          const report = (rowId: string, r: unknown) =>
-            fetch(`${siteUrl}/cli/line-tries/report`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                api_token: config.auth_token,
-                row_id: rowId,
-                report: r,
-              }),
-            }).then(
-              () => undefined,
-              () => undefined,
-            );
-          void tryMod
-            .runLineTry(args, {
-              report,
-              harness: (argv, o) =>
-                tryMod.spawnHarness(argv, {
-                  ...o,
-                  env: { ...process.env, PATH: agentSpawnPath() },
-                }),
-              fromCheckpoint: (runId, given) =>
-                tryMod.briefFromCheckpoint(
-                  castAbs,
-                  args.root,
-                  args.node,
-                  args.new_template,
-                  runId,
-                  given,
-                ),
-              runDir: tryMod.tryRunDir,
-              harnessScript: script,
-            })
-            .then((t) =>
-              log(
-                `[LINE] Try ${args.try_id} on ${args.node}: ${t.ran} ran, ${t.not_tryable} not tryable, ${t.failed} failed`,
-              ),
-            );
-          result = JSON.stringify({ accepted: args.cases.length });
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "line_deploy": {
-        // Deploy on the line (deploys.md DP2): the Line page or the line's
-        // role asked for dp-N. `cast line deploy run` in the checkout that
-        // publishes the line runs its steps as the line-deploy graph (DP8)
-        // and reports to the deploy row; CI and an eval gate take hours, so
-        // the command answers at once. args: { deploy, root }.
-        try {
-          const args = commandArgs ? JSON.parse(commandArgs) : {};
-          if (typeof args.deploy !== "string" || !/^dp-\d+$/.test(args.deploy))
-            throw new Error("line_deploy needs the deploy's ref (dp-N)");
-          if (typeof args.root !== "string" || !fs.existsSync(args.root))
-            throw new Error(`No checkout at ${args.root} on this machine`);
-          void runCastCommand(["line", "deploy", "run", args.deploy], {
-            cwd: args.root,
-            env: { CODECAST_CWD: args.root },
-            timeoutMs: 10 * 60 * 60 * 1000,
-          }).then((r) => log(`[LINE] Deploy ${args.deploy}: exit ${r.code}`));
-          result = JSON.stringify({ accepted: args.deploy });
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "line_fixloop": {
-        // The nightly fix trace (docs/architecture/regret.md R2): record what
-        // landed on main and what each fix repaired. The checkouts only name
-        // the repositories; history is read from this machine's own mirror of
-        // origin. args: { team_id, roots }.
-        try {
-          const args = commandArgs ? JSON.parse(commandArgs) : {};
-          if (
-            typeof args.team_id !== "string" ||
-            !Array.isArray(args.roots) ||
-            args.roots.length === 0
-          )
-            throw new Error("line_fixloop needs team_id and roots");
-          const roots = args.roots.filter(
-            (r: unknown): r is string => typeof r === "string",
-          );
-          void runCastCommand(
-            [
-              "line",
-              "fixloop",
-              "--record",
-              "--team",
-              args.team_id,
-              "--from",
-              ...roots,
-            ],
-            { timeoutMs: 2 * 60 * 60 * 1000 },
-          ).then((r) =>
-            log(
-              `[LINE] Fix trace for ${args.team_id}: exit ${r.code}${r.code ? ` ${(r.stderr || r.stdout).trim().slice(-300)}` : ""}`,
-            ),
-          );
-          result = JSON.stringify({ accepted: roots.length });
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "line_trial_reask": {
-        // "Re-ask" in the line app on a trial run paused where no answer can
-        // land: the same re-ask the CLI does, run here because it stops the
-        // run's runner and reads its graph on this machine. args: { task, project_path? }.
-        try {
-          const args = commandArgs ? JSON.parse(commandArgs) : {};
-          if (typeof args.task !== "string" || !/^ct-\d+$/.test(args.task))
-            throw new Error("line_trial_reask needs the problem's ref");
-          const cwd =
-            typeof args.project_path === "string" &&
-            fs.existsSync(args.project_path)
-              ? args.project_path
-              : undefined;
-          const ran = await runCastCommand(
-            ["line", "trial", "rerun", args.task, "--reask", "--json"],
-            { timeoutMs: 3 * 60 * 1000, ...(cwd ? { cwd } : {}) },
-          );
-          if (ran.code === 0) {
-            result = ran.stdout.trim() || JSON.stringify({ task: args.task });
-            log(`[LINE] Re-asked ${args.task}`);
-          } else
-            error = (
-              ran.stderr.trim() ||
-              ran.stdout.trim() ||
-              `cast line trial rerun exited ${ran.code}`
-            ).slice(-600);
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "config_create": {
-        const {
-          dir_path,
-          filename,
-          content: createContent = "",
-        } = commandArgs ? JSON.parse(commandArgs) : {};
-        if (!dir_path || !filename) {
-          error = "Missing dir_path or filename";
-          break;
-        }
-        const resolvedDir = configDirTarget(dir_path, process.env.HOME || "");
-        if (!resolvedDir) {
-          error = "Dir not allowed";
-          break;
-        }
-        if (!/^[a-zA-Z0-9_-]+\.(md|json|toml)$/.test(filename)) {
-          error = "Invalid filename";
-          break;
-        }
-        const newPath = path.join(resolvedDir, filename);
-        if (fs.existsSync(newPath)) {
-          error = "File already exists";
-          break;
-        }
-        fs.mkdirSync(resolvedDir, { recursive: true });
-        withHarnessCause(EDITED_IN_CODECAST, () =>
-          writeHarnessFile(newPath, createContent, "edit"),
-        );
-        result = JSON.stringify({ success: true, path: newPath });
-        log(`[CONFIG] Created ${newPath}`);
-        break;
-      }
-      case "config_delete": {
-        const { file_path: deletePath } = commandArgs
-          ? JSON.parse(commandArgs)
-          : {};
-        if (!deletePath || typeof deletePath !== "string") {
-          error = "Missing file_path";
-          break;
-        }
-        const resolved = configDirTarget(deletePath, process.env.HOME || "", {
-          inside: true,
-        });
-        if (!resolved) {
-          error =
-            "Only files in agents/commands/skills/prompts dirs can be deleted";
-          break;
-        }
-        if (!fs.existsSync(resolved)) {
-          error = "File not found";
-          break;
-        }
-        withHarnessCause(EDITED_IN_CODECAST, () =>
-          removeHarnessFile(resolved, "edit"),
-        );
-        result = JSON.stringify({ success: true });
-        log(`[CONFIG] Deleted ${resolved}`);
-        break;
-      }
-      case "move_to_device": {
-        // Web-triggered move: THIS (source) daemon transfers the worktree to the
-        // destination device, flips ownership, and resumes there. Only reaches us
-        // because the command was target_device_id'd to us.
-        //
-        // The transfer (git push / scp of the worktree) can be multi-GB and take
-        // minutes. Running it inline (synchronous execFileSync) froze the event
-        // loop past the watchdog's 180s stale-heartbeat threshold, so the daemon
-        // was force-restarted mid-move and the handoff silently never completed.
-        // Delegate to `cast remote move` in a child process (which does transfer
-        // + ownership flip + resume) and await it WITHOUT blocking the loop, so
-        // heartbeats keep flowing and the watchdog leaves us alone.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const sessionId: string | undefined = parsed.session_id;
-        const conversationId: string | undefined = parsed.conversation_id;
-        const toDeviceId: string | undefined = parsed.to_device_id;
-        if (!sessionId || !conversationId || !toDeviceId) {
-          error =
-            "move_to_device: missing session_id/conversation_id/to_device_id";
-          break;
-        }
-        log(
-          `[MOVE] moving ${sessionId.slice(0, 8)} -> device ${toDeviceId.slice(0, 8)} (async child)`,
-        );
-        const moveRes = await runCastCommand([
-          "remote",
-          "move",
-          sessionId,
-          "--to-device",
-          toDeviceId,
-        ]);
-        if (moveRes.code === 0) {
-          // Stop the local copy so ONLY the destination runs it. Ownership now
-          // points at the remote, but a still-live local tmux/process (started OR
-          // auto-resumed) would keep answering delivered messages in parallel
-          // (split-brain) — reap every local backend, then clear the in-memory
-          // delivery/resume bookkeeping.
-          await stopLocalSessionBackends(conversationId, sessionId).catch(
-            () => {},
-          );
-          await clearConversationDeliveryAndResumeState(
-            conversationId,
-            sessionId,
-            "move_to_device",
-          ).catch(() => {});
-          result = JSON.stringify({ moved: true, to: toDeviceId });
-          log(
-            `[MOVE] done — ${sessionId.slice(0, 8)} now owned by ${toDeviceId.slice(0, 8)}`,
-          );
-        } else {
-          const detail = childErrorDetail(moveRes.stderr, moveRes.stdout);
-          error = `move failed (exit ${moveRes.code})${detail ? `: ${detail}` : ""}`;
-          log(
-            `[MOVE] FAILED ${sessionId.slice(0, 8)} -> ${toDeviceId.slice(0, 8)}: ${error}`,
-          );
-        }
-        break;
-      }
-      case "cloud_spawn": {
-        // The web asked for a session on the cloud host and this (local) daemon
-        // was picked to prepare it: wake the box, refresh its checkout, copy the
-        // manifest's secret files, acquire the worktree there, place the row.
-        // A multi-minute SSH job, so it runs as `cast cloud start` in a child
-        // exactly like move_to_device runs `cast remote move`.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId: string | undefined = parsed.conversation_id;
-        const cloudDeviceId: string | undefined = parsed.cloud_device_id;
-        if (!conversationId) {
-          error = "cloud_spawn: missing conversation_id";
-          break;
-        }
-        const earlier = cloudSpawnInFlight.get(conversationId);
-        if (earlier) {
-          log(
-            `[CLOUD] ${conversationId.slice(0, 12)} already being prepared — waiting for that child first`,
-          );
-          await earlier.catch(() => {});
-        }
-        const { cloudStartArgs } = await import("./cloud/cli.js");
-        const workspace: string | undefined = parsed.workspace;
-        const startFrom: string | undefined = parsed.start_from;
-        log(
-          `[CLOUD] placing ${conversationId.slice(0, 12)} on the cloud host (${workspace === "shared" ? "shared checkout" : `isolated worktree from ${startFrom === "origin_main" ? "origin/main" : "this checkout"}`}, async child)`,
-        );
-        const child = runCastCommand(
-          cloudStartArgs({
-            conversation_id: conversationId,
-            cloud_device_id: cloudDeviceId,
-            workspace,
-            start_from: startFrom,
-            leave_out: Array.isArray(parsed.leave_out)
-              ? parsed.leave_out
-              : undefined,
-          }),
-          { timeoutMs: CLOUD_START_RUN_MS },
-        );
-        cloudSpawnInFlight.set(conversationId, child);
-        let res: Awaited<typeof child>;
-        try {
-          res = await child;
-        } finally {
-          if (cloudSpawnInFlight.get(conversationId) === child)
-            cloudSpawnInFlight.delete(conversationId);
-        }
-        if (res.code === 0) {
-          result =
-            res.stdout
-              .trim()
-              .split("\n")
-              .reverse()
-              .find((l) => l.startsWith("{")) ??
-            JSON.stringify({ placed: true });
-          log(`[CLOUD] placed ${conversationId.slice(0, 12)}: ${result}`);
-        } else {
-          const detail = childErrorDetail(res.stderr, res.stdout);
-          error = `cloud host preparation failed (exit ${res.code})${detail ? `: ${detail}` : ""}`;
-          log(
-            `[CLOUD] FAILED ${conversationId.slice(0, 12)}: ${error}`,
-            "warn",
-          );
-          // Through the park's token: a child whose park was superseded (the
-          // row re-parked, re-pointed, or placed by another laptop) must not
-          // write its error onto the park that replaced it.
-          // A context over the cap names what would have to stay behind; the
-          // banner asks the human whether to leave it out.
-          const tooLarge = res.stdout
-            .split("\n")
-            .map((l) => {
-              try {
-                return JSON.parse(l)?.context_too_large;
-              } catch {
-                return undefined;
-              }
-            })
-            .find(Boolean);
-          syncServiceRef
-            ?.reportCloudPlacementFailure(
-              conversationId,
-              parsed.placement_token,
-              error,
-              tooLarge,
-            )
-            .catch((err) =>
-              log(
-                `[CLOUD] ${conversationId.slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`,
-                "warn",
-              ),
-            );
-        }
-        break;
-      }
-      case "cloud_live_sync": {
-        // Mirror a cloud session's tree into a worktree here, live (the web's
-        // "Mirror edits to this laptop"), or stop. The jobs run in-process,
-        // poll the host only while the session works, and report to
-        // conversations.local_mirror (cloud/liveSyncJobs.ts).
-        if (isRemoteDevice()) {
-          error = "a cloud host does not mirror sessions";
-          break;
-        }
-        let mirrorArgs: any = null;
-        try {
-          mirrorArgs =
-            typeof commandArgs === "string"
-              ? JSON.parse(commandArgs)
-              : commandArgs;
-          if (mirrorArgs?.op) {
-            // An agent's or a person's `cast sync status|pull|push|diff` (cloud/syncRequests.ts).
-            const [{ handleSyncRequest }, { readSyncScope }] =
-              await Promise.all([
-                import("./cloud/syncRequests.js"),
-                import("./cloud/syncScope.js"),
-              ]);
-            const ask = async () =>
-              handleSyncRequest(mirrorArgs, {
-                jobs: await liveSyncJobs(),
-                hostFor: (id) => {
-                  const h = hostForDevice(id);
-                  return h?.address && dialsWithoutWaking(h)
-                    ? dialRemoteHost(h)
-                    : null;
-                },
-                scopeFor: (root) => readSyncScope(root),
-                isProjectRoot: async (root) => {
-                  if (computeLocalProjectRoots().includes(root)) return true;
-                  invalidateLocalProjectRoots();
-                  await refreshLocalProjectRoots();
-                  return computeLocalProjectRoots().includes(root);
-                },
-              });
-            const answer = await ask().catch((err) => {
-              if (noteDialError(hostForDevice(mirrorArgs.host_device_id), err))
-                return ask();
-              throw err;
-            });
-            result = JSON.stringify(answer);
-          } else {
-            result = await (await liveSyncJobs()).handleCommand(mirrorArgs);
-          }
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-          if (mirrorArgs?.conversation_id && !mirrorArgs.op)
-            await syncServiceRef?.reportLocalMirror(
-              mirrorArgs.conversation_id,
-              deviceId(),
-              { status: "error", error: error.slice(0, 300) },
-            );
-        }
-        break;
-      }
-      case "cloud_host_action": {
-        // Wake, sleep, apply setup, save or delete an image, from the app's
-        // Machines page. Each runs as a child `cast hosts ...` (AWS calls
-        // block) and its outcome rides the host's next report (cloud/hostReports.ts).
-        if (isRemoteDevice()) {
-          error = "a cloud host does not manage hosts";
-          break;
-        }
-        try {
-          const a =
-            typeof commandArgs === "string"
-              ? JSON.parse(commandArgs)
-              : commandArgs;
-          result = await (await hostReports()).act(a);
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-        break;
-      }
-      case "cloud_browser_sync": {
-        // A cloud session asked for this laptop's browser login for one site.
-        // Laptop only, command-driven (no timer, no retry), one tunnel per
-        // host at a time; the handler and its in-flight map live in
-        // cloud/browserSync.ts. The child's line holds counts, never a cookie.
-        const { handleBrowserSyncCommand } =
-          await import("./cloud/browserSync.js");
-        const out = await handleBrowserSyncCommand(commandArgs, {
-          isRemoteDevice,
-          runCastCommand,
-          log,
-          childErrorDetail,
-        });
-        result = out.result;
-        error = out.error;
-        break;
-      }
-      case "vault_capture_signin":
-      case "vault_check_signin": {
-        // The web's Save sign-in from this laptop's Chrome. The child reads
-        // the cookies and stores them in the Vault (or, for a check, only
-        // counts them); its line holds counts and a name, never a cookie
-        // (secrets/signinCommand.ts).
-        const { handleCaptureSigninCommand } =
-          await import("./secrets/signinCommand.js");
-        const out = await handleCaptureSigninCommand(
-          commandArgs,
-          { isRemoteDevice, runCastCommand, log, childErrorDetail },
-          command === "vault_check_signin",
-        );
-        result = out.result;
-        error = out.error;
-        break;
-      }
-      case "migrate_sessions": {
-        // A bulk migration batch names THIS machine as an executor. The work
-        // is a chain of SSH transfers that can run for an hour, so it lives in
-        // a DETACHED `cast migrate run` child: the command answers at once and
-        // the runner reports every row's progress to Convex itself. Detached
-        // (and unref'd) so a daemon restart mid-batch does not kill it — the
-        // fence on each row is cleared by the runner or, if the runner dies,
-        // by the server's stale-migration reaper.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const batchId: string | undefined =
-          typeof parsed.batch_id === "string" ? parsed.batch_id : undefined;
-        if (!batchId || !/^mg-[a-z0-9]{4,32}$/.test(batchId)) {
-          error = "migrate_sessions: missing or invalid batch_id";
-          break;
-        }
-        const started = startMigrationRunner(batchId);
-        result = JSON.stringify(started);
-        log(
-          `[MIGRATE] ${started.started ? `started runner for ${batchId} (pid ${started.pid})` : `runner for ${batchId} not started: ${started.reason}`}`,
-        );
-        break;
-      }
-      case "team_host_member": {
-        // This daemon is a team machine's admin (the box's sudoer): a member
-        // joins or leaves. Installing a person's tools takes minutes, so the
-        // work runs in a detached `cast hosts team apply` child that claims
-        // the row and reports each step itself (hosts/team.ts).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const memberId: string | undefined =
-          typeof parsed.member_id === "string" &&
-          /^[a-z0-9]{16,40}$/.test(parsed.member_id)
-            ? parsed.member_id
-            : undefined;
-        if (!memberId) {
-          error = "team_host_member: missing or invalid member_id";
-          break;
-        }
-        const started = startMigrateChild(`team-host-${memberId}`, [
-          "hosts",
-          "team",
-          "apply",
-          memberId,
-        ]);
-        result = JSON.stringify(started);
-        log(
-          `[TEAM-HOST] ${parsed.action ?? "change"} ${memberId}: ${started.started ? `started (pid ${started.pid})` : started.reason}`,
-        );
-        break;
-      }
-      case "rehearse_moves": {
-        // The offload review asked for dry runs of moving sessions whose files
-        // are here. Each takes a snapshot and an ssh round trip, so they run in
-        // a detached `cast migrate rehearse` child that reports every row itself.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const requestId: string | undefined =
-          typeof parsed.request_id === "string" ? parsed.request_id : undefined;
-        if (!requestId || !/^rh_[a-z0-9]{8,32}$/.test(requestId)) {
-          error = "rehearse_moves: missing or invalid request_id";
-          break;
-        }
-        const started = startMigrateChild(requestId, [
-          "migrate",
-          "rehearse",
-          "--request",
-          requestId,
-        ]);
-        result = JSON.stringify(started);
-        log(
-          `[MIGRATE] ${started.started ? `rehearsing ${requestId} (pid ${started.pid})` : `rehearsal ${requestId} not started: ${started.reason}`}`,
-        );
-        break;
-      }
-      case "switch_claude_backend": {
-        // A person moved a Claude conversation between the terminal and the
-        // Agent SDK (the header's "Runs in" control). Same session id and
-        // transcript; a running turn is refused unless interrupt is set.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId: string | undefined =
-          typeof parsed.conversation_id === "string"
-            ? parsed.conversation_id
-            : undefined;
-        const target =
-          parsed.backend === "sdk" || parsed.backend === "tmux"
-            ? parsed.backend
-            : undefined;
-        if (!conversationId || !target) {
-          error = "switch_claude_backend: missing conversation_id or backend";
-          break;
-        }
-        const switched = await switchConversationBackend(
-          conversationId,
-          typeof parsed.session_id === "string" ? parsed.session_id : undefined,
-          target,
-          parsed.interrupt === true,
-          typeof parsed.project_path === "string"
-            ? parsed.project_path
-            : undefined,
-        );
-        // A refusal reaches the control that asked (its sessionCommands row); nothing moved, so the
-        // session itself carries no error.
-        result = switched.result;
-        error = switched.error;
-        break;
-      }
-      case "quiesce_session": {
-        // A migration is about to transfer this session's transcript, so the
-        // agent here must stop first — otherwise the copy is a snapshot of a
-        // turn still being written. Targeted at the CURRENT owner (us);
-        // ownership is untouched, the flip is a later mutation. "idle" refuses
-        // while a turn is in progress so the runner can keep waiting; "force"
-        // interrupts it (the runner's idle wait ran out, or the human said so).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId: string | undefined =
-          typeof parsed.conversation_id === "string"
-            ? parsed.conversation_id
-            : undefined;
-        const sessionId: string | undefined =
-          typeof parsed.session_id === "string" ? parsed.session_id : undefined;
-        const mode: "idle" | "force" =
-          parsed.mode === "force" ? "force" : "idle";
-        if (!conversationId || !sessionId) {
-          error = "quiesce_session: missing conversation_id/session_id";
-          break;
-        }
-        const status = currentAgentStatus(sessionId);
-        if (mode === "idle" && MID_TURN_AGENT_STATUSES.has(status ?? "")) {
-          result = JSON.stringify({
-            quiesced: false,
-            reason: `status-${status}`,
-          });
-          log(
-            `[MIGRATE] quiesce ${sessionId.slice(0, 8)} refused — turn in progress (${status})`,
-          );
-          break;
-        }
-        const hadPane =
-          resumeSessionCache.has(sessionId) ||
-          startedSessionTmux.has(conversationId);
-        log(
-          `[MIGRATE] quiescing ${sessionId.slice(0, 8)} (${mode}${status ? `, status ${status}` : ""})`,
-        );
-        // Named now, stopped at release: a move that fails after this point
-        // restarts the agent here, and a background render must survive that.
-        const outside = await sessionProcessesOutsideTree(sessionId).catch(
-          () => [] as ResourceProcess[],
-        );
-        const outsideTmux = await tmuxSessionsCreatedBy(sessionId);
-        await stopLocalSessionBackends(conversationId, sessionId).catch(
-          () => {},
-        );
-        await clearConversationDeliveryAndResumeState(
-          conversationId,
-          sessionId,
-          "quiesce_session",
-        ).catch(() => {});
-        result = JSON.stringify({
-          quiesced: true,
-          mode,
-          had_pane: hadPane,
-          status: status ?? null,
-          outside: [
-            ...outsideTmux.map((name) => ({ name: `tmux session ${name}` })),
-            ...outside.map((p) => ({
-              pid: p.pid,
-              name: p.name,
-              via: p.detached,
-            })),
-          ],
-        });
-        break;
-      }
-      case "run_cast": {
-        // A person pressed Run on a `cast decide --run` card (commandRun.ts).
-        // The command runs as theirs: outside the asking session (its session
-        // env stripped, so the CLI sends no from_session), in the session's
-        // folder. In the background, so a long command never holds the queue;
-        // the run reports itself (sessionDecisions.reportCommandRun).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const decisionId: string | undefined =
-          typeof parsed.decision_id === "string"
-            ? parsed.decision_id
-            : undefined;
-        const argv: string[] | null =
-          Array.isArray(parsed.argv) &&
-          parsed.argv.every((a: unknown) => typeof a === "string")
-            ? parsed.argv
-            : null;
-        if (!decisionId || !argv?.length || argv[0] === "decide") {
-          error = "run_cast: missing decision_id or argv";
-          break;
-        }
-        const cwd =
-          typeof parsed.cwd === "string" && fs.existsSync(parsed.cwd)
-            ? parsed.cwd
-            : undefined;
-        void runApprovedCast(decisionId, argv, cwd);
-        result = JSON.stringify({ started: true });
-        break;
-      }
-      case "merge_back": {
-        // An isolated subagent finished done: bring its worktree's changes
-        // into its parent's checkout, all or nothing (mergeBack.ts), and
-        // report the outcome; the server tells the parent and paints the chip.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId: string | undefined = parsed.conversation_id;
-        if (!conversationId || !parsed.worktree_path || !parsed.target_path) {
-          error =
-            "merge_back: missing conversation_id, worktree_path or target_path";
-          break;
-        }
-        const { mergeBack } = await import("./mergeBack.js");
-        const outcome = await mergeBack(
-          parsed.worktree_path,
-          parsed.target_path,
-        ).catch((err: Error) => ({
-          state: "failed" as const,
-          files: [] as string[],
-          reason: err.message.split("\n")[0],
-        }));
-        log(
-          `[MERGE-BACK] ${conversationId.slice(0, 12)} ${outcome.state}${outcome.files.length ? ` (${outcome.files.length} files)` : ""}${"reason" in outcome && outcome.reason ? `: ${outcome.reason}` : ""}`,
-        );
-        await syncServiceRef?.reportMergeBack({
-          conversation_id: conversationId,
-          state: outcome.state,
-          files: outcome.files,
-          ...("reason" in outcome && outcome.reason
-            ? { reason: outcome.reason }
-            : {}),
-        });
-        result = JSON.stringify({
-          state: outcome.state,
-          files: outcome.files.length,
-        });
-        break;
-      }
-      case "rewind_files": {
-        // "Rewind to here" (rewindTree.ts, rewindFilesDaemon.ts), routed to the owning device.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const { REWIND_FILES_OPS } =
-          await import("@codecast/daemon/rewindFiles");
-        if (
-          typeof parsed.conversation_id !== "string" ||
-          !(REWIND_FILES_OPS as readonly string[]).includes(parsed.op)
-        ) {
-          error = "rewind_files: missing conversation_id or op";
-          break;
-        }
-        const sessionId = buildReverseConversationCache(
-          readConversationCache(),
-        )[parsed.conversation_id];
-        const [target] = sessionId ? collectGitSweepTargets([sessionId]) : [];
-        const root = target
-          ? ((await repoRootFor(target.cwd)) ?? target.cwd)
-          : "";
-        const lastStop = sessionId ? turnCompletedAtFor(sessionId) : undefined;
-        const { runRewindFilesForDaemon } =
-          await import("./rewindFilesDaemon.js");
-        ({ result, error } = await runRewindFilesForDaemon(parsed, {
-          checkout: target ? { root, cwd: target.cwd } : null,
-          // Any agent mid-turn in this checkout, not only this session's.
-          busy: async () => {
-            const working = Object.keys(readConversationCache()).filter((sid) =>
-              MID_TURN_AGENT_STATUSES.has(currentAgentStatus(sid) ?? ""),
-            );
-            for (const t of collectGitSweepTargets(working))
-              if (((await repoRootFor(t.cwd)) ?? t.cwd) === root) return true;
-            return false;
-          },
-          lastTurnEnd: lastStop,
-          snapshotsOff: readConfig()?.wip_snapshots_enabled === false,
-          recordLastTurn: lastStop
-            ? () =>
-                takeTurnSnapshot(
-                  root,
-                  new Map([[parsed.conversation_id, lastStop]]),
-                )
-            : undefined,
-          advanceChain: async () => {
-            await createTurnSnapshot(root);
-          },
-          log,
-        }));
-        break;
-      }
-      case "release_session": {
-        // Ownership was reassigned AWAY from this device ("Run here" on another
-        // machine). Targeted at us — the previous owner — so we must NOT sit
-        // behind the SESSION_COMMANDS single-owner guard (which would skip this
-        // precisely because we no longer own the conversation). Reap every
-        // local backend so no stale tmux/agent copy keeps running here — the
-        // same teardown move_to_device runs on the source after a transfer.
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const conversationId: string | undefined = parsed.conversation_id;
-        const sessionId: string | undefined = parsed.session_id;
-        if (!conversationId) {
-          error = "release_session: missing conversation_id";
-          break;
-        }
-        // Race guard: if ownership bounced back to us (A→B→A before we polled
-        // move 1's release), this command is stale — tearing down would kill a
-        // session we rightfully run. Fail-open on lookup error: the command
-        // only exists because ownership moved away, so cleanup is the norm.
-        try {
-          const info =
-            await syncServiceRef?.getConversationOwnerInfo(conversationId);
-          if (info?.ownerDeviceId === deviceId()) {
-            log(
-              `[RELEASE] skipping ${conversationId.slice(0, 12)} — ownership is back on this device`,
-            );
-            result = JSON.stringify({ released: false, reason: "owner_again" });
-            break;
-          }
-        } catch {
-          /* fall through and release */
-        }
-        log(
-          `[RELEASE] releasing ${conversationId.slice(0, 12)} — ownership moved to another device`,
-        );
-        await stopLocalSessionBackends(conversationId, sessionId).catch(
-          () => {},
-        );
-        const stopped = sessionId
-          ? await stopSessionProcessesOutsideTree(sessionId)
-          : [];
-        await clearConversationDeliveryAndResumeState(
-          conversationId,
-          sessionId,
-          "release_session",
-        ).catch(() => {});
-        result = JSON.stringify({
-          released: true,
-          stopped: stopped.map((p) => ({
-            pid: p.pid,
-            name: p.name,
-            via: p.detached,
-          })),
-        });
-        break;
-      }
-      case "apply_snippet": {
-        // Web "Agent Features" changed a setting for THIS device. Run the very CLI
-        // command a human would, then heartbeat so the new state round-trips back
-        // within seconds. Two shapes: a boolean snippet (`cast install <slug>` /
-        // `--disable`) or the tri-state stable hook (`cast stable <mode>`).
-        const parsed = commandArgs ? JSON.parse(commandArgs) : {};
-        const snippet = parsed.snippet;
-        // Match aliases too: the web sends pre-rename slugs (e.g. "scheduling"
-        // for triggers) so its toggles also work on daemons that predate a rename.
-        // Machine settings ride the same command (MACHINE_SETTINGS): "hooks"
-        // (codecast's Claude Code hooks, harnessHooksInstall.ts) runs its
-        // installer; the rest are config flags only.
-        const known =
-          snippet === "stable" ||
-          isMachineSetting(snippet) ||
-          !!snippetBySlug(snippet);
-        if (typeof snippet !== "string" || !known) {
-          error = `apply_snippet: unknown snippet ${JSON.stringify(snippet)}`;
-          break;
-        }
-        if (isMachineSetting(snippet) && snippet !== "hooks") {
-          // A config flag only (`cast update --auto` would also run an update).
-          patchConfig({ [MACHINE_SETTINGS[snippet]]: parsed.enabled === true });
-          log(
-            `[SETTING] ${MACHINE_SETTINGS[snippet]} ${parsed.enabled ? "on" : "off"} (web toggle)`,
-          );
-          result = JSON.stringify({
-            snippet,
-            enabled: parsed.enabled === true,
-          });
-          await sendHeartbeat().catch(() => {});
-          break;
-        }
-
-        let cliArgs: string[];
-        let logVerb: string;
-        if (snippet === "stable") {
-          const mode =
-            parsed.mode === "team" || parsed.mode === "off"
-              ? parsed.mode
-              : "solo";
-          cliArgs = ["stable", mode, ...(parsed.global ? ["-g"] : [])];
-          logVerb = `stable=${mode}${parsed.global ? " (all projects)" : ""}`;
-        } else {
-          cliArgs = parsed.enabled
-            ? ["install", snippet]
-            : ["install", snippet, "--disable"];
-          logVerb = `${parsed.enabled ? "installing" : "disabling"} ${snippet}`;
-        }
-
-        log(`[SNIPPET] ${logVerb} (web toggle)`);
-        const res = await runCastCommand(cliArgs, {
-          timeoutMs: 60 * 1000,
-          env: harnessCauseEnv({
-            why: `${snippet} turned ${parsed.enabled === false || parsed.mode === "off" ? "off" : "on"} in codecast settings`,
-            automatic: false,
-          }),
-        });
-        if (res.code === 0) {
-          result = JSON.stringify({
-            snippet,
-            ...(snippet === "stable"
-              ? { mode: parsed.mode }
-              : { enabled: parsed.enabled }),
-          });
-          // Push the freshly-written config state up now, don't wait for the
-          // next ~30s beat — keeps the Settings control feeling instant.
-          await sendHeartbeat().catch(() => {});
-        } else {
-          error = `cast ${cliArgs[0]} failed (exit ${res.code}): ${(res.stderr || res.stdout || "").trim().slice(-300)}`;
-        }
-        break;
-      }
-      case "set_provider_key": {
-        // Web set/removed a managed provider key for THIS device (pl-207). A "set"
-        // arrives SEALED to this device's ECDH public key — Convex never saw
-        // plaintext. applyProviderKeyCommand decrypts + updates the 0600 store; we
-        // then fan out to remotes and heartbeat so managed_provider_ids round-trips.
-        const applied = await applyProviderKeyCommand(
-          CONFIG_DIR,
-          commandArgs,
-          verifyProviderKey,
-        );
-        if (!applied.ok) {
-          error = applied.error;
-          break;
-        }
-        log(
-          `[KEYS] ${applied.op} ${applied.provider} (web)${applied.account ? ` for ${applied.account}` : ""}`,
-        );
-        const { ok: _ok, ...verdict } = applied;
-        result = JSON.stringify(verdict);
-        pushProviderKeysToRemoteHosts("web set").catch(() => {});
-        await sendHeartbeat().catch(() => {});
-        break;
-      }
-      case "org_template_bind": {
-        // The web's host step for a role hired from a template (org-hire.md
-        // H3): run `cast org template bind` here, the machine with the checkout.
-        // Secrets arrive sealed to this device's key and become 0600 files the
-        // CLI binds by path (orgTemplateBindCommand.ts); no value is logged.
-        const { runOrgTemplateBind } =
-          await import("./orgTemplateBindCommand.js");
-        const bound = await runOrgTemplateBind(
-          CONFIG_DIR,
-          commandArgs,
-          (cliArgs) =>
-            runCastCommand(cliArgs, {
-              timeoutMs: 10 * 60 * 1000,
-              env: harnessCauseEnv({
-                why: "the host step of a template hire, pressed on the role page",
-                automatic: false,
-              }),
-            }),
-        );
-        log(
-          `[TEMPLATE] bound ${bound.instance}: ${bound.phase}${bound.bound.length ? ` (${bound.bound.length} secret${bound.bound.length === 1 ? "" : "s"})` : ""}`,
-        );
-        result = JSON.stringify(bound);
-        break;
-      }
-      case "cloud_agent_login": {
-        // The web's Connect dialog for a sign-in based cloud agent provider
-        // (Codex Cloud): "check" reads this machine's login and asks the
-        // provider whose it is; "start" runs the provider's own sign-in in a
-        // utility pane (it opens the browser here) and returns at once, and
-        // the dialog checks until it lands. No token leaves the machine.
-        const { provider, op, device_code } = (
-          commandArgs ? JSON.parse(commandArgs) : {}
-        ) as { provider?: string; op?: string; device_code?: boolean };
-        if (!provider || (op !== "check" && op !== "start")) {
-          error = "cloud_agent_login needs a provider and op check|start";
-          break;
-        }
-        if (op === "start") {
-          // A device-code start answers the page (url) and the code (detail) to finish it on any device.
-          const prompt = await cloudAgents.startLogin(provider, {
-            deviceCode: device_code === true,
-          });
-          result = JSON.stringify({
-            state: "started",
-            ...(prompt ? { url: prompt.url, detail: prompt.code } : {}),
-          });
-        } else {
-          result = JSON.stringify(await cloudAgents.checkLogin(provider));
-        }
-        break;
-      }
-      case "agent_tool_setup": {
-        // The setup card under a `cast browser`/`cast computer` command that
-        // needed the Chrome extension or the macOS grants: check reads where
-        // they stand here, start opens the next step on this screen.
-        const setupArgs = parseAgentToolSetupArgs(commandArgs);
-        if (!setupArgs) {
-          error =
-            "agent_tool_setup needs a tool browser|computer and an op check|start";
-          break;
-        }
-        result = JSON.stringify(
-          await runAgentToolSetup(setupArgs, {
-            runCast: (a) => runCastCommand(a, { timeoutMs: 90 * 1000 }),
-          }),
-        );
-        break;
-      }
-      case "cloud_agent_action": {
-        // A session header's action on its cloud agent (Create PR, Apply
-        // locally, Archive, Unarchive), run by the daemon that hosts the
-        // session. The result is said in the thread and answered as `detail`.
-        const { conversation_id: actionConversation, action } = (
-          commandArgs ? JSON.parse(commandArgs) : {}
-        ) as { conversation_id?: string; action?: unknown };
-        if (!actionConversation || !isCloudAgentActionName(action)) {
-          error = "cloud_agent_action needs a conversation_id and an action";
-          break;
-        }
-        const acted = await cloudAgents.act(actionConversation, action);
-        result = JSON.stringify({
-          detail: acted.message,
-          ...(acted.url ? { url: acted.url } : {}),
-        });
-        break;
-      }
-      default:
-        error = `Unknown command: ${command}`;
-    }
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
-  }
-
-  // The outcome, beside the "Executing command" line. Bodies are logged only
-  // for session lifecycle commands: other results can carry tokens.
-  const body =
-    OUTCOME_LOGGED_COMMANDS.has(command) && result
-      ? ` result=${result.slice(0, 160)}`
-      : "";
-  log(
-    `[CMD] ${command} (${commandId})${commandLogContext(commandArgs)} -> ${error ? `error=${error.slice(0, 200)}` : "ok"}${body}`,
-    error ? "warn" : "info",
-  );
-
-  // Report result
-  try {
-    await postCommandResult(
-      siteUrl,
-      config.auth_token,
-      commandId,
-      result,
-      error,
-    );
-  } catch (err) {
-    // The server keeps the command pending and may redeliver it.
-    log(
-      `[CMD] ${command} (${commandId}) result not reported: ${err instanceof Error ? err.message : String(err)}`,
-      "warn",
-    );
-  } finally {
-    // The lease dies with the report either way: a reported command carries an
-    // executed_at, and the server refuses to release one of those.
-    dropClaim(commandId);
-  }
-  afterReport?.();
-}
-
 async function flushRemoteLogs(): Promise<void> {
   await flushRemoteLogsViaHttp();
 }
@@ -15523,20 +10285,6 @@ function resetAuthFailureCount(): void {
   if (state.authFailureCount && state.authFailureCount > 0) {
     saveDaemonState({ authFailureCount: 0 });
   }
-}
-
-interface GitInfo {
-  commitHash?: string;
-  branch?: string;
-  remoteUrl?: string;
-  status?: string;
-  diff?: string;
-  diffStaged?: string;
-  root?: string;
-  repoRoot?: string;
-  worktreeName?: string;
-  worktreeBranch?: string;
-  worktreePath?: string;
 }
 
 // Sync-scope rules (test-scratch exclusion, excluded-paths, selected-projects
@@ -22341,13 +17089,6 @@ function resetReconnectDelay(): void {
   reconnectAttempt = 0;
 }
 
-interface ClaudeSessionInfo {
-  pid: number;
-  tty: string;
-  sessionId: string;
-  termProgram?: string;
-}
-
 function normalizeTty(tty: string): string {
   if (tty.startsWith("/dev/")) return tty;
   if (tty.startsWith("ttys")) return `/dev/${tty}`;
@@ -23551,12 +18292,10 @@ import {
   autoDenyDeadline,
   COMPOSER_CARET_ROW,
   extractAssistantProseAbovePrompt,
-  isComposerRow,
   isMenuFooterRow,
   isTitledRule,
   limitDialogOnPane,
   parseInteractivePrompt,
-  parseSelectDialog,
   spendLimitDialogBanner,
   usageLimitMenuBanner,
   type InteractivePrompt,
@@ -25814,121 +20553,6 @@ async function withTmuxLock<T>(
 // turn ends. We do NOT wait for idle: that only ever served to keep the paste
 // path's mandatory leading Escape from interrupting the turn, and the caller now
 // simply skips that Escape when busy (see injectViaTmuxInner).
-// Detached tmux sessions default to 80x24, and Claude Code's teammate panes
-// split that window until the lead pane is too narrow for its TUI to render
-// recognizably (truncated footer markers, separators under the detection
-// threshold, chip-list-only regions). Nobody is attached to daemon-owned
-// sessions, so claim a real screen. An attached client re-imposes its own size.
-const TMUX_WINDOW_WIDTH = "220";
-const TMUX_WINDOW_HEIGHT = "50";
-const TMUX_SIZE_ARGS = ["-x", TMUX_WINDOW_WIDTH, "-y", TMUX_WINDOW_HEIGHT];
-// When teammate panes split the 220-column window, give the lead pane 130 and
-// leave 89 for the side stack — both sides stay above the 80-column TUI floor.
-const TMUX_LEAD_PANE_WIDTH = "130";
-
-// Self-heal for a lead pane under 80 columns — too narrow to render the markers
-// the classifier needs (and mirrored at that width by the web terminal). Two
-// distinct squeezes: a window that was never sized (created before the daemon
-// sized its windows, or re-squeezed by a small attached client that detached),
-// fixed by resize-window; and a window SPLIT by Claude Code's teammate panes,
-// where resize-window is a no-op — the total is already right, only the pane
-// tiling is wrong — so the lead pane must be widened directly. Returns the tmux
-// commands to run (without target); empty when the pane is healthy.
-//
-// A window that is short rather than narrow is the web terminal split's
-// signature: it sizes the pane to a few rows while open and hands the size
-// back on detach — unless the daemon died under it. Nobody attached and the
-// window at a fraction of its height means that hand-back was lost, so the
-// window is put back. Only when nobody is attached: a live client (the split
-// itself, a human's terminal) owns the size while it is there.
-const TMUX_MIN_UNATTENDED_HEIGHT = 20;
-export function planLeadPaneHeal(
-  paneWidth: number,
-  windowPanes: number,
-  windowHeight = Infinity,
-  sessionAttached = 0,
-): string[][] {
-  const narrow = !(paneWidth >= 80); // NaN (unparseable) counts as narrow, as before
-  const short =
-    windowHeight < TMUX_MIN_UNATTENDED_HEIGHT && sessionAttached === 0;
-  if (!narrow && !short) return [];
-  const cmds: string[][] = [
-    ["resize-window", "-x", TMUX_WINDOW_WIDTH, "-y", TMUX_WINDOW_HEIGHT],
-  ];
-  if (narrow && windowPanes > 1)
-    cmds.push(["resize-pane", "-x", TMUX_LEAD_PANE_WIDTH]);
-  return cmds;
-}
-
-// Best-effort — classification proceeds either way.
-async function ensureTmuxPaneWide(target: string): Promise<void> {
-  try {
-    const { stdout } = await tmuxExec([
-      "display-message",
-      "-p",
-      "-t",
-      target,
-      "#{pane_width}|#{window_panes}|#{window_height}|#{session_attached}",
-    ]);
-    const [paneWidth, windowPanes, windowHeight, sessionAttached] = stdout
-      .trim()
-      .split("|")
-      .map((part) => parseInt(part, 10));
-    const heals = planLeadPaneHeal(
-      paneWidth,
-      windowPanes,
-      windowHeight,
-      sessionAttached,
-    );
-    if (!heals.length) return;
-    for (const [cmd, ...rest] of heals)
-      await tmuxExec([cmd, "-t", target, ...rest]);
-    // Give the TUI a beat to reflow before the first capture.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  } catch {}
-}
-
-// Boot + periodic sweep over every managed agent window nobody is attached
-// to. The per-target heal above only runs when a message is injected, so a
-// pane left squeezed by a viewer that never handed the size back — the daemon
-// died or restarted under it, and no in-band restore survives that — stays
-// squeezed for as long as the agent goes without a message, painting a
-// screen too small to render into (165x6 across a restart, 2026-08-21).
-// Unattended only: a live client, web or human, owns the size while it is
-// there and restores it when it leaves.
-async function healSqueezedAgentWindows(): Promise<number> {
-  if (!hasTmux()) return 0;
-  let healed = 0;
-  try {
-    const { stdout } = await tmuxExec([
-      "list-windows",
-      "-a",
-      "-F",
-      "#{session_name}|#{session_attached}|#{pane_width}|#{window_panes}|#{window_height}",
-    ]);
-    for (const line of stdout.split("\n")) {
-      const [name, attached, paneWidth, windowPanes, windowHeight] =
-        line.split("|");
-      if (!name || !isManagedTmuxName(name)) continue;
-      if ((parseInt(attached ?? "", 10) || 0) > 0) continue;
-      const heals = planLeadPaneHeal(
-        parseInt(paneWidth ?? "", 10),
-        parseInt(windowPanes ?? "", 10) || 1,
-        parseInt(windowHeight ?? "", 10),
-        0,
-      );
-      if (!heals.length) continue;
-      for (const [cmd, ...rest] of heals)
-        await tmuxExec([cmd, "-t", name, ...rest]);
-      healed++;
-      log(
-        `[TERM] healed squeezed agent window ${name} (was ${paneWidth}x${windowHeight}, nobody attached)`,
-      );
-    }
-  } catch {}
-  return healed;
-}
-
 // Reported when the pane holds no agent process. Prefixed SESSION_EXITED so it
 // routes through the existing transient path: short backoff, then a retry that
 // recreates the pane. That retry is the whole point — a pane we cannot classify
@@ -26724,7 +21348,7 @@ export async function ensureTmuxReady(
   pastDialog = false,
 ): Promise<{ busy: boolean; turnRunning: boolean }> {
   const STUCK_BUDGET_MS = 8_000;
-  await ensureTmuxPaneWide(target);
+  await ensureTmuxPaneWide(target, tmuxExec);
   const startedAt = Date.now();
   let lastCorrectiveState: TmuxLiveState | null = null;
   let sameStateAttempts = 0;
@@ -29366,8 +23990,6 @@ export async function injectViaTerminal(
   return injectViaAppleScript(tty, content, termProgram, keystrokes, bracketed);
 }
 
-type SessionFileInfo = { path: string; agentType: AgentClientId };
-
 // A message that can never reach its target, whatever we retry: the delivery
 // loop cancels the row instead of walking the retry ladder (and instead of
 // "undeliverable", which the server re-pends).
@@ -31631,17 +26253,6 @@ function stopCodexPermissionPoller(sessionId: string): void {
   }
 }
 
-type StartedSessionInfo = {
-  tmuxSession: string;
-  projectPath: string;
-  startedAt: number;
-  agentType: AgentClientId;
-  sessionId?: string;
-  worktreeName?: string;
-  worktreeBranch?: string;
-  worktreePath?: string;
-};
-
 const STARTED_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 class PersistedStartedSessions extends Map<string, StartedSessionInfo> {
@@ -31791,11 +26402,6 @@ export function selectSessionsToWarm(
     .slice(0, opts.cap)
     .map((c) => c.sessionId);
 }
-
-type ResumeFatalReason =
-  | "missing_conversation"
-  | "session_not_found"
-  | "invalid_session_id";
 const resumeFatalReasons = new Map<string, ResumeFatalReason>();
 // Conversations whose server copy holds nothing a transcript can be built
 // from (hasResumableMessages), as found by a repair. With a fatal resume
@@ -35704,49 +30310,6 @@ export function isConversationRetired(
     lifecycle.status === "completed"
   );
 }
-
-export type ResumeOptions = {
-  /**
-   * This resume is an explicit human gesture (the resume_session / fork_session
-   * command), not the daemon reviving something on its own — so it bypasses the
-   * retired-conversation gate. It has to: restartSession leaves an existing row's
-   * status/inbox_killed_at untouched when it enqueues the kill→resume pair, so a
-   * "Restart" on a killed card reaches the daemon still looking killed, and
-   * refusing it would break the one gesture that is meant to bring a session back.
-   * Only the gate reads this; nothing downstream does.
-   */
-  userInitiated?: boolean;
-  /** The resume a backend switch runs itself, past the hold it put on the session (claudeSdk/switchBackend.ts). */
-  duringBackendSwitch?: boolean;
-  /** The permission mode the session ran in on the backend it leaves (a backend switch), kept on resume. */
-  permissionMode?: string;
-  /**
-   * Launch the client's native fork of this parent session (registry `forkCmd`)
-   * under the new id instead of resuming an existing transcript. The parent's
-   * local transcript supplies the cwd; the child's appears when the client
-   * writes it.
-   */
-  forkFromSessionId?: string;
-  delivery?: TmuxDeliveryIdentity;
-  model?: string;
-  effort?: string;
-  /**
-   * The process has been typed into the pane (or this resume will not spawn).
-   * Production fires this so the account-switch gate can drop before the
-   * readiness poll; the test double leaves it unset and holds until launch
-   * returns, which is how the identity tests keep a switch off an in-flight
-   * credential read.
-   */
-  onProcessSpawned?: () => void;
-  /**
-   * Runs a transcript transfer without the account-switch hold, keeping the
-   * in-flight guard fresh while it runs; "superseded" when another resume
-   * took over meanwhile, "closed" when the resume gate shut.
-   */
-  duringTransfer?: <T>(
-    run: () => Promise<T>,
-  ) => Promise<T | "superseded" | "closed">;
-};
 
 // Convex side of the gate. Runs only on resurrection paths (rare), never per
 // heartbeat, and swallows lookup failures into "not retired" (fail open).
@@ -40299,16 +34862,6 @@ async function readableImage(file: string, base: string): Promise<string> {
 // timeout. Each awaited step reports itself when it takes longer than a pane
 // round trip should, so the next hang names its cause.
 const SLOW_DELIVERY_STEP_MS = 5_000;
-// Messages a session was launched with as its prompt argument, by message id.
-// In memory only: across a daemon restart the transcript echo settles the row.
-type LaunchPromptCarry = {
-  conversationId: string;
-  tmuxSession: string;
-  projectPath: string;
-  sessionId: string;
-  transcript: string;
-  startedAt: number;
-};
 const launchPromptCarries = new Map<string, LaunchPromptCarry>();
 // How long a carry stands in for delivery. A boot under load takes minutes;
 // past this the message goes through the composer like any other.
@@ -51233,6 +45786,194 @@ export async function runWatchdog(): Promise<void> {
 function getDaemonExecInfo(): { executablePath: string; args: string[] } {
   return selfExecInfo("_daemon");
 }
+
+const daemonCommandDeps: DaemonCommandDeps = {
+  accountLifecycleGate,
+  get activeConfig() {
+    return activeConfig;
+  },
+  applyServerSyncSettings,
+  appServerConversations,
+  autoResumeSession,
+  bindSdkSession,
+  blankLaunchAccount,
+  buildBlankLaunchArgs,
+  buildCodexStableContext,
+  buildReverseConversationCache,
+  captureTmuxLiveState,
+  carryLaunchPrompt,
+  get claudeSdkBackend() {
+    return claudeSdkBackend;
+  },
+  clearConversationDeliveryAndResumeState,
+  cloneCheckout,
+  cloudAgents,
+  cloudSpawnInFlight,
+  get codexAppServerInstance() {
+    return codexAppServerInstance;
+  },
+  collectGitSweepTargets,
+  computeLocalProjectRoots,
+  CONFIG_DIR,
+  CONVERSATION_RESUME_COOLDOWN_MS,
+  CONVERSATION_RESUME_MAX_FAILURES,
+  get conversationCacheRef() {
+    return conversationCacheRef;
+  },
+  conversationResumeFailures,
+  createWorktree,
+  currentAgentStatus,
+  get daemonVersion() {
+    return daemonVersion;
+  },
+  detectSessionAgentType,
+  discardPrimedClaim,
+  disclaimPrefix,
+  discoverAndLinkSession,
+  dropClaim,
+  EDITED_IN_CODECAST,
+  ensureManagedSessionHeartbeat,
+  ensureOpencodeServer,
+  ensureReparentedCheckout,
+  fencedTarget,
+  fetchFolderFromPeers,
+  findActiveTurnForThread,
+  findSessionFile,
+  findSessionProcess,
+  FLEET_REREAD_WAIT_MS,
+  flushRemoteLogs,
+  folderFetchFailures,
+  forgetProcessedCommand,
+  getGitInfo,
+  getInitialManagedSessionId,
+  hibernateSessionNow,
+  holdClaim,
+  hookListening,
+  get hookServerPort() {
+    return hookServerPort;
+  },
+  hostReports,
+  invalidateLocalProjectRoots,
+  isAutostartEnabled,
+  killConversationBackends,
+  killConversationBackendsForAgentSwitch,
+  killLocalPanesForConversation,
+  killTmuxSessionAndTree,
+  lastHookStatus,
+  latestInjectionTsFor,
+  launchWorkflowRun,
+  liveSyncJobs,
+  log,
+  logConvexFailure,
+  logError,
+  logLifecycle,
+  logWarn,
+  maintainCcUsageSnapshots,
+  maintainCodexUsageSnapshot,
+  mayReconstituteResumeTranscript,
+  MINT_FLOW_TMUX,
+  mintFlow,
+  mintUrlPath,
+  nextSdkPermissionMode,
+  observePaneInput,
+  observeSessionInput,
+  ownedByAnotherDevice,
+  get pacedAccountRevive() {
+    return pacedAccountRevive;
+  },
+  parsePermissionModeFooter,
+  patchConfig,
+  pendingAgentSwitches,
+  pendingAppServerForkParents,
+  PERMISSION_MODES,
+  persistAppServerThreadRegistrations,
+  persistedAppServerThreads,
+  placeArrivedSession,
+  platform,
+  pushCredentialToRemoteHosts,
+  pushProviderKeysToRemoteHosts,
+  pushSessionIdBinding,
+  readBranch,
+  readConfig,
+  readConversationCache,
+  readDaemonState,
+  readyCodexAppServer,
+  rebindConversationSession,
+  rebuildOpencodeSession,
+  recordObservedPermissionMode,
+  recordProjectMapping,
+  refreshLocalProjectRoots,
+  refuseResumeNoLocalCheckout,
+  registerAppServerConversation,
+  registerManagedStartedSession,
+  remapConversationSession,
+  repairAndResumeSession,
+  republishLineProfileSoon,
+  resolveCodexPermissionDefaults,
+  resolveCommandSessionId,
+  resolveLocalRepo,
+  resolveResumeCwdOrRefuse,
+  resolveSessionCommandPane,
+  restartDaemonProcess,
+  restartingSessionIds,
+  resumeFatalReasons,
+  resumeInFlight,
+  resumeInFlightStarted,
+  resumeOrRepair,
+  resumeSessionCache,
+  runApprovedCast,
+  runCastCommand,
+  runSelfUpdate,
+  sanitizeBinaryArgs,
+  saveConversationCache,
+  seedOpencodeForkSyncBaseline,
+  sendHeartbeat,
+  sendReparentNotice,
+  sessionProcessesOutsideTree,
+  setTmuxSessionOption,
+  stableLaunchOptions,
+  stampCodexPaneAccount,
+  startClaudeSdkSession,
+  startCodexThreadThenRecordStableContext,
+  startedSessionGuard,
+  startedSessionTmux,
+  startLoginFlow,
+  startMigrateChild,
+  startMigrationRunner,
+  startMintFlow,
+  stepPermissionMode,
+  stopLocalSessionBackends,
+  stopManagedSessionHeartbeat,
+  stopSessionProcessesOutsideTree,
+  submitLoginCode,
+  SWITCH_CONTINUE_SPACING_MS,
+  switchConversationBackend,
+  get syncServiceRef() {
+    return syncServiceRef;
+  },
+  syncStats,
+  takePrimedClaim,
+  takeTurnSnapshot,
+  teardownConversationBackendsLive,
+  terminalToken,
+  tmuxExec,
+  tmuxSessionsCreatedBy,
+  touchHostActivity,
+  turnClaims,
+  turnCompletedAtFor,
+  turnStartedAtFor,
+  typeIntoPane,
+  USER_RESUME,
+  validatePath,
+  verifyProviderKey,
+  waitingLaunchPrompt,
+  withPanePermissionModeLock,
+  writeGrokStableRulesFile,
+  writeRebuiltDeltaTranscript,
+  set pacedAccountRevive(value) {
+    pacedAccountRevive = value;
+  },
+};
 
 // Only run directly if executed as the main module (not when imported)
 if (

@@ -234,18 +234,13 @@ describe("app-server thread registration", () => {
 describe("Codex history import routing", () => {
   test("imports copied history through app-server before generic resume", () => {
     const source = fs.readFileSync(
-      new URL("./daemon.ts", import.meta.url),
+      new URL("./daemon-commands/resume-forks.ts", import.meta.url),
       "utf8",
     );
     const start = source.search(
       /if \(\s*resumeAgentType === "codex" &&\s*\(parsed\.fork === true \|\| forceReconstitute\) &&\s*conversationId\s*\)/,
     );
-    // The Codex branch ends where the registry-driven native fork branch begins
-    // (grok forks through its own resume flags there, via autoResumeSession).
-    const end = source.indexOf(
-      "// Native fork: the client copies its own session state",
-      start,
-    );
+    const end = source.indexOf("await resumeFallback(", start);
     const branch = source.slice(start, end);
 
     expect(start).toBeGreaterThan(0);
@@ -261,22 +256,21 @@ describe("Codex history import routing", () => {
 
   test("routes an agent switch to Codex through app-server, not tmux resume", () => {
     const source = fs.readFileSync(
-      new URL("./daemon.ts", import.meta.url),
+      new URL("./daemon-commands/resume-forks.ts", import.meta.url),
       "utf8",
     );
-    expect(source).toMatch(
+    const resume = fs.readFileSync(
+      new URL("./daemon-commands/resume-session.ts", import.meta.url),
+      "utf8",
+    );
+    expect(resume).toMatch(
       /parsed\.switch_agent === true &&\s*conversationId &&\s*resumeAgentType !== "codex"/,
     );
 
     const start = source.search(
       /if \(\s*resumeAgentType === "codex" &&\s*\(parsed\.fork === true \|\| forceReconstitute\) &&\s*conversationId\s*\)/,
     );
-    // The Codex branch ends where the registry-driven native fork branch begins
-    // (grok forks through its own resume flags there, via autoResumeSession).
-    const end = source.indexOf(
-      "// Native fork: the client copies its own session state",
-      start,
-    );
+    const end = source.indexOf("await resumeFallback(", start);
     const branch = source.slice(start, end);
 
     expect(branch).toContain("activeCodexAppServer.threadFork");
@@ -287,9 +281,11 @@ describe("Codex history import routing", () => {
     );
     expect(branch).toContain('transport: "app-server"');
     expect(branch).toContain("unregisterManagedSession(sessionId)");
-    expect(branch).toContain("setSessionError(conversationId, error)");
+    expect(branch).toContain(
+      "setSessionError(conversationId, commandOutcome.error)",
+    );
     expect(branch.indexOf("unregisterManagedSession(sessionId)")).toBeLessThan(
-      branch.indexOf("setSessionError(conversationId, error)"),
+      branch.indexOf("setSessionError(conversationId, commandOutcome.error)"),
     );
     expect(branch).not.toContain("autoResumeSession");
     expect(branch.indexOf("pendingAppServerForkParents.add")).toBeLessThan(
@@ -314,7 +310,7 @@ describe("Codex history import routing", () => {
 
   test("does not skip an in-place agent switch because a resume is already in flight", () => {
     const source = fs.readFileSync(
-      new URL("./daemon.ts", import.meta.url),
+      new URL("./daemon-commands/resume-session.ts", import.meta.url),
       "utf8",
     );
     expect(source).toContain(
@@ -324,7 +320,7 @@ describe("Codex history import routing", () => {
 
   test("a switch kill is identified from its own args, not only the in-batch resume", () => {
     const source = fs.readFileSync(
-      new URL("./daemon.ts", import.meta.url),
+      new URL("./daemon-commands/session-lifecycle.ts", import.meta.url),
       "utf8",
     );
     const start = source.indexOf('case "kill_session":');
@@ -336,7 +332,7 @@ describe("Codex history import routing", () => {
 
   test("an in-place switch tears the old backend down instead of dropping its map", () => {
     const source = fs.readFileSync(
-      new URL("./daemon.ts", import.meta.url),
+      new URL("./daemon-commands/resume-session.ts", import.meta.url),
       "utf8",
     );
     const start = source.search(

@@ -19,7 +19,7 @@
  * Nothing here may block the event loop. The maintainer runs these functions
  * on a timer inside the daemon, where one synchronous `git worktree add` on a
  * large repo freezes delivery, injection and the heartbeat for its whole
- * duration (daemon.loopBudget.guard.test.ts). Every child process and every
+ * duration (daemon.loop-budget.guard.test.ts). Every child process and every
  * file read below is async for that reason.
  */
 

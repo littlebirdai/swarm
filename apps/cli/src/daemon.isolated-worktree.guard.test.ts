@@ -15,19 +15,31 @@ const legacy = fs.readFileSync(path.join(here, "worktreeLegacy.ts"), "utf8");
 
 describe("an isolated start never falls back to the main checkout", () => {
   test("a worktree that cannot be made fails the start, latching a full disk", () => {
-    const at = daemon.indexOf(
+    const startSession = fs.readFileSync(
+      new URL("./daemon-commands/start-session.ts", import.meta.url),
+      "utf8",
+    );
+    const at = startSession.indexOf(
       "const made = await createWorktree(gitRoot, wtName);",
     );
     expect(at).toBeGreaterThan(0);
-    const failure = daemon.slice(
+    const failure = startSession.slice(
       at,
-      daemon.indexOf("worktreeResult = made;", at),
+      startSession.indexOf("worktreeResult = made;", at),
     );
     expect(failure).toContain(`if ("error" in made)`);
     expect(failure).toMatch(/diskFullFailReason\(\s*gitRoot,/);
-    expect(failure).toContain("setSessionError(conversationId, error)");
+    expect(failure).toContain(
+      "setSessionError(conversationId, commandOutcome.error)",
+    );
     expect(failure).toMatch(/\n\s*break;\n/);
-    expect(daemon).not.toContain("falling back to repo root");
+    const launchSession = fs.readFileSync(
+      new URL("./daemon-commands/launch-session.ts", import.meta.url),
+      "utf8",
+    );
+    expect(daemon + startSession + launchSession).not.toContain(
+      "falling back to repo root",
+    );
   });
 
   test("createWorktree reports why it failed instead of null", () => {

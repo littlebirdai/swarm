@@ -3808,7 +3808,7 @@ function liveUsageKey(
  *
  * Every filesystem call here is async on purpose: this runs on the daemon's
  * loopback server, where one synchronous read stalls delivery, injection, the
- * heartbeat and the watchdog alike (daemon.loopBudget.guard.test.ts).
+ * heartbeat and the watchdog alike (daemon.loop-budget.guard.test.ts).
  */
 export async function ingestStatusLineUsage(
   payload: unknown,
