@@ -3,7 +3,15 @@
 // retry each), which held the scheduler's slots for minutes after every merge
 // to main and delayed every other scheduled write in prod. The fan-out now
 // goes out as batches, and a batch re-asks only the PRs GitHub had no answer for.
-import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  jest,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { internal } from "./_generated/api";
@@ -24,7 +32,10 @@ const modules = {
 
 const REPO = "acme/app";
 const realFetch = globalThis.fetch;
+beforeEach(() => jest.useFakeTimers());
 afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
   globalThis.fetch = realFetch;
 });
 
