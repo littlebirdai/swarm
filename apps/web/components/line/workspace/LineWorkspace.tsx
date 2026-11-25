@@ -307,20 +307,20 @@ export function LineWorkspace({
   const rawView = search?.get("view") ?? null;
   const rawMode = search?.get("mode") ?? null;
   // The app pages' fix-up only: settings keeps its own address whatever it carries.
+  const forYouView = selection.view === "foryou";
   const stale =
     !settings &&
-    selection.view !== "foryou" &&
     ((!!rawView && rawView !== selection.view) ||
       (!!rawMode && rawMode !== selection.mode) ||
       (selection.view !== "line" && !!rawMode));
   useWatchEffect(() => {
-    if (stale)
+    if (stale && !forYouView)
       select({ view: readLineSelection(search).view }, undefined, {
         replace: true,
       });
-  }, [stale, select, search]);
+  }, [stale, forYouView, select, search]);
   // A run link that names no problem (an old Runs link) takes its problem once the run's row is in the store.
-  const runOnly = selection.run && !selection.case ? runCase : null;
+  const runOnly = !forYouView && !selection.case ? runCase : null;
   useWatchEffect(() => {
     if (runOnly && selection.run)
       select(
@@ -357,7 +357,7 @@ export function LineWorkspace({
   // An address that names its case by row id (an older link, a run's own case) settles on the problem's ref in place.
   const caseId = selection.case;
   const caseRef = caseId ? refs.ref(caseId) : null;
-  const caseByRef = caseRef && caseRef !== address.case ? caseRef : null;
+  const caseByRef = !forYouView && caseRef !== address.case ? caseRef : null;
   useWatchEffect(() => {
     if (caseByRef)
       select(

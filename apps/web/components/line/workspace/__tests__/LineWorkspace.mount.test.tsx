@@ -99,9 +99,9 @@ function seed(store: Parameters<Seed>[0]) {
   ]);
 }
 
-async function mount(el: React.ReactElement, extra?: Seed) {
+async function mount(el: React.ReactElement, extra?: Seed, path = "/flows") {
   const web = await mountWeb(el, {
-    path: "/flows" + (search ? "?" + search : ""),
+    path: path + (search ? "?" + search : ""),
     authenticated: true,
     setup(backend, store) {
       window.innerWidth = 1400;
@@ -112,6 +112,7 @@ async function mount(el: React.ReactElement, extra?: Seed) {
       backend.set(api.sessionDecisions.getWithDoc, pending);
       backend.set(api.workflow_runs.get, pending);
       backend.set(api.appConnections.listConnections, pending);
+      backend.set(api.devices.listDevices, pending);
       backend.set(api.ingest.listSources, pending);
       backend.set(api.lineStages.flow, pending);
       backend.set(api.lineStages.dispatch, pending);
@@ -305,6 +306,41 @@ test("the Line's Decisions is the Decisions page narrowed to the flows, and an o
   ]);
   await again.close();
 }, 30_000);
+
+test.each([
+  ["view=foryou&case=t1", "/decisions?tab=team&source=flows"],
+  ["view=foryou&case=t1&decision=sd-9", "/decisions/sd-9"],
+  ["view=inbox&run=a", "/decisions?tab=team&source=flows"],
+])("the Decisions redirect owns %s", async (query, path) => {
+  search = query;
+  const web = await mount(<LineWorkspace />);
+  expect(web.navigationLog.slice(1)).toEqual([{ action: "replace", path }]);
+  await web.close();
+});
+
+test.each([
+  ["view=bogus", "/flows?view=line"],
+  ["view=runs&run=a", "/flows?view=problems&run=a&case=ct-1"],
+  ["view=problems&mode=map", "/flows?view=problems"],
+])("normalizes other old links in place: %s", async (query, path) => {
+  search = query;
+  const web = await mount(<LineWorkspace />);
+  expect(web.navigationLog.slice(1)).toEqual([{ action: "replace", path }]);
+  await web.close();
+});
+
+test("settings keeps its own address", async () => {
+  search = "view=inbox&decision=sd-9";
+  const web = await mount(
+    <LineWorkspace settings />,
+    undefined,
+    "/flows/settings",
+  );
+  expect(web.navigationLog).toEqual([
+    { action: "pop", path: "/flows/settings?view=inbox&decision=sd-9" },
+  ]);
+  await web.close();
+});
 
 test("a line fence draws the live step, and an unreadable project says so", async () => {
   search = "";
