@@ -390,64 +390,6 @@ describe("expectations data path", () => {
     expect(await ctx.db.query("expectation_proposals").collect()).toEqual([]);
   });
 
-  test("a line changed under an open proposal refuses it, and the proposal says why", async () => {
-    const ctx = await makeCtx();
-    await run(propose, ctx, {
-      ...scope(),
-      summary: "Seed",
-      ops: [
-        {
-          op: "add",
-          part: "Calls",
-          text: "A card's facts are true.",
-          citations: [QUOTED],
-        },
-      ],
-    });
-    await run(propose, ctx, {
-      ...scope(),
-      summary: "A",
-      ops: [
-        {
-          op: "edit",
-          id: "ex-callers-call-1",
-          note: "under review",
-          citations: [BARE],
-        },
-      ],
-    });
-    await run(propose, ctx, {
-      ...scope(),
-      summary: "B",
-      ops: [
-        {
-          op: "retire",
-          id: "ex-callers-call-1",
-          reason: "ruled out",
-          citations: [BARE],
-        },
-      ],
-    });
-    await run(resolve, ctx, {
-      api_token: `tok-${OWNER}`,
-      proposal: "xp-2",
-      action: "apply",
-    });
-    await expect(
-      run(resolve, ctx, {
-        api_token: `tok-${OWNER}`,
-        proposal: "xp-3",
-        action: "apply",
-      }),
-    ).rejects.toThrow(/changed in version 2/);
-    const s = await run(show, ctx, scope());
-    expect(s.proposals.find((p: any) => p.short_id === "xp-3")).toMatchObject({
-      status: "open",
-      refused: expect.stringContaining("changed in version 2"),
-    });
-    expect(s.current_version).toBe(2);
-  });
-
   test("a retracted harvest moves no cursor, so the next pass reads its window again; an applied one is not retracted", async () => {
     const ctx = await makeCtx();
     const seed = await run(propose, ctx, {

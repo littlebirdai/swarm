@@ -4,7 +4,7 @@
 // answering its card. A leaf
 // module: sessionDecisions calls the card half from the one settle path every
 // answer takes, so it imports nothing that imports sessionDecisions.
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   applyOps,
   expectationPrefix,
@@ -29,6 +29,19 @@ export async function latestExpectations(
     .first();
 }
 
+export async function expectationsAtVersion(
+  ctx: Ctx,
+  projectId: Id<"projects">,
+  version: number,
+): Promise<Doc<"project_expectations"> | null> {
+  return await ctx.db
+    .query("project_expectations")
+    .withIndex("by_project_version", (q: any) =>
+      q.eq("project_id", projectId).eq("version", version),
+    )
+    .first();
+}
+
 /** A prefix no other project in the workspace uses, so an id names one line. */
 async function freePrefix(
   ctx: Ctx,
@@ -48,14 +61,75 @@ async function freePrefix(
   }
 }
 
-/**
- * Apply an open proposal onto the current document as a new version, applied
- * by `userId`. Refuses, and leaves the proposal open with the reason, when the
- * document moved under it in a way that touches its changes.
- */
+export function proposalPreviewFor(
+  ctx: Ctx,
+  projectTitle: string,
+  latest: Doc<"project_expectations"> | null,
+) {
+  const prefixes = new Map<string, Promise<string>>();
+  return async (proposal: Doc<"expectation_proposals">) => {
+    let prefix = latest?.prefix;
+    if (prefix === undefined) {
+      let pending = prefixes.get(proposal.workspace);
+      if (!pending) {
+        pending = freePrefix(ctx, proposal.workspace, projectTitle);
+        prefixes.set(proposal.workspace, pending);
+      }
+      prefix = await pending;
+    }
+    const version = (latest?.version ?? 0) + 1;
+    const result = applyOps(
+      { items: latest?.items ?? [], prefix, next_n: latest?.next_n ?? 1 },
+      proposal.ops,
+      version,
+      proposal.base_version,
+    );
+    return { prefix, version, result };
+  };
+}
+
+export function proposalViewFor(
+  ctx: Ctx,
+  projectTitle: string,
+  latest: Doc<"project_expectations"> | null,
+) {
+  const apply = proposalPreviewFor(ctx, projectTitle, latest);
+  return async (
+    p: Doc<"expectation_proposals">,
+    decision: Doc<"session_decisions"> | null,
+    web = false,
+  ) => {
+    const result = p.status === "open" ? (await apply(p)).result : null;
+    const refused = result?.ok === false ? result.errors.join("\n") : undefined;
+    return {
+      short_id: p.short_id,
+      status: p.status,
+      summary: p.summary,
+      changes: p.ops.length,
+      base_version: p.base_version,
+      ...(p.applied_version ? { applied_version: p.applied_version } : {}),
+      ...(decision?.short_id ? { card: decision.short_id } : {}),
+      ...(refused ? { refused } : {}),
+      ...(p.retracted_reason ? { retracted_reason: p.retracted_reason } : {}),
+      ...(p.since ? { since: p.since } : {}),
+      ...(p.until ? { until: p.until } : {}),
+      created_at: p.created_at,
+      ...(p.resolved_at ? { resolved_at: p.resolved_at } : {}),
+      ...(web
+        ? {
+            ops: p.ops,
+            ...(decision
+              ? { card_id: String(decision._id), card_status: decision.status }
+              : {}),
+          }
+        : {}),
+    };
+  };
+}
+
 export async function performApply(
   ctx: Ctx,
-  proposal: any,
+  proposal: Doc<"expectation_proposals">,
   userId: Id<"users">,
   how: ExpectationsHow,
   now: number,
@@ -65,21 +139,12 @@ export async function performApply(
   const project = await ctx.db.get(proposal.project_id);
   if (!project) return { ok: false, error: "The project is gone" };
   const latest = await latestExpectations(ctx, project._id);
-  const version = (latest?.version ?? 0) + 1;
-  const prefix =
-    latest?.prefix ??
-    (await freePrefix(ctx, proposal.workspace, project.title));
-  const result = applyOps(
-    { items: latest?.items ?? [], prefix, next_n: latest?.next_n ?? 1 },
-    proposal.ops,
-    version,
-    proposal.base_version,
-  );
-  if (!result.ok) {
-    const error = result.errors.join("\n");
-    await ctx.db.patch(proposal._id, { refused: error, updated_at: now });
-    return { ok: false, error };
-  }
+  const { prefix, version, result } = await proposalPreviewFor(
+    ctx,
+    project.title,
+    latest,
+  )(proposal);
+  if (!result.ok) return { ok: false, error: result.errors.join("\n") };
   await ctx.db.insert("project_expectations", {
     project_id: project._id,
     user_id: userId,
@@ -99,7 +164,6 @@ export async function performApply(
     applied_version: version,
     resolved_by: userId,
     resolved_at: now,
-    refused: undefined,
     updated_at: now,
   });
   return { ok: true, version };

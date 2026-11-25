@@ -54,7 +54,7 @@ describe("cast expectations output", () => {
     ).toContain("has no expectations yet");
   });
 
-  test("show lists open proposals with the reason one could not apply", () => {
+  test("show lists open proposals with the reason one cannot apply", () => {
     const out = formatShow(
       {
         project: { id: "p", title: "Calls" },
@@ -89,7 +89,7 @@ describe("cast expectations output", () => {
     expect(out).toContain("Version 2 of 2, applied by Cam from xp-2: Sharpen");
     expect(out).toContain("Open: xp-3 (1 change, ");
     expect(out).toContain(
-      "decision sd-4\n  could not apply: changed in version 2",
+      "decision sd-4\n  cannot apply: changed in version 2",
     );
     expect(out).toContain("Context read up to 2026-10-05T17:00:00.000Z.");
   });

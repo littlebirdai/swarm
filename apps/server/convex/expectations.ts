@@ -38,7 +38,13 @@ import { allRolesInBoundary } from "./lib/orgAccess";
 import { answererOf } from "./orgLine";
 import { personName } from "./lib/sessionTell";
 import { expectationOpValidator } from "./expectationsSchema";
-import { latestExpectations, performApply } from "./lib/expectationsApply";
+import {
+  proposalPreviewFor,
+  expectationsAtVersion,
+  latestExpectations,
+  performApply,
+  proposalViewFor,
+} from "./lib/expectationsApply";
 import {
   applyOps,
   autoApplies,
@@ -139,35 +145,6 @@ async function versionView(
   };
 }
 
-/** A proposal as the lists show it. `web` adds what the Line tab answers it
- *  from: its changes in full and its card's id, so Apply there answers the
- *  same card the queue holds. */
-function proposalView(p: any, decision: any, web = false) {
-  return {
-    short_id: p.short_id,
-    status: p.status,
-    summary: p.summary,
-    changes: p.ops.length,
-    base_version: p.base_version,
-    ...(p.applied_version ? { applied_version: p.applied_version } : {}),
-    ...(decision?.short_id ? { card: decision.short_id } : {}),
-    ...(p.refused ? { refused: p.refused } : {}),
-    ...(p.retracted_reason ? { retracted_reason: p.retracted_reason } : {}),
-    ...(p.since ? { since: p.since } : {}),
-    ...(p.until ? { until: p.until } : {}),
-    created_at: p.created_at,
-    ...(p.resolved_at ? { resolved_at: p.resolved_at } : {}),
-    ...(web
-      ? {
-          ops: p.ops,
-          ...(decision
-            ? { card_id: String(decision._id), card_status: decision.status }
-            : {}),
-        }
-      : {}),
-  };
-}
-
 /** What changed in a version, read off its lines: added in it, changed in it, retired in it. */
 function versionChanges(items: any[], version: number) {
   let added = 0,
@@ -183,36 +160,29 @@ function versionChanges(items: any[], version: number) {
   return { added, changed, retired };
 }
 
-/** The read every surface shares: one version (the current one by default), the history, recent proposals, the cursor. */
 async function readExpectations(
   ctx: Ctx,
   project: Doc<"projects">,
   version?: number,
   web = false,
 ) {
-  const byVersion = () =>
-    ctx.db
-      .query("project_expectations")
-      .withIndex("by_project_version", (q: any) =>
-        version === undefined
-          ? q.eq("project_id", project._id)
-          : q.eq("project_id", project._id).eq("version", version),
-      );
-  const versions: any[] = await ctx.db
+  const versions: Doc<"project_expectations">[] = await ctx.db
     .query("project_expectations")
     .withIndex("by_project_version", (q: any) =>
       q.eq("project_id", project._id),
     )
     .order("desc")
     .take(VERSIONS_LISTED);
+  const latest = versions[0] ?? null;
+  const proposalView = proposalViewFor(ctx, project.title, latest);
   const row =
     version === undefined
-      ? (versions[0] ?? null)
+      ? latest
       : (versions.find((r) => r.version === version) ??
-        (await byVersion().first()));
+        (await expectationsAtVersion(ctx, project._id, version)));
   if (version !== undefined && !row)
     notFound(`${project.title} has no expectations version ${version}`);
-  const proposals: any[] = await ctx.db
+  const proposals: Doc<"expectation_proposals">[] = await ctx.db
     .query("expectation_proposals")
     .withIndex("by_project_created", (q: any) =>
       q.eq("project_id", project._id),
@@ -236,9 +206,9 @@ async function readExpectations(
     if (!names.has(key)) names.set(key, personName(await ctx.db.get(id)));
     return names.get(key)!;
   };
-  return {
+  const read = {
     project: { id: String(project._id), title: project.title },
-    current_version: versions[0]?.version ?? 0,
+    current_version: latest?.version ?? 0,
     doc: row ? await versionView(ctx, project, row) : null,
     versions: await Promise.all(
       versions.map(async (r) => {
@@ -263,7 +233,11 @@ async function readExpectations(
     ),
     proposals: await Promise.all(
       shown.map(async (p, i) => {
-        const view = proposalView(p, decisions[i], web && p.status === "open");
+        const view = await proposalView(
+          p,
+          decisions[i],
+          web && p.status === "open",
+        );
         return web && p.status === "open"
           ? {
               ...view,
@@ -275,6 +249,7 @@ async function readExpectations(
     ),
     cursor,
   };
+  return { read, proposalView };
 }
 
 /** The opening of a finding's detail, as plain words: what the judge saw. */
@@ -524,7 +499,11 @@ export const show = query({
       ref && !args.project?.trim()
         ? await projectOfRef(ctx, userId, args, ref)
         : (await projectInScope(ctx, userId, args)).project;
-    const read = await readExpectations(ctx, project, args.version);
+    const { read, proposalView } = await readExpectations(
+      ctx,
+      project,
+      args.version,
+    );
     if (!ref) return read;
     if (isProposalRef(ref)) {
       const proposal = await proposalByRef(ctx, ref);
@@ -533,7 +512,10 @@ export const show = query({
       const decision = proposal!.decision_id
         ? await ctx.db.get(proposal!.decision_id)
         : null;
-      return { ...read, proposal: proposalView(proposal, decision, true) };
+      return {
+        ...read,
+        proposal: await proposalView(proposal!, decision, true),
+      };
     }
     const line = read.doc?.items.find((e) => e.id === ref);
     if (!line)
@@ -557,7 +539,7 @@ export const forProject = query({
     // apply as they make them (personEditApplies). `usage` is how often
     // findings cite each line; `sources` names who said each source's words;
     // `routine` is the proposer routine, when one is installed.
-    const read = await readExpectations(ctx, project, args.version, true);
+    const { read } = await readExpectations(ctx, project, args.version, true);
     const items: any[] = read.doc?.items ?? [];
     const openOps = read.proposals.flatMap((p: any) => p.ops ?? []);
     const citations: ExpectationCitation[] = [
@@ -730,10 +712,17 @@ export const brief = query({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx, args.api_token);
     const { project } = await projectInScope(ctx, userId, args);
-    const read = await readExpectations(ctx, project, args.version);
+    const version = args.version;
+    const row =
+      version === undefined
+        ? await latestExpectations(ctx, project._id)
+        : await expectationsAtVersion(ctx, project._id, version);
+    if (version !== undefined && !row)
+      notFound(`${project.title} has no expectations version ${version}`);
+    const base = row ? await versionView(ctx, project, row) : null;
     const doc = args.proposal
-      ? await withProposal(ctx, project, read.doc, args.proposal)
-      : read.doc;
+      ? await withProposal(ctx, project, base, args.proposal)
+      : base;
     return {
       project: { id: String(project._id), title: project.title },
       version: doc?.version ?? 0,
@@ -1221,10 +1210,18 @@ export async function resolveProposalCore(
       { deliver: false, now },
     );
     const after = await ctx.db.get(proposal!._id);
-    if (after?.status !== want)
-      throw new Error(
-        `${proposal!.short_id} cannot apply:\n${after?.refused ?? "the document changed under it"}`,
-      );
+    if (after?.status !== want) {
+      const latest = await latestExpectations(ctx, project._id);
+      const { result } = await proposalPreviewFor(
+        ctx,
+        project.title,
+        latest,
+      )(proposal);
+      const reason = result.ok
+        ? "the document changed under it"
+        : result.errors.join("\n");
+      throw new Error(`${proposal.short_id} cannot apply:\n${reason}`);
+    }
     return {
       short_id: proposal!.short_id,
       status: want,

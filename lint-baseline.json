@@ -9366,10 +9366,10 @@
     "swarm/no-comments": 18
   },
   "apps/server/convex/expectations.ts": {
-    "swarm/no-comments": 71
+    "swarm/no-comments": 69
   },
   "apps/server/convex/expectationsSchema.ts": {
-    "swarm/no-comments": 25
+    "swarm/no-comments": 24
   },
   "apps/server/convex/externalEvents.ingest.test.ts": {
     "swarm/no-comments": 3
@@ -9987,7 +9987,7 @@
     "swarm/no-comments": 18
   },
   "apps/server/convex/lib/expectationsApply.ts": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 11
   },
   "apps/server/convex/lib/externalAuthor.ts": {
     "swarm/no-comments": 4

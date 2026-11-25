@@ -1,3 +1,4 @@
+import { normText } from "./normalizedText";
 // A project's expectations (docs/architecture/the-line-model.md LM5): how the
 // project should behave, each line stated plainly with the sources it came
 // from. A judge compares what happened with the active lines and cites the id
@@ -491,12 +492,6 @@ export function holdsQuote(text: string, quote: string): boolean {
   return pieces.length > 0 && pieces.every((p) => hay.includes(` ${p} `));
 }
 
-const normText = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
 /**
  * The lines after a proposal, or why it cannot apply. `baseVersion` is the
  * version the proposal was written against: an edit or a retirement of a
@@ -524,8 +519,9 @@ export function applyOps(
       return;
     }
     if (op.op === "add") {
+      const wanted = normText(op.text);
       const twin = items.find(
-        (e) => e.status === "active" && normText(e.text) === normText(op.text),
+        (e) => e.status === "active" && normText(e.text) === wanted,
       );
       if (twin) {
         errors.push(`${at}: already expected as ${twin.id}`);
