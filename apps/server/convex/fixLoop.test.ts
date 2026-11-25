@@ -2,12 +2,11 @@
 // date is refused, the overdue sweep fires once per finding, and the health
 // board's per-role counts read the right rows.
 import { describe, expect, test } from "bun:test";
-import {
-  DEFERRAL_NEEDS_OWNER,
-  overduePromises,
-  promiseFields,
-} from "./reviewNotes";
+import { DEFERRAL_NEEDS_OWNER, promiseFields } from "./reviewNotes";
 import { fixLoopCounts, readFixLoopCounts } from "./orgHealth";
+import { scheduledJobs, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { internal } from "./_generated/api";
 
 const DAY = 86_400_000;
 
@@ -37,228 +36,146 @@ describe("disposition", () => {
   });
 });
 
-/** A fake db over one table with the two indexes the code reads. */
-function fakeDb(rows: Record<string, any>[], read: string[] = []) {
-  const query = (table: string) => ({
-    withIndex: (_name: string, build: (q: any) => any) => {
-      const conds: ((r: any) => boolean)[] = [];
-      const q = {
-        eq: (f: string, val: any) => {
-          conds.push((r) => r[f] === val);
-          return q;
-        },
-        lt: (f: string, val: any) => {
-          conds.push((r) => r[f] !== undefined && r[f] < val);
-          return q;
-        },
-        gte: (f: string, val: any) => {
-          conds.push((r) => r[f] !== undefined && r[f] >= val);
-          return q;
-        },
-      };
-      build(q);
-      const matching = rows.filter(
-        (r) => r.table === table && conds.every((c) => c(r)),
-      );
-      return {
-        take: async (n: number) => {
-          read.push(...matching.slice(0, n).map((r) => r._id));
-          return matching.slice(0, n);
-        },
-        collect: async () => {
-          read.push(...matching.map((r) => r._id));
-          return matching;
-        },
-      };
-    },
+async function setup() {
+  const t = serverTest();
+  const now = Date.now();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "fix loop");
+    const user = await rows.user();
+    const team = await rows.team();
+    const author = await rows.role(user);
+    const other = await rows.role(user);
+    return { user, team, author, other };
   });
   return {
-    query,
-    patch: async (id: string, p: any) => {
-      Object.assign(
-        rows.find((r) => r._id === id)!,
-        p,
-      );
-    },
+    ...ids,
+    t,
+    now,
+    findings: (fields: Partial<NewRow<"review_comments">>[]) =>
+      t.run(async ({ db }) => {
+        const keys = [];
+        for (const finding of fields)
+          keys.push(
+            await db.insert("review_comments", {
+              author_user_id: ids.user,
+              owner_role_id: ids.author,
+              content: "Review finding",
+              disposition: "deferred",
+              created_at: now - DAY,
+              resolved: false,
+              ...finding,
+            }),
+          );
+        return keys;
+      }),
+    signals: (
+      fields: Pick<
+        NewRow<"signals">,
+        "fingerprint" | "created_at" | "role_id"
+      >[],
+    ) =>
+      t.run(async ({ db }) => {
+        for (const [index, signal] of fields.entries())
+          await db.insert("signals", {
+            user_id: ids.user,
+            team_id: ids.team,
+            workspace: `team:${ids.team}`,
+            short_id: `sg-${index + 1}`,
+            title: "Signal",
+            source: "test",
+            kind: "bug",
+            observed_at: signal.created_at,
+            attach: "held",
+            ...signal,
+          });
+      }),
   };
 }
 
 describe("overdue sweep", () => {
   test("fires once per overdue, unresolved, deferred finding", async () => {
-    const now = Date.now();
-    const rows = [
-      {
-        _id: "late",
-        table: "review_comments",
-        disposition: "deferred",
-        due_at: now - DAY,
-        resolved: false,
-      },
-      {
-        _id: "ontime",
-        table: "review_comments",
-        disposition: "deferred",
-        due_at: now + DAY,
-        resolved: false,
-      },
-      {
-        _id: "closed",
-        table: "review_comments",
-        disposition: "deferred",
-        due_at: now - DAY,
-        resolved: true,
-      },
-      {
-        _id: "fixed",
-        table: "review_comments",
-        disposition: "fixed",
-        due_at: now - DAY,
-        resolved: false,
-      },
-    ];
-    const db = fakeDb(rows);
-    const first = await overduePromises(db, now);
-    expect(first.map((r) => r._id)).toEqual(["late"]);
-    // What sweepOverduePromises does before scheduling the signal.
-    await db.patch("late", { promise_signaled_at: now });
-    expect(await overduePromises(db, now + DAY)).toEqual([]);
+    const c = await setup();
+    const [late, ...others] = await c.findings([
+      { due_at: c.now - DAY },
+      { due_at: c.now + DAY },
+      { due_at: c.now - DAY, resolved: true },
+      { due_at: c.now - DAY, disposition: "fixed" },
+    ]);
+    const sweep = () =>
+      c.t.mutation(internal.reviewNotes.sweepOverduePromises, {});
+    expect(await sweep()).toEqual({ filed: 1 });
+    expect(await sweep()).toEqual({ filed: 0 });
+    await c.t.run(async ({ db }) => {
+      expect((await db.get(late))?.promise_signaled_at).toBeGreaterThanOrEqual(
+        c.now,
+      );
+      for (const id of others)
+        expect((await db.get(id))?.promise_signaled_at).toBeUndefined();
+    });
+    const jobs = await scheduledJobs(c.t, internal.signals.ingestAs);
+    expect(jobs.map((job) => job.args[0].fingerprint)).toEqual([
+      `promise:${late}`,
+    ]);
   });
 });
 
 describe("health counts", () => {
   test("bugs introduced come from szz signals by role, promises from owned deferred findings", async () => {
-    const now = Date.now();
-    const rows = [
+    const c = await setup();
+    await c.signals([
+      { fingerprint: "szz:abc", role_id: c.author, created_at: c.now - DAY },
+      { fingerprint: "szz:def", role_id: c.author, created_at: c.now - DAY },
       {
-        _id: "s1",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "szz:abc",
-        role_id: "r1",
-      },
-      {
-        _id: "s2",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "szz:def",
-        role_id: "r1",
-      },
-      {
-        _id: "s3",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - 40 * DAY,
         fingerprint: "szz:old",
-        role_id: "r1",
+        role_id: c.author,
+        created_at: c.now - 40 * DAY,
       },
-      {
-        _id: "s4",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "insight:x",
-        role_id: "r1",
-      },
-      {
-        _id: "s5",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "szz:ghi",
-        role_id: "r2",
-      },
-      {
-        _id: "p1",
-        table: "review_comments",
-        owner_role_id: "r1",
-        resolved: false,
-        disposition: "deferred",
-        due_at: now - DAY,
-      },
-      {
-        _id: "p2",
-        table: "review_comments",
-        owner_role_id: "r1",
-        resolved: false,
-        disposition: "deferred",
-        due_at: now + DAY,
-      },
-      {
-        _id: "p3",
-        table: "review_comments",
-        owner_role_id: "r1",
-        resolved: true,
-        disposition: "deferred",
-        due_at: now - DAY,
-      },
-      {
-        _id: "p4",
-        table: "review_comments",
-        owner_role_id: "r1",
-        resolved: false,
-        disposition: "rejected",
-      },
-    ];
-    const inputs = await readFixLoopCounts(
-      { db: fakeDb(rows) },
-      "u1" as any,
-      "t1" as any,
-      now,
-      ["r1", "r2"] as any,
-    );
-    expect(fixLoopCounts(inputs, "r1", 3)).toEqual({
-      bugs_introduced_30d: 2,
-      promises_open: 2,
-      promises_overdue: 1,
-      done_with_concerns_7d: 3,
-    });
-    expect(fixLoopCounts(inputs, "r2", 0)).toEqual({
-      bugs_introduced_30d: 1,
-      promises_open: 0,
-      promises_overdue: 0,
-      done_with_concerns_7d: 0,
+      { fingerprint: "insight:x", role_id: c.author, created_at: c.now - DAY },
+      { fingerprint: "szz:ghi", role_id: c.other, created_at: c.now - DAY },
+    ]);
+    await c.findings([
+      { due_at: c.now - DAY },
+      { due_at: c.now + DAY },
+      { due_at: c.now - DAY, resolved: true },
+      { disposition: "rejected" },
+    ]);
+    await c.t.query(async (ctx) => {
+      const inputs = await readFixLoopCounts(ctx, c.user, c.team, c.now, [
+        c.author,
+        c.other,
+      ]);
+      expect(fixLoopCounts(inputs, c.author, 3)).toEqual({
+        bugs_introduced_30d: 2,
+        promises_open: 2,
+        promises_overdue: 1,
+        done_with_concerns_7d: 3,
+      });
+      expect(fixLoopCounts(inputs, c.other, 0)).toEqual({
+        bugs_introduced_30d: 1,
+        promises_open: 0,
+        promises_overdue: 0,
+        done_with_concerns_7d: 0,
+      });
     });
   });
 
   test("the bug count reads only the fix-loop finder's signals, never the workspace's month of signals (ct-87999)", async () => {
-    const now = Date.now();
-    const rows = [
-      {
-        _id: "szz",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "szz:abc",
-        role_id: "r1",
-      },
+    const c = await setup();
+    const signal = { role_id: c.author, created_at: c.now - DAY };
+    await c.signals([
+      { ...signal, fingerprint: "szz:abc" },
       ...Array.from({ length: 50 }, (_, i) => ({
-        _id: `err${i}`,
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
+        ...signal,
         fingerprint: `sentry:${i}`,
-        role_id: "r1",
       })),
-      {
-        _id: "after",
-        table: "signals",
-        workspace: "team:t1",
-        created_at: now - DAY,
-        fingerprint: "szzz",
-        role_id: "r1",
-      },
-    ];
-    const read: string[] = [];
-    const inputs = await readFixLoopCounts(
-      { db: fakeDb(rows, read) },
-      "u1" as any,
-      "t1" as any,
-      now,
-      [] as any,
-    );
-    expect(read).toEqual(["szz"]);
-    expect(inputs.bugsByRole.get("r1")).toBe(1);
+      { ...signal, fingerprint: "szzz" },
+    ]);
+    await c.t.query(async (ctx) => {
+      const inputs = await readFixLoopCounts(ctx, c.user, c.team, c.now, []);
+      expect((await ctx.meta.getTransactionMetrics()).documentsRead.used).toBe(
+        1,
+      );
+      expect(inputs.bugsByRole.get(c.author)).toBe(1);
+    });
   });
 });

@@ -1,114 +1,106 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import {
   isGcableEmptyConversation,
   hasLiveDraft,
   shouldReapEmpty,
   conversationHasNoWork,
-  gcEmptyConversations,
   reapEmptyConversation,
   cascadeHideToNestedChildren,
   applyHideTransition,
 } from "./cleanup";
-import {
-  continueKillCancellation,
-  enqueuePendingMessage,
-} from "./pendingMessages";
+import { enqueuePendingMessage } from "./pendingMessages";
 
-// Minimal in-memory ctx.db honoring the .withIndex(name, q => q.eq(field,val))
-// chains the cleanup helpers use, so the reap logic is testable without the full
-// convex harness. eq() filters are applied; range ops (gte/gt/lt) are no-ops.
-function makeFakeDb(tables: Record<string, any[]>) {
-  const inserted: Array<{ table: string; doc: any }> = [];
-  const deleted: any[] = [];
-  const db: any = {
-    _inserted: inserted,
-    _deleted: deleted,
-    query(table: string) {
-      const filters: Array<[string, any]> = [];
-      const upperBounds: Array<[string, any]> = [];
-      // Copies, matching Convex semantics: a fetched row is a snapshot that a
-      // later patch never mutates (applyHideTransition's transition gate needs
-      // the PRE-patch flags on the row it was handed).
-      const apply = () =>
-        (tables[table] ?? [])
-          .filter((r) => filters.every(([f, v]) => r[f] === v))
-          .filter((r) =>
-            upperBounds.every(
-              ([f, v]) => r[f] === undefined || (v !== undefined && r[f] <= v),
-            ),
-          )
-          .map((r) => ({ ...r }));
-      const builder: any = {
-        withIndex(_name: string, fn?: (q: any) => any) {
-          if (fn) {
-            const q: any = {
-              eq(field: string, val: any) {
-                filters.push([field, val]);
-                return q;
-              },
-              lte(field: string, val: any) {
-                upperBounds.push([field, val]);
-                return q;
-              },
-              gte() {
-                return q;
-              },
-              gt() {
-                return q;
-              },
-              lt() {
-                return q;
-              },
-            };
-            fn(q);
-          }
-          return builder;
-        },
-        order() {
-          return builder;
-        },
-        async first() {
-          return apply()[0] ?? null;
-        },
-        async collect() {
-          return apply();
-        },
-        async take(n: number) {
-          return apply().slice(0, n);
-        },
-      };
-      return builder;
-    },
-    async get(id: any) {
-      for (const rows of Object.values(tables)) {
-        const r = rows.find((x: any) => x._id === id);
-        if (r) return r;
-      }
-      return null;
-    },
-    async insert(table: string, doc: any) {
-      const _id = `${table}_${inserted.length + 1}`;
-      (tables[table] ??= []).push({ _id, ...doc });
-      inserted.push({ table, doc });
-      return _id;
-    },
-    async delete(id: any) {
-      deleted.push(id);
-      for (const rows of Object.values(tables)) {
-        const i = rows.findIndex((x: any) => x._id === id);
-        if (i >= 0) rows.splice(i, 1);
-      }
-    },
-    // Applied, not a no-op: the hide cascade reads back the flags it writes
-    // (the already-hidden skip), so patches must land on the row objects.
-    async patch(id: any, fields: any) {
-      for (const rows of Object.values(tables)) {
-        const r = rows.find((x: any) => x._id === id);
-        if (r) Object.assign(r, fields);
-      }
-    },
+import { scheduledJobs, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
+
+async function setup(fields: Partial<NewRow<"conversations">> = {}) {
+  const t = serverTest();
+  const { user, conversation } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "conversation cleanup");
+    const user = await rows.user();
+    const conversation = await rows.conversation(user, {
+      session_id: "s-1",
+      ...fields,
+    });
+    return { user, conversation };
+  });
+  const read = () => t.run(({ db }) => db.get(conversation));
+  return {
+    t,
+    user,
+    conversation,
+    read,
+    commands: () => t.run(({ db }) => db.query("daemon_commands").collect()),
+    reap: () =>
+      t.mutation(async (ctx) =>
+        reapEmptyConversation(ctx, (await ctx.db.get(conversation))!),
+      ),
+    noWork: () =>
+      t.query(async (ctx) =>
+        conversationHasNoWork(ctx, (await ctx.db.get(conversation))!),
+      ),
+    managed: (heartbeat: number) =>
+      t.run(({ db }) =>
+        fixtureRows(db, "managed cleanup session").session(user, {
+          conversation_id: conversation,
+          last_heartbeat: heartbeat,
+        }),
+      ),
+    message: (fields: Partial<NewRow<"pending_messages">> = {}) =>
+      t.run(({ db }) =>
+        db.insert("pending_messages", {
+          conversation_id: conversation,
+          from_user_id: user,
+          content: "Queued message",
+          status: "pending",
+          retry_count: 0,
+          created_at: 1,
+          ...fields,
+        }),
+      ),
+    seedKill: () =>
+      t.run(({ db }) =>
+        db.insert("daemon_commands", {
+          user_id: user,
+          command: "kill_session",
+          args: JSON.stringify({ conversation_id: conversation }),
+          created_at: Date.now(),
+        }),
+      ),
+    trigger: () =>
+      t.run(({ db }) =>
+        db.insert("agent_tasks", {
+          user_id: user,
+          originating_conversation_id: conversation,
+          title: "Check CI",
+          prompt: "Check CI",
+          status: "scheduled",
+          schedule_type: "recurring",
+          interval_ms: 3600000,
+          mode: "apply",
+          retry_count: 0,
+          run_count: 0,
+          created_at: 1,
+        }),
+      ),
+    hide: (
+      patch: { inbox_dismissed_at?: number; inbox_stashed_at?: number },
+      options?: Parameters<typeof applyHideTransition>[3],
+    ) =>
+      t.mutation(async (ctx) => {
+        const before = (await ctx.db.get(conversation))!;
+        await ctx.db.patch(conversation, patch);
+        return applyHideTransition(ctx, before, patch, options);
+      }),
   };
-  return db;
 }
 
 // Row-level qualification for the abandoned empty-conversation GC. Anything
@@ -181,144 +173,102 @@ describe("shouldReapEmpty", () => {
 });
 
 describe("reapEmptyConversation", () => {
-  const liveHb = Date.now(); // fresh heartbeat → live agent
-  const staleHb = Date.now() - 2 * 60 * 60 * 1000; // 2h old → agent gone
-
   test("a LIVE agent → enqueue kill_session and DEFER deletion (deleting first orphans the tmux)", async () => {
-    const tables: Record<string, any[]> = {
-      conversations: [{ _id: "c1", user_id: "u1" }],
-      managed_sessions: [
-        { _id: "m1", conversation_id: "c1", last_heartbeat: liveHb },
-      ],
-      conversation_git_diffs: [{ _id: "d1", conversation_id: "c1" }],
-      daemon_commands: [],
-    };
-    const db = makeFakeDb(tables);
-    const outcome = await reapEmptyConversation(
-      { db },
-      { _id: "c1", user_id: "u1" },
+    const c = await setup();
+    const managed = await c.managed(Date.now());
+    await c.t.run(({ db }) =>
+      db.insert("conversation_git_diffs", {
+        conversation_id: c.conversation,
+        updated_at: 1,
+      }),
     );
-    expect(outcome).toBe("kill_enqueued");
-    const cmd = db._inserted.find((i: any) => i.table === "daemon_commands");
-    expect(cmd?.doc.command).toBe("kill_session");
-    expect(JSON.parse(cmd.doc.args).conversation_id).toBe("c1");
-    // The conversation + managed row MUST survive — the daemon resolves the tmux
-    // from them. Deleting here is the bug; the next pass (agent gone) deletes.
-    expect(db._deleted).not.toContain("c1");
-    expect(db._deleted).not.toContain("m1");
+    expect(await c.reap()).toBe("kill_enqueued");
+    const commands = await c.commands();
+    expect(commands).toHaveLength(1);
+    expect(commands[0].command).toBe("kill_session");
+    expect(JSON.parse(commands[0].args!).conversation_id).toBe(c.conversation);
+    expect(await c.read()).not.toBeNull();
+    expect(await c.t.run(({ db }) => db.get(managed))).not.toBeNull();
   });
 
   test("no live agent (stale managed row) → delete the conversation + stale row + diffs, no kill", async () => {
-    const tables: Record<string, any[]> = {
-      conversations: [{ _id: "c2", user_id: "u1" }],
-      managed_sessions: [
-        { _id: "m2", conversation_id: "c2", last_heartbeat: staleHb },
-      ],
-      conversation_git_diffs: [{ _id: "d2", conversation_id: "c2" }],
-      daemon_commands: [],
-    };
-    const db = makeFakeDb(tables);
-    const outcome = await reapEmptyConversation(
-      { db },
-      { _id: "c2", user_id: "u1" },
+    const c = await setup();
+    const managed = await c.managed(Date.now() - 2 * 60 * 60 * 1000);
+    const diff = await c.t.run(({ db }) =>
+      db.insert("conversation_git_diffs", {
+        conversation_id: c.conversation,
+        updated_at: 1,
+      }),
     );
-    expect(outcome).toBe("deleted");
-    expect(
-      db._inserted.find((i: any) => i.table === "daemon_commands"),
-    ).toBeUndefined();
-    expect(db._deleted).toEqual(expect.arrayContaining(["c2", "m2", "d2"]));
+    expect(await c.reap()).toBe("deleted");
+    expect(await c.commands()).toEqual([]);
+    expect(await c.read()).toBeNull();
+    const remaining = await c.t.run(async ({ db }) => [
+      await db.get(managed),
+      await db.get(diff),
+    ]);
+    expect(remaining).toEqual([null, null]);
   });
 
   test("no managed session at all → delete the empty conversation, no kill", async () => {
-    const tables: Record<string, any[]> = {
-      conversations: [{ _id: "c3", user_id: "u1" }],
-      managed_sessions: [],
-      conversation_git_diffs: [],
-      daemon_commands: [],
-    };
-    const db = makeFakeDb(tables);
-    expect(
-      await reapEmptyConversation({ db }, { _id: "c3", user_id: "u1" }),
-    ).toBe("deleted");
-    expect(
-      db._inserted.find((i: any) => i.table === "daemon_commands"),
-    ).toBeUndefined();
-    expect(db._deleted).toContain("c3");
+    const c = await setup();
+    expect(await c.reap()).toBe("deleted");
+    expect(await c.commands()).toEqual([]);
+    expect(await c.read()).toBeNull();
   });
 
   test("a live agent with a kill already pending → no duplicate command (dedup)", async () => {
-    const tables: Record<string, any[]> = {
-      conversations: [{ _id: "c4", user_id: "u1" }],
-      managed_sessions: [
-        { _id: "m4", conversation_id: "c4", last_heartbeat: liveHb },
-      ],
-      conversation_git_diffs: [],
-      daemon_commands: [
-        {
-          _id: "cmdX",
-          user_id: "u1",
-          command: "kill_session",
-          args: JSON.stringify({ conversation_id: "c4" }),
-          created_at: liveHb,
-          _creationTime: liveHb,
-        },
-      ],
-    };
-    const db = makeFakeDb(tables);
-    expect(
-      await reapEmptyConversation({ db }, { _id: "c4", user_id: "u1" }),
-    ).toBe("kill_enqueued");
-    expect(
-      db._inserted.filter((i: any) => i.table === "daemon_commands").length,
-    ).toBe(0);
+    const c = await setup();
+    await c.managed(Date.now());
+    const queued = await c.seedKill();
+    expect(await c.reap()).toBe("kill_enqueued");
+    expect((await c.commands()).map((command) => command._id)).toEqual([
+      queued,
+    ]);
   });
 });
 
 describe("conversationHasNoWork", () => {
-  const empty = { _id: "c1", user_id: "u1", message_count: 0 };
   test("a truly empty conversation has no work", async () => {
-    const db = makeFakeDb({
-      messages: [],
-      pending_messages: [],
-      client_state: [],
-    });
-    expect(await conversationHasNoWork({ db }, empty)).toBe(true);
+    const c = await setup();
+    expect(await c.noWork()).toBe(true);
   });
+
   test("an actual message keeps it (denormalized count can lag)", async () => {
-    const db = makeFakeDb({
-      messages: [{ _id: "x", conversation_id: "c1" }],
-      pending_messages: [],
-      client_state: [],
-    });
-    expect(await conversationHasNoWork({ db }, empty)).toBe(false);
+    const c = await setup();
+    await c.t.run(({ db }) =>
+      fixtureRows(db, "message keeps session").message(c.conversation),
+    );
+    expect(await c.noWork()).toBe(false);
   });
+
   test("a pending send keeps it", async () => {
-    const db = makeFakeDb({
-      messages: [],
-      pending_messages: [{ _id: "p", conversation_id: "c1" }],
-      client_state: [],
-    });
-    expect(await conversationHasNoWork({ db }, empty)).toBe(false);
+    const c = await setup();
+    await c.message();
+    expect(await c.noWork()).toBe(false);
   });
+
   test("a live per-user draft for this conversation keeps it", async () => {
-    const db = makeFakeDb({
-      messages: [],
-      pending_messages: [],
-      client_state: [
-        { _id: "cs", user_id: "u1", drafts: { c1: { draft_message: "wip" } } },
-      ],
-    });
-    expect(await conversationHasNoWork({ db }, empty)).toBe(false);
+    const c = await setup();
+    await c.t.run(({ db }) =>
+      db.insert("client_state", {
+        user_id: c.user,
+        drafts: { [c.conversation]: { draft_message: "wip" } },
+        updated_at: 1,
+      }),
+    );
+    expect(await c.noWork()).toBe(false);
   });
+
   test("row-level intent (custom title) keeps it without touching the source tables", async () => {
-    const db = makeFakeDb({
-      messages: [],
-      pending_messages: [],
-      client_state: [],
+    const c = await setup({ title_is_custom: true });
+    await c.t.query(async (ctx) => {
+      const doc = (await ctx.db.get(c.conversation))!;
+      expect(await conversationHasNoWork(ctx, doc)).toBe(false);
+      expect((await ctx.meta.getTransactionMetrics()).documentsRead.used).toBe(
+        1,
+      );
     });
-    expect(
-      await conversationHasNoWork({ db }, { ...empty, title_is_custom: true }),
-    ).toBe(false);
   });
 });
 
@@ -346,687 +296,376 @@ describe("hasLiveDraft", () => {
 // (only the web store's optimistic sweep cascaded, and only over
 // parent_conversation_id).
 describe("cascadeHideToNestedChildren", () => {
-  const LEAD = "conv_lead";
-  const mkTables = (): Record<string, any[]> => ({
-    conversations: [
-      {
-        _id: LEAD,
-        user_id: "u1",
-        agent_team_name: "session-team",
-        agent_name: "team-lead",
-        message_count: 10,
-      },
-      {
-        _id: "conv_sub",
-        user_id: "u1",
-        session_id: "s-sub",
-        parent_conversation_id: LEAD,
-        is_subagent: true,
-        message_count: 5,
-      },
-      {
-        _id: "conv_mate",
-        user_id: "u1",
-        session_id: "s-mate",
-        spawned_by_conversation_id: LEAD,
-        agent_team_name: "session-team",
-        agent_name: "review-worker",
-        message_count: 5,
-      },
-      // cast-spawn lineage: spawned_by WITHOUT a team name stays first-class.
-      {
-        _id: "conv_spawn",
-        user_id: "u1",
-        session_id: "s-spawn",
-        spawned_by_conversation_id: LEAD,
-        message_count: 5,
-      },
-      {
-        _id: "conv_fork",
-        user_id: "u1",
-        session_id: "s-fork",
-        forked_from: LEAD,
-        message_count: 5,
-      },
-    ],
-    daemon_commands: [],
-    messages: [],
-    pending_messages: [],
-    managed_sessions: [],
-    client_state: [],
-    agent_tasks: [],
-  });
-
-  test("kill cascade dismisses Task subagents AND teammates, with full kill side effects", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    const cascaded = await cascadeHideToNestedChildren({ db }, lead, {
-      inbox_dismissed_at: 111,
+  async function group(additional = 0) {
+    const c = await setup({
+      agent_team_name: "session-team",
+      agent_name: "team-lead",
+      message_count: 10,
     });
-    expect(cascaded).toBe(2);
-
-    const row = (id: string) =>
-      tables.conversations.find((r: any) => r._id === id)!;
-    expect(row("conv_sub").inbox_dismissed_at).toBe(111);
-    expect(row("conv_mate").inbox_dismissed_at).toBe(111);
-    // applyHideTransition ran per child: retired + teardown enqueued.
-    expect(row("conv_sub").status).toBe("completed");
-    expect(row("conv_mate").inbox_killed_at).toBeGreaterThan(0);
-    const kills = db._inserted.filter(
-      (i: any) => i.table === "daemon_commands",
-    );
-    expect(kills).toHaveLength(2);
-    // First-class lineages untouched.
-    expect(row("conv_spawn").inbox_dismissed_at).toBeUndefined();
-    expect(row("conv_fork").inbox_dismissed_at).toBeUndefined();
-  });
-
-  // A FORCED kill takes the group down again: the lead's teardown is only as
-  // good as its children's, and a resurrected teammate is exactly the bug
-  // forcing exists to fix. Their hide stamps stay put — only teardown re-runs.
-  test("a FORCED kill re-tears-down already-hidden children (group comes down as one unit)", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-    const kills = () =>
-      db._inserted.filter((i: any) => i.table === "daemon_commands");
-
-    await cascadeHideToNestedChildren({ db }, lead, {
-      inbox_dismissed_at: 111,
-    });
-    expect(kills()).toHaveLength(2);
-    // The daemon executed those kills; a resurrection bug brought the workers
-    // back. Executed commands leave nothing pending, so the re-kill enqueues.
-    for (const cmd of tables.daemon_commands) cmd.executed_at = 1;
-
-    const firstKilledAt = tables.conversations.find(
-      (r: any) => r._id === "conv_sub",
-    )!.inbox_killed_at;
-    const again = await cascadeHideToNestedChildren(
-      { db },
-      lead,
-      { inbox_dismissed_at: 222 },
-      { forceKill: true },
-    );
-    expect(again).toBe(2);
-    expect(kills()).toHaveLength(4);
-    // Already-hidden children keep their original stamps — no timestamp churn,
-    // on the hide flag OR on the record of when they were first killed.
-    expect(
-      tables.conversations.find((r: any) => r._id === "conv_sub")!
-        .inbox_dismissed_at,
-    ).toBe(111);
-    expect(
-      tables.conversations.find((r: any) => r._id === "conv_sub")!
-        .inbox_killed_at,
-    ).toBe(firstKilledAt);
-  });
-
-  test("already-hidden children are skipped — a re-asserted hide never re-kills", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    await cascadeHideToNestedChildren({ db }, lead, {
-      inbox_dismissed_at: 111,
-    });
-    const again = await cascadeHideToNestedChildren({ db }, lead, {
-      inbox_dismissed_at: 222,
-    });
-    expect(again).toBe(0);
-    expect(
-      tables.conversations.find((r: any) => r._id === "conv_sub")!
-        .inbox_dismissed_at,
-    ).toBe(111);
-    expect(
-      db._inserted.filter((i: any) => i.table === "daemon_commands"),
-    ).toHaveLength(2);
-  });
-
-  // A lead with 175 subagents could not be stashed, killed or restored: every
-  // child's teardown ran in the gesture's transaction and passed Convex's
-  // 4096-read cap (2026-10-08). One batch runs now, the rest is scheduled.
-  test("a big group hides one batch inline and schedules the rest", async () => {
-    const tables = mkTables();
-    for (let i = 0; i < 50; i++) {
-      tables.conversations.push({
-        _id: `conv_big_${i}`,
-        user_id: "u1",
-        parent_conversation_id: LEAD,
+    const group = await c.t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "nested conversations");
+      const sub = await rows.conversation(c.user, {
+        parent_conversation_id: c.conversation,
         is_subagent: true,
         message_count: 5,
       });
-    }
-    const db = makeFakeDb(tables);
-    const scheduled: any[] = [];
-    const scheduler = {
-      runAfter: async (_ms: number, _fn: any, args: any) => {
-        scheduled.push(args);
-      },
+      const mate = await rows.conversation(c.user, {
+        spawned_by_conversation_id: c.conversation,
+        agent_team_name: "session-team",
+        agent_name: "review-worker",
+        message_count: 5,
+      });
+      const spawn = await rows.conversation(c.user, {
+        spawned_by_conversation_id: c.conversation,
+        message_count: 5,
+      });
+      const fork = await rows.conversation(c.user, {
+        forked_from: c.conversation,
+        message_count: 5,
+      });
+      for (let i = 0; i < additional; i++)
+        await rows.conversation(c.user, {
+          parent_conversation_id: c.conversation,
+          is_subagent: true,
+          message_count: 5,
+        });
+      return { sub, mate, spawn, fork };
+    });
+    return {
+      ...c,
+      ...group,
+      child: (id: Id<"conversations">) =>
+        c.t.run(async ({ db }) => (await db.get(id))!),
+      cascade: (
+        patch: Parameters<typeof cascadeHideToNestedChildren>[2],
+        opts?: Parameters<typeof cascadeHideToNestedChildren>[3],
+      ) =>
+        c.t.mutation(async (ctx) =>
+          cascadeHideToNestedChildren(
+            ctx,
+            (await ctx.db.get(c.conversation))!,
+            patch,
+            opts,
+          ),
+        ),
     };
-    const lead = tables.conversations[0];
+  }
 
-    const cascaded = await cascadeHideToNestedChildren(
-      { db, scheduler } as any,
-      lead,
-      { inbox_dismissed_at: 444 },
-    );
-    expect(cascaded).toBe(52);
-    const hidden = tables.conversations.filter(
-      (r: any) => r.inbox_dismissed_at === 444,
-    );
+  test("kill cascade dismisses Task subagents AND teammates, with full kill side effects", async () => {
+    const c = await group();
+    expect(await c.cascade({ inbox_dismissed_at: 111 })).toBe(2);
+    expect(await c.child(c.sub)).toMatchObject({
+      inbox_dismissed_at: 111,
+      status: "completed",
+    });
+    expect(await c.child(c.mate)).toMatchObject({ inbox_dismissed_at: 111 });
+    expect((await c.child(c.mate)).inbox_killed_at).toBeGreaterThan(0);
+    expect(await c.commands()).toHaveLength(2);
+    expect((await c.child(c.spawn)).inbox_dismissed_at).toBeUndefined();
+    expect((await c.child(c.fork)).inbox_dismissed_at).toBeUndefined();
+  });
+
+  test("a FORCED kill re-tears-down already-hidden children (group comes down as one unit)", async () => {
+    const c = await group();
+    await c.cascade({ inbox_dismissed_at: 111 });
+    const commands = await c.commands();
+    expect(commands).toHaveLength(2);
+    await c.t.run(async ({ db }) => {
+      for (const command of commands)
+        await db.patch(command._id, { executed_at: 1 });
+    });
+    const firstKilledAt = (await c.child(c.sub)).inbox_killed_at;
+    expect(
+      await c.cascade({ inbox_dismissed_at: 222 }, { forceKill: true }),
+    ).toBe(2);
+    expect(await c.commands()).toHaveLength(4);
+    expect(await c.child(c.sub)).toMatchObject({
+      inbox_dismissed_at: 111,
+      inbox_killed_at: firstKilledAt,
+    });
+  });
+
+  test("already-hidden children are skipped — a re-asserted hide never re-kills", async () => {
+    const c = await group();
+    await c.cascade({ inbox_dismissed_at: 111 });
+    expect(await c.cascade({ inbox_dismissed_at: 222 })).toBe(0);
+    expect((await c.child(c.sub)).inbox_dismissed_at).toBe(111);
+    expect(await c.commands()).toHaveLength(2);
+  });
+
+  test("a big group hides one batch inline and schedules the rest", async () => {
+    const c = await group(50);
+    expect(await c.cascade({ inbox_dismissed_at: 444 })).toBe(52);
+    const hidden = (
+      await c.t.run(({ db }) => db.query("conversations").collect())
+    ).filter((row) => row.inbox_dismissed_at === 444);
     expect(hidden).toHaveLength(20);
-    expect(scheduled).toHaveLength(1);
-    expect(scheduled[0].child_ids).toHaveLength(32);
-    expect(scheduled[0]).toMatchObject({
-      lead_id: LEAD,
+    const jobs = await scheduledJobs(c.t, internal.cleanup.continueCascadeHide);
+    expect(jobs).toHaveLength(1);
+    const args = jobs[0].args[0];
+    expect(args.child_ids).toHaveLength(32);
+    expect(args).toMatchObject({
+      lead_id: c.conversation,
       field: "inbox_dismissed_at",
       stamp: 444,
     });
     expect(
-      scheduled[0].child_ids.some((id: string) =>
-        hidden.some((r: any) => r._id === id),
-      ),
+      args.child_ids.some((id: string) => hidden.some((row) => row._id === id)),
     ).toBe(false);
   });
 
-  // A Task subagent files with its parent at read time, so a stash writes no
-  // stamp on it: a copy went stale on every restore that reached only the
-  // parent, and stranded the children as cards when the parent changed hands.
   test("stash cascade stamps teammates only — Task subagents stay unstamped, agents stay alive", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    const cascaded = await cascadeHideToNestedChildren({ db }, lead, {
-      inbox_stashed_at: 333,
-    });
-    expect(cascaded).toBe(1);
-    const row = (id: string) =>
-      tables.conversations.find((r: any) => r._id === id)!;
-    expect(row("conv_mate").inbox_stashed_at).toBe(333);
-    expect(row("conv_mate").inbox_killed_at).toBeUndefined();
-    expect(row("conv_sub").inbox_stashed_at).toBeUndefined();
-    expect(row("conv_sub").status).toBeUndefined();
-    expect(
-      db._inserted.filter((i: any) => i.table === "daemon_commands"),
-    ).toHaveLength(0);
+    const c = await group();
+    const before = await c.child(c.sub);
+    expect(await c.cascade({ inbox_stashed_at: 333 })).toBe(1);
+    expect(await c.child(c.mate)).toMatchObject({ inbox_stashed_at: 333 });
+    expect((await c.child(c.mate)).inbox_killed_at).toBeUndefined();
+    expect(await c.child(c.sub)).toEqual(before);
+    expect(await c.commands()).toHaveLength(0);
   });
 
-  // The cascade is built into applyHideTransition itself, so EVERY hide
-  // surface gets it — most importantly the web dispatch hook, which used to
-  // rely on the client patching each child and silently stranded teammates
-  // whenever the client couldn't (unsynced rows, or the owner gate dropping a
-  // second-party owner's child patches on an assigned session).
   test("applyHideTransition cascades to the nested group by default", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    const patch = { inbox_dismissed_at: 444 };
-    await db.patch(LEAD, patch);
-    const { cascaded } = await applyHideTransition({ db }, lead, patch);
-    expect(cascaded).toBe(2);
-    const row = (id: string) =>
-      tables.conversations.find((r: any) => r._id === id)!;
-    expect(row("conv_sub").inbox_dismissed_at).toBe(444);
-    expect(row("conv_mate").inbox_dismissed_at).toBe(444);
+    const c = await group();
+    expect((await c.hide({ inbox_dismissed_at: 444 })).cascaded).toBe(2);
+    expect((await c.child(c.sub)).inbox_dismissed_at).toBe(444);
+    expect((await c.child(c.mate)).inbox_dismissed_at).toBe(444);
   });
 
   test("a stash through applyHideTransition also takes the group (action is 'none')", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    const patch = { inbox_stashed_at: 555 };
-    await db.patch(LEAD, patch);
-    const { action, cascaded } = await applyHideTransition({ db }, lead, patch);
-    expect(action).toBe("none");
-    expect(cascaded).toBe(1);
-    expect(
-      tables.conversations.find((r: any) => r._id === "conv_mate")!
-        .inbox_stashed_at,
-    ).toBe(555);
-    expect(
-      tables.conversations.find((r: any) => r._id === "conv_sub")!
-        .inbox_stashed_at,
-    ).toBeUndefined();
+    const c = await group();
+    expect(await c.hide({ inbox_stashed_at: 555 })).toMatchObject({
+      action: "none",
+      cascaded: 1,
+    });
+    expect((await c.child(c.mate)).inbox_stashed_at).toBe(555);
+    expect((await c.child(c.sub)).inbox_stashed_at).toBeUndefined();
   });
 
   test("cascade: false keeps the per-child transition single-level", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const lead = tables.conversations[0];
-
-    const patch = { inbox_dismissed_at: 666 };
-    await db.patch(LEAD, patch);
-    const { cascaded } = await applyHideTransition({ db }, lead, patch, {
-      cascade: false,
-    });
-    expect(cascaded).toBe(0);
+    const c = await group();
     expect(
-      tables.conversations.find((r: any) => r._id === "conv_sub")!
-        .inbox_dismissed_at,
-    ).toBeUndefined();
+      (await c.hide({ inbox_dismissed_at: 666 }, { cascade: false })).cascaded,
+    ).toBe(0);
+    expect((await c.child(c.sub)).inbox_dismissed_at).toBeUndefined();
   });
 });
 
-// Kill is a DESIRED STATE, not an event. classifyHideTransition gates on the
-// hide flag's transition, which is right for a quiet re-assert (the web's
-// optimistic re-patch, a stub-rekey flush) and wrong for a deliberate re-kill:
-// a killed session whose worker a daemon bug revived was still flagged, so
-// `cast kill` classified "none" and never enqueued teardown — the worker was
-// unkillable through the supported path. forceKill is how an EXPLICIT kill
-// gesture says "make it so" regardless of the flags.
 describe("applyHideTransition — explicit kill forces teardown", () => {
-  const CONV = "conv_killed";
-  // Already killed (dismissed + completed), with real work so the empty-reap
-  // path can't fire — the resurrection case. `extra` overrides the row (e.g.
-  // back to a live, never-killed session for the fresh-kill cases).
-  const mkTables = (
-    extra: Record<string, any> = {},
-  ): Record<string, any[]> => ({
-    conversations: [
-      {
-        _id: CONV,
-        user_id: "u1",
-        session_id: "s-1",
-        message_count: 12,
-        inbox_dismissed_at: 111,
-        inbox_killed_at: 111,
-        status: "completed",
-        ...extra,
-      },
-    ],
-    daemon_commands: [],
-    messages: [],
-    pending_messages: [],
-    managed_sessions: [],
-    client_state: [],
-    agent_tasks: [],
-  });
-  const prePatch = (tables: Record<string, any[]>) => ({
-    ...tables.conversations[0],
-  });
-  const kills = (db: any) =>
-    db._inserted.filter((i: any) => i.table === "daemon_commands");
+  const dismissed = { inbox_dismissed_at: 222 };
+  const forced = { forceKill: true };
+  const killed = (fields: Partial<NewRow<"conversations">> = {}) =>
+    setup({
+      message_count: 12,
+      inbox_dismissed_at: 111,
+      inbox_killed_at: 111,
+      status: "completed",
+      ...fields,
+    });
 
   test("a cutoff continuation cancels old generations and preserves later queued intent", async () => {
-    const tables = mkTables({
+    const c = await killed({
       pending_kill_generation: 2,
       has_pending_messages: true,
     });
-    tables.pending_messages.push(
-      {
-        _id: "later",
-        conversation_id: CONV,
-        status: "pending",
-        kill_generation: 2,
-      },
-      { _id: "legacy", conversation_id: CONV, status: "pending" },
-      {
-        _id: "zero",
-        conversation_id: CONV,
-        status: "pending",
-        kill_generation: 0,
-      },
-      {
-        _id: "one",
-        conversation_id: CONV,
-        status: "pending",
-        kill_generation: 1,
-      },
-      {
-        _id: "foreign",
-        conversation_id: "other",
-        status: "pending",
-        kill_generation: 0,
-      },
+    const foreign = await c.t.run(({ db }) =>
+      fixtureRows(db, "unrelated queued session").conversation(c.user),
     );
-    const db = makeFakeDb(tables);
+    const later = await c.message({ kill_generation: 2 });
+    const legacy = await c.message();
+    const zero = await c.message({ kill_generation: 0 });
+    const one = await c.message({ kill_generation: 1 });
+    const other = await c.message({
+      conversation_id: foreign,
+      kill_generation: 0,
+    });
     expect(
-      await (continueKillCancellation as any)._handler(
-        { db },
-        {
-          conversation_id: CONV,
-          cutoff_generation: 1,
-        },
-      ),
+      await c.t.mutation(internal.pendingMessages.continueKillCancellation, {
+        conversation_id: c.conversation,
+        cutoff_generation: 1,
+      }),
     ).toEqual({ cancelled: 3 });
-    for (const id of ["legacy", "zero", "one"]) {
-      expect(
-        tables.pending_messages.find((row) => row._id === id)?.status,
-      ).toBe("cancelled");
-    }
-    for (const id of ["later", "foreign"]) {
-      expect(
-        tables.pending_messages.find((row) => row._id === id)?.status,
-      ).toBe("pending");
-    }
-    expect(tables.conversations[0]).toMatchObject({
+    await c.t.run(async ({ db }) => {
+      for (const id of [legacy, zero, one])
+        expect((await db.get(id))?.status).toBe("cancelled");
+      for (const id of [later, other])
+        expect((await db.get(id))?.status).toBe("pending");
+    });
+    expect(await c.read()).toMatchObject({
       pending_kill_generation: 2,
       has_pending_messages: true,
       inbox_killed_at: 111,
     });
   });
 
-  // The command names who asked, and the daemon logs it with the teardown:
-  // without it, finding what killed jx7970z (2026-10-06) took a prod dump of
-  // daemon_commands plus PostHog forensics.
   test("the kill command carries the cause its caller named", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    await applyHideTransition({ db }, doc, patch, {
-      forceKill: true,
-      cause: "web:killSession",
-    });
-    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({
-      conversation_id: CONV,
+    const c = await killed();
+    await c.hide(dismissed, { ...forced, cause: "web:killSession" });
+    const [command] = await c.commands();
+    expect(JSON.parse(command.args!)).toMatchObject({
+      conversation_id: c.conversation,
       cause: "web:killSession",
     });
   });
 
   test("a re-asserted EXPLICIT kill enqueues teardown again", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { action, teardownEnqueued } = await applyHideTransition(
-      { db },
-      doc,
-      patch,
-      { forceKill: true },
-    );
-    expect(action).toBe("kill");
-    expect(teardownEnqueued).toBe(true);
-    expect(kills(db)).toHaveLength(1);
-    expect(kills(db)[0].doc.command).toBe("kill_session");
-    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({
-      conversation_id: CONV,
+    const c = await killed();
+    expect(await c.hide(dismissed, forced)).toMatchObject({
+      action: "kill",
+      teardownEnqueued: true,
+    });
+    const commands = await c.commands();
+    expect(commands).toHaveLength(1);
+    expect(commands[0].command).toBe("kill_session");
+    expect(JSON.parse(commands[0].args!)).toMatchObject({
+      conversation_id: c.conversation,
       session_id: "s-1",
     });
-    // inbox_killed_at is FIRST-kill time: the re-kill re-runs teardown, it does
-    // not rewrite when the user retired the session.
-    expect(tables.conversations[0].inbox_killed_at).toBe(111);
+    expect((await c.read())?.inbox_killed_at).toBe(111);
   });
 
   test("a re-asserted quiet DISMISS still does not re-kill", async () => {
-    const tables = mkTables();
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { action, teardownEnqueued } = await applyHideTransition(
-      { db },
-      doc,
-      patch,
-    );
-    expect(action).toBe("none");
-    expect(teardownEnqueued).toBe(false);
-    expect(kills(db)).toHaveLength(0);
+    const c = await killed();
+    expect(await c.hide(dismissed)).toMatchObject({
+      action: "none",
+      teardownEnqueued: false,
+    });
+    expect(await c.commands()).toHaveLength(0);
   });
 
   test("forceKill never turns a STASH into a kill", async () => {
-    const tables = mkTables({
+    const c = await killed({
       inbox_dismissed_at: undefined,
       inbox_killed_at: undefined,
       status: "active",
     });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_stashed_at: 333 };
-    await db.patch(CONV, patch);
-
-    const { action } = await applyHideTransition({ db }, doc, patch, {
-      forceKill: true,
-    });
-    expect(action).toBe("none");
-    expect(kills(db)).toHaveLength(0);
-    expect(tables.conversations[0].status).toBe("active");
+    expect((await c.hide({ inbox_stashed_at: 333 }, forced)).action).toBe(
+      "none",
+    );
+    expect(await c.commands()).toHaveLength(0);
+    expect((await c.read())?.status).toBe("active");
   });
 
   test("a kill still queued for the daemon reports no new command, but the state holds", async () => {
-    const tables = mkTables();
-    // An UNEXECUTED kill_session for this conversation is already on the queue.
-    tables.daemon_commands.push({
-      _id: "cmdPending",
-      user_id: "u1",
-      command: "kill_session",
-      args: JSON.stringify({ conversation_id: CONV }),
-      created_at: 111,
+    const c = await killed();
+    const queued = await c.seedKill();
+    expect(await c.hide(dismissed, forced)).toMatchObject({
+      action: "kill",
+      teardownEnqueued: false,
     });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { action, teardownEnqueued } = await applyHideTransition(
-      { db },
-      doc,
-      patch,
-      { forceKill: true },
-    );
-    expect(action).toBe("kill");
-    expect(teardownEnqueued).toBe(false);
-    expect(kills(db)).toHaveLength(0);
+    expect((await c.commands()).map((command) => command._id)).toEqual([
+      queued,
+    ]);
+    expect((await c.read())?.inbox_killed_at).toBe(111);
   });
 
-  // A persistent anchor goes dormant on a kill, it is never retired — only
-  // decommissionAnchor clears `persistent`. Forcing must not change that.
-  // Killing an anchor means DORMANCY, not death — so it keeps BOTH halves of
-  // what a retirement would take: its schedules stay armed, and so does the
-  // queue the human left for it. Cancelling the queue while keeping the
-  // schedules is the worst of both: the anchor wakes on its next trigger and
-  // runs without the messages the human queued, silently.
   test("a forced kill on a persistent anchor keeps anchor semantics: schedules AND queued messages", async () => {
-    const tables = mkTables({
+    const c = await killed({
       persistent: true,
       status: "active",
       has_pending_messages: true,
     });
-    tables.agent_tasks.push({
-      _id: "t1",
-      user_id: "u1",
-      status: "scheduled",
-      originating_conversation_id: CONV,
+    const trigger = await c.trigger();
+    const queued = await c.message();
+    expect(await c.hide(dismissed, forced)).toMatchObject({
+      action: "kill",
+      teardownEnqueued: true,
+      canceledSchedules: 0,
+      canceledMessages: 0,
     });
-    tables.pending_messages.push({
-      _id: "pm_queued",
-      conversation_id: CONV,
-      status: "pending",
-      retry_count: 0,
+    expect((await c.t.run(({ db }) => db.get(trigger)))?.status).toBe(
+      "scheduled",
+    );
+    expect((await c.t.run(({ db }) => db.get(queued)))?.status).toBe("pending");
+    expect(await c.read()).toMatchObject({
+      has_pending_messages: true,
+      status: "active",
+      inbox_killed_at: 111,
     });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { action, canceledSchedules, canceledMessages, teardownEnqueued } =
-      await applyHideTransition({ db }, doc, patch, { forceKill: true });
-    expect(action).toBe("kill");
-    expect(teardownEnqueued).toBe(true); // the agent still comes down
-    expect(canceledSchedules).toBe(0);
-    expect(canceledMessages).toBe(0);
-    expect(tables.agent_tasks[0].status).toBe("scheduled");
-    expect(tables.pending_messages[0].status).toBe("pending");
-    expect(tables.conversations[0].has_pending_messages).toBe(true);
-    expect(tables.conversations[0].status).toBe("active"); // never auto-completes
-    expect(tables.conversations[0].inbox_killed_at).toBe(111); // first-kill time preserved
   });
 
-  // Kill is TERMINAL for messages already queued. Retained ones kept retrying:
-  // one could land later and revive a session still stamped inbox_killed_at
-  // (observed live — 193 messages after the kill), and an exhausted one left the
-  // row completed + has_pending_messages forever.
   test("a kill cancels the messages already queued and clears has_pending_messages", async () => {
-    const tables = mkTables({
+    const c = await killed({
       inbox_dismissed_at: undefined,
       inbox_killed_at: undefined,
       status: "active",
       has_pending_messages: true,
     });
-    tables.pending_messages.push(
-      {
-        _id: "pm_pending",
-        conversation_id: CONV,
-        status: "pending",
-        retry_count: 0,
-      },
-      {
-        _id: "pm_undeliverable",
-        conversation_id: CONV,
-        status: "undeliverable",
-        retry_count: 9,
-      },
-      {
-        _id: "pm_delivered",
-        conversation_id: CONV,
-        status: "delivered",
-        retry_count: 1,
-      },
+    const pending = await c.message();
+    const undeliverable = await c.message({
+      status: "undeliverable",
+      retry_count: 9,
+    });
+    const delivered = await c.message({ status: "delivered", retry_count: 1 });
+    expect(await c.hide(dismissed)).toMatchObject({
+      action: "kill",
+      canceledMessages: 2,
+    });
+    const statuses = await c.t.run(async ({ db }) =>
+      Promise.all(
+        [pending, undeliverable, delivered].map(
+          async (id) => (await db.get(id))?.status,
+        ),
+      ),
     );
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    // A FRESH kill (no force needed) — the flag transitions here.
-    const { action, canceledMessages } = await applyHideTransition(
-      { db },
-      doc,
-      patch,
-    );
-    expect(action).toBe("kill");
-    expect(canceledMessages).toBe(2);
-    const msg = (id: string) =>
-      tables.pending_messages.find((r: any) => r._id === id)!;
-    expect(msg("pm_pending").status).toBe("cancelled");
-    expect(msg("pm_undeliverable").status).toBe("cancelled");
-    expect(msg("pm_delivered").status).toBe("delivered"); // terminal, untouched
-    expect(tables.conversations[0].has_pending_messages).toBe(false);
+    expect(statuses).toEqual(["cancelled", "cancelled", "delivered"]);
+    expect((await c.read())?.has_pending_messages).toBe(false);
   });
 
   test("a forced re-kill cancels what was queued since the first kill", async () => {
-    const tables = mkTables({ has_pending_messages: true });
-    tables.pending_messages.push({
-      _id: "pm_since",
-      conversation_id: CONV,
-      status: "pending",
-      retry_count: 0,
-    });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { canceledMessages } = await applyHideTransition({ db }, doc, patch, {
-      forceKill: true,
-    });
-    expect(canceledMessages).toBe(1);
-    expect(tables.pending_messages[0].status).toBe("cancelled");
-    expect(tables.conversations[0].has_pending_messages).toBe(false);
-  });
-
-  // The other half of the contract: only the PRE-kill queue dies. A human send
-  // afterwards re-enqueues and resurfaces the session — enqueuePendingMessage's
-  // wake-up rules clear the dismissed/killed flags and flip completed → active.
-  test("a later send still revives the killed session; the pre-kill queue stays dead", async () => {
-    const tables = mkTables({ has_pending_messages: true });
-    tables.pending_messages.push({
-      _id: "pm_before",
-      conversation_id: CONV,
-      status: "pending",
-      retry_count: 0,
-    });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-    await applyHideTransition({ db }, doc, patch, { forceKill: true });
-    expect(tables.pending_messages[0].status).toBe("cancelled");
-
-    const conv = await db.get(CONV);
-    const newId = await enqueuePendingMessage({ db }, conv, "u1" as any, {
-      content: "back to work",
-    });
-
-    expect(
-      tables.pending_messages.find((r: any) => r._id === newId)!.status,
-    ).toBe("pending");
-    expect(conv.inbox_dismissed_at).toBeUndefined();
-    expect(conv.inbox_killed_at).toBeUndefined();
-    expect(conv.status).toBe("active");
-    expect(conv.has_pending_messages).toBe(true);
-    // The message queued before the kill is terminal — it must not ride along.
-    expect(
-      tables.pending_messages.find((r: any) => r._id === "pm_before")!.status,
-    ).toBe("cancelled");
-  });
-
-  // Re-running the schedule sweep is safe: it only touches
-  // scheduled/running/paused tasks, so already-canceled ones stay put — and a
-  // trigger re-armed since the first kill dies again with the session.
-  test("a forced kill re-cancels a schedule re-armed since the first kill", async () => {
-    const tables = mkTables();
-    tables.agent_tasks.push({
-      _id: "t1",
-      user_id: "u1",
-      status: "scheduled",
-      originating_conversation_id: CONV,
-    });
-    const db = makeFakeDb(tables);
-    const doc = prePatch(tables);
-    const patch = { inbox_dismissed_at: 222 };
-    await db.patch(CONV, patch);
-
-    const { canceledSchedules } = await applyHideTransition(
-      { db },
-      doc,
-      patch,
-      { forceKill: true },
+    const c = await killed({ has_pending_messages: true });
+    const queued = await c.message();
+    expect((await c.hide(dismissed, forced)).canceledMessages).toBe(1);
+    expect((await c.t.run(({ db }) => db.get(queued)))?.status).toBe(
+      "cancelled",
     );
-    expect(canceledSchedules).toBe(1);
-    expect(tables.agent_tasks[0].status).toBe("completed");
-    expect(tables.agent_tasks[0].canceled_on_kill_at).toBeGreaterThan(0);
+    expect((await c.read())?.has_pending_messages).toBe(false);
+  });
+
+  test("a later send still revives the killed session; the pre-kill queue stays dead", async () => {
+    const c = await killed({ has_pending_messages: true });
+    const previous = await c.message();
+    await c.hide(dismissed, forced);
+    expect((await c.t.run(({ db }) => db.get(previous)))?.status).toBe(
+      "cancelled",
+    );
+    const id = await c.t.mutation(async (ctx) =>
+      enqueuePendingMessage(ctx, (await ctx.db.get(c.conversation))!, c.user, {
+        content: "back to work",
+      }),
+    );
+    expect((await c.t.run(({ db }) => db.get(id)))?.status).toBe("pending");
+    const session = await c.read();
+    expect(session?.inbox_dismissed_at).toBeUndefined();
+    expect(session?.inbox_killed_at).toBeUndefined();
+    expect(session).toMatchObject({
+      status: "active",
+      has_pending_messages: true,
+    });
+    expect((await c.t.run(({ db }) => db.get(previous)))?.status).toBe(
+      "cancelled",
+    );
+  });
+
+  test("a forced kill re-cancels a schedule re-armed since the first kill", async () => {
+    const c = await killed();
+    const trigger = await c.trigger();
+    expect((await c.hide(dismissed, forced)).canceledSchedules).toBe(1);
+    const task = await c.t.run(({ db }) => db.get(trigger));
+    expect(task?.status).toBe("completed");
+    expect(task?.canceled_on_kill_at).toBeGreaterThan(0);
   });
 });
 
-// "No work" at hide time reads only the server, so a first message still in the
-// client's outbox looks like an empty pre-warm. Deleting the row then loses the
-// message and leaves the client a session the server no longer has (var's ghost
-// "Ne..." row and its presence crash, 2026-10-01). The hide kills the agent and
-// leaves the row to gcEmptyConversations' grace window.
 describe("applyHideTransition — hiding an empty pre-warm keeps the row", () => {
   for (const field of ["inbox_dismissed_at", "inbox_stashed_at"] as const) {
     test(`${field}: kill enqueued, conversation not deleted`, async () => {
-      const tables: Record<string, any[]> = {
-        conversations: [{ _id: "c9", user_id: "u1", message_count: 0 }],
-        managed_sessions: [],
-        messages: [],
-        pending_messages: [],
-        client_state: [],
-        daemon_commands: [],
-      };
-      const db = makeFakeDb(tables);
-      const doc = { ...tables.conversations[0] };
-      const { action, teardownEnqueued } = await applyHideTransition(
-        { db },
-        doc,
-        { [field]: Date.now() },
-      );
-      expect(action).toBe("reap");
-      expect(teardownEnqueued).toBe(true);
-      expect(db._deleted).not.toContain("c9");
-      expect(tables.conversations.map((c) => c._id)).toContain("c9");
+      const c = await setup();
+      expect(await c.hide({ [field]: Date.now() })).toMatchObject({
+        action: "reap",
+        teardownEnqueued: true,
+      });
+      expect(await c.read()).not.toBeNull();
+      expect(await c.commands()).toHaveLength(1);
     });
   }
 });

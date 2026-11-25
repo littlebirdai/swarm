@@ -1,140 +1,101 @@
 import { describe, expect, test } from "bun:test";
-import { convexTest } from "convex-test";
 import { CALL_LINK_REFUSED_WORDS } from "@codecast/calls/callRecordings";
 import { channelRoomKey } from "@codecast/calls/callRoomKeys";
-import schema from "./schema";
-import {
-  claimShareToken,
-  getSharedCall,
-  getSharedProject,
-  sharedCallAudioSource,
-  writeObjectShareLink,
-} from "./publicShare";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { claimShareToken, writeObjectShareLink } from "./publicShare";
 import { clampAudioRange, SHARED_CALL_AUDIO_PATH } from "./lib/sharedCallMedia";
 
 const UUID_A = "1a221088-1fc3-48c8-a814-71119676adf0";
 const UUID_B = "4c7c324f-3077-486a-a63c-65f188d18a0c";
 
-// A db holding rows of one table, with the by_share_token / by_transcript_seq
-// lookups claimShareToken and getSharedCall make.
-function fakeDb(
-  rows: Array<Record<string, any>>,
-  segments: Array<Record<string, any>> = [],
-) {
-  const byId = new Map(rows.map((r) => [r._id as string, r]));
-  const patches: Array<{ id: string; patch: Record<string, unknown> }> = [];
-  const inserts: Array<{ table: string; row: Record<string, any> }> = [];
-  const db = {
-    normalizeId: (_table: string, id: string) => (byId.has(id) ? id : null),
-    async get(id: string) {
-      return byId.get(id) ?? null;
-    },
-    async patch(id: string, patch: Record<string, unknown>) {
-      patches.push({ id, patch });
-      byId.set(id, { ...byId.get(id), ...patch });
-    },
-    async insert(table: string, row: Record<string, any>) {
-      inserts.push({ table, row });
-      return `${table}_${inserts.length}`;
-    },
-    query(table: string) {
-      const eqs: Record<string, unknown> = {};
-      const q = { eq: (f: string, v: unknown) => ((eqs[f] = v), q) };
-      return {
-        withIndex(_name: string, fn: (q: unknown) => unknown) {
-          fn(q);
-          const hits = () =>
-            table === "transcript_segments"
-              ? segments.filter((s) => s.transcript_id === eqs.transcript_id)
-              : [...byId.values()].filter(
-                  (r) => r.share_token === eqs.share_token,
-                );
-          return {
-            first: async () => hits()[0] ?? null,
-            collect: async () => hits(),
-          };
-        },
-      };
-    },
+async function tasks(...tokens: (string | undefined)[]) {
+  const t = serverTest();
+  const { user, ids } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "task share links");
+    const user = await rows.user();
+    const ids = [];
+    for (const share_token of tokens)
+      ids.push(await rows.task(user, { share_token }));
+    return { user, ids };
+  });
+  return {
+    t,
+    user,
+    ids,
+    claim: (id: Id<"tasks">, token: string | null) =>
+      t.run(async (ctx) =>
+        claimShareToken(ctx, "tasks", (await ctx.db.get(id))!, token, user),
+      ),
+    read: (id: Id<"tasks">) => t.run(({ db }) => db.get(id)),
+    audit: () => t.run(({ db }) => db.query("authority_events").collect()),
   };
-  return { db, patches, inserts, byId };
 }
 
 describe("claimShareToken", () => {
   test("turns the link on with a well-formed token and off with null", async () => {
-    const { db, byId, inserts } = fakeDb([{ _id: "t1" }]);
-    await claimShareToken(
-      { db } as any,
-      "tasks",
-      byId.get("t1") as any,
-      UUID_A,
-      "u1" as any,
-    );
-    expect(byId.get("t1")?.share_token).toBe(UUID_A);
-    await claimShareToken(
-      { db } as any,
-      "tasks",
-      byId.get("t1") as any,
-      null,
-      "u1" as any,
-    );
-    expect(byId.get("t1")?.share_token).toBeUndefined();
+    const c = await tasks(undefined);
+    const [id] = c.ids;
+    await c.claim(id, UUID_A);
+    expect((await c.read(id))?.share_token).toBe(UUID_A);
+    await c.claim(id, null);
+    expect((await c.read(id))?.share_token).toBeUndefined();
     expect(
-      inserts.map((i) => [i.table, i.row.kind, i.row.actor_user_id]),
+      (await c.audit()).map((event) => [event.kind, event.actor_user_id]),
     ).toEqual([
-      ["authority_events", "share_link_minted", "u1"],
-      ["authority_events", "share_link_revoked", "u1"],
+      ["share_link_minted", c.user],
+      ["share_link_revoked", c.user],
     ]);
   });
 
   test("refuses a token another row already serves, so a link cannot be re-aimed", async () => {
-    const { db, byId, patches } = fakeDb([
-      { _id: "t1", share_token: UUID_A },
-      { _id: "t2" },
-    ]);
-    await expect(
-      claimShareToken({ db } as any, "tasks", byId.get("t2") as any, UUID_A),
-    ).rejects.toThrow(/Invalid share token/);
-    expect(patches).toHaveLength(0);
+    const c = await tasks(UUID_A, undefined);
+    const before = await Promise.all(c.ids.map(c.read));
+    await expect(c.claim(c.ids[1], UUID_A)).rejects.toThrow(
+      /Invalid share token/,
+    );
+    expect(await Promise.all(c.ids.map(c.read))).toEqual(before);
+    expect(await c.audit()).toEqual([]);
   });
 
   test("refuses a guessable token and keeps an existing one without writing", async () => {
-    const { db, byId, patches } = fakeDb([{ _id: "t1", share_token: UUID_B }]);
-    await expect(
-      claimShareToken({ db } as any, "tasks", byId.get("t1") as any, "abc123"),
-    ).rejects.toThrow(/Invalid share token/);
-    await claimShareToken(
-      { db } as any,
-      "tasks",
-      byId.get("t1") as any,
-      UUID_B,
-    );
-    expect(patches).toHaveLength(0);
+    const c = await tasks(UUID_B);
+    const [id] = c.ids;
+    const before = await c.read(id);
+    await expect(c.claim(id, "abc123")).rejects.toThrow(/Invalid share token/);
+    const writes = await c.t.mutation(async (ctx) => {
+      await claimShareToken(
+        ctx,
+        "tasks",
+        (await ctx.db.get(id))!,
+        UUID_B,
+        c.user,
+      );
+      return (await ctx.meta.getTransactionMetrics()).documentsWritten.used;
+    });
+    expect(writes).toBe(0);
+    expect(await c.read(id)).toEqual(before);
+    expect(await c.audit()).toEqual([]);
   });
 });
 
 describe("writeObjectShareLink", () => {
   test("an unknown kind or a missing row writes nothing", async () => {
-    const { db, patches } = fakeDb([]);
-    await expect(
-      writeObjectShareLink(
-        { db } as any,
-        "u1" as any,
-        "spaceship",
-        "x",
-        UUID_A,
-      ),
-    ).rejects.toThrow(/Unknown share kind/);
-    await expect(
-      writeObjectShareLink(
-        { db } as any,
-        "u1" as any,
-        "task",
-        "missing",
-        UUID_A,
-      ),
-    ).rejects.toThrow(/Not found/);
-    expect(patches).toHaveLength(0);
+    const c = await tasks();
+    for (const [kind, error] of [
+      ["spaceship", /Unknown share kind/],
+      ["task", /Not found/],
+    ] as const) {
+      await expect(
+        c.t.run((ctx) =>
+          writeObjectShareLink(ctx, c.user, kind, "missing", UUID_A),
+        ),
+      ).rejects.toThrow(error);
+    }
+    expect(await c.t.run(({ db }) => db.query("tasks").collect())).toEqual([]);
+    expect(await c.audit()).toEqual([]);
   });
 });
 
@@ -143,12 +104,8 @@ describe("writeObjectShareLink", () => {
 // and somebody who was never in the room must not put its words, guests'
 // included, on the open web (lib/callRecordingRuns.mayPublishCall).
 describe("a call's public link", () => {
-  const modules = {
-    "./_generated/server.ts": () => import("./_generated/server"),
-    "./syncOutbox.ts": () => import("./syncOutbox"),
-  };
   async function channelCall() {
-    const t = convexTest(schema, modules);
+    const t = serverTest();
     const now = Date.now();
     const ids = await t.run(async (ctx: any) => {
       const team = await ctx.db.insert("teams", {
@@ -252,112 +209,96 @@ describe("a call's public link", () => {
   });
 });
 
-describe("getSharedCall", () => {
-  test("a stranger reads names and words but never a user id", async () => {
-    const call = {
-      _id: "c1",
+async function linkedCall(kind: "words" | "deleted-team" | "audio") {
+  const t = serverTest();
+  const ids = await t.run(async ({ db, storage }) => {
+    const rows = fixtureRows(db, "public call");
+    const user = await rows.user({ name: "Ada Lovelace" });
+    const team = await rows.team({
+      deleted_at: kind === "deleted-team" ? 5 : undefined,
+    });
+    const audio =
+      kind === "audio" ? await storage.store(new Blob(["audio"])) : undefined;
+    const roomKey = kind === "audio" ? "rec:abc" : `team:${team}`;
+    const call = await db.insert("transcripts", {
+      team_id: team,
+      started_by: user,
+      room_key: roomKey,
       share_token: UUID_A,
-      room_key: "team:abc",
       status: "ended",
       started_at: 1,
       ended_at: 2,
       title: "Standup",
-      participants: [{ id: "user_secret_1", name: "Ada Lovelace" }],
+      participants:
+        kind === "words" ? [{ id: user, name: "Ada Lovelace" }] : [],
       summary: "Talked.",
       action_items: ["Ship"],
-    };
-    const { db } = fakeDb(
-      [call],
-      [
-        {
-          transcript_id: "c1",
-          seq: 1,
-          speaker_id: "user_secret_1",
-          speaker_name: "Ada Lovelace",
-          text: "hi",
-          t0: 0,
-          t1: 5,
-        },
-      ],
-    );
-    const ctx = { db, storage: { getUrl: async () => null } };
-    const out = await (getSharedCall as any)._handler(ctx, {
-      share_token: UUID_A,
+      routes: [],
+      last_seq: kind === "words" ? 1 : 0,
+      recording_storage_id: audio,
     });
+    if (kind === "words")
+      await db.insert("transcript_segments", {
+        transcript_id: call,
+        seq: 1,
+        speaker_id: user,
+        speaker_name: "Ada Lovelace",
+        text: "hi",
+        t0: 0,
+        t1: 5,
+      });
+    return { call, team, user, roomKey, audio };
+  });
+  return {
+    t,
+    ...ids,
+    read: () => t.query(api.publicShare.getSharedCall, { share_token: UUID_A }),
+    audioSource: () =>
+      t.query(internal.publicShare.sharedCallAudioSource, {
+        share_token: UUID_A,
+      }),
+  };
+}
+
+describe("getSharedCall", () => {
+  test("a stranger reads names and words but never a user id", async () => {
+    const c = await linkedCall("words");
+    const out = (await c.read())!;
     expect(out.title).toBe("Standup");
     expect(out.segments[0].text).toBe("hi");
     expect(out.segments[0].speaker_id).toBe(out.participants[0].id);
-    expect(JSON.stringify(out)).not.toContain("user_secret_1");
-    expect(JSON.stringify(out)).not.toContain("team:abc");
+    expect(JSON.stringify(out)).not.toContain(c.user);
+    expect(JSON.stringify(out)).not.toContain(c.roomKey);
   });
 
   test("a deleted team's call serves nothing, and a restore brings the link back", async () => {
-    const call = {
-      _id: "c1",
-      team_id: "team1",
-      share_token: UUID_A,
-      room_key: "team:abc",
-      status: "ended",
-      started_at: 1,
-      participants: [],
-    };
-    const team = { _id: "team1", deleted_at: 5 };
-    const { db } = fakeDb([call, team]);
-    const ctx = { db, storage: { getUrl: async () => null } };
-    expect(
-      await (getSharedCall as any)._handler(ctx, { share_token: UUID_A }),
-    ).toBeNull();
-    await db.patch("team1", { deleted_at: undefined });
-    expect(
-      (await (getSharedCall as any)._handler(ctx, { share_token: UUID_A }))
-        ?.status,
-    ).toBe("ended");
+    const c = await linkedCall("deleted-team");
+    expect(await c.read()).toBeNull();
+    await c.t.run(({ db }) => db.patch(c.team, { deleted_at: undefined }));
+    expect((await c.read())?.status).toBe("ended");
   });
 
   test("an unknown token is null", async () => {
-    const { db } = fakeDb([]);
+    const { t } = await linkedCall("words");
     expect(
-      await (getSharedCall as any)._handler({ db }, { share_token: UUID_B }),
+      await t.query(api.publicShare.getSharedCall, { share_token: UUID_B }),
     ).toBeNull();
   });
-  // F50: the audio goes through the link-checked route, never a storage URL,
-  // and the route's lookup stops answering the moment the link is turned off.
+
   test("a recording is served through the link-checked route, and dies with the link", async () => {
-    const call = {
-      _id: "c1",
-      share_token: UUID_A,
-      room_key: "rec:abc",
-      status: "ended",
-      started_at: 1,
-      participants: [],
-      recording_storage_id: "st1",
-    };
-    const { db } = fakeDb([call]);
-    const ctx = {
-      db,
-      storage: {
-        getUrl: async (id: string) =>
-          `https://convex.example/api/storage/${id}`,
-      },
-    };
-    const out = await (getSharedCall as any)._handler(ctx, {
-      share_token: UUID_A,
-    });
+    const c = await linkedCall("audio");
+    const out = (await c.read())!;
     expect(out.recording_url).toContain(
       `${SHARED_CALL_AUDIO_PATH}?token=${UUID_A}`,
     );
-    expect(JSON.stringify(out)).not.toContain("/api/storage/");
-    expect(
-      await (sharedCallAudioSource as any)._handler(ctx, {
-        share_token: UUID_A,
-      }),
-    ).toBe("https://convex.example/api/storage/st1");
-    await db.patch("c1", { share_token: undefined });
-    expect(
-      await (sharedCallAudioSource as any)._handler(ctx, {
-        share_token: UUID_A,
-      }),
-    ).toBeNull();
+    const storageUrl = (await c.t.run(({ storage }) =>
+      storage.getUrl(c.audio!),
+    ))!;
+    expect(storageUrl).toBeTruthy();
+    expect(JSON.stringify(out)).not.toContain(storageUrl);
+    expect(await c.audioSource()).toBe(storageUrl);
+    await c.t.run(({ db }) => db.patch(c.call, { share_token: undefined }));
+    expect(await c.audioSource()).toBeNull();
   });
 
   test("an audio range is clamped to one response's size", () => {
@@ -370,63 +311,32 @@ describe("getSharedCall", () => {
 
 describe("getSharedProject", () => {
   test("carries only the work filed in the project's own workspace", async () => {
-    const project = {
-      _id: "p1",
-      user_id: "u1",
-      workspace: "team:t1",
-      title: "Launch",
-      status: "active",
+    const t = serverTest();
+    const owner = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "shared project");
+      const owner = await rows.user({ name: "Ada" });
+      const other = await rows.user();
+      const team = await rows.team();
+      const workspace = `team:${team}`;
+      const project_id = await db.insert("projects", {
+        user_id: owner,
+        team_id: team,
+        workspace,
+        title: "Launch",
+        status: "active",
+        share_token: UUID_A,
+        created_at: 1,
+        updated_at: 2,
+      });
+      await rows.task(owner, { project_id, workspace, title: "Ours" });
+      await rows.task(other, { project_id, title: "Someone's private" });
+      return owner;
+    });
+    const out = (await t.query(api.publicShare.getSharedProject, {
       share_token: UUID_A,
-      created_at: 1,
-      updated_at: 2,
-    };
-    const tasks = [
-      {
-        _id: "k1",
-        project_id: "p1",
-        workspace: "team:t1",
-        short_id: "ct-1",
-        title: "Ours",
-        status: "open",
-        priority: "high",
-        updated_at: 1,
-      },
-      {
-        _id: "k2",
-        project_id: "p1",
-        workspace: "user:u9",
-        short_id: "ct-2",
-        title: "Someone's private",
-        status: "open",
-        priority: "low",
-        updated_at: 1,
-      },
-    ];
-    const db = {
-      get: async (id: string) => (id === "u1" ? { name: "Ada" } : null),
-      query: (table: string) => ({
-        withIndex: (_n: string, fn: (q: any) => any) => {
-          const eqs: Record<string, unknown> = {};
-          const q = { eq: (f: string, v: unknown) => ((eqs[f] = v), q) };
-          fn(q);
-          const rows =
-            table === "projects" ? [project] : table === "tasks" ? tasks : [];
-          const hits = rows.filter((r: any) =>
-            Object.entries(eqs).every(([k, v]) => r[k] === v),
-          );
-          return {
-            first: async () => hits[0] ?? null,
-            collect: async () => hits,
-          };
-        },
-      }),
-    };
-    const out = await (getSharedProject as any)._handler(
-      { db },
-      { share_token: UUID_A },
-    );
+    }))!;
     expect(out.title).toBe("Launch");
-    expect(out.tasks.map((t: any) => t.title)).toEqual(["Ours"]);
-    expect(JSON.stringify(out)).not.toContain("u1");
+    expect(out.tasks.map((task) => task.title)).toEqual(["Ours"]);
+    expect(JSON.stringify(out)).not.toContain(owner);
   });
 });

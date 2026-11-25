@@ -1,489 +1,358 @@
-import { describe, expect, test } from "bun:test";
-import { makeFakeDb, schemaIndexes } from "./testDb";
-import schema from "./schema";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import type { Id } from "./_generated/dataModel";
 import {
   applyTaskUpdate,
   cancelTasksBoundToConversation,
   reactivateTasksCanceledOnKill,
 } from "./agentTasks";
 
-// Killing a session cancels the schedules that inject into it; restoring the
-// session must bring back exactly those schedules — not ones that completed
-// naturally. The stamp (canceled_on_kill_at) is what makes the restore exact,
-// so these tests pin the full cancel → stamp → re-arm → clear cycle.
+const HOUR = 60 * 60 * 1000;
 
-// Minimal stand-in for the ctx.db surface the helpers use: an eq-filtered
-// withIndex(...).collect(), patch(id, fields) and get(id). The home
-// conversation is a row too, so the armed_trigger_kind stamp every lifecycle
-// transition writes (refreshArmedTriggerKind) is observable.
-function fakeDb(rows: any[]) {
-  const db = {
-    query: (_table: string) => ({
-      withIndex: (_name: string, cb: (q: any) => any) => {
-        const eqs: Array<[string, any]> = [];
-        const q = {
-          eq(field: string, val: any) {
-            eqs.push([field, val]);
-            return q;
-          },
-        };
-        cb(q);
-        return {
-          collect: async () =>
-            rows.filter((r) => eqs.every(([f, v]) => r[f] === v)),
-        };
-      },
-    }),
-    patch: async (id: string, patch: any) => {
-      const row = rows.find((r) => r._id === id);
-      if (row) Object.assign(row, patch);
-    },
-    get: async (id: string) => rows.find((r) => r._id === id) ?? null,
-    insert: async (table: string, doc: any) => {
-      const _id = `${table}_${rows.length}`;
-      rows.push({ _id, _table: table, ...doc });
-      return _id;
-    },
-  };
-  return { db, rows };
-}
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
 
-const USER = "user1";
-const CONV = "conv1";
-const home = () => ({ _id: CONV, user_id: USER });
-
-function taskRow(overrides: Record<string, any>): Record<string, any> {
+async function setup() {
+  const t = serverTest();
+  const people = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "trigger owners");
+    const user = await rows.user();
+    const teammate = await rows.user();
+    const home = await rows.conversation(user, {
+      armed_trigger_kind: "standing",
+    });
+    const other = await rows.conversation(user, { armed_trigger_kind: "none" });
+    return { user, teammate, home, other };
+  });
+  const seed = (...overrides: Partial<NewRow<"agent_tasks">>[]) =>
+    t.run(async ({ db }) => {
+      const ids = [];
+      for (const fields of overrides)
+        ids.push(
+          await db.insert("agent_tasks", {
+            user_id: people.user,
+            title: "Check CI",
+            prompt: "Check if CI is green",
+            schedule_type: "recurring",
+            status: "scheduled",
+            mode: "apply",
+            interval_ms: HOUR,
+            run_at: 1000,
+            retry_count: 0,
+            run_count: 0,
+            created_at: 1,
+            originating_conversation_id: people.home,
+            ...fields,
+          }),
+        );
+      return ids;
+    });
+  const read = <T extends "agent_tasks" | "conversations">(id: Id<T>) =>
+    t.run(async ({ db }) => (await db.get(id))!);
   return {
-    user_id: USER,
-    originating_conversation_id: CONV,
-    schedule_type: "recurring",
-    interval_ms: 60 * 60 * 1000,
-    status: "scheduled",
-    ...overrides,
+    ...people,
+    t,
+    seed,
+    read,
+    cancel: () =>
+      t.mutation((ctx) =>
+        cancelTasksBoundToConversation(ctx, people.user, people.home),
+      ),
+    restore: () =>
+      t.mutation((ctx) =>
+        reactivateTasksCanceledOnKill(ctx, people.user, people.home),
+      ),
+    edit: (
+      id: Id<"agent_tasks">,
+      fields: Parameters<typeof applyTaskUpdate>[2],
+      web = false,
+    ) =>
+      t.mutation(async (ctx) =>
+        applyTaskUpdate(ctx, (await ctx.db.get(id))!, fields, {
+          userId: web ? people.teammate : people.user,
+          source: web ? "web" : "cli",
+        }),
+      ),
+    revisions: () =>
+      t.run(({ db }) => db.query("agent_task_revisions").collect()),
   };
 }
 
 describe("cancelTasksBoundToConversation", () => {
   test("completes armed inject schedules and stamps canceled_on_kill_at", async () => {
-    const loop = taskRow({ _id: "loop" });
-    const paused = taskRow({ _id: "paused", status: "paused" });
-    // The scheduled loop armed the home; the paused one never counts as a wake.
-    const conv = { ...home(), armed_trigger_kind: "standing" };
-    const ctx = fakeDb([loop, paused, conv]);
-
-    const n = await cancelTasksBoundToConversation(
-      ctx as any,
-      USER as any,
-      CONV as any,
-    );
-
-    expect(n).toBe(2);
-    expect((conv as any).armed_trigger_kind).toBe("none"); // the home's denormalized state follows
-    expect(loop.status).toBe("completed");
-    expect(loop.canceled_on_kill_at).toBeGreaterThan(0);
-    expect(paused.status).toBe("completed");
-    expect(paused.canceled_on_kill_at).toBeGreaterThan(0);
+    const c = await setup();
+    const tasks = await c.seed({}, { status: "paused" });
+    expect(await c.cancel()).toBe(2);
+    expect((await c.read(c.home)).armed_trigger_kind).toBe("none");
+    for (const id of tasks) {
+      const row = await c.read(id);
+      expect(row.status).toBe("completed");
+      expect(row.canceled_on_kill_at).toBeGreaterThan(0);
+    }
   });
 
   test("leaves other conversations' schedules and spawn schedules alone", async () => {
-    const other = taskRow({
-      _id: "other",
-      originating_conversation_id: "conv2",
-    });
-    const spawn = taskRow({
-      _id: "spawn",
-      originating_conversation_id: undefined,
-    });
-    const ctx = fakeDb([other, spawn]);
-
-    const n = await cancelTasksBoundToConversation(
-      ctx as any,
-      USER as any,
-      CONV as any,
+    const c = await setup();
+    const ids = await c.seed(
+      { originating_conversation_id: c.other },
+      { originating_conversation_id: undefined },
     );
-
-    expect(n).toBe(0);
-    expect(other.status).toBe("scheduled");
-    expect(spawn.status).toBe("scheduled");
+    const before = await Promise.all(ids.map(c.read));
+    expect(await c.cancel()).toBe(0);
+    expect(await Promise.all(ids.map(c.read))).toEqual(before);
   });
 });
 
 describe("reactivateTasksCanceledOnKill", () => {
   test("re-arms exactly the stamped tasks and clears the stamp", async () => {
-    const killed = taskRow({
-      _id: "killed",
-      status: "completed",
-      canceled_on_kill_at: 111,
-    });
-    const natural = taskRow({ _id: "natural", status: "completed" });
-    const otherConv = taskRow({
-      _id: "otherConv",
-      status: "completed",
-      canceled_on_kill_at: 111,
-      originating_conversation_id: "conv2",
-    });
-    const ctx = fakeDb([killed, natural, otherConv]);
-
-    const n = await reactivateTasksCanceledOnKill(
-      ctx as any,
-      USER as any,
-      CONV as any,
+    const c = await setup();
+    const [killed, natural, other] = await c.seed(
+      { status: "completed", canceled_on_kill_at: 111 },
+      { status: "completed" },
+      {
+        status: "completed",
+        canceled_on_kill_at: 111,
+        originating_conversation_id: c.other,
+      },
     );
-
-    expect(n).toBe(1);
-    expect(killed.status).toBe("scheduled");
-    expect(killed.canceled_on_kill_at).toBeUndefined();
-    // Recurring: re-armed one interval out, not an immediate fire.
-    expect(killed.run_at).toBeGreaterThan(Date.now() + 30 * 60 * 1000);
-    expect(natural.status).toBe("completed");
-    expect(otherConv.status).toBe("completed");
+    expect(await c.restore()).toBe(1);
+    const row = await c.read(killed);
+    expect(row.status).toBe("scheduled");
+    expect(row.canceled_on_kill_at).toBeUndefined();
+    expect(row.run_at).toBeGreaterThan(Date.now() + HOUR / 2);
+    expect((await c.read(natural)).status).toBe("completed");
+    expect((await c.read(other)).status).toBe("completed");
   });
 
   test("kill → restore round-trip is idempotent (second restore is a no-op)", async () => {
-    const loop = taskRow({ _id: "loop" });
-    const ctx = fakeDb([loop]);
-
-    await cancelTasksBoundToConversation(ctx as any, USER as any, CONV as any);
-    expect(loop.status).toBe("completed");
-
-    expect(
-      await reactivateTasksCanceledOnKill(ctx as any, USER as any, CONV as any),
-    ).toBe(1);
-    expect(loop.status).toBe("scheduled");
-
-    expect(
-      await reactivateTasksCanceledOnKill(ctx as any, USER as any, CONV as any),
-    ).toBe(0);
+    const c = await setup();
+    const [id] = await c.seed({});
+    await c.cancel();
+    expect((await c.read(id)).status).toBe("completed");
+    expect(await c.restore()).toBe(1);
+    expect((await c.read(id)).status).toBe("scheduled");
+    expect(await c.restore()).toBe(0);
   });
 });
 
-// A kill and its undo run these once per session in the tree. Scanning the
-// runner's tasks by status read their whole trigger history each time: undoing
-// the kill of a session with seven subagents read 19 MB in one mutation.
-describe("kill and restore read only the conversation's own tasks", () => {
-  test("reads stay bounded and the teammate's task stays scheduled", async () => {
-    const mine = taskRow({ _id: "mine" });
-    const teammates = taskRow({ _id: "teammates", user_id: "user2" });
-    const unrelated = Array.from({ length: 100 }, (_, i) =>
-      taskRow({ _id: `other_${i}`, originating_conversation_id: "conv2" }),
-    );
-    const db = makeFakeDb(
-      { agent_tasks: [mine, teammates, ...unrelated], conversations: [home()] },
-      { indexes: schemaIndexes(schema) },
-    );
-    let rowsRead = 0;
-    const query = db.query.bind(db);
-    db.query = (table: string) => {
-      const builder = query(table);
-      if (table !== "agent_tasks") return builder;
-      const indexRange = query(table);
-      const withIndex = builder.withIndex.bind(builder);
-      builder.withIndex = (...args: Parameters<typeof withIndex>) => {
-        indexRange.withIndex(...args);
-        return withIndex(...args);
-      };
-      const collect = builder.collect.bind(builder);
-      builder.collect = async () => {
-        rowsRead += (await indexRange.collect()).length;
-        return collect();
-      };
-      const take = builder.take.bind(builder);
-      builder.take = async (count: number) => {
-        rowsRead += (await indexRange.take(count)).length;
-        return take(count);
-      };
-      return builder;
+test("kill and restore read only the conversation's own tasks and leave the teammate's task alone", async () => {
+  const c = await setup();
+  const [mine, teammate] = await c.seed(
+    {},
+    { user_id: c.teammate },
+    ...Array.from({ length: 100 }, () => ({
+      originating_conversation_id: c.other,
+    })),
+  );
+  const before = await c.read(teammate);
+  const result = await c.t.mutation(async (ctx) => {
+    const canceled = await cancelTasksBoundToConversation(ctx, c.user, c.home);
+    const restored = await reactivateTasksCanceledOnKill(ctx, c.user, c.home);
+    return {
+      canceled,
+      restored,
+      reads: (await ctx.meta.getTransactionMetrics()).documentsRead.used,
     };
-    const args = [{ db } as any, USER as any, CONV as any] as const;
-    const canceled = await cancelTasksBoundToConversation(...args);
-    const restored = await reactivateTasksCanceledOnKill(...args);
-    expect(rowsRead).toBe(8);
-    expect(canceled).toBe(1);
-    expect(restored).toBe(1);
-    expect(mine.status).toBe("scheduled");
-    expect(teammates.status).toBe("scheduled");
-    expect((teammates as any).canceled_on_kill_at).toBeUndefined();
   });
+  expect(result).toMatchObject({ canceled: 1, restored: 1 });
+  expect(result.reads).toBe(12);
+  expect((await c.read(mine)).status).toBe("scheduled");
+  expect(await c.read(teammate)).toEqual(before);
 });
 
-// Every effective edit — CLI or web, both go through applyTaskUpdate — must
-// append an agent_task_revisions row: the pre-edit snapshot (version history)
-// plus who changed what from where (audit log). A no-op edit writes nothing.
 describe("applyTaskUpdate", () => {
-  const ACTOR = { userId: "user1" as any, source: "cli" as const };
-  const editable = () =>
-    taskRow({
-      _id: "t1",
-      title: "Check CI",
-      prompt: "Check if CI is green",
-      mode: "apply",
-      run_at: 1000,
-    });
-  const revisionsOf = (rows: any[]) =>
-    rows.filter((r) => r._table === "agent_task_revisions");
-
   test("records a revision with the pre-edit snapshot and the audit fields", async () => {
-    const task = editable();
-    const { db, rows } = fakeDb([task, home()]);
-
-    const result = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { prompt: "Check CI and the deploy" },
-      ACTOR,
-    );
-
-    expect(result).toEqual({ ok: true, changed: ["prompt"] });
-    expect(task.prompt).toBe("Check CI and the deploy");
-    const [rev] = revisionsOf(rows);
-    expect(rev.revision).toBe(1);
-    expect(rev.actor_user_id).toBe("user1");
-    expect(rev.source).toBe("cli");
-    expect(rev.changed_fields).toEqual(["prompt"]);
-    expect(rev.before.prompt).toBe("Check if CI is green");
-    expect(rev.before.title).toBe("Check CI"); // full snapshot, not just the diff
+    const c = await setup();
+    const [id] = await c.seed({});
+    expect(await c.edit(id, { prompt: "Check CI and the deploy" })).toEqual({
+      ok: true,
+      changed: ["prompt"],
+    });
+    expect((await c.read(id)).prompt).toBe("Check CI and the deploy");
+    const revisions = await c.revisions();
+    expect(revisions).toHaveLength(1);
+    expect(revisions[0]).toMatchObject({
+      revision: 1,
+      actor_user_id: c.user,
+      source: "cli",
+      changed_fields: ["prompt"],
+      before: { prompt: "Check if CI is green", title: "Check CI" },
+    });
   });
 
   test("a prompt edit resets the stale distillation without auditing it as a change", async () => {
-    const task = editable();
-    task.display_title = "Old distilled name";
-    task.display_summary = "Old gist";
-    const { db, rows } = fakeDb([task, home()]);
-
-    await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { prompt: "New prompt" },
-      ACTOR,
-    );
-
-    expect(task.display_title).toBeUndefined();
-    expect(task.display_summary).toBeUndefined();
-    expect(revisionsOf(rows)[0].changed_fields).toEqual(["prompt"]);
+    const c = await setup();
+    const [id] = await c.seed({
+      display_title: "Old distilled name",
+      display_summary: "Old gist",
+    });
+    await c.edit(id, { prompt: "New prompt" });
+    const row = await c.read(id);
+    expect(row.display_title).toBeUndefined();
+    expect(row.display_summary).toBeUndefined();
+    expect((await c.revisions())[0].changed_fields).toEqual(["prompt"]);
   });
 
   test("no-op edit writes neither a patch nor a revision", async () => {
-    const task = editable();
-    const { db, rows } = fakeDb([task, home()]);
-
-    const result = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { prompt: "Check if CI is green", title: "Check CI" },
-      ACTOR,
-    );
-
-    expect(result).toEqual({ ok: true, changed: [] });
-    expect(revisionsOf(rows)).toHaveLength(0);
+    const c = await setup();
+    const [id] = await c.seed({});
+    const result = await c.t.mutation(async (ctx) => {
+      const task = (await ctx.db.get(id))!;
+      const result = await applyTaskUpdate(
+        ctx,
+        task,
+        { prompt: task.prompt, title: task.title },
+        { userId: c.user, source: "cli" },
+      );
+      return {
+        ...result,
+        writes: (await ctx.meta.getTransactionMetrics()).documentsWritten.used,
+      };
+    });
+    expect(result).toEqual({ ok: true, changed: [], writes: 0 });
+    expect(await c.revisions()).toHaveLength(0);
   });
 
   test("revision numbers are monotonic across edits", async () => {
-    const task = editable();
-    const { db, rows } = fakeDb([task, home()]);
-
-    await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { title: "First rename" },
-      ACTOR,
-    );
-    await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { title: "Second rename" },
-      { userId: "user2" as any, source: "web" },
-    );
-
-    const revs = revisionsOf(rows);
-    expect(revs.map((r) => r.revision)).toEqual([1, 2]);
-    // The chain reconstructs every version: v1 → v2 → current.
-    expect(revs[0].before.title).toBe("Check CI");
-    expect(revs[1].before.title).toBe("First rename");
-    expect(task.title).toBe("Second rename");
-    expect(revs[1].actor_user_id).toBe("user2");
-    expect(revs[1].source).toBe("web");
+    const c = await setup();
+    const [id] = await c.seed({});
+    await c.edit(id, { title: "First rename" });
+    await c.edit(id, { title: "Second rename" }, true);
+    const revisions = await c.revisions();
+    expect(revisions.map((r) => r.revision)).toEqual([1, 2]);
+    expect(revisions.map((r) => r.before.title)).toEqual([
+      "Check CI",
+      "First rename",
+    ]);
+    expect((await c.read(id)).title).toBe("Second rename");
+    expect(revisions[1]).toMatchObject({
+      actor_user_id: c.teammate,
+      source: "web",
+    });
   });
 
   test("switching recurring to once clears the interval and audits both fields", async () => {
-    const task = editable();
-    const { db, rows } = fakeDb([task, home()]);
-
+    const c = await setup();
+    const [id] = await c.seed({});
     const runAt = Date.now() + 60_000;
-    const result = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { schedule_type: "once", run_at: runAt },
-      ACTOR,
-    );
-
-    expect(result.ok).toBe(true);
-    expect(result.changed).toEqual(["schedule_type", "run_at", "interval_ms"]);
-    expect(task.schedule_type).toBe("once");
-    expect(task.interval_ms).toBeUndefined();
-    expect(task.run_at).toBe(runAt);
-    expect(revisionsOf(rows)[0].before.schedule_type).toBe("recurring");
-    expect(revisionsOf(rows)[0].before.interval_ms).toBe(60 * 60 * 1000);
+    expect(await c.edit(id, { schedule_type: "once", run_at: runAt })).toEqual({
+      ok: true,
+      changed: ["schedule_type", "run_at", "interval_ms"],
+    });
+    const row = await c.read(id);
+    expect(row).toMatchObject({ schedule_type: "once", run_at: runAt });
+    expect(row.interval_ms).toBeUndefined();
+    expect((await c.revisions())[0].before).toMatchObject({
+      schedule_type: "recurring",
+      interval_ms: HOUR,
+    });
   });
 
-  // Routing used to be the one part of a trigger an edit could not reach, so
-  // rebinding one meant cancelling it and creating a replacement — a new id, a
-  // lost history, and seven of them in one sitting on 2026-09-20. It is an
-  // editable field like any other now, versioned and audited the same way.
   describe("routing", () => {
-    const OTHER = "conv2";
-    const other = () => ({ _id: OTHER, user_id: USER });
-
     test("rebinding moves the trigger and refreshes BOTH homes", async () => {
-      const task = editable();
-      const homeConv = { ...home(), armed_trigger_kind: "standing" };
-      const otherConv = { ...other(), armed_trigger_kind: "none" };
-      const db = makeFakeDb({
-        agent_tasks: [task],
-        conversations: [homeConv, otherConv],
-      });
-
-      await applyTaskUpdate(
-        { db } as any,
-        { ...task } as any,
-        { originating_conversation_id: OTHER as any },
-        ACTOR,
-      );
-
-      expect(task.originating_conversation_id).toBe(OTHER);
-      expect(homeConv.armed_trigger_kind).toBe("none");
-      expect(otherConv.armed_trigger_kind).toBe("standing");
+      const c = await setup();
+      const [id] = await c.seed({});
+      await c.edit(id, { originating_conversation_id: c.other });
+      expect((await c.read(id)).originating_conversation_id).toBe(c.other);
+      expect((await c.read(c.home)).armed_trigger_kind).toBe("none");
+      expect((await c.read(c.other)).armed_trigger_kind).toBe("standing");
     });
 
     test("the result thread and the wake flag are editable and audited", async () => {
-      const task = editable();
-      const { db, rows } = fakeDb([task, home(), other()]);
-
-      const result = await applyTaskUpdate(
-        { db } as any,
-        task as any,
-        { target_conversation_id: OTHER as any, wake_creator: true },
-        ACTOR,
-      );
-
+      const c = await setup();
+      const [id] = await c.seed({});
+      const result = await c.edit(id, {
+        target_conversation_id: c.other,
+        wake_creator: true,
+      });
       expect(result.changed).toEqual([
         "target_conversation_id",
         "wake_creator",
       ]);
-      expect(task.target_conversation_id).toBe(OTHER);
-      expect(task.wake_creator).toBe(true);
+      expect(await c.read(id)).toMatchObject({
+        target_conversation_id: c.other,
+        wake_creator: true,
+      });
       expect(
-        revisionsOf(rows)[0].before.target_conversation_id,
+        (await c.revisions())[0].before.target_conversation_id,
       ).toBeUndefined();
     });
 
     test("clearing the thread and the wake flag drops them rather than storing false", async () => {
-      const task = editable();
-      task.target_conversation_id = OTHER;
-      task.wake_creator = true;
-      const { db } = fakeDb([task, home(), other()]);
-
-      await applyTaskUpdate(
-        { db } as any,
-        task as any,
-        { target_conversation_id: null, wake_creator: false },
-        ACTOR,
-      );
-
-      expect(task.target_conversation_id).toBeUndefined();
-      expect(task.wake_creator).toBeUndefined();
+      const c = await setup();
+      const [id] = await c.seed({
+        target_conversation_id: c.other,
+        wake_creator: true,
+      });
+      await c.edit(id, { target_conversation_id: null, wake_creator: false });
+      const row = await c.read(id);
+      expect(row.target_conversation_id).toBeUndefined();
+      expect(row.wake_creator).toBeUndefined();
     });
 
     test("rebinding to the same session is a no-op edit", async () => {
-      const task = editable();
-      const { db, rows } = fakeDb([task, home()]);
-
-      const result = await applyTaskUpdate(
-        { db } as any,
-        task as any,
-        { originating_conversation_id: CONV as any },
-        ACTOR,
+      const c = await setup();
+      const [id] = await c.seed({});
+      expect(await c.edit(id, { originating_conversation_id: c.home })).toEqual(
+        { ok: true, changed: [] },
       );
-
-      expect(result).toEqual({ ok: true, changed: [] });
-      expect(revisionsOf(rows)).toHaveLength(0);
+      expect(await c.revisions()).toHaveLength(0);
     });
   });
 
   test("rejects a finished task, and a running one for fields the live run reads", async () => {
+    const c = await setup();
     for (const [status, edit] of [
       ["running", { model: "opus" }],
       ["completed", { title: "Nope" }],
       ["failed", { title: "Nope" }],
     ] as const) {
-      const task = editable();
-      task.status = status;
-      const { db, rows } = fakeDb([task, home()]);
-      const result = await applyTaskUpdate(
-        { db } as any,
-        task as any,
-        edit,
-        ACTOR,
-      );
-      expect(result.ok).toBe(false);
-      expect(task.title).toBe("Check CI");
-      expect(task.model).toBeUndefined();
-      expect(revisionsOf(rows)).toHaveLength(0);
+      const [id] = await c.seed({ status });
+      expect((await c.edit(id, edit)).ok).toBe(false);
+      const row = await c.read(id);
+      expect(row.title).toBe("Check CI");
+      expect(row.model).toBeUndefined();
+      expect(await c.revisions()).toHaveLength(0);
     }
   });
 
-  // The live run was handed its prompt when it started, so a run may rewrite
-  // the prompt and title it will fire with next time.
   test("takes a title and prompt edit on a running task", async () => {
-    const task = editable();
-    task.status = "running";
-    const { db } = fakeDb([task, home()]);
-    const result = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { title: "Check CI twice", prompt: "Check CI on main twice" },
-      ACTOR,
-    );
-    expect(result.ok).toBe(true);
-    expect(task.title).toBe("Check CI twice");
-    expect(task.prompt).toBe("Check CI on main twice");
-    expect(task.status).toBe("running");
+    const c = await setup();
+    const [id] = await c.seed({ status: "running" });
+    expect(
+      (
+        await c.edit(id, {
+          title: "Check CI twice",
+          prompt: "Check CI on main twice",
+        })
+      ).ok,
+    ).toBe(true);
+    expect(await c.read(id)).toMatchObject({
+      title: "Check CI twice",
+      prompt: "Check CI on main twice",
+      status: "running",
+    });
   });
 
-  // The precheck is an editable field like any other, so `cast trigger update
-  // --precheck` must be versioned and audited — not a quiet patch that leaves
-  // no record of when the gate changed or who changed it.
   test("setting, changing and clearing the precheck is versioned like any edit", async () => {
-    const task = editable();
-    const { db, rows } = fakeDb([task, home()]);
-
-    const set = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { precheck: "make check" },
-      ACTOR,
+    const c = await setup();
+    const [id] = await c.seed({});
+    expect(await c.edit(id, { precheck: "make check" })).toEqual({
+      ok: true,
+      changed: ["precheck"],
+    });
+    expect((await c.read(id)).precheck).toBe("make check");
+    expect((await c.revisions())[0].before.precheck).toBeUndefined();
+    expect((await c.edit(id, { precheck: "  make check  " })).changed).toEqual(
+      [],
     );
-    expect(set).toEqual({ ok: true, changed: ["precheck"] });
-    expect(task.precheck).toBe("make check");
-    expect(revisionsOf(rows)[0].before.precheck).toBeUndefined();
-
-    const same = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { precheck: "  make check  " },
-      ACTOR,
-    );
-    expect(same.changed).toEqual([]);
-    expect(revisionsOf(rows)).toHaveLength(1);
-
-    // "" is how the CLI removes the gate.
-    const cleared = await applyTaskUpdate(
-      { db } as any,
-      task as any,
-      { precheck: "" },
-      ACTOR,
-    );
-    expect(cleared.changed).toEqual(["precheck"]);
-    expect(task.precheck).toBeUndefined();
-    expect(revisionsOf(rows)[1].before.precheck).toBe("make check");
+    expect(await c.revisions()).toHaveLength(1);
+    expect((await c.edit(id, { precheck: "" })).changed).toEqual(["precheck"]);
+    expect((await c.read(id)).precheck).toBeUndefined();
+    expect((await c.revisions())[1].before.precheck).toBe("make check");
   });
 });

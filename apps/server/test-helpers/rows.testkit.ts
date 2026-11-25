@@ -19,11 +19,7 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
 
   return {
     user(fields: NewRow<"users"> = {}) {
-      return db.insert("users", {
-        name: faker.person.fullName(),
-        email: faker.internet.email({ provider: "example.com" }),
-        ...fields,
-      });
+      return db.insert("users", fields);
     },
     team(fields: Partial<NewRow<"teams">> = {}) {
       return db.insert("teams", {
@@ -57,7 +53,7 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
         started_at: date,
         updated_at: date,
         message_count: 0,
-        is_private: false,
+        is_private: true,
         status: "active",
         ...fields,
       });
@@ -78,7 +74,6 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
     task(user: Id<"users">, fields: Partial<NewRow<"tasks">> = {}) {
       return db.insert("tasks", {
         user_id: user,
-        workspace: `user:${user}`,
         short_id: shortId("ct"),
         title: faker.lorem.sentence(),
         task_type: "task",
@@ -92,7 +87,6 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
     plan(user: Id<"users">, fields: Partial<NewRow<"plans">> = {}) {
       return db.insert("plans", {
         user_id: user,
-        workspace: `user:${user}`,
         short_id: shortId("pl"),
         title: faker.lorem.sentence(),
         status: "active",
@@ -104,7 +98,6 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
     doc(user: Id<"users">, fields: Partial<NewRow<"docs">> = {}) {
       return db.insert("docs", {
         user_id: user,
-        workspace: `user:${user}`,
         title: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
         doc_type: "note",
@@ -140,7 +133,6 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
       return db.insert("org_roles", {
         short_id: shortId("or"),
         scope_type: "user",
-        scope_user_id: user,
         host_user_id: user,
         name: faker.person.jobTitle(),
         handle: faker.string.alpha({ length: 12, casing: "lower" }),

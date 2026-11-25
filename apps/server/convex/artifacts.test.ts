@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import type { FunctionArgs } from "convex/server";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   awaitingSince,
-  upsertFromPublish,
-  deleteFromCLI,
-  submitComments,
-  deliverPendingComments,
-  historyBySlug,
-  ownerPanel,
   MAX_COMMENTS_PER_MINUTE,
   MAX_VIEWS_PER_MINUTE,
-  recordView,
 } from "./artifacts";
 import { newSlug, newSecret } from "./lib/slug";
 import { lineDiff, accessSummary } from "./lib/artifactRules";
@@ -18,105 +16,131 @@ import { brandArtifactHtml } from "./artifactPages";
 import { pageAgentChip, PAGE_AGENT_PICKUP_MS } from "@codecast/pages/pageAgent";
 import { normalizeAssetPath } from "./artifactsHttp";
 
-// Minimal hand-rolled ctx in the style of docs.test.ts: enough db surface for
-// the handlers under test, recording writes so assertions can inspect them.
-function makeCtx(
-  rows: Array<Record<string, any>>,
-  opts: { tokenUser?: string } = {},
+const SLUG = "abcdefghijkl";
+const OWNER_KEY = "sekrit";
+const TOKEN = "artifact-owner-token";
+const PATH = "/tmp/report.html";
+const batch = {
+  author_name: "Viewer",
+  version: 3,
+  comments: [{ text: "nice page" }],
+};
+
+async function setup(
+  fields: Partial<NewRow<"artifacts">> = {},
+  shared = false,
 ) {
-  const byId = new Map(rows.map((r) => [r._id as string, r]));
-  const patches: Array<{ id: string; patch: Record<string, any> }> = [];
-  const inserts: Array<Record<string, any>> = [];
-  // Comment rows only. submitComments also writes its rate-limit window, so an
-  // index into every insert no longer means "the comment this test posted".
-  const commentInserts: Array<Record<string, any>> = [];
-  const deletes: string[] = [];
-  const storageDeletes: string[] = [];
-  // Sub-mutations (notificationRouter.emit) recorded by args only.
-  const mutations: Array<Record<string, any>> = [];
-
-  const query = (_table: string) => {
-    let filtered = rows.filter(
-      (r) => !deletes.includes(r._id) && (!r._table || r._table === _table),
-    );
-    return {
-      withIndex(_name: string, cb: (q: any) => any) {
-        const eqs: Record<string, any> = {};
-        const q = {
-          eq(field: string, value: any) {
-            eqs[field] = value;
-            return q;
-          },
-        };
-        cb(q);
-        filtered = filtered.filter((r) =>
-          Object.entries(eqs).every(([k, v]) => r[k] === v),
-        );
-        return {
-          first: async () => filtered[0] ?? null,
-          take: async (n: number) => filtered.slice(0, n),
-          collect: async () => filtered,
-        };
-      },
-    };
-  };
-
+  const t = serverTest();
+  const ids = await t.run(async ({ db, storage }) => {
+    const rows = fixtureRows(db, "artifact tests");
+    const owner = await rows.user({ name: "Owner" });
+    const sam = await rows.user({
+      name: "Sam",
+      github_username: "sam",
+      github_avatar_url: "https://av/sam.png",
+      email: "sam@example.com",
+    });
+    const riley = await rows.user({
+      name: "Riley",
+      github_username: "riley",
+      image: "https://av/riley.png",
+    });
+    await rows.token(owner, TOKEN);
+    const conversation = await rows.conversation(owner);
+    let task;
+    if (shared) {
+      const team = await rows.team();
+      await rows.membership(owner, team);
+      await rows.membership(sam, team);
+      await rows.membership(riley, team);
+      task = await rows.task(owner, {
+        team_id: team,
+        workspace: `team:${team}`,
+      });
+    }
+    const blob = await storage.store(new Blob(["Published page"]));
+    const incoming = await storage.store(new Blob(["Incoming page"]));
+    const page = await rows.artifact(owner, blob, {
+      slug: SLUG,
+      title: "Old title",
+      size: 100,
+      version: 3,
+      owner_key: OWNER_KEY,
+      source_path: PATH,
+      created_at: 1000,
+      updated_at: 2000,
+      session_conversation_id: conversation,
+      task_id: task,
+      ...fields,
+    });
+    if (shared)
+      await db.insert("artifact_identities", {
+        token: "tok-sam",
+        user_id: sam,
+        artifact_id: page,
+        created_at: 1,
+      });
+    return { owner, sam, riley, page, blob, incoming };
+  });
   return {
-    ctx: {
-      db: {
-        query,
-        get: async (id: string) =>
-          byId.get(id) ?? rows.find((r) => r._id === id) ?? null,
-        patch: async (id: string, patch: Record<string, any>) => {
-          patches.push({ id, patch });
-          const row = byId.get(id) ?? rows.find((r) => r._id === id);
-          Object.assign(row!, patch);
-        },
-        insert: async (_table: string, doc: Record<string, any>) => {
-          const _id = `art_${inserts.length}`;
-          inserts.push({ _id, table: _table, ...doc });
-          if (_table === "artifact_comments")
-            commentInserts.push({ _id, table: _table, ...doc });
-          rows.push({ _id, _table, ...doc });
-          return _id;
-        },
-        delete: async (id: string) => {
-          deletes.push(id);
-        },
-        normalizeId: (_table: string, id: string) =>
-          rows.some((r) => r._id === id && r._table === _table) ? id : null,
-      },
-      storage: {
-        delete: async (id: string) => {
-          storageDeletes.push(id);
-        },
-      },
-      runMutation: async (_fn: unknown, args: Record<string, any>) => {
-        mutations.push(args);
-      },
-    },
-    patches,
-    inserts,
-    commentInserts,
-    deletes,
-    storageDeletes,
-    mutations,
+    t,
+    ...ids,
+    publish: (
+      fields: Partial<
+        FunctionArgs<typeof internal.artifacts.upsertFromPublish>
+      > = {},
+    ) =>
+      t.mutation(internal.artifacts.upsertFromPublish, {
+        user_id: ids.owner,
+        storage_id: ids.incoming,
+        title: "Report",
+        size: 10,
+        source_path: PATH,
+        ...fields,
+      }),
+    remove: (target: string) =>
+      t.mutation(api.artifacts.deleteFromCLI, { api_token: TOKEN, target }),
+    submit: (
+      args: Partial<FunctionArgs<typeof api.artifacts.submitComments>> = {},
+    ) =>
+      t.mutation(api.artifacts.submitComments, {
+        slug: SLUG,
+        ...batch,
+        ...args,
+      }),
+    view: (k?: string) =>
+      t.mutation(api.artifacts.recordView, { slug: SLUG, k }),
+    read: () => t.run(({ db }) => db.get(ids.page)),
+    pages: () => t.run(({ db }) => db.query("artifacts").collect()),
+    history: () =>
+      t.run(({ db }) =>
+        db
+          .query("artifact_versions")
+          .withIndex("by_artifact", (q) => q.eq("artifact_id", ids.page))
+          .collect(),
+      ),
+    stored: (id: Id<"_storage">) => t.run(({ db }) => db.system.get(id)),
+    comments: () => t.run(({ db }) => db.query("artifact_comments").collect()),
+    notes: () => t.run(({ db }) => db.query("notifications").collect()),
+    views: () => t.run(({ db }) => db.query("artifact_stats").collect()),
+    budgets: () => t.run(({ db }) => db.query("rate_limits").collect()),
+    priorComment: (fields: Partial<NewRow<"artifact_comments">> = {}) =>
+      t.run(({ db }) =>
+        db.insert("artifact_comments", {
+          artifact_id: ids.page,
+          batch_id: "prior",
+          author_name: "Sam",
+          author_user_id: ids.sam,
+          text: "first",
+          version: 3,
+          status: "open",
+          delivered: false,
+          created_at: 10,
+          ...fields,
+        }),
+      ),
   };
 }
-
-const existingRow = {
-  _table: "artifacts",
-  _id: "a1",
-  slug: "abcdefghijkl",
-  user_id: "u1",
-  title: "Old title",
-  source_path: "/tmp/report.html",
-  storage_id: "st_old",
-  size: 100,
-  version: 3,
-  created_at: 1000,
-  updated_at: 2000,
-};
 
 describe("newSlug", () => {
   test("is 12 chars of url-safe base62", () => {
@@ -175,34 +199,27 @@ describe("normalizeAssetPath", () => {
 
 describe("upsertFromPublish", () => {
   test("republishing the same path updates in place and snapshots the old version", async () => {
-    const { ctx, patches, storageDeletes, inserts } = makeCtx([
-      { ...existingRow },
-    ]);
-    const result = await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u1",
-      storage_id: "st_new",
+    const c = await setup();
+    const result = await c.publish({
       title: "New title",
       size: 200,
-      source_path: "/tmp/report.html",
       content_hash: "hash_new",
     });
-    expect(result.slug).toBe("abcdefghijkl");
-    expect(result.updated).toBe(true);
-    expect(result.version).toBe(4);
-    expect(result.url).toContain("/a/abcdefghijkl");
-    // The superseded blob survives as a history row instead of being deleted.
-    expect(storageDeletes).toEqual([]);
-    expect(inserts.length).toBe(1);
-    expect(inserts[0]).toMatchObject({
-      artifact_id: "a1",
+    expect(result).toMatchObject({ slug: SLUG, updated: true, version: 4 });
+    expect(result.url).toContain(`/a/${SLUG}`);
+    expect(await c.stored(c.blob)).not.toBeNull();
+    const history = await c.history();
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      artifact_id: c.page,
       version: 3,
       title: "Old title",
-      storage_id: "st_old",
+      storage_id: c.blob,
       size: 100,
       published_at: 2000,
     });
-    expect(patches[0].patch).toMatchObject({
-      storage_id: "st_new",
+    expect(await c.read()).toMatchObject({
+      storage_id: c.incoming,
       title: "New title",
       size: 200,
       version: 4,
@@ -211,140 +228,133 @@ describe("upsertFromPublish", () => {
   });
 
   test("byte-identical republish is a no-op that drops the new blob", async () => {
-    const { ctx, patches, storageDeletes, inserts } = makeCtx([
-      { ...existingRow, content_hash: "same" },
-    ]);
-    const result = await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u1",
-      storage_id: "st_new",
+    const c = await setup({ content_hash: "same" });
+    const before = await c.read();
+    const result = await c.publish({
       title: "New title",
       size: 100,
-      source_path: "/tmp/report.html",
       content_hash: "same",
     });
-    expect(result.version).toBe(3);
-    expect(result.unchanged).toBe(true);
-    expect(storageDeletes).toEqual(["st_new"]);
-    expect(patches.length).toBe(0);
-    expect(inserts.length).toBe(0);
+    expect(result).toMatchObject({ version: 3, unchanged: true });
+    expect(await c.stored(c.incoming)).toBeNull();
+    expect(await c.stored(c.blob)).not.toBeNull();
+    expect(await c.read()).toEqual(before);
+    expect(await c.history()).toEqual([]);
   });
 
   test("history beyond the cap prunes the oldest snapshots", async () => {
-    const versionRows = Array.from({ length: 21 }, (_, i) => ({
-      _table: "artifact_versions",
-      _id: `v${i + 1}`,
-      artifact_id: "a1",
-      version: i + 1,
-      title: `T${i + 1}`,
-      storage_id: `st_v${i + 1}`,
-      size: 10,
-      published_at: 1000 + i,
-    }));
-    const { ctx, deletes, storageDeletes } = makeCtx([
-      { ...existingRow, version: 22 },
-      ...versionRows,
-    ]);
-    await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u1",
-      storage_id: "st_new",
-      title: "New",
-      size: 5,
-      source_path: "/tmp/report.html",
-      content_hash: "h",
+    const c = await setup({ version: 22 });
+    const versions = await c.t.run(async ({ db, storage }) => {
+      const ids = [];
+      for (let version = 1; version <= 21; version++) {
+        const blob = await storage.store(new Blob([`Version ${version}`]));
+        ids.push({
+          blob,
+          id: await db.insert("artifact_versions", {
+            artifact_id: c.page,
+            version,
+            title: `T${version}`,
+            storage_id: blob,
+            size: 10,
+            published_at: 999 + version,
+          }),
+        });
+      }
+      return ids;
     });
-    // 21 existing + 1 new snapshot = 22 → two oldest pruned down to the cap of 20.
-    expect(deletes).toEqual(["v1", "v2"]);
-    expect(storageDeletes).toEqual(["st_v1", "st_v2"]);
+    await c.publish({ title: "New", size: 5, content_hash: "h" });
+    expect((await c.history()).map((row) => row.version)).toEqual(
+      Array.from({ length: 20 }, (_, i) => i + 3),
+    );
+    for (const { id, blob } of versions.slice(0, 2)) {
+      expect(await c.t.run(({ db }) => db.get(id))).toBeNull();
+      expect(await c.stored(blob)).toBeNull();
+    }
+    for (const { blob } of versions.slice(2))
+      expect(await c.stored(blob)).not.toBeNull();
+    expect(await c.stored(c.blob)).not.toBeNull();
   });
 
   test("a different user's identical path creates a separate artifact", async () => {
-    const { ctx, inserts, storageDeletes } = makeCtx([{ ...existingRow }]);
-    const result = await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u2",
-      storage_id: "st_new",
-      title: "Mine",
-      size: 50,
-      source_path: "/tmp/report.html",
-    });
-    expect(result.updated).toBe(false);
-    expect(result.version).toBe(1);
-    expect(inserts.length).toBe(1);
-    expect(storageDeletes.length).toBe(0);
+    const c = await setup();
+    const result = await c.publish({ user_id: c.sam, title: "Mine", size: 50 });
+    expect(result).toMatchObject({ updated: false, version: 1 });
+    expect(await c.pages()).toHaveLength(2);
+    expect(await c.stored(c.blob)).not.toBeNull();
+    expect(await c.stored(c.incoming)).not.toBeNull();
   });
 
   test("force_new mints a fresh slug even when the path matches", async () => {
-    const { ctx, inserts } = makeCtx([{ ...existingRow }]);
-    const result = await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u1",
-      storage_id: "st_new",
+    const c = await setup();
+    const result = await c.publish({
       title: "Again",
       size: 10,
-      source_path: "/tmp/report.html",
       force_new: true,
     });
     expect(result.updated).toBe(false);
-    expect(result.slug).not.toBe("abcdefghijkl");
-    expect(inserts.length).toBe(1);
+    expect(result.slug).not.toBe(SLUG);
+    expect(await c.pages()).toHaveLength(2);
   });
 
   test("no source_path always creates", async () => {
-    const { ctx, inserts } = makeCtx([{ ...existingRow }]);
-    const result = await (upsertFromPublish as any)._handler(ctx, {
-      user_id: "u1",
-      storage_id: "st_new",
+    const c = await setup();
+    const result = await c.publish({
       title: "Pathless",
       size: 10,
+      source_path: undefined,
     });
     expect(result.updated).toBe(false);
-    expect(inserts.length).toBe(1);
+    expect(await c.pages()).toHaveLength(2);
   });
 });
 
 describe("version rows (historyBySlug / ownerPanel)", () => {
-  // Multi-version artifact: current row is kind markdown; v1 predates the kind
-  // column (falls back to the artifact's kind), v2 carries its own kind.
-  const art = {
-    ...existingRow,
-    kind: "markdown",
-    owner_key: "sekrit",
-    source_storage_id: "src_cur",
-  };
-  const h1 = {
-    _table: "artifact_versions",
-    _id: "v1",
-    artifact_id: "a1",
-    version: 1,
-    title: "T1",
-    size: 10,
-    published_at: 1100,
-    storage_id: "st_v1",
-    source_storage_id: "src_v1",
-    edited_by: "link editor",
-  };
-  const h2 = {
-    _table: "artifact_versions",
-    _id: "v2",
-    artifact_id: "a1",
-    version: 2,
-    title: "T2",
-    size: 20,
-    published_at: 1200,
-    storage_id: "st_v2",
-    kind: "html",
-  };
+  async function versions() {
+    const c = await setup({ kind: "markdown" });
+    const blobs = await c.t.run(async ({ db, storage }) => {
+      const source = await storage.store(new Blob(["Current source"]));
+      const first = await storage.store(new Blob(["Version 1"]));
+      const firstSource = await storage.store(new Blob(["Version 1 source"]));
+      const second = await storage.store(new Blob(["Version 2"]));
+      await db.patch(c.page, { source_storage_id: source });
+      await db.insert("artifact_versions", {
+        artifact_id: c.page,
+        version: 1,
+        title: "T1",
+        size: 10,
+        published_at: 1100,
+        storage_id: first,
+        source_storage_id: firstSource,
+        edited_by: "link editor",
+      });
+      await db.insert("artifact_versions", {
+        artifact_id: c.page,
+        version: 2,
+        title: "T2",
+        size: 20,
+        published_at: 1200,
+        storage_id: second,
+        kind: "html",
+      });
+      return { source, first, firstSource, second };
+    });
+    return { ...c, ...blobs };
+  }
 
   test("historyBySlug pins the shared row shape + storage ids + kind fallback chain", async () => {
-    const { ctx } = makeCtx([{ ...art }, { ...h1 }, { ...h2 }]);
-    const out = await (historyBySlug as any)._handler(ctx, { slug: art.slug });
-    expect(out.versions).toEqual([
+    const c = await versions();
+    const out = await c.t.query(internal.artifacts.historyBySlug, {
+      slug: SLUG,
+    });
+    expect(out?.versions).toEqual([
       {
         version: 3,
         title: "Old title",
         size: 100,
         published_at: 2000,
         edited_by: null,
-        storage_id: "st_old",
-        source_storage_id: "src_cur",
+        storage_id: c.blob,
+        source_storage_id: c.source,
         kind: "markdown",
       },
       {
@@ -353,8 +363,7 @@ describe("version rows (historyBySlug / ownerPanel)", () => {
         size: 20,
         published_at: 1200,
         edited_by: null,
-        storage_id: "st_v2",
-        source_storage_id: undefined,
+        storage_id: c.second,
         kind: "html",
       },
       {
@@ -363,20 +372,20 @@ describe("version rows (historyBySlug / ownerPanel)", () => {
         size: 10,
         published_at: 1100,
         edited_by: "link editor",
-        storage_id: "st_v1",
-        source_storage_id: "src_v1",
+        storage_id: c.first,
+        source_storage_id: c.firstSource,
         kind: "markdown",
       },
     ]);
   });
 
   test("ownerPanel pins the same rows with the current flag", async () => {
-    const { ctx } = makeCtx([{ ...art }, { ...h1 }, { ...h2 }]);
-    const out = await (ownerPanel as any)._handler(ctx, {
-      slug: art.slug,
-      owner_key: "sekrit",
+    const c = await versions();
+    const out = await c.t.query(internal.artifacts.ownerPanel, {
+      slug: SLUG,
+      owner_key: OWNER_KEY,
     });
-    expect(out.versions).toEqual([
+    expect(out?.versions).toEqual([
       {
         version: 3,
         title: "Old title",
@@ -406,154 +415,100 @@ describe("version rows (historyBySlug / ownerPanel)", () => {
 });
 
 describe("deleteFromCLI", () => {
-  // verifyApiToken reads api_tokens through the same hand-rolled query surface:
-  // seed a token row whose hashed lookup can't work here, so instead stub at the
-  // db level by seeding the artifact rows AND intercepting the token query.
-  function ctxWithAuth(rows: Array<Record<string, any>>) {
-    const made = makeCtx(rows);
-    const origQuery = made.ctx.db.query;
-    made.ctx.db.query = (table: string) => {
-      if (table === "api_tokens") {
-        return {
-          withIndex: () => ({
-            first: async () => ({ _id: "tok1", user_id: "u1" }),
-            collect: async () => [{ _id: "tok1", user_id: "u1" }],
-          }),
-        } as any;
-      }
-      return origQuery(table);
-    };
-    return made;
-  }
-
   test("delete also removes history rows and their blobs", async () => {
-    const past = {
-      _table: "artifact_versions",
-      _id: "v1",
-      artifact_id: "a1",
-      version: 2,
-      title: "Old",
-      storage_id: "st_v2",
-      size: 10,
-      published_at: 1500,
-    };
-    const { ctx, deletes, storageDeletes } = ctxWithAuth([
-      { ...existingRow },
-      past,
-    ]);
-    const result = await (deleteFromCLI as any)._handler(ctx, {
-      api_token: "t",
-      target: "abcdefghijkl",
+    const c = await setup();
+    const historyBlob = await c.t.run(async ({ db, storage }) => {
+      const blob = await storage.store(new Blob(["Old"]));
+      await db.insert("artifact_versions", {
+        artifact_id: c.page,
+        version: 2,
+        title: "Old",
+        storage_id: blob,
+        size: 10,
+        published_at: 1500,
+      });
+      return blob;
     });
-    expect(result.deleted.slug).toBe("abcdefghijkl");
-    expect(deletes.sort()).toEqual(["a1", "v1"]);
-    expect(storageDeletes.sort()).toEqual(["st_old", "st_v2"]);
+    expect(await c.remove(SLUG)).toMatchObject({ deleted: { slug: SLUG } });
+    expect(await c.read()).toBeNull();
+    expect(await c.history()).toEqual([]);
+    expect(await c.stored(c.blob)).toBeNull();
+    expect(await c.stored(historyBlob)).toBeNull();
   });
 
   test("deletes by path basename when unambiguous", async () => {
-    const { ctx, deletes } = ctxWithAuth([{ ...existingRow }]);
-    const result = await (deleteFromCLI as any)._handler(ctx, {
-      api_token: "t",
-      target: "report.html",
+    const c = await setup();
+    expect(await c.remove("report.html")).toMatchObject({
+      deleted: { slug: SLUG },
     });
-    expect(result.deleted.slug).toBe("abcdefghijkl");
-    expect(deletes).toEqual(["a1"]);
+    expect(await c.read()).toBeNull();
   });
 
   test("ambiguous basename returns an error naming the candidates", async () => {
-    const second = {
-      ...existingRow,
-      _id: "a2",
+    const c = await setup();
+    await c.publish({
       slug: "zzzzzzzzzzzz",
+      title: "Second",
       source_path: "/home/x/report.html",
-    };
-    const { ctx, deletes } = ctxWithAuth([{ ...existingRow }, second]);
-    const result = await (deleteFromCLI as any)._handler(ctx, {
-      api_token: "t",
-      target: "report.html",
     });
+    const before = await c.pages();
+    const result = await c.remove("report.html");
     expect(result.error).toContain("matches 2 artifacts");
     expect(result.error).toContain("zzzzzzzzzzzz");
-    expect(deletes.length).toBe(0);
+    expect(await c.pages()).toEqual(before);
   });
 
   test("no match returns an error", async () => {
-    const { ctx } = ctxWithAuth([{ ...existingRow }]);
-    const result = await (deleteFromCLI as any)._handler(ctx, {
-      api_token: "t",
-      target: "nope",
-    });
-    expect(result.error).toContain("No page matches");
+    const c = await setup();
+    expect((await c.remove("nope")).error).toContain("No page matches");
   });
 });
 
 describe("comment discussion gating", () => {
-  const artRow = {
-    ...existingRow,
-    owner_key: "sekrit",
-    session_conversation_id: "conv1",
-  };
-  const batch = {
-    author_name: "Viewer",
-    version: 3,
-    comments: [{ text: "nice page" }],
-  };
-
   test("a viewer's comment is stored as discussion, never delivered", async () => {
-    const { ctx, inserts, commentInserts } = makeCtx([{ ...artRow }]);
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
-      ...batch,
-    });
-    expect(result).toMatchObject({ delivered: false, count: 1, as: null });
-    expect(commentInserts).toHaveLength(1);
-    expect(commentInserts[0]).toMatchObject({
-      table: "artifact_comments",
-      text: "nice page",
+    const c = await setup();
+    expect(await c.submit()).toMatchObject({
       delivered: false,
+      count: 1,
+      as: null,
     });
+    const comments = await c.comments();
+    expect(comments).toHaveLength(1);
+    expect(comments[0]).toMatchObject({ text: "nice page", delivered: false });
   });
 
   test("an anonymous comment notifies the owner, with the viewer name and a deep link", async () => {
-    const { ctx, inserts, mutations, commentInserts } = makeCtx([
-      { ...artRow },
-    ]);
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
-      ...batch,
-    });
-    expect(mutations).toHaveLength(1);
-    expect(mutations[0]).toMatchObject({
-      event_type: "artifact_commented",
+    const c = await setup();
+    await c.submit();
+    const notes = await c.notes();
+    const [comment] = await c.comments();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      type: "artifact_commented",
       entity_type: "artifact",
-      entity_id: artRow.slug,
+      entity_id: SLUG,
       actor_name: "Viewer",
-      direct_recipient_id: "u1",
+      recipient_user_id: c.owner,
     });
-    expect(mutations[0].actor_user_id).toBeUndefined();
-    expect(mutations[0].link).toContain(
-      `/a/${artRow.slug}?c=${commentInserts[0]._id}`,
-    );
+    expect(notes[0].actor_user_id).toBeUndefined();
+    expect(notes[0].link).toContain(`/a/${SLUG}?c=${comment._id}`);
   });
 
   test("comments off rejects new posts", async () => {
-    const { ctx, inserts } = makeCtx([{ ...artRow, comments_disabled: true }]);
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
-      ...batch,
-    });
-    expect(result.error).toContain("Comments are off");
-    expect(inserts).toEqual([]);
+    const c = await setup({ comments_disabled: true });
+    expect((await c.submit()).error).toContain("Comments are off");
+    expect(await c.comments()).toEqual([]);
+    expect(await c.budgets()).toEqual([]);
   });
 
   test("send-all is owner-only", async () => {
-    const { ctx } = makeCtx([{ ...artRow }]);
-    const noKey = await (deliverPendingComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup();
+    const noKey = await c.t.mutation(api.artifacts.deliverPendingComments, {
+      slug: SLUG,
     });
     expect(noKey.error).toContain("owner");
-    const wrongKey = await (deliverPendingComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const wrongKey = await c.t.mutation(api.artifacts.deliverPendingComments, {
+      slug: SLUG,
       owner_key: "wrong",
     });
     expect(wrongKey.error).toContain("owner");
@@ -565,242 +520,165 @@ describe("comment discussion gating", () => {
 });
 
 describe("comment identity, threads, and notifications", () => {
-  // Filed on team t1's task, so t1 is the page's workspace.
-  const artRow = { ...existingRow, owner_key: "sekrit", task_id: "k1" };
-  // Owner u1 + teammates u2 (Sam, holds an identity token) and u3 (Riley).
-  const teamRows = () => [
-    { ...artRow },
-    { _table: "tasks", _id: "k1", user_id: "u1", workspace: "team:t1" },
-    { _table: "users", _id: "u1", name: "Owner", email: "owner@x.com" },
-    {
-      _table: "users",
-      _id: "u2",
-      name: "Sam",
-      github_username: "sam",
-      github_avatar_url: "https://av/sam.png",
-      email: "sam@x.com",
-    },
-    {
-      _table: "users",
-      _id: "u3",
-      name: "Riley",
-      github_username: "riley",
-      image: "https://av/riley.png",
-    },
-    { _table: "team_memberships", _id: "m1", team_id: "t1", user_id: "u1" },
-    { _table: "team_memberships", _id: "m2", team_id: "t1", user_id: "u2" },
-    { _table: "team_memberships", _id: "m3", team_id: "t1", user_id: "u3" },
-    {
-      _table: "artifact_identities",
-      _id: "idt1",
-      token: "tok-sam",
-      user_id: "u2",
-      artifact_id: "a1",
-    },
-  ];
-
   test("a valid identity token stamps the account's name/avatar/user onto the comment", async () => {
-    const { ctx, inserts, commentInserts } = makeCtx(teamRows());
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    const result = await c.submit({
       author_name: "Spoofed Name",
-      version: 3,
       identity_token: "tok-sam",
       comments: [{ text: "love this" }],
     });
     expect(result.as).toEqual({ name: "Sam", avatar: "https://av/sam.png" });
-    expect(commentInserts[0]).toMatchObject({
-      table: "artifact_comments",
+    expect((await c.comments())[0]).toMatchObject({
       author_name: "Sam",
-      author_user_id: "u2",
+      author_user_id: c.sam,
       author_avatar: "https://av/sam.png",
-      author_email: "sam@x.com",
+      author_email: "sam@example.com",
     });
   });
 
   test("a bad identity token degrades to the viewer-typed name", async () => {
-    const { ctx, inserts, commentInserts } = makeCtx(teamRows());
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    const result = await c.submit({
       author_name: "Drive-by",
-      version: 3,
       identity_token: "tok-forged",
       comments: [{ text: "hello" }],
     });
     expect(result.as).toBeNull();
-    expect(commentInserts[0]).toMatchObject({ author_name: "Drive-by" });
-    expect(commentInserts[0].author_user_id).toBeUndefined();
+    const [comment] = await c.comments();
+    expect(comment.author_name).toBe("Drive-by");
+    expect(comment.author_user_id).toBeUndefined();
   });
 
   test("a teammate's comment notifies the owner as that account", async () => {
-    const { ctx, mutations } = makeCtx(teamRows());
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    await c.submit({
       author_name: "",
-      version: 3,
       identity_token: "tok-sam",
       comments: [{ text: "shipping it" }],
     });
-    expect(mutations).toHaveLength(1);
-    expect(mutations[0]).toMatchObject({
-      event_type: "artifact_commented",
-      actor_user_id: "u2",
-      direct_recipient_id: "u1",
+    const notes = await c.notes();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      type: "artifact_commented",
+      actor_user_id: c.sam,
+      recipient_user_id: c.owner,
     });
   });
 
   test("@mentions from a verified teammate notify the mentioned teammate, once", async () => {
-    const { ctx, mutations } = makeCtx(teamRows());
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    await c.submit({
       author_name: "",
-      version: 3,
       identity_token: "tok-sam",
       comments: [{ text: "@riley what do you think? cc @riley" }],
     });
-    const mention = mutations.filter((m) => m.event_type === "mention");
-    expect(mention).toHaveLength(1);
-    expect(mention[0]).toMatchObject({
-      direct_recipient_id: "u3",
-      actor_user_id: "u2",
+    const notes = await c.notes();
+    const mentions = notes.filter((note) => note.type === "mention");
+    expect(mentions).toHaveLength(1);
+    expect(mentions[0]).toMatchObject({
+      recipient_user_id: c.riley,
+      actor_user_id: c.sam,
     });
-    expect(mention[0].message).toContain("Sam mentioned you");
-    // Owner still hears about the comment itself.
+    expect(mentions[0].message).toContain("Sam mentioned you");
     expect(
-      mutations.some(
-        (m) =>
-          m.event_type === "artifact_commented" &&
-          m.direct_recipient_id === "u1",
+      notes.some(
+        (note) =>
+          note.type === "artifact_commented" &&
+          note.recipient_user_id === c.owner,
       ),
     ).toBe(true);
   });
 
   test("@mentions from an anonymous viewer are ignored", async () => {
-    const { ctx, mutations } = makeCtx(teamRows());
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    await c.submit({
       author_name: "Rando",
-      version: 3,
       comments: [{ text: "@riley spam spam" }],
     });
-    expect(mutations.filter((m) => m.event_type === "mention")).toHaveLength(0);
+    const notes = await c.notes();
+    expect(notes.filter((note) => note.type === "mention")).toHaveLength(0);
     expect(
-      mutations.filter((m) => m.event_type === "artifact_commented"),
+      notes.filter((note) => note.type === "artifact_commented"),
     ).toHaveLength(1);
   });
 
   test("replies thread under the top-level comment and notify its author", async () => {
-    const rows = [
-      ...teamRows(),
-      {
-        _table: "artifact_comments",
-        _id: "c1",
-        artifact_id: "a1",
-        batch_id: "b1",
-        author_name: "Sam",
-        author_user_id: "u2",
-        text: "first",
-        version: 3,
-        status: "open",
-        delivered: false,
-        created_at: 10,
-      },
-    ];
-    const { ctx, inserts, mutations, commentInserts } = makeCtx(rows);
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    const parent = await c.priorComment();
+    const result = await c.submit({
       author_name: "Guest",
-      version: 3,
-      parent_id: "c1",
+      parent_id: parent,
       comments: [{ text: "agreed!" }],
     });
     expect(result.count).toBe(1);
-    expect(commentInserts[0]).toMatchObject({
-      parent_comment_id: "c1",
+    const comments = await c.comments();
+    expect(comments).toHaveLength(2);
+    expect(comments[1]).toMatchObject({
+      parent_comment_id: parent,
       text: "agreed!",
     });
-    const reply = mutations.filter((m) => m.event_type === "comment_reply");
-    expect(reply).toHaveLength(1);
-    expect(reply[0]).toMatchObject({
-      direct_recipient_id: "u2",
+    const notes = await c.notes();
+    const replies = notes.filter((note) => note.type === "comment_reply");
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toMatchObject({
+      recipient_user_id: c.sam,
       actor_name: "Guest",
     });
-    // Deep link targets the thread, so the page opens it selected.
-    expect(reply[0].link).toContain("?c=c1");
-    // Owner is notified too (distinct recipient from the thread author).
+    expect(replies[0].link).toContain(`?c=${parent}`);
     expect(
-      mutations.some(
-        (m) =>
-          m.event_type === "artifact_commented" &&
-          m.direct_recipient_id === "u1",
+      notes.some(
+        (note) =>
+          note.type === "artifact_commented" &&
+          note.recipient_user_id === c.owner,
       ),
     ).toBe(true);
   });
 
   test("replying to a reply attaches to the thread's top-level comment", async () => {
-    const rows = [
-      ...teamRows(),
-      {
-        _table: "artifact_comments",
-        _id: "c1",
-        artifact_id: "a1",
-        batch_id: "b1",
-        author_name: "A",
-        text: "top",
-        version: 3,
-        status: "open",
-        delivered: false,
-        created_at: 10,
-      },
-      {
-        _table: "artifact_comments",
-        _id: "c2",
-        artifact_id: "a1",
-        batch_id: "b2",
-        author_name: "B",
-        text: "mid",
-        version: 3,
-        status: "open",
-        delivered: false,
-        created_at: 11,
-        parent_comment_id: "c1",
-      },
-    ];
-    const { ctx, inserts, commentInserts } = makeCtx(rows);
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    const top = await c.priorComment({ author_name: "A", text: "top" });
+    const middle = await c.priorComment({
+      author_name: "B",
+      text: "mid",
+      parent_comment_id: top,
+    });
+    await c.submit({
       author_name: "C",
-      version: 3,
-      parent_id: "c2",
+      parent_id: middle,
       comments: [{ text: "deep" }],
     });
-    expect(commentInserts[0]).toMatchObject({ parent_comment_id: "c1" });
+    const comments = await c.comments();
+    expect(comments).toHaveLength(3);
+    expect(comments[2]).toMatchObject({ parent_comment_id: top });
   });
 
   test("a reply to a missing comment is rejected", async () => {
-    const { ctx, inserts } = makeCtx(teamRows());
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
-      author_name: "C",
-      version: 3,
-      parent_id: "nope",
-      comments: [{ text: "hi" }],
-    });
-    expect(result.error).toContain("gone");
-    expect(inserts).toEqual([]);
+    const c = await setup({}, true);
+    const parent = await c.priorComment();
+    await c.t.run(({ db }) => db.delete(parent));
+    expect(
+      (
+        await c.submit({
+          author_name: "C",
+          parent_id: parent,
+          comments: [{ text: "hi" }],
+        })
+      ).error,
+    ).toContain("gone");
+    expect(await c.comments()).toEqual([]);
+    expect(await c.budgets()).toEqual([]);
   });
 
   test("the owner commenting via owner_key does not notify themselves", async () => {
-    const { ctx, mutations } = makeCtx(teamRows());
-    await (submitComments as any)._handler(ctx, {
-      slug: artRow.slug,
+    const c = await setup({}, true);
+    await c.submit({
       author_name: "Owner",
-      version: 3,
-      owner_key: "sekrit",
+      owner_key: OWNER_KEY,
       deliver: false,
       comments: [{ text: "note to self" }],
     });
-    expect(mutations).toHaveLength(0);
+    expect(await c.comments()).toHaveLength(1);
+    expect(await c.notes()).toHaveLength(0);
   });
 });
 
@@ -841,153 +719,99 @@ describe("agent state on the page", () => {
 });
 
 describe("comment gates on the public mutation", () => {
-  // PARENT-04: submitComments is internet-callable in its own right, so the
-  // page's own gates have to hold here and not only on the HTTP serve route.
-  const gatedRow = {
-    ...existingRow,
-    owner_key: "sekrit",
-    session_conversation_id: "conv1",
-  };
-  const batch = {
-    author_name: "Viewer",
-    version: 3,
-    comments: [{ text: "nice page" }],
-  };
-
   test("an expired page takes no anonymous comment", async () => {
-    const { ctx, commentInserts, mutations } = makeCtx([
-      { ...gatedRow, expires_at: 500 },
-    ]);
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: gatedRow.slug,
-      ...batch,
-    });
-    expect(result.error).toContain("expired");
-    expect(commentInserts).toEqual([]);
-    expect(mutations).toEqual([]);
+    const c = await setup({ expires_at: 500 });
+    expect((await c.submit()).error).toContain("expired");
+    expect(await c.comments()).toEqual([]);
+    expect(await c.notes()).toEqual([]);
   });
 
   test.each(["missing", "wrong", "valid"])(
     "a password wall handles a %s unlock token",
     async (kind) => {
-      const { ctx, commentInserts } = makeCtx([
-        { ...gatedRow, password_hash: "ph" },
-      ]);
+      const c = await setup({ password_hash: "ph" });
       const k =
         kind === "valid"
-          ? await kTokenFor("ph", gatedRow.slug)
+          ? await kTokenFor("ph", SLUG)
           : kind === "wrong"
             ? "nope"
             : undefined;
-      const result = await (submitComments as any)._handler(ctx, {
-        slug: gatedRow.slug,
-        k,
-        ...batch,
-      });
+      const result = await c.submit({ k });
       if (kind === "valid") {
         expect(result).toMatchObject({ count: 1 });
-        expect(commentInserts).toHaveLength(1);
+        expect(await c.comments()).toHaveLength(1);
       } else {
         expect(result.error).toContain("password");
-        expect(commentInserts).toEqual([]);
+        expect(await c.comments()).toEqual([]);
       }
     },
   );
 
   test("the owner key clears the gate — the owner is not a locked-out viewer", async () => {
-    const { ctx, commentInserts } = makeCtx([
-      { ...gatedRow, password_hash: "ph" },
-    ]);
-    const result = await (submitComments as any)._handler(ctx, {
-      slug: gatedRow.slug,
-      owner_key: "sekrit",
-      deliver: false,
-      ...batch,
-    });
-    expect(result).toMatchObject({ count: 1 });
-    expect(commentInserts).toHaveLength(1);
+    const c = await setup({ password_hash: "ph" });
+    expect(
+      await c.submit({ owner_key: OWNER_KEY, deliver: false }),
+    ).toMatchObject({ count: 1 });
+    expect(await c.comments()).toHaveLength(1);
   });
 
   test("an email-walled page needs the email token", async () => {
-    const { ctx, commentInserts } = makeCtx([
-      { ...gatedRow, email_gate: true },
-    ]);
-    const blocked = await (submitComments as any)._handler(ctx, {
-      slug: gatedRow.slug,
-      ...batch,
-    });
-    expect(blocked.error).toContain("email");
-    expect(commentInserts).toEqual([]);
-    const e = await eTokenFor("sekrit", gatedRow.slug);
-    const ok = await (submitComments as any)._handler(ctx, {
-      slug: gatedRow.slug,
-      e,
-      ...batch,
-    });
-    expect(ok).toMatchObject({ count: 1 });
+    const c = await setup({ email_gate: true });
+    expect((await c.submit()).error).toContain("email");
+    expect(await c.comments()).toEqual([]);
+    const e = await eTokenFor(OWNER_KEY, SLUG);
+    expect(await c.submit({ e })).toMatchObject({ count: 1 });
   });
 
   test("the flood limit is enforced by the mutation, in the same transaction as the insert", async () => {
-    const { ctx, commentInserts } = makeCtx([{ ...gatedRow }]);
-    let last: any;
-    for (let i = 0; i < MAX_COMMENTS_PER_MINUTE + 3; i++) {
-      last = await (submitComments as any)._handler(ctx, {
-        slug: gatedRow.slug,
-        ...batch,
-      });
-    }
-    expect(last.error).toContain("Too many");
-    expect(commentInserts).toHaveLength(MAX_COMMENTS_PER_MINUTE);
+    const c = await setup();
+    for (let i = 0; i < MAX_COMMENTS_PER_MINUTE; i++) await c.submit();
+    for (let i = 0; i < 3; i++)
+      expect((await c.submit()).error).toContain("Too many");
+    expect(await c.comments()).toHaveLength(MAX_COMMENTS_PER_MINUTE);
   });
 
   test("an idempotent retry does not spend flood budget", async () => {
-    const { ctx, commentInserts } = makeCtx([{ ...gatedRow }]);
-    for (let i = 0; i < MAX_COMMENTS_PER_MINUTE + 5; i++) {
-      await (submitComments as any)._handler(ctx, {
-        slug: gatedRow.slug,
-        client_id: "same",
-        ...batch,
-      });
-    }
-    expect(commentInserts).toHaveLength(1);
+    const c = await setup();
+    const args = { client_id: "same" };
+    const first = await c.submit(args);
+    const before = await c.budgets();
+    for (let i = 0; i < MAX_COMMENTS_PER_MINUTE + 5; i++)
+      expect(await c.submit(args)).toEqual(first);
+    expect(await c.comments()).toHaveLength(1);
+    expect(await c.budgets()).toEqual(before);
   });
 });
 
 describe("view beacon gates", () => {
-  const row = { ...existingRow, owner_key: "sekrit" };
-
   test("a password-walled page does not count a view without the token", async () => {
-    const { ctx, inserts } = makeCtx([{ ...row, password_hash: "ph" }]);
-    expect(await (recordView as any)._handler(ctx, { slug: row.slug })).toEqual(
-      { ok: false },
-    );
-    expect(inserts).toEqual([]);
+    const c = await setup({ password_hash: "ph" });
+    expect(await c.view()).toEqual({ ok: false });
+    expect(await c.views()).toEqual([]);
+    expect(await c.budgets()).toEqual([]);
   });
 
   test("the unlock token counts the view", async () => {
-    const { ctx, inserts } = makeCtx([{ ...row, password_hash: "ph" }]);
-    const k = await kTokenFor("ph", row.slug);
-    expect(
-      await (recordView as any)._handler(ctx, { slug: row.slug, k }),
-    ).toEqual({ ok: true });
-    expect(inserts.filter((i) => i.table === "artifact_stats")).toHaveLength(1);
+    const c = await setup({ password_hash: "ph" });
+    expect(await c.view(await kTokenFor("ph", SLUG))).toEqual({ ok: true });
+    const views = await c.views();
+    expect(views).toHaveLength(1);
+    expect(views[0].view_count).toBe(1);
   });
 
   test("an expired page counts nothing", async () => {
-    const { ctx, inserts } = makeCtx([{ ...row, expires_at: 500 }]);
-    expect(await (recordView as any)._handler(ctx, { slug: row.slug })).toEqual(
-      { ok: false },
-    );
-    expect(inserts).toEqual([]);
+    const c = await setup({ expires_at: 500 });
+    expect(await c.view()).toEqual({ ok: false });
+    expect(await c.views()).toEqual([]);
+    expect(await c.budgets()).toEqual([]);
   });
 
   test("the counter is bounded per minute", async () => {
-    const { ctx, patches } = makeCtx([{ ...row }]);
-    for (let i = 0; i < MAX_VIEWS_PER_MINUTE + 10; i++) {
-      await (recordView as any)._handler(ctx, { slug: row.slug });
-    }
-    const stats = patches.filter((p) => p.patch.view_count !== undefined);
-    expect(stats.at(-1)!.patch.view_count).toBe(MAX_VIEWS_PER_MINUTE);
+    const c = await setup();
+    for (let i = 0; i < MAX_VIEWS_PER_MINUTE + 10; i++) await c.view();
+    const views = await c.views();
+    expect(views).toHaveLength(1);
+    expect(views[0].view_count).toBe(MAX_VIEWS_PER_MINUTE);
   });
 });
 

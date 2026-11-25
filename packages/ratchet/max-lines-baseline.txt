@@ -233,7 +233,7 @@ apps/server/convex/agentTasks.runOwner.test.ts 1050
 apps/server/convex/agentTasks.ts 4700
 apps/server/convex/anchors.ts 1300
 apps/server/convex/artifactPages.ts 2350
-apps/server/convex/artifacts.test.ts 1250
+apps/server/convex/artifacts.test.ts 1050
 apps/server/convex/artifacts.ts 2850
 apps/server/convex/artifactsHttp.ts 2100
 apps/server/convex/assistant.entry.test.ts 1800
@@ -250,7 +250,7 @@ apps/server/convex/callGuests.test.ts 3150
 apps/server/convex/callGuests.ts 1950
 apps/server/convex/callRecordings.test.ts 3900
 apps/server/convex/callRecordings.ts 2900
-apps/server/convex/callRooms.test.ts 1050
+apps/server/convex/callRooms.test.ts 900
 apps/server/convex/calls.test.ts 1600
 apps/server/convex/calls.ts 1550
 apps/server/convex/capabilities.test.ts 2250
@@ -267,7 +267,6 @@ apps/server/convex/changesWeek.ts 950
 apps/server/convex/chat.sessionReads.test.ts 1200
 apps/server/convex/chat.test.ts 8100
 apps/server/convex/chat.ts 6350
-apps/server/convex/cleanup.test.ts 1050
 apps/server/convex/cleanup.ts 850
 apps/server/convex/cloud.test.ts 1450
 apps/server/convex/cloud.ts 1550
@@ -276,7 +275,7 @@ apps/server/convex/codeComments.ts 1400
 apps/server/convex/commentStore.test.ts 850
 apps/server/convex/comments.ts 1700
 apps/server/convex/comments.v2.test.ts 1500
-apps/server/convex/composerSuggestions.test.ts 1100
+apps/server/convex/composerSuggestions.test.ts 1000
 apps/server/convex/composerSuggestions.ts 1100
 apps/server/convex/conversations.convergence.test.ts 900
 apps/server/convex/conversations.projection.test.ts 1700
@@ -289,7 +288,7 @@ apps/server/convex/deploys.ts 1300
 apps/server/convex/devices.reparent.test.ts 900
 apps/server/convex/devices.ts 2700
 apps/server/convex/dispatch.close.test.ts 1250
-apps/server/convex/dispatch.test.ts 1850
+apps/server/convex/dispatch.test.ts 1600
 apps/server/convex/dispatch.ts 6150
 apps/server/convex/docSync.ts 900
 apps/server/convex/docs.staleWrite.test.ts 850
@@ -421,11 +420,8 @@ apps/server/convex/sources/replayRest.ts 1150
 apps/server/convex/sources/sentry.test.ts 1750
 apps/server/convex/sources/sentry.ts 1200
 apps/server/convex/spawn.ts 950
-apps/server/convex/syncLog.test.ts 1550
 apps/server/convex/syncLog.ts 900
-apps/server/convex/taskLinks.test.ts 1200
 apps/server/convex/taskLinks.ts 1050
-apps/server/convex/taskWaits.test.ts 1550
 apps/server/convex/taskWaits.ts 1400
 apps/server/convex/tasks.ts 6750
 apps/server/convex/teamBilling.test.ts 950
@@ -434,7 +430,7 @@ apps/server/convex/teamSuggestions.test.ts 1350
 apps/server/convex/teams.ts 1900
 apps/server/convex/threads.test.ts 1400
 apps/server/convex/threads.ts 850
-apps/server/convex/titleGeneration.test.ts 900
+apps/server/convex/titleGeneration.test.ts 850
 apps/server/convex/titleGeneration.ts 950
 apps/server/convex/tokenConnectors.test.ts 850
 apps/server/convex/transcripts.test.ts 3350

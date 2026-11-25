@@ -6,154 +6,113 @@ import {
   assignConversationToBucketForUser,
   createBucketForUser,
   createBucketWithAssignmentsV2ForUser,
-  webAssignV2,
-  webCreateV2,
-  webListV2,
-  webUpdateV2,
 } from "./buckets";
 
-// A tiny in-memory stand-in for Convex's ctx.db, sufficient for the bucket write
-// helpers: per-table arrays, the two indexes those helpers query, and
-// insert/patch/get. Mirrors the hand-rolled fake in conversationSessionLookup.test.ts.
-function fakeDb(seed: Record<string, any[]> = {}) {
-  const tables: Record<string, any[]> = {
-    inbox_buckets: [],
-    bucket_assignments: [],
-    local_view_heads: [],
-    local_command_receipts: [],
-    conversations: [],
-    ...seed,
-  };
-  let counter = 0;
-  return {
-    _tables: tables,
-    query(table: string) {
-      return {
-        withIndex(_index: string, builder: (q: any) => any) {
-          const eqs: Array<[string, any]> = [];
-          builder({
-            eq(field: string, value: any) {
-              eqs.push([field, value]);
-              return this;
-            },
-          });
-          const rows = (tables[table] ?? []).filter((r) =>
-            eqs.every(([f, v]) => String(r[f]) === String(v)),
-          );
-          const cursor = {
-            collect: async () => rows,
-            first: async () => rows[0] ?? null,
-            unique: async () => {
-              if (rows.length > 1)
-                throw new Error("Expected a unique indexed row");
-              return rows[0] ?? null;
-            },
-            take: async (n: number) => rows.slice(0, n),
-            order: (_direction: string) => cursor,
-          };
-          return cursor;
-        },
-      };
-    },
-    async insert(table: string, doc: any) {
-      const _id = `${table}-${++counter}`;
-      (tables[table] ??= []).push({ _id, ...doc });
-      return _id;
-    },
-    async patch(id: string, fields: any) {
-      for (const rows of Object.values(tables)) {
-        const row = rows.find((r) => r._id === id);
-        if (row) Object.assign(row, fields);
-      }
-    },
-    async get(id: string) {
-      for (const rows of Object.values(tables)) {
-        const row = rows.find((r) => r._id === id);
-        if (row) return row;
-      }
-      return null;
-    },
-  };
-}
+import { asUser, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
 
-const USER = "user-1" as any;
-
-function webCtx(db: ReturnType<typeof fakeDb>, userId: string | null = USER) {
+async function setup() {
+  const t = serverTest();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "label catalog");
+    const user = await rows.user();
+    const peer = await rows.user();
+    const conversation = await rows.conversation(user);
+    const foreign = await rows.conversation(peer);
+    const team = await rows.team();
+    await rows.membership(user, team, { visibility: "full" });
+    await rows.membership(peer, team, { visibility: "full" });
+    const shared = await rows.conversation(peer, {
+      team_id: team,
+      is_private: false,
+    });
+    const privateSession = await rows.conversation(peer, {
+      team_id: team,
+      is_private: true,
+    });
+    return { user, conversation, foreign, shared, privateSession };
+  });
+  const web = asUser(t, ids.user);
   return {
-    db,
-    auth: {
-      async getUserIdentity() {
-        return userId ? { subject: `${userId}|session` } : null;
-      },
-    },
-  } as any;
+    t,
+    web,
+    ...ids,
+    resolve: (name: string) =>
+      t.run((ctx) => resolveOrCreateBucket(ctx, ids.user, name)),
+    seed: (name: string) =>
+      t.run(({ db }) =>
+        db.insert("inbox_buckets", {
+          user_id: ids.user,
+          name,
+          created_at: 1,
+          updated_at: 1,
+        }),
+      ),
+    view: () => web.query(api.buckets.webListV2, {}),
+    assignments: () =>
+      t.run(({ db }) => db.query("bucket_assignments").collect()),
+    labels: () => t.run(({ db }) => db.query("inbox_buckets").collect()),
+  };
 }
 
 describe("resolveOrCreateBucket", () => {
   test("creates a label on first use, then reuses it (no duplicate)", async () => {
-    const db = fakeDb();
-    const ctx = { db } as any;
-
-    const first = await resolveOrCreateBucket(ctx, USER, "api");
+    const c = await setup();
+    const first = await c.resolve("api");
     expect(first.created).toBe(true);
-    expect(db._tables.inbox_buckets).toHaveLength(1);
-
-    // Same name, different casing + whitespace → same bucket, no new row.
-    const second = await resolveOrCreateBucket(ctx, USER, "  API ");
-    expect(second.created).toBe(false);
-    expect(second.bucketId).toBe(first.bucketId);
-    expect(db._tables.inbox_buckets).toHaveLength(1);
+    expect(await c.labels()).toHaveLength(1);
+    expect(await c.resolve("  API ")).toEqual({
+      created: false,
+      bucketId: first.bucketId,
+      name: "api",
+    });
+    expect(await c.labels()).toHaveLength(1);
   });
 
   test("a near-name does NOT fuzzy-match — it creates a distinct label", async () => {
-    const db = fakeDb();
-    const ctx = { db } as any;
-    await resolveOrCreateBucket(ctx, USER, "apiv2");
-    const fresh = await resolveOrCreateBucket(ctx, USER, "api");
-    expect(fresh.created).toBe(true);
-    expect(db._tables.inbox_buckets).toHaveLength(2);
+    const c = await setup();
+    await c.resolve("apiv2");
+    expect((await c.resolve("api")).created).toBe(true);
+    expect(await c.labels()).toHaveLength(2);
   });
 
   test("new labels sort after existing ones (max sort_order + 1024)", async () => {
-    const db = fakeDb();
-    const ctx = { db } as any;
-    await createBucketForUser(ctx, USER, { name: "first" });
-    await createBucketForUser(ctx, USER, { name: "second" });
-    const orders = db._tables.inbox_buckets.map((b: any) => b.sort_order);
-    expect(orders[1]).toBeGreaterThan(orders[0]);
+    const c = await setup();
+    await c.t.run(async (ctx) => {
+      await createBucketForUser(ctx, c.user, { name: "first" });
+      await createBucketForUser(ctx, c.user, { name: "second" });
+    });
+    const [first, second] = await c.labels();
+    expect(second.sort_order).toBe(first.sort_order! + 1024);
   });
 
   test("blank name is rejected", async () => {
-    const db = fakeDb();
-    const ctx = { db } as any;
-    await expect(resolveOrCreateBucket(ctx, USER, "   ")).rejects.toThrow(
-      /required/i,
-    );
+    const c = await setup();
+    await expect(c.resolve("   ")).rejects.toThrow(/required/i);
+    expect(await c.labels()).toEqual([]);
   });
 });
 
 describe("assignConversationToBucketForUser", () => {
   test("inserts then upserts the single (user, conversation) row — never a second", async () => {
-    const db = fakeDb();
-    const ctx = { db } as any;
-    const conv = "conv-1" as any;
-
-    await assignConversationToBucketForUser(ctx, USER, conv, "b1" as any);
-    expect(db._tables.bucket_assignments).toHaveLength(1);
-    expect(db._tables.bucket_assignments[0].bucket_id).toBe("b1");
-
-    // Re-file under a different label: same row, updated in place.
-    await assignConversationToBucketForUser(ctx, USER, conv, "b2" as any);
-    expect(db._tables.bucket_assignments).toHaveLength(1);
-    expect(db._tables.bucket_assignments[0].bucket_id).toBe("b2");
-
-    // Unfile (null): the tombstone row survives with no bucket.
-    await assignConversationToBucketForUser(ctx, USER, conv, null);
-    expect(db._tables.bucket_assignments).toHaveLength(1);
-    expect(db._tables.bucket_assignments[0].bucket_id).toBeUndefined();
+    const c = await setup();
+    const first = await c.seed("First");
+    const second = await c.seed("Second");
+    for (const bucket of [first, second, null]) {
+      await c.t.run((ctx) =>
+        assignConversationToBucketForUser(ctx, c.user, c.conversation, bucket),
+      );
+      const assignments = await c.assignments();
+      expect(assignments).toHaveLength(1);
+      expect(assignments[0]).toMatchObject({
+        user_id: c.user,
+        conversation_id: c.conversation,
+      });
+      expect(assignments[0].bucket_id).toBe(bucket ?? undefined);
+    }
   });
 });
-
 describe("rename and archive take the exact label only", () => {
   const buckets = [
     { _id: "b1", name: "apiv2" },
@@ -192,10 +151,7 @@ describe("matchBucketByName (existing helper, used by the read filters)", () => 
 
 describe("buckets v2 complete view and command receipts", () => {
   test("auth unavailability is explicit and cannot masquerade as an empty catalog", async () => {
-    const result = await (webListV2 as any)._handler(
-      webCtx(fakeDb(), null),
-      {},
-    );
+    const result = await serverTest().query(api.buckets.webListV2, {});
     expect(result).toEqual({
       contractId: "buckets.principal/v2",
       viewKey: "buckets:principal",
@@ -205,22 +161,24 @@ describe("buckets v2 complete view and command receipts", () => {
   });
 
   test("an authenticated empty catalog is a granted complete view at revision zero", async () => {
-    const result = await (webListV2 as any)._handler(webCtx(fakeDb()), {});
-    expect(result.access).toBe("granted");
-    expect(result.viewRevision).toBe(0);
-    expect(result.buckets).toEqual([]);
-    expect(result.assignments).toEqual([]);
+    const c = await setup();
+    expect(await c.view()).toMatchObject({
+      access: "granted",
+      viewRevision: 0,
+      buckets: [],
+      assignments: [],
+    });
   });
 
   test("create is atomic with a revision receipt and exact replay is side-effect free", async () => {
-    const db = fakeDb();
-    const ctx = webCtx(db);
+    const c = await setup();
     const args = { command_id: "cmd-create", name: "Infra", color: "blue" };
-    const first = await (webCreateV2 as any)._handler(ctx, args);
-    const replay = await (webCreateV2 as any)._handler(ctx, args);
-    expect(replay).toEqual(first);
-    expect(db._tables.inbox_buckets).toHaveLength(1);
-    expect(db._tables.local_command_receipts).toHaveLength(1);
+    const first = await c.web.mutation(api.buckets.webCreateV2, args);
+    expect(await c.web.mutation(api.buckets.webCreateV2, args)).toEqual(first);
+    expect(await c.labels()).toHaveLength(1);
+    expect(
+      await c.t.run(({ db }) => db.query("local_command_receipts").collect()),
+    ).toHaveLength(1);
     expect(first.coverage).toEqual([
       {
         contractId: "buckets.principal/v2",
@@ -234,113 +192,87 @@ describe("buckets v2 complete view and command receipts", () => {
         commandId: "cmd-create",
       },
     ]);
-
-    const view = await (webListV2 as any)._handler(ctx, {});
-    expect(view.viewRevision).toBe(1);
-    expect(view.buckets.map((bucket: any) => bucket.name)).toEqual(["Infra"]);
+    expect(await c.view()).toMatchObject({
+      viewRevision: 1,
+      buckets: [{ name: "Infra" }],
+    });
   });
 
   test("update and assignment each cover the same complete atomic view", async () => {
-    const db = fakeDb({
-      inbox_buckets: [
-        {
-          _id: "b1",
-          user_id: USER,
-          name: "Before",
-          created_at: 1,
-          updated_at: 1,
-        },
-      ],
-      conversations: [{ _id: "c1", user_id: USER }],
-    });
-    const ctx = webCtx(db);
-    const updated = await (webUpdateV2 as any)._handler(ctx, {
+    const c = await setup();
+    const bucket_id = await c.seed("Before");
+    const updated = await c.web.mutation(api.buckets.webUpdateV2, {
       command_id: "cmd-update",
-      bucket_id: "b1",
+      bucket_id,
       name: "After",
     });
-    const assigned = await (webAssignV2 as any)._handler(ctx, {
+    const assigned = await c.web.mutation(api.buckets.webAssignV2, {
       command_id: "cmd-assign",
-      conversation_id: "c1",
-      bucket_id: "b1",
+      conversation_id: c.conversation,
+      bucket_id,
     });
-    expect(updated.coverage[0].revision).toBe(1);
-    expect(assigned.coverage[0].revision).toBe(2);
-    expect(db._tables.bucket_assignments).toHaveLength(1);
-    expect(db._tables.inbox_buckets[0].name).toBe("After");
+    expect(updated.coverage[0]).toMatchObject({ revision: 1 });
+    expect(assigned.coverage[0]).toMatchObject({ revision: 2 });
+    expect(await c.assignments()).toHaveLength(1);
+    expect((await c.labels())[0].name).toBe("After");
   });
 
   test("files a teammate's team-visible session — labels are personal filing", async () => {
-    // Regression: the inbox once refused "Create bucket didn't go through — A
-    // selected session is not owned by this account" for a Mr Bot session the
-    // viewer could read. Filing is per-user, so the bar is visibility, not
-    // ownership.
-    const db = fakeDb({
-      conversations: [
-        {
-          _id: "shared",
-          user_id: "someone-else",
-          team_id: "t1",
-          is_private: false,
-        },
-        {
-          _id: "private",
-          user_id: "someone-else",
-          team_id: "t1",
-          is_private: true,
-        },
-      ],
-      team_memberships: [
-        { user_id: USER, team_id: "t1", visibility: "full" },
-        { user_id: "someone-else", team_id: "t1", visibility: "full" },
-      ],
-    });
-    const ctx = webCtx(db);
-    const created = await createBucketWithAssignmentsV2ForUser(ctx, USER, {
-      commandId: "cmd-create-shared",
-      name: "Bots",
-      conversationIds: ["shared"] as any,
-    });
+    const c = await setup();
+    const create = (
+      commandId: string,
+      name: string,
+      conversationIds: (typeof c.conversation)[],
+    ) =>
+      c.t.run((ctx) =>
+        createBucketWithAssignmentsV2ForUser(ctx, c.user, {
+          commandId,
+          name,
+          conversationIds,
+        }),
+      );
+    const created = await create("cmd-create-shared", "Bots", [c.shared]);
     expect(created.status).toBe("acknowledged");
-    const bucketId = (created as any).result.bucketId;
-    expect(
-      db._tables.bucket_assignments.map((a: any) => a.conversation_id),
-    ).toEqual(["shared"]);
-
-    const assigned = await (webAssignV2 as any)._handler(ctx, {
+    if (created.status !== "acknowledged")
+      throw new Error("Missing label receipt");
+    const [label] = await c.labels();
+    expect(created.result).toMatchObject({ bucketId: label._id });
+    const bucket_id = label._id;
+    expect((await c.assignments()).map((a) => a.conversation_id)).toEqual([
+      c.shared,
+    ]);
+    const assigned = await c.web.mutation(api.buckets.webAssignV2, {
       command_id: "cmd-assign-shared",
-      conversation_id: "shared",
-      bucket_id: bucketId,
+      conversation_id: c.shared,
+      bucket_id,
     });
     expect(assigned.status).toBe("acknowledged");
-
-    const refused = await createBucketWithAssignmentsV2ForUser(ctx, USER, {
-      commandId: "cmd-create-private",
-      name: "Nope",
-      conversationIds: ["private"] as any,
+    expect(
+      await create("cmd-create-private", "Nope", [c.privateSession]),
+    ).toMatchObject({
+      status: "rejected",
+      rejection: { code: "FORBIDDEN" },
+    });
+    const refused = await c.web.mutation(api.buckets.webAssignV2, {
+      command_id: "cmd-assign-private",
+      conversation_id: c.privateSession,
+      bucket_id,
     });
     expect(refused.status).toBe("rejected");
-    expect((refused as any).rejection.code).toBe("FORBIDDEN");
-    const refusedAssign = await (webAssignV2 as any)._handler(ctx, {
-      command_id: "cmd-assign-private",
-      conversation_id: "private",
-      bucket_id: bucketId,
-    });
-    expect(refusedAssign.status).toBe("rejected");
   });
 
   test("foreign relationship rejection is durable and does not move view coverage", async () => {
-    const db = fakeDb({
-      conversations: [{ _id: "foreign", user_id: "someone-else" }],
+    const c = await setup();
+    const args = { command_id: "cmd-foreign", conversation_id: c.foreign };
+    const first = await c.web.mutation(api.buckets.webAssignV2, args);
+    expect(first).toMatchObject({
+      status: "rejected",
+      rejection: { code: "NOT_FOUND" },
     });
-    const ctx = webCtx(db);
-    const args = { command_id: "cmd-foreign", conversation_id: "foreign" };
-    const first = await (webAssignV2 as any)._handler(ctx, args);
-    const replay = await (webAssignV2 as any)._handler(ctx, args);
-    expect(first.status).toBe("rejected");
-    expect(first.rejection.code).toBe("NOT_FOUND");
-    expect(replay).toEqual(first);
-    expect(db._tables.bucket_assignments).toEqual([]);
-    expect(db._tables.local_view_heads).toEqual([]);
+    expect(await c.web.mutation(api.buckets.webAssignV2, args)).toEqual(first);
+    expect(await c.assignments()).toEqual([]);
+    expect(
+      await c.t.run(({ db }) => db.query("local_view_heads").collect()),
+    ).toEqual([]);
   });
 });

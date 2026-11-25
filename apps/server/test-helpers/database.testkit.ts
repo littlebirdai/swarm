@@ -54,6 +54,23 @@ export async function scheduledJobs(
   return name === undefined ? jobs : jobs.filter((job) => job.name === name);
 }
 
+const userTables = Object.keys(schema.tables) as TableNames[];
+
+export function strictDatabaseGet<Database extends DatabaseReader>(
+  db: Database,
+): Database {
+  const get: DatabaseReader["get"] = (
+    ...args: [Id<TableNames>] | [TableNames, Id<TableNames>]
+  ) => {
+    const [table, id] = args.length === 1 ? [undefined, args[0]] : args;
+    const tables = table ? [table] : userTables;
+    if (!tables.some((name) => db.normalizeId(name, id)))
+      throw new Error(`Invalid document ID: ${id}`);
+    return table ? db.get(table, id) : db.get(id);
+  };
+  return { ...db, get };
+}
+
 export function countDatabaseReads<Database extends DatabaseReader>(
   db: Database,
 ) {

@@ -210,6 +210,7 @@ describe("ready (TG1)", () => {
       const personal = await rows.task(owner, {
         short_id: "ct-2",
         team_id,
+        workspace: `user:${owner}`,
         blocked_by: ["ct-1"],
       });
       const shared = await rows.task(owner, {

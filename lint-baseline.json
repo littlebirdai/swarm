@@ -8288,9 +8288,6 @@
   "apps/server/convex/agentTasks.runOwner.test.ts": {
     "swarm/no-comments": 35
   },
-  "apps/server/convex/agentTasks.test.ts": {
-    "swarm/no-comments": 29
-  },
   "apps/server/convex/agentTasks.ts": {
     "swarm/no-comments": 640
   },
@@ -8346,7 +8343,7 @@
     "swarm/no-comments": 22
   },
   "apps/server/convex/artifacts.test.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 9
   },
   "apps/server/convex/artifacts.ts": {
     "swarm/no-comments": 307
@@ -8486,9 +8483,6 @@
   "apps/server/convex/browserStream.ts": {
     "swarm/no-comments": 28
   },
-  "apps/server/convex/buckets.test.ts": {
-    "swarm/no-comments": 10
-  },
   "apps/server/convex/buckets.ts": {
     "swarm/no-comments": 67
   },
@@ -8520,7 +8514,7 @@
     "swarm/no-comments": 163
   },
   "apps/server/convex/callRooms.test.ts": {
-    "swarm/no-comments": 90
+    "swarm/no-comments": 81
   },
   "apps/server/convex/callRooms.ts": {
     "swarm/no-comments": 226
@@ -8614,9 +8608,6 @@
   },
   "apps/server/convex/changeFeed.ts": {
     "swarm/no-comments": 39
-  },
-  "apps/server/convex/changeLog.test.ts": {
-    "swarm/no-comments": 9
   },
   "apps/server/convex/changeLog.ts": {
     "swarm/no-comments": 103
@@ -8733,16 +8724,13 @@
     "swarm/no-comments": 18
   },
   "apps/server/convex/cleanup.test.ts": {
-    "swarm/no-comments": 91
+    "swarm/no-comments": 14
   },
   "apps/server/convex/cleanup.ts": {
     "swarm/no-comments": 242
   },
   "apps/server/convex/cliAuth.registration.test.ts": {
     "swarm/no-comments": 11
-  },
-  "apps/server/convex/cliAuth.test.ts": {
-    "swarm/no-comments": 7
   },
   "apps/server/convex/cliAuth.ts": {
     "swarm/no-comments": 38
@@ -8835,7 +8823,7 @@
     "swarm/no-comments": 1
   },
   "apps/server/convex/composerSuggestions.test.ts": {
-    "swarm/no-comments": 22
+    "swarm/no-comments": 17
   },
   "apps/server/convex/composerSuggestions.ts": {
     "swarm/no-comments": 173
@@ -9264,7 +9252,7 @@
     "swarm/no-comments": 13
   },
   "apps/server/convex/dispatch.test.ts": {
-    "swarm/no-comments": 84
+    "swarm/no-comments": 68
   },
   "apps/server/convex/dispatch.ts": {
     "swarm/no-comments": 773
@@ -9423,7 +9411,7 @@
     "swarm/no-comments": 18
   },
   "apps/server/convex/fixLoop.test.ts": {
-    "swarm/no-comments": 5
+    "swarm/no-comments": 3
   },
   "apps/server/convex/flowLibrary.test.ts": {
     "swarm/no-comments": 11
@@ -10634,9 +10622,6 @@
   "apps/server/convex/lib/suggestionOutcomeWrite.ts": {
     "swarm/no-comments": 12
   },
-  "apps/server/convex/lib/superseded.test.ts": {
-    "swarm/no-comments": 9
-  },
   "apps/server/convex/lib/superseded.ts": {
     "swarm/no-comments": 25
   },
@@ -11679,7 +11664,7 @@
     "swarm/no-comments": 31
   },
   "apps/server/convex/publicShare.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 6
   },
   "apps/server/convex/publicShare.ts": {
     "swarm/no-comments": 46
@@ -12255,7 +12240,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/syncLog.test.ts": {
-    "swarm/no-comments": 45
+    "swarm/no-comments": 16
   },
   "apps/server/convex/syncLog.ts": {
     "swarm/no-comments": 184
@@ -12303,7 +12288,7 @@
     "swarm/no-comments": 33
   },
   "apps/server/convex/taskLinks.test.ts": {
-    "swarm/no-comments": 18
+    "swarm/no-comments": 10
   },
   "apps/server/convex/taskLinks.ts": {
     "swarm/no-comments": 74
@@ -12324,7 +12309,7 @@
     "swarm/no-comments": 26
   },
   "apps/server/convex/taskWaits.test.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 10
   },
   "apps/server/convex/taskWaits.ts": {
     "swarm/no-comments": 98
@@ -12336,7 +12321,7 @@
     "swarm/no-comments": 6
   },
   "apps/server/convex/tasks.assignee.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 3
   },
   "apps/server/convex/tasks.closingStation.test.ts": {
     "swarm/no-comments": 4
@@ -12387,7 +12372,7 @@
     "swarm/no-comments": 6
   },
   "apps/server/convex/tasks.roleAssignee.test.ts": {
-    "swarm/no-comments": 48
+    "swarm/no-comments": 41
   },
   "apps/server/convex/tasks.search.test.ts": {
     "swarm/no-comments": 3

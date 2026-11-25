@@ -9,13 +9,14 @@ import {
   loadGolden,
   type GoldenCase,
 } from "./__golden__/golden.testkit";
-import { hashToken } from "./apiTokens";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   buildMinerPrompt,
   contextFromRows,
   getOwnSuggestionProfile,
-  getRecentUserInputs,
-  getSuggestionContext,
   haikuRequest,
   isConversationTurn,
   minePatternsWithLLM,
@@ -31,67 +32,43 @@ import { minePhrases, rankInputs } from "./lib/suggestionInputRanking";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// Minimal ctx.db over in-memory tables: indexed equality reads with the same
-// filter/order/take/first semantics. Same convex-test-free idiom as
-// calls.test.ts — drive the real handler through its exported config.
-function fakeDb(tables: Record<string, any[]>) {
-  const q = {
-    field: (name: string) => (row: any) => row[name],
-    eq: (get: any, val: any) => (row: any) => get(row) === val,
-    neq: (get: any, val: any) => (row: any) => get(row) !== val,
-    and:
-      (...preds: any[]) =>
-      (row: any) =>
-        preds.every((p) => p(row)),
-  };
-  return {
-    // The vendor guard reads each conversation's team; none of these is a regulated team's.
-    normalizeId: (_table: string, id: string) => id,
-    get: async (id: string) =>
-      Object.values(tables)
-        .flat()
-        .find((r) => r._id === id) ?? null,
-    query: (table: string) => {
-      let rows = tables[table] ?? [];
-      const chain: any = {
-        withIndex: (_name: string, fn: (b: any) => any) => {
-          const eqs: Array<[string, any]> = [];
-          const b: any = { eq: (f: string, v: any) => (eqs.push([f, v]), b) };
-          fn(b);
-          rows = rows.filter((r) => eqs.every(([f, v]) => r[f] === v));
-          return chain;
-        },
-        filter: (fn: (b: any) => any) => {
-          const pred = fn(q);
-          rows = rows.filter(pred);
-          return chain;
-        },
-        order: (dir: "asc" | "desc") => {
-          const key = table === "conversations" ? "updated_at" : "timestamp";
-          rows = [...rows].sort((a, b) =>
-            dir === "asc" ? a[key] - b[key] : b[key] - a[key],
-          );
-          return chain;
-        },
-        take: async (n: number) => rows.slice(0, n),
-        first: async () => rows[0] ?? null,
-      };
-      return chain;
-    },
-  };
-}
+type Turn = Partial<NewRow<"messages">> &
+  Pick<NewRow<"messages">, "role" | "content" | "timestamp">;
 
-async function collect(conversations: any[], messages: any[]) {
-  const handler =
-    (getRecentUserInputs as any)._handler ??
-    (getRecentUserInputs as any).handler;
-  return (await handler(
-    { db: fakeDb({ conversations, messages }) },
-    { user_id: "u1" },
-  )) as Array<{
-    text: string;
-    ts: number;
-  }>;
+async function setup() {
+  const t = serverTest();
+  const user = await t.run(({ db }) =>
+    fixtureRows(db, "suggestion account").user(),
+  );
+  const conversation = (
+    label: string,
+    fields: Partial<NewRow<"conversations">> = {},
+  ) => t.run(({ db }) => fixtureRows(db, label).conversation(user, fields));
+  const messages = (id: Id<"conversations">, turns: Turn[]) =>
+    t.run(async ({ db }) => {
+      const session = await db.get(id);
+      const rows = fixtureRows(
+        db,
+        `suggestion messages for ${session?.session_id}`,
+      );
+      for (const turn of turns) await rows.message(id, turn);
+      return db
+        .query("messages")
+        .withIndex("by_conversation_timestamp", (q) =>
+          q.eq("conversation_id", id),
+        )
+        .collect();
+    });
+  return {
+    t,
+    user,
+    conversation,
+    messages,
+    collect: () =>
+      t.query(internal.composerSuggestions.getRecentUserInputs, {
+        user_id: user,
+      }),
+  };
 }
 
 const POLISH =
@@ -99,52 +76,33 @@ const POLISH =
 
 describe("getRecentUserInputs", () => {
   test("reads the opening brief of a long session, not just its newest nudges", async () => {
-    const conv = {
-      _id: "c1",
-      _creationTime: 1000,
-      user_id: "u1",
-      updated_at: 5000,
-    };
-    const messages = [
+    const c = await setup();
+    const id = await c.conversation("long session");
+    await c.messages(id, [
       {
-        _id: "m0",
-        conversation_id: "c1",
         role: "user",
         content: `make the create team flow amazing. ${POLISH}`,
         timestamp: 1000,
       },
       ...Array.from({ length: 40 }, (_, i) => ({
-        _id: `n${i}`,
-        conversation_id: "c1",
         role: "user",
         content: "continue",
         timestamp: 2000 + i,
       })),
       {
-        _id: "t1",
-        conversation_id: "c1",
         role: "user",
         content: "now verify it in the browser",
         timestamp: 4000,
       },
-      {
-        _id: "tr",
-        conversation_id: "c1",
+      ...Array.from({ length: 15 }, (_, i) => ({
         role: "user",
         content: "carrier",
-        tool_results: [{}],
-        timestamp: 4500,
-      },
-      {
-        _id: "a1",
-        conversation_id: "c1",
-        role: "assistant",
-        content: "done",
-        timestamp: 4600,
-      },
-    ];
-    const out = await collect([conv], messages);
-    const texts = out.map((r) => r.text);
+        timestamp: 4500 + i,
+        tool_results: [{ tool_use_id: `tool-${i}`, content: "tool output" }],
+      })),
+      { role: "assistant", content: "done", timestamp: 4600 },
+    ]);
+    const texts = (await c.collect()).map((r) => r.text);
     expect(texts.some((t) => t.includes("10 rounds of iteration"))).toBe(true);
     expect(texts).toContain("now verify it in the browser");
     expect(texts).not.toContain("continue");
@@ -152,176 +110,128 @@ describe("getRecentUserInputs", () => {
   });
 
   test("leaves out a regulated team's sessions while Anthropic has no BAA", async () => {
-    const conversations = [
-      { _id: "mine", _creationTime: 100, user_id: "u1", updated_at: 900 },
+    const c = await setup();
+    const team = await c.t.run(({ db }) =>
+      fixtureRows(db, "regulated team").team({
+        policy: { regulated_data: true },
+      }),
+    );
+    const mine = await c.conversation("personal session", { updated_at: 900 });
+    const clinic = await c.conversation("clinic session", {
+      updated_at: 800,
+      team_id: team,
+      team_visibility: "full",
+    });
+    await c.messages(mine, [
       {
-        _id: "clinic",
-        _creationTime: 100,
-        user_id: "u1",
-        updated_at: 800,
-        team_id: "t1",
-        team_visibility: "full",
-      },
-    ];
-    const messages = [
-      {
-        _id: "a",
-        conversation_id: "mine",
         role: "user",
         content: "plan and task this out deeply",
         timestamp: 200,
       },
+    ]);
+    await c.messages(clinic, [
       {
-        _id: "b",
-        conversation_id: "clinic",
         role: "user",
         content: "summarize the patient intake notes",
         timestamp: 200,
       },
-    ];
-    const handler =
-      (getRecentUserInputs as any)._handler ??
-      (getRecentUserInputs as any).handler;
-    const teams = [
-      { _id: "t1", name: "Clinic", policy: { regulated_data: true } },
-    ];
-    const out = await handler(
-      { db: fakeDb({ conversations, messages, teams }) },
-      { user_id: "u1" },
-    );
-    expect(out.map((r: { text: string }) => r.text)).toEqual([
+    ]);
+    expect((await c.collect()).map((r) => r.text)).toEqual([
       "plan and task this out deeply",
     ]);
   });
 
   test("skips machine-driven sessions and fork-copied history", async () => {
-    const conversations = [
-      { _id: "human", _creationTime: 100, user_id: "u1", updated_at: 900 },
+    const c = await setup();
+    const human = await c.conversation("human session", { updated_at: 900 });
+    const worker = await c.conversation("worker session", {
+      updated_at: 800,
+      is_workflow_sub: true,
+    });
+    const fork = await c.conversation("fork session", {
+      updated_at: 700,
+      forked_from: human,
+    });
+    const forkAt = (await c.t.run(({ db }) => db.get(fork)))!._creationTime;
+    const original = {
+      role: "user",
+      content: "plan and task this out deeply",
+      timestamp: forkAt - 1000,
+    };
+    await c.messages(human, [original]);
+    await c.messages(worker, [
       {
-        _id: "worker",
-        _creationTime: 100,
-        user_id: "u1",
-        updated_at: 800,
-        is_workflow_sub: true,
-      },
-      {
-        _id: "fork",
-        _creationTime: 500,
-        user_id: "u1",
-        updated_at: 700,
-        forked_from: "human",
-      },
-    ];
-    const messages = [
-      {
-        _id: "h1",
-        conversation_id: "human",
-        role: "user",
-        content: "plan and task this out deeply",
-        timestamp: 200,
-      },
-      {
-        _id: "w1",
-        conversation_id: "worker",
         role: "user",
         content: "Adversarially verify this code-review finding",
-        timestamp: 200,
+        timestamp: forkAt - 500,
       },
-      // Copied from `human` with its original timestamp (older than the fork).
+    ]);
+    await c.messages(fork, [
+      original,
       {
-        _id: "f0",
-        conversation_id: "fork",
-        role: "user",
-        content: "plan and task this out deeply",
-        timestamp: 200,
-      },
-      {
-        _id: "f1",
-        conversation_id: "fork",
         role: "user",
         content: "take the other branch here",
-        timestamp: 600,
+        timestamp: forkAt + 1000,
       },
-    ];
-    const out = await collect(conversations, messages);
-    const texts = out.map((r) => r.text);
-    expect(
-      texts.filter((t) => t === "plan and task this out deeply"),
-    ).toHaveLength(1);
+    ]);
+    const texts = (await c.collect()).map((r) => r.text);
+    expect(texts.filter((t) => t === original.content)).toHaveLength(1);
     expect(texts).toContain("take the other branch here");
     expect(texts.some((t) => t.startsWith("Adversarially"))).toBe(false);
   });
 
   test("skips peer-session notices and codecast's own notices carried as user rows", async () => {
-    const conv = {
-      _id: "c1",
-      _creationTime: 100,
-      user_id: "u1",
-      updated_at: 900,
-    };
-    const messages = [
+    const c = await setup();
+    const id = await c.conversation("notice session");
+    await c.messages(id, [
       {
-        _id: "p",
-        conversation_id: "c1",
         role: "user",
+        timestamp: 200,
         content:
           'Another Claude session sent a message: <teammate-message teammate_id="review-ct1" color="green"> {"type":"idle_notification"} </teammate-message>',
-        timestamp: 200,
       },
       {
-        _id: "n",
-        conversation_id: "c1",
         role: "user",
+        timestamp: 201,
         content:
           "[codecast] Now using Codex (was Claude · Fable). This session continues here.",
-        timestamp: 201,
       },
       {
-        _id: "t",
-        conversation_id: "c1",
         role: "user",
-        content: "verify it in the browser before you call it done",
         timestamp: 300,
+        content: "verify it in the browser before you call it done",
       },
-    ];
-    const texts = (await collect([conv], messages)).map((r) => r.text);
-    expect(texts).toEqual(["verify it in the browser before you call it done"]);
+    ]);
+    expect((await c.collect()).map((r) => r.text)).toEqual([
+      "verify it in the browser before you call it done",
+    ]);
   });
 
   test("skips a slash command's expanded body along with its wrapper", async () => {
-    const conv = {
-      _id: "c1",
-      _creationTime: 100,
-      user_id: "u1",
-      updated_at: 900,
-    };
-    const messages = [
+    const c = await setup();
+    const id = await c.conversation("slash command session");
+    await c.messages(id, [
       {
-        _id: "w",
-        conversation_id: "c1",
         role: "user",
+        timestamp: 200,
         content:
           "<command-message>commit</command-message>\n<command-name>/commit</command-name>",
-        timestamp: 200,
       },
       {
-        _id: "x",
-        conversation_id: "c1",
         role: "user",
+        timestamp: 201,
         content:
           "## Task\n\nAnalyze ALL uncommitted changes and create topical commits.",
-        timestamp: 201,
       },
       {
-        _id: "t",
-        conversation_id: "c1",
         role: "user",
-        content: "also bump the desktop version",
         timestamp: 300,
+        content: "also bump the desktop version",
       },
-    ];
-    const texts = (await collect([conv], messages)).map((r) => r.text);
-    expect(texts).toEqual(["also bump the desktop version"]);
+    ]);
+    expect((await c.collect()).map((r) => r.text)).toEqual([
+      "also bump the desktop version",
+    ]);
   });
 
   test("isMachineDrivenConversation covers every agent-authored session shape", () => {
@@ -820,29 +730,33 @@ describe("suggest request seams", () => {
   });
 
   test("contextFromRows returns what getSuggestionContext did, and windows a past moment the same way", async () => {
-    const conv = {
-      _id: "c1",
-      user_id: "u1",
+    const c = await setup();
+    const id = await c.conversation("context window", {
       title: "Speed up the build",
       project_path: "/work/demo",
       git_branch: "speed",
       status: "active",
-      extra_field: "never copied",
-    };
-    const rows = Array.from({ length: 72 }, (_, i) => ({
-      _id: `m${i}`,
-      conversation_id: "c1",
-      timestamp: 1000 + i,
-      ...(i % 5 === 3
-        ? { role: "user", content: "tool output", tool_results: [{}] }
-        : i % 2 === 0
-          ? { role: "user", content: `ask ${i}` }
-          : {
-              role: "assistant",
-              content: `answer ${i}`,
-              ...(i === 71 ? { message_uuid: "uuid-71" } : {}),
-            }),
-    }));
+    });
+    const conv = (await c.t.run(({ db }) => db.get(id)))!;
+    const rows = await c.messages(
+      id,
+      Array.from({ length: 72 }, (_, i) => ({
+        timestamp: 1000 + i,
+        message_uuid: i === 71 ? "uuid-71" : undefined,
+        ...(i % 5 === 3
+          ? {
+              role: "user",
+              content: "tool output",
+              tool_results: [{ tool_use_id: "tool", content: "tool output" }],
+            }
+          : i % 2 === 0
+            ? { role: "user", content: `ask ${i}` }
+            : {
+                role: "assistant",
+                content: `answer ${i}`,
+              }),
+      })),
+    );
     // The query as it read before the selector moved out of it.
     const before = (raw: any[]) => {
       const turns = raw.filter(isConversationTurn).reverse();
@@ -870,20 +784,19 @@ describe("suggest request seams", () => {
     const newest60 = [...rows]
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 60);
-    const handler =
-      (getSuggestionContext as any)._handler ??
-      (getSuggestionContext as any).handler;
-    const db = { ...fakeDb({ messages: rows }), get: async () => conv };
-    const live = await handler({ db }, { conversation_id: "c1" });
-    expect(live).toEqual(before(newest60));
-    expect(contextFromRows(rows as any, conv as any)).toEqual(live);
-    expect(live.anchor).toBe("uuid-71");
+    const live = await c.t.query(
+      internal.composerSuggestions.getSuggestionContext,
+      { conversation_id: id },
+    );
+    expect(live).toEqual(JSON.parse(JSON.stringify(before(newest60))));
+    expect(contextFromRows(rows, conv)).toEqual(before(newest60));
+    expect(live?.anchor).toBe("uuid-71");
 
     // A past moment: the rows up to and including an assistant turn.
     const upTo = rows.slice(0, 42);
-    const past = contextFromRows(upTo as any, conv as any);
+    const past = contextFromRows(upTo, conv);
     expect(past).toEqual(before([...upTo].reverse().slice(0, 60)));
-    expect(past.anchor).toBe("m41");
+    expect(past.anchor).toBe(upTo.at(-1)?._id);
   });
 
   test("the profile route takes a token and nothing else, and reads only the token's user", async () => {
@@ -901,30 +814,32 @@ describe("suggest request seams", () => {
     expect(call).not.toContain("user_id");
     expect(call).not.toContain("...body");
 
-    const tables: Record<string, any[]> = {
-      api_tokens: [
-        {
-          _id: "t1",
-          user_id: "userA",
-          token_hash: await hashToken("secret-a"),
-        },
-      ],
-      suggestion_profiles: [
-        { _id: "p2", user_id: "userB", recent: ["b"] },
-        { _id: "p1", user_id: "userA", recent: ["a"] },
-      ],
-    };
-    const db = fakeDb(tables);
-    const handler =
-      (getOwnSuggestionProfile as any)._handler ??
-      (getOwnSuggestionProfile as any).handler;
-    expect((await handler({ db }, { api_token: "secret-a" }))._id).toBe("p1");
-    await expect(handler({ db }, { api_token: "wrong" })).rejects.toThrow(
-      "Unauthorized",
-    );
-    await expect(handler({ db }, { api_token: "" })).rejects.toThrow(
-      "Unauthorized",
-    );
+    const c = await setup();
+    const profile = await c.t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "suggestion profiles");
+      const other = await rows.user();
+      await rows.token(c.user, "secret-a");
+      for (const [user_id, text] of [
+        [other, "b"],
+        [c.user, "a"],
+      ] as const) {
+        const id = await db.insert("suggestion_profiles", {
+          user_id,
+          recent: [text],
+          frequent: [],
+          generated_at: 1,
+        });
+        if (user_id === c.user) return id;
+      }
+      throw new Error("Expected profile");
+    });
+    const query = (api_token: string) =>
+      c.t.query(internal.composerSuggestions.getOwnSuggestionProfile, {
+        api_token,
+      });
+    expect((await query("secret-a"))?._id).toBe(profile);
+    await expect(query("wrong")).rejects.toThrow("Unauthorized");
+    await expect(query("")).rejects.toThrow("Unauthorized");
   });
 });
 

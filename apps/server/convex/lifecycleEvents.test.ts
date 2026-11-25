@@ -1,42 +1,35 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { makeLifecycleEventDb, noteWriteCause } from "./lifecycleEvents";
-import { makeFakeDb } from "./testDb";
 
-function fakeDb(rows: Record<string, any>) {
-  const inserted: any[] = [];
-  const tableOfId = (id: string) => id.split(":")[0];
-  const db = {
-    normalizeId: (table: string, id: string) =>
-      tableOfId(id) === table ? id : null,
-    get: async (id: string) => rows[id] ?? null,
-    patch: async (id: string, fields: any) => {
-      rows[id] = { ...rows[id], ...fields };
-    },
-    replace: async (id: string, doc: any) => {
-      rows[id] = doc;
-    },
-    delete: async (id: string) => {
-      delete rows[id];
-    },
-    insert: async (table: string, doc: any) => {
-      inserted.push({ table, ...doc });
-      return "x";
-    },
-    query: () => null,
-    system: {},
+async function setup(fields: Partial<NewRow<"conversations">> = {}) {
+  const t = serverTest();
+  const { user, conversation } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "lifecycle event");
+    const user = await rows.user();
+    const conversation = await rows.conversation(user, fields);
+    return { user, conversation };
+  });
+  return {
+    t,
+    user,
+    conversation,
+    events: () => t.run(({ db }) => db.query("conversation_events").collect()),
   };
-  return { db, inserted, rows };
 }
 
 test("a dismiss records the change and the cause the mutation named", async () => {
-  const { db, inserted } = fakeDb({ "conversations:c1": { status: "active" } });
-  const ctx = { db: makeLifecycleEventDb(db, db) };
-  noteWriteCause(ctx, "web:killSession");
-  await ctx.db.patch("conversations:c1", { inbox_dismissed_at: 5, title: "x" });
-  expect(inserted).toHaveLength(1);
-  expect(inserted[0]).toMatchObject({
-    table: "conversation_events",
-    conversation_id: "conversations:c1",
+  const { t, conversation, events } = await setup();
+  await t.run(async ({ db }) => {
+    const ctx = { db: makeLifecycleEventDb(db, db) };
+    noteWriteCause(ctx, "web:killSession");
+    await ctx.db.patch(conversation, { inbox_dismissed_at: 5, title: "x" });
+  });
+  const recorded = await events();
+  expect(recorded).toHaveLength(1);
+  expect(recorded[0]).toMatchObject({
+    conversation_id: conversation,
     kind: "lifecycle",
     cause: "web:killSession",
     changes: { inbox_dismissed_at: [null, "5"] },
@@ -44,53 +37,68 @@ test("a dismiss records the change and the cause the mutation named", async () =
 });
 
 test("re-asserting a value that is already set records nothing", async () => {
-  const { db, inserted } = fakeDb({
-    "conversations:c1": { status: "completed" },
+  const { t, conversation, events } = await setup({ status: "completed" });
+  await t.run(async ({ db }) => {
+    const writer = makeLifecycleEventDb(db, db);
+    await writer.patch(conversation, { status: "completed" });
+    await writer.patch(conversation, { title: "only a title" });
   });
-  const ctx = { db: makeLifecycleEventDb(db, db) };
-  await ctx.db.patch("conversations:c1", { status: "completed" });
-  await ctx.db.patch("conversations:c1", { title: "only a title" });
-  expect(inserted).toHaveLength(0);
+  expect(await events()).toHaveLength(0);
 });
 
 test("without a cause the writer's stack is kept", async () => {
-  const { db, inserted } = fakeDb({ "conversations:c1": { status: "active" } });
-  const ctx = { db: makeLifecycleEventDb(db, db) };
-  await ctx.db.patch("conversations:c1", { status: "completed" });
-  expect(inserted[0].cause).toBeUndefined();
-  expect(inserted[0].stack).toContain("lifecycleEvents.test");
+  const { t, conversation, events } = await setup();
+  await t.run(async ({ db }) => {
+    await makeLifecycleEventDb(db, db).patch(conversation, {
+      status: "completed",
+    });
+  });
+  const [event] = await events();
+  expect(event.cause).toBeUndefined();
+  expect(event.stack).toContain("lifecycleEvents.test");
 });
 
 test("a pending message ending cancelled is recorded under its conversation", async () => {
-  const { db, inserted } = fakeDb({
-    "pending_messages:m1": {
+  const { t, user, conversation, events } = await setup();
+  await t.run(async ({ db }) => {
+    const message = await db.insert("pending_messages", {
+      conversation_id: conversation,
+      from_user_id: user,
+      content: "Queued message",
+      retry_count: 0,
       status: "pending",
-      conversation_id: "conversations:c1",
-    },
+      created_at: 1,
+    });
+    const ctx = { db: makeLifecycleEventDb(db, db) };
+    noteWriteCause(ctx, "killSession");
+    await ctx.db.patch(message, { status: "cancelled" });
   });
-  const ctx = { db: makeLifecycleEventDb(db, db) };
-  noteWriteCause(ctx, "killSession");
-  await ctx.db.patch("pending_messages:m1", { status: "cancelled" });
-  expect(inserted[0]).toMatchObject({
-    conversation_id: "conversations:c1",
+  expect((await events())[0]).toMatchObject({
+    conversation_id: conversation,
     kind: "message_cancelled",
     cause: "killSession",
   });
 });
 
 test("a raw managed-session delete removes its heartbeat and records the lifecycle event", async () => {
-  const db = makeFakeDb({
-    conversations: [{ _id: "c1", status: "active" }],
-    managed_sessions: [{ _id: "s1", conversation_id: "c1", session_id: "sid" }],
-    session_heartbeats: [
-      { _id: "h1", managed_session_id: "s1", heartbeat_at: 123 },
-    ],
+  const { t, user, conversation, events } = await setup();
+  const heartbeat = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "lifecycle heartbeat");
+    const session = await rows.session(user, { conversation_id: conversation });
+    return db.insert("session_heartbeats", {
+      managed_session_id: session,
+      user_id: user,
+      heartbeat_at: 123,
+    });
   });
-  const ctx = { db: makeLifecycleEventDb(db, db) };
-  await ctx.db.delete("s1");
-  await ctx.db.delete("c1");
-  expect(await db.get("h1")).toBeNull();
-  expect(db._inserted.map((e) => e.doc.kind)).toEqual([
+  await t.run(async ({ db }) => {
+    const session = (await db.get(heartbeat))!.managed_session_id;
+    const writer = makeLifecycleEventDb(db, db);
+    await writer.delete(session);
+    await writer.delete(conversation);
+  });
+  expect(await t.run(({ db }) => db.get(heartbeat))).toBeNull();
+  expect((await events()).map((event) => event.kind)).toEqual([
     "managed_session_deleted",
     "deleted",
   ]);
