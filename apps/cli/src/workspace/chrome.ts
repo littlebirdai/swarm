@@ -25,7 +25,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { isPortFree } from "./ports.js";
+import { cdpHttpUrl } from "../browser/cdp.js";
 
 export interface ChromeInstance {
   /** OS process id of the spawned Chromium. */
@@ -361,8 +361,6 @@ export async function launchChrome(
 
   const readyTimeoutMs = (opts.readyTimeoutSec ?? 20) * 1000;
   const deadline = Date.now() + readyTimeoutMs;
-  // CDP port goes from free → bound when Chrome is ready.
-  // We poll isPortFree until it returns false (i.e., Chrome is listening).
   while (Date.now() < deadline) {
     // A spawn 'error' (e.g., bad binary path) latched asynchronously → fail fast.
     if (spawnError) {
@@ -378,7 +376,23 @@ export async function launchChrome(
         pid,
       );
     }
-    if (!(await isPortFree(opts.cdpPort))) {
+    const version = await fetch(cdpHttpUrl(opts.cdpPort, "/json/version"), {
+      redirect: "error",
+      signal: AbortSignal.timeout(
+        Math.max(1, Math.min(500, deadline - Date.now())),
+      ),
+    })
+      .then((response) =>
+        response.ok
+          ? (response.json() as Promise<{ webSocketDebuggerUrl?: string }>)
+          : undefined,
+      )
+      .catch(() => undefined);
+    if (
+      typeof version?.webSocketDebuggerUrl === "string" &&
+      version.webSocketDebuggerUrl.startsWith("ws://") &&
+      isPidAlive(pid)
+    ) {
       return {
         pid,
         cdpPort: opts.cdpPort,
@@ -387,7 +401,7 @@ export async function launchChrome(
         binaryPath,
       };
     }
-    await sleep(150);
+    await sleep(Math.max(0, Math.min(150, deadline - Date.now())));
   }
   // Timed out — kill the orphan before throwing.
   try {

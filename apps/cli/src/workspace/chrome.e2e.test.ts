@@ -19,12 +19,15 @@ import { isPortFree } from "./ports.js";
 const CHROME_PATH = findChromeBinary();
 const HAVE_CHROME = CHROME_PATH !== null;
 
-/** Reserve a high port that's currently free for use as a CDP port. */
-async function pickPort(start = 39600): Promise<number> {
-  for (let p = start; p < start + 200; p++) {
-    if (await isPortFree(p)) return p;
-  }
-  throw new Error("could not find a free port for test");
+async function pickPort(): Promise<number> {
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: () => new Response(null, { status: 503 }),
+  });
+  const port = server.port!;
+  await server.stop(true);
+  return port;
 }
 
 let tmpDir: string;
@@ -426,10 +429,40 @@ describe.if(!HAVE_CHROME)("launchChrome without Chrome installed", () => {
   });
 });
 
+test("launchChrome rejects a listening port without a CDP endpoint", async () => {
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: () => Response.json({}),
+  });
+  const binaryPath = path.join(tmpDir, "process-without-cdp");
+  fs.writeFileSync(
+    binaryPath,
+    `#!${process.execPath}\nawait Bun.serve({ port: 0, fetch: () => new Response() });\n`,
+    { mode: 0o700 },
+  );
+  try {
+    await expect(
+      launchChrome({
+        binaryPath,
+        cdpPort: server.port!,
+        userDataDir: tmpDir,
+        readyTimeoutSec: 1,
+      }).then((instance) => {
+        launched.push(instance);
+        return instance;
+      }),
+    ).rejects.toThrow(/did not become listening/);
+  } finally {
+    await server.stop(true);
+  }
+});
+
 describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
   test("spawns Chrome and exposes a listening CDP port", async () => {
     const port = await pickPort();
     const inst = await launchChrome({
+      binaryPath: CHROME_PATH!,
       cdpPort: port,
       userDataDir: path.join(tmpDir, "single"),
     });
@@ -442,23 +475,23 @@ describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
     expect(isPidAlive(inst.pid)).toBe(true);
 
     // CDP /json/version handshake is the canonical readiness check.
-    const res = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) =>
-      r.json(),
-    );
+    const res = await fetch(
+      `http://127.0.0.1:${inst.cdpPort}/json/version`,
+    ).then((r) => r.json());
     expect(typeof (res as { Browser?: string }).Browser).toBe("string");
     expect((res as { Browser: string }).Browser).toMatch(/Chrome|Chromium/i);
   }, 20000);
 
   test("two simultaneous instances get distinct ports and PIDs", async () => {
-    const portA = await pickPort(39700);
-    const portB = await pickPort(portA + 1);
     const a = await launchChrome({
-      cdpPort: portA,
+      binaryPath: CHROME_PATH!,
+      cdpPort: await pickPort(),
       userDataDir: path.join(tmpDir, "a"),
     });
     launched.push(a);
     const b = await launchChrome({
-      cdpPort: portB,
+      binaryPath: CHROME_PATH!,
+      cdpPort: await pickPort(),
       userDataDir: path.join(tmpDir, "b"),
     });
     launched.push(b);
@@ -470,12 +503,12 @@ describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
     expect(isPidAlive(b.pid)).toBe(true);
 
     // Both expose CDP endpoints independently.
-    const verA = (await fetch(`http://127.0.0.1:${portA}/json/version`).then(
-      (r) => r.json(),
-    )) as { Browser?: string };
-    const verB = (await fetch(`http://127.0.0.1:${portB}/json/version`).then(
-      (r) => r.json(),
-    )) as { Browser?: string };
+    const verA = (await fetch(
+      `http://127.0.0.1:${a.cdpPort}/json/version`,
+    ).then((r) => r.json())) as { Browser?: string };
+    const verB = (await fetch(
+      `http://127.0.0.1:${b.cdpPort}/json/version`,
+    ).then((r) => r.json())) as { Browser?: string };
     expect(verA.Browser).toBeTruthy();
     expect(verB.Browser).toBeTruthy();
   }, 25000);
@@ -483,9 +516,9 @@ describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
   test.each([3000, 0])(
     "stopChrome terminates the process with a %ims grace period",
     async (timeoutMs) => {
-      const port = await pickPort(39800);
       const inst = await launchChrome({
-        cdpPort: port,
+        binaryPath: CHROME_PATH!,
+        cdpPort: await pickPort(),
         userDataDir: path.join(tmpDir, "stoptest"),
       });
       launched.push(inst);
@@ -494,7 +527,7 @@ describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
       await stopChrome(inst.pid, { timeoutMs });
       expect(isPidAlive(inst.pid)).toBe(false);
       // CDP port released.
-      expect(await isPortFree(port)).toBe(true);
+      expect(await isPortFree(inst.cdpPort)).toBe(true);
     },
     20000,
   );
