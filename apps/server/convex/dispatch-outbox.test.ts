@@ -483,6 +483,50 @@ test("a replay uses the current acknowledgement flag and the original result", a
   expect(await actor.mutation(api.dispatch.dispatch, request)).toBe(true);
 });
 
+test("a replay drops acknowledgements for a team that the owner left", async () => {
+  const { t, actor, outbox, owner } = await setup();
+  const { team, membership } = await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "left team");
+    const team = await fixtures.team();
+    return { team, membership: await fixtures.membership(owner, team) };
+  });
+  const acks = [`user:${owner}`, `team:${team}`].map((scope_key) => ({
+    scope_key,
+  }));
+  const response = await encryptRefreshToken(
+    JSON.stringify({ result: true, __syncAckV1: acks, __syncAckV2: acks }),
+    outbox.id,
+    "swarm-dispatch-outbox-v1",
+  );
+  await t.run(async ({ db }) => {
+    await db.insert("dispatch_outbox_receipts", {
+      owner,
+      action: "patchConversation",
+      id_hash: await commandArgumentsFingerprint(outbox.id),
+      response,
+      expires_at: Date.now() + 86_400_000,
+    });
+  });
+  const replay = () =>
+    actor.mutation(api.dispatch.dispatch, {
+      action: "patchConversation",
+      args: [],
+      outbox,
+      ack_positions: true,
+    });
+  expect(await replay()).toEqual({
+    result: true,
+    __syncAckV1: acks,
+    __syncAckV2: acks,
+  });
+  await t.run(({ db }) => db.delete(membership));
+  expect(await replay()).toEqual({
+    result: true,
+    __syncAckV1: [acks[0]],
+    __syncAckV2: [acks[0]],
+  });
+});
+
 test("a large document create and its replay both return the full original document", async () => {
   const { t, actor, outbox } = await setup();
   const content = "large body ".repeat(73_000);
@@ -503,6 +547,11 @@ test("a large document create and its replay both return the full original docum
     Math.max(...chunks.map((row) => row.response.length)),
   ).toBeLessThanOrEqual(512 * 1024);
   expect(await t.run(({ db }) => db.query("docs").collect())).toHaveLength(1);
+  jest.advanceTimersByTime(8 * 86_400_000);
+  await t.mutation(internal.dispatchReceipts.pruneOutboxReceipts, {});
+  expect(
+    await t.run(({ db }) => db.query("dispatch_outbox_receipts").collect()),
+  ).toEqual([]);
 });
 
 test("a repeated capture-length read schedules its read only once", async () => {
