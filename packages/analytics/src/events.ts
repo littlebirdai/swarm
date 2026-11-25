@@ -219,6 +219,11 @@ export const CODECAST_EVENTS = defineCatalog({
     storage_quota_bytes: { ...COUNT, optional: true },
     long_frame_count: { ...COUNT, optional: true },
     long_frame_worst_ms: { ...COUNT, optional: true },
+    idb_boot_critical_ms: { type: "counters", maxKeys: 192, optional: true },
+    idb_boot_deferred_ms: { type: "counters", maxKeys: 192, optional: true },
+    idb_write_count: { type: "counters", maxKeys: 6, optional: true },
+    idb_write_p50_ms: { type: "counters", maxKeys: 6, optional: true },
+    idb_write_p95_ms: { type: "counters", maxKeys: 6, optional: true },
   },
 
   // Inbox digest compare: does the client's own projection agree with the

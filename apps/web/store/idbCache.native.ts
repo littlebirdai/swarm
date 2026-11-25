@@ -447,7 +447,7 @@ function materializeLoadedCache(
       continue;
     }
     // Seed the persistence shadow with what's on disk so the first write after
-    // hydrate diffs against reality (see persistence/bootLoader.ts).
+    // hydrate diffs against reality (see persistence/boot-loader.ts).
     const shadow = new Map<string, any>();
     const validRow = collectionRowValidator(key);
     const hydrateRow = collectionRowHydrator(key);

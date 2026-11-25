@@ -3,10 +3,12 @@ import Dexie from "dexie";
 import { MESSAGE_PAGE_SIZE, persistedMessageTail } from "../cacheRetention";
 import { sameValue } from "../sameValue";
 import { db, type ConversationMessageRow } from "./db";
-import { _hydrating } from "./hydration";
+import { _hydrating, takeBootReadPhase } from "./hydration";
 import { diffMessageTail } from "./messageTailDiff";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches, RETENTION_DELETE_BATCH } from "./retention";
+import { storageTimings, timeBootRead } from "./storage-timings";
+import type { BootPhase } from "./timing-samples";
 
 // A continuous stream flushes at most once per interval. Keep the latest
 // snapshot readable until its row edits and metadata commit together.
@@ -69,9 +71,11 @@ async function _writeMessageSnapshot(
   _inFlightMsgWrites.add(convId);
   const pending = _pendingMsgWrites;
   try {
+    const tailStarted = performance.now();
     const { messages, pagination } = snapshot;
     const tail = persistedMessageTail(messages, pagination);
     const latestTimestamp = _latestTs(tail.messages);
+    const tailMs = performance.now() - tailStarted;
     const { conversationMessageMeta: meta, conversationMessageRows: rows } = db;
     const committed = await db.transaction("rw", meta, rows, async () => {
       if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
@@ -98,20 +102,27 @@ async function _writeMessageSnapshot(
         }
       }
 
+      const diffStarted = performance.now();
       const { puts, deletes, next } = diffMessageTail(previous, tail.messages);
       if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
       const revision = puts.length
         ? crypto.getRandomValues(new Uint32Array(4)).join("-")
         : "";
       const rowPuts = puts.map((put) => ({ convId, revision, ...put }));
+      const writeMeta =
+        !priorMeta ||
+        latestTimestamp !== priorMeta.latestTimestamp ||
+        !sameValue(tail.pagination, priorMeta.pagination);
+      if (deletes.length || rowPuts.length || writeMeta) {
+        storageTimings.recordWrite(
+          "message_prepare",
+          tailMs + (performance.now() - diffStarted),
+        );
+      }
       if (deletes.length)
         await rows.bulkDelete(deletes.map((key) => [convId, key]));
       if (rowPuts.length) await rows.bulkPut(rowPuts);
-      if (
-        !priorMeta ||
-        latestTimestamp !== priorMeta.latestTimestamp ||
-        !sameValue(tail.pagination, priorMeta.pagination)
-      ) {
+      if (writeMeta) {
         await meta.put({
           convId,
           pagination: tail.pagination,
@@ -236,9 +247,16 @@ export type CachedConversation = {
   userMessages?: any[];
 };
 
-async function _loadUserMessages(convId: string): Promise<any[] | undefined> {
+async function _loadUserMessages(
+  convId: string,
+  phase: BootPhase | undefined,
+): Promise<any[] | undefined> {
   try {
-    return (await db.conversationUserMessages.get(convId))?.userMessages;
+    return (
+      await timeBootRead(phase, "conversationUserMessages", () =>
+        db.conversationUserMessages.get(convId),
+      )
+    )?.userMessages;
   } catch {
     return undefined;
   }
@@ -249,7 +267,8 @@ export async function loadConversationMessages(
 ): Promise<CachedConversation | null> {
   // Read-your-writes: a just-written-but-not-yet-flushed payload is the freshest
   // truth, so serve it before falling back to the persisted IDB row.
-  const userMessages = await _loadUserMessages(convId);
+  const phase = takeBootReadPhase("focusedMessages");
+  const userMessages = await _loadUserMessages(convId, phase);
   const pending = _pendingMsgWrites.get(convId);
   if (pending) {
     const tail = persistedMessageTail(pending.messages, pending.pagination);
@@ -263,7 +282,9 @@ export async function loadConversationMessages(
   try {
     const { conversationMessageMeta: meta, conversationMessageRows: rows } = db;
     return await db.transaction("r", meta, rows, async () => {
-      const row = await meta.get(convId);
+      const row = await timeBootRead(phase, "conversationMessageMeta", () =>
+        meta.get(convId),
+      );
       // A navigator list can arrive before the first message page.
       if (!row)
         return userMessages
@@ -274,10 +295,12 @@ export async function loadConversationMessages(
               userMessages,
             }
           : null;
-      const ordered = await rows
-        .where("[convId+position+messageKey+revision]")
-        .between([convId, Dexie.minKey], [convId, Dexie.maxKey])
-        .toArray();
+      const ordered = await timeBootRead(phase, "conversationMessageRows", () =>
+        rows
+          .where("[convId+position+messageKey+revision]")
+          .between([convId, Dexie.minKey], [convId, Dexie.maxKey])
+          .toArray(),
+      );
       return {
         messages: ordered.map((entry) => entry.message),
         pagination: row.pagination,

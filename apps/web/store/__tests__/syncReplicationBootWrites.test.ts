@@ -23,7 +23,7 @@ const { _reopenForTests, COLLECTION_TABLES, db } =
 const { writeOwnerStamp } = await import("../persistence/ownership");
 const hydration = await import("../persistence/hydration");
 const { resetCollectionWrites } =
-  await import("../persistence/collectionWriter");
+  await import("../persistence/collection-writer");
 const { conversations, sessions, docs } = COLLECTION_TABLES;
 
 type Mutation = { table: string; type: string; keys: unknown[] };

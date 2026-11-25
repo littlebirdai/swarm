@@ -5,11 +5,11 @@ import type { Patch } from "mutative";
 import { followerPersistencePatches } from "../followerPersistence";
 import { MAX_CACHED_SESSIONS } from "../cacheRetention";
 import { noteSnapshotSync } from "../idbCollectionDiff";
-import { loadCache } from "../persistence/bootLoader";
+import { loadCache } from "../persistence/boot-loader";
 import {
   resetCollectionWrites,
   writePatchesToIDB,
-} from "../persistence/collectionWriter";
+} from "../persistence/collection-writer";
 import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
 
 const id = (n: number) => `k${String(n).padStart(31, "0")}`;

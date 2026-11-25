@@ -9,7 +9,7 @@ import {
   flushConversationMessages,
   loadConversationMessages,
   writeConversationMessages,
-} from "../persistence/messageCache";
+} from "../persistence/message-cache";
 import { writeOwnerStamp } from "../persistence/ownership";
 import { SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "../persistence/schema";
 

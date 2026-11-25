@@ -95,7 +95,8 @@
     "hooks/useAttachCopy.tailnet.test.tsx",
     "hooks/useRunWorkflow.mount.test.tsx",
     "lib/__tests__/callSeams.test.ts",
-    "lib/__tests__/reportRelationPick.test.ts"
+    "lib/__tests__/reportRelationPick.test.ts",
+    "lib/telemetry/client-resource-telemetry.mount.test.tsx"
   ],
   "exclude": ["node_modules"]
 }

@@ -1,4 +1,5 @@
 import type { CodecastEventProps } from "@codecast/analytics";
+import type { StorageTimingSample } from "../../store/persistence/timing-samples";
 
 type Report = CodecastEventProps<"client_resource_report">;
 
@@ -36,6 +37,7 @@ type ReportInputs = {
   collections: readonly CollectionSample[];
   storage?: { usage?: number; quota?: number };
   longFrames?: { count: number; worstMs: number };
+  storageTimings?: StorageTimingSample;
 };
 
 export function buildClientResourceReport(input: ReportInputs): Report {
@@ -75,6 +77,17 @@ export function buildClientResourceReport(input: ReportInputs): Report {
     ...(input.longFrames && {
       long_frame_count: input.longFrames.count,
       long_frame_worst_ms: input.longFrames.worstMs,
+    }),
+    ...(input.storageTimings?.criticalBootMs && {
+      idb_boot_critical_ms: input.storageTimings.criticalBootMs,
+    }),
+    ...(input.storageTimings?.deferredBootMs && {
+      idb_boot_deferred_ms: input.storageTimings.deferredBootMs,
+    }),
+    ...(input.storageTimings?.writeCount && {
+      idb_write_count: input.storageTimings.writeCount,
+      idb_write_p50_ms: input.storageTimings.writeP50Ms,
+      idb_write_p95_ms: input.storageTimings.writeP95Ms,
     }),
   };
 }

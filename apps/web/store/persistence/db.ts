@@ -8,6 +8,7 @@ import {
   SYSTEM_TABLES,
   WEB_COLLECTION_INDEXES,
 } from "./schema";
+import { storageTimings } from "./storage-timings";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
 export const PERSISTENCE_AVAILABLE =
@@ -55,6 +56,30 @@ class CacheDB extends Dexie {
 }
 
 export const db = new CacheDB();
+db.use({
+  stack: "dbcore",
+  create(core) {
+    return {
+      table(name) {
+        const table = core.table(name);
+        return {
+          ...table,
+          mutate(request) {
+            const started = performance.now();
+            try {
+              return table.mutate(request);
+            } finally {
+              storageTimings.recordWrite(
+                request.type,
+                performance.now() - started,
+              );
+            }
+          },
+        };
+      },
+    };
+  },
+});
 
 // A schema upgrade needs every other Codecast tab on this origin to release
 // its connection; a tab that is mid-hydration for a few seconds holds the
