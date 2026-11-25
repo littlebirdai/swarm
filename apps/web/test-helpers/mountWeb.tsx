@@ -11,7 +11,7 @@ import { format } from "node:util";
 import { toast, Toaster } from "sonner";
 import { replaceGlobals } from "./globals";
 import { createTestDom } from "./testDom";
-import { trackTestTimers } from "./testTimers";
+import { startTestClock, trackTestTimers } from "./testTimers";
 import { testConvex } from "./testConvex";
 import { webMountLifecycle } from "./webMountLifecycle";
 
@@ -21,6 +21,7 @@ type Options = {
   path?: string;
   route?: string;
   authenticated?: boolean;
+  clock?: boolean;
   dispatch?: boolean;
   expectedConsoleErrors?: readonly RegExp[];
   setup?: (
@@ -63,6 +64,7 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
     throw new Error("Close the active web mount before mounting another.");
   const path = options.path ?? "/";
   const env = createTestDom(new URL(path, "https://app.test").href);
+  const clock = options.clock ? startTestClock() : undefined;
   const timers = trackTestTimers();
   const backend = testConvex();
   const errors: unknown[] = [];
@@ -95,11 +97,15 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
         resetStore?.();
       } finally {
         try {
-          env.close();
-        } finally {
           timers.close();
-          console.error = originalConsoleError;
-          webMountLifecycle.active = undefined;
+        } finally {
+          try {
+            clock?.close();
+            env.close();
+          } finally {
+            console.error = originalConsoleError;
+            webMountLifecycle.active = undefined;
+          }
         }
       }
     }
@@ -222,6 +228,7 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
     return {
       backend,
       pendingTimers: timers.pending,
+      clock,
       navigationLog: navigationLog as readonly Navigation[],
       container,
       dom: env.dom,

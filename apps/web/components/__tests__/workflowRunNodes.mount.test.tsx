@@ -1,47 +1,12 @@
-import { afterAll, describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import type { ComponentProps } from "react";
 import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../test-helpers/globals";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-
-// A run's nodes render as session rows: a node with an attached session is
-// the task page's session row and links to that conversation whatever its
-// status; a node with only a daemon handle links by that handle; a node with
-// neither is a plain step. Run: bun test components/__tests__/workflowRunNodes.mount.test.tsx
-
-mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
-    <a href={String(href)} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/tasks/ct-1",
-});
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400 }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  // Prism reads Element.prototype as it loads, wherever a document exists.
-  Element: dom.window.Element,
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-const { createRoot } = await import("react-dom/client");
-const { MemoryRouter } = await import("react-router");
-const { TooltipProvider } = await import("../ui/tooltip");
-const { WorkflowRunNodes } = await import("../WorkflowRunNodes");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { WorkflowRunNodes } from "../WorkflowRunNodes";
+import { TooltipProvider } from "../ui/tooltip";
 
 const CONV_ID = "kc1abcdefabcdefabcdefabcdefabcde";
-const now = Date.now();
+const now = 1_800_000_000_000;
 
 const run = {
   _id: "kw1abcdefabcdefabcdefabcdefabcde",
@@ -93,74 +58,54 @@ const workflow = {
   ],
 };
 
-async function mount(props: { run: any; workflow?: any }) {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  await act(() =>
-    root.render(
-      <MemoryRouter>
-        <TooltipProvider>
-          <WorkflowRunNodes {...props} />
-        </TooltipProvider>
-      </MemoryRouter>,
-    ),
+const mount = (props: ComponentProps<typeof WorkflowRunNodes>) =>
+  mountWeb(
+    <TooltipProvider>
+      <WorkflowRunNodes {...props} />
+    </TooltipProvider>,
   );
-  return { container, unmount: () => act(() => root.unmount()) };
-}
 
 describe("WorkflowRunNodes", () => {
   test("a completed node with a session is a session row that links to its conversation", async () => {
-    const { container, unmount } = await mount({ run, workflow });
-    try {
-      const row = container.querySelector(`[data-session-id="${CONV_ID}"]`)!;
-      expect(row).not.toBeNull();
-      expect(
-        row.querySelector(`a[href="/conversation/${CONV_ID}"]`),
-      ).not.toBeNull();
-      // The session's own title leads; the node label rides as a chip.
-      expect(row.textContent).toContain("Define the wire protocol");
-      expect(row.textContent).toContain("protocol-package");
-      expect(row.textContent).toContain("42 msgs");
-      expect(
-        row.querySelector('[data-step-status="completed"]'),
-      ).not.toBeNull();
-    } finally {
-      unmount();
-    }
+    const { container, navigationLog } = await mount({ run, workflow });
+    const row = container.querySelector(`[data-session-id="${CONV_ID}"]`)!;
+    expect(row).not.toBeNull();
+    expect(
+      row.querySelector(`a[href="/conversation/${CONV_ID}"]`),
+    ).not.toBeNull();
+    expect(row.textContent).toContain("Define the wire protocol");
+    expect(row.textContent).toContain("protocol-package");
+    expect(row.textContent).toContain("42 msgs");
+    expect(row.querySelector('[data-step-status="completed"]')).not.toBeNull();
+    await act(() => row.querySelector<HTMLAnchorElement>("a")!.click());
+    expect(navigationLog.at(-1)).toEqual({
+      action: "push",
+      path: `/conversation/${CONV_ID}`,
+    });
   });
 
   test("a node with only a daemon handle still opens by that handle", async () => {
-    const { container, unmount } = await mount({ run, workflow });
-    try {
-      const row = container.querySelector('[data-step="integrate-deploy"]')!;
-      expect(
-        row.querySelector('a[href="/conversation/sess-deploy"]'),
-      ).not.toBeNull();
-      expect(row.querySelector('[data-step-status="failed"]')).not.toBeNull();
-    } finally {
-      unmount();
-    }
+    const { container } = await mount({ run, workflow });
+    const row = container.querySelector('[data-step="integrate-deploy"]')!;
+    expect(
+      row.querySelector('a[href="/conversation/sess-deploy"]'),
+    ).not.toBeNull();
+    expect(row.querySelector('[data-step-status="failed"]')).not.toBeNull();
   });
 
   test("the current node shows what it is doing; a pending node is a plain step", async () => {
-    const { container, unmount } = await mount({ run, workflow });
-    try {
-      const current = container.querySelector('[data-step="web-client"]')!;
-      expect(current.textContent).toContain("Editing apps/web/app/page.tsx");
-      expect(
-        current.querySelector('[data-step-status="running"]'),
-      ).not.toBeNull();
-      const pending = container.querySelector(
-        '[data-step="independent-verify"]',
-      )!;
-      expect(pending.querySelector("a")).toBeNull();
-      // start and exit never render.
-      expect(container.querySelector('[data-step="start"]')).toBeNull();
-      expect(container.querySelector('[data-step="exit"]')).toBeNull();
-    } finally {
-      unmount();
-    }
+    const { container } = await mount({ run, workflow });
+    const current = container.querySelector('[data-step="web-client"]')!;
+    expect(current.textContent).toContain("Editing apps/web/app/page.tsx");
+    expect(
+      current.querySelector('[data-step-status="running"]'),
+    ).not.toBeNull();
+    const pending = container.querySelector(
+      '[data-step="independent-verify"]',
+    )!;
+    expect(pending.querySelector("a")).toBeNull();
+    expect(container.querySelector('[data-step="start"]')).toBeNull();
+    expect(container.querySelector('[data-step="exit"]')).toBeNull();
   });
 
   test("a dynamic run groups its agents under the phases it declared", async () => {
@@ -187,15 +132,11 @@ describe("WorkflowRunNodes", () => {
         },
       ],
     };
-    const { container, unmount } = await mount({ run: dynamic });
-    try {
-      const text = container.textContent ?? "";
-      expect(text.indexOf("Review")).toBeGreaterThanOrEqual(0);
-      expect(text.indexOf("Review")).toBeLessThan(text.indexOf("Verify"));
-      expect(text).toContain("3 findings");
-      expect(text).toContain("12k tok");
-    } finally {
-      unmount();
-    }
+    const { container } = await mount({ run: dynamic });
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Review")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Review")).toBeLessThan(text.indexOf("Verify"));
+    expect(text).toContain("3 findings");
+    expect(text).toContain("12k tok");
   });
 });

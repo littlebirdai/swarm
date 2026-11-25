@@ -1,61 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../test-helpers/globals";
-
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-// The task page as the line (docs/architecture/the-line.md L3, L5, L10):
-// the strip paints from the store alone. A held task shows the marker on its
-// current station, linking the decision; a live run shows its node, its
-// hand and the elapsed time under that station.
-
-mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
-    <a href={String(href)} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
-const { useInboxStore } = await import("../../store/inboxStore");
-
-// The strip's run comes from the workflowRuns collection; the feeder behind
-// useWorkflowRun is a live query, so here the reader answers from the store
-// alone. mock.module is process global: the real module is put back after.
-const realWorkflows = { ...(await import("../../hooks/useSyncWorkflows")) };
-mock.module("../../hooks/useSyncWorkflows", () => ({
-  ...realWorkflows,
-  useWorkflowRun: (id: string | null | undefined) =>
-    useInboxStore((s: any) => (id ? (s.workflowRuns[id] ?? null) : undefined)),
-  useRunWorkflow: (run: any) =>
-    useInboxStore((s: any) =>
-      run?.workflow_id ? (s.workflows[run.workflow_id] ?? null) : undefined,
-    ),
-}));
-afterAll(() => {
-  mock.module("../../hooks/useSyncWorkflows", () => realWorkflows);
-});
-const { StationStrip, TaskLineChip } = await import("../tasks/StationStrip");
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/tasks",
-});
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 390 }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-// react-dom/client decides at load whether a DOM exists, so it is loaded
-// here — after the globals above — not as a static import.
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
+import { beforeEach, describe, expect, test } from "bun:test";
+import { act, type ReactElement } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { LineTask } from "../../lib/taskLine";
+import type { TaskItem } from "../../store/inboxStore";
+import { webBuilders } from "../../test-helpers/builders";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { StationStrip, TaskLineChip } from "../tasks/StationStrip";
 
 const TASK_ID = "k97abcdefabcdefabcdefabcdefabcde";
 const RUN_ID = "kw1abcdefabcdefabcdefabcdefabcde";
@@ -63,16 +14,16 @@ const DEC_ID = "kd1abcdefabcdefabcdefabcdefabcde";
 const CONV_ID = "kc1abcdefabcdefabcdefabcdefabcde";
 const WF_ID = "kf1abcdefabcdefabcdefabcdefabcde";
 
-const task = (over: Record<string, unknown> = {}) => ({
-  _id: TASK_ID,
-  short_id: "ct-1",
-  title: "Ship the strip",
-  task_type: "task",
-  status: "in_review",
-  priority: "medium",
-  source: "agent",
-  created_at: 1,
-  updated_at: 1,
+const builder = webBuilders("stationStrip.mount.test.tsx");
+type StationTask = TaskItem & Pick<LineTask, "review_verdict">;
+const task = (over: Partial<StationTask> = {}): StationTask => ({
+  ...builder.task.build({
+    _id: TASK_ID,
+    short_id: "ct-1",
+    title: "Ship the strip",
+    status: "in_review",
+    source: "agent",
+  }),
   ...over,
 });
 
@@ -115,29 +66,51 @@ const run = {
   ],
 };
 
+type Seed = {
+  sessionDecisions?: Record<string, typeof decision>;
+  workflowRuns?: Record<string, { _id: string; workflow_name?: string }>;
+  workflows?: Record<
+    string,
+    {
+      _id: string;
+      name: string;
+      slug?: string;
+      nodes: { id: string; label: string }[];
+    }
+  >;
+  projects?: Record<
+    string,
+    { _id: string; short_id: string; title: string; workspace: string }
+  >;
+  currentUser?: { _id: string };
+};
+let seed: Seed;
+
 beforeEach(() => {
-  useInboxStore.setState({
-    sessionDecisions: {},
-    workflowRuns: {},
-    workflows: {},
-    sessions: {},
-    teams: [],
-  } as any);
+  seed = {};
 });
 
-async function mount(el: React.ReactElement) {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  await act(() => root.render(el));
-  return { container, root };
-}
+const mount = (element: ReactElement) =>
+  mountWeb(element, {
+    path: "/tasks",
+    setup: (backend, store) => {
+      window.innerWidth = 390;
+      store.syncTable(
+        "sessionDecisions",
+        Object.values(seed.sessionDecisions ?? {}),
+      );
+      store.syncTable("workflowRuns", Object.values(seed.workflowRuns ?? {}));
+      store.syncTable("workflows", Object.values(seed.workflows ?? {}));
+      store.syncTable("projects", Object.values(seed.projects ?? {}));
+      if (seed.currentUser) store.syncTable("currentUser", seed.currentUser);
+      backend.set(api.workflow_runs.get, pending);
+      backend.set(api.workflow_runs.graphOfRun, pending);
+    },
+  });
 
 describe("StationStrip", () => {
   test("draws the default stations in order and highlights the current one", async () => {
-    const { container, root } = await mount(
-      <StationStrip task={task() as any} />,
-    );
+    const { container, close } = await mount(<StationStrip task={task()} />);
     const ids = [...container.querySelectorAll("[data-station]")].map((el) =>
       el.getAttribute("data-station"),
     );
@@ -160,13 +133,13 @@ describe("StationStrip", () => {
     // Nothing runs and nothing holds: no detail row, no marker.
     expect(container.querySelector("[data-held-by]")).toBeNull();
     expect(container.querySelector("[data-station-detail]")).toBeNull();
-    await act(() => root.unmount());
+    await close();
   });
 
   test("a held task carries the marker on its current station, linking the decision", async () => {
-    useInboxStore.setState({ sessionDecisions: { [DEC_ID]: decision } } as any);
-    const { container, root } = await mount(
-      <StationStrip task={task() as any} />,
+    seed = { sessionDecisions: { [DEC_ID]: decision } };
+    const { container, close, navigationLog } = await mount(
+      <StationStrip task={task()} />,
     );
     const marker = container.querySelector(
       "[data-held-by]",
@@ -177,24 +150,22 @@ describe("StationStrip", () => {
     expect(marker.closest("[data-station]")?.getAttribute("data-station")).toBe(
       "in_review",
     );
-    await act(() => root.unmount());
+    await close();
   });
 
   test("a decision bound at another station does not hold", async () => {
-    useInboxStore.setState({
+    seed = {
       sessionDecisions: { [DEC_ID]: { ...decision, station: "in_progress" } },
-    } as any);
-    const { container, root } = await mount(
-      <StationStrip task={task() as any} />,
-    );
+    };
+    const { container, close } = await mount(<StationStrip task={task()} />);
     expect(container.querySelector("[data-held-by]")).toBeNull();
-    await act(() => root.unmount());
+    await close();
   });
 
   test("a live run shows its node, the hand and the elapsed time under the current station", async () => {
-    useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
-    const { container, root } = await mount(
-      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    seed = { workflowRuns: { [RUN_ID]: run } };
+    const { container, close } = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID })} />,
     );
     const detail = container.querySelector(
       "[data-station-detail]",
@@ -211,7 +182,7 @@ describe("StationStrip", () => {
     expect(hand.getAttribute("data-hand-state")).toBe("working");
     // Started at t=20ms, so the elapsed reads in days by now.
     expect(detail.textContent).toMatch(/\d+d \d+h/);
-    await act(() => root.unmount());
+    await close();
   });
 
   test("names the live node by the workflow's label when the run row carries only ids", async () => {
@@ -234,26 +205,26 @@ describe("StationStrip", () => {
         { id: "review", label: "Review the change" },
       ],
     };
-    useInboxStore.setState({
+    seed = {
       workflowRuns: { [RUN_ID]: rawRun },
       workflows: { [WF_ID]: workflow },
-    } as any);
-    const { container, root } = await mount(
-      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    };
+    const { container, close } = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID })} />,
     );
     const node = container.querySelector("[data-live-node]") as HTMLElement;
     expect(node.getAttribute("data-live-node")).toBe("review");
     expect(node.textContent).toContain("Review the change");
     expect(node.textContent).not.toMatch(/\breview\b/);
-    await act(() => root.unmount());
+    await close();
   });
 
   test("a line run's node links to that station in line settings; a customized line says so", async () => {
     // Shipped line: the node names the task's project.
-    useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
+    seed = { workflowRuns: { [RUN_ID]: run } };
     let m = await mount(
       <StationStrip
-        task={task({ workflow_run_id: RUN_ID, project_id: "p1" }) as any}
+        task={task({ workflow_run_id: RUN_ID, project_id: "p1" })}
       />,
     );
     let link = m.container.querySelector(
@@ -263,7 +234,7 @@ describe("StationStrip", () => {
       "/flows/settings?project=p1&section=stations&station=review",
     );
     expect(m.container.querySelector("[data-line-customized]")).toBeNull();
-    await act(() => m.root.unmount());
+    await m.close();
 
     // The project's customized copy: the link names the project it forks for, with the chip.
     const forkRun = {
@@ -271,7 +242,7 @@ describe("StationStrip", () => {
       workflow_id: WF_ID,
       workflow_name: "Steps for Codecast",
     };
-    useInboxStore.setState({
+    seed = {
       workflowRuns: { [RUN_ID]: forkRun },
       workflows: {
         [WF_ID]: {
@@ -290,10 +261,8 @@ describe("StationStrip", () => {
         },
       },
       currentUser: { _id: "u1" },
-    } as any);
-    m = await mount(
-      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
-    );
+    };
+    m = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID })} />);
     link = m.container.querySelector(
       "a[data-station-settings]",
     ) as HTMLAnchorElement;
@@ -303,29 +272,25 @@ describe("StationStrip", () => {
     expect(
       m.container.querySelector("[data-line-customized]")?.textContent,
     ).toBe("customized");
-    await act(() => m.root.unmount());
+    await m.close();
 
     // Any other workflow: the node stays plain text.
-    useInboxStore.setState({
+    seed = {
       workflowRuns: { [RUN_ID]: { ...run, workflow_name: "release" } },
       workflows: {},
-    } as any);
-    m = await mount(
-      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
-    );
+    };
+    m = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID })} />);
     expect(m.container.querySelector("[data-live-node]")).not.toBeNull();
     expect(m.container.querySelector("a[data-station-settings]")).toBeNull();
-    await act(() => m.root.unmount());
+    await m.close();
   });
 
   test("a review verdict renders as a chip even with no run", async () => {
-    const { container, root } = await mount(
+    const { container, close } = await mount(
       <StationStrip
-        task={
-          task({
-            review_verdict: { verdict: "changes", at: 1, note: "tests" },
-          }) as any
-        }
+        task={task({
+          review_verdict: { verdict: "changes", at: 1, note: "tests" },
+        })}
       />,
     );
     expect(
@@ -333,41 +298,41 @@ describe("StationStrip", () => {
         .querySelector("[data-review-verdict]")
         ?.getAttribute("data-review-verdict"),
     ).toBe("changes");
-    await act(() => root.unmount());
+    await close();
   });
 });
 
 describe("TaskLineChip", () => {
   test("says held at the station when a blocking decision holds the task", async () => {
-    useInboxStore.setState({
+    seed = {
       sessionDecisions: { [DEC_ID]: decision },
       workflowRuns: { [RUN_ID]: run },
-    } as any);
-    const { container, root } = await mount(
-      <TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    };
+    const { container, close } = await mount(
+      <TaskLineChip task={task({ workflow_run_id: RUN_ID })} />,
     );
     const chip = container.querySelector(
       "[data-task-line-chip]",
     ) as HTMLElement;
     expect(chip.getAttribute("data-task-line-chip")).toBe("held");
     expect(chip.textContent).toContain("held at In Review");
-    await act(() => root.unmount());
+    await close();
   });
 
   test("names the station and the node for a live run, and nothing otherwise", async () => {
-    useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
+    seed = { workflowRuns: { [RUN_ID]: run } };
     const live = await mount(
-      <TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />,
+      <TaskLineChip task={task({ workflow_run_id: RUN_ID })} />,
     );
     expect(
       live.container.querySelector("[data-task-line-chip]")?.textContent,
     ).toContain("at In Review · Review");
-    await act(() => live.root.unmount());
+    await live.close();
     // A live run bound to the task by task_id counts even when the task does
     // not name it, so the idle case needs an empty runs collection.
-    useInboxStore.setState({ workflowRuns: {} } as any);
-    const idle = await mount(<TaskLineChip task={task() as any} />);
+    seed = { workflowRuns: {} };
+    const idle = await mount(<TaskLineChip task={task()} />);
     expect(idle.container.querySelector("[data-task-line-chip]")).toBeNull();
-    await act(() => idle.root.unmount());
+    await idle.close();
   });
 });

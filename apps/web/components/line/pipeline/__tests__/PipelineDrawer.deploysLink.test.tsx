@@ -1,37 +1,29 @@
-// The drawer's "Waiting to ship" targets link into /deploys at their target on the pipeline's team and repository; one
-// with a deploy going out or failed opens with that deploy highlighted.
-import { expect, mock, test } from "bun:test";
-
-mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
-const { renderToStaticMarkup } = await import("react-dom/server");
-const { MainDetails } = await import("../PipelineDrawer");
-const { PIPELINE_FIXTURES } =
-  await import("../../../../lib/line/__tests__/pipelines.fixture.generated");
-const { pipelineModel } = await import("../../../../lib/line/pipelineModel");
+import { act } from "react";
+import { expect, test } from "bun:test";
+import { mountWeb } from "../../../../test-helpers/mountWeb";
+import { MainDetails } from "../PipelineDrawer";
+import { PIPELINE_FIXTURES } from "../../../../lib/line/__tests__/pipelines.fixture.generated";
+import {
+  pipelineModel,
+  type PipelineModel,
+} from "../../../../lib/line/pipelineModel";
 
 const example = PIPELINE_FIXTURES.find(
   (p) => p.repository === "example-org/example-app",
 )!;
 
-test("each target opens on Deploys, a going or failed one at its deploy", () => {
+test("each target opens on Deploys, a going or failed one at its deploy", async () => {
   const m = pipelineModel(example);
   const quiet = {
     policy: "auto",
     runs: "here",
     waiting: 0,
-    groups: [],
+    groups: [] as PipelineModel["main"]["targets"][number]["groups"],
     live: null,
     going: null,
     failed: null,
   } as const;
-  const model = {
+  const model: PipelineModel = {
     ...m,
     main: {
       waiting: 0,
@@ -51,14 +43,22 @@ test("each target opens on Deploys, a going or failed one at its deploy", () => 
         { ...quiet, name: "docs", tone: "current" },
       ],
     },
-  } as any;
-  const html = renderToStaticMarkup(
+  };
+  const { container, navigationLog } = await mountWeb(
     <MainDetails model={model} teamId="T1" />,
-  ).replace(/&amp;/g, "&");
-  const links = [...html.matchAll(/href="(\/deploys[^"]*)"/g)].map((x) => x[1]);
+  );
+  const targets = [
+    ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/deploys"]'),
+  ];
+  const links = targets.map((target) => target.getAttribute("href"));
   expect(links).toEqual([
     "/deploys?team=T1&repo=example-org%2Fexample-app&target=web&deploy=dp-7",
     "/deploys?team=T1&repo=example-org%2Fexample-app&target=cli&deploy=dp-5",
     "/deploys?team=T1&repo=example-org%2Fexample-app&target=docs",
   ]);
+  await act(() => targets[0]!.click());
+  expect(navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: targets[0]!.getAttribute("href")!,
+  });
 });

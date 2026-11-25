@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { ConvexProvider } from "convex/react";
@@ -8,6 +8,7 @@ import { ClaudeArtifactEmbed, PublishedPageEmbed } from "../PublishedPageEmbed";
 import { useInboxStore } from "../../store/inboxStore";
 import { MemoryRouter } from "react-router";
 
+import { testToasts } from "../../test-helpers/testToasts";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 const client = offlineConvexClient("https://example.convex.cloud");
@@ -114,9 +115,7 @@ afterAll(async () => {
 describe("PublishedPageEmbed copy", () => {
   test("the copy button writes the public share URL", async () => {
     written.length = 0;
-    mock.module("sonner", () => ({
-      toast: { success: () => {}, error: () => {} },
-    }));
+    const toasts = testToasts();
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -133,6 +132,8 @@ describe("PublishedPageEmbed copy", () => {
     expect(btn).toBeTruthy();
     await act(() => btn.click());
     expect(written).toEqual(["https://codecast.sh/a/my-page"]);
+    expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
+    await toasts.clear();
     await act(() => root.unmount());
   });
 });
@@ -161,7 +162,7 @@ describe("PublishedPageEmbed height", () => {
           dom.window.dispatchEvent(
             new dom.window.MessageEvent("message", {
               data: { type: "codecast:height", height, preferred },
-              source: frame.contentWindow as any,
+              source: frame.contentWindow,
             }),
           );
         });
@@ -201,19 +202,20 @@ describe("PublishedPageEmbed height", () => {
 // (empty) roster instead of the seeded one.
 describe("ClaudeArtifactEmbed publish suggestion", () => {
   const ID = "2c5e5d6e-0a70-4e04-9c7a-1c4f1f5b8b6d";
-  const seed = (snippets: Record<string, boolean> | null) =>
-    useInboxStore.setState({
-      machineRoster: snippets
-        ? [
-            {
-              device_id: "dev-1",
-              online: true,
-              last_seen: 1,
-              settings: { snippets },
-            },
-          ]
-        : [],
-    } as any);
+  const seed = (snippets: Record<string, boolean> | null) => {
+    const machines = snippets
+      ? [
+          {
+            device_id: "dev-1",
+            is_remote: false,
+            online: true,
+            last_seen: 1,
+            settings: { snippets },
+          },
+        ]
+      : [];
+    useInboxStore.getState().setMachineRoster(machines);
+  };
 
   async function mount(): Promise<HTMLElement> {
     const container = dom.window.document.createElement("div");
@@ -294,10 +296,10 @@ describe("PublishedPageEmbed notes", () => {
     );
     try {
       const frame = container.querySelector("iframe") as HTMLIFrameElement;
-      const sent: any[] = [];
-      frame.contentWindow!.postMessage = ((m: unknown) => {
-        sent.push(m);
-      }) as any;
+      const sent: unknown[] = [];
+      frame.contentWindow!.postMessage = (message: unknown) => {
+        sent.push(message);
+      };
       const toggle = container.querySelector(
         "[aria-pressed]",
       ) as HTMLButtonElement;
@@ -313,20 +315,20 @@ describe("PublishedPageEmbed notes", () => {
 
       const fromFrame = (
         data: unknown,
-        source: unknown = frame.contentWindow,
+        source: Window | null = frame.contentWindow,
       ) =>
         act(() => {
           dom.window.dispatchEvent(
             new dom.window.MessageEvent("message", {
               data,
-              source: source as any,
+              source,
             }),
           );
         });
       // Another window cannot write into the batch.
       await fromFrame(
         { type: "codecast:note-add", point: { x: 0.5, y: 0.5 } },
-        dom.window,
+        window,
       );
       expect(useInboxStore.getState().getReviewComments("conv-1")).toEqual([]);
 

@@ -1,55 +1,40 @@
-import { describe, expect, test, mock } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { ConvexProvider } from "convex/react";
-import { offlineConvexClient } from "../../test-helpers/offlineConvex";
+import { describe, expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { pending } from "../../test-helpers/testConvex";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { ActionSubmenu } from "../CommandPalette";
 
-// ActionSubmenu only reads router/pathname for navigation actions, never at
-// render time — a stub is enough for a static render.
-// The rest of the module stays real: the palette's import graph reads more of it.
-const realNav = { ...(await import("next/navigation")) };
-mock.module("next/navigation", () => ({
-  ...realNav,
-  useRouter: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
-  usePathname: () => "/",
-}));
-
-const { ActionSubmenu } = await import("../CommandPalette");
-
-// Never connects: static rendering fires no effects and opens no sockets.
-const client = offlineConvexClient("https://example.convex.cloud");
-
-function render(teamMembers: any[], currentUser: any) {
-  return renderToStaticMarkup(
-    <ConvexProvider client={client}>
-      <ActionSubmenu
-        mode="assign"
-        targets={[{ _id: "t1", short_id: "ct-1", labels: [] }]}
-        targetType="task"
-        onClose={() => {}}
-        onBack={() => {}}
-        teamMembers={teamMembers}
-        currentUser={currentUser}
-      />
-    </ConvexProvider>,
+async function render(
+  teamMembers: { _id: string; name?: string; github_username?: string }[],
+  currentUser: { _id: string; name: string } | null,
+) {
+  const { container } = await mountWeb(
+    <ActionSubmenu
+      mode="assign"
+      targets={[{ _id: "t1", short_id: "ct-1", labels: [] }]}
+      targetType="task"
+      onClose={() => {}}
+      onBack={() => {}}
+      teamMembers={teamMembers}
+      currentUser={currentUser}
+    />,
+    { setup: (backend) => backend.set(api.devices.listDevices, pending) },
   );
+  return container.innerHTML;
 }
 
 describe("assign submenu with a nameless team member", () => {
-  // Prod crash 2026-08-25: a roster row without `name` made the option label
-  // undefined, and the search filter's label.toLowerCase() took down the
-  // palette through its ErrorBoundary. Names must go through the app's one
-  // naming rule (memberDisplayName), which always returns a string.
-  test("renders the fallback name instead of crashing", () => {
+  test("renders the fallback name instead of crashing", async () => {
     const me = { _id: "u1", name: "Ashot" };
     const nameless = { _id: "u2", github_username: "ghost-dev" };
-    const html = render([me, nameless], me);
+    const html = await render([me, nameless], me);
     expect(html).toContain("Ashot (you)");
     expect(html).toContain("ghost-dev");
     expect(html).not.toContain("undefined");
   });
 
-  test("a member with no fields at all still gets a label", () => {
-    const html = render([{ _id: "u3" }], null);
+  test("a member with no fields at all still gets a label", async () => {
+    const html = await render([{ _id: "u3" }], null);
     expect(html).toContain("Unknown");
   });
 });

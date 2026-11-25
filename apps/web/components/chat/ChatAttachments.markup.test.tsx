@@ -1,35 +1,48 @@
-import { test, expect, mock } from "bun:test";
+import { test, expect, spyOn, afterEach } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { ChatAttachments } from "./ChatAttachments";
 
-// A video on a chat line plays in place; an image beside it stays a tile.
+const VIDEO_URL = "https://storage.test/abc-123";
+const IMAGE_URL = "https://storage.test/def-456";
 
-const STORAGE_URL = "https://convex.codecast.sh/api/storage/abc-123";
+afterEach(() => fetchMock?.mockRestore());
+let fetchMock: ReturnType<typeof spyOn<typeof globalThis, "fetch">> | undefined;
 
-const real = await import("../../hooks/useStorageImageUrl");
-mock.module("../../hooks/useStorageImageUrl", () => ({
-  ...real,
-  useStorageImageUrl: (storageId?: string | null) =>
-    storageId ? STORAGE_URL : undefined,
-  useStorageImageSrc: () => STORAGE_URL,
-}));
-
-const { renderToStaticMarkup } = await import("react-dom/server");
-const { ChatAttachments } = await import("./ChatAttachments");
-
-test("a video attachment renders a player, never an image tile", () => {
-  const html = renderToStaticMarkup(
+test("a video attachment renders a player, never an image tile", async () => {
+  fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(null, { status: 404 }),
+  );
+  const { backend, container } = await mountWeb(
     <ChatAttachments
       messageId="m1"
       attachments={[
-        { storage_id: "st_video", name: "IMG_3071.MOV", mime: "video/mp4" },
-        { storage_id: "st_image", name: "shot.png", mime: "image/png" },
+        {
+          storage_id: "st_lane_c_video",
+          name: "IMG_3071.MOV",
+          mime: "video/mp4",
+        },
+        { storage_id: "st_lane_c_image", name: "shot.png", mime: "image/png" },
       ]}
     />,
+    {
+      setup: (backend) =>
+        backend.set(api.images.getImageUrls, {
+          st_lane_c_video: VIDEO_URL,
+          st_lane_c_image: IMAGE_URL,
+        }),
+    },
   );
-  expect(html).toMatch(
-    new RegExp(
-      `<video[^>]*class="ch-att ch-att-video"[^>]*src="${STORAGE_URL}"[^>]*controls`,
-    ),
-  );
-  expect(html.match(/<img /g)).toHaveLength(1);
-  expect(html).not.toContain('alt="IMG_3071.MOV"');
+  const player = container.querySelector("video");
+  expect(player?.className).toBe("ch-att ch-att-video");
+  expect(player?.getAttribute("src")).toBe(VIDEO_URL);
+  expect(player?.controls).toBe(true);
+  expect(container.querySelectorAll("img")).toHaveLength(1);
+  expect(container.querySelector('img[alt="IMG_3071.MOV"]')).toBeNull();
+  expect(backend.queryRequests).toEqual([
+    {
+      name: "images:getImageUrls",
+      args: { storageIds: ["st_lane_c_video", "st_lane_c_image"] },
+    },
+  ]);
 });

@@ -1,51 +1,42 @@
-import { describe, expect, test, mock } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { ConvexProvider } from "convex/react";
+import { describe, expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
 import { Command as CommandPrimitive } from "cmdk";
-import { offlineConvexClient } from "../../test-helpers/offlineConvex";
-
-// TeammateItem reads the router only through the palette's own navigation
-// callback, never at render time — a stub is enough for a static render.
-// The rest of the module stays real: the palette's import graph reads more of it.
-const realNav = { ...(await import("next/navigation")) };
-mock.module("next/navigation", () => ({
-  ...realNav,
-  useRouter: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
-  usePathname: () => "/",
-}));
-
-const { TeammateItem } = await import("../CommandPalette");
-
-// Never connects: static rendering fires no effects and opens no sockets.
-const client = offlineConvexClient("https://example.convex.cloud");
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { TeammateItem } from "../CommandPalette";
 
 const NOW = Date.now();
 
-function render(
+async function render(
   row: Parameters<typeof TeammateItem>[0]["row"],
   following = false,
 ) {
-  return renderToStaticMarkup(
-    <ConvexProvider client={client}>
-      <CommandPrimitive>
-        <CommandPrimitive.List>
-          <TeammateItem
-            row={row}
-            className="row"
-            onOpen={() => {}}
-            following={following}
-          />
-        </CommandPrimitive.List>
-      </CommandPrimitive>
-    </ConvexProvider>,
+  const { container, close } = await mountWeb(
+    <CommandPrimitive>
+      <CommandPrimitive.List>
+        <TeammateItem
+          row={row}
+          className="row"
+          onOpen={() => {}}
+          following={following}
+        />
+      </CommandPrimitive.List>
+    </CommandPrimitive>,
+    {
+      setup: (backend) =>
+        backend.set(api.conversations.getConversation, pending),
+    },
   );
+  const html = container.innerHTML;
+  await close();
+  return html;
 }
 
 const ann = { _id: "u-ann", name: "Ann", presence_state: "active" };
 
 describe("palette Teammates row", () => {
-  test("a teammate in a session: their name, the session title, how long they have been there", () => {
-    const html = render({
+  test("a teammate in a session: their name, the session title, how long they have been there", async () => {
+    const html = await render({
       member: ann,
       id: "u-ann",
       name: "Ann",
@@ -60,18 +51,17 @@ describe("palette Teammates row", () => {
     expect(html).not.toContain("Follow");
     expect(html).toContain("Fix the auth race");
     expect(html).toContain("for 5m");
-    // The row drills into the person, not the session.
     expect(html).toContain('data-palette-type="person"');
     expect(html).toContain('data-palette-id="u-ann"');
     expect(html).not.toContain('aria-disabled="true"');
   });
 
-  test("a session the store lacks is named plainly until its row arrives", () => {
-    const html = render({
+  test("a session the store lacks is named plainly until its row arrives", async () => {
+    const html = await render({
       member: ann,
       id: "u-ann",
       name: "Ann",
-      conversationId: "c2",
+      conversationId: "c".repeat(32),
       title: undefined,
       inStore: false,
       online: true,
@@ -80,11 +70,10 @@ describe("palette Teammates row", () => {
     });
     expect(html).toContain(">Ann<");
     expect(html).toContain("a session");
-    // Under a minute there is no duration tag.
     expect(html).not.toContain("for ");
   });
 
-  test("a teammate around but in no session, or offline, says so under the name", () => {
+  test("a teammate around but in no session, or offline, says so under the name", async () => {
     const base = {
       member: ann,
       id: "u-ann",
@@ -95,14 +84,14 @@ describe("palette Teammates row", () => {
       since: undefined,
       score: 1,
     };
-    const around = render({ ...base, online: true });
+    const around = await render({ ...base, online: true });
     expect(around).toContain("around, not in a session");
     expect(around).toContain('aria-disabled="false"');
-    expect(render({ ...base, online: false })).toContain("offline");
+    expect(await render({ ...base, online: false })).toContain("offline");
   });
 
-  test("a teammate this window already follows says so", () => {
-    const html = render(
+  test("a teammate this window already follows says so", async () => {
+    const html = await render(
       {
         member: ann,
         id: "u-ann",
@@ -111,7 +100,9 @@ describe("palette Teammates row", () => {
         inStore: false,
         online: true,
         score: 0,
-      } as any,
+        title: undefined,
+        since: undefined,
+      },
       true,
     );
     expect(html).toContain("following · around, not in a session");

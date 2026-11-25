@@ -1,19 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
-
-// The PR page's Production band and its "ships to" list link each target into
-// /deploys. A merged PR's link names the PR, so the page opens at that target
-// with the deploy that took it highlighted; an open PR is on no target yet.
-
-mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
-
-const { renderToStaticMarkup } = await import("react-dom/server");
-const { PRDeployBand, PRShipsTo } = await import("./PRDeploy");
+import { describe, expect, test } from "bun:test";
+import { act } from "react";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import type { PrDeployModel } from "../../hooks/usePrDeploy";
+import { PRDeployBand, PRShipsTo } from "./PRDeploy";
 
 const NOW = 1_800_000_000_000;
 const base = {
@@ -25,14 +14,13 @@ const base = {
   press: { open() {}, review: null },
   headline: null,
 };
-const hrefs = (html: string) =>
-  [...html.matchAll(/href="([^"]*\/deploys[^"]*)"/g)].map((m) =>
-    m[1]!.replace(/&amp;/g, "&"),
-  );
+const linksIn = (container: HTMLElement) => [
+  ...container.querySelectorAll<HTMLAnchorElement>('a[href*="/deploys"]'),
+];
 
-describe("the PR page's links into Deploys", () => {
-  test("a merged PR's band opens each target with the PR highlighted", () => {
-    const model: any = {
+describe("the PR page's links into Deploys", async () => {
+  test("a merged PR's band opens each target with the PR highlighted", async () => {
+    const model: PrDeployModel = {
       ...base,
       merged: true,
       open: false,
@@ -59,18 +47,26 @@ describe("the PR page's links into Deploys", () => {
       ],
       dormant: [{ target: "cli", at: null }],
     };
-    const links = hrefs(renderToStaticMarkup(<PRDeployBand model={model} />));
-    expect(links).toEqual([
+    const { container, navigationLog } = await mountWeb(
+      <PRDeployBand model={model} />,
+    );
+    const links = linksIn(container);
+    const addresses = links.map((link) => link.getAttribute("href"));
+    expect(addresses).toEqual([
       "/deploys?team=T1&repo=acme%2Fapp&target=web&pr=101",
-      // The deploy's own link (entityRoute) already names the deploy.
       "/deploys?deploy=dp-12",
       "/deploys?team=T1&repo=acme%2Fapp&target=web&pr=101",
       "/deploys?team=T1&repo=acme%2Fapp&target=cli&pr=101",
     ]);
+    await act(() => links[0]!.click());
+    expect(navigationLog.at(-1)).toEqual({
+      action: "push",
+      path: links[0]!.getAttribute("href")!,
+    });
   });
 
-  test("an open PR's targets open on the Deploys page with nothing highlighted", () => {
-    const model: any = {
+  test("an open PR's targets open on the Deploys page with nothing highlighted", async () => {
+    const model: PrDeployModel = {
       ...base,
       merged: false,
       open: true,
@@ -79,13 +75,41 @@ describe("the PR page's links into Deploys", () => {
       dormant: [],
       shipsTo: [
         {
-          target: { _id: "t1", name: "web", runs: "here", policy: "auto" },
+          target: {
+            _id: "deploy-target-web",
+            workspace: "team:T1",
+            team_id: "T1",
+            name: "web",
+            repository: base.repository,
+            runs: "here",
+            policy: "auto",
+            command: null,
+            rollback: null,
+            paths: [],
+            can_deploy: false,
+            can_redeploy_sha: false,
+            can_rollback: false,
+            device_id: null,
+            publisher_user_id: "publisher",
+            queue: {
+              known: true,
+              truncated: false,
+              commits: 0,
+              untouched: 0,
+              head_sha: null,
+              head_ci: "none",
+              head_ci_url: null,
+              shown: 0,
+              groups: [],
+            },
+          },
           idle: false,
         },
       ],
     };
-    expect(hrefs(renderToStaticMarkup(<PRShipsTo model={model} />))).toEqual([
-      "/deploys?team=T1&repo=acme%2Fapp&target=web",
-    ]);
+    const { container } = await mountWeb(<PRShipsTo model={model} />);
+    expect(linksIn(container).map((link) => link.getAttribute("href"))).toEqual(
+      ["/deploys?team=T1&repo=acme%2Fapp&target=web"],
+    );
   });
 });

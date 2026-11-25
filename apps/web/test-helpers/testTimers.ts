@@ -1,3 +1,5 @@
+import { jest } from "bun:test";
+import { act } from "react";
 import { replaceGlobals } from "./globals";
 
 type PendingTimer = {
@@ -65,5 +67,16 @@ export function trackTestTimers() {
       for (const timer of intervals.keys()) cancelInterval(timer);
       restore();
     },
+  };
+}
+
+export function startTestClock() {
+  jest.useFakeTimers();
+  return {
+    advance: (ms: number) =>
+      act(async () => {
+        jest.advanceTimersByTime(ms);
+      }),
+    close: () => jest.useRealTimers(),
   };
 }

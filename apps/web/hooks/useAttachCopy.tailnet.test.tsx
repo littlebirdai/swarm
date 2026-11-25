@@ -1,27 +1,11 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../test-helpers/globals";
-import { closeDomWindow } from "../test-helpers/domGlobals";
+import { describe, expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { SessionMachine } from "../components/tmuxAttach";
+import { mountWeb } from "../test-helpers/mountWeb";
+import { useInboxStore } from "../store/inboxStore";
+import { useAttachCopy } from "./useAttachCopy";
 
-const { useInboxStore } = await import("../store/inboxStore");
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>");
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-const MINE = {
+const MINE: SessionMachine = {
   device_id: "box",
   label: "Linux - nose",
   platform: "linux",
@@ -29,25 +13,6 @@ const MINE = {
   is_mine: true,
   ssh_host: null,
 };
-let machine: unknown = MINE;
-const noThrow = { ...(await import("./useQueryNoThrow")) };
-afterAll(() => mock.module("./useQueryNoThrow", () => noThrow));
-mock.module("./useQueryNoThrow", () => ({
-  ...noThrow,
-  useQueryNoThrow: () => ({ data: machine }),
-}));
-
-const { createRoot } = await import("react-dom/client");
-const { useAttachCopy } = await import("./useAttachCopy");
-
-function attachFor(): string {
-  const el = document.createElement("div");
-  const root = createRoot(el);
-  act(() => root.render(<Probe />));
-  const text = el.textContent ?? "";
-  act(() => root.unmount());
-  return text;
-}
 function Probe() {
   return <>{useAttachCopy("cc-x", "jx7conv").attach}</>;
 }
@@ -77,62 +42,86 @@ const roster = (
       : undefined,
   ),
 ];
-const viewer = { _id: "u1" } as any;
+const viewer = { _id: "u1" };
 
-beforeEach(() => {
-  machine = MINE;
-  useInboxStore.setState({
-    machineRoster: roster({ name: "nose.tail1234.ts.net." }) as any,
-    localDevice: { viewer: "u1", deviceId: "laptop" },
-    currentUser: viewer,
+async function attachFor({
+  machine = MINE,
+  devices = roster({ name: "nose.tail1234.ts.net." }),
+  localDevice = { viewer: viewer._id, deviceId: "laptop" },
+}: {
+  machine?: SessionMachine;
+  devices?: ReturnType<typeof roster>;
+  localDevice?: { viewer: string; deviceId: string } | null;
+} = {}) {
+  const { container, backend } = await mountWeb(<Probe />, {
+    setup: (backend, store) => {
+      store.syncTable("currentUser", viewer);
+      store.setMachineRoster(devices);
+      useInboxStore.setState({ localDevice });
+      backend.set(api.devices.getConversationMachine, {
+        ...machine,
+        last_seen: 1,
+        via_bot: false,
+        wsl_distro: null,
+      });
+    },
   });
-});
+  expect(backend.queryRequests).toEqual([
+    {
+      name: "devices:getConversationMachine",
+      args: { conversation_id: "jx7conv" },
+    },
+  ]);
+  return container.textContent;
+}
 
-describe("useAttachCopy reaches another of your machines over its tailnet", () => {
-  test("no ssh host, on a tailnet, viewed from another machine on that tailnet: ssh to the MagicDNS short name", () => {
-    expect(attachFor()).toStartWith("ssh nose -t ");
-  });
-
-  test("viewed from a machine on another tailnet: ssh to the full MagicDNS name", () => {
-    useInboxStore.setState({
-      machineRoster: roster(
-        { name: "nose.tail1234.ts.net." },
-        "tail9999.ts.net",
-      ) as any,
-    });
-    expect(attachFor()).toStartWith("ssh nose.tail1234.ts.net -t ");
-  });
-
-  test("viewed from a machine with no tailnet: ssh to the full MagicDNS name", () => {
-    useInboxStore.setState({
-      machineRoster: roster({ name: "nose.tail1234.ts.net." }, null) as any,
-    });
-    expect(attachFor()).toStartWith("ssh nose.tail1234.ts.net -t ");
-  });
-
-  test("this window's own machine is not known yet: the local attach, since the pane may be right here", () => {
-    useInboxStore.setState({ localDevice: null });
-    expect(attachFor()).toStartWith("tmux -L");
-  });
-
-  test("the pane is on this window's own machine: the local attach", () => {
-    useInboxStore.setState({ localDevice: { viewer: "u1", deviceId: "box" } });
-    expect(attachFor()).toStartWith("tmux -L");
+describe("useAttachCopy reaches another of your machines over its tailnet", async () => {
+  test("no ssh host, on a tailnet, viewed from another machine on that tailnet: ssh to the MagicDNS short name", async () => {
+    expect(await attachFor()).toStartWith("ssh nose -t ");
   });
 
-  test("the machine reports no tailnet: the local attach", () => {
-    useInboxStore.setState({ machineRoster: roster() as any });
-    expect(attachFor()).toStartWith("tmux -L");
+  test("viewed from a machine on another tailnet: ssh to the full MagicDNS name", async () => {
+    expect(
+      await attachFor({
+        devices: roster({ name: "nose.tail1234.ts.net." }, "tail9999.ts.net"),
+      }),
+    ).toStartWith("ssh nose.tail1234.ts.net -t ");
   });
 
-  test("the pane is on this window's own machine and it has an ssh host: the local attach, no ssh to itself", () => {
-    machine = { ...MINE, ssh_host: "me@nose.lan" };
-    useInboxStore.setState({ localDevice: { viewer: "u1", deviceId: "box" } });
-    expect(attachFor()).toStartWith("tmux -L");
+  test("viewed from a machine with no tailnet: ssh to the full MagicDNS name", async () => {
+    expect(
+      await attachFor({
+        devices: roster({ name: "nose.tail1234.ts.net." }, null),
+      }),
+    ).toStartWith("ssh nose.tail1234.ts.net -t ");
   });
 
-  test("an ssh host the person set wins over the tailnet", () => {
-    machine = { ...MINE, ssh_host: "me@nose.lan" };
-    expect(attachFor()).toStartWith("ssh me@nose.lan -t ");
+  test("this window's own machine is not known yet: the local attach, since the pane may be right here", async () => {
+    expect(await attachFor({ localDevice: null })).toStartWith("tmux -L");
+  });
+
+  test("the pane is on this window's own machine: the local attach", async () => {
+    expect(
+      await attachFor({ localDevice: { viewer: viewer._id, deviceId: "box" } }),
+    ).toStartWith("tmux -L");
+  });
+
+  test("the machine reports no tailnet: the local attach", async () => {
+    expect(await attachFor({ devices: roster() })).toStartWith("tmux -L");
+  });
+
+  test("the pane is on this window's own machine and it has an ssh host: the local attach, no ssh to itself", async () => {
+    expect(
+      await attachFor({
+        machine: { ...MINE, ssh_host: "me@nose.lan" },
+        localDevice: { viewer: viewer._id, deviceId: "box" },
+      }),
+    ).toStartWith("tmux -L");
+  });
+
+  test("an ssh host the person set wins over the tailnet", async () => {
+    expect(
+      await attachFor({ machine: { ...MINE, ssh_host: "me@nose.lan" } }),
+    ).toStartWith("ssh me@nose.lan -t ");
   });
 });

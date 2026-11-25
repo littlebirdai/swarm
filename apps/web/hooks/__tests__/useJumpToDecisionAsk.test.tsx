@@ -1,145 +1,75 @@
-import { useWatchEffect } from "../useWatchEffect";
-import { afterAll, describe, expect, it, mock } from "bun:test";
-import { replaceGlobals } from "../../test-helpers/globals";
-// Loaded before the DOM globals: the store boots its cache hydrate when it
-// first loads under a window, and that rebinds dispatch under later files.
-import { useInboxStore } from "../../store/inboxStore";
+import { describe, expect, it } from "bun:test";
+import { act } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { webBuilders } from "../../test-helpers/builders";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { useJumpToDecisionAsk } from "../useJumpToDecisionAsk";
 
-// "Talk to the session" on a decision: the session that asked opens in the
-// inbox, selected, in the same tick as the click. Nothing waits on the server:
-// it only locates the ask's message for the scroll, and the switch never
-// waited for that answer. A stashed or dismissed asker comes back into the inbox for good.
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh/decisions/sd-1", pretendToBeVisual: true },
-);
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  IS_REACT_ACT_ENVIRONMENT: true,
+const { session } = webBuilders("useJumpToDecisionAsk.test.tsx");
+const asker = session.build({ title: "Asker", inbox_dismissed_at: 1000 });
+const station = session.build({
+  title: "Station",
+  is_subagent: true,
+  parent_conversation_id: "p".repeat(32),
+  inbox_killed_at: 1000,
 });
+const decisionId = "d".repeat(32);
+const messageId = "m".repeat(32) as Id<"messages">;
 
-// The server's findAskMessage answers only when the test says so.
-let answer: (
-  v: { message_id: string; timestamp: number } | null,
-) => void = () => {};
-const real = { ...(await import("convex/react")) };
-mock.module("convex/react", () => ({
-  ...real,
-  useConvex: () => ({
-    query: () =>
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-  }),
-}));
-
-const React = await import("react");
-const { act } = React;
-const { createRoot } = await import("react-dom/client");
-const { MemoryRouter, useLocation } = await import("react-router");
-const { useJumpToDecisionAsk } = await import("../useJumpToDecisionAsk");
-
-const CONV = "c".repeat(32);
-const DECISION = "d".repeat(32);
-const prior = useInboxStore.getState();
-let jump: (() => Promise<boolean>) | null = null;
-let at = "";
-function Probe() {
-  const jumpToAsk = useJumpToDecisionAsk(CONV, DECISION, "Ship it?");
-  const { pathname, search } = useLocation();
-  useWatchEffect(() => {
-    jump = jumpToAsk;
-    at = pathname + search;
-  });
-  return null;
+function Probe({ conversationId }: { conversationId: string }) {
+  const jump = useJumpToDecisionAsk(conversationId, decisionId, "Ship it?");
+  return <button onClick={() => void jump()}>Talk to the session</button>;
 }
 
-afterAll(() => {
-  useInboxStore.setState(prior, true);
-  dom.window.close();
-  restoreGlobals();
-});
-
-describe("useJumpToDecisionAsk", () => {
-  it("selects the asking session in the inbox before the server answers, restored if it was hidden", async () => {
-    useInboxStore.setState({
-      tabs: [],
-      activeTabId: null,
-      sessions: {
-        [CONV]: { _id: CONV, title: "Asker", inbox_dismissed_at: 1_000 },
-      },
-      messages: {},
-      currentSessionId: null,
-      viewingDismissedId: null,
-      pendingNavigateId: null,
-      pendingScrollToMessageId: null,
-    } as any);
-    const root = createRoot(document.getElementById("root")!);
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={["/decisions/sd-1"]}>
-          <Probe />
-        </MemoryRouter>,
-      ),
-    );
-
-    await act(async () => {
-      void jump!();
-    });
-    const st = useInboxStore.getState();
-    expect(st.currentSessionId).toBe(CONV);
-    expect(st.viewingDismissedId).toBeNull();
-    expect(st.sessions[CONV].inbox_dismissed_at).toBeNull();
-    expect(at).toBe(`/inbox?s=${CONV}`);
-    expect(st.pendingScrollToMessageId).toBeNull();
-
-    // The server names the ask later; the thread then scrolls to it.
-    await act(async () => {
-      answer({ message_id: "m_ask", timestamp: 42 });
-    });
-    expect(useInboxStore.getState().pendingScrollToMessageId).toBe("m_ask");
-    expect(useInboxStore.getState().pendingScrollToMessageTimestamp).toBe(42);
-    await act(async () => root.unmount());
+const mount = (row: typeof asker) =>
+  mountWeb(<Probe conversationId={row._id} />, {
+    path: "/decisions/sd-1",
+    dispatch: true,
+    setup: (backend, store) => {
+      store.syncTable("sessions", [row]);
+      backend.set(api.sessionDecisions.findAskMessage, pending);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
   });
 
-  it("restores and adopts a killed asker (a finished flow station)", async () => {
-    useInboxStore.setState({
-      sessions: {
-        [CONV]: {
-          _id: CONV,
-          title: "Station",
-          is_subagent: true,
-          parent_conversation_id: "p".repeat(32),
-          inbox_killed_at: 1_000,
-        },
-      },
-      currentSessionId: null,
-      viewingDismissedId: null,
-      pendingNavigateId: null,
-      pendingScrollToMessageId: null,
-    } as any);
-    const root = createRoot(document.getElementById("root")!);
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={["/decisions/sd-1"]}>
-          <Probe />
-        </MemoryRouter>,
-      ),
-    );
-    await act(async () => {
-      void jump!();
+describe("useJumpToDecisionAsk", () => {
+  it("selects and restores the asking session before the server answers", async () => {
+    const { backend, container, navigationLog, store } = await mount(asker);
+    await act(() => container.querySelector("button")!.click());
+    const state = store.getState();
+    expect(state.currentSessionId).toBe(asker._id);
+    expect(state.viewingDismissedId).toBeNull();
+    expect(state.sessions[asker._id].inbox_dismissed_at).toBeNull();
+    expect(navigationLog.at(-1)).toEqual({
+      action: "push",
+      path: `/inbox?s=${asker._id}`,
     });
-    const st = useInboxStore.getState();
-    expect(st.currentSessionId).toBe(CONV);
-    expect(st.sessions[CONV].inbox_killed_at).toBeNull();
-    // A nested asker is adopted: it stands alone in the inbox from now on.
-    expect(st.sessions[CONV].inbox_adopted_at).toBeGreaterThan(0);
-    await act(async () => root.unmount());
+    expect(state.pendingScrollToMessageId).toBeNull();
+    expect(backend.queryRequests).toEqual([
+      {
+        name: "sessionDecisions:findAskMessage",
+        args: { decision_id: decisionId },
+      },
+    ]);
+
+    await act(async () => {
+      backend.set(api.sessionDecisions.findAskMessage, {
+        message_id: messageId,
+        timestamp: 42,
+      });
+    });
+    expect(store.getState().pendingScrollToMessageId).toBe(messageId);
+    expect(store.getState().pendingScrollToMessageTimestamp).toBe(42);
+  });
+
+  it("restores and adopts a killed asker from a finished flow station", async () => {
+    const { container, store } = await mount(station);
+    await act(() => container.querySelector("button")!.click());
+    const state = store.getState();
+    expect(state.currentSessionId).toBe(station._id);
+    expect(state.sessions[station._id].inbox_killed_at).toBeNull();
+    expect(state.sessions[station._id].inbox_adopted_at).toBeGreaterThan(0);
   });
 });

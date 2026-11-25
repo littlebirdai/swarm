@@ -46,6 +46,7 @@ export function testConvex() {
   const queryRequests: Write[] = [];
   const mutations: Write[] = [];
   const actions: Write[] = [];
+  const writeRequests: (Write & { kind: "Mutation" | "Action" })[] = [];
   const subscriptions = new Map<number, Subscription>();
   const unexpected = new Set<string>();
   let version = { querySet: 0, identity: 0, ts: timestamp(0) };
@@ -135,6 +136,7 @@ export function testConvex() {
       case "Action": {
         const args = jsonToConvex(frame.args[0]);
         const name = frame.udfPath;
+        writeRequests.push({ kind: frame.type, name, args });
         (frame.type === "Mutation" ? mutations : actions).push({ name, args });
         const response = {
           type: `${frame.type}Response`,
@@ -197,6 +199,7 @@ export function testConvex() {
     queryRequests,
     mutations,
     actions,
+    writeRequests,
     set<Ref extends FunctionReference<"query">>(
       ref: Ref,
       reply: QueryReply<NoInfer<Ref>>,

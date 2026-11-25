@@ -1,30 +1,9 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
+import { act } from "react";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { testToasts } from "../../test-helpers/testToasts";
+import { reportRelationPick } from "../taskRelations";
 
-// What the palette tells the person about a relation pick, toast by toast:
-// a check shows as loading and turns into what landed, a wait the server met
-// at once says so, a refusal clears the toast (the dispatch failure toast
-// gives the reason), and a write parked for the outbox says it will land.
-const toasts: string[] = [];
-const sonner = await import("sonner");
-mock.module("sonner", () => ({
-  ...sonner,
-  toast: Object.assign(
-    (m: string, o?: { id?: string }) =>
-      toasts.push(`note${o?.id ? `#${o.id}` : ""}:${m}`),
-    {
-      success: (m: string, o?: { id?: string }) => (
-        toasts.push(`ok${o?.id ? `#${o.id}` : ""}:${m}`),
-        "s1"
-      ),
-      error: (m: string) => toasts.push(`err:${m}`),
-      loading: (m: string) => (toasts.push(`loading:${m}`), "t1"),
-      dismiss: (id?: string) => toasts.push(`dismiss#${id}`),
-    },
-  ),
-}));
-const { reportRelationPick } = await import("../taskRelations");
-
-const settle = () => new Promise((r) => setTimeout(r, 0));
 const pick = (landed: Promise<string>, pr = false) =>
   pr
     ? {
@@ -36,68 +15,122 @@ const pick = (landed: Promise<string>, pr = false) =>
       }
     : { ok: true as const, message: "ct-1 waits on decision sd-4", landed };
 
+async function notice() {
+  await mountWeb(null, { clock: true });
+  return testToasts();
+}
+
 describe("reportRelationPick", () => {
-  beforeEach(() => {
-    toasts.length = 0;
-  });
-
-  it("turns a PR check into what landed", async () => {
-    reportRelationPick(
-      pick(Promise.resolve("ct-1 waits on PR #42: already merged"), true),
-    );
-    await settle();
-    expect(toasts).toEqual([
-      "loading:Checking PR o/r#42 for ct-1…",
-      "ok#t1:ct-1 waits on PR #42: already merged",
-    ]);
-  });
-
-  it("says when a wait was met at once", async () => {
-    reportRelationPick(
-      pick(
-        Promise.resolve("ct-1 waits on decision sd-4: already answered: yes"),
-      ),
-    );
-    await settle();
-    expect(toasts).toEqual([
-      "ok:ct-1 waits on decision sd-4",
-      "ok#s1:ct-1 waits on decision sd-4: already answered: yes",
-    ]);
-  });
+  for (const [name, startingType, initial, final, pr] of [
+    [
+      "turns a PR check into what landed",
+      "loading",
+      "Checking PR o/r#42 for ct-1…",
+      "ct-1 waits on PR #42: already merged",
+      true,
+    ],
+    [
+      "says when a wait was met at once",
+      "success",
+      "ct-1 waits on decision sd-4",
+      "ct-1 waits on decision sd-4: already answered: yes",
+      false,
+    ],
+  ] as const) {
+    it(name, async () => {
+      const notices = await notice();
+      const landed = Promise.withResolvers<string>();
+      await act(() => reportRelationPick(pick(landed.promise, pr)));
+      expect(notices.events()).toEqual([
+        {
+          event: "show",
+          id: expect.any(Number),
+          kind: startingType,
+          title: initial,
+        },
+      ]);
+      const id = notices.events()[0]!.id;
+      await act(async () => landed.resolve(final));
+      expect(notices.events()).toEqual([
+        { event: "show", id, kind: startingType, title: initial },
+        { event: "update", id, kind: "success", title: final },
+      ]);
+    });
+  }
 
   it("leaves a pick that landed as said alone", async () => {
-    reportRelationPick(pick(Promise.resolve("ct-1 waits on decision sd-4")));
-    await settle();
-    expect(toasts).toEqual(["ok:ct-1 waits on decision sd-4"]);
+    const notices = await notice();
+    const message = "ct-1 waits on decision sd-4";
+    await act(async () => reportRelationPick(pick(Promise.resolve(message))));
+    expect(notices.events()).toEqual([
+      {
+        event: "show",
+        id: expect.any(Number),
+        kind: "success",
+        title: message,
+      },
+    ]);
   });
 
   it("clears the toast on a refusal", async () => {
-    reportRelationPick(
-      pick(
-        Promise.reject(
-          new Error("Uncaught Error: codecast cannot see PR o/r#42"),
-        ),
-        true,
-      ),
-    );
-    await settle();
-    expect(toasts).toEqual([
-      "loading:Checking PR o/r#42 for ct-1…",
-      "dismiss#t1",
+    const notices = await notice();
+    const landed = Promise.withResolvers<string>();
+    await act(() => reportRelationPick(pick(landed.promise, true)));
+    expect(notices.events()).toEqual([
+      {
+        event: "show",
+        id: expect.any(Number),
+        kind: "loading",
+        title: "Checking PR o/r#42 for ct-1…",
+      },
     ]);
+    await act(async () =>
+      landed.reject(new Error("Uncaught Error: codecast cannot see PR o/r#42")),
+    );
+    const [loading] = notices.events();
+    expect(notices.events()).toEqual([
+      loading,
+      { ...loading, event: "dismiss" },
+    ]);
+    expect(notices.read()).toEqual([]);
   });
 
   it("says a parked PR wait will land", async () => {
-    reportRelationPick(pick(Promise.reject(new Error("network down")), true));
-    await settle();
-    expect(toasts).toEqual([
-      "loading:Checking PR o/r#42 for ct-1…",
-      "note#t1:ct-1 will wait on PR #42 once it reaches the server",
+    const notices = await notice();
+    const landed = Promise.withResolvers<string>();
+    await act(() => reportRelationPick(pick(landed.promise, true)));
+    expect(notices.events()).toEqual([
+      {
+        event: "show",
+        id: expect.any(Number),
+        kind: "loading",
+        title: "Checking PR o/r#42 for ct-1…",
+      },
+    ]);
+    const id = notices.events()[0]!.id;
+    await act(async () => landed.reject(new Error("network down")));
+    expect(notices.events()).toEqual([
+      {
+        event: "show",
+        id,
+        kind: "loading",
+        title: "Checking PR o/r#42 for ct-1…",
+      },
+      {
+        event: "update",
+        id,
+        kind: "normal",
+        title: "ct-1 will wait on PR #42 once it reaches the server",
+      },
     ]);
   });
 
-  it("says a refused pick at once", () => {
-    reportRelationPick({ ok: false, message: "A task can't wait on itself" });
-    expect(toasts).toEqual(["err:A task can't wait on itself"]);
+  it("says a refused pick at once", async () => {
+    const notices = await notice();
+    const title = "A task can't wait on itself";
+    await act(() => reportRelationPick({ ok: false, message: title }));
+    expect(notices.events()).toEqual([
+      { event: "show", id: expect.any(Number), kind: "error", title },
+    ]);
   });
 });
