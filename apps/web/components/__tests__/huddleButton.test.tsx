@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { ReactElement } from "react";
-import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { expectPresent } from "../../test-helpers/domExpect";
+import { expectEmptyMount } from "../../test-helpers/expectEmptyMount";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { HuddleButton, SessionHuddleButton } from "../calls/OccupancyChip";
 
@@ -81,7 +82,6 @@ test("calling switched off draws nothing at all", async () => {
     </>,
     false,
   );
-  expectAbsent(web.container.querySelector("button"));
-  expect(web.container.textContent).toBe("");
+  expectEmptyMount(web.container);
   await web.close();
 });

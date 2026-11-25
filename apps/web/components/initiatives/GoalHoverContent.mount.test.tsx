@@ -4,6 +4,7 @@ import { HoverCardClose } from "../../lib/hoverCardsOff";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { ObjectCardBody } from "../identity/objectCard";
 import { GoalHoverContent } from "./GoalHoverContent";
 import { FIXTURE_INITIATIVES } from "./initiativeFixture";
 
@@ -141,4 +142,36 @@ test("the goal card opens like every object card", async () => {
     open.mockRestore();
     await web.close();
   }
+});
+
+test("clicking a link inside the card leaves the card and its opener alone", async () => {
+  const actions: string[] = [];
+  const web = await mountWeb(
+    <HoverCardClose.Provider value={() => actions.push("close")}>
+      <ObjectCardBody
+        kind="initiative"
+        refId="in-1"
+        label="Open goal"
+        onOpen={() => actions.push("open goal")}
+      >
+        <a
+          href="/goals/in-9"
+          onClick={(event) => {
+            event.preventDefault();
+            actions.push("open parent");
+          }}
+        >
+          Parent
+        </a>
+      </ObjectCardBody>
+    </HoverCardClose.Provider>,
+  );
+  const link = web.container.querySelector<HTMLAnchorElement>(
+    'a[href="/goals/in-9"]',
+  );
+  expectPresent(link);
+  await act(async () => link.click());
+  expect(actions).toEqual(["open parent"]);
+  expect(web.navigationLog.slice(1)).toEqual([]);
+  await web.close();
 });

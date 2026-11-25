@@ -1,12 +1,10 @@
 import { afterAll, expect, mock, test } from "bun:test";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import type { Message } from "../../store/inboxStore";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { act, type ComponentProps } from "react";
 import { WARM_DEEP_ROWS } from "../../hooks/inboxWarm";
 import { webBuilders } from "../../test-helpers/builders";
-import {
-  messageWindow,
-  seedConversationMessages,
-} from "../../test-helpers/conversationMessages";
 import { ConversationLayoutStandIn } from "../../test-helpers/ConversationLayoutStandIn";
 import { expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -64,6 +62,16 @@ const live = {
   ...message.build({ content: "Latest reply", timestamp: 60 }),
   role: "assistant" as const,
 };
+function messageWindow(messages: Message[], hasMoreBelow = false) {
+  return {
+    messages,
+    oldest_timestamp: messages[0]?.timestamp ?? null,
+    last_timestamp: messages.at(-1)?.timestamp ?? null,
+    has_more_above: false,
+    has_more_below: hasMoreBelow,
+  };
+}
+
 const around = api.conversations.getMessagesAroundTimestamp;
 
 const view = (jump: Props["jump"]) => (
@@ -72,12 +80,36 @@ const view = (jump: Props["jump"]) => (
 const mount = (jump?: Props["jump"], finding = false) =>
   mountWeb(view(jump), {
     setup(backend, store) {
-      seedConversationMessages(backend, store, session, [live]);
+      store.syncTable("sessions", [session]);
+      store.setMessages(session._id, [live], {
+        initialized: true,
+        hasMoreAbove: false,
+      });
+      backend.set(api.conversations.listMessages, {
+        page: [
+          {
+            ...live,
+            _id: live._id as Id<"messages">,
+            _creationTime: live.timestamp,
+            conversation_id: session._id as Id<"conversations">,
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+      });
+      backend.set(api.conversations.listMessagesTail, pending);
+      backend.set(api.conversations.getConversationWithMeta, pending);
+      backend.set(api.conversations.getTranscriptWatermark, pending);
+      backend.set(api.conversations.getUserMessages, pending);
       backend.set(
         api.messages.getMessageTimestamp,
         ({ conversation_id, message_id }) =>
-          conversation_id === session._id && message_id === target._id
-            ? { timestamp: target.timestamp }
+          conversation_id === session._id
+            ? message_id === target._id
+              ? { timestamp: target.timestamp }
+              : message_id === live._id
+                ? { timestamp: live.timestamp }
+                : null
             : null,
       );
       backend.set(
@@ -198,6 +230,52 @@ test("a message sent from the embed ends the request and jumps to the live tail;
   expect(mode(web)).toBe("target");
 });
 
+test("a send from a timestamp window returns to the live row only while a jump request is active", async () => {
+  const web = await mount({ timestamp: 5, nonce: 9 });
+  const send = (content: string) =>
+    act(async () => {
+      web.store.getState().addOptimisticMessage(session._id, content);
+    });
+  const rows = () => rendered?.conversation.messages.map(({ _id }) => _id);
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  expect(rows()).not.toContain(live._id);
+
+  await send("Approve it");
+  checkTarget(web);
+  expect(mode(web)).toBe("live");
+  expect(rows()).toContain(live._id);
+  expect(rows()).not.toContain(setupRow._id);
+
+  const jumpToTimestamp = rendered?.onJumpToTimestamp;
+  if (!jumpToTimestamp) throw new Error("The layout has no timestamp jump");
+  await act(async () => jumpToTimestamp(6));
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  await send("One more note");
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  expect(rows()).not.toContain(live._id);
+});
+
+test("consecutive nonces reopen the same message after the reader jumps to the end", async () => {
+  const jump = { messageId: target._id, nonce: 20 };
+  const web = await mount(jump);
+  expect(mode(web)).toBe("target");
+  const jumpToEnd = rendered?.onJumpToEnd;
+  if (!jumpToEnd) throw new Error("The layout has no end jump");
+  await act(async () => jumpToEnd());
+  expect(mode(web)).toBe("live");
+  checkTarget(web, target._id, 20);
+
+  await web.rerender(view({ ...jump, nonce: 21 }));
+  checkTarget(web, target._id, 21);
+  expect(mode(web)).toBe("target");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toContain(
+    target._id,
+  );
+});
+
 test("the request's onSettled runs once when the view settles its nonce, never for another nonce or a replaced request", async () => {
   const settled: number[] = [];
   const jump = {
@@ -229,4 +307,13 @@ test("the root says whether the thread is live or a window around a target", asy
   expect(mode(web)).toBe("live");
   await web.rerender(view({ messageId: target._id, nonce: 10 }));
   expect(mode(web)).toBe("target");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toContain(
+    target._id,
+  );
+  await web.rerender(view({ messageId: live._id, nonce: 11 }));
+  checkTarget(web, live._id, 11);
+  expect(mode(web)).toBe("live");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toEqual([
+    live._id,
+  ]);
 });

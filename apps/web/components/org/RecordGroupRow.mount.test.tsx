@@ -60,6 +60,14 @@ const SENT: OrgProposalRow = {
   ...ORG_RECORDS_FIXTURE_PROPOSAL_SENT,
   short_id: "op-9012",
 };
+const FAILED_ONLY: OrgProposalRow = {
+  ...SENT,
+  _id: "failed-only-proposal",
+  short_id: "op-9013",
+  changes: SENT.changes
+    .filter((row) => row.status === "failed")
+    .map((row) => ({ ...row, _id: `failed-only-${row.seq}` })),
+};
 const { conversation } = webBuilders("RecordGroupRow.mount.test.tsx");
 const CONV = conversation.build()._id;
 const composer = {
@@ -101,6 +109,7 @@ function mount(ui: React.ReactNode, focusId?: string) {
         ORG_RECORDS_FIXTURE_PROPOSAL,
         BARE,
         SENT,
+        FAILED_ONLY,
         LONE,
         PAGED,
         MIXED,
@@ -634,6 +643,22 @@ test("a revision landing on a staged group withdraws the answer: the batch empti
   } finally {
     clock.mockRestore();
   }
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
+});
+
+test("a group with only failed records offers Adjust but cannot be accepted", async () => {
+  const root = await mount(inThread(card(FAILED_ONLY.short_id)));
+  const failed = group(
+    q(`[data-card='${FAILED_ONLY.short_id}']`),
+    "plan:pl-911",
+  );
+  expectPresent(failed);
+  expect(failed.querySelector("[data-subject-state]")?.textContent).toBe(
+    "2 failed",
+  );
+  expectPresent(failed.querySelector("[data-subject-reply]"));
+  expectAbsent(failed.querySelector("[data-subject-approve]"));
   expect(root.backend.mutations).toEqual([]);
   await root.close();
 });

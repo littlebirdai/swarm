@@ -1,31 +1,21 @@
-import { afterAll, afterEach, expect, mock, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
-import { act, type ComponentProps } from "react";
+import { act } from "react";
 import { _resetTrailForTests, recordTrail } from "../../lib/navTrail";
 import { parseTabLocation, TabParamsCtx } from "../../lib/tabParams";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
-import type { AnchorConversation } from "../anchor/AnchorConversation";
+import { OrgChart } from "./OrgChart";
 import { ORG_FIXTURE_WITH_HEAD } from "./orgFixture";
-
-const anchor = { ...(await import("../anchor/AnchorConversation")) };
-mock.module("../anchor/AnchorConversation", () => ({
-  ...anchor,
-  AnchorConversation: ({
-    conversationId,
-  }: ComponentProps<typeof AnchorConversation>) => (
-    <div data-thread={conversationId} />
-  ),
-}));
-afterAll(() => mock.module("../anchor/AnchorConversation", () => anchor));
-const { OrgChart } = await import("./OrgChart");
 
 const builders = webBuilders("OrgChart.closeProposal.mount.test.tsx");
 const viewer = builders.teamMember.build();
 const session = builders.session.build();
+const headMessage = "The Head of People has the staffing proposal.";
+const row = builders.message.build({ content: headMessage, role: "assistant" });
 const tree = {
   ...ORG_FIXTURE_WITH_HEAD,
   roles: ORG_FIXTURE_WITH_HEAD.roles.map((role) =>
@@ -62,6 +52,7 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
     ),
     {
       path,
+      authenticated: true,
       dispatch: true,
       setup(backend, store) {
         store.syncTable("currentUser", viewer);
@@ -69,6 +60,39 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
           ui: { org_view: "people", active_team_id: tree.workspace.id },
         });
         store.syncTable("orgTree", tree);
+        store.syncTable("sessions", [session]);
+        store.setMessages(session._id, [row], {
+          initialized: true,
+          hasMoreAbove: false,
+        });
+        backend.set(api.conversations.listMessages, pending);
+        backend.set(api.conversations.listMessagesTail, pending);
+        backend.set(api.conversations.getConversationWithMeta, pending);
+        backend.set(api.conversations.getTranscriptWatermark, pending);
+        backend.set(api.conversations.getUserMessages, pending);
+        backend.set(api.accountSwitch.listAccountProfiles, pending);
+        backend.set(api.collab.mySendAccess, pending);
+        backend.set(api.commentTwins.conversationComments, pending);
+        backend.set(api.commits.getCommitsForConversation, pending);
+        backend.set(api.conversationPages.list, pending);
+        backend.set(api.devices.listDevices, pending);
+        backend.set(api.docSync.getPresence, pending);
+        backend.set(api.externalEvents.listForConversation, pending);
+        backend.set(api.guestSuggestions.listPending, pending);
+        backend.set(api.messages.getConversationFileChangeIndex, pending);
+        backend.set(api.messages.getConversationImages, pending);
+        backend.set(api.pendingMessages.getConversationPendingMessage, pending);
+        backend.set(api.permissions.getPendingPermissions, pending);
+        backend.set(api.pull_requests.getPRsForConversation, pending);
+        backend.set(api.pull_requests.sessionCardPRs, pending);
+        backend.set(api.quoteDrafts.listForConversation, pending);
+        backend.set(api.sessionGoals.forConversation, pending);
+        backend.set(api.sessionOwnership.listOwners, pending);
+        backend.set(api.tasks.webListByConversation, pending);
+        backend.set(api.teamSuggestions.listMine, pending);
+        backend.set(api.transcripts.webCallsForConversation, pending);
+        backend.set(api.users.getMySkills, pending);
+        backend.set(api.workflows.webList, pending);
         backend.set(api.org.tree, pending);
         backend.set(api.org.roles, pending);
         backend.set(api.org.sessionsUnder, pending);
@@ -77,6 +101,9 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
         backend.set(api.projects.webList, pending);
         backend.action(api.orgHealth.healthReport, undefined);
         backend.mutation(api.dispatch.dispatch, null);
+        backend.mutation(api.users.requestTerminalEndpoints, undefined);
+        backend.mutation(api.docSync.updatePresence, undefined);
+        backend.mutation(api.docSync.removePresence, undefined);
         if (opts.tab) {
           store.syncTable("clientState", {
             tabs: [{ id: "test-tab", path, title: "", createdAt: 0 }],
@@ -84,7 +111,6 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
           });
         }
         if (opts.trail) {
-          store.syncTable("sessions", [session]);
           store.setDraft(session._id, { draft_message: draft });
           recordTrail("test-tab", "/conversation/" + session._id, "push");
           recordTrail("test-tab", path, "push");
@@ -104,10 +130,13 @@ const close = (web: Mount) =>
     button.click();
   });
 const expectOpenDrawer = (web: Mount) => {
-  expectPresent(web.container.querySelector("[data-org-panel=home]"));
-  expect(
-    web.container.querySelector("[data-thread]")?.getAttribute("data-thread"),
-  ).toBe(session._id);
+  const panel = web.container.querySelector("[data-org-panel=home]");
+  expectPresent(panel);
+  expect(panel.textContent).toContain(headMessage);
+  expect(web.backend.queryRequests).toContainEqual({
+    name: "transcripts:webCallsForConversation",
+    args: { conversation_id: session._id },
+  });
   expectAbsent(web.container.querySelector("[data-org-panel-open]"));
 };
 const expectNoCloseWrite = (web: Mount) => {

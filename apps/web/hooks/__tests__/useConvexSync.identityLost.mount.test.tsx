@@ -113,13 +113,16 @@ test("useSyncTeams keeps the teams it knew and never repairs the active team aft
     },
   });
   expect(web.store.getState().teams.map(({ _id }) => _id)).toEqual([team._id]);
+  await web.rerender(view(false));
   const timers = spyOn(globalThis, "setTimeout");
   try {
-    await web.rerender(view(false));
     await act(async () => {
       web.backend.set(api.teams.getUserTeams, []);
     });
-    expect(timers.mock.calls.filter(([, delay]) => delay === 5000)).toEqual([]);
+    const repairDelays = timers.mock.calls
+      .map(([, delay]) => delay ?? 0)
+      .filter((delay) => delay >= 5000 && delay < 60_000);
+    expect(repairDelays).toEqual([]);
   } finally {
     timers.mockRestore();
   }

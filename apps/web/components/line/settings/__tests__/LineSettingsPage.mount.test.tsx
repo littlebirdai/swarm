@@ -114,7 +114,12 @@ const signal = {
   workspace: WS,
 };
 
-function mount({ online = true, owned = true, search = "" } = {}) {
+function mount({
+  online = true,
+  owned = true,
+  search = "",
+  acknowledgement = Promise.resolve({ command_id: "cmd-1" }),
+} = {}) {
   const scrolled: string[] = [];
   const web = mountWeb(<LineSettingsPage />, {
     path: "/flows/settings?project=pr-1" + search,
@@ -158,7 +163,7 @@ function mount({ online = true, owned = true, search = "" } = {}) {
         },
       ]);
       backend.set(api.workflow_runs.listRuns, []);
-      backend.mutation(api.dispatch.dispatch, { command_id: "cmd-1" });
+      backend.mutation(api.dispatch.dispatch, () => acknowledgement);
       HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
         scrolled.push(this.getAttribute("data-lset-section") ?? this.tagName);
       };
@@ -219,7 +224,12 @@ test("the sections read in order, each value says where it came from, and the St
 });
 
 test("an edit shows at once and waits on the machine; a daemon refusal stops showing it, with the loader's message", async () => {
-  const { container: host, close, backend } = await mount();
+  const ack = Promise.withResolvers<{ command_id: string }>();
+  const {
+    container: host,
+    close,
+    backend,
+  } = await mount({ acknowledgement: ack.promise });
   const button = row(host, "Size budget").querySelector<HTMLButtonElement>(
     ".lset-value",
   )!;
@@ -242,6 +252,14 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
       new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
+  const value = () =>
+    row(host, "Size budget").querySelector(".lset-value")?.textContent;
+  const state = () =>
+    row(host, "Size budget")
+      .querySelector(".lset-status")
+      ?.getAttribute("data-state");
+  expect(value()).toBe("120");
+  expect(state()).toBe("sending");
   const [entry] = Object.values(useInboxStore.getState().sessionCommands);
   expectPresent(entry);
   expect(backend.mutations).toEqual([
@@ -260,6 +278,7 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
       },
     },
   ]);
+  await act(async () => ack.resolve({ command_id: "cmd-1" }));
   await act(async () => {
     useInboxStore.getState().syncTable(
       "sessionCommands",
@@ -279,14 +298,8 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
           ?.getAttribute("data-state") === "waiting",
     );
   });
-  expect(
-    row(host, "Size budget").querySelector(".lset-value")!.textContent,
-  ).toBe("120");
-  expect(
-    row(host, "Size budget")
-      .querySelector(".lset-status")!
-      .getAttribute("data-state"),
-  ).toBe("waiting");
+  expect(value()).toBe("120");
+  expect(state()).toBe("waiting");
 
   await act(async () => {
     useInboxStore.getState().syncTable(

@@ -9,7 +9,7 @@ import { flushSyncPublishes } from "../../../store/syncTransaction";
 import { webBuilders } from "../../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
 import { mountWeb } from "../../../test-helpers/mountWeb";
-import { waitForDom } from "../../../test-helpers/waitForDom";
+import { expectToast } from "../../../test-helpers/expectToast";
 import SyncPage from "./page";
 
 const DAY = 86_400_000;
@@ -75,17 +75,6 @@ const apply = () => [...panel()!.querySelectorAll("button")].at(-1)!;
 const scopes = () => [
   ...panel()!.querySelectorAll<HTMLInputElement>("input[name=share-scope]"),
 ];
-const toastShown = (type: string, title: string) =>
-  act(() =>
-    waitForDom(document.body, () =>
-      [
-        ...document.querySelectorAll(
-          '[data-sonner-toast][data-type="' + type + '"] [data-title]',
-        ),
-      ].some((node) => node.textContent === title),
-    ),
-  );
-
 let restoreFetch: (() => void) | undefined;
 afterEach(() => {
   restoreFetch?.();
@@ -282,19 +271,19 @@ test("a typed path stays private until it is shared, and a lock moves its row", 
   expect(byText("Add")?.disabled).toBe(false);
   await click(byText("Add")!);
   expect(writes(root)).toEqual([]);
-  await toastShown("error", "Type the full path");
+  await expectToast("error", "Type the full path");
 
   await changeInput(input, HEALTH + "/");
   state.failNext = true;
   await click(byText("Add")!);
-  await toastShown("error", "Could not add health");
+  await expectToast("error", "Could not add health");
   expect(input.value).toBe(HEALTH + "/");
   await click(byText("Add")!);
   expect(writes(root).at(-1)).toEqual({
     name: "users:updateSyncSettings",
     args: { sync_projects: [HEALTH] },
   });
-  await toastShown("success", "health added");
+  await expectToast("success", "health added");
 
   state.user = { ...state.user, sync_projects: [HEALTH] };
   await act(async () => syncViewer(root.store.getState()));
@@ -361,7 +350,7 @@ test("a typed path stays private until it is shared, and a lock moves its row", 
     },
   });
   expectAbsent(panel());
-  await toastShown("success", "health now shares with Union");
+  await expectToast("success", "health now shares with Union");
 
   state.mappings = [lock(HEALTH)];
   await act(async () => {
@@ -437,7 +426,12 @@ test("sharing an unsynced folder counts local sessions and starts sync before sh
   expect(panelText()).toMatch(
     /Sharing starts syncing this folder, past sessions included/,
   );
-  await click(scopes()[1]);
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  try {
+    await click(scopes()[1]);
+  } finally {
+    clock.mockRestore();
+  }
   expect(panelText()).toMatch(/The 3 sessions before that stay private/);
   await click(apply());
   const [startSync, share] = writes(root);
@@ -445,10 +439,17 @@ test("sharing an unsynced folder counts local sessions and starts sync before sh
     name: "users:updateSyncSettings",
     args: { sync_mode: "selected", sync_projects: [SITE] },
   });
-  expect(share).toMatchObject({
+  expect(share).toEqual({
     name: "users:updateDirectoryTeamMapping",
-    args: { path_prefix: SITE, team_id: team._id, include_past: false },
+    args: {
+      path_prefix: SITE,
+      team_id: team._id,
+      auto_share: true,
+      include_past: false,
+      share_since: new Date(now).setHours(0, 0, 0, 0),
+    },
   });
+  expect(writes(root)).toHaveLength(2);
   await root.close();
 });
 

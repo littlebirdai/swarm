@@ -6,7 +6,7 @@ import { webBuilders } from "../../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
 import { mountWeb } from "../../../test-helpers/mountWeb";
 import { pending } from "../../../test-helpers/testConvex";
-import { waitForDom } from "../../../test-helpers/waitForDom";
+import { expectToast } from "../../../test-helpers/expectToast";
 import { waitForPopupClose } from "../../../test-helpers/waitForPopupClose";
 import { InboxSelectionBar } from "../../BulkMoveSessions";
 import { LineStartSwitch } from "../../line/map/LineStartSwitch";
@@ -23,15 +23,6 @@ const click = (selector: string) =>
     expectPresent(button);
     button.click();
   });
-
-const expectToast = (title: string) =>
-  act(() =>
-    waitForDom(document.body, () =>
-      [...document.querySelectorAll("[data-sonner-toast] [data-title]")].some(
-        (node) => node.textContent === title,
-      ),
-    ),
-  );
 
 test("Allow all: the button opens the review of switching a session's prompts off; the review's button does it", async () => {
   const calls: string[] = [];
@@ -167,7 +158,10 @@ test("the sharing banner: its button opens the review of who then reads what; th
   );
   assert.equal(q('[data-switch-figure="teammates read"]')!.textContent, "4");
   await click("[data-switch-confirm]");
-  await expectToast("Union sees the whole conversation for new sessions");
+  await expectToast(
+    "success",
+    "Union sees the whole conversation for new sessions",
+  );
   assert.equal(visibilityWrites().length, 1);
   const [write] = visibilityWrites();
   expect(write).toMatchObject({
@@ -184,6 +178,7 @@ test("PR merge: the button opens the review of what lands where; only the review
     title: "Fix login",
     base_ref: "main",
     head_ref: "fix-login",
+    head_sha: "ab42c01",
     changed_files: 3,
     additions: 40,
     deletions: 2,
@@ -197,7 +192,7 @@ test("PR merge: the button opens the review of what lands where; only the review
   });
   const merged = web.backend.actions;
   await click("[data-pr-merge]");
-  assert.deepEqual(merged, [], "the button alone merges nothing");
+  expect(merged, "the button alone merges nothing").toEqual([]);
   assert.match(
     q("[data-switch-review]")!.textContent!,
     /Merge #42.*Open.*Merged/,
@@ -205,12 +200,20 @@ test("PR merge: the button opens the review of what lands where; only the review
   assert.equal(q('[data-switch-figure="lands on"]')!.textContent, "main");
   assert.match(q("[data-switch-confirm]")!.textContent!, /Merge into main/);
   await click("[data-switch-confirm]");
-  await expectToast("Merged");
+  await expectToast("success", "Merged");
   assert.equal(merged.length, 1);
-  expect(merged[0]).toMatchObject({
-    name: "prCli:merge",
-    args: { number: 42, repository: "acme/app" },
-  });
+  expect(merged).toEqual([
+    {
+      name: "prCli:merge",
+      args: {
+        number: 42,
+        repository: "acme/app",
+        expected_head_sha: "ab42c01",
+        method: "squash",
+        delete_branch: true,
+      },
+    },
+  ]);
 });
 
 test("PR bypass: offered only when GitHub says this person may bypass; only the review's button merges past protection", async () => {
@@ -276,6 +279,37 @@ test("PR bypass: offered only when GitHub says this person may bypass; only the 
   canBypass = true;
   await web.rerender(<MergeMenu pr={{ ...pr, head_sha: "def5678" }} />);
   await openMenu();
+  expectPresent(q("[data-pr-merge-bypass]"));
+  await act(async () => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  await waitForPopupClose();
+  const access = Promise.withResolvers<{
+    held: boolean;
+    can_bypass: boolean;
+    merge_state: string;
+    as: string;
+  }>();
+  web.backend.action(api.prCli.mergeAccess, () => access.promise);
+  await web.rerender(<MergeMenu pr={{ ...pr, head_sha: "def5679" }} />);
+  await openMenu();
+  expectPresent(q("[data-pr-auto-merge]"));
+  expectAbsent(q("[data-pr-merge-bypass]"));
+  await act(async () => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    access.resolve({
+      held: true,
+      can_bypass: true,
+      merge_state: "BLOCKED",
+      as: "alexfgreen",
+    });
+  });
+  await waitForPopupClose();
+  await openMenu();
   await click("[data-pr-merge-bypass]");
   assert.equal(merges().length, 0, "the item alone merges nothing");
   const review = q("[data-switch-review]")!.textContent!;
@@ -284,16 +318,21 @@ test("PR bypass: offered only when GitHub says this person may bypass; only the 
   assert.match(review, /Required checks and reviews/);
   assert.match(review, /alexfgreen/);
   await click("[data-switch-confirm]");
-  await expectToast("Merged past protection");
+  await expectToast("success", "Merged past protection");
   assert.equal(merges().length, 1);
-  expect(merges()[0]).toMatchObject({
-    args: {
-      repository: "acme/app",
-      number: 7,
-      bypass: true,
-      expected_head_sha: "def5678",
+  expect(merges()).toEqual([
+    {
+      name: "prCli:merge",
+      args: {
+        repository: "acme/app",
+        number: 7,
+        bypass: true,
+        expected_head_sha: "def5679",
+        method: "squash",
+        delete_branch: true,
+      },
     },
-  });
+  ]);
 });
 
 test("bulk kill: idle sessions end at once; a selection with working ones opens the review first", async () => {

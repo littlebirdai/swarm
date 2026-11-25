@@ -5,7 +5,7 @@ import type { InboxSession } from "../../store/inboxStore";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
-import { waitForDom } from "../../test-helpers/waitForDom";
+import { expectToast } from "../../test-helpers/expectToast";
 import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
 import {
   SessionControlPanel,
@@ -292,14 +292,8 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
       },
     },
   ]);
-  await act(() =>
-    waitForDom(
-      document.body,
-      () =>
-        document.querySelector("[data-sonner-toast] [data-title]")
-          ?.textContent === "Handed off to jx7new1 on Codex",
-    ),
-  );
+  await expectToast("success", "Handed off to jx7new1 on Codex");
+  expect(document.querySelectorAll("[data-sonner-toast]")).toHaveLength(1);
   expect(web.store.getState().pendingNavigateId).toBe(handoffConversation._id);
   expect(web.closes).toHaveLength(1);
   await waitForPopupClose();

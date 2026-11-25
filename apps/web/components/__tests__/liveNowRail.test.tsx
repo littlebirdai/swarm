@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { CallRoomFlags, LiveRoom } from "../../store/callRoomTypes";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { expectEmptyMount } from "../../test-helpers/expectEmptyMount";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { withTeamRoster } from "../../test-helpers/teamRoster";
 import { LiveNowRail } from "../calls/LiveNow";
@@ -57,11 +58,10 @@ function rail(
 describe("LiveNowRail", () => {
   test("an empty rail renders nothing when no room is occupied and the guest's lease has ended", async () => {
     const wide = await rail(false, { empty: true });
-    expectAbsent(wide.container.firstElementChild?.firstElementChild ?? null);
+    expectEmptyMount(wide.container);
     await wide.close();
     const narrow = await rail(true, { empty: true });
-    expect(narrow.container.textContent).toBe("");
-    expectAbsent(narrow.container.querySelector("button"));
+    expectEmptyMount(narrow.container);
   });
 
   test("the icon rail offers a button for a room you may enter", async () => {

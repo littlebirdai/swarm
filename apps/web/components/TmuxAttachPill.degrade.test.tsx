@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { act, type ReactElement } from "react";
 import { expectAbsent, expectPresent } from "../test-helpers/domExpect";
+import { expectEmptyMount } from "../test-helpers/expectEmptyMount";
+import { expectToast } from "../test-helpers/expectToast";
 import { mountWeb } from "../test-helpers/mountWeb";
 import { pending } from "../test-helpers/testConvex";
 import { waitForDom } from "../test-helpers/waitForDom";
@@ -63,7 +65,7 @@ describe("TmuxAttachPill under a backend that lacks the query", () => {
     expect(help.getAttribute("aria-disabled")).toBe("true");
     expect(help.disabled).toBe(false);
     expect(help.className).toContain("text-gray-400");
-    expect(help.className).not.toContain("text-sol-green");
+    expectAbsent(web.container.querySelector('[class*="text-sol-green"]'));
     expectAbsent(web.container.querySelector(copySelector));
     expect(web.backend.queryRequests).toEqual([]);
     await web.close();
@@ -71,8 +73,7 @@ describe("TmuxAttachPill under a backend that lacks the query", () => {
 
   test("other agents without a pane still omit the pill", async () => {
     const web = await mount(<TmuxAttachPill agentType="claude" isLive />);
-    expectAbsent(web.container.querySelector("[data-tmux-pill]"));
-    expect(web.container.textContent).toBe("");
+    expectEmptyMount(web.container);
     await web.close();
   });
 
@@ -117,14 +118,8 @@ describe("TmuxAttachPill under a backend that lacks the query", () => {
     expectPresent(copy);
     expect(copy.getAttribute("aria-disabled")).toBe("false");
     expectAbsent(web.container.querySelector("[data-simple-hide]"));
-    await act(async () => {
-      copy.click();
-      await waitForDom(
-        document.body,
-        () =>
-          document.body.textContent?.includes("tmux attach copied") === true,
-      );
-    });
+    await act(async () => copy.click());
+    await expectToast("success", "tmux attach copied");
     expect(web.copied).toEqual([
       "tmux -L 'cast-cc-resume-7ea05201' attach -t 'cc-resume-7ea05201' 2>/dev/null || tmux attach -t 'cc-resume-7ea05201'",
     ]);

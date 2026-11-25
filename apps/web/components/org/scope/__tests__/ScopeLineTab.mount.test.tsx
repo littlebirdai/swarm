@@ -31,6 +31,7 @@ const a = builders.task.build({
   workspace,
   project_id: project._id,
   assignee: sam._id,
+  workflow_run_id: "r1",
   files_changed: ["a.ts", "b.ts"],
 });
 const b = builders.task.build({
@@ -48,7 +49,7 @@ const outOfScope = builders.task.build({
   project_id: outside._id,
 });
 
-function mount(projectId: string) {
+function mount(projectId: string, includeReviewRun = false) {
   return mountWeb(
     <ScopeLineTab
       ids={{ projectIds: [projectId], planIds: [], whole: false }}
@@ -80,6 +81,30 @@ function mount(projectId: string) {
             created_at: 1,
             updated_at: 2,
           },
+          {
+            _id: "r2",
+            task_id: a._id,
+            status: "running",
+            workspace,
+            current_node_id: "investigate",
+            current_node_label: "Investigate",
+            created_at: 3,
+            updated_at: 4,
+          },
+          ...(includeReviewRun
+            ? [
+                {
+                  _id: "r3",
+                  task_id: b._id,
+                  status: "running",
+                  workspace,
+                  current_node_id: "review",
+                  current_node_label: "Review handoff",
+                  created_at: 1,
+                  updated_at: 2,
+                },
+              ]
+            : []),
         ]);
         store.syncTable("sessionDecisions", [
           {
@@ -146,6 +171,9 @@ test("two tasks at different stations paint in their columns with node, hand sta
   expect(held.textContent).toMatch(/held · sd-9/);
   expect(held.getAttribute("href")).toBe("/decisions/sd-9");
   expectAbsent(b.querySelector("[data-line-node]"));
+  expect(a.querySelector("[data-line-node]")?.textContent).not.toContain(
+    "Investigate",
+  );
   const taskLink = a.querySelector<HTMLAnchorElement>('a[href="/tasks/ct-1"]');
   expectPresent(taskLink);
   await act(async () => taskLink.click());
@@ -160,5 +188,15 @@ test("an empty scope says so instead of drawing columns", async () => {
   const web = await mount("none");
   expect(web.container.textContent).toMatch(/No tasks here yet/);
   expectAbsent(web.container.querySelector("[data-line-column]"));
+  await web.close();
+});
+
+test("a task without a run ID shows the live run bound to it", async () => {
+  const web = await mount(project._id, true);
+  const card = web.container.querySelector('[data-line-card="ct-2"]');
+  expectPresent(card);
+  expect(card.querySelector("[data-line-node]")?.textContent).toContain(
+    "Review handoff",
+  );
   await web.close();
 });
