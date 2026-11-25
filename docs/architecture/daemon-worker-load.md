@@ -2,118 +2,162 @@
 
 ## Rollout criteria
 
-Run three pairs for each fleet size of 5, 20, and 200 synthetic sessions.
-Alternate which mode runs first. Every workers-on run must have a main-loop
-delay p99 of at most 100 ms and a maximum below 1 second. Every run must
-deliver each event once, in order for its session, and complete each round
-before the next round is due. Worker PIDs must stay constant after warmup.
+Run three pairs per workload, alternating which mode runs first. Every
+workers-on run must have a loop-delay p99 at most 100 ms and maximum below
+1 second. Each event must arrive once, in transcript order. Every round must
+finish within its time limit, and worker PIDs must stay constant after warmup.
 
-For each fleet size, compare the median workers-on minus workers-off difference
-across the pairs. Allow the greater of 10% of the workers-off median or these
-absolute tolerances:
+For each workload, compare the median workers-on minus workers-off difference.
+Allow the greater of 10% of the workers-off median or the absolute tolerance.
 
-| Measure                                            | Absolute tolerance |
-| -------------------------------------------------- | -----------------: |
-| Loop delay p50, p95, p99                           |               5 ms |
-| Loop delay maximum                                 |              20 ms |
-| Event latency p50, p95, p99                        |              10 ms |
-| Event latency maximum                              |              25 ms |
-| Daemon and combined RSS peaks, idle and under load |             16 MiB |
-| Daemon and combined CPU, idle and under load       |          0.05 core |
+| Measure                                                        | Absolute tolerance |
+| -------------------------------------------------------------- | -----------------: |
+| Loop delay p50, p95, p99                                       |               5 ms |
+| Loop delay maximum                                             |              20 ms |
+| Event latency p50, p95, p99                                    |              10 ms |
+| Event latency maximum                                          |              25 ms |
+| Daemon and combined physical memory peaks, idle and under load |             16 MiB |
+| Daemon and combined CPU, idle and under load                   |          0.05 core |
 
-Use the combined peak RSS for the memory gate because all three children share
-the machine's memory budget. Report the daemon and each child separately too.
+The memory gate uses physical footprint on macOS and PSS on Linux. RSS remains
+in the report for comparison.
 
 ## Method
 
 Run `bun apps/cli/src/bench/worker-load.ts > worker-load.jsonl` on macOS or
-Linux. The program writes one JSON record per run and one gate summary per
-fleet size. Exit 1 means that a criterion failed or that a run did not finish.
+Linux. Each trial and workload gate produces a JSON record. Exit 1 means a
+criterion failed or a trial did not finish. Use `--case=large --pairs=1` for
+a short paired check.
 
-Each run starts a fresh Bun process in a private temporary directory with an
-empty home and an allowlisted environment. It calls the daemon's production
-transcript sync and stale-file scan, and sends a production process probe. In
-workers-on mode it launches the three production worker entry points. The real
-`SyncService` and Convex HTTP client prepare the mutation. An in-process fetch
-handler checks its conversation, message ID, and content, then returns a
-synthetic acknowledgment. The benchmark checks the file position and sync
-ledger after the acknowledgment. It uses no real session, account, agent, or
-network service.
+| Case    | Fleet | Active sessions per round | Rows per active session | Content per row | Concurrency | Project directories | Window   |
+| ------- | ----: | ------------------------: | ----------------------: | --------------: | ----------: | ------------------: | -------- |
+| Small   |     5 |                         3 |                       1 |           4 KiB |           4 |                   1 | 12 × 2 s |
+| Normal  |    20 |                        10 |                       1 |           4 KiB |           4 |                   1 | 12 × 2 s |
+| Fleet   |   200 |                        17 |                       1 |           4 KiB |           4 |                   1 | 12 × 2 s |
+| Large   |   200 |                       200 |                       1 |           1 MiB |          30 |                   8 | 1 × 25 s |
+| Backlog |   200 |                        30 |                     240 |           256 B |          30 |                   8 | 1 × 35 s |
 
-Each run warms the workers and measures two seconds of idle time. It then
-schedules 12 rounds at two-second intervals. Each round runs a process probe,
-scans the fleet, and appends one 4 KiB transcript record to 3, 10, or 17 sessions,
-respectively. The rounds rotate through all sessions. At most four transcript
-passes run concurrently. Each event's latency starts at its scheduled round
-time and ends when the daemon commits its position and ledger. It includes
-dispatch delay, local I/O, parsing, preparation, the normal sync throttle, and
-the synthetic acknowledgment.
+A fresh child process runs the production transcript path, stale-file scan,
+and process probe in a private home. The workers-on child launches the three
+production worker entry points. The real `SyncService` and Convex HTTP client
+prepare each mutation. An in-process handler verifies the message ID, order,
+and wire content, then returns a synthetic acknowledgment. The benchmark
+checks each position and sync ledger at the end of its pass. The trial needs
+no account, live daemon boot, watcher scheduling, or network service.
 
-The main process measures lateness relative to a 10 ms timer. A long stall
-produces one long sample. The maximum matters when few stalls occur. The
-benchmark samples RSS every 250 ms and at both ends of each phase. It sums
-simultaneous RSS samples, which can count shared pages more than once. CPU is
-the change in cumulative process CPU time divided by elapsed time. It covers
-the main process and persistent workers. It excludes short-lived probe
-subprocesses.
+The light cases append a record from the round scheduler. The heavy cases
+prepare the files before the sample window and release the backlog at its
+start. This excludes JSONL fixture construction from heavy loop delays.
+The heavy cases run full `ps aux` probes and scan the project directories
+every two seconds while ingestion proceeds. A transcript pass can send
+several batches. Each record's latency runs from its scheduled round to
+the position commit for its pass.
 
-This benchmark exercises the production local sync path. Full daemon startup,
-native watcher scheduling, live delivery, and backend response time are outside
-the measurement window. The 200-session fleet applies file and scan pressure.
-The 17 events per round stay below the `SyncService` limit of ten mutation
-dispatches per second.
+After warmup, the child gives the workers one second to settle, forces GC
+in the daemon process, then waits 250 ms before the idle window. Workers
+use their normal runtime GC. The child measures lateness relative to a
+10 ms timer. The parent samples resources every 500 ms and at both ends
+of each phase. On macOS it reads RSS and cumulative process CPU time from
+`ps` and current physical footprint from `footprint`. On Linux it reads
+RSS and PSS from `smaps_rollup` and converts the CPU ticks in `stat` using
+`CLK_TCK`. The report sums simultaneous samples for combined peaks. CPU
+covers the daemon and persistent workers.
 
 ## Results
 
-Workers remain opt-in. All nine workers-on trials passed the loop budget.
-The highest workers-on p99 was 5.0 ms, and the longest delay was 16.3 ms.
-All 18 trials delivered 2,160 events in total. No round missed its deadline.
-Latency, CPU, and daemon-only RSS stayed within their paired tolerances.
-Combined RSS failed at all three fleet sizes.
+Workers remain opt-in. All 30 trials completed and delivered 46,560 events in
+order. All 15 workers-on trials passed the absolute loop budget. The highest
+workers-on loop p99 was 8.8 ms, and the longest delay was 481.1 ms. One
+workers-on fleet round missed its two-second deadline in pair three, round nine.
 
-The run used source revision `1c25a51de812`, daemon build `acabf659444a`,
-and Bun 1.4.4 on a 16 GiB Apple silicon Mac with macOS 27.0.
-The one-minute machine load at trial ends ranged from 1.29 to 5.08.
-Each trial recorded 2,071 to 2,116 loop samples.
+The 200-record, 1 MiB case reduced median loop p99 by 28% and the median
+maximum by 91%. Median p95 increased from 4.6 to 5.9 ms and stayed within
+its paired tolerance. The review's earlier run reported a 21–42% decrease
+in p95, p99, and maximum. This run reproduced a tail improvement, with a
+different p95 result. The backlog reduced the median maximum from 13.7 to
+7.5 ms.
 
-The latency columns show p50 / p95 / p99 / maximum, with the median of three
-trials for each statistic.
+Combined physical footprint failed at idle and under load in every case.
+The paired median increase was 77–79 MiB at idle and 80–123 MiB under load.
+The heavy large-record case also exceeded the combined CPU tolerance. Its
+paired increase was 0.057 core, with a 0.05-core allowance. Daemon-only
+memory, daemon-only CPU, and event latency stayed within their paired
+tolerances. The large-record and backlog trials completed 10 and 15 full
+process probes per trial, respectively.
 
-| Sessions | Workers |       Loop delay (ms) |               Event latency (ms) |
-| -------: | ------- | --------------------: | -------------------------------: |
-|        5 | off     | 2.0 / 2.0 / 2.8 / 5.4 |    108.4 / 212.7 / 213.4 / 213.4 |
-|        5 | on      | 2.0 / 2.0 / 2.8 / 9.3 |    110.7 / 214.5 / 216.0 / 216.0 |
-|       20 | off     | 2.0 / 2.0 / 3.0 / 7.4 |    416.2 / 916.7 / 921.6 / 921.8 |
-|       20 | on      | 1.9 / 2.0 / 2.8 / 5.9 |    417.8 / 919.5 / 922.6 / 923.9 |
-|      200 | off     | 2.0 / 2.0 / 3.0 / 8.1 | 816.3 / 1619.6 / 1627.6 / 1631.8 |
-|      200 | on      | 1.6 / 2.0 / 2.9 / 5.9 | 816.2 / 1619.1 / 1628.8 / 1632.4 |
+The full run used daemon source revision `f74eee2616cd`, build
+`0863d41a21a9`, Bun 1.4.4, and a 16 GiB Apple silicon Mac with macOS 27.0.
+One-minute machine load at trial ends ranged from 1.05 to 5.57. Each trial
+recorded 1,978 to 3,047 loop samples. A separate offline Linux container
+check reported valid RSS and PSS and 1.00 CPU core for a 200 ms busy loop.
 
-The next table shows median combined resource use, with workers off → on.
+After rebase, build `916bf4c8f645` completed a fresh large-record pair with
+all 400 events and both deadlines met. Workers-on loop p99 was 9.3 ms.
+The combined load footprint rose from 223 to 379 MiB.
 
-| Sessions | Idle RSS (MiB) | Load RSS (MiB) | Idle CPU (cores) | Load CPU (cores) |
-| -------: | -------------: | -------------: | ---------------: | ---------------: |
-|        5 |  100.2 → 242.4 |  132.4 → 298.1 |    0.020 → 0.044 |    0.029 → 0.047 |
-|       20 |  101.2 → 243.5 |  148.0 → 311.4 |    0.025 → 0.035 |    0.042 → 0.080 |
-|      200 |  100.1 → 244.0 |  152.0 → 332.3 |    0.030 → 0.044 |    0.069 → 0.094 |
+The latency columns show p50 / p95 / p99 / maximum. Each value is the median
+of three trials in that mode.
 
-The last table shows the workers-on medians in daemon / probe / scan / ingest order.
+| Case    | Workers |          Loop delay (ms) |                    Event latency (ms) |
+| ------- | ------- | -----------------------: | ------------------------------------: |
+| Small   | off     |    2.0 / 2.0 / 2.6 / 5.8 |         108.0 / 212.5 / 214.2 / 214.2 |
+| Small   | on      |    2.0 / 2.0 / 2.5 / 5.5 |         108.3 / 214.9 / 214.9 / 214.9 |
+| Normal  | off     |    2.0 / 2.0 / 2.7 / 6.6 |         417.5 / 917.3 / 921.3 / 924.8 |
+| Normal  | on      |    2.0 / 2.0 / 2.8 / 5.7 |         416.0 / 918.7 / 922.1 / 925.1 |
+| Fleet   | off     |    2.0 / 2.0 / 2.6 / 9.4 |      812.4 / 1618.2 / 1623.8 / 1632.7 |
+| Fleet   | on      |   2.0 / 2.0 / 2.6 / 14.3 |      812.3 / 1617.6 / 1624.7 / 1633.5 |
+| Large   | off     | 2.0 / 4.6 / 11.2 / 189.8 | 10240.6 / 19343.9 / 20152.1 / 20353.7 |
+| Large   | on      |   2.0 / 5.9 / 8.1 / 17.5 | 10087.7 / 19190.5 / 19998.1 / 20200.4 |
+| Backlog | off     |   2.0 / 2.0 / 2.7 / 13.7 | 28808.3 / 30225.2 / 30326.1 / 30326.1 |
+| Backlog | on      |    2.0 / 2.0 / 2.6 / 7.5 | 28754.7 / 30171.7 / 30273.8 / 30273.8 |
 
-| Sessions |             Idle RSS (MiB) |             Load RSS (MiB) |              Idle CPU (cores) |              Load CPU (cores) |
-| -------: | -------------------------: | -------------------------: | ----------------------------: | ----------------------------: |
-|        5 | 103.8 / 45.0 / 47.9 / 46.1 | 127.9 / 57.9 / 48.8 / 64.4 | 0.030 / 0.005 / 0.005 / 0.005 | 0.027 / 0.007 / 0.004 / 0.009 |
-|       20 | 105.0 / 44.6 / 47.9 / 46.1 | 130.1 / 61.8 / 48.6 / 72.9 | 0.020 / 0.005 / 0.005 / 0.005 | 0.043 / 0.015 / 0.004 / 0.017 |
-|      200 | 104.8 / 43.5 / 49.5 / 46.1 | 138.8 / 66.1 / 56.6 / 68.1 | 0.030 / 0.005 / 0.005 / 0.005 | 0.049 / 0.018 / 0.008 / 0.019 |
+The next table shows combined sampled resource peaks and average CPU, with workers off → on.
 
-The paired median RSS increase was 142–144 MiB at idle and 163–176 MiB under
-load. The allowance was 16 MiB in each case. The increase comes from the three
-resident Bun children. The bridge creates one host for each kind, and each host
-starts its own process. Each worker held 44–50 MiB at idle.
+| Case    | Idle footprint (MiB) | Load footprint (MiB) | Idle RSS (MiB) | Load RSS (MiB) | Idle CPU (cores) | Load CPU (cores) |
+| ------- | -------------------: | -------------------: | -------------: | -------------: | ---------------: | ---------------: |
+| Small   |         52.0 → 129.0 |         60.0 → 140.0 |  101.0 → 244.0 |  122.9 → 289.5 |    0.005 → 0.000 |    0.021 → 0.038 |
+| Normal  |         52.0 → 129.0 |         65.0 → 146.0 |  101.1 → 244.7 |  134.3 → 305.6 |    0.005 → 0.010 |    0.045 → 0.075 |
+| Fleet   |         52.0 → 131.0 |         67.0 → 152.0 |  101.6 → 248.7 |  140.7 → 323.0 |    0.000 → 0.005 |    0.026 → 0.043 |
+| Large   |         55.0 → 133.0 |        235.0 → 380.0 |  212.7 → 328.8 |  661.7 → 856.7 |    0.000 → 0.005 |    0.232 → 0.283 |
+| Backlog |         52.0 → 131.0 |         93.0 → 201.0 |  116.7 → 261.9 |  185.4 → 387.6 |    0.000 → 0.005 |    0.030 → 0.053 |
+
+The last table shows the workers-on medians in daemon / probe / scan / ingest order. Memory values are in MiB, and CPU values are in cores.
+
+| Case    |            Idle footprint |              Load footprint |                   Idle RSS |                    Load RSS |                      Idle CPU |                      Load CPU |
+| ------- | ------------------------: | --------------------------: | -------------------------: | --------------------------: | ----------------------------: | ----------------------------: |
+| Small   | 52.0 / 25.0 / 27.0 / 25.0 |   56.0 / 29.0 / 27.0 / 34.0 | 106.7 / 44.8 / 47.1 / 45.7 |  121.0 / 56.5 / 48.3 / 64.3 | 0.000 / 0.000 / 0.000 / 0.000 | 0.018 / 0.007 / 0.004 / 0.009 |
+| Normal  | 52.0 / 25.0 / 27.0 / 25.0 |   58.0 / 32.0 / 27.0 / 31.0 | 106.0 / 44.6 / 47.8 / 45.9 |  126.6 / 61.5 / 48.6 / 69.2 | 0.005 / 0.000 / 0.005 / 0.000 | 0.038 / 0.014 / 0.004 / 0.018 |
+| Fleet   | 52.0 / 25.0 / 27.0 / 25.0 |   60.0 / 34.0 / 29.0 / 33.0 | 106.7 / 45.0 / 49.7 / 46.8 |  131.0 / 64.4 / 57.4 / 68.1 | 0.000 / 0.000 / 0.000 / 0.000 | 0.020 / 0.008 / 0.004 / 0.010 |
+| Large   | 55.0 / 25.0 / 27.0 / 26.0 | 191.0 / 35.0 / 33.0 / 133.0 | 187.5 / 46.1 / 49.3 / 46.4 | 493.2 / 70.4 / 58.0 / 209.9 | 0.005 / 0.000 / 0.000 / 0.000 | 0.191 / 0.010 / 0.004 / 0.078 |
+| Backlog | 53.0 / 25.0 / 27.0 / 25.0 |   92.0 / 29.0 / 30.0 / 54.0 | 118.7 / 46.9 / 49.5 / 45.7 |  179.2 / 57.8 / 58.2 / 92.3 | 0.005 / 0.000 / 0.000 / 0.000 | 0.029 / 0.006 / 0.008 / 0.009 |
+
+## Before enabling workers by default
+
+Keep workers opt-in until their combined physical memory fits the rollout
+gate. The bridge still starts three resident worker processes. Sharing a
+runtime can reduce that fixed cost. Keep the per-kind limits and test the
+failure behavior again after a change to process ownership.
 [Worker bridge](../../apps/cli/src/workers/bridge.ts#L51) ·
-[Worker spawn](../../apps/cli/src/workers/host.ts#L178)
+[Process launch](../../apps/cli/src/workers/host.ts#L178)
 
-Share one child across the three kinds to reduce the fixed memory cost.
-Keep the limits for each kind. Repeat the paired benchmark to measure the
-RSS change.
+The production send path still prepares transcripts and redacts secrets on
+the main thread. Only the worker fixture calls `MessagePreparation`.
+Connect it to the production send path and verify payload parity. Then
+repeat the paired gate with the large records and the backlog.
+[Daemon preparation](../../apps/cli/src/daemon.ts#L11724) ·
+[Preparation worker client](../../apps/cli/src/workers/preparationClient.ts#L28)
+
+## Ingest concurrency
+
+The daemon queues cursor opens in arrival order. A slot stays occupied until
+its transcript read and cursor cleanup end. The queue holds at most 32
+waiters, and the existing transcript deadline applies while they wait. An
+overflow refuses admission before it reads a cursor page.
+
+The regression test reads 30 transcripts concurrently. It verifies that each
+transcript returns both records in file order and consumes the exact input
+byte count. A mutation that bypasses the four-cursor limit made 26 requests
+fail with `operation_failed`. The restored test passed.
 
 ## Failure checks
 
