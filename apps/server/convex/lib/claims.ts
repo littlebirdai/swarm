@@ -117,7 +117,7 @@ export async function claim(
   if (input.expectedToken !== currentToken) return stale;
 
   if (newPane) {
-    await ctx.db.patch("claims", row._id, {
+    await ctx.db.patch(row._id, {
       pane_instance: pane,
       holder: undefined,
       lease_until: 0,
@@ -139,7 +139,7 @@ export async function claim(
     request_holder: input.holder,
   };
   if (row) {
-    await ctx.db.patch("claims", row._id, lease);
+    await ctx.db.patch(row._id, lease);
   } else {
     await ctx.db.insert("claims", {
       ...lease,
@@ -194,7 +194,7 @@ export async function renew(
     row.lease_until,
     now + LEASE_MS[input.resource.kind],
   );
-  await ctx.db.patch("claims", row._id, { lease_until: leaseUntil });
+  await ctx.db.patch(row._id, { lease_until: leaseUntil });
   return { status: "held", token: row.token, remainingMs: leaseUntil - now };
 }
 
@@ -207,7 +207,7 @@ async function clearHeldClaim(
   if (result.status !== "held") return result;
   if (!row) return { status: "free" };
 
-  await ctx.db.patch("claims", row._id, { holder: undefined, lease_until: 0 });
+  await ctx.db.patch(row._id, { holder: undefined, lease_until: 0 });
   return { status: "cleared", token: row.token };
 }
 

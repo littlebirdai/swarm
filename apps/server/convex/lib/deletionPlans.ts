@@ -10,13 +10,20 @@ import {
   CONVERSATION_ROW_TABLES,
   conversationRowEffects,
 } from "./conversationRows";
-import { addCount, deleteStored, type PurgeNode } from "./purgeTree";
+import {
+  addCount,
+  deleteStored,
+  type PurgeCounts,
+  type PurgeNode,
+} from "./purgeTree";
 import {
   purgeCallRecordings,
   deleteCallFrameShares,
 } from "./callRecordingRuns";
 import { purgeThread } from "../threadReads";
 import { killConversation } from "../conversations";
+import type { Doc } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
 
 const idOf = (row: any) => row._id;
 const workspaceOf = (team: any) => `team:${team._id}`;
@@ -153,8 +160,12 @@ function plans() {
   // torn down and a tombstone keeps the owner's daemon from uploading the
   // transcript again (lib/deletedSessions).
   const conversation = {
-    children: conversationRows,
-    before: async (ctx: any, row: any) => {
+    children: conversationRows.filter((node) => node.table !== "claims"),
+    before: async (
+      ctx: MutationCtx,
+      row: Doc<"conversations">,
+      counts: PurgeCounts,
+    ) => {
       if (row.status === "active") {
         await killConversation(
           ctx,
@@ -171,6 +182,14 @@ function plans() {
           deleted_at: Date.now(),
         });
       }
+      const claims = await ctx.db
+        .query("claims")
+        .withIndex("by_conversation_kind", (q) =>
+          q.eq("conversation_id", row._id),
+        )
+        .collect();
+      for (const claim of claims) await ctx.db.delete(claim._id);
+      addCount(counts, "claims", claims.length);
     },
   };
 

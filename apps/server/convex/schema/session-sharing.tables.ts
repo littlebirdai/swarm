@@ -10,9 +10,12 @@ export const sessionSharingTables = {
     holder: v.optional(v.id("users")),
     token: v.number(),
     lease_until: v.number(),
-    request_id: v.string(),
-    request_holder: v.id("users"),
-  }).index("by_conversation_kind", ["conversation_id", "kind"]),
+    request_id: v.optional(v.string()),
+    request_holder: v.optional(v.id("users")),
+  })
+    .index("by_conversation_kind", ["conversation_id", "kind"])
+    .index("by_holder", ["holder"])
+    .index("by_request_holder", ["request_holder"]),
 
   share_redemptions: defineTable({
     conversation_id: v.id("conversations"),

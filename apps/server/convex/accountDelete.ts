@@ -65,6 +65,35 @@ export async function purgeAccountPass(
   let budget = await deleteOwned(ctx, userId, FIRST, PASS_BUDGET);
   if (budget <= 0) return true;
 
+  const heldClaims = await ctx.db
+    .query("claims")
+    .withIndex("by_holder", (q) => q.eq("holder", userId))
+    .take(budget);
+  for (const claim of heldClaims) {
+    await ctx.db.patch(claim._id, {
+      holder: undefined,
+      lease_until: 0,
+      ...(claim.request_holder === userId
+        ? { request_id: undefined, request_holder: undefined }
+        : {}),
+    });
+  }
+  budget -= heldClaims.length;
+  if (budget <= 0) return true;
+
+  const receipts = await ctx.db
+    .query("claims")
+    .withIndex("by_request_holder", (q) => q.eq("request_holder", userId))
+    .take(budget);
+  for (const claim of receipts) {
+    await ctx.db.patch(claim._id, {
+      request_id: undefined,
+      request_holder: undefined,
+    });
+  }
+  budget -= receipts.length;
+  if (budget <= 0) return true;
+
   // Each conversation's own rows are purged by its own scheduled job.
   const conversations = await ctx.db
     .query("conversations")

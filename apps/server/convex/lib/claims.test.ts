@@ -192,6 +192,9 @@ test("pane changes keep one terminal row and fence the replaced pane", async () 
   ).toEqual({ status: "held", token: 2, remainingMs: 20_000 });
   expect(await f.guardedWrite(newPaneUse)).toEqual({ status: "stale_token" });
   expect(await f.writes()).toBe(0);
+  expect(
+    (await f.rows()).find((row) => row.kind === "steer"),
+  ).not.toHaveProperty("pane_instance");
   expect(await f.rows()).toEqual([
     expect.objectContaining({
       kind: "steer",
