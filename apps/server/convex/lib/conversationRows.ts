@@ -42,6 +42,7 @@ export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
     ["call_session_links", "by_conversation"],
     ["external_events", "by_conversation_created"],
     ["delivery_attempts", "by_conversation_sequence"],
+    ["run_leases", "by_conversation_claim"],
     ["execution_bindings", "by_conversation_epoch"],
     ["conversation_execution_heads", "by_conversation"],
     ["managed_sessions", "by_conversation_id"],

@@ -606,7 +606,7 @@ describe("title request goldens", () => {
       expect(fetchStub.bodies.length).toBe(1);
       actual.push({ case: name, body: fetchStub.bodies[0] });
     }
-    expect(actual).toEqual(recordGolden("short-title", actual));
+    expect(actual).toEqual(recordGolden("shortTitle", actual));
   });
 });
 
@@ -633,7 +633,7 @@ describe("title request from rows", () => {
       context: "One render path for every channel.",
     });
     expect(goldenBody(req)).toBe(
-      loadGolden("short-title").find((g) => g.case === "plan")!.body,
+      loadGolden("shortTitle").find((g) => g.case === "plan")!.body,
     );
   });
 });

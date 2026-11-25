@@ -223,6 +223,11 @@ crons.interval(
   { hours: 1 },
   internal.ipRateLimit.pruneIpRateLimits,
 );
+crons.interval(
+  "prune run lease receipts",
+  { minutes: 10 },
+  internal.edgeRunLease.prune,
+);
 
 crons.interval(
   "prune stale remote terminal frames",
