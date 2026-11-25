@@ -169,6 +169,57 @@ function connectHost(hostRows: ReturnType<typeof cachedSessions>) {
   });
 }
 
+test("call-ring boot reads only its declared cached keys", async () => {
+  const row = cachedSessions()[0];
+  await sessions.put(row);
+  await docs.put({ _id: "doc-1", title: "Off-screen document" });
+  await db.meta.put({
+    key: "clientState",
+    value: { ui: { sidebar_collapsed: true } },
+  });
+
+  const previousUrl = dom.window.location.href;
+  dom.reconfigure({ url: "https://example.test/call-ring" });
+  Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
+    configurable: true,
+    value: {},
+  });
+  try {
+    await bootCache();
+    expect(state().clientStateInitialized).toBe(true);
+    expect(state().clientState.ui?.sidebar_collapsed).toBe(true);
+    expect(state().sessions).toEqual({});
+    expect(state().docs).toEqual({});
+    expect(await sessions.get(row._id)).toEqual(row);
+  } finally {
+    Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
+    dom.reconfigure({ url: previousUrl });
+  }
+});
+
+test("a scoped palette still journals offline writes in the outbox", async () => {
+  const row = cachedSessions()[0];
+  await sessions.put(row);
+  await conversations.put(row);
+
+  const previousUrl = dom.window.location.href;
+  dom.reconfigure({ url: "https://example.test/palette" });
+  Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
+    configurable: true,
+    value: {},
+  });
+  try {
+    await bootCache();
+    state().renameSession(row._id, "Edited offline");
+    const outbox = await db.dispatchOutbox.toArray();
+    expect(outbox.map(({ action }) => action)).toEqual(["renameSession"]);
+    expect(state().sessions[row._id]?.title).toBe("Edited offline");
+  } finally {
+    Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
+    dom.reconfigure({ url: previousUrl });
+  }
+});
+
 test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
   holdHostLock();
   const rows = cachedSessions();

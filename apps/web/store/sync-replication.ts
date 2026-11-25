@@ -39,8 +39,11 @@ import {
   replicationLock,
   replicationPersistence,
   replicationTransport,
+  scopedFollowerChannel,
+  scopedHostChannel,
   transportAvailable,
 } from "./storage-transport";
+import { desktopWindowKeys } from "./desktop-window-keys";
 import { syncTransaction } from "./syncTransaction";
 import type { GestureMessage } from "./gestureBridge";
 import {
@@ -64,8 +67,17 @@ export type SyncReplicationStatus = {
   selfId: string;
 };
 
-let running: { stop: () => void; status: () => SyncReplicationStatus } | null =
-  null;
+let running: {
+  stop: () => void;
+  status: () => SyncReplicationStatus;
+  expand: (keys: readonly string[]) => Promise<boolean>;
+} | null = null;
+
+export function expandWindowReplication(
+  keys: readonly string[],
+): Promise<boolean> {
+  return running?.expand(keys) ?? Promise.resolve(true);
+}
 
 /** Stop this window's replication now, whatever role it held: channel closed,
  *  lock released, write-through restored. The account boundary calls this
@@ -268,10 +280,32 @@ export function replicationHostFor(
   channel: ReplicationChannel,
   getState: () => any,
 ): ReplicationHost {
+  let snapshotKeys: readonly string[] | undefined;
   return createReplicationHost({
     hostId,
-    channel,
-    getState,
+    channel: {
+      post: channel.post,
+      onMessage: (callback) =>
+        channel.onMessage((message) => {
+          if (message.type !== "hello" || !("keys" in message)) {
+            callback(message);
+            return;
+          }
+          const keys = message.keys;
+          snapshotKeys = Array.isArray(keys) ? keys.filter(isReplicated) : [];
+          try {
+            callback(message);
+          } finally {
+            snapshotKeys = undefined;
+          }
+        }),
+    },
+    getState: () => {
+      const state = getState();
+      return snapshotKeys
+        ? Object.fromEntries(snapshotKeys.map((key) => [key, state[key]]))
+        : state;
+    },
     replicatedKeys: REPLICATED_STORE_KEYS,
     isCollectionKey: isReplicatedCollectionKey,
     applyUpdates: (updates) =>
@@ -310,11 +344,28 @@ export function replicationFollowerFor(
   selfId: string,
   channel: ReplicationChannel,
   onSynced: (synced: boolean) => void,
+  keys: readonly string[] = REPLICATED_STORE_KEYS,
+  ownOrigin = selfId,
 ): ReplicationFollower {
+  const filteredChannel: ReplicationChannel = {
+    post: channel.post,
+    onMessage: (handler) =>
+      channel.onMessage((message) => {
+        if (message.type !== "update") {
+          handler(message);
+          return;
+        }
+        handler({
+          ...message,
+          origin: message.origin === ownOrigin ? selfId : message.origin,
+          updates: message.updates.filter(({ key }) => keys.includes(key)),
+        });
+      }),
+  };
   return createReplicationFollower({
     selfId,
-    channel,
-    replicatedKeys: REPLICATED_STORE_KEYS,
+    channel: keys === REPLICATED_STORE_KEYS ? channel : filteredChannel,
+    replicatedKeys: keys,
     isCollectionKey: isReplicatedCollectionKey,
     applyUpdates: (updates) => applyUpdatesToStore(updates),
     onOwnEcho: forgetSeenBeforeOwnEcho,
@@ -349,7 +400,8 @@ export function applyBridgedGesture(msg: GestureMessage): void {
       .setFollowLeader(msg.leaderId, { fromBridge: true });
     return;
   }
-  useInboxStore.getState().applyGestureBridge(msg);
+  if (msg.kind === "ack" || desktopWindowKeys()?.includes("sessions") !== false)
+    useInboxStore.getState().applyGestureBridge(msg);
 }
 
 // Land one batch of replicated updates through the store's own sync actions,
@@ -541,6 +593,7 @@ function setRole(role: "host" | "follower"): void {
 export function startSyncReplication(opts: {
   eligible: boolean;
   principalId: string | null;
+  keys?: readonly string[];
 }): () => void {
   if (running) return running.stop;
   setRole("host");
@@ -554,16 +607,18 @@ export function startSyncReplication(opts: {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const transport = replicationTransport(
-    replicationChannelName(opts.principalId),
-    selfId,
-  );
+  const name = replicationChannelName(opts.principalId);
+  const keys = opts.keys?.filter(isReplicated);
+  const legacy = () => replicationTransport(name, selfId);
+  const scoped = keys && scopedFollowerChannel(name, selfId, keys, legacy);
+  const transport = scoped ?? legacy();
   const channel = transport.channel;
 
   let stopped = false;
   let elected = false;
   let follower: ReplicationFollower | null = null;
   let host: ReplicationHost | null = null;
+  let closeScopeHost: (() => void) | undefined;
   let soloTimer: ReturnType<typeof setTimeout> | null = null;
   const lock = replicationLock(opts.principalId);
 
@@ -573,13 +628,12 @@ export function startSyncReplication(opts: {
     if (soloTimer) clearTimeout(soloTimer);
     soloTimer = setTimeout(() => {
       if (!stopped && !elected && !follower?.synced()) {
-        // No living host answered — behave as our own (feeders on, own
-        // write-through, no mut tee). The follower runtime stays up: a later
-        // snapshot demotes us again.
         const internals = useInboxStore.getState() as any;
-        setActionTee(null);
-        internals._setIDBWrite(persistence.hostWrite);
-        persistence.persistSkipped();
+        if (!keys) setActionTee(null);
+        internals._setIDBWrite(
+          keys ? persistence.followerWrite : persistence.hostWrite,
+        );
+        if (!keys) persistence.persistSkipped();
         setRole("host");
       }
     }, SOLO_FALLBACK_MS);
@@ -587,21 +641,26 @@ export function startSyncReplication(opts: {
 
   const startFollower = () => {
     (useInboxStore.getState() as any)._setIDBWrite(persistence.bootWrite);
-    follower = replicationFollowerFor(selfId, channel, (synced) => {
-      if (stopped || elected) return;
-      if (synced) {
-        if (soloTimer) clearTimeout(soloTimer);
-        setRole("follower");
-        // The host persists the shared slice; nothing skipped is owed.
-        persistence.discardSkipped();
-        (useInboxStore.getState() as any)._setIDBWrite(
-          persistence.followerWrite,
-        );
-        setActionTee(followerActionTee(channel, selfId));
-      } else {
-        armSoloFallback();
-      }
-    });
+    follower = replicationFollowerFor(
+      selfId,
+      channel,
+      (synced) => {
+        if (stopped || elected) return;
+        if (synced) {
+          if (soloTimer) clearTimeout(soloTimer);
+          setRole("follower");
+          // The host persists the shared slice; nothing skipped is owed.
+          persistence.discardSkipped();
+          (useInboxStore.getState() as any)._setIDBWrite(
+            persistence.followerWrite,
+          );
+          setActionTee(followerActionTee(channel, selfId));
+        } else {
+          armSoloFallback();
+        }
+      },
+      keys,
+    );
     armSoloFallback();
   };
 
@@ -609,8 +668,10 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     elected = true;
     if (soloTimer) clearTimeout(soloTimer);
+    const scope = scopedHostChannel(name, selfId, channel);
+    closeScopeHost = scope.close;
     host = promoteToHost(follower, () =>
-      replicationHostFor(selfId, channel, () => useInboxStore.getState()),
+      replicationHostFor(selfId, scope.channel, () => useInboxStore.getState()),
     );
     follower = null;
     const internals = useInboxStore.getState() as any;
@@ -624,9 +685,65 @@ export function startSyncReplication(opts: {
     persistence.persistSkipped();
   };
 
+  if (keys) setActionTee(followerActionTee(channel, selfId));
   startFollower();
 
-  if (opts.eligible) lock.request(() => stopped, becomeElectedHost);
+  if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);
+
+  const expanded = new Map<string, Promise<boolean>>();
+  const expansions: Array<() => void> = [];
+  const expand = (requested: readonly string[]) => {
+    if (!keys || !scoped) return Promise.resolve(true);
+    const missing = requested.filter(
+      (key) => isReplicated(key) && !keys.includes(key),
+    );
+    const newKeys = [...new Set(missing.filter((key) => !expanded.has(key)))];
+    if (newKeys.length) {
+      const id = `${selfId}:growth:${expansions.length}`;
+      const scope = scopedFollowerChannel(name, id, newKeys, () =>
+        replicationTransport(name, id),
+      );
+      const ready = Promise.withResolvers<boolean>();
+      const fallback = setTimeout(() => {
+        if (!scoped.hostId() && !follower?.synced()) ready.resolve(true);
+      }, SOLO_FALLBACK_MS);
+      let extending = false;
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        clearTimeout(fallback);
+        extra.stop();
+        scope.close();
+      };
+      const extra = replicationFollowerFor(
+        id,
+        scope.channel,
+        (synced) => {
+          if (!synced || extending) return;
+          extending = true;
+          scoped.extend(
+            newKeys,
+            () => (extra.synced() ? scope.hostId() : undefined),
+            () => {
+              close();
+              ready.resolve(true);
+            },
+          );
+        },
+        newKeys,
+        selfId,
+      );
+      for (const key of newKeys) expanded.set(key, ready.promise);
+      expansions.push(() => {
+        close();
+        ready.resolve(false);
+      });
+    }
+    return Promise.all(missing.map((key) => expanded.get(key))).then(
+      (results) => results.every(Boolean),
+    );
+  };
 
   const stop = () => {
     if (stopped) return;
@@ -634,19 +751,22 @@ export function startSyncReplication(opts: {
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();
     host?.stop();
+    closeScopeHost?.();
+    for (const close of expansions) close();
     lock.release();
     transport.close();
     const internals = useInboxStore.getState() as any;
     setActionTee(null);
-    // Whatever role we were in, leave the window as a self-sufficient host
-    // (today's behavior): write-through restored, feeders gate open.
-    internals._setIDBWrite(persistence.hostWrite);
+    internals._setIDBWrite(
+      keys ? persistence.followerWrite : persistence.hostWrite,
+    );
     setRole("host");
     running = null;
   };
 
   running = {
     stop,
+    expand,
     status: () => ({
       principalId: opts.principalId,
       role: useInboxStore.getState().syncRole,

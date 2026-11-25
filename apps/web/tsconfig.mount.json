@@ -98,7 +98,8 @@
     "hooks/useRunWorkflow.mount.test.tsx",
     "lib/__tests__/callSeams.test.ts",
     "lib/__tests__/reportRelationPick.test.ts",
-    "lib/telemetry/client-resource-telemetry.mount.test.tsx"
+    "lib/telemetry/client-resource-telemetry.mount.test.tsx",
+    "store/__tests__/desktop-window-keys.mount.test.tsx"
   ],
   "exclude": ["node_modules"]
 }

@@ -1,3 +1,4 @@
+import { desktopWindowKeys } from "./desktop-window-keys";
 import type { StoreApi } from "zustand";
 import type { InboxStoreState, Message } from "./inboxStore";
 import { queuedMessagesFromPending } from "./pendingMessageJournal";
@@ -376,7 +377,21 @@ async function hydrateInboxCacheFromIDB(
     }
   }
 
-  const cached = await loadCache(HYDRATION_CRITICAL_READ_KEYS);
+  const windowKeys = desktopWindowKeys();
+  const scopedKeys = windowKeys && new Set<string>(windowKeys);
+  const criticalKeys = scopedKeys
+    ? HYDRATION_CRITICAL_KEYS.filter((key) => scopedKeys.has(key))
+    : HYDRATION_CRITICAL_KEYS;
+  const deferredKeys = scopedKeys
+    ? HYDRATION_DEFERRED_KEYS.filter((key) => scopedKeys.has(key))
+    : HYDRATION_DEFERRED_KEYS;
+  const cached = scopedKeys
+    ? await loadCache(
+        HYDRATION_CRITICAL_READ_KEYS.filter(
+          (key) => scopedKeys.has(key) || key === "lastFocusedConversationId",
+        ),
+      )
+    : await loadCache(HYDRATION_CRITICAL_READ_KEYS);
   if (superseded()) return false;
 
   // Strip stale large fields from cached conversations (git_diff, git_diff_staged, available_skills)
@@ -426,7 +441,7 @@ async function hydrateInboxCacheFromIDB(
   // a persisted key hydrates here unless it opted into the deferred phase or
   // "manual" handling, so a new key can never silently skip hydration (the
   // ct-34920 / buckets-pop-in bug class).
-  apply(cached, HYDRATION_CRITICAL_KEYS);
+  apply(cached, criticalKeys);
 
   // Seed the authoritative active set from its persisted twin (manual
   // hydration — see clientSyncRegistry). Same synchronous pass as the
@@ -450,11 +465,13 @@ async function hydrateInboxCacheFromIDB(
   // stamped the live URL unchecked) heals to the inbox before first paint.
   const healedTabs = healTabPaths(st.tabs);
   if (healedTabs !== st.tabs) useInboxStore.setState({ tabs: healedTabs });
-  const ownId = (cached?.lastFocusedConversationId ?? null) as string | null;
+  const ownId = (
+    scopedKeys ? null : (cached?.lastFocusedConversationId ?? null)
+  ) as string | null;
   if (ownId && !st.lastFocusedConversationId) {
     useInboxStore.setState({ lastFocusedConversationId: ownId });
   }
-  if (!st.currentSessionId) {
+  if (!scopedKeys && !st.currentSessionId) {
     // A fresh open onto the feed home goes to the new-session page
     // (DashboardLayout opens it) rather than back to the last conversation.
     // Decided from the address the window opened on: by now the tab shell
@@ -489,10 +506,10 @@ async function hydrateInboxCacheFromIDB(
   // message JSON on the JS thread right after first paint, and load hundreds
   // of conversations into memory for the eviction cap to fight back out.
   const focusId = useInboxStore.getState().currentSessionId;
-  if (focusId) await ensureHydrated(focusId);
+  if (!scopedKeys && focusId) await ensureHydrated(focusId);
   if (superseded()) return false;
 
-  if (!useInboxStore.getState().clientStateInitialized) {
+  if (!scopedKeys && !useInboxStore.getState().clientStateInitialized) {
     useInboxStore.setState({ clientStateInitialized: true });
   }
 
@@ -504,11 +521,13 @@ async function hydrateInboxCacheFromIDB(
   // hydrate and persist. setTimeout fires (throttled) even when hidden.
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
   if (superseded()) return false;
-  const deferred = await loadCache(HYDRATION_DEFERRED_KEYS, {
+  const deferred = await loadCache(deferredKeys, {
     pending: cached?.pending,
   });
   if (superseded()) return false;
-  apply(deferred, HYDRATION_DEFERRED_KEYS);
+  apply(deferred, deferredKeys);
+  if (scopedKeys && !useInboxStore.getState().clientStateInitialized)
+    useInboxStore.setState({ clientStateInitialized: true });
   // Re-enable IDB write-through only AFTER the deferred collections land.
   // If a live delta arrives while write-through is open but the store still
   // holds just the windowed payload (tasks' 300, sessions' ~30d), then

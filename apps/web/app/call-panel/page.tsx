@@ -1,4 +1,7 @@
-import { Suspense } from "react";
+import { PALETTE_KEYS } from "../../store/desktop-window-keys";
+import { expandWindowReplication } from "../../store/sync-replication";
+import { useWatchEffect } from "../../hooks/useWatchEffect";
+import { Suspense, useState } from "react";
 import { useInboxStore } from "../../store/inboxStore";
 import { AppLoader } from "../../components/AppLoader";
 import { ShortcutProvider } from "../../shortcuts";
@@ -78,6 +81,18 @@ function CallPanelWindow() {
   // too. It shows a loader only when it opened straight onto a stage.
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
   const paletteOpen = useInboxStore((s) => s.palette.open);
+  const [paletteReady, setPaletteReady] = useState(false);
+  useWatchEffect(() => {
+    if (!paletteOpen || !hydrated) return;
+    let active = true;
+    void expandWindowReplication(PALETTE_KEYS).then((ready) => {
+      if (active && ready) setPaletteReady(true);
+    });
+    return () => {
+      active = false;
+      setPaletteReady(false);
+    };
+  }, [paletteOpen, hydrated]);
   const small =
     typeof window !== "undefined" &&
     (/[?&]size=(circles|speaker|tiny)/.test(window.location.search) ||
@@ -96,7 +111,7 @@ function CallPanelWindow() {
       </ErrorBoundary>
       {/* Over the stage (the palette's own z-index outranks it), and always
           dark like the stage, whatever theme the app is in. */}
-      {paletteOpen && (
+      {paletteOpen && paletteReady && (
         <div className="dark">
           <ErrorBoundary name="CommandPalette" level="inline">
             <ShortcutProvider>

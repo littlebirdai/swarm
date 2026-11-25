@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import type { ReplicationChannel } from "@platform/engine";
+import { heapStats } from "bun:jsc";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
-import { useInboxStore, type Message } from "../store/inboxStore";
+import { DESKTOP_WINDOW_KEYS } from "../store/desktop-window-keys";
+import {
+  clearProtectedInboxMemory,
+  useInboxStore,
+  type Message,
+} from "../store/inboxStore";
 import { loadCache } from "../store/persistence/boot-loader";
 import { writePatchesToIDB } from "../store/persistence/collection-writer";
 import {
@@ -177,48 +183,158 @@ function sumRows(counts: Map<string, number>) {
   return [...counts.values()].reduce((sum, rows) => sum + rows, 0);
 }
 
-async function measureFollower() {
+async function measureFollower(heldKeys?: readonly string[], rowsPerKey = 1) {
   const keys = [...REGISTERED_COLLECTION_KEYS, "conversations"];
   const hostState = Object.fromEntries(
-    keys.map((key, index) => {
-      const row = {
-        ...session(index),
-        short_id: "ct-1",
-        _cachedAt: now,
-        ...(key === "taskComments" ? { comments: [] } : {}),
-      };
-      return [key, { [row._id]: row }];
-    }),
+    keys.map((key, index) => [
+      key,
+      Object.fromEntries(
+        Array.from({ length: rowsPerKey }, (_, rowIndex) => {
+          const row = {
+            ...session(index * rowsPerKey + rowIndex),
+            short_id: "ct-1",
+            _cachedAt: now,
+            ...(rowsPerKey > 1
+              ? { title: crypto.randomUUID().repeat(10) }
+              : {}),
+            ...(key === "taskComments" ? { comments: [] } : {}),
+          };
+          return [row._id, row];
+        }),
+      ),
+    ]),
   );
   const listeners = new Set<Parameters<ReplicationChannel["onMessage"]>[0]>();
+  let bytes = 0;
   const channel: ReplicationChannel = {
     post(message) {
-      for (const listener of listeners) listener(message);
+      if (message.type === "snapshotChunk")
+        bytes += Buffer.byteLength(JSON.stringify(message));
+      for (const listener of listeners) listener(structuredClone(message));
     },
     onMessage(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
   };
+  clearProtectedInboxMemory();
   const host = replicationHostFor("host", channel, () => hostState);
   const synced = Promise.withResolvers<void>();
   useInboxStore.setState({ syncRole: "follower" });
-  const follower = replicationFollowerFor("follower", channel, (ready) => {
-    if (ready) synced.resolve();
-  });
+  const receiver: ReplicationChannel = {
+    post: (message) =>
+      channel.post(
+        heldKeys && message.type === "hello"
+          ? { ...message, ...{ keys: heldKeys } }
+          : message,
+      ),
+    onMessage: channel.onMessage,
+  };
+  Bun.gc(true);
+  const initialHeap = heapStats().heapSize;
+  const follower = replicationFollowerFor(
+    "follower",
+    receiver,
+    (ready) => {
+      if (ready) synced.resolve();
+    },
+    heldKeys,
+  );
   try {
     await synced.promise;
     const held = Object.entries(state()).filter(
       ([key, value]) => key in hostState && Object.keys(value ?? {}).length > 0,
     );
-    checkStoreBudget("Follower populated collections", held.length);
+    Bun.gc(true);
+    return {
+      collections: held.length,
+      bytes,
+      heapBytes: heapStats().heapSize - initialHeap,
+    };
   } finally {
     follower.stop();
     host.stop();
   }
 }
 
-await measureFollower();
+async function measureDesktopCache(keys?: readonly string[]) {
+  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+  try {
+    await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
+    await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
+    const tables = Object.entries(COLLECTION_TABLES);
+    await db.transaction(
+      "rw",
+      tables.map(([, table]) => table),
+      async () => {
+        for (const [index, [, table]] of tables.entries())
+          await table.bulkPut(
+            Array.from({ length: 80 }, (_, rowIndex) => ({
+              ...session(index * 80 + rowIndex),
+              short_id: "ct-1",
+              title: crypto.randomUUID().repeat(10),
+              _cachedAt: now,
+            })),
+          );
+      },
+    );
+    Bun.gc(true);
+    const initialHeap = heapStats().heapSize;
+    const loaded = await loadCache(keys);
+    Bun.gc(true);
+    return {
+      collections: tables.filter(
+        ([key]) => Object.keys(loaded?.[key] ?? {}).length > 0,
+      ).length,
+      heapBytes: heapStats().heapSize - initialHeap,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+if (process.argv.includes("--desktop-windows")) {
+  for (const kind of ["full", ...Object.keys(DESKTOP_WINDOW_KEYS)]) {
+    for (const mode of ["call-ring", "meeting-offer", "share-cursors"].includes(
+      kind,
+    )
+      ? ["cache"]
+      : ["join", "cache"]) {
+      const child = Bun.spawn(
+        [process.execPath, import.meta.path, "--desktop-window", kind, mode],
+        { stdout: "inherit", stderr: "inherit" },
+      );
+      assert.equal(await child.exited, 0);
+    }
+  }
+  process.exit(0);
+}
+
+const windowArg = process.argv.indexOf("--desktop-window");
+if (windowArg !== -1) {
+  const kind = process.argv[windowArg + 1] as
+    | keyof typeof DESKTOP_WINDOW_KEYS
+    | "full";
+  const mode = process.argv[windowArg + 2];
+  const keys = kind === "full" ? undefined : DESKTOP_WINDOW_KEYS[kind];
+  console.log(
+    kind,
+    mode,
+    mode === "cache"
+      ? await measureDesktopCache(keys)
+      : await measureFollower(keys, 80),
+  );
+  process.exit(0);
+}
+
+const fullFollower = await measureFollower();
+checkStoreBudget("Follower populated collections", fullFollower.collections);
+const smallFollower = await measureFollower(DESKTOP_WINDOW_KEYS.palette);
+checkStoreBudget(
+  "Palette follower populated collections",
+  smallFollower.collections,
+);
+checkStoreBudget("Palette follower join bytes", smallFollower.bytes);
 useInboxStore.setState({ syncRole: "host" });
 const bytes = measureDetailRows();
 checkStoreBudget("Task list bytes", bytes.tasks);

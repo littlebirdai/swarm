@@ -4,6 +4,7 @@ import {
   isWindowStoreActive,
   subscribeWindowStoreStart,
 } from "../lib/windowRole";
+import { desktopWindowKeys } from "../store/desktop-window-keys";
 import { useInboxStore } from "../store/inboxStore";
 import { startSyncReplication } from "../store/sync-replication";
 
@@ -28,7 +29,12 @@ export function useSyncReplication(eligible: boolean): void {
     isWindowStoreActive,
     () => true,
   );
+  const keys = desktopWindowKeys();
+  const hydrated = useInboxStore(
+    (state) => !keys || state.clientStateInitialized,
+  );
+  const ready = active && hydrated;
   useWatchEffect(() => {
-    if (active) return startSyncReplication({ eligible, principalId });
-  }, [active, eligible, principalId]);
+    if (ready) return startSyncReplication({ eligible, principalId, keys });
+  }, [ready, eligible, principalId, keys]);
 }

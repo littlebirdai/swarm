@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import {
   createReplicationFollower,
   createReplicationHost,
@@ -10,8 +10,15 @@ import {
   replicationChannelName,
   replicationLockName,
   replicationTransport,
+  scopedHostChannel,
 } from "../storage-transport";
-import { startSyncReplication, stopSyncReplication } from "../sync-replication";
+import {
+  expandWindowReplication,
+  replicationHostFor,
+  startSyncReplication,
+  stopSyncReplication,
+} from "../sync-replication";
+import { session } from "./bucketFixtures";
 import { useInboxStore } from "../inboxStore";
 
 // Replication is scoped to the account a window acts for: channel and lock
@@ -37,6 +44,7 @@ describe("replication names", () => {
 // posts, a closed channel neither sends nor receives.
 function makeHub() {
   const opened: string[] = [];
+  const posted: { name: string; data: unknown }[] = [];
   const locks: string[] = [];
   const members = new Map<string, Set<(e: MessageEvent) => void>>();
   class FakeBroadcastChannel {
@@ -47,6 +55,7 @@ function makeHub() {
     }
     postMessage(data: unknown) {
       if (this.closed) return;
+      posted.push({ name: this.name, data });
       for (const fn of members.get(this.name) ?? []) {
         if (this.own.has(fn)) continue;
         queueMicrotask(() =>
@@ -75,7 +84,7 @@ function makeHub() {
       return Promise.resolve().then(() => cb());
     },
   };
-  return { opened, locks, FakeBroadcastChannel, lockManager };
+  return { opened, posted, locks, FakeBroadcastChannel, lockManager };
 }
 
 describe("startSyncReplication", () => {
@@ -113,11 +122,293 @@ describe("startSyncReplication", () => {
     startSyncReplication({ eligible: true, principalId: "userA" });
     await new Promise((r) => setTimeout(r, 0));
     // The account's shared channel, and this window's own for snapshots addressed to it.
-    expect(hub.opened).toHaveLength(2);
+    expect(hub.opened).toHaveLength(3);
     expect(hub.opened[0]).toBe(replicationChannelName("userA"));
     expect(hub.opened[1]).toStartWith(`${replicationChannelName("userA")}:to:`);
+    expect(hub.opened).toContain(`${replicationChannelName("userA")}:scope`);
     expect(hub.locks).toEqual([replicationLockName("userA")]);
     expect((window as any).__syncReplication().principalId).toBe("userA");
+  });
+
+  it("scoped windows never take the host lock, even when eligible", () => {
+    startSyncReplication({
+      eligible: true,
+      principalId: "userA",
+      keys: ["sessions"],
+    });
+    expect(hub.locks).toEqual([]);
+  });
+
+  it("scopes join and updates, and grows without a gap or stale overwrite", async () => {
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "host");
+    const scoped = scopedHostChannel(name, "host", transport.channel);
+    const row = session("held", { title: "Initial session" });
+    const unrelated = { _id: "unrelated", title: "Unrelated task" };
+    const docRows = Object.fromEntries(
+      Array.from({ length: 260 }, (_, i) => {
+        const doc = { _id: `doc-${i}`, title: "Initial doc" };
+        return [doc._id, doc];
+      }),
+    );
+    let state = {
+      sessions: { held: row },
+      tasks: { unrelated },
+      docs: docRows,
+    };
+    const host = replicationHostFor("host", scoped.channel, () => state);
+    const joined = Promise.withResolvers<void>();
+    const unsubscribe = useInboxStore.subscribe((next) => {
+      if (next.syncRole === "follower") joined.resolve();
+    });
+    const stop = startSyncReplication({
+      eligible: false,
+      principalId: "userA",
+      keys: ["sessions"],
+    });
+    const scopedFrames = () =>
+      hub.posted
+        .filter((item) => item.name.startsWith(`${name}:scope:`))
+        .map((item) => item.data as ReplicationMessage);
+    const scopedKeys = () =>
+      scopedFrames().flatMap((frame) =>
+        frame.type === "snapshotChunk" || frame.type === "update"
+          ? frame.updates.map(({ key }) => key)
+          : [],
+      );
+    try {
+      await joined.promise;
+      expect(useInboxStore.getState().sessions.held?.title).toBe(
+        "Initial session",
+      );
+      expect(scopedKeys()).toEqual(["sessions"]);
+      expect(hub.opened.filter((channel) => channel === name)).toHaveLength(1);
+      const growth = expandWindowReplication(["sessions", "docs"]);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+      expect(
+        scopedFrames().some(
+          (frame) =>
+            frame.type === "snapshotChunk" &&
+            !frame.done &&
+            frame.updates.some(({ key }) => key === "docs"),
+        ),
+      ).toBe(true);
+      const changed = { ...row, title: "Changed during join" };
+      const newerDoc = { ...docRows["doc-259"], title: "Newer doc" };
+      state = {
+        sessions: { held: changed },
+        docs: { ...docRows, "doc-259": newerDoc },
+        tasks: { unrelated: { ...unrelated, title: "Unrelated update" } },
+      };
+      host.tee(
+        [
+          { op: "replace", path: ["sessions"], value: state.sessions },
+          { op: "replace", path: ["docs"], value: state.docs },
+          { op: "replace", path: ["tasks"], value: state.tasks },
+        ],
+        state,
+      );
+      expect(await growth).toBe(true);
+      expect(useInboxStore.getState().docs["doc-259"]?.title).toBe("Newer doc");
+      expect(useInboxStore.getState().sessions.held?.title).toBe(
+        "Changed during join",
+      );
+      expect(useInboxStore.getState().tasks.unrelated).toBeUndefined();
+      expect(
+        scopedKeys().filter((key) => key !== "sessions" && key !== "docs"),
+      ).toEqual([]);
+      const growthSnapshots = scopedFrames().filter(
+        (frame) =>
+          frame.type === "snapshotChunk" && frame.to.includes(":growth:"),
+      );
+      expect(
+        growthSnapshots.flatMap((frame) => frame.updates.map(({ key }) => key)),
+      ).toEqual(["docs", "docs"]);
+      const settled = Promise.withResolvers<void>();
+      const off = useInboxStore.subscribe((next) => {
+        if (next.docs["doc-259"]?.title === "After growth") settled.resolve();
+      });
+      const current = { ...newerDoc, title: "After growth" };
+      state = { ...state, docs: { ...state.docs, "doc-259": current } };
+      try {
+        host.tee(
+          [{ op: "replace", path: ["docs", "doc-259"], value: current }],
+          state,
+        );
+        await settled.promise;
+        const deliveries = hub.posted.filter(
+          ({ name: address, data }) =>
+            address.startsWith(`${name}:scope:`) &&
+            (data as ReplicationMessage).type === "update" &&
+            (data as { seq: number }).seq === host.seq(),
+        );
+        expect(deliveries).toHaveLength(1);
+        expect(deliveries[0]?.name).not.toContain(":growth:");
+      } finally {
+        off();
+      }
+    } finally {
+      unsubscribe();
+      stop();
+      host.stop();
+      scoped.close();
+      transport.close();
+      useInboxStore.setState({ sessions: {}, docs: {}, tasks: {} });
+    }
+  });
+
+  it("rejoins when a pause expires the scoped peer", async () => {
+    const heartbeat = spyOn(globalThis, "setInterval");
+    const time = spyOn(Date, "now");
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "host");
+    const scoped = scopedHostChannel(name, "host", transport.channel);
+    let held = session("held", { title: "Before pause" });
+    const host = replicationHostFor("host", scoped.channel, () => ({
+      sessions: { held },
+    }));
+    const joined = Promise.withResolvers<void>();
+    const rejoined = Promise.withResolvers<void>();
+    const off = useInboxStore.subscribe((next) => {
+      if (next.syncRole !== "follower") return;
+      if (next.sessions.held?.title === "Before pause") joined.resolve();
+      if (next.sessions.held?.title === "After pause") rejoined.resolve();
+    });
+    const stop = startSyncReplication({
+      eligible: false,
+      principalId: "userA",
+      keys: ["sessions"],
+    });
+    try {
+      await joined.promise;
+      held = { ...held, title: "After pause" };
+      time.mockReturnValue(Date.now() + 7_000);
+      heartbeat.mock.calls[0]![0]();
+      await rejoined.promise;
+      expect(useInboxStore.getState().sessions.held?.title).toBe("After pause");
+    } finally {
+      off();
+      stop();
+      host.stop();
+      scoped.close();
+      transport.close();
+      useInboxStore.setState({ sessions: {} });
+      time.mockRestore();
+      heartbeat.mockRestore();
+    }
+  });
+
+  it("reads from a legacy host and sends local field writes on the legacy channel", async () => {
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "legacy-host");
+    const held = session("held", { title: "Legacy session" });
+    const received = Promise.withResolvers<ReplicationMessage>();
+    const off = transport.channel.onMessage((message) => {
+      if (message.type === "mut") received.resolve(message);
+    });
+    const host = createReplicationHost({
+      hostId: "legacy-host",
+      channel: transport.channel,
+      getState: () => ({
+        sessions: { held },
+        tasks: { unrelated: { _id: "unrelated", title: "Unrelated task" } },
+      }),
+      replicatedKeys: ["sessions", "tasks"],
+      isCollectionKey: () => true,
+      applyUpdates: () => {},
+    });
+    const joined = Promise.withResolvers<void>();
+    const unsubscribe = useInboxStore.subscribe((next) => {
+      if (next.syncRole === "follower") joined.resolve();
+    });
+    const stop = startSyncReplication({
+      eligible: false,
+      principalId: "userA",
+      keys: ["sessions"],
+    });
+    const dispatch = Promise.withResolvers<string>();
+    useInboxStore.getState()._setDispatch(async (action) => {
+      dispatch.resolve(action);
+      return null;
+    });
+    try {
+      await joined.promise;
+      expect(useInboxStore.getState().sessions.held?.title).toBe(
+        "Legacy session",
+      );
+      expect(useInboxStore.getState().tasks.unrelated).toBeUndefined();
+      useInboxStore.getState().renameSession("held", "Renamed by follower");
+      const mut = await received.promise;
+      expect(mut.type === "mut" && mut.updates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            key: "sessions",
+            fields: { held: { title: "Renamed by follower" } },
+          }),
+        ]),
+      );
+      expect(await dispatch.promise).toBe("renameSession");
+    } finally {
+      stop();
+      unsubscribe();
+      off();
+      host.stop();
+      transport.close();
+      useInboxStore.getState()._setDispatch(null);
+      useInboxStore.setState({
+        sessions: {},
+        conversations: {},
+        tasks: {},
+        pending: {},
+      });
+    }
+  });
+
+  it("a legacy follower receives the full snapshot and stream from a modern host", async () => {
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "host");
+    const scoped = scopedHostChannel(name, "host", transport.channel);
+    const held = session("held", { title: "Session" });
+    const task = { _id: "unrelated", title: "Task" };
+    const state = { sessions: { held }, tasks: { unrelated: task } };
+    const host = replicationHostFor("host", scoped.channel, () => state);
+    const old = replicationTransport(name, "legacy-follower");
+    const joined = Promise.withResolvers<void>();
+    const updates: string[] = [];
+    const follower = createReplicationFollower({
+      selfId: "legacy-follower",
+      channel: old.channel,
+      replicatedKeys: ["sessions", "tasks"],
+      isCollectionKey: () => true,
+      applyUpdates: (rows) => updates.push(...rows.map(({ key }) => key)),
+      onSynced: (synced) => {
+        if (synced) joined.resolve();
+      },
+    });
+    try {
+      await joined.promise;
+      expect(updates.sort()).toEqual(["sessions", "tasks"]);
+      const live = Promise.withResolvers<void>();
+      const unsubscribe = old.channel.onMessage((message) => {
+        if (message.type === "update") live.resolve();
+      });
+      try {
+        host.tee(
+          [{ op: "replace", path: ["tasks", "unrelated"], value: task }],
+          state,
+        );
+        await live.promise;
+        expect(updates[2]).toBe("tasks");
+      } finally {
+        unsubscribe();
+      }
+    } finally {
+      follower.stop();
+      old.close();
+      host.stop();
+      scoped.close();
+      transport.close();
+    }
   });
 
   it("stopSyncReplication ends the old account's transport and leaves the window a host", async () => {

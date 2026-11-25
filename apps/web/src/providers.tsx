@@ -4,6 +4,7 @@ import { ReactNode, useRef } from "react";
 import { toast } from "sonner";
 import { captureException } from "@sentry/react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
+import { desktopWindowKeys } from "../store/desktop-window-keys";
 import { subscribeGestures } from "../store/gestureBridge";
 import { applyBridgedGesture } from "../store/sync-replication";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -178,7 +179,9 @@ export function Providers({ children }: { children: ReactNode }) {
             </AgentTabOverride.Provider>
             <ErrorBoundary name="DesktopProvider" level="inline">
               <DesktopProvider />
-              <DesktopBadge />
+              {desktopWindowKeys()?.includes("sessions") !== false && (
+                <DesktopBadge />
+              )}
             </ErrorBoundary>
             <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
               <OpenInDesktopHandoff />

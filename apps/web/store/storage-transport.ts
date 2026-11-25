@@ -1,4 +1,4 @@
-import type { ReplicationChannel } from "@platform/engine";
+import type { ReplicationChannel, ReplicationMessage } from "@platform/engine";
 import type { Patch } from "mutative";
 import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idb-cache";
 import { followerPersistencePatches } from "./followerPersistence";
@@ -75,6 +75,289 @@ export function replicationTransport(
       own.close();
       for (const bc of outboxes.values()) bc.close();
       outboxes.clear();
+    },
+  };
+}
+
+type Hello = Extract<ReplicationMessage, { type: "hello" }>;
+type Mut = Extract<ReplicationMessage, { type: "mut" }>;
+type ScopedHello = Hello & { keys: readonly string[] };
+type ScopeExtension = {
+  type: "extend";
+  from: string;
+  keys: readonly string[];
+  request: number;
+};
+type ScopeExtended = { type: "extended"; hostId: string; request: number };
+
+type ScopeSignal =
+  | ScopedHello
+  | Mut
+  | ScopeExtension
+  | { type: "presence"; from: string; hostId: string }
+  | { type: "rejoin"; to: string; hostId: string }
+  | { type: "leave"; from: string }
+  | { type: "host"; hostId: string };
+
+const SCOPE_PULSE_MS = 2000;
+const SCOPE_LEASE_MS = SCOPE_PULSE_MS * 3;
+
+function postScope(
+  channel: BroadcastChannel,
+  message: ScopeSignal | ScopeExtended | ReplicationMessage,
+) {
+  try {
+    channel.postMessage(message);
+  } catch (error) {
+    console.error("[replication] failed to post", error);
+  }
+}
+
+export function scopedHostChannel(
+  name: string,
+  hostId: string,
+  legacy: ReplicationChannel,
+): { channel: ReplicationChannel; close: () => void } {
+  const control = new BroadcastChannel(`${name}:scope`);
+  const peers = new Map<
+    string,
+    { keys: Set<string>; seen: number; channel: BroadcastChannel }
+  >();
+
+  const forget = (id: string) => {
+    peers.get(id)?.channel.close();
+    peers.delete(id);
+  };
+  const pulse = () => {
+    for (const [id, peer] of peers) {
+      if (Date.now() - peer.seen >= SCOPE_LEASE_MS) forget(id);
+    }
+    postScope(control, { type: "host", hostId });
+  };
+  const heartbeat = setInterval(pulse, SCOPE_PULSE_MS);
+  pulse();
+
+  return {
+    channel: {
+      onMessage(callback) {
+        const stop = legacy.onMessage(callback);
+        const receive = ({ data }: MessageEvent<ScopeSignal>) => {
+          if (data.type === "host" || data.type === "rejoin") return;
+          if (data.type === "mut") {
+            callback(data);
+            return;
+          }
+          if (data.type === "leave") {
+            forget(data.from);
+            return;
+          }
+          const peer = peers.get(data.from);
+          if (peer) peer.seen = Date.now();
+          if (data.type === "presence") {
+            if (!peer && data.hostId === hostId)
+              postScope(control, { type: "rejoin", to: data.from, hostId });
+            return;
+          }
+          if (data.type === "extend") {
+            if (peer) {
+              for (const key of data.keys) peer.keys.add(key);
+              postScope(peer.channel, {
+                type: "extended",
+                hostId,
+                request: data.request,
+              });
+            }
+            return;
+          }
+          if (data.type !== "hello" || !Array.isArray(data.keys)) return;
+          const keys = new Set(data.keys);
+          peers.set(data.from, {
+            keys,
+            seen: Date.now(),
+            channel:
+              peer?.channel ??
+              new BroadcastChannel(`${name}:scope:${data.from}`),
+          });
+          callback(data);
+        };
+        control.addEventListener("message", receive);
+        return () => {
+          stop();
+          control.removeEventListener("message", receive);
+        };
+      },
+      post(message) {
+        if ("to" in message) {
+          const peer = peers.get(message.to);
+          if (peer) {
+            postScope(peer.channel, message);
+            return;
+          }
+        }
+        legacy.post(message);
+        if (message.type !== "update") return;
+        for (const peer of peers.values())
+          postScope(peer.channel, {
+            ...message,
+            updates: message.updates.filter(({ key }) => peer.keys.has(key)),
+          });
+      },
+    },
+    close() {
+      clearInterval(heartbeat);
+      control.close();
+      for (const id of peers.keys()) forget(id);
+    },
+  };
+}
+
+export function scopedFollowerChannel(
+  name: string,
+  selfId: string,
+  keys: string[],
+  legacyTransport: () => ReturnType<typeof replicationTransport>,
+) {
+  const control = new BroadcastChannel(`${name}:scope`);
+  const addressed = new BroadcastChannel(`${name}:scope:${selfId}`);
+  let legacy: ReturnType<typeof replicationTransport> | undefined;
+  let fallback: ReturnType<typeof setTimeout> | undefined;
+  let hello: Hello | undefined;
+  let modernHost: string | undefined;
+  let receiver: ((message: ReplicationMessage) => void) | undefined;
+  let extensionNumber = 0;
+  const extensions = new Map<
+    number,
+    {
+      keys: readonly string[];
+      source: () => string | undefined;
+      done: () => void;
+    }
+  >();
+
+  const finishExtension = (request: number) => {
+    const extension = extensions.get(request);
+    if (!extension) return;
+    extensions.delete(request);
+    for (const key of extension.keys) if (!keys.includes(key)) keys.push(key);
+    extension.done();
+  };
+  const sendExtensions = () => {
+    for (const [request, extension] of extensions) {
+      if (extension.source() !== modernHost) continue;
+      postScope(control, {
+        type: "extend",
+        from: selfId,
+        keys: extension.keys,
+        request,
+      });
+    }
+  };
+
+  const resetHost = (hostId: string) =>
+    receiver?.({
+      type: "update",
+      hostId,
+      seq: 0,
+      origin: hostId,
+      updates: [],
+    });
+  const refresh = (delay: number) => {
+    clearTimeout(fallback);
+    fallback = setTimeout(() => {
+      const wasScoped = modernHost !== undefined;
+      modernHost = undefined;
+      if (!legacy) {
+        legacy = legacyTransport();
+        legacy.channel.onMessage((message) => receiver?.(message));
+      }
+      for (const request of extensions.keys()) finishExtension(request);
+      if (wasScoped) resetHost("");
+      else if (hello) legacy.channel.post(hello);
+    }, delay);
+  };
+  const onControl = ({ data }: MessageEvent<ScopeSignal>) => {
+    if (data.type === "rejoin") {
+      if (data.to === selfId && data.hostId === modernHost) resetHost("");
+      return;
+    }
+    if (data.type !== "host") return;
+    const changed = modernHost !== data.hostId;
+    modernHost = data.hostId;
+    refresh(SCOPE_LEASE_MS);
+    postScope(control, { type: "presence", from: selfId, hostId: data.hostId });
+    if (changed) {
+      if (hello) postScope(control, { ...hello, keys });
+      resetHost(data.hostId);
+    }
+    sendExtensions();
+  };
+  const onAddressed = ({
+    data,
+  }: MessageEvent<ReplicationMessage | ScopeExtended>) => {
+    if (data.type === "extended") {
+      if (data.hostId === modernHost) finishExtension(data.request);
+      return;
+    }
+    if (data.type !== "update" && data.type !== "snapshotChunk") return;
+    if (
+      data.type === "snapshotChunk" &&
+      data.request !== hello?.snapshotRequest
+    )
+      return;
+    if (data.type === "snapshotChunk") {
+      modernHost = data.hostId;
+      refresh(SCOPE_LEASE_MS);
+      legacy?.close();
+      legacy = undefined;
+    }
+    receiver?.(data);
+    if (data.type === "snapshotChunk" && data.done) sendExtensions();
+  };
+  control.addEventListener("message", onControl);
+  addressed.addEventListener("message", onAddressed);
+  refresh(SCOPE_PULSE_MS);
+
+  return {
+    channel: {
+      post(message) {
+        if (message.type === "hello") {
+          hello = message;
+          postScope(control, { ...message, keys });
+          if (!modernHost) legacy?.channel.post(message);
+        } else {
+          if (message.type === "mut" && modernHost) {
+            postScope(control, message);
+            return;
+          }
+          const sender = legacy ?? legacyTransport();
+          sender.channel.post(message);
+          if (!legacy) sender.close();
+        }
+      },
+      onMessage(callback) {
+        receiver = callback;
+        return () => {
+          receiver = undefined;
+        };
+      },
+    } satisfies ReplicationChannel,
+    hostId: () => modernHost,
+    extend(
+      additional: readonly string[],
+      source: () => string | undefined,
+      done: () => void,
+    ) {
+      const request = ++extensionNumber;
+      extensions.set(request, { keys: additional, source, done });
+      if (modernHost) sendExtensions();
+      else finishExtension(request);
+    },
+    close() {
+      clearTimeout(fallback);
+      postScope(control, { type: "leave", from: selfId });
+      control.close();
+      addressed.close();
+      legacy?.close();
     },
   };
 }
