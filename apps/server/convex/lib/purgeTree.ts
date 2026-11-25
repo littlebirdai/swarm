@@ -29,6 +29,7 @@ export type PurgeNode = {
   weight?: number;
   /** Rows that hang off each row, deleted before it. */
   children?: ReadonlyArray<PurgeNode>;
+  beforeChildren?: (ctx: any, row: any) => Promise<void>;
   /** Work before the row goes: its stored files, its effects on other rows. `wait` keeps it for a later pass. */
   before?: (ctx: any, row: any, counts: PurgeCounts) => Promise<void | "wait">;
 };
@@ -88,6 +89,8 @@ export async function purgeRow(
   budget: PurgeBudget,
   counts: PurgeCounts,
 ): Promise<PurgeOutcome> {
+  if (budget.left <= 0) return "more";
+  if (node.beforeChildren) await node.beforeChildren(ctx, row);
   if (node.children) {
     const out = await purgeChildren(ctx, node.children, row, budget, counts);
     if (out !== "done") return out;

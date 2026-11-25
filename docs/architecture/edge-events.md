@@ -20,9 +20,10 @@ Each result names the session.
 
 ## Acceptance
 
-The route uses its own body cap and rate budget. It charges the budget
-for each batch. The parser applies the text limits in the contract in
-UTF-16 code units. The route runs one mutation for each batch, in request
+The route accepts a body of up to 512 KiB and 100 events. Its device
+budget is 240 batches per minute. The parser applies the text limits in
+the contract in UTF-16 code units. The route also limits turn and prompt
+IDs to 256 UTF-16 code units. The route runs one mutation for each batch, in request
 order.
 
 The mutation verifies the device, owner, current `execution_bindings` row, run,
@@ -53,7 +54,8 @@ The turn stays blocked until the last prompt settles.
 The turn row stores no authors. Use the server delivery record to identify
 the sender who started the turn. If there is no such record, the sender
 is unknown. A new boot or a replacement lease for a dead process clears
-the open turn and its prompts.
+the open turn, its prompts, and the recent turn IDs. Adapters can reuse
+turn IDs after a restart.
 
 A projection is fresh if the `execution_bindings` row is ready, the lease is active,
 the projection is for that run, and its status is active. Permit and

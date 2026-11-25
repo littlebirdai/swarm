@@ -34,7 +34,6 @@ const parsers = {
   "delivery.settle": parseDeliverySettleResponse,
 };
 type Verb = keyof typeof parsers;
-
 beforeEach(() => {
   process.env[flag] = "1";
   setSystemTime(new Date(start));
@@ -108,6 +107,7 @@ test("claim and permit replay preserve authority, start and settle replay preser
     status: "granted",
     lease_ms: leaseMs - 321,
     last_pane_instance: 0,
+    last_event_seq: 0,
   });
   const busy = await f.post("claim", { ...f.claimBody, claim_id: "second" });
   expect(busy.headers.get("Retry-After")).toBe("30");

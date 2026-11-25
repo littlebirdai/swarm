@@ -6,6 +6,7 @@ import {
   parseClaimRequest,
   parseDeliverySettleRequest,
   parseDeliveryStartRequest,
+  parseEventsAppendRequest,
   parseHeartbeatRequest,
   parseHelloRequest,
   parsePermitsNextRequest,
@@ -13,6 +14,8 @@ import {
   parseRenewRequest,
   type EdgeErrorResponse,
   type EdgeParseResult,
+  type EventsAppendRequest,
+  type EventsAppendResponse,
   type HeartbeatResponse,
   type HelloResponse,
 } from "@codecast/edge-contract";
@@ -22,6 +25,7 @@ import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
+import type { AppendResult } from "./runEvents";
 
 const policy = {
   revision: 1,
@@ -29,7 +33,7 @@ const policy = {
   uplink_interval_ms: 250,
   limits: {
     max_batch_events: 100,
-    max_batch_bytes: 1_048_576,
+    max_batch_bytes: 512 * 1024,
     max_blob_bytes: MAX_EDGE_BLOB_BYTES,
   },
   capabilities: ["heartbeat"],
@@ -107,13 +111,9 @@ function workAction<T>(
     bearer: string,
     body: T,
   ) => Promise<
-    | Response
-    | {
-        status: string;
-        retry_after_ms?: number;
-      }
+    Response | { status: string; retry_after_ms?: number } | EventsAppendResponse
   >,
-  operation?: "renew" | "blob",
+  options?: { operation?: "renew" | "blob"; batches?: (body: T) => number },
 ) {
   return httpAction(async (ctx, request) => {
     if (process.env.CODECAST_EDGE_DELIVERY_V1 !== "1") {
@@ -129,7 +129,10 @@ function workAction<T>(
 
     let body: unknown;
     try {
-      const bytes = await readBodyCapped(request, 64 * 1024);
+      const bytes = await readBodyCapped(
+        request,
+        options?.batches ? policy.limits.max_batch_bytes : 64 * 1024,
+      );
       if (!bytes) return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
       body = JSON.parse(
         new TextDecoder("utf-8", { fatal: true }).decode(bytes),
@@ -143,10 +146,15 @@ function workAction<T>(
     try {
       if (!(await ctx.runQuery(internal.edgeLink.isDeviceBearer, { bearer })))
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
-      const admission = await ctx.runMutation(internal.edgeLink.admit, {
-        bearer,
-        operation,
-      });
+      const admission = options?.batches
+        ? await ctx.runMutation(internal.edgeLink.admitEvents, {
+            bearer,
+            batches: options.batches(parsed.value),
+          })
+        : await ctx.runMutation(internal.edgeLink.admit, {
+            bearer,
+            operation: options?.operation,
+          });
       if (admission.status === "unauthorized")
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
       if (admission.status === "rate_limited")
@@ -159,7 +167,8 @@ function workAction<T>(
 
       const response = await run(ctx, bearer, parsed.value);
       if (response instanceof Response) return response;
-      const retryAfter = response.retry_after_ms;
+      const retryAfter =
+        "retry_after_ms" in response ? response.retry_after_ms : undefined;
       return Response.json(response, {
         headers:
           retryAfter === undefined
@@ -168,6 +177,8 @@ function workAction<T>(
       });
     } catch (error) {
       if (error instanceof ConvexError) {
+        if (error.data === "edge-events-limit")
+          return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
         if (error.data === EDGE_ERROR_CODES.INVALID)
           return edgeError(422, EDGE_ERROR_CODES.INVALID);
         if (error.data === EDGE_ERROR_CODES.NOT_FOUND)
@@ -180,6 +191,26 @@ function workAction<T>(
       return edgeError(503, EDGE_ERROR_CODES.UNAVAILABLE, true, 1_000);
     }
   });
+}
+
+async function appendEvents(
+  ctx: ActionCtx,
+  bearer: string,
+  body: EventsAppendRequest,
+): Promise<EventsAppendResponse> {
+  const results: AppendResult[] = [];
+  for (const batch of body.batches) {
+    results.push(
+      await ctx.runMutation(internal.edgeRunLease.append, {
+        bearer,
+        conversation_id: batch.session,
+        run: batch.run,
+        fencing_token: batch.fencing_token,
+        events_json: JSON.stringify(batch.events),
+      }),
+    );
+  }
+  return { v: EDGE_PROTOCOL_VERSION, results };
 }
 
 export function registerEdgeRoutes(http: HttpRouter) {
@@ -235,7 +266,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
           run,
           fencing_token,
         }),
-      "renew",
+      { operation: "renew" },
     ),
   });
   http.route({
@@ -251,6 +282,30 @@ export function registerEdgeRoutes(http: HttpRouter) {
           fencing_token,
         }),
     ),
+  });
+  http.route({
+    path: "/edge/v1/events.append",
+    method: "POST",
+    handler: workAction(parseEventsAppendRequest, appendEvents, {
+      batches: ({ batches }) => {
+        let count = 0;
+        for (const { events } of batches) {
+          count += events.length;
+          if (count > policy.limits.max_batch_events)
+            throw new ConvexError("edge-events-limit");
+          for (const event of events) {
+            if (
+              (event.turn?.length ?? 0) > 256 ||
+              ((event.kind === "prompt.opened" ||
+                event.kind === "prompt.settled") &&
+                event.body.prompt_id.length > 256)
+            )
+              throw new ConvexError("edge-events-limit");
+          }
+        }
+        return batches.length;
+      },
+    }),
   });
   http.route({
     path: "/edge/v1/permits.next",
@@ -305,7 +360,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
           },
         });
       },
-      "blob",
+      { operation: "blob" },
     ),
   });
   http.route({

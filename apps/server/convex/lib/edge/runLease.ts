@@ -1,3 +1,10 @@
+import type { CanonicalEvent } from "@codecast/edge-contract";
+import {
+  activateEventRun,
+  appendRunEvents,
+  clearEventTurn,
+  type AppendResult,
+} from "./runEvents";
 import { ConvexError } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -10,7 +17,7 @@ const RUN_LEASE_VERSION = 1 as const;
 
 type Binding = Pick<
   Doc<"execution_bindings">,
-  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id" | "state"
+  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id" | "epoch" | "state"
 >;
 type Address = { bearer: string; conversation_id: string };
 type Fence = Address & { run: number; fencing_token: string };
@@ -41,6 +48,23 @@ function remainingLease(
   )
     return 0;
   return Math.max(0, lease.expires_at - now);
+}
+
+export function isFreshTurnProjection(
+  binding: Binding,
+  lease: Doc<"run_leases"> | null,
+  projection: Doc<"run_turn_projections"> | null,
+  now: number,
+): boolean {
+  return (
+    binding.state === "ready" &&
+    lease !== null &&
+    lease.claim_id === binding.claim_id &&
+    remainingLease(binding, lease, now) > 0 &&
+    projection?.binding_id === binding._id &&
+    projection.run === binding.epoch &&
+    projection.status === "active"
+  );
 }
 
 export async function assertActiveRunLease(
@@ -166,6 +190,7 @@ export async function claimRunLease(
       expires_at: now + LEASE_MS,
       retain_until: now + LEASE_MS + RECEIPT_MS,
     });
+    if (binding.claim_id !== undefined) await clearEventTurn(ctx, binding);
     await ctx.db.patch(binding._id, { claim_id: args.claim_id });
   }
   return {
@@ -176,6 +201,7 @@ export async function claimRunLease(
     fencing_token: fencingToken,
     lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
+    last_event_seq: await activateEventRun(ctx, binding),
   } as const;
 }
 
@@ -194,14 +220,15 @@ async function currentClaim(ctx: MutationCtx, args: Fence, now: number) {
   );
   return lease?.fencing_token === args.fencing_token &&
     remainingLease(owned.binding, lease, now) > 0
-    ? lease
+    ? { binding: owned.binding, lease }
     : null;
 }
 
 export async function renewRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
-  const lease = await currentClaim(ctx, args, now);
-  if (!lease) return stale;
+  const current = await currentClaim(ctx, args, now);
+  if (!current) return stale;
+  const { lease } = current;
   const expiresAt = now + LEASE_MS;
   await ctx.db.patch(lease._id, {
     expires_at: expiresAt,
@@ -216,8 +243,20 @@ export async function renewRunLease(ctx: MutationCtx, args: Fence) {
 
 export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
-  const lease = await currentClaim(ctx, args, now);
-  if (!lease) return stale;
+  const current = await currentClaim(ctx, args, now);
+  if (!current) return stale;
+  const { lease } = current;
   await ctx.db.patch(lease._id, { released_at: now });
   return { v: RUN_LEASE_VERSION, status: "released" } as const;
+}
+
+export async function appendClaimedEvents(
+  ctx: MutationCtx,
+  args: Fence & { events_json: string },
+): Promise<AppendResult> {
+  const now = Date.now();
+  const current = await currentClaim(ctx, args, now);
+  if (!current) return { session: args.conversation_id, status: "stale" };
+  const events = JSON.parse(args.events_json) as readonly CanonicalEvent[];
+  return appendRunEvents(ctx, current.binding, events, now);
 }
