@@ -1,3 +1,4 @@
+import { waitFor } from "@codecast/test-helpers/waitFor";
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,18 +15,6 @@ function tmpMetadata(): string {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitFor(
-  cond: () => boolean,
-  timeoutMs = 3000,
-): Promise<boolean> {
-  const until = Date.now() + timeoutMs;
-  while (Date.now() < until) {
-    if (cond()) return true;
-    await sleep(10);
-  }
-  return cond();
-}
-
 describe("watchOptimizerCache", () => {
   test("fires once the metadata file stays missing past the grace period", async () => {
     const file = tmpMetadata();
@@ -40,7 +29,7 @@ describe("watchOptimizerCache", () => {
       recursive: true,
       force: true,
     });
-    expect(await waitFor(() => fired === 1)).toBe(true);
+    expect(await waitFor(() => fired === 1, 3000, 10)).toBe(true);
     // Fires once, not on every later poll.
     await sleep(150);
     stop();

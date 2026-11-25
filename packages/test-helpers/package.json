@@ -1,0 +1,13 @@
+{
+  "name": "@codecast/test-helpers",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./codeLines": "./src/codeLines.ts",
+    "./waitFor": "./src/waitFor.ts",
+    "./patchEnv": "./src/patchEnv.ts",
+    "./walkSources": "./src/walkSources.ts"
+  }
+}

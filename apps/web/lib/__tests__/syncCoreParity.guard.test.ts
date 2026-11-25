@@ -1,12 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import {
-  MOBILE_ROOT,
-  WEB_ROOT,
-  codeLines as codeLinesOf,
-  walkSources,
-} from "./sourceWalk";
+import { codeLines as codeLinesOf } from "@codecast/test-helpers/codeLines";
+import { MOBILE_ROOT, WEB_ROOT, walkSources } from "./sourceWalk";
 
 // FEEDER PARITY GUARD (docs/architecture/sync-convergence.md C5).
 //

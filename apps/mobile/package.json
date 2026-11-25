@@ -119,6 +119,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@codecast/test-helpers": "workspace:*",
     "@types/mdast": "^4.0.4",
     "@livekit/react-native-expo-plugin": "1.0.2",
     "@types/react": "~19.1.10",

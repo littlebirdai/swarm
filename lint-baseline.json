@@ -2029,7 +2029,7 @@
     "swarm/no-comments": 1
   },
   "apps/cli/src/config/configDir.guard.test.ts": {
-    "swarm/no-comments": 46
+    "swarm/no-comments": 44
   },
   "apps/cli/src/config/configDir.ts": {
     "swarm/no-comments": 21
@@ -4839,7 +4839,7 @@
     "swarm/no-comments": 6
   },
   "apps/cli/src/test-helpers/sourceRegion.ts": {
-    "swarm/no-comments": 21
+    "swarm/no-comments": 20
   },
   "apps/cli/src/test-helpers/spawnTrace.ts": {
     "swarm/no-blocking-child-process-call": 1,
@@ -8424,7 +8424,7 @@
     "swarm/no-comments": 14
   },
   "apps/server/convex/assistant/tools/workspace.test.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 22
   },
   "apps/server/convex/assistant/tools/workspace.ts": {
     "swarm/no-comments": 50
@@ -16527,7 +16527,7 @@
     "swarm/no-comments": 3
   },
   "apps/web/components/changes/__tests__/pageSources.ts": {
-    "swarm/no-comments": 8
+    "swarm/no-comments": 5
   },
   "apps/web/components/changes/__tests__/summaryMedia.mount.test.tsx": {
     "swarm/no-comments": 2
@@ -23664,7 +23664,7 @@
     "swarm/no-comments": 2
   },
   "apps/web/lib/__tests__/sourceWalk.ts": {
-    "swarm/no-comments": 9
+    "swarm/no-comments": 4
   },
   "apps/web/lib/__tests__/stage.test.ts": {
     "swarm/no-comments": 26
@@ -28877,7 +28877,7 @@
     "swarm/no-comments": 11
   },
   "packages/changes/src/surfaces.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 12
   },
   "packages/changes/src/types.ts": {
     "swarm/no-comments": 20

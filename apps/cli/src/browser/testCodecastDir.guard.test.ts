@@ -16,7 +16,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "../test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 
 const THIS_FILE = fileURLToPath(import.meta.url);
 const SRC = path.resolve(path.dirname(THIS_FILE), "..");

@@ -28,11 +28,12 @@
 // teardown decision, and a stale entry (a file that no longer compares) fails
 // the guard too. ct-49557.
 
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "./test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 import {
   LIVENESS_VERDICTS,
   authorizesTeardown,
@@ -129,23 +130,10 @@ const SKIP_DIRS = new Set([
   "test-helpers",
 ]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
-      continue;
-    }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
-      continue;
-    out.push(path.join(dir, entry.name));
-  }
-  return out;
-}
-
 function sources(): Array<{ rel: string; text: string }> {
   const out: Array<{ rel: string; text: string }> = [];
   for (const [prefix, root] of Object.entries(ROOTS)) {
-    for (const file of walk(root)) {
+    for (const file of walkSources(root, SKIP_DIRS)) {
       const rel = path.join(prefix, path.relative(root, file));
       out.push({ rel, text: fs.readFileSync(file, "utf8") });
     }

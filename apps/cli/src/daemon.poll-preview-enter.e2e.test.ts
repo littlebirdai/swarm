@@ -1,3 +1,4 @@
+import { waitFor } from "@codecast/test-helpers/waitFor";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -94,15 +95,6 @@ function capture(target: string): string {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await sleep(150);
-  }
-  return fn();
-}
-
 describe.skipIf(!CAN_RUN)(
   "injectViaTmux poll: digit then Enter confirms a preview menu",
   () => {
@@ -130,6 +122,7 @@ describe.skipIf(!CAN_RUN)(
         const menuUp = await waitFor(
           () => capture(target).includes("Which option?"),
           10_000,
+          150,
         );
         expect(menuUp).toBe(true);
         expect(capture(target)).not.toContain("RESULT=");
@@ -143,6 +136,7 @@ describe.skipIf(!CAN_RUN)(
         const landed = await waitFor(
           () => capture(target).includes("RESULT="),
           10_000,
+          150,
         );
         expect(landed).toBe(true);
         return capture(target);

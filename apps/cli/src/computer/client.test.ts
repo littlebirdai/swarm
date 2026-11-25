@@ -8,6 +8,7 @@
  * killed by an impatient agent, and two invocations racing to launch.
  */
 
+import { patchEnv } from "@codecast/test-helpers/patchEnv";
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -51,17 +52,7 @@ function isolatedHome(): string {
 }
 
 function withEnv(vars: Record<string, string>): void {
-  const previous = Object.entries(vars).map(([k, v]) => {
-    const old = process.env[k];
-    process.env[k] = v;
-    return [k, old] as const;
-  });
-  cleanups.push(() => {
-    for (const [k, old] of previous) {
-      if (old === undefined) delete process.env[k];
-      else process.env[k] = old;
-    }
-  });
+  cleanups.push(patchEnv(vars));
 }
 
 function makeClient(

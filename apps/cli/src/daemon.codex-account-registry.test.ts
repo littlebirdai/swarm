@@ -6,7 +6,8 @@
 // later without the record — a pane nobody can attribute, silently.
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { codeLines, functionBlock } from "./test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { functionBlock } from "./test-helpers/sourceRegion.js";
 
 const src = readFileSync(new URL("./daemon.ts", import.meta.url), "utf8");
 

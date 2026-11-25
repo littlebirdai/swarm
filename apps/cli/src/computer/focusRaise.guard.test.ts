@@ -27,11 +27,12 @@
 // the allowlist; an entry needs a reason the raise is the agent's explicit
 // ask, and a stale entry (a file that no longer raises) fails the guard too.
 
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "../test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 import { NONE, setupHarness } from "../test-helpers/computerSetupHarness.js";
 import { runComputerSetup, type ComputerSetupDeps } from "./setup.js";
 
@@ -83,23 +84,10 @@ const SKIP_DIRS = new Set([
   "test-helpers",
 ]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
-      continue;
-    }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
-      continue;
-    out.push(path.join(dir, entry.name));
-  }
-  return out;
-}
-
 describe("no cast computer verb raises a window over the human", () => {
   const offenders: string[] = [];
   const seenAllowed = new Set<string>();
-  for (const file of walk(COMPUTER)) {
+  for (const file of walkSources(COMPUTER, SKIP_DIRS)) {
     const rel = path.relative(SRC, file);
     // codeLines drops comments and strings-only lines, so a mention in prose
     // (this feature is full of it) never counts as a raise.

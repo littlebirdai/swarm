@@ -14,11 +14,12 @@
 // allowlist; an entry needs a reason the raise is the human's own ask, and a
 // stale entry (a file that no longer raises) fails the guard too.
 
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "../test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -41,23 +42,10 @@ const SKIP_DIRS = new Set([
   "test-helpers",
 ]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
-      continue;
-    }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
-      continue;
-    out.push(path.join(dir, entry.name));
-  }
-  return out;
-}
-
 describe("no code path raises a browser window over the human", () => {
   const offenders: string[] = [];
   const seenAllowed = new Set<string>();
-  for (const file of walk(SRC)) {
+  for (const file of walkSources(SRC, SKIP_DIRS)) {
     const rel = path.relative(SRC, file);
     for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
       const hit = RAISES.find((raise) => line.includes(raise));
@@ -118,7 +106,7 @@ function createsInForeground(window: string): boolean {
 
 describe("every tab an agent opens comes up behind the human", () => {
   const offenders: string[] = [];
-  for (const file of walk(SRC)) {
+  for (const file of walkSources(SRC, SKIP_DIRS)) {
     const rel = path.relative(SRC, file);
     const lines = fs.readFileSync(file, "utf8").split("\n");
     for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {

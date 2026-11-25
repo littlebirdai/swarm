@@ -1,14 +1,8 @@
-// The Changes page as text, for its guard tests: its source files and its own
-// rules in globals.css, read once so every guard reads the same. The walk and
-// the comment stripping are the shared guard ones (lib/__tests__/sourceWalk).
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import postcss from "postcss";
-import {
-  WEB_ROOT,
-  codeLines,
-  walkSources,
-} from "../../../lib/__tests__/sourceWalk";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { WEB_ROOT, walkSources } from "../../../lib/__tests__/sourceWalk";
 
 /** Source with its comment lines dropped, so a mention in prose never counts. */
 export const code = (src: string) =>

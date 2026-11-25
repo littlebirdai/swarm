@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { codeLines, walkSources, WEB_ROOT } from "./sourceWalk";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { walkSources, WEB_ROOT } from "./sourceWalk";
 
 // One switch, caps hidden as a safety net (docs/architecture/org-staffing.md
 // S23.1, S23.2): the words trust stage, understand, decide and direct as

@@ -12,6 +12,7 @@
 // claude binary, and a `cast accounts token` env file to authenticate with (the
 // windows only appear on a Claude.ai subscription, never on API billing).
 
+import { waitFor } from "@codecast/test-helpers/waitFor";
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -58,15 +59,6 @@ const CAN_RUN =
   !!storeCredential;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await sleep(500);
-  }
-  return fn();
-}
-
 describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
   test("a turn's rate_limits reach the usage cache through the installed statusLine", async () => {
     // realpath: on macOS the temp root is a symlink, and Claude Code keys the
@@ -181,6 +173,7 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
             "-40",
           ]).stdout.includes("Claude Code v"),
         60_000,
+        500,
       );
       expect(ready).toBe(true);
 
@@ -200,6 +193,7 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
         () =>
           readUsageCache().accounts["uuid-probe"]?.source === "live-session",
         120_000,
+        500,
       );
       const snap = readUsageCache().accounts["uuid-probe"];
       expect(landed, `pane:\n${pane()}`).toBe(true);
@@ -210,7 +204,11 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
       // windows, and when they reset.
       // The post lands on the tick that renders, and the repaint follows it, so
       // the row is a moment behind the cache write.
-      await waitFor(() => pane().includes("probe \u00b7 session "), 30_000);
+      await waitFor(
+        () => pane().includes("probe \u00b7 session "),
+        30_000,
+        500,
+      );
       const drawn = pane()
         .split("\n")
         .find((l) => l.includes("probe \u00b7 session "));
