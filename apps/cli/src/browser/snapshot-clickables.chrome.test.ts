@@ -12,9 +12,8 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import * as fs from "node:fs";
-import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as actions from "./actions.js";
@@ -33,8 +32,8 @@ const FIXTURE = path.join(
 );
 
 describe.skipIf(!chrome)("role-less controls in a real page", () => {
-  let server: http.Server;
-  let proc: ChildProcess;
+  let server: Bun.Server<undefined>;
+  let stopChrome: (() => Promise<void>) | undefined;
   let conn: CdpConnection;
   let page: PageSession;
   let userDataDir: string;
@@ -51,16 +50,18 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
 
   beforeAll(async () => {
     const html = fs.readFileSync(FIXTURE, "utf-8");
-    server = http.createServer((_req, res) => {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(html);
+    server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: () =>
+        new Response(html, {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
     });
-    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
-    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/`;
-    pageUrl = url;
+    pageUrl = server.url.href;
 
     userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-clickable-"));
-    proc = spawn(
+    const proc = spawn(
       chrome!,
       [
         "--headless=new",
@@ -69,44 +70,66 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--use-mock-keychain",
         "about:blank",
       ],
-      { stdio: "ignore" },
+      { stdio: ["ignore", "ignore", "pipe"] },
     );
 
-    // Chrome writes the port it chose once the socket is listening.
-    const portFile = path.join(userDataDir, "DevToolsActivePort");
-    let port = 0;
-    for (let i = 0; i < 200 && !port; i++) {
-      await new Promise((r) => setTimeout(r, 100));
-      try {
-        const first = fs.readFileSync(portFile, "utf-8").split("\n")[0];
-        if (first) port = parseInt(first, 10);
-      } catch {
-        /* not up yet */
-      }
+    const ready = Promise.withResolvers<string>();
+    const closed = new Promise<void>((resolve) => {
+      proc.once("close", (code, signal) => {
+        ready.reject(new Error(`Chrome exited (${signal ?? code}): ${stderr}`));
+        resolve();
+      });
+    });
+    stopChrome = async () => {
+      proc.kill();
+      await closed;
+    };
+    let stderr = "";
+    proc.once("error", ready.reject);
+    proc.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr = (stderr + chunk).slice(-4096);
+      const endpoint = /DevTools listening on (ws:\/\/[^\s]+)\r?\n/.exec(
+        stderr,
+      );
+      if (endpoint) ready.resolve(endpoint[1]!);
+    });
+    const deadline = setTimeout(() => {
+      ready.reject(new Error(`Chrome did not announce CDP: ${stderr}`));
+    }, 20_000);
+    try {
+      conn = await CdpConnection.connect(await ready.promise);
+    } finally {
+      clearTimeout(deadline);
     }
-    if (!port)
-      throw new Error("headless Chrome never reported a debugging port");
 
-    conn = await CdpConnection.fromPort(port);
     const { targetId } = await conn.send<{ targetId: string }>(
       "Target.createTarget",
-      { url },
+      { url: "about:blank" },
     );
     page = await attachToTarget(conn, targetId);
-    await conn.send("Page.navigate", { url }, page.sessionId);
-    for (let i = 0; i < 100; i++) {
-      await new Promise((r) => setTimeout(r, 50));
-      if ((await evalPage("document.readyState")) === "complete") break;
-    }
+    await Promise.all([
+      conn.waitFor(
+        (event) =>
+          event.sessionId === page.sessionId &&
+          event.method === "Page.loadEventFired",
+        5_000,
+      ),
+      conn.send("Page.navigate", { url: pageUrl }, page.sessionId),
+    ]);
   }, 60_000);
 
   afterAll(async () => {
     conn?.close();
-    proc?.kill();
-    await new Promise<void>((r) => server?.close(() => r()));
-    fs.rmSync(userDataDir, { recursive: true, force: true });
+    try {
+      await stopChrome?.();
+    } finally {
+      await server?.stop(true);
+      if (userDataDir) fs.rmSync(userDataDir, { recursive: true, force: true });
+    }
   });
 
   test("a styled div, a listener span, a tabindex div and an editor all get refs", async () => {
