@@ -21562,6 +21562,10 @@
   "apps/web/hooks/toolCallMemo.ts": {
     "swarm/no-comments": 13
   },
+  "apps/web/hooks/use-sync-change-feed.ts": {
+    "swarm/no-comments": 209,
+    "swarm/no-direct-use-effect": 2
+  },
   "apps/web/hooks/useAccountRecoveryToggles.ts": {
     "swarm/no-comments": 9
   },
@@ -22582,10 +22586,6 @@
   },
   "apps/web/hooks/useSyncChangeFeed.test.ts": {
     "swarm/no-comments": 3
-  },
-  "apps/web/hooks/use-sync-change-feed.ts": {
-    "swarm/no-comments": 209,
-    "swarm/no-direct-use-effect": 2
   },
   "apps/web/hooks/useSyncChanges.ts": {
     "react-hooks/exhaustive-deps": 3,
@@ -30080,7 +30080,7 @@
     "swarm/no-comments": 34
   },
   "scripts/perf/ws-bytes.mjs": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 27
   },
   "scripts/product-fit-scorecard.ts": {
     "swarm/no-comments": 23
