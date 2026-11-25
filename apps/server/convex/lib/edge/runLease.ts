@@ -10,7 +10,7 @@ const RUN_LEASE_VERSION = 1 as const;
 
 type Binding = Pick<
   Doc<"execution_bindings">,
-  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id"
+  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id" | "state"
 >;
 type Address = { bearer: string; conversation_id: Id<"conversations"> };
 type Fence = Address & { run: number; fencing_token: string };
@@ -49,7 +49,7 @@ export async function assertActiveRunLease(
   fencingToken: string | undefined,
   now: number,
 ): Promise<void> {
-  if (binding.claim_id === undefined) return;
+  if (binding.state !== "ready" || binding.claim_id === undefined) return;
   const lease = await loadClaim(ctx, binding.conversation_id, binding.claim_id);
   if (
     fencingToken === undefined ||

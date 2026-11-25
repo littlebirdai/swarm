@@ -1835,7 +1835,7 @@ async function assertReadyFence(
   ctx: DbCtx,
   head: any,
   binding: any,
-  fence: ReadyBindingFence,
+  fence: ReadyBindingFence & { now: number },
 ): Promise<void> {
   if (
     head.protocol_state !== "fenced" ||
@@ -1859,7 +1859,7 @@ async function assertReadyFence(
       "ready binding does not match epoch, configuration, owner device, daemon boot, runtime, or agent",
     );
   }
-  await assertActiveRunLease(ctx, binding, fence.fencingToken, Date.now());
+  await assertActiveRunLease(ctx, binding, fence.fencingToken, fence.now);
 }
 
 function claimedPermitWire(attempt: any): any {
@@ -2126,7 +2126,7 @@ export async function rejectHeadDeliveryInDb(
 async function verifyAttemptFence(
   ctx: DbCtx,
   userId: Id<"users">,
-  fence: PermitFence,
+  fence: PermitFence & { now: number },
   expectedAttemptStates: readonly string[],
 ): Promise<{
   conversation: any;
