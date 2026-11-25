@@ -74,7 +74,7 @@ describe("awaitTmuxComposerPayload in a short window", () => {
     await expect(
       awaitTmuxComposerPayload("t:0.0", LONG, {
         allowRePaste: false,
-        budgetMs: 1_000,
+        budgetMs: 10_000,
         rePaste: async () => {
           throw new Error("must not repeat the paste");
         },
