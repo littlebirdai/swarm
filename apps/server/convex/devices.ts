@@ -4,11 +4,18 @@ import {
   clearDeviceClaimCheckpoints,
   fencedMoveRefusal,
   scanDeviceRows,
+  transferClaimedConversations,
 } from "./lib/fenced-device-move.rules";
-import { transferManagedSession } from "./lib/sessionHeartbeat";
+import { claimQueueRelinkContinuation } from "./lib/pending-queue-relink";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
-import { mutation, query, internalQuery, internalMutation } from "./functions";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+  type MutationCtx,
+} from "./functions";
 import { selfUpdateBlocked } from "./lib/deviceUpdate";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -1332,7 +1339,7 @@ export const LEGACY_DEVICE_CLAIM_SUNSET_MS = Date.UTC(2026, 11, 9);
  * learned the id could take the previous account's private sessions.
  */
 export async function performClaimDeviceAccount(
-  ctx: { db: any },
+  ctx: { db: any; scheduler?: MutationCtx["scheduler"] },
   callerId: Id<"users">,
   args: { previousUserId: Id<"users">; deviceId: string },
   now = Date.now(),
@@ -1373,24 +1380,7 @@ export async function performClaimDeviceAccount(
     { userId: args.previousUserId, lastSeen: previousDevice?.last_seen },
     now,
   );
-  for (const conv of rows) {
-    await ctx.db.patch(conv._id, {
-      user_id: callerId,
-      author_user_id: conv.author_user_id ?? conv.user_id,
-    });
-    await followNewRunner(ctx, conv._id, callerId);
-    const managed = await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) =>
-        q.eq("conversation_id", conv._id),
-      )
-      .collect();
-    for (const row of managed) {
-      if (row.user_id?.toString() === args.previousUserId.toString()) {
-        await transferManagedSession(ctx, row._id, callerId);
-      }
-    }
-  }
+  await transferClaimedConversations(ctx, rows, args.previousUserId, callerId);
   return {
     moved: rows.length,
     more,
@@ -1398,6 +1388,9 @@ export async function performClaimDeviceAccount(
     ...(refusal ? { error: refusal } : {}),
   };
 }
+export const continueClaimQueueRelink = internalMutation(
+  claimQueueRelinkContinuation,
+);
 export const claimDeviceAccount = mutation({
   args: {
     api_token: v.optional(v.string()),

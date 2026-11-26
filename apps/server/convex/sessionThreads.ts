@@ -180,9 +180,10 @@ export const listSessionThreads = query({
       if (!(links.length < limit)) break;
       const toConv = await resolveDirect(r.conversation_id);
       if (
-        r.delivery_protocol_version !== undefined &&
         r.from_user_id !== me &&
-        toConv?.user_id !== me
+        (toConv
+          ? toConv.user_id !== me
+          : r.delivery_protocol_version !== undefined)
       )
         continue;
       const parsed = parseSessionThreadMessage(r.content);

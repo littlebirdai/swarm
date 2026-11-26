@@ -161,13 +161,13 @@ describe("adopting an echo by its delivery id", () => {
   });
 
   test("another person's row is never settled by this conversation's echo", async () => {
-    const { row, write } = setup([
+    const { db, row, write } = setup([
       pending("pm1", "go", {
         conversation_id: "elsewhere",
-        owner_user_id: "teammate",
         from_user_id: "teammate",
       }),
     ]);
+    await db.patch("elsewhere", { user_id: "teammate" });
     await write([turn("u1", "go", ["pm1"])]);
     expect(row("pm1").status).toBe("injected");
   });
