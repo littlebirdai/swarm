@@ -23,7 +23,7 @@ type Binding = Pick<
 type Address = { bearer: string; conversation_id: string };
 type Fence = Address & { run: number; fencing_token: string };
 
-function loadClaim(
+export function loadRunLeaseClaim(
   ctx: Pick<MutationCtx, "db">,
   conversationId: Id<"conversations">,
   claimId: string,
@@ -79,7 +79,7 @@ export async function assertActiveRunLease(
   if (claimId === undefined && fencingToken === undefined) return;
   const lease =
     binding && claimId !== undefined
-      ? await loadClaim(ctx, binding.conversation_id, claimId)
+      ? await loadRunLeaseClaim(ctx, binding.conversation_id, claimId)
       : null;
   if (
     !binding ||
@@ -141,7 +141,9 @@ export async function runForDeliverySettlement(
 
 export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
   const owned = await runForDeliverySettlement(ctx, args);
-  return owned && owned.conversationDeviceId === owned.binding.owner_device_id
+  return owned &&
+    !owned.head.device_move &&
+    owned.conversationDeviceId === owned.binding.owner_device_id
     ? owned
     : null;
 }
@@ -164,7 +166,7 @@ export async function claimRunLease(
 
   const { binding, head } = owned;
   const now = Date.now();
-  const requested = await loadClaim(
+  const requested = await loadRunLeaseClaim(
     ctx,
     binding.conversation_id,
     args.claim_id,
@@ -179,7 +181,7 @@ export async function claimRunLease(
   } else {
     if (requested) return stale;
     if (binding.claim_id !== undefined) {
-      const active = await loadClaim(
+      const active = await loadRunLeaseClaim(
         ctx,
         binding.conversation_id,
         binding.claim_id,
@@ -231,7 +233,7 @@ async function currentClaim(
     owned.binding.claim_id === undefined
   )
     return null;
-  const lease = await loadClaim(
+  const lease = await loadRunLeaseClaim(
     ctx,
     owned.binding.conversation_id,
     owned.binding.claim_id,

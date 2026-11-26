@@ -18,6 +18,10 @@ import {
   blockDeliveryAsAmbiguous,
 } from "./delivery-slot.state";
 import { fail, requireNonEmpty } from "./execution-binding.validators";
+import {
+  assertMoveSettlement,
+  requireNoDeviceMove,
+} from "./edge/device-move.state";
 import { assertActiveRunLease } from "./edge/runLease";
 import type { Id } from "../_generated/dataModel";
 import { isConversationSafetyBlocked } from "../conversationSafety";
@@ -75,7 +79,7 @@ export async function claimNextDeliveryInDb(
   );
   if (isConversationSafetyBlocked(conversation))
     return { state: "busy", reason: "safety" };
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(
     ctx,
     args.conversationId,
@@ -223,7 +227,7 @@ export async function rejectHeadDeliveryInDb(
   const { conversationId, executionEpoch } = args;
   requireNonEmpty(args.reason, "reason");
   await requireOwnedConversation(ctx, conversationId, userId);
-  const head = await executionHead(ctx, conversationId);
+  const head = await executionHead(ctx, conversationId, "work");
   if (!head || head.protocol_state !== "fenced")
     fail(
       "EXECUTION_NOT_FENCED",
@@ -283,6 +287,7 @@ export async function verifyAttemptFence(
   userId: Id<"users">,
   fence: PermitFence & { now: number },
   expectedAttemptStates: readonly string[],
+  mode?: "settle",
 ): Promise<{
   conversation: any;
   head: any;
@@ -304,6 +309,8 @@ export async function verifyAttemptFence(
   if (!head || !message || !attempt) {
     fail("DELIVERY_PERMIT_NOT_FOUND", "head, message, or attempt is missing");
   }
+  if (mode === "settle") await assertMoveSettlement(ctx, head, attempt, fence);
+  else requireNoDeviceMove(head);
   await assertReadyFence(ctx, head, binding, fence);
   const exact =
     attemptMatchesFence(attempt, fence, userId) &&
@@ -382,9 +389,12 @@ export async function releaseClaimBeforeEffectInDb(
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
   const final = finalDeliveryReceipt(existingAttempt);
-  if (final && attemptMatchesFence(existingAttempt, fence, userId))
+  if (final && attemptMatchesFence(existingAttempt, fence, userId)) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     return final;
+  }
   if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
   const { head, message, attempt } = await verifyAttemptFence(
@@ -476,6 +486,7 @@ export async function completeDeliveryInDb(
     existingAttempt?.state === "delivered" &&
     attemptMatchesFence(existingAttempt, fence, userId)
   ) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     if (
       fence.externalDeliveryId !== undefined &&
       existingAttempt.external_delivery_id !== fence.externalDeliveryId
@@ -492,6 +503,7 @@ export async function completeDeliveryInDb(
     userId,
     fence,
     ["delivery-started"],
+    "settle",
   );
   if (
     head.active_delivery_state !== "delivery-started" ||
@@ -520,9 +532,12 @@ export async function failDeliveryBeforeEffectInDb(
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
   const final = finalDeliveryReceipt(existingAttempt);
-  if (final && attemptMatchesFence(existingAttempt, fence, userId))
+  if (final && attemptMatchesFence(existingAttempt, fence, userId)) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     return final;
+  }
   if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
   const { head, message, attempt } = await verifyAttemptFence(
@@ -530,6 +545,7 @@ export async function failDeliveryBeforeEffectInDb(
     userId,
     fence,
     ["delivery-started"],
+    "settle",
   );
   if (
     head.active_delivery_state !== "delivery-started" ||
@@ -561,6 +577,7 @@ export async function markDeliveryAmbiguousInDb(
     userId,
     fence,
     ["delivery-started", "ambiguous"],
+    "settle",
   );
   if (
     attempt.state === "ambiguous" &&
@@ -614,6 +631,7 @@ export async function resolveAmbiguousDeliveryInDb(
     userId,
     fence,
     states,
+    "settle",
   );
   if (
     head.active_delivery_state !== attempt.state ||

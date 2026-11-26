@@ -2,6 +2,10 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import {
+  expireMoveSettlement,
+  recordDeviceMove,
+} from "./lib/edge/device-move.state";
+import {
   appendClaimedEvents,
   claimRunLease,
   releaseRunLease,
@@ -30,6 +34,38 @@ export const release = internalMutation({
 export const append = internalMutation({
   args: { ...fence, events_json: v.string() },
   handler: appendClaimedEvents,
+});
+
+export const recordMove = internalMutation({
+  args: {
+    conversation_id: v.id("conversations"),
+    expected_source_epoch: v.number(),
+    destination_device_id: v.string(),
+    destination_runner_id: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const now = Date.now();
+    const recorded = await recordDeviceMove(ctx, args, now);
+    if (!recorded || recorded.expiresAt === null) return;
+    const { headId, sourceEpoch, expiresAt } = recorded;
+    if (expiresAt <= now) {
+      await expireMoveSettlement(ctx, headId, sourceEpoch, now);
+    } else {
+      await ctx.scheduler.runAt(expiresAt, internal.edgeRunLease.expireMove, {
+        head_id: headId,
+        source_epoch: sourceEpoch,
+      });
+    }
+  },
+});
+
+export const expireMove = internalMutation({
+  args: {
+    head_id: v.id("conversation_execution_heads"),
+    source_epoch: v.number(),
+  },
+  handler: (ctx, args) =>
+    expireMoveSettlement(ctx, args.head_id, args.source_epoch, Date.now()),
 });
 
 export const prune = internalMutation({

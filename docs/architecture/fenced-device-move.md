@@ -60,6 +60,17 @@ until the first two steps pass together.
    Do not renew the old lease. On expiry, mark the
    attempt ambiguous. Require evidence before delivery continues.
 
+   The internal `edgeRunLease.recordMove` mutation stores the record on the
+   execution head. It preserves the current owner and admission epoch.
+   The same transaction clears an unstarted claim. It schedules expiry for a
+   started attempt with a live lease. If there is no live lease, it marks
+   the attempt ambiguous in that transaction.
+
+   The source must present the recorded lease token to settle the recorded
+   attempt. After the window closes, the source cannot clear the slot.
+   Evidence review belongs to successor preparation. The window uses a
+   provisional server constant of 10 seconds.
+
 2. **Prepare and activate.** Authorize successor creation from the move
    record and the destination credentials. The source lease token stays
    with the source. Set `owner_user_id` on the destination's `execution_bindings` row.

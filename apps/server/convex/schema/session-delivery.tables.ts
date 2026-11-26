@@ -186,6 +186,17 @@ export const sessionDeliveryTables = {
     last_pane_instance: v.optional(v.number()),
     current_epoch: v.optional(v.number()),
     pending_epoch: v.optional(v.number()),
+    device_move: v.optional(
+      v.object({
+        source_epoch: v.number(),
+        source_lease_id: v.optional(v.id("run_leases")),
+        attempt_id: v.optional(v.id("delivery_attempts")),
+        destination_device_id: v.string(),
+        destination_runner_id: v.id("users"),
+        next_epoch: v.number(),
+        settlement_deadline: v.number(),
+      }),
+    ),
     admission_epoch: v.optional(v.number()),
     next_conversation_sequence: v.number(),
     next_nonterminal_sequence: v.number(),

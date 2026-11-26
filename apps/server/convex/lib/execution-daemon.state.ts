@@ -96,7 +96,7 @@ export async function claimExecutionStartInDb(
     args.conversationId,
     userId,
   );
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   if (
     !head ||
     head.protocol_state !== "fenced" ||
@@ -379,7 +379,7 @@ export async function publishReadyBindingInDb(
       "actual agent must equal requested agent exactly",
     );
   }
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (
     !head ||
@@ -463,7 +463,7 @@ export async function publishStartOutcomeInDb(
   },
 ): Promise<{ accepted: boolean }> {
   await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (
     !head ||
@@ -528,7 +528,7 @@ export async function disposePreReadyBindingInDb(
 ): Promise<{ state: "stopped" | "quarantined" | "start-ambiguous" }> {
   requireNonEmpty(args.evidence, "evidence");
   await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (
     !head ||

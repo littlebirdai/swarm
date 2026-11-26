@@ -30,6 +30,10 @@ import {
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
 import { finalDeliveryReceipt } from "./lib/edge/final-delivery.receipt";
 import {
+  assertMoveSettlement,
+  DEVICE_MOVE_FENCE,
+} from "./lib/edge/device-move.state";
+import {
   inspectPermitImage,
   permitImageIds,
 } from "./lib/edge/blob-policy.rules";
@@ -80,7 +84,9 @@ async function withFence<T>(
     if (
       (error instanceof ExecutionAuthorityError &&
         refusedFences.has(error.code)) ||
-      (error instanceof ConvexError && error.data?.code === "STALE_RUN_LEASE")
+      (error instanceof ConvexError &&
+        (error.data?.code === "STALE_RUN_LEASE" ||
+          error.data?.code === DEVICE_MOVE_FENCE))
     )
       return refusal;
     throw error;
@@ -198,6 +204,7 @@ async function deliveryContext(
     conversationSequence: args.seq,
   };
   if (!attemptMatchesFence(attempt, fence, run.owner)) return null;
+  if (settling) await assertMoveSettlement(ctx, run.head, attempt, fence);
   const message = await ctx.db.get(attempt.message_id);
   if (!message) return null;
   const fields = deliveryFields(attempt, message);
@@ -376,6 +383,7 @@ async function finishEdgeDelivery(
     owner,
     fence,
     states,
+    rejection?.attachment ? undefined : "settle",
   );
   if (rejection?.attachment && isConversationSafetyBlocked(conversation))
     throw new ExecutionAuthorityError(
