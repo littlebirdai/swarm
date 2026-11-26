@@ -17,6 +17,7 @@ export type SessionCommandKind =
   | "restart"
   | "repair"
   | "move"
+  | "force-move"
   | "switch"
   | "line_edit"
   | "interrupt"
@@ -37,6 +38,7 @@ export type SessionCommandRow = {
   kind?: SessionCommandKind;
   started_at?: number;
   confirmed_at?: number;
+  source_epoch?: number;
   to_device_id?: string;
   to_remote?: boolean;
   to_label?: string;

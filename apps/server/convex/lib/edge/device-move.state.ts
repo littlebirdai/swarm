@@ -19,8 +19,12 @@ type Destination = Pick<
   "destination_device_id" | "destination_runner_id"
 >;
 
+export function forcedDeviceMoveEnabled() {
+  return process.env[FORCED_MOVE_FLAG] === "1";
+}
+
 export function requireForcedDeviceMoveEnabled() {
-  if (process.env[FORCED_MOVE_FLAG] !== "1")
+  if (!forcedDeviceMoveEnabled())
     throw new ConvexError("Forced device moves are disabled");
 }
 

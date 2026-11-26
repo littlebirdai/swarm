@@ -1687,6 +1687,10 @@ export const CLIENT_SYNC_REGISTRY = {
   // COMPLETE live set (24h heartbeat window) — snapshot, so a session that
   // stops heartbeating leaves. Readers additionally hide rows whose
   // last_heartbeat is stale, so a persisted row can't outlive its window.
+  forcedMoveOptions: {
+    sync: { isDelta: true },
+    feeds: ["edgeRunLease.forcedMoveOptions"],
+  },
   // Daemon commands a store action asked for (hibernate, restart, device
   // move, account switch, a line file edit), keyed by the action's request id, plus the extra
   // rows of a restart or move (the kill, a remote move's later resume) keyed
@@ -2767,6 +2771,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   migrationBatches: "shared",
   moveRehearsals: "shared",
   sessionCommands: "local",
+  forcedMoveOptions: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
   fencedPromptAddresses: "local",

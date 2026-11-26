@@ -196,6 +196,7 @@ export function makeDispatchBinding(
 // words (hooks/useRoomRecording, lib/calls/guestDoorActions): the generic
 // "didn't go through" line would tell the person the same refusal twice.
 const CALLER_REPORTED_ACTIONS = new Set([
+  "forceSessionMove",
   "setRoomRecording",
   "deleteCallRecording",
   "setCallShareVideo",
@@ -332,6 +333,12 @@ export function applyDispatchFailure(
   // A permanent rejection is dropped from the outbox (no re-drive will
   // land it), so it's the user's only chance to hear their action didn't
   // take: record it for the platform's feedback surface to render.
+  if (
+    action === "forceSessionMove" &&
+    Array.isArray(args) &&
+    typeof args[0] === "string"
+  )
+    recordSessionCommandDispatchError(args[0], error);
   if (isPermanentDispatchError(error) && !CALLER_REPORTED_ACTIONS.has(action)) {
     // An org edit the rail rejected for good has no echo coming: stop
     // replaying its intent, put the draft back, and say so. Only here: a

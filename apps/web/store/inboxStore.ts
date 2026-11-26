@@ -650,6 +650,7 @@ import {
   createLineWorkflowSlice,
   type LineWorkflowSliceActions,
 } from "./lineWorkflowSlice";
+import { forcedMoveActions, type ForcedMoveActions } from "./forced-move-slice";
 import { createLineSlice, type LineSliceActions } from "./lineSlice";
 import { createTrialSlice, type TrialSliceActions } from "./trialSlice";
 import { taskCreateStub, taskStubId } from "./taskStub";
@@ -7855,6 +7856,7 @@ export interface InboxStoreState
     ProjectUpdatesSliceActions,
     LineWorkflowSliceActions,
     LineSliceActions,
+    ForcedMoveActions,
     TrialSliceActions,
     ExpectationsSliceActions,
     OpsSliceActions,
@@ -21887,6 +21889,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
 
   // Line profile edits (store/lineSlice.ts): paint projects.line_profile, ride to the daemon.
   ...createLineSlice(),
+  ...forcedMoveActions,
   // Trial cards (store/trialSlice.ts): a trial run's gate, answered on /trial.
   ...createTrialSlice(),
   ...createExpectationsSlice(answerDecisionDraft),

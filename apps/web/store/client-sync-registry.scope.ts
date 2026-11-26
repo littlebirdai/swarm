@@ -183,6 +183,7 @@ export const DATA_SCOPE = {
   changeWorks: "team",
   changeStorySessions: "entity",
   sessionCommands: "entity",
+  forcedMoveOptions: "entity",
   managedSessions: "viewer",
   machineResources: "viewer",
   migrationCandidates: "viewer",

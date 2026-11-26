@@ -26,7 +26,9 @@ const republishing = (row: any) =>
   typeof row.result === "string" &&
   row.result.includes('"ok":"pending"');
 const awaitingResult = (row: any) =>
-  (!row.executed_at || republishing(row)) && row._id !== row.command_id;
+  row.kind !== "force-move" &&
+  (!row.executed_at || republishing(row)) &&
+  row._id !== row.command_id;
 const unsettledSig = makeCollectionSig((row: any) =>
   awaitingResult(row) ? row._id : "",
 );

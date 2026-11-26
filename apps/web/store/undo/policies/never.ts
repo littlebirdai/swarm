@@ -454,6 +454,7 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
     "machine control: it rewrites files on the session's machine; its own Put back is the way back",
   ),
   moveSessionToDevice: MACHINE,
+  forceSessionMove: MACHINE,
   markKilling: MACHINE,
   startResourceOffload: MACHINE,
   cancelResourceOffload: MACHINE,

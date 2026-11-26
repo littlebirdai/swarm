@@ -1,4 +1,8 @@
 import {
+  forceSessionMove,
+  moveSessionToDevice,
+} from "./lib/device-move-dispatch";
+import {
   insertConversationWithStatus,
   patchConversationLifecycle,
 } from "./lib/sessionStatusWriter";
@@ -2495,34 +2499,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   resumeSession: async (ctx, userId, [convId]: [string]) =>
     resumeConversationSession(ctx, userId, convId as Id<"conversations">),
 
-  // A device move ("Run here" / "Move to <remote>"), from the store's
-  // moveSessionToDevice, which painted the sessionCommands row keyed by
-  // requestId. A remote destination is a move_to_device on the source daemon
-  // (it transfers the worktree, then resumes there); a local one re-homes the
-  // session and resumes it on that device, or brings it back from a cloud host
-  // as a real move (sessionMigrations.runHere). Both writers carry the request id.
-  moveSessionToDevice: async (
-    ctx,
-    _userId,
-    [requestId, convId, toDeviceId, toRemote]: [
-      string,
-      string,
-      string,
-      boolean,
-    ],
-  ) => {
-    return toRemote
-      ? await ctx.runMutation!(api.devices.moveToRemote, {
-          conversation_id: convId,
-          to_device_id: toDeviceId,
-          request_id: requestId,
-        })
-      : await ctx.runMutation!(api.sessionMigrations.runHere, {
-          conversation_id: convId,
-          device_id: toDeviceId,
-          request_id: requestId,
-        });
-  },
+  moveSessionToDevice,
+  forceSessionMove,
 
   // A cloud session's live mirror into a laptop worktree: the web stamps
   // local_mirror starting/stopping on the draft; this queues the laptop job.

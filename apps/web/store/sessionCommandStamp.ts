@@ -55,7 +55,12 @@ function sameTarget(
 // Each rewind step stands beside the others: a put back in flight must not
 // erase the stage row the review is waiting on.
 function laneOf(row: Record<string, any>): string {
-  if (row.kind === "interrupt" || row.kind === "backend") return row.kind;
+  if (
+    row.kind === "interrupt" ||
+    row.kind === "backend" ||
+    row.kind === "force-move"
+  )
+    return row.kind;
   if (row.kind === "rewind") return `rewind:${row.op}`;
   return "session";
 }

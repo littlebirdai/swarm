@@ -9305,7 +9305,7 @@
     "swarm/no-comments": 68
   },
   "apps/server/convex/dispatch.ts": {
-    "swarm/no-comments": 773
+    "swarm/no-comments": 767
   },
   "apps/server/convex/dispatch.watches.test.ts": {
     "swarm/no-comments": 4
@@ -9984,6 +9984,9 @@
   },
   "apps/server/convex/lib/devPushes.ts": {
     "swarm/no-comments": 8
+  },
+  "apps/server/convex/lib/device-move-dispatch.ts": {
+    "swarm/no-comments": 6
   },
   "apps/server/convex/lib/deviceUpdate.ts": {
     "swarm/no-comments": 15
