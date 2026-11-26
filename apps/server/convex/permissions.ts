@@ -93,6 +93,8 @@ export const createPermissionRequest = mutation({
   args: {
     conversation_id: v.id("conversations"),
     session_id: v.string(),
+    fenced_prompt_id: v.optional(v.string()),
+    fenced_prompt_turn_id: v.optional(v.string()),
     tool_name: v.string(),
     arguments_preview: v.string(),
     suggestions: v.optional(v.array(v.any())),
@@ -120,6 +122,17 @@ export const createPermissionRequest = mutation({
       );
     }
 
+    const { fenced_prompt_id, fenced_prompt_turn_id } = args;
+    if (
+      (fenced_prompt_id !== undefined || fenced_prompt_turn_id !== undefined) &&
+      (conversation.execution_protocol_state !== "fenced" ||
+        !fenced_prompt_id?.trim() ||
+        fenced_prompt_id.length > 256 ||
+        !fenced_prompt_turn_id?.trim() ||
+        fenced_prompt_turn_id.length > 256)
+    )
+      throw new Error("Invalid fenced permission address");
+
     const now = Date.now();
     const existing = await ctx.db
       .query("pending_permissions")
@@ -131,9 +144,13 @@ export const createPermissionRequest = mutation({
     const duplicate = existing.find(
       (p) =>
         p.session_id === args.session_id &&
-        p.tool_name === args.tool_name &&
-        p.arguments_preview === args.arguments_preview &&
-        now - p.created_at < DUPLICATE_WINDOW_MS,
+        (fenced_prompt_id !== undefined
+          ? p.fenced_prompt_id === fenced_prompt_id &&
+            p.fenced_prompt_turn_id === fenced_prompt_turn_id
+          : p.fenced_prompt_id === undefined &&
+            p.tool_name === args.tool_name &&
+            p.arguments_preview === args.arguments_preview &&
+            now - p.created_at < DUPLICATE_WINDOW_MS),
     );
     if (duplicate) {
       return duplicate._id;
@@ -147,6 +164,10 @@ export const createPermissionRequest = mutation({
       status: "pending",
       created_at: now,
       owner_user_id: conversation.user_id,
+      ...(fenced_prompt_id !== undefined && {
+        fenced_prompt_id,
+        fenced_prompt_turn_id,
+      }),
       ...boundedSuggestions(args.suggestions),
       ...(args.subagent_type && {
         subagent_type: args.subagent_type.slice(0, 80),
