@@ -174,6 +174,7 @@ import {
   applyShapeLocks,
   type PendingEntry,
 } from "./syncProtocol";
+import { mergeOverlayFacts, overlayRowUnchanged } from "./inbox-overlay-facts";
 import { syncTransaction } from "./syncTransaction";
 import { installStoreListenerCensus } from "./storeListenerCensus";
 import {
@@ -229,6 +230,7 @@ import {
 import {
   childAskingAt,
   deriveLiveAt,
+  LIVE_INBOX_LEASE_END,
   rowLiveDeadlines,
   type LiveFacts,
   type UserRest,
@@ -254,6 +256,7 @@ import {
 import {
   type AgentStatus,
   ACTIVE_AGENT_STATUSES,
+  HEARTBEAT_ALIVE_MS,
 } from "@codecast/sessions/agentStatus";
 import {
   managedIdsAfter,
@@ -3569,84 +3572,6 @@ export const SESSIONS_PRESERVE_FIELDS: readonly string[] = [
 export const SESSIONS_STRIP_FIELDS: readonly string[] = [
   ...INBOX_PROJECTION_FIELDS,
 ];
-const SESSIONS_STRIP_FIELD_SET: ReadonlySet<string> = new Set(
-  SESSIONS_STRIP_FIELDS,
-);
-const INBOX_FACT_FIELD_SET: ReadonlySet<string> = new Set(INBOX_FACT_FIELDS);
-
-// The one fact merge: an overlay row's FACTS onto a session row, field by
-// field (stamps never reach a row), leaving an unchanged row's identity alone.
-// An overlay row is the fact writer for its row, so every fact field it does
-// not carry reads as null — never "keep what was there": the server's trusted
-// status is undefined once the managed row is gone, the key is absent from
-// the payload, and a stale "stopped" would otherwise outlive it and file a
-// declared-done session under Needs You on this replica alone.
-function mergeOverlayFacts(
-  target: Record<string, unknown>,
-  incoming: Record<string, unknown>,
-  pending: Record<string, PendingEntry>,
-): Record<string, PendingEntry> {
-  const { fields: facts, pending: nextPending } = applySyncPatch(
-    "sessions",
-    String(target._id),
-    {
-      ...Object.fromEntries(
-        INBOX_FACT_FIELDS.map((key) => [key, incoming[key] ?? null]),
-      ),
-      ...incoming,
-    },
-    [],
-    pending,
-  );
-  // An equal structured fact keeps the row's own object: a decoded payload
-  // hands every one over fresh, and a new identity reads as a change to every
-  // reader that compares by reference (row memos, wake signatures).
-  for (const key of INBOX_FACT_FIELDS) {
-    const next = facts[key] === undefined ? null : facts[key];
-    if (!sameOverlayValue(target[key], next)) target[key] = next;
-  }
-  for (const key in facts) {
-    if (SESSIONS_STRIP_FIELD_SET.has(key) || INBOX_FACT_FIELD_SET.has(key))
-      continue;
-    if (!sameOverlayValue(target[key], facts[key])) target[key] = facts[key];
-  }
-  return nextPending;
-}
-
-// True when merging `incoming` onto `base` would change nothing. An overlay
-// payload carries the whole live set (~600 rows) on every push, and almost
-// every row repeats the last one. The merge reads and writes through mutative
-// draft proxies and looks each field up in the pending map: on a phone that
-// was a quarter of the JS thread's busy time after a signed in launch. This
-// check reads only plain objects, so an unchanged row never touches the draft.
-// Mirrors mergeOverlayFacts: an absent fact reads as null, stamps are skipped.
-function overlayRowUnchanged(
-  base: Record<string, unknown>,
-  incoming: Record<string, unknown>,
-): boolean {
-  for (const key of INBOX_FACT_FIELDS) {
-    if (!sameOverlayValue(base[key], incoming[key] ?? null)) return false;
-  }
-  for (const key in incoming) {
-    if (SESSIONS_STRIP_FIELD_SET.has(key) || INBOX_FACT_FIELD_SET.has(key))
-      continue;
-    if (!sameOverlayValue(base[key], incoming[key])) return false;
-  }
-  return true;
-}
-function sameOverlayValue(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  // The few structured facts (open_tasks, activity) arrive as fresh objects.
-  if (
-    a === null ||
-    b === null ||
-    typeof a !== "object" ||
-    typeof b !== "object"
-  )
-    return false;
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 // Session ids with a pending entry: a lock or an exclude may change what a
 // merge writes, so those rows always take the full merge.
 function sessionIdsWithPending(
@@ -13161,9 +13086,9 @@ const inboxStoreConfig = (set: any, get: any) => ({
     const collection = this.sessions;
     // Plain views of the state as this action found it, for the unchanged-row
     // check: reading them creates no draft proxies.
-    const baseSessions = (
-      isDraft(collection) ? original(collection) : collection
-    ) as Record<string, Record<string, unknown> | undefined>;
+    const baseSessions = isDraft(collection)
+      ? (original(collection) ?? collection)
+      : collection;
     const lockedIds = sessionIdsWithPending(
       isDraft(this.pending) ? original(this.pending) : this.pending,
     );
@@ -13189,7 +13114,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (
         base &&
         !lockedIds.has(id) &&
-        overlayRowUnchanged(base, row as Record<string, unknown>)
+        overlayRowUnchanged(
+          base as Record<string, unknown>,
+          row as Record<string, unknown>,
+        )
       )
         continue;
       const target = collection[id] as Record<string, unknown> | undefined;
@@ -13208,6 +13136,28 @@ const inboxStoreConfig = (set: any, get: any) => ({
     _heldOverlayFacts[scopeKey] = held;
     const projection = payload?.projection;
     if (projection && typeof projection === "object") {
+      const viewerId = projection.user_id;
+      const teamId = projection.scope === "team" ? projection.team_id : null;
+      if (typeof viewerId === "string") {
+        for (const id in baseSessions) {
+          const base = baseSessions[id];
+          if (
+            !base ||
+            Object.hasOwn(liveness, id) ||
+            (base.liveness_lease_end !== LIVE_INBOX_LEASE_END &&
+              base.daemon_alive_until !== LIVE_INBOX_LEASE_END) ||
+            (isForeignRow(base, viewerId) &&
+              (typeof teamId !== "string" || base.team_id !== teamId))
+          )
+            continue;
+          const target = collection[id];
+          target.liveness_lease_end = null;
+          target.daemon_alive_until =
+            base.last_heartbeat == null
+              ? null
+              : base.last_heartbeat + HEARTBEAT_ALIVE_MS;
+        }
+      }
       this.sessionsProjection[scopeKey] = {
         v: typeof projection.v === "number" ? projection.v : 0,
         epoch: typeof projection.epoch === "number" ? projection.epoch : 0,

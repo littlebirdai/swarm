@@ -727,7 +727,7 @@ apps/web/store/chatSlice.ts 2050
 apps/web/store/clientSyncRegistry.ts 2900
 apps/web/store/idb-cache.native.ts 1200
 apps/web/store/inboxDigestCompare.ts 850
-apps/web/store/inboxStore.ts 22550
+apps/web/store/inboxStore.ts 22500
 apps/web/store/orgSlice.ts 2550
 apps/web/store/strandedStub.test.ts 1150
 apps/web/store/undo/policies/work.ts 1500

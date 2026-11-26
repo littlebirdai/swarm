@@ -69,6 +69,7 @@ export type SessionData = {
   // The daemon's raw status; the row's dot reads the verdict (agentStatusAt).
   agent_status?: string;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   open_tasks?: unknown[] | null;
   open_tasks_at?: number | null;
   is_deferred?: boolean;

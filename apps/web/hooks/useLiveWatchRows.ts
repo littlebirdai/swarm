@@ -22,6 +22,7 @@ export function useLiveWatchRows(session: InboxSession, now: number) {
       session.agent_started_at,
       session.agent_status,
       session.last_heartbeat,
+      session.liveness_lease_end,
       session.inbox_killed_at,
       session.updated_at,
     ],

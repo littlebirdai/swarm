@@ -49,6 +49,7 @@ export type TaskLinkedSession = {
   thread_state_message_count?: number;
   is_idle?: boolean;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   producing_until?: number | null;
   daemon_alive_until?: number | null;
   agent_status_updated_at?: number | null;
