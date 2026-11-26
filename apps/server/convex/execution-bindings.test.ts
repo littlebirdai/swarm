@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
+import { deliveryRejectionCodes } from "./lib/delivery-slot.state";
 import {
   enqueuePendingMessage,
   claimPendingMessageForDaemon,
@@ -8,6 +9,7 @@ import {
 } from "./pendingMessages";
 import {
   EXECUTION_PROTOCOL_CAPABILITIES,
+  ExecutionAuthorityError,
   abandonAmbiguousAndResendInDb,
   activateAfterLegacyQuiescenceInDb,
   activateExecutionSuccessorInDb,
@@ -1314,7 +1316,7 @@ describe("conversation-global ordered delivery", () => {
     ).toBe(3);
   });
 
-  test("failed-before-effect releases the slot but retries the same sequence and delivery id", async () => {
+  test("failed-before-effect refuses reserved codes and retries the same sequence and delivery id for a driver failure", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
     const messageId = await enqueue(ctx, "stable-command", "retry me");
@@ -1323,6 +1325,26 @@ describe("conversation-global ordered delivery", () => {
       ...fence(firstClaim.permit),
       now: 21,
     });
+    const writes = db.__writeCount;
+    const read = spyOn(db, "get");
+    try {
+      for (const failureCode of Object.values(deliveryRejectionCodes)) {
+        const call = failDeliveryBeforeEffectInDb(ctx, USER, {
+          ...fence(firstStarted),
+          failureCode,
+          failureMessage: "reserved",
+          now: 22,
+        });
+        await expect(call).rejects.toBeInstanceOf(ExecutionAuthorityError);
+        await expect(call).rejects.toMatchObject({
+          code: "RESERVED_DELIVERY_FAILURE_CODE",
+        });
+      }
+      expect(read).not.toHaveBeenCalled();
+      expect(db.__writeCount).toBe(writes);
+    } finally {
+      read.mockRestore();
+    }
     const retry = await failDeliveryBeforeEffectInDb(ctx, USER, {
       ...fence(firstStarted),
       failureCode: "DRIVER_REJECTED_BEFORE_WRITE",
