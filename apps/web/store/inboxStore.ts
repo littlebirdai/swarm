@@ -174,7 +174,11 @@ import {
   applyShapeLocks,
   type PendingEntry,
 } from "./syncProtocol";
-import { mergeOverlayFacts, overlayRowUnchanged } from "./inbox-overlay-facts";
+import {
+  expireOmittedInboxLeases,
+  mergeOverlayFacts,
+  overlayRowUnchanged,
+} from "./inbox-overlay-facts";
 import { syncTransaction } from "./syncTransaction";
 import { installStoreListenerCensus } from "./storeListenerCensus";
 import {
@@ -230,7 +234,6 @@ import {
 import {
   childAskingAt,
   deriveLiveAt,
-  LIVE_INBOX_LEASE_END,
   rowLiveDeadlines,
   type LiveFacts,
   type UserRest,
@@ -256,7 +259,6 @@ import {
 import {
   type AgentStatus,
   ACTIVE_AGENT_STATUSES,
-  HEARTBEAT_ALIVE_MS,
 } from "@codecast/sessions/agentStatus";
 import {
   managedIdsAfter,
@@ -13136,28 +13138,14 @@ const inboxStoreConfig = (set: any, get: any) => ({
     _heldOverlayFacts[scopeKey] = held;
     const projection = payload?.projection;
     if (projection && typeof projection === "object") {
-      const viewerId = projection.user_id;
-      const teamId = projection.scope === "team" ? projection.team_id : null;
-      if (typeof viewerId === "string") {
-        for (const id in baseSessions) {
-          const base = baseSessions[id];
-          if (
-            !base ||
-            (base.liveness_lease_end !== LIVE_INBOX_LEASE_END &&
-              base.daemon_alive_until !== LIVE_INBOX_LEASE_END) ||
-            Object.hasOwn(liveness, id) ||
-            (isForeignRow(base, viewerId) &&
-              (typeof teamId !== "string" || base.team_id !== teamId))
-          )
-            continue;
-          const target = collection[id];
-          target.liveness_lease_end = null;
-          target.daemon_alive_until =
-            base.last_heartbeat == null
-              ? null
-              : base.last_heartbeat + HEARTBEAT_ALIVE_MS;
-        }
-      }
+      expireOmittedInboxLeases(
+        collection,
+        baseSessions,
+        liveness,
+        projection,
+        isForeignRow,
+        workingSetRowOf,
+      );
       this.sessionsProjection[scopeKey] = {
         v: typeof projection.v === "number" ? projection.v : 0,
         epoch: typeof projection.epoch === "number" ? projection.epoch : 0,

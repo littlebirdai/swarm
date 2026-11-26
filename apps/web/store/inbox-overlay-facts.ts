@@ -1,4 +1,14 @@
 import {
+  inWorkingSet,
+  LIVE_INBOX_LEASE_END,
+  WORKING_SET_RECENCY_MS,
+  type InboxProjection,
+  type WorkingSetRow,
+} from "@codecast/inbox/inboxProjection";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
+import { isSessionKilled } from "../lib/sessionRetirement";
+import type { InboxSession } from "./inboxStore";
+import {
   INBOX_FACT_FIELDS,
   INBOX_PROJECTION_FIELDS,
 } from "@codecast/inbox/inboxFields";
@@ -80,4 +90,83 @@ function sameOverlayValue(a: unknown, b: unknown): boolean {
   )
     return false;
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function expireOmittedInboxLeases(
+  sessions: Record<string, InboxSession>,
+  baseSessions: Readonly<Record<string, InboxSession>>,
+  liveness: Record<string, unknown>,
+  projection: InboxProjection,
+  isForeign: (row: InboxSession, viewerId: string) => boolean,
+  workingSetRowOf: (row: InboxSession) => WorkingSetRow,
+): void {
+  const { user_id: viewerId, scope, team_id: teamId, epoch } = projection;
+  if (typeof viewerId !== "string") return;
+  const truncated = new Set(
+    Array.isArray(projection.truncated) ? projection.truncated : [],
+  );
+  for (const id in baseSessions) {
+    const base = baseSessions[id];
+    if (
+      (base.liveness_lease_end !== LIVE_INBOX_LEASE_END &&
+        base.daemon_alive_until !== LIVE_INBOX_LEASE_END) ||
+      Object.hasOwn(liveness, id)
+    )
+      continue;
+    const foreign = isForeign(base, viewerId);
+    const inScope =
+      scope === "mine"
+        ? !foreign
+        : scope === "team" &&
+          foreign &&
+          typeof teamId === "string" &&
+          base.team_id === teamId;
+    if (!inScope) continue;
+
+    const heartbeatEnd =
+      base.last_heartbeat == null
+        ? null
+        : base.last_heartbeat + HEARTBEAT_ALIVE_MS;
+    const leaseEnd =
+      truncated.size > 0 &&
+      Number.isFinite(epoch) &&
+      !isSessionKilled(base) &&
+      base.status !== "archived" &&
+      couldBeTruncated(base)
+        ? Math.max(heartbeatEnd ?? 0, epoch + HEARTBEAT_ALIVE_MS)
+        : null;
+    sessions[id].liveness_lease_end = leaseEnd;
+    sessions[id].daemon_alive_until = leaseEnd ?? heartbeatEnd;
+  }
+
+  function couldBeTruncated(row: InboxSession): boolean {
+    const workingRow = workingSetRowOf(row);
+    const windows = inWorkingSet(workingRow, epoch);
+    if (windows.some((window) => truncated.has(window))) return true;
+    if (
+      scope === "mine" &&
+      truncated.has("subagents") &&
+      row.is_subagent === true &&
+      row.message_count > 0 &&
+      row.parent_conversation_id &&
+      row.updated_at >= epoch - WORKING_SET_RECENCY_MS &&
+      (workingRow.status === "active" || workingRow.status === "completed") &&
+      !workingRow.inbox_pinned_at &&
+      !row.inbox_dismissed_at &&
+      !row.inbox_stashed_at &&
+      !row.inbox_snoozed_until
+    )
+      return true;
+    if (
+      scope !== "team" ||
+      (!truncated.has("members") && !truncated.has("member_rows"))
+    )
+      return false;
+    return (
+      windows.includes("recent") ||
+      (windows.includes("pinned") &&
+        row.updated_at >= epoch - WORKING_SET_RECENCY_MS &&
+        (workingRow.status === "active" || workingRow.status === "completed"))
+    );
+  }
 }

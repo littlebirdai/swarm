@@ -79,6 +79,7 @@ export const INBOX_TRUNCATION_KINDS = [
   "adopted",
   "members",
   "member_rows",
+  "subagents",
   "foreign_scan",
 ] as const;
 

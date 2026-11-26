@@ -20,6 +20,7 @@ import {
   digestProjection,
   inboxEpoch,
   INBOX_PROJECTION_VERSION,
+  INBOX_WINDOW_CAPS,
   deriveLiveAt,
   trustedStatusAt,
   rowLiveDeadlines,
@@ -1222,6 +1223,34 @@ describe("fast-field ownership of subagent child rows", () => {
     for (const row of Object.values<any>(liveness))
       if (row.bucket === undefined)
         expect(row).not.toHaveProperty("work_state");
+  });
+
+  test("the personal overlay reports subagent truncation only above the window cap", async () => {
+    const children = Array.from(
+      { length: INBOX_WINDOW_CAPS.recent + 1 },
+      (_, i) =>
+        conv(`child_${i}`, {
+          is_subagent: true,
+          parent_conversation_id: "conversations_parent",
+          updated_at: EPOCH - MIN - i,
+        }),
+    );
+    const parent = conv("parent", { updated_at: EPOCH - MIN });
+    const snapshot = (rows: typeof children) =>
+      computeSessionsLiveness(
+        { db: db({ conversations: [parent, ...rows] }) },
+        ME as any,
+      );
+    const full = await snapshot(children.slice(0, INBOX_WINDOW_CAPS.recent));
+    expect(full.projection.truncated).toEqual([]);
+    const capped = await snapshot(children);
+    expect(capped.projection.truncated).toEqual(["subagents"]);
+    expect(
+      capped.liveness[`conversations_child_${INBOX_WINDOW_CAPS.recent - 1}`],
+    ).toBeDefined();
+    expect(
+      capped.liveness[`conversations_child_${INBOX_WINDOW_CAPS.recent}`],
+    ).toBeUndefined();
   });
 
   test("the window is one indexed read shared by both channels", async () => {

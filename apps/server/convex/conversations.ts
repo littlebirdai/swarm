@@ -11329,6 +11329,10 @@ export async function scanInboxConversations(
   // built, not when it is awaited, so a window must not even be constructed:
   // its read set alone would re-run the caller on every write it covers.
   const noWindows = !!opts.namedOnly;
+  const capWindow = (kind: InboxTruncation, cap: number) => (rows: any[]) => {
+    if (rows.length > cap) truncated.add(kind);
+    return rows.slice(0, cap);
+  };
   const topLevelWindow = (
     rangeFor: (isSubagent: false | undefined) => Promise<any[]>,
     sortKey: string,
@@ -11389,10 +11393,7 @@ export async function scanInboxConversations(
         )
         .order("desc")
         .take(INBOX_PINNED_CAP + 1)
-        .then((rows: any[]) => {
-          if (rows.length > INBOX_PINNED_CAP) truncated.add("pinned");
-          return rows.slice(0, INBOX_PINNED_CAP);
-        });
+        .then(capWindow("pinned", INBOX_PINNED_CAP));
 
   // Nested rows the person adopted (talked to): the one window that admits a
   // nested row as a member (shared isAdoptedChild), newest adoption first,
@@ -11406,10 +11407,7 @@ export async function scanInboxConversations(
         )
         .order("desc")
         .take(INBOX_WINDOW_CAPS.adopted + 1)
-        .then((rows: any[]) => {
-          if (rows.length > INBOX_WINDOW_CAPS.adopted) truncated.add("adopted");
-          return rows.slice(0, INBOX_WINDOW_CAPS.adopted);
-        });
+        .then(capWindow("adopted", INBOX_WINDOW_CAPS.adopted));
 
   // Killed rows are excluded at the index for the same reason: a kill stamps
   // inbox_dismissed_at alongside inbox_killed_at (applyHideTransition), so the
@@ -11522,7 +11520,8 @@ export async function scanInboxConversations(
               q.eq(q.field("status"), "completed"),
             ),
           )
-          .take(INBOX_WINDOW_CAP)
+          .take(INBOX_WINDOW_CAP + Number(opts.includeLiveness))
+          .then(capWindow("subagents", INBOX_WINDOW_CAP))
       : Promise.resolve([]);
   const [
     recentConversations,
