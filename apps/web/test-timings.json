@@ -626,7 +626,7 @@
     "hooks/__tests__/useConvexSync.typingDefer.mount.test.tsx": 3515,
     "hooks/__tests__/useDaemonHealth.test.ts": 253,
     "hooks/__tests__/useDebounce.mount.test.tsx": 624,
-    "hooks/__tests__/useFaceRow.mount.test.tsx": 270,
+    "hooks/__tests__/use-face-row.mount.test.tsx": 270,
     "hooks/__tests__/useFollowSurface.mount.test.tsx": 313,
     "hooks/__tests__/useFrameTheme.test.ts": 250,
     "hooks/__tests__/useHibernationCommands.test.tsx": 28623,

@@ -8,6 +8,7 @@ import {
   beforeAll,
   expect,
   setDefaultTimeout,
+  setSystemTime,
   test,
 } from "bun:test";
 import { convexTest } from "convex-test";
@@ -49,6 +50,7 @@ afterAll(() => {
 
 const backends: any[] = [];
 afterEach(async () => {
+  setSystemTime();
   for (const t of backends.splice(0))
     await t.finishAllScheduledFunctions?.(() => {}).catch?.(() => {});
 });
@@ -584,33 +586,26 @@ test("a decline that lands after the request was filled keeps the value and wake
 });
 
 test("the redaction version moves on every value write and delete, and the events outlive the secret", async () => {
+  setSystemTime(new Date());
   const { t, as, ana, acme } = await seed();
-  const v0 = (
-    await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN })
-  ).version;
+  const v0 = await version(t);
   const made = await as(ana).action(api.secrets.create, {
     name: "k",
     kind: "key",
     payload: { value: "value-one-12345" },
     team_id: acme,
   });
-  const v1 = (
-    await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN })
-  ).version;
+  const v1 = await version(t);
   await as(ana).action(api.secrets.rotate, {
     ref: "k",
     payload: { value: "value-two-12345" },
   });
-  const v2 = (
-    await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN })
-  ).version;
+  const v2 = await version(t);
   await as(ana).mutation(api.secrets.updateMeta, {
     ref: "k",
     note: "the staging key",
   });
-  const v3 = (
-    await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN })
-  ).version;
+  const v3 = await version(t);
   expect(new Set([v0, v1, v2]).size).toBe(3);
   expect(v3).toBe(v2);
   const red = await t.action(api.secrets.redactionValues, {
@@ -627,9 +622,7 @@ test("the redaction version moves on every value write and delete, and the event
 
   // A rename moves the version: the markers daemons write carry the name.
   await as(ana).mutation(api.secrets.updateMeta, { ref: "k", name: "k2" });
-  const v4 = (
-    await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN })
-  ).version;
+  const v4 = await version(t);
   expect(v4).not.toBe(v3);
   expect(
     (await t.action(api.secrets.redactionValues, { api_token: ANA_TOKEN }))
@@ -639,10 +632,7 @@ test("the redaction version moves on every value write and delete, and the event
   expect(
     await as(ana).mutation(api.secrets.remove, { ref: made.short_id }),
   ).toMatchObject({ removed: true });
-  expect(
-    (await t.query(api.secrets.redactionVersion, { api_token: ANA_TOKEN }))
-      .version,
-  ).not.toBe(v4);
+  expect(await version(t)).not.toBe(v4);
   const evs = (
     await t.run(async (ctx: any) => ctx.db.query("secret_events").collect())
   ).filter((e: any) => e.secret_id);
@@ -2834,6 +2824,10 @@ test("a value the feed sent in the millisecond of a rotate counts for the value 
     await as(ana).action(api.secrets.rotate, {
       ref: "stripe-tie",
       payload: { value: "sk_" + "test_tieVALUE000111222333" },
+    });
+    await as(ana).action(api.secrets.rotate, {
+      ref: "stripe-tie",
+      payload: { value: "sk_" + "test_latestTIE000111222333" },
     });
     const after = (
       await t.action(api.secrets.redactionValues, { api_token: ANA_TOKEN })

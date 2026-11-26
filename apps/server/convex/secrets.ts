@@ -47,6 +47,7 @@ import { askCore, peopleFor, withdrawCore } from "./sessionDecisions";
 import {
   bumpRedaction,
   recordSecretEvent,
+  redactionReceiptValidator,
   redactionCounter,
 } from "./lib/secretApprovals";
 import { consumePresence } from "./lib/presence";
@@ -1046,6 +1047,7 @@ async function keepVersion(
   await ctx.db.insert("secret_versions", {
     secret_id: row._id,
     workspace: row.workspace,
+    value_version: valueVersion(row),
     value_id: await valueIdOf(ctx, row, row),
     fingerprint: row.fingerprint,
     signin_expires_at: row.signin_expires_at,
@@ -1969,7 +1971,7 @@ async function askFirstGate(
 export const recordReads = internalMutation({
   args: {
     user_id: v.id("users"),
-    ids: v.array(v.id("secrets")),
+    targets: v.array(v.object({ id: v.id("secrets"), version: v.number() })),
     kind: v.union(v.literal("read"), v.literal("revealed")),
     conversation_id: v.optional(v.id("conversations")),
     purpose: v.optional(purposeValidator),
@@ -1983,7 +1985,7 @@ export const recordReads = internalMutation({
   ): Promise<SecretNeedsApproval | { error: string } | null> => {
     if (args.kind === "read") {
       const rows = (
-        await Promise.all(args.ids.map((id) => ctx.db.get(id)))
+        await Promise.all(args.targets.map(({ id }) => ctx.db.get(id)))
       ).filter((r): r is SecretRow => !!r);
       const held = await askFirstGate(
         ctx,
@@ -1996,7 +1998,7 @@ export const recordReads = internalMutation({
       if (held) return held;
     } else {
       // A reveal of an Ask first secret takes a passkey: the click may be an agent driving the person's own browser.
-      for (const id of args.ids) {
+      for (const { id } of args.targets) {
         const row = await ctx.db.get(id);
         const refusal = row?.ask_first
           ? await consumePresence(
@@ -2011,7 +2013,7 @@ export const recordReads = internalMutation({
       }
     }
     const now = Date.now();
-    for (const id of args.ids) {
+    for (const { id, version } of args.targets) {
       const row = await ctx.db.get(id);
       if (!row) continue;
       // A browser's read of a saved sign-in is the moment an agent was signed in with it.
@@ -2023,13 +2025,14 @@ export const recordReads = internalMutation({
       if (
         kind !== "revealed" &&
         row.ask_first &&
-        !(await reachedUser(ctx, row, args.user_id))
+        !(await reachedUser(ctx, id, args.user_id, { version }))
       )
         await bumpRedaction(ctx, row.workspace);
       await recordSecretEvent(ctx, row, kind, {
         actor: args.user_id,
         conversation_id: args.conversation_id,
         purpose: args.purpose,
+        value_version: kind === "revealed" ? undefined : version,
       });
       if (args.kind === "read") {
         await ctx.db.patch(row._id, {
@@ -2081,7 +2084,7 @@ export const reveal = action({
     if ("error" in got) return got;
     const held = await ctx.runMutation(internal.secrets.recordReads, {
       user_id: userId,
-      ids: got.rows.map((r) => r.id),
+      targets: got.rows.map((r) => ({ id: r.id, version: r.value_updated_at })),
       kind: "revealed",
       grant: args.grant,
     });
@@ -2136,7 +2139,7 @@ export const cliRead = action({
     }
     const held = await ctx.runMutation(internal.secrets.recordReads, {
       user_id: userId,
-      ids: got.rows.map((r) => r.id),
+      targets: got.rows.map((r) => ({ id: r.id, version: r.value_updated_at })),
       kind: "read",
       conversation_id: got.conversation_id,
       purpose: args.purpose,
@@ -2195,28 +2198,49 @@ async function approvedForUser(
  */
 const FEED_KINDS = ["read", "signed_in", "redaction_sync"] as const;
 
-/** Whether a value of the row reached `userId` by one of `kinds`: by default its current value (since it was written); with `before`, one it held until then. */
+/** Whether a version of a secret reached `userId` by one of `kinds`. A legacy kept value has only its rotation cutoff. */
 async function reachedUser(
   ctx: any,
-  row: SecretRow,
+  id: Id<"secrets">,
   userId: Id<"users">,
   {
     kinds = FEED_KINDS,
     before,
-  }: { kinds?: readonly (typeof FEED_KINDS)[number][]; before?: number } = {},
+    version,
+  }: {
+    kinds?: readonly (typeof FEED_KINDS)[number][];
+    before?: number;
+    version?: number;
+  },
 ): Promise<boolean> {
   for (const kind of kinds) {
+    const key = (q: any) =>
+      q.eq("secret_id", id).eq("actor_user_id", userId).eq("kind", kind);
+    if (version !== undefined) {
+      const events = () => ctx.db.query("secret_events");
+      const exact = await events()
+        .withIndex("by_secret_actor_kind_version_at", (q: any) =>
+          key(q).eq("value_version", version),
+        )
+        .first();
+      if (exact) return true;
+      if (before !== undefined && version > before) continue;
+      const legacy = await events()
+        .withIndex("by_secret_actor_kind_version_at", (q: any) => {
+          const dated = key(q)
+            .eq("value_version", undefined)
+            .gte("at", version);
+          return before === undefined ? dated : dated.lte("at", before);
+        })
+        .first();
+      if (legacy) return true;
+      continue;
+    }
     const hit = await ctx.db
       .query("secret_events")
-      .withIndex("by_secret_actor_kind_at", (q: any) => {
-        const at = q
-          .eq("secret_id", row._id)
-          .eq("actor_user_id", userId)
-          .eq("kind", kind);
-        return before === undefined
-          ? at.gte("at", valueVersion(row))
-          : at.lte("at", before);
-      })
+      .withIndex("by_secret_actor_kind_at", (q: any) =>
+        key(q).lte("at", before),
+      )
       .first();
     if (hit) return true;
   }
@@ -2246,37 +2270,46 @@ export const redactionRows = internalQuery({
     const rows: {
       id: Id<"secrets">;
       name: string;
+      short_id: string;
       kind: SecretKind;
       workspace: string;
+      version: number;
       values: ValueRef[];
       unsent: boolean;
     }[] = [];
     for (const r of await rowsFor(ctx, args.user_id)) {
       if (r.status !== "ready" || !hasValue(r)) continue;
+      const version = valueVersion(r);
       const held =
         !r.ask_first ||
         (await approvedForUser(ctx, r, args.user_id, now, false)) ||
-        (await reachedUser(ctx, r, args.user_id));
+        (await reachedUser(ctx, r._id, args.user_id, { version }));
       const kept: ValueRef[] = [];
       for (const ver of await liveVersions(ctx, r._id, now)) {
         if (ver.workspace !== r.workspace) continue;
         if (
           held ||
-          (await reachedUser(ctx, r, args.user_id, { before: ver.rotated_at }))
+          (await reachedUser(ctx, r._id, args.user_id, {
+            before: ver.rotated_at,
+            version: ver.value_version,
+          }))
         )
           kept.push(valueRefOf(ver));
       }
       if (!held && !kept.length) continue;
       const unsent =
         held &&
-        !(await reachedUser(ctx, r, args.user_id, {
+        !(await reachedUser(ctx, r._id, args.user_id, {
           kinds: ["redaction_sync"],
+          version,
         }));
       rows.push({
         id: r._id,
         name: r.name,
+        short_id: r.short_id,
         kind: r.kind,
         workspace: r.workspace,
+        version,
         values: held ? [valueRefOf(r), ...kept] : kept,
         unsent,
       });
@@ -2294,19 +2327,27 @@ export const redactionRows = internalQuery({
  * approvals and reads out of the secret's activity within hours.
  */
 export const recordRedactionSync = internalMutation({
-  args: { user_id: v.id("users"), ids: v.array(v.id("secrets")) },
+  args: {
+    user_id: v.id("users"),
+    values: v.array(redactionReceiptValidator),
+  },
   handler: async (ctx, args) => {
-    for (const id of args.ids) {
-      const row = await ctx.db.get(id);
+    for (const { id, version, ...identity } of args.values) {
       if (
-        row &&
-        !(await reachedUser(ctx, row, args.user_id, {
+        !(await reachedUser(ctx, id, args.user_id, {
           kinds: ["redaction_sync"],
+          version,
         }))
       )
-        await recordSecretEvent(ctx, row, "redaction_sync", {
-          actor: args.user_id,
-        });
+        await recordSecretEvent(
+          ctx,
+          { _id: id, ...identity },
+          "redaction_sync",
+          {
+            actor: args.user_id,
+            value_version: version,
+          },
+        );
     }
   },
 });
@@ -2335,7 +2376,7 @@ export const redactionValues = action({
       user_id: userId,
     });
     const values: { name: string; value: string }[] = [];
-    const unsent: Id<"secrets">[] = [];
+    const unsent: (typeof redactionReceiptValidator.type)[] = [];
     const encs = await loadCiphertexts(
       ctx,
       got.rows.flatMap((row) => row.values),
@@ -2343,22 +2384,23 @@ export const redactionValues = action({
     let at = 0;
     for (const row of got.rows) {
       const found = new Set<string>();
-      let opened = false;
-      for (const enc of encs.slice(at, (at += row.values.length))) {
+      for (let i = 0; i < row.values.length; i++) {
+        const enc = encs[at++];
         const payload = enc ? await decryptSecret(enc, row.workspace) : null;
         if (!payload) continue;
-        opened = true;
+        if (i === 0 && row.unsent) {
+          const { id, name, short_id, workspace, version } = row;
+          unsent.push({ id, name, short_id, workspace, version });
+        }
         for (const value of redactionValuesOf(row.kind, payload))
           found.add(value);
       }
-      if (!opened) continue;
       for (const value of found) values.push({ name: row.name, value });
-      if (row.unsent) unsent.push(row.id);
     }
     if (unsent.length)
       await ctx.runMutation(internal.secrets.recordRedactionSync, {
         user_id: userId,
-        ids: unsent,
+        values: unsent,
       });
     return { version: got.version, values };
   },

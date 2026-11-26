@@ -11608,6 +11608,9 @@
   "apps/server/convex/plans.ts": {
     "swarm/no-comments": 104
   },
+  "apps/server/convex/pr-shepherd.merge-state-batch.test.ts": {
+    "swarm/no-comments": 5
+  },
   "apps/server/convex/prCli.test.ts": {
     "swarm/no-comments": 26
   },
@@ -11628,9 +11631,6 @@
   },
   "apps/server/convex/prShepherd.lifecycle.e2e.test.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/server/convex/prShepherd.mergeStateBatch.test.ts": {
-    "swarm/no-comments": 8
   },
   "apps/server/convex/prShepherd.test.ts": {
     "swarm/no-comments": 16
@@ -21597,6 +21597,9 @@
   "apps/web/hooks/__tests__/undoReachable.guard.test.ts": {
     "swarm/no-comments": 22
   },
+  "apps/web/hooks/__tests__/use-face-row.mount.test.tsx": {
+    "swarm/no-comments": 5
+  },
   "apps/web/hooks/__tests__/useBootstrapCollection.test.ts": {
     "swarm/no-comments": 6
   },
@@ -21620,9 +21623,6 @@
   },
   "apps/web/hooks/__tests__/useDebounce.mount.test.tsx": {
     "swarm/no-comments": 4
-  },
-  "apps/web/hooks/__tests__/useFaceRow.mount.test.tsx": {
-    "swarm/no-comments": 5
   },
   "apps/web/hooks/__tests__/useFollowSurface.mount.test.tsx": {
     "swarm/no-comments": 7

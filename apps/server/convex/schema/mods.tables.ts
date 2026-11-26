@@ -201,6 +201,7 @@ export const modTables = {
   secret_versions: defineTable({
     secret_id: v.id("secrets"),
     workspace: v.string(),
+    value_version: v.optional(v.number()),
     // The kept value (secret_values); value_enc is the LEGACY inline copy.
     value_id: v.optional(v.id("secret_values")),
     value_enc: v.optional(v.string()),
@@ -257,6 +258,7 @@ export const modTables = {
   secret_events: defineTable({
     secret_id: v.optional(v.id("secrets")),
     workspace: v.string(),
+    value_version: v.optional(v.number()),
     secret_name: v.optional(v.string()),
     // So the trail stays findable by sec-N after the secret is deleted.
     secret_short_id: v.optional(v.string()),
@@ -277,6 +279,13 @@ export const modTables = {
       "secret_id",
       "actor_user_id",
       "kind",
+      "at",
+    ])
+    .index("by_secret_actor_kind_version_at", [
+      "secret_id",
+      "actor_user_id",
+      "kind",
+      "value_version",
       "at",
     ])
     .index("by_short_id_at", ["secret_short_id", "at"])

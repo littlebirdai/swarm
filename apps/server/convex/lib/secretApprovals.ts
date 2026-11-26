@@ -4,6 +4,7 @@
 // so neither imports the other's module graph.
 
 import { APPROVE_FOR_SESSION } from "@codecast/secrets/secrets";
+import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { consumePresence, presenceRefusal } from "./presence";
 import { isSessionOwner } from "../sessionOwners";
@@ -27,6 +28,14 @@ export async function bumpRedaction(ctx: Ctx, workspace: string) {
   else await ctx.db.insert("counters", { name, value: 1 });
 }
 
+export const redactionReceiptValidator = v.object({
+  id: v.id("secrets"),
+  name: v.string(),
+  short_id: v.string(),
+  workspace: v.string(),
+  version: v.number(),
+});
+
 export async function recordSecretEvent(
   ctx: Ctx,
   row: {
@@ -41,6 +50,7 @@ export async function recordSecretEvent(
     conversation_id?: Id<"conversations">;
     purpose?: string;
     decision_id?: Id<"session_decisions">;
+    value_version?: number;
   } = {},
 ) {
   await ctx.db.insert("secret_events", {
@@ -53,6 +63,7 @@ export async function recordSecretEvent(
     conversation_id: fields.conversation_id,
     purpose: fields.purpose,
     decision_id: fields.decision_id,
+    value_version: fields.value_version,
     at: Date.now(),
   });
 }

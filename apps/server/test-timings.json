@@ -567,7 +567,7 @@
     "convex/prGuides.test.ts": 44,
     "convex/prSessions.tier.test.ts": 35,
     "convex/prShepherd.lifecycle.e2e.test.ts": 55,
-    "convex/prShepherd.mergeStateBatch.test.ts": 55,
+    "convex/pr-shepherd.merge-state-batch.test.ts": 55,
     "convex/prShepherd.test.ts": 34,
     "convex/predictions.targets.test.ts": 43,
     "convex/predictions.test.ts": 40,
