@@ -73,6 +73,7 @@ import {
   cancelUnstartedOldEpoch,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
+  watchesOwnedCodexInbox,
   executionRequestWire,
   bindingEvidenceWire,
 } from "./lib/execution-binding.state";
@@ -2271,17 +2272,6 @@ export const listExecutionWork = query({
             }
           : undefined;
       if (bindings.length > 0 || pendingIntent) {
-        const watchesOwnedInbox =
-          process.env.CODECAST_EDGE_DELIVERY_V1 === "1" &&
-          args.owned_codex_conversation_id === String(head.conversation_id) &&
-          bindings.some(
-            ({ request, state }) =>
-              state === "ready" &&
-              request.target.epoch === 1 &&
-              request.target.epoch === head.current_epoch &&
-              request.target.requestedAgent === "codex" &&
-              request.target.transport === "app-server",
-          );
         work.push({
           conversationId: String(head.conversation_id),
           currentEpoch: head.current_epoch,
@@ -2289,7 +2279,11 @@ export const listExecutionWork = query({
           pendingPolicy: head.pending_policy,
           bindings,
           pendingIntent,
-          ...(watchesOwnedInbox
+          ...(watchesOwnedCodexInbox(
+            args.owned_codex_conversation_id,
+            head,
+            bindings,
+          )
             ? { nextDeliverySequence: head.next_conversation_sequence }
             : {}),
         });

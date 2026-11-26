@@ -353,6 +353,7 @@ export function fixture(
   const settlements: DeliverySettleRequest[] = [];
   let refuseSettlement = false;
   let permitReadStatus: "stale" | "takeover_fence" | undefined;
+  let permitRead: { started(): void; resume: Promise<void> } | undefined;
   let lease = "edge-lease";
   const claimResponses: Response[] = [];
   const releasing = Promise.withResolvers<void>();
@@ -384,6 +385,12 @@ export function fixture(
         }
         if (operation === "permits.next") {
           expect(body.fencing_token).toBe(lease);
+          if (permitRead) {
+            const read = permitRead;
+            permitRead = undefined;
+            read.started();
+            await read.resume;
+          }
           if (permitReadStatus === "stale")
             return Response.json({ v: 1, status: "stale" });
           if (permitReadStatus === "takeover_fence")
@@ -507,6 +514,12 @@ export function fixture(
     },
     setPermitReadStatus(status?: typeof permitReadStatus) {
       permitReadStatus = status;
+    },
+    pauseNextPermitRead() {
+      const started = Promise.withResolvers<void>();
+      const resume = Promise.withResolvers<void>();
+      permitRead = { started: started.resolve, resume: resume.promise };
+      return { started: started.promise, resume: resume.resolve };
     },
     rejectSettlements(value: boolean) {
       refuseSettlement = value;

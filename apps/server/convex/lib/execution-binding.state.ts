@@ -1,3 +1,7 @@
+import {
+  OWNED_CODEX_CHECKPOINT_PREFIX,
+  type ReadyBinding,
+} from "@codecast/agent-clients/executionBinding";
 import { requireNoDeviceMove } from "./edge/device-move.state";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -352,4 +356,27 @@ export function executionRequestWire(binding: any): any {
     protocolVersion: binding.protocol_version,
     trigger: "recovery" as const,
   };
+}
+
+export function watchesOwnedCodexInbox(
+  selectedConversation: string | undefined,
+  head: Pick<
+    Doc<"conversation_execution_heads">,
+    "conversation_id" | "current_epoch"
+  >,
+  bindings: readonly { state: string; binding?: ReadyBinding }[],
+): boolean {
+  return (
+    process.env.CODECAST_EDGE_DELIVERY_V1 === "1" &&
+    selectedConversation === String(head.conversation_id) &&
+    bindings.some(
+      ({ binding, state }) =>
+        state === "ready" &&
+        binding?.epoch === 1 &&
+        binding.epoch === head.current_epoch &&
+        binding.actualAgent === "codex" &&
+        binding.transport === "app-server" &&
+        binding.handle.startsWith(OWNED_CODEX_CHECKPOINT_PREFIX),
+    )
+  );
 }

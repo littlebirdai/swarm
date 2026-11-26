@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
+import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { parsePermitsNextResponse } from "@codecast/edge-contract";
 import { asUser } from "../test-helpers/database.testkit";
 import {
@@ -21,8 +22,60 @@ afterEach(() => {
   else process.env[flag] = originalFlag;
 });
 
+const ownedHandle =
+  OWNED_CODEX_CHECKPOINT_PREFIX +
+  JSON.stringify({
+    threadId: "thr_owned",
+    sandbox: "read-only",
+    approvalPolicy: "on-request",
+  });
+
+function listWork(
+  { t, bearer }: Awaited<ReturnType<typeof setupRunLease>>,
+  ownedCodexConversationId?: string,
+) {
+  return t.query(api.executionBindings.listExecutionWork, {
+    owner_device_id: machine,
+    daemon_boot_id: boot,
+    protocol_version: 1,
+    capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+    api_token: bearer,
+    ...(ownedCodexConversationId
+      ? { owned_codex_conversation_id: ownedCodexConversationId }
+      : {}),
+  });
+}
+
+test.each([
+  ["legacy Codex", { handle: "thr_legacy" }],
+  [
+    "another agent",
+    {
+      actual_agent: "claude",
+      requested_agent: "claude",
+      transport: "tmux",
+      handle: ownedHandle,
+    },
+  ],
+] as const)(
+  "%s stays on normal execution work without a pilot wake",
+  async (_label, binding) => {
+    const f = await setupRunLease();
+    await f.t.run(({ db }) => db.patch(f.binding, binding));
+    const before = await listWork(f, f.conversation);
+    expect(before).toHaveLength(1);
+    expect(before[0]).not.toHaveProperty("nextDeliverySequence");
+    await asUser(f.t, f.owner).mutation(api.dispatch.dispatch, {
+      action: "sendMessage",
+      args: [f.conversation, "from the composer", [], "no-pilot-wake"],
+    });
+    expect(await listWork(f, f.conversation)).toEqual(before);
+  },
+);
+
 test("a composer send changes the selected Codex work result and becomes an edge permit", async () => {
   const f = await setupRunLease();
+  await f.t.run(({ db }) => db.patch(f.binding, { handle: ownedHandle }));
   const claim = await f.claim("live-codex-test");
   if (claim.status !== "granted") throw new Error("Expected a grant");
   const { v, session, run, fencing_token } = claim;
@@ -48,23 +101,9 @@ test("a composer send changes the selected Codex work result and becomes an edge
     await call("delivery.settle", { ...permit, outcome: "applied" }),
   ).toMatchObject({ status: "recorded" });
 
-  const handshake = {
-    owner_device_id: machine,
-    daemon_boot_id: boot,
-    protocol_version: 1,
-    capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-    api_token: f.bearer,
-  };
-  const work = (ownedCodexConversationId?: string) =>
-    f.t.query(api.executionBindings.listExecutionWork, {
-      ...handshake,
-      ...(ownedCodexConversationId
-        ? { owned_codex_conversation_id: ownedCodexConversationId }
-        : {}),
-    });
-  const before = await work(f.conversation);
-  const legacyWork = await work();
-  const otherSelection = await work("other-conversation");
+  const before = await listWork(f, f.conversation);
+  const legacyWork = await listWork(f);
+  const otherSelection = await listWork(f, "other-conversation");
   expect(before[0]?.nextDeliverySequence).toBe(2);
   expect(legacyWork[0]).not.toHaveProperty("nextDeliverySequence");
   expect(otherSelection).toEqual(legacyWork);
@@ -73,8 +112,8 @@ test("a composer send changes the selected Codex work result and becomes an edge
     action: "sendMessage",
     args: [f.conversation, "from the composer", [], "live-codex-message"],
   });
-  expect((await work(f.conversation))[0]?.nextDeliverySequence).toBe(3);
-  expect(await work()).toEqual(legacyWork);
+  expect((await listWork(f, f.conversation))[0]?.nextDeliverySequence).toBe(3);
+  expect(await listWork(f)).toEqual(legacyWork);
   expect(await call("permits.next", fence)).toMatchObject({
     status: "permit",
     state: "new",
@@ -83,5 +122,5 @@ test("a composer send changes the selected Codex work result and becomes an edge
     input: [{ type: "text", text: "from the composer" }],
   });
   delete process.env[flag];
-  expect(await work(f.conversation)).toEqual(legacyWork);
+  expect(await listWork(f, f.conversation)).toEqual(legacyWork);
 });

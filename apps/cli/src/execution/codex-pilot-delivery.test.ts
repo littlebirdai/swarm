@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import {
   existsSync,
   readFileSync,
@@ -124,6 +124,90 @@ test("a live work update sends a newly queued message through the owned bridge",
     );
     expect(providerSends(f)).toHaveLength(1);
     expect(f.actions).not.toContain("claim-delivery:pilot:1");
+  } finally {
+    await f.dispose();
+  }
+});
+
+test.each(["poll", "wake"])(
+  "a %s in flight serializes the poll and two close delivery wakes",
+  async (first) => {
+    const f = fixture("pilot", true, "receipt-before-reply");
+    const schedule = globalThis.setTimeout;
+    const polls: (() => void)[] = [];
+    const timers = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const timer = schedule(callback, delay, ...args);
+      if (delay === 2_000) {
+        clearTimeout(timer);
+        polls.push(() => callback(...args));
+      }
+      return timer;
+    }) as typeof setTimeout);
+    let unblock: (() => void) | undefined;
+    try {
+      f.initial([item(f.pilotRequest)]);
+      await f.runtime.start();
+      const poll = polls.shift();
+      if (!poll) throw new Error("Expected the owned delivery poll");
+      const { onUpdate } = f.workSubscription();
+      const work = item(f.pilotRequest, f.ready(f.pilotRequest));
+      const wake = (nextDeliverySequence: number) =>
+        onUpdate([{ ...work, nextDeliverySequence }]);
+      const read = f.pauseNextPermitRead();
+      unblock = read.resume;
+      if (first === "poll") poll();
+      else wake(2);
+      await read.started;
+      const reads = () =>
+        f.actions.filter((action) => action === "edge:permits.next").length;
+      const before = reads();
+      if (first === "wake") poll();
+      wake(3);
+      wake(4);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(reads()).toBe(before);
+
+      f.enqueue(1);
+      const settled = f.runtime.processWorkUpdate([]);
+      read.resume();
+      await reportReceipt(f, 1, true);
+      await settled;
+      expect(reads()).toBeGreaterThan(before);
+      expect(
+        f.actions.filter((action) => action === "edge:delivery.start"),
+      ).toHaveLength(1);
+      expect(providerSends(f)).toHaveLength(1);
+      expect(f.settlements.map(({ outcome }) => outcome)).toEqual(["applied"]);
+    } finally {
+      unblock?.();
+      timers.mockRestore();
+      await f.dispose();
+    }
+  },
+);
+
+test("a live wake after lease loss does not try the legacy drain", async () => {
+  const f = fixture("pilot", true, "receipt-before-reply");
+  try {
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    f.enqueue(1);
+    f.setPermitReadStatus("stale");
+    f.workSubscription().onUpdate([
+      {
+        ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+        nextDeliverySequence: 2,
+      },
+    ]);
+    await f.runtime.processWorkUpdate([]);
+    expect(f.logs.join("\n")).toContain("Owned Codex delivery lease is stale");
+    expect(f.actions).not.toContain("claim-delivery:pilot:1");
+    expect(f.actions).not.toContain("edge:delivery.start");
+    expect(providerSends(f)).toEqual([]);
   } finally {
     await f.dispose();
   }
