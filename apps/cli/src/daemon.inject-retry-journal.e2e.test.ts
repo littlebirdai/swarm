@@ -190,9 +190,17 @@ test.skipIf(!Bun.which("tmux")).each(["exited", "buffered"] as const)(
             "#{pane_dead}",
           ]).stdout.trim(),
         ).toBe("1");
-        await expect(
-          injectViaTmux(target, "continue", "claude", { delivery, journal }),
-        ).rejects.toBeInstanceOf(TmuxDeliveryUncertainError);
+        const retryError = await injectViaTmux(target, "continue", "claude", {
+          delivery,
+          journal,
+        }).then(
+          () => null,
+          (error: unknown) => error,
+        );
+        expect(retryError).toBeInstanceOf(TmuxDeliveryUncertainError);
+        expect((retryError as Error).message).toMatch(
+          /terminal identity could not be verified|the exited terminal must be replaced/,
+        );
         expect(journal.get(delivery.messageId)).toEqual(exited);
       }
       pane.tearDown();
