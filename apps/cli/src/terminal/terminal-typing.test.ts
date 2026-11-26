@@ -56,6 +56,9 @@ function clock() {
 
 type Poll = Parameters<TerminalTypingTransport["poll"]>[0];
 type Reply = Awaited<ReturnType<TerminalTypingTransport["poll"]>>;
+type Report = Parameters<TerminalTypingTransport["report"]>[0];
+type ReportReply = Awaited<ReturnType<TerminalTypingTransport["report"]>>;
+type CatalogReply = Awaited<ReturnType<TerminalTypingTransport["catalog"]>>;
 const input = (data: string, pane_instance = 1, token = 7) => ({
   data,
   pane_instance,
@@ -85,18 +88,19 @@ function rig(initialInstance = 0) {
   const nativeCalls: string[] = [];
   const catalogCalls: string[] = [];
   let rows = [binding];
+  let onCatalog: () => CatalogReply = () => rows;
+  let onReport: (args: Report) => ReportReply = ({ observation }) => ({
+    status: "ok",
+    last_pane_instance: observation === "started" ? ++instance : instance,
+  });
   const transport: TerminalTypingTransport = {
     async catalog() {
       catalogCalls.push("catalog");
-      return rows;
+      return onCatalog();
     },
     async report(args) {
       reports.push(args);
-      return {
-        status: "ok",
-        last_pane_instance:
-          args.observation === "started" ? ++instance : instance,
-      };
+      return onReport(args);
     },
     async poll(args) {
       polls.push(args);
@@ -130,6 +134,12 @@ function rig(initialInstance = 0) {
     },
     setRows(value: typeof rows) {
       rows = value;
+    },
+    reportWith(value: typeof onReport) {
+      onReport = value;
+    },
+    catalogWith(value: typeof onCatalog) {
+      onCatalog = value;
     },
     reply(value: typeof onPoll) {
       onPoll = value;
@@ -322,5 +332,137 @@ test("daemon flag off does not construct a Convex client", async () => {
     ).toBeUndefined();
   } finally {
     if (old !== undefined) process.env.CODECAST_TERMINAL_TYPING = old;
+  }
+});
+
+test.each(["catalog", "start"] as const)(
+  "%s retry doubles to 30 seconds and resets after success",
+  async (source) => {
+    const f = rig();
+    let failing = true;
+    const unavailable = () => {
+      if (failing) throw new Error("Unavailable");
+    };
+    if (source === "catalog") {
+      f.catalogWith(() => {
+        unavailable();
+        return [binding];
+      });
+    } else {
+      f.reportWith(({ observation }) =>
+        failing && observation === "started"
+          ? { status: "stale" }
+          : { status: "ok", last_pane_instance: 1 },
+      );
+    }
+    const calls = () =>
+      source === "catalog"
+        ? f.catalogCalls.length
+        : f.reports.filter(({ observation }) => observation === "started")
+            .length;
+    const retryAfter = async (delay: number) => {
+      const before = calls();
+      await f.advance(delay - 1);
+      expect(calls()).toBe(before);
+      await f.advance(1);
+      expect(calls()).toBe(before + 1);
+    };
+    const stop = f.start();
+    try {
+      await flush();
+      expect(calls()).toBe(1);
+      for (const delay of [4_000, 8_000, 16_000, 30_000, 30_000])
+        await retryAfter(delay);
+      expect(f.polls).toEqual([]);
+      failing = false;
+      await retryAfter(30_000);
+      expect(f.polls).toHaveLength(1);
+      failing = true;
+      if (source === "start") {
+        f.setPane(replacement);
+        await f.advance(PANE_HEARTBEAT_MS);
+        for (const delay of [4_000, 8_000]) await retryAfter(delay);
+      } else {
+        for (const delay of [4_000, 4_000, 8_000]) await retryAfter(delay);
+      }
+    } finally {
+      await stop();
+    }
+  },
+);
+
+test("polling resumes after errors without duplicating or overtaking drained writes", async () => {
+  const f = rig();
+  let count = 0;
+  f.reply(({ ack }) => {
+    if (!ack) return { status: "ok", control: control() };
+    count++;
+    if (count === 2 || count === 3 || count === 5) throw new Error("Offline");
+    return {
+      status: "ok",
+      control: control(),
+      input: input(count === 1 ? "61" : count === 4 ? "62" : "63"),
+    };
+  });
+  const stop = f.start();
+  try {
+    await flush();
+    await f.pollAfter();
+    await f.pollAfter();
+    expect(f.keys).toEqual([[97]]);
+    await f.advance(4_000);
+    expect(count).toBe(3);
+    await f.advance(7_999);
+    expect(count).toBe(3);
+    await f.advance(1);
+    expect(f.keys).toEqual([[97], [98]]);
+    await f.pollAfter();
+    await f.advance(4_000);
+    expect(f.keys).toEqual([[97], [98], [99]]);
+  } finally {
+    await stop();
+  }
+});
+
+test.each(["started", "poll"] as const)(
+  "disabled %s shuts down discovery and pane polling",
+  async (source) => {
+    const f = rig();
+    if (source === "started") f.reportWith(() => ({ status: "disabled" }));
+    else f.reply(() => ({ status: "disabled" }));
+    const stop = f.start();
+    try {
+      await flush();
+      const before = f.polls.length;
+      expect(before).toBe(source === "poll" ? 1 : 0);
+      await f.advance(30_000);
+      expect(f.catalogCalls).toHaveLength(1);
+      expect(f.polls).toHaveLength(before);
+    } finally {
+      await stop();
+    }
+  },
+);
+
+test("an absent pane stops polling until a new pane opens", async () => {
+  const f = rig();
+  const stop = f.start();
+  try {
+    await flush();
+    f.setPane(null);
+    await f.advance(PANE_HEARTBEAT_MS);
+    expect(f.reports.map(({ observation }) => observation)).toEqual([
+      "started",
+      "ended",
+    ]);
+    const before = f.polls.length;
+    for (let i = 0; i < 3; i++) await f.advance(PANE_HEARTBEAT_MS);
+    expect(f.polls).toHaveLength(before);
+    f.setPane(replacement);
+    await f.advance(PANE_HEARTBEAT_MS);
+    expect(f.polls).toHaveLength(before + 1);
+    expect(f.polls.at(-1)?.pane_instance).toBe(2);
+  } finally {
+    await stop();
   }
 });

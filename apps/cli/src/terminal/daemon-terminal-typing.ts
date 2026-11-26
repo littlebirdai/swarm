@@ -41,8 +41,18 @@ export function startDaemonTerminalTyping(
 ) {
   if (process.env.CODECAST_TERMINAL_TYPING !== "1" || !apiToken) return;
   const fetchTyping = Object.assign(
-    (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
-      fetch(input, { ...init, signal: AbortSignal.timeout(3500) }),
+    (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1],
+    ) => {
+      const timeout = AbortSignal.timeout(3500);
+      const caller =
+        init?.signal ?? (input instanceof Request ? input.signal : undefined);
+      return fetch(input, {
+        ...init,
+        signal: caller ? AbortSignal.any([caller, timeout]) : timeout,
+      });
+    },
     { preconnect: fetch.preconnect },
   );
   const client = new ConvexHttpClient(convexUrl, {

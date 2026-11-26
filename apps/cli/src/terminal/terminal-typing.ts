@@ -62,6 +62,7 @@ type OpenPane = { machine: MachinePane; key: string };
 const pause = (ms: number, signal: AbortSignal) =>
   wait(ms, undefined, { signal, ref: false }).catch(() => {});
 const counter = (value: number) => Number.isSafeInteger(value) && value > 0;
+const nextRetryDelay = (ms: number) => Math.min(ms * 2, 30_000);
 
 export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
   if (!enabled) return async () => {};
@@ -84,6 +85,11 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
     }
   >();
 
+  const halt = () => {
+    stop.abort();
+    for (const tracker of trackers.values()) tracker.stop.abort();
+  };
+
   async function end(open: OpenPane) {
     try {
       await deps.report({ ...open.machine, observation: "ended" });
@@ -99,9 +105,11 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
     let control: Control | undefined;
     let acknowledged = false;
     let nextIdentity = 0;
+    let retryDelay = PANE_HEARTBEAT_MS;
     try {
       while (!signal.aborted) {
         let delay = PANE_HEARTBEAT_MS;
+        let failed = false;
         try {
           if (!open || now() >= nextIdentity) {
             nextIdentity = now() + PANE_HEARTBEAT_MS;
@@ -123,7 +131,10 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
                   observation: "started",
                   watch_pane_instance: pane.watchIdentity,
                 });
-                if (opened.status === "disabled") return;
+                if (opened.status === "disabled") {
+                  halt();
+                  return;
+                }
                 if (
                   opened.status === "ok" &&
                   counter(opened.last_pane_instance)
@@ -135,6 +146,7 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
                       pane_instance: opened.last_pane_instance,
                     },
                   };
+                else failed = true;
               } finally {
                 if (!open) paneKeys.delete(key);
               }
@@ -149,11 +161,16 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
               ...open.machine,
               ...(ack && { ack }),
             });
-            if (signal.aborted || reply.status === "disabled") return;
+            if (signal.aborted) return;
+            if (reply.status === "disabled") {
+              halt();
+              return;
+            }
             if (reply.status === "stale") {
               acknowledged = false;
               if (ack) delay = PANE_INPUT_POLL_MS;
               else {
+                failed = true;
                 await end(open);
                 open = undefined;
                 control = undefined;
@@ -202,7 +219,13 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
               }
             }
           }
-        } catch {}
+        } catch {
+          failed = true;
+        }
+        if (failed) {
+          delay = retryDelay;
+          retryDelay = nextRetryDelay(retryDelay);
+        } else retryDelay = PANE_HEARTBEAT_MS;
         if (!signal.aborted) await sleep(delay, signal);
       }
     } finally {
@@ -211,7 +234,9 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
   }
 
   const discover = async () => {
+    let retryDelay = PANE_HEARTBEAT_MS;
     while (!stop.signal.aborted) {
+      let delay = PANE_HEARTBEAT_MS;
       try {
         const rows = await deps.catalog();
         if (stop.signal.aborted) break;
@@ -244,14 +269,17 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
           const running = track(binding, controller.signal);
           trackers.set(id, { binding, stop: controller, running });
         }
-      } catch {}
-      if (!stop.signal.aborted) await sleep(PANE_HEARTBEAT_MS, stop.signal);
+        retryDelay = PANE_HEARTBEAT_MS;
+      } catch {
+        delay = retryDelay;
+        retryDelay = nextRetryDelay(retryDelay);
+      }
+      if (!stop.signal.aborted) await sleep(delay, stop.signal);
     }
   };
   const running = discover();
   return async () => {
-    stop.abort();
-    for (const tracker of trackers.values()) tracker.stop.abort();
+    halt();
     await running;
     await Promise.all([...trackers.values()].map((tracker) => tracker.running));
   };

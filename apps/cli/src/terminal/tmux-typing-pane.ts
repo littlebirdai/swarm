@@ -16,8 +16,15 @@ export type TypingPane = {
   watchIdentity: string;
 };
 
-const tmuxTarget = (target: string) =>
-  target.includes(":") ? target : `${target}:0.0`;
+function exactTypingTarget(target: string) {
+  if (!isValidPaneTarget(target)) return null;
+  const sessionName = target.split(":")[0];
+  if (!sessionName || /^[@.%]/.test(sessionName)) return null;
+  return {
+    sessionName,
+    paneTarget: `=${target.includes(":") ? target : `${target}:0.0`}`,
+  };
+}
 
 export const physicalPaneKey = (pane: TypingPane) =>
   JSON.stringify([pane.socket, pane.serverPid, pane.paneId, pane.panePid]);
@@ -25,25 +32,30 @@ export const physicalPaneKey = (pane: TypingPane) =>
 export async function resolveTypingPane(
   target: string,
 ): Promise<TypingPane | null> {
-  if (!isValidPaneTarget(target) || target.startsWith("%")) return null;
+  const exact = exactTypingTarget(target);
+  if (!exact) return null;
   const result = await tmuxRunAsync([
     "display-message",
     "-p",
     "-t",
-    tmuxTarget(target),
+    exact.paneTarget,
     "-F",
-    `#{socket_path}\t${WATCH_PANE_IDENTITY}`,
+    "#{socket_path}",
+    ";",
+    "display-message",
+    "-p",
+    "-t",
+    exact.paneTarget,
+    "-F",
+    WATCH_PANE_IDENTITY,
   ]);
-  const [socket, watchIdentity] = result.stdout.trimEnd().split("\t");
+  const lines = result.stdout.replace(/\n$/, "").split("\n");
+  if (result.status !== 0 || lines.length !== 2) return null;
+  const [socket, watchIdentity] = lines;
+  if (!path.isAbsolute(socket) || watchIdentity.length > 256) return null;
+  const [name, , serverPid, paneId, panePid, dead] = watchIdentity.split("|");
   if (
-    result.status !== 0 ||
-    !path.isAbsolute(socket ?? "") ||
-    !watchIdentity ||
-    watchIdentity.length > 256
-  )
-    return null;
-  const [, , serverPid, paneId, panePid, dead] = watchIdentity.split("|");
-  if (
+    name !== exact.sessionName ||
     dead !== "0" ||
     !/^%\d+$/.test(paneId) ||
     !/^[1-9]\d*$/.test(serverPid) ||
@@ -58,8 +70,8 @@ export async function writeTypingPane(
   pane: TypingPane,
   bytes: readonly number[],
 ) {
-  if (!isValidPaneTarget(target) || target.startsWith("%") || !bytes.length)
-    return false;
+  const exact = exactTypingTarget(target);
+  if (!exact || !path.isAbsolute(pane.socket) || !bytes.length) return false;
   if (
     !/^%\d+$/.test(pane.paneId) ||
     !/^[1-9]\d*$/.test(pane.serverPid) ||
@@ -67,6 +79,7 @@ export async function writeTypingPane(
   )
     return false;
   const checks = [
+    `#{==:#{session_name},${exact.sessionName}}`,
     `#{==:#{pid},${pane.serverPid}}`,
     `#{==:#{pane_id},${pane.paneId}}`,
     `#{==:#{pane_pid},${pane.panePid}}`,
@@ -87,7 +100,7 @@ export async function writeTypingPane(
     "if-shell",
     "-F",
     "-t",
-    tmuxTarget(target),
+    exact.paneTarget,
     condition,
     commands.join(" ; "),
   ]);

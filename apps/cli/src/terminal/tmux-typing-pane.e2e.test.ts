@@ -61,7 +61,7 @@ test.skipIf(!Bun.which("tmux"))(
       ]);
       expect(respawn.status).toBe(0);
       await pollUntil(
-        () => fs.existsSync(path.join(dir, "second.keys")),
+        () => fs.existsSync(path.join(dir, "second.ready")),
         "replacement tty is ready",
       );
       const replacement = await resolveTypingPane(target);
@@ -69,6 +69,16 @@ test.skipIf(!Bun.which("tmux"))(
       expect(replacement.paneId).toBe(original.paneId);
       expect(physicalPaneKey(replacement)).not.toBe(physicalPaneKey(original));
       expect(await writeTypingPane(target, original, [0x78])).toBe(false);
+      expect(
+        await writeTypingPane(
+          target,
+          {
+            ...replacement,
+            socket: path.relative(process.cwd(), replacement.socket),
+          },
+          [0x78],
+        ),
+      ).toBe(false);
       expect(await writeTypingPane(target, replacement, [0x79])).toBe(true);
       const second = path.join(dir, "second.keys");
       await pollUntil(
@@ -79,6 +89,30 @@ test.skipIf(!Bun.which("tmux"))(
     } finally {
       await tmuxRunAsync(["kill-session", "-t", name]);
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test.skipIf(!Bun.which("tmux"))(
+  "typing does not resolve a session by prefix or default",
+  async () => {
+    const session = "cc-typing-foobar";
+    const created = await tmuxRunAsync(["new-session", "-d", "-s", session]);
+    expect(created.status).toBe(0);
+    try {
+      const pane = await resolveTypingPane(`${session}:0.0`);
+      expect(pane?.watchIdentity.split("|")[0]).toBe(session);
+      expect(await resolveTypingPane("cc-typing-foo:0.0")).toBeNull();
+      expect(await resolveTypingPane(":0.0")).toBeNull();
+      expect(await resolveTypingPane("@0:0.0")).toBeNull();
+      expect(await resolveTypingPane(".0")).toBeNull();
+      if (!pane) throw new Error("Expected the exact session");
+      expect(await writeTypingPane("cc-typing-foo:0.0", pane, [0x78])).toBe(
+        false,
+      );
+      expect(await writeTypingPane(":0.0", pane, [0x78])).toBe(false);
+    } finally {
+      await tmuxRunAsync(["kill-session", "-t", `=${session}`]);
     }
   },
 );
