@@ -72,6 +72,14 @@ export function makeDispatchBinding(
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
         settle({ ok: true });
+        if (
+          action === "convCommand" &&
+          args?.[1] === "reconfigureSession" &&
+          typeof result === "string"
+        )
+          useInboxStore
+            .getState()
+            .updateClientUI({ last_picked_device_id: result });
         return res;
       },
       (err) => {
@@ -111,10 +119,29 @@ export function makeDispatchBinding(
         // the follower never stamps a CURSOR (syncMeta replicates from the
         // host, docs/architecture/sync-host.md), and the replicated cursor
         // advancing is what retires its acked locks (syncReplication).
-        if (Array.isArray(ack) && ack.length && patches) {
-          useInboxStore
-            .getState()
-            .stampSyncAck(patches, ack, sentAt, { lockIds });
+        if (Array.isArray(ack) && ack.length) {
+          const move =
+            lockIds?.size &&
+            action === "convCommand" &&
+            args?.[1] === "reconfigureSession"
+              ? args[2]
+              : undefined;
+          const ackFields = move
+            ? {
+                conversations: {
+                  [args[0]]: {
+                    owner_device_id:
+                      move.cloud_device_id ?? move.target_device_id,
+                    project_path: move.project_path,
+                    git_root: move.git_root ?? move.project_path,
+                  },
+                },
+              }
+            : patches;
+          if (ackFields)
+            useInboxStore
+              .getState()
+              .stampSyncAck(ackFields, ack, sentAt, { lockIds });
         }
         return res.result;
       }

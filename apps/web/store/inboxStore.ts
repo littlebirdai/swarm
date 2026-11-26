@@ -588,9 +588,8 @@ import type {
   AgentDefinitionSpec,
 } from "@codecast/agents/agentDefinitions";
 import {
-  sessionReconfigureSlice,
+  setSessionTargetDevice,
   stageSessionReconfigure,
-  type SessionReconfigureSlice,
 } from "./session-reconfigure";
 import type { PendingComment } from "../lib/quoteFormat";
 import {
@@ -7934,7 +7933,6 @@ export interface InboxStoreState
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
     ComposeSliceState,
-    SessionReconfigureSlice,
     Omit<
       RegisteredCollectionSlots,
       keyof ChatSliceState | keyof OrgSliceState
@@ -8864,6 +8862,7 @@ export interface InboxStoreState
   seedSession: (session: InboxSession) => void;
   preloadForkSessions: (forks: ForkChild[], forkedFrom?: string) => void;
   updateSessionProject: (id: string, projectPath: string) => void;
+  setSessionTargetDevice: (id: string, deviceId: string | null) => void;
   setConversationAgent: (id: string, agentType: string) => void;
   /** Blank session: the definition it launches as (compose "as" pill). */
   setConversationAgentDefinition: (id: string, name: string | null) => void;
@@ -13699,7 +13698,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
   },
 
-  ...sessionReconfigureSlice,
+  setSessionTargetDevice,
   ...createComposeSlice(set, get),
 
   createModal: null,
@@ -16630,8 +16629,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
     extraArgs?: Record<string, any>,
     optimistic?: Record<string, any>,
   ) {
-    if (command === "reconfigureSession")
-      stageSessionReconfigure(this, convId, extraArgs);
+    if (command === "reconfigureSession") {
+      stageSessionReconfigure(this.sessions[convId], extraArgs);
+      return optimistic?.rememberDeviceId;
+    }
     if (
       command === "sendEscapeToSession" ||
       command === "stopAndSendToSession"

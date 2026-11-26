@@ -254,10 +254,9 @@ export function ProjectSwitcher({
     }),
   );
   const liveId = useInboxStore((s) => s.resolveLiveSessionId(conversation._id));
-  const sessionReconfigure = useInboxStore(
-    (s) => s.sessionReconfigures[liveId],
-  );
-  const pickedDeviceId = sessionReconfigure?.deviceId;
+  const pickedDeviceId = isConvexId(liveId)
+    ? storeSession?.owner_device_id
+    : storeSession?.target_device_id;
   const isolatedToggle = useInboxStore((s) => s.isolatedWorktreeMode);
   // The composer's new project switch (NewSessionProjectToggle) words the question.
   const startsProject = useInboxStore(
@@ -276,11 +275,7 @@ export function ProjectSwitcher({
     cloudAgentProviderForLaunch(liveMeta?.agentType, cloudLaunchKey) ??
     cloudAgentProvidersFor(liveMeta?.agentType)[0];
   // The machine the session will run from: the picked target, else its owner.
-  const cloudDeviceId =
-    pickedDeviceId ??
-    (!isConvexId(liveId) ? storeSession?.target_device_id : undefined) ??
-    storeSession?.owner_device_id ??
-    null;
+  const cloudDeviceId = pickedDeviceId ?? storeSession?.owner_device_id ?? null;
   const cloudStatus = useCloudAgentStatus(cloudSpec, cloudDeviceId);
   const cloudConnectedTo = useCloudAgentConnectedTo();
   const cloudAgent = useMemo(() => {
@@ -368,7 +363,6 @@ export function ProjectSwitcher({
     currentConvContext?.gitRoot,
   ].find((p) => pathOnMyMachines(rosterLive ? devices : [], p));
   const currentPath =
-    sessionReconfigure?.projectPath ||
     storeSession?.project_path ||
     storeSession?.git_root ||
     conversation.git_root ||
@@ -691,7 +685,7 @@ export function ProjectSwitcher({
       projectPath: string | null,
       forceIsolated?: boolean,
       forceDeviceId?: string | null,
-      opts: { onlyCloudPark?: boolean } = {},
+      opts: { onlyCloudPark?: boolean; rememberDevice?: boolean } = {},
     ) => {
       const trimmed = (projectPath ?? "").trim();
       const machineOnly = !trimmed && forceDeviceId !== undefined;
@@ -745,7 +739,9 @@ export function ProjectSwitcher({
         } else {
           if (!machineOnly) store.updateSessionProject(id, trimmed);
           if (forceDeviceId !== undefined)
-            store.pickStubSessionTarget(id, forceDeviceId);
+            store.setSessionTargetDevice(id, forceDeviceId);
+          if (opts.rememberDevice && forceDeviceId)
+            store.updateClientUI({ last_picked_device_id: forceDeviceId });
         }
       }
       if (!convexId) return;
@@ -774,6 +770,9 @@ export function ProjectSwitcher({
             useInboxStore.getState().clientState.ui,
           ),
         }),
+        opts.rememberDevice && forceDeviceId
+          ? { rememberDeviceId: forceDeviceId }
+          : undefined,
       ).catch((err) => {
         if (!isParkedDispatchError(err))
           toastWriteError(err, "Failed to switch project");
@@ -824,12 +823,9 @@ export function ProjectSwitcher({
   // bites when the conversation already exists server-side; every new-session
   // surface defers its create, so the stamp below is what usually carries the
   // choice — see createSessionFromStub.
-  const updateClientUI = useInboxStore((s) => s.updateClientUI);
   const handleMachinePick = useCallback(
     (d: SessionMachine) => {
       const { pickedDeviceId } = machineSelectionAfterPick(d);
-      if (!isConvexId(liveId))
-        updateClientUI({ last_picked_device_id: d.device_id });
       // Same project, THAT machine's checkout: keep the stored path truthful for
       // where the session now routes (the daemon would remap by repo name anyway,
       // but the label/tooltip shouldn't show a path the machine doesn't have). A
@@ -842,9 +838,11 @@ export function ProjectSwitcher({
               (r) => repoName(r) === repoName(currentPath),
             ) ?? currentPath)
         : null;
-      handleSwitch(remapped, undefined, pickedDeviceId);
+      handleSwitch(remapped, undefined, pickedDeviceId, {
+        rememberDevice: true,
+      });
     },
-    [currentPath, handleSwitch, liveId, updateClientUI],
+    [currentPath, handleSwitch],
   );
 
   // "Run in the cloud" is THIS composer's override: it moves the session's

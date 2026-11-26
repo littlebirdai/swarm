@@ -54,7 +54,7 @@ test("cloud mode is derived from the routed machine, never read from the store",
 test("handleSwitch decides placement and builds its payload with the pure helpers", () => {
   const handleSwitch = between(
     "const handleSwitch = useCallback(",
-    "const updateClientUI",
+    "const handleMachinePick",
   );
   // Both decisions live in lib/sessionMachines and are tested there with
   // inputs and outputs; the composer only feeds them.
@@ -96,7 +96,7 @@ test("handleSwitch decides placement and builds its payload with the pure helper
 test("leaving cloud mode never ships the cloud-locked isolated value, and the routed host is the park target", () => {
   const handleSwitch = between(
     "const handleSwitch = useCallback(",
-    "const updateClientUI",
+    "const handleMachinePick",
   );
   // `isolated` (= isolatedToggle || cloudMode) is display state; the payload
   // carries the user's real toggle, and switchReconfigureArgs drops it for a

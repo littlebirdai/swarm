@@ -103,6 +103,9 @@ test.each(["machine pick", "cloud toggle"] as const)(
       ui.container.querySelector('button[title^="Runs on Laptop."]'),
     ).not.toBeNull();
     expect(
+      ui.store.getState().clientState.ui?.last_picked_device_id,
+    ).toBeUndefined();
+    expect(
       notices.events().map(({ event, kind, title }) => ({
         event,
         kind,
@@ -165,4 +168,68 @@ test("a machine pick stays with its conversation when the switcher is reused", a
 
   await ui.rerender(switcher(rows[0]));
   expect(machine("Studio")).not.toBeNull();
+});
+
+test("an accepted move keeps its path until the server confirms its fallback", async () => {
+  const row = builders.conversation.build({
+    owner_device_id: laptop.device_id,
+    project_path: path,
+    git_root: path,
+  });
+  const serverRow = builders.session.build({
+    _id: row._id,
+    owner_device_id: laptop.device_id,
+    project_path: path,
+    git_root: path,
+  });
+  const scope = "user:picker";
+  const response = Promise.withResolvers<unknown>();
+  const ui = await mountWeb(
+    <ProjectSwitcher conversation={{ ...row, messages: [] }} />,
+    {
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("sessions", [serverRow]);
+        store.setMachineRoster([laptop, studio]);
+        backend.set(api.devices.listDevices, pending);
+        backend.set(api.users.getRecentProjectPaths, []);
+        backend.set(api.teamHosts.list, []);
+        backend.mutation(api.dispatch.dispatch, ({ action, args, patches }) => {
+          if (action !== "convCommand" || args[1] !== "reconfigureSession")
+            return null;
+          expect(patches?.conversations?.[row._id]).toBeUndefined();
+          return response.promise;
+        });
+      },
+    },
+  );
+  const machine = (label: string) =>
+    ui.container.querySelector<HTMLButtonElement>(
+      `button[title^="Runs on ${label}."]`,
+    );
+  const session = () => ui.store.getState().sessions[row._id];
+  const preference = () =>
+    ui.store.getState().clientState.ui?.last_picked_device_id;
+
+  await act(async () => machine("Laptop")!.click());
+  await act(async () => button(ui.container, "Studio").click());
+  expect(machine("Studio")).not.toBeNull();
+  expect(session().project_path).toBe(studioPath);
+  expect(preference()).toBeUndefined();
+
+  await act(async () => {
+    response.resolve({
+      __syncAckV1: [{ scope_key: scope, position: 17 }],
+      result: null,
+    });
+  });
+  expect(session().project_path).toBe(studioPath);
+  expect(preference()).toBe(studio.device_id);
+
+  await act(async () => {
+    ui.store.getState().syncTable("sessions", [serverRow]);
+    ui.store.getState().retireAckedPending(scope, 17, { restore: true });
+  });
+  expect(session().project_path).toBe(path);
+  expect(machine("Laptop")).not.toBeNull();
 });
