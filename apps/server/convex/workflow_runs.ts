@@ -47,6 +47,10 @@ import {
 } from "./lib/access";
 import { patchTask } from "./lib/taskWrite";
 import {
+  insertConversationWithStatus,
+  patchConversationLifecycle,
+} from "./lib/sessionStatusWriter";
+import {
   repairedClosedAt,
   repairedLineStatus,
   statusHistory,
@@ -852,7 +856,12 @@ export const hideTaskRunLogs = internalMutation({
       )
         continue;
       hidden++;
-      if (!args.dry) await ctx.db.patch(log._id, runLogInboxFields(Date.now()));
+      if (!args.dry)
+        await patchConversationLifecycle(
+          ctx,
+          log._id,
+          runLogInboxFields(Date.now()),
+        );
     }
     return { hidden, cursor: page.isDone ? null : page.continueCursor };
   },
@@ -951,7 +960,7 @@ export const create = mutation({
         userId,
         args.project_path,
       );
-      primaryConvId = await ctx.db.insert("conversations", {
+      primaryConvId = await insertConversationWithStatus(ctx, {
         user_id: userId,
         agent_type: "claude_code",
         session_id: `wf-${runId}`,
@@ -1195,8 +1204,8 @@ export async function createRunCore(
     });
   }
 
-  const primaryConvId: Id<"conversations"> = await ctx.db.insert(
-    "conversations",
+  const primaryConvId: Id<"conversations"> = await insertConversationWithStatus(
+    ctx,
     {
       user_id: userId,
       agent_type: "claude_code",
@@ -2050,7 +2059,7 @@ export const updateProgress = mutation({
           timestamp: now,
         });
         const newCount = (primaryConv.message_count || 0) + 1;
-        await ctx.db.patch(run.primary_conversation_id, {
+        await patchConversationLifecycle(ctx, run.primary_conversation_id, {
           message_count: newCount,
           updated_at: now,
           last_message_role: "assistant",
