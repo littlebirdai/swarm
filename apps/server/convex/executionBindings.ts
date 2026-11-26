@@ -27,6 +27,10 @@ import {
 } from "./pendingMessageWrites";
 import { isConversationSafetyBlocked } from "./conversationSafety";
 import {
+  capabilityValidator,
+  permitValidator,
+} from "./lib/edge/execution.validators";
+import {
   attemptMatchesFence,
   blockDeliveryAsAmbiguous,
   claimedPermitWire,
@@ -1378,7 +1382,18 @@ export async function claimExecutionStartInDb(
   // boot that never registered, stays fenced out.
   const previousDaemonBootId = binding.daemon_boot_id;
   const bootTransfer = previousDaemonBootId !== args.daemonBootId;
-  if (bootTransfer) {
+  const activeAttemptId =
+    binding.state === "ready" &&
+    head.current_epoch === args.epoch &&
+    (bootTransfer ||
+      head.active_delivery_state === "delivery-started" ||
+      head.active_delivery_state === "ambiguous")
+      ? head.active_delivery_attempt_id
+      : undefined;
+  const activeAttempt = activeAttemptId && (await ctx.db.get(activeAttemptId));
+  const repairDelivery =
+    activeAttempt && activeAttempt.daemon_boot_id !== args.daemonBootId;
+  if (bootTransfer || repairDelivery) {
     const registration = await registeredDaemonBoot(
       ctx,
       userId,
@@ -1403,68 +1418,59 @@ export async function claimExecutionStartInDb(
       }
     : { state: "fresh" as const };
   if (binding.state === "ready") {
-    if (bootTransfer) {
+    if (activeAttemptId && (bootTransfer || repairDelivery)) {
+      const attempt = activeAttempt;
+      const message = attempt && (await ctx.db.get(attempt.message_id));
       if (
-        head.current_epoch === args.epoch &&
-        head.active_delivery_attempt_id
+        !attempt ||
+        !message ||
+        attempt.conversation_id !== args.conversationId ||
+        attempt.owner_user_id !== userId ||
+        attempt.owner_device_id !== binding.owner_device_id ||
+        attempt.execution_epoch !== binding.epoch ||
+        attempt.configuration_revision !== binding.configuration_revision ||
+        attempt.runtime_id !== binding.runtime_id ||
+        attempt.conversation_sequence !== head.next_nonterminal_sequence ||
+        attempt.state !== head.active_delivery_state ||
+        message.active_delivery_attempt_id !== attempt._id ||
+        message.conversation_id !== attempt.conversation_id ||
+        message.delivery_id !== attempt.delivery_id ||
+        message.client_id !== attempt.delivery_id ||
+        message.conversation_sequence !== attempt.conversation_sequence ||
+        message.execution_epoch !== attempt.execution_epoch ||
+        message.delivery_status !== attempt.state
       ) {
-        const attempt = await ctx.db.get(head.active_delivery_attempt_id);
-        const message = attempt && (await ctx.db.get(attempt.message_id));
-        if (
-          !attempt ||
-          !message ||
-          attempt.conversation_id !== args.conversationId ||
-          attempt.owner_user_id !== userId ||
-          attempt.owner_device_id !== binding.owner_device_id ||
-          attempt.execution_epoch !== binding.epoch ||
-          attempt.configuration_revision !== binding.configuration_revision ||
-          attempt.runtime_id !== binding.runtime_id ||
-          attempt.conversation_sequence !== head.next_nonterminal_sequence ||
-          attempt.state !== head.active_delivery_state ||
-          message.active_delivery_attempt_id !== attempt._id ||
-          message.conversation_id !== attempt.conversation_id ||
-          message.delivery_id !== attempt.delivery_id ||
-          message.client_id !== attempt.delivery_id ||
-          message.conversation_sequence !== attempt.conversation_sequence ||
-          message.execution_epoch !== attempt.execution_epoch ||
-          message.delivery_status !== attempt.state
-        ) {
-          fail(
-            "DELIVERY_SLOT_INVARIANT",
-            "active permit does not match the ready binding and queue head",
-          );
-        }
-        if (attempt.state === "claimed") {
-          await requeueDeliveryBeforeEffect(
-            ctx,
-            head._id,
-            message,
-            attempt._id,
-            {
-              failure_code: "CLAIM_RELEASED_BEFORE_EFFECT",
-              failure_message: "daemon boot changed before delivery started",
-              completed_at: args.now,
-            },
-          );
-        } else if (attempt.state === "delivery-started") {
-          await blockDeliveryAsAmbiguous(
-            ctx,
-            head._id,
-            message._id,
-            attempt._id,
-            args.now,
-            {
-              daemon_boot_id: args.daemonBootId,
-              failure_code: "DELIVERY_BOOT_CHANGED",
-              failure_message: "daemon boot changed after delivery started",
-            },
-          );
-        } else {
-          await ctx.db.patch(attempt._id, {
-            daemon_boot_id: args.daemonBootId,
-          });
-        }
+        fail(
+          "DELIVERY_SLOT_INVARIANT",
+          "active permit does not match the ready binding and queue head",
+        );
       }
+      if (attempt.state === "claimed") {
+        await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
+          failure_code: "CLAIM_RELEASED_BEFORE_EFFECT",
+          failure_message: "daemon boot changed before delivery started",
+          completed_at: args.now,
+        });
+      } else if (attempt.state === "delivery-started") {
+        await blockDeliveryAsAmbiguous(
+          ctx,
+          head._id,
+          message._id,
+          attempt._id,
+          args.now,
+          {
+            daemon_boot_id: args.daemonBootId,
+            failure_code: "DELIVERY_BOOT_CHANGED",
+            failure_message: "daemon boot changed after delivery started",
+          },
+        );
+      } else {
+        await ctx.db.patch(attempt._id, {
+          daemon_boot_id: args.daemonBootId,
+        });
+      }
+    }
+    if (bootTransfer) {
       await clearEventTurn(ctx, binding, args.now, true);
       await ctx.db.patch(binding._id, {
         daemon_boot_id: args.daemonBootId,
@@ -3122,12 +3128,6 @@ const transportValidator = v.union(
   v.literal("app-server"),
   v.literal("external"),
 );
-const capabilityValidator = v.union(
-  v.literal("single-flight-binding"),
-  v.literal("delivery-permit-v1"),
-  v.literal("strict-agent-routing"),
-  v.literal("runtime-inspection-v1"),
-);
 const isolationValidator = v.object({
   sandbox: v.optional(
     v.union(
@@ -3159,18 +3159,6 @@ const targetValidator = v.object({
   daemon_boot_id: v.string(),
   required_capabilities: v.array(capabilityValidator),
   protocol_version: v.number(),
-});
-const permitValidator = v.object({
-  message_id: v.id("pending_messages"),
-  delivery_id: v.string(),
-  conversation_sequence: v.string(),
-  attempt_id: v.id("delivery_attempts"),
-  conversation_id: v.id("conversations"),
-  execution_epoch: v.number(),
-  configuration_revision: v.number(),
-  owner_device_id: v.string(),
-  daemon_boot_id: v.string(),
-  runtime_id: v.string(),
 });
 
 function targetFromWire(target: any): TargetInput {
@@ -3225,6 +3213,7 @@ function permitFromWire(permit: any): PermitFence {
 export async function authenticateExecutionDaemon(
   ctx: DbCtx,
   apiToken: string | undefined,
+  expectedDeviceId?: string,
 ): Promise<Id<"users">> {
   // Effect authority never falls back to ambient browser/session auth. The
   // caller must present the daemon/CLI bearer explicitly on every mutation.
@@ -3233,6 +3222,11 @@ export async function authenticateExecutionDaemon(
   const result = await verifyApiToken(ctx, apiToken);
   if (!result)
     fail("DAEMON_TOKEN_INVALID", "execution control API token is invalid");
+  if (expectedDeviceId !== undefined) {
+    const deviceId = (await ctx.db.get(result.tokenId))?.device_id;
+    if (deviceId !== undefined && deviceId !== expectedDeviceId)
+      fail("DAEMON_DEVICE_MISMATCH", "the token belongs to a different device");
+  }
   return result.userId;
 }
 
@@ -3370,7 +3364,11 @@ export const registerExecutionDaemonBoot = mutation({
   handler: async (ctx, args) =>
     await registerExecutionDaemonBootInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(
+        ctx,
+        args.api_token,
+        args.owner_device_id,
+      ),
       {
         ownerDeviceId: args.owner_device_id,
         daemonBootId: args.daemon_boot_id,
@@ -3394,7 +3392,11 @@ export const claimExecutionStart = mutation({
   handler: async (ctx, args) =>
     await claimExecutionStartInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(
+        ctx,
+        args.api_token,
+        args.owner_device_id,
+      ),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -3709,7 +3711,11 @@ export const resolveAmbiguousDelivery = mutation({
   handler: async (ctx, args) =>
     await resolveAmbiguousDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(
+        ctx,
+        args.api_token,
+        args.permit.owner_device_id,
+      ),
       {
         ...permitFromWire(args.permit),
         resolution: args.resolution,
@@ -3729,7 +3735,11 @@ export const abandonAmbiguousAndResend = mutation({
   handler: async (ctx, args) =>
     await abandonAmbiguousAndResendInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(
+        ctx,
+        args.api_token,
+        args.permit.owner_device_id,
+      ),
       {
         ...permitFromWire(args.permit),
         newClientId: args.new_client_id,
