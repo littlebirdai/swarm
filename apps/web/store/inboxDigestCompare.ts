@@ -12,8 +12,7 @@
 //
 // Pure core, stateful shell: `evaluateInboxCompare` is a function of store
 // state and a clock; `createInboxDigestComparer` wraps it with the
-// persistence rule, the heal budget and latch, the stale-payload probe
-// scheduler and the telemetry counters, all behind an injectable IO surface so
+// persistence rule, heal budget, and telemetry behind an injectable IO surface so
 // the whole loop is unit-testable without React, Convex or timers.
 import {
   INBOX_PROJECTION_VERSION,
@@ -28,7 +27,6 @@ import {
   type InboxOverlayState,
 } from "./inboxOverlays";
 import {
-  INBOX_PAYLOAD_FRESH_MS,
   placeInboxRows,
   projectReplicaInbox,
   useInboxStore,
@@ -54,14 +52,6 @@ const SIM_TRACE = typeof process !== "undefined" && !!process.env?.SIM_TRACE;
 
 /** The coarse tick the compare runs on. */
 export const INBOX_COMPARE_TICK_MS = 15_000;
-/** A payload older than this (receipt clock) is skipped: stale_payload. The
- *  same bound past which the store stops trusting the payload's facts
- *  (overlayCoverage), so the compare never runs over a sweep-adjusted row. */
-export const INBOX_COMPARE_MAX_PAYLOAD_AGE_MS = INBOX_PAYLOAD_FRESH_MS;
-/** Past this age a quiet scope gets ONE budgeted overlay probe (C2). */
-export const INBOX_PROBE_PAYLOAD_AGE_MS = 300_000;
-/** The stale-payload probe's slow budget: at most one per this window. */
-export const INBOX_PROBE_MIN_INTERVAL_MS = 300_000;
 /** Quiescence: no COMMITTED row apply for this settle window, nothing in
  *  flight. A short window, not a multiple of the tick: on a busy account a
  *  real row change lands every 20 to 30 seconds (several agents streaming),
@@ -170,6 +160,7 @@ export type InboxCompareContext = {
   now: number;
   /** Receipt clock: payload age. */
   nowMono: number;
+  subscriptionHealthy: boolean;
   /** syncMeta key of the sessions completeness crawl; null with no principal. */
   crawlMetaKey: string | null;
   lastApplyMono: number;
@@ -208,9 +199,9 @@ export function evaluateInboxCompare(
   // Gate 2: the version gate — deploy skew is silence plus a metric.
   if (slot.v !== INBOX_PROJECTION_VERSION)
     return { kind: "skip", reason: "version_skew", payload_v: slot.v };
-  // Gate 3: payload age on the receipt clock.
+  // Gate 3: overlay subscription and connection health.
   const payload_age_ms = Math.max(0, ctx.nowMono - slot.receivedAtMono);
-  if (payload_age_ms > INBOX_COMPARE_MAX_PAYLOAD_AGE_MS)
+  if (!ctx.subscriptionHealthy)
     return { kind: "skip", reason: "stale_payload", payload_age_ms };
   // Gate 4: applier quiescence.
   if (
@@ -422,6 +413,7 @@ export type InboxDigestComparerIO = {
   fetchByIds: (ids: string[]) => Promise<void>;
   /** One sessionsLiveness `_probe` applied through the overlay applier. */
   probeOverlay: () => Promise<void>;
+  subscriptionHealthy: () => boolean;
   /** The sessions completeness-crawl syncMeta key for a principal. */
   crawlMetaKeyFor: (meId: string | null) => string | null;
   now?: () => number;
@@ -475,8 +467,6 @@ export function createInboxDigestComparer(
   // event per distinct payload version.
   let lastDriftDigest: string | null = null;
   const skewSeen = new Set<number>();
-  let lastStaleProbeAt = Number.NEGATIVE_INFINITY;
-  let staleProbeInFlight = false;
 
   function heartbeat(t: number): void {
     if (heartbeatAt === null) {
@@ -492,28 +482,6 @@ export function createInboxDigestComparer(
       skips: { ...counters.skips },
     });
     counters = emptyHeartbeatCounters();
-  }
-
-  // The stale-payload probe scheduler (C2): a frozen payload is where time
-  // driven reclassification accumulates, so force one fresh execution on a
-  // slow budget. Off with the kill switch (probe is compare machinery).
-  function maybeProbeStale(
-    state: InboxCompareState,
-    t: number,
-    tMono: number,
-  ): void {
-    const slot = state.sessionsProjection["mine"];
-    if (!slot || slot.set_digest == null || staleProbeInFlight) return;
-    if (tMono - slot.receivedAtMono <= INBOX_PROBE_PAYLOAD_AGE_MS) return;
-    if (t - lastStaleProbeAt < INBOX_PROBE_MIN_INTERVAL_MS) return;
-    lastStaleProbeAt = t;
-    staleProbeInFlight = true;
-    counters.probes++;
-    io.probeOverlay()
-      .catch(onError)
-      .finally(() => {
-        staleProbeInFlight = false;
-      });
   }
 
   function runHeal(diff: InboxDriftDiff): void {
@@ -606,7 +574,6 @@ export function createInboxDigestComparer(
     const t = now();
     const tMono = nowMono();
     heartbeat(t);
-    maybeProbeStale(state, t, tMono);
     // Coverage accounting for the team slot(s): stamps ship, nothing compares.
     for (const key in state.sessionsProjection) {
       if (key !== "mine") counters.skips.scope_uncovered++;
@@ -615,6 +582,7 @@ export function createInboxDigestComparer(
     const outcome = evaluateInboxCompare(state, {
       now: t,
       nowMono: tMono,
+      subscriptionHealthy: io.subscriptionHealthy(),
       crawlMetaKey: io.crawlMetaKeyFor(meId),
       lastApplyMono: lastSyncApplyMono(),
       inflight: syncInflightCount(),
@@ -711,6 +679,7 @@ export type InboxDigestDevHandle = {
 export function createInboxDigestDevHandle(
   comparer: InboxDigestComparer,
   crawlMetaKeyFor: InboxDigestComparerIO["crawlMetaKeyFor"],
+  subscriptionHealthy: InboxDigestComparerIO["subscriptionHealthy"],
 ): InboxDigestDevHandle {
   const evaluate = () => {
     const state = useInboxStore.getState();
@@ -718,6 +687,7 @@ export function createInboxDigestDevHandle(
     return evaluateInboxCompare(state, {
       now: Date.now(),
       nowMono: monotonicNow(),
+      subscriptionHealthy: subscriptionHealthy(),
       crawlMetaKey: crawlMetaKeyFor(meId),
       lastApplyMono: lastSyncApplyMono(),
       inflight: syncInflightCount(),

@@ -16,7 +16,8 @@ import { startWarmLoop } from "./inbox-warm";
 import { toast } from "sonner";
 import { soundIdle } from "../lib/sounds";
 import { useConvexSync } from "./useConvexSync";
-import { INBOX_RECOVERY_STALE_MS, useRecoveryPoll } from "./useRecoveryPoll";
+import { useRecoveryPoll } from "./useRecoveryPoll";
+import { useInboxRecovery } from "./use-inbox-recovery";
 import { useIsSyncHost } from "./useSyncRole";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import { useEnsureDispatch } from "./useEnsureDispatch";
@@ -27,7 +28,7 @@ import {
   LIST_INBOX_SESSIONS_ARGS,
 } from "./useLiveInboxSessions";
 import { useQueryNoThrow } from "./useQueryNoThrow";
-import { querySplitWhole, useSplitQueryNoThrow } from "./useSplitQuery";
+import { useSplitQueryNoThrow } from "./useSplitQuery";
 import { useFeederError } from "./useSyncCollection";
 import { onSyncWake } from "./syncWake";
 import { startLivenessHold } from "./liveness-hold";
@@ -345,6 +346,8 @@ export function runInboxFloorStep(
   });
 }
 
+const PERSONAL_LIVENESS_ARGS = {};
+
 export function useSyncInboxSessions() {
   // Wire the store's server dispatch (split out so a screen can ensure dispatch
   // without these inbox subscriptions — see useEnsureDispatch).
@@ -373,7 +376,7 @@ export function useSyncInboxSessions() {
   const favoriteSessions = favorites.data;
   const liveness = useSplitQueryNoThrow(
     api.conversations.sessionsLiveness,
-    isSyncHost ? {} : "skip",
+    isSyncHost ? PERSONAL_LIVENESS_ARGS : "skip",
     "liveness",
   );
   useFeederError("conversations.sessionsLiveness", liveness.error);
@@ -398,8 +401,6 @@ export function useSyncInboxSessions() {
   const prevActiveIdsRef = useRef<Set<string> | null>(null);
   const prevWaitingMapRef = useRef<Map<string, boolean> | null>(null);
   const notifiedWaitingKeysRef = useRef(new Map<string, string>());
-  const lastSyncRef = useRef(Date.now());
-  const lastLivenessSyncRef = useRef(Date.now());
   const lastUserSyncRef = useRef(Date.now());
 
   // Message warming: one store-driven loop per window over the RENDERED order
@@ -410,14 +411,32 @@ export function useSyncInboxSessions() {
   // The base live session list — syncTable + liveInboxIds — is shared with the
   // standalone palette window via useLiveInboxSessions so both windows feed
   // findReusableBlankSession the SAME truth. Here we layer on the message
-  // prefetch (instant clicks) and the recovery-poll watermark; the shared payload
+  // prefetch (instant clicks). The shared payload
   // carries null liveness (include_liveness:false), so the idle/needs-input sound
   // stays on the sessionsLiveness overlay below where liveness actually changes.
-  const { data: inboxSessions, error: inboxError } = useLiveInboxSessions({
-    onSync: () => {
-      lastSyncRef.current = Date.now();
-    },
-  });
+  const { data: inboxSessions, error: inboxError } = useLiveInboxSessions();
+
+  useInboxRecovery(
+    api.conversations.listInboxSessions,
+    isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip",
+    "list",
+    inboxError,
+    useCallback(
+      (data) => applyInboxListPayload(data, convex) !== null,
+      [convex],
+    ),
+  );
+  const {
+    request: recoverLiveness,
+    acceptLive,
+    isHealthy,
+  } = useInboxRecovery(
+    api.conversations.sessionsLiveness,
+    isSyncHost ? PERSONAL_LIVENESS_ARGS : "skip",
+    "liveness",
+    liveness.error,
+    useCallback((data) => Boolean(applyMineLivenessPayload(data)), []),
+  );
 
   // Merge favorites into the session cache WITHOUT touching liveInboxIds — these
   // rows back the Favorites view and the sidebar peek; they must not be treated
@@ -445,24 +464,27 @@ export function useSyncInboxSessions() {
   // overlaid values.
   useConvexSync(
     sessionLiveness,
-    useCallback((data: any) => {
-      const liveness = applyMineLivenessPayload(data);
-      if (!liveness) return;
-      const store = useInboxStore.getState();
-      const merged = Object.keys(liveness)
-        .map((id) => store.sessions[id])
-        .filter(Boolean) as InboxSession[];
-      const soundState = shouldPlayWaitingSound(
-        merged,
-        store.sessionsWithQueuedMessages,
-        prevWaitingMapRef.current,
-        notifiedWaitingKeysRef.current,
-      );
-      for (const key of soundState.keys)
-        soundIdle(key, () => stillWaiting(key));
-      prevWaitingMapRef.current = soundState.nextWaiting;
-      lastLivenessSyncRef.current = Date.now();
-    }, []),
+    useCallback(
+      (data: any) => {
+        const liveness = applyMineLivenessPayload(data);
+        if (!liveness) return;
+        acceptLive();
+        const store = useInboxStore.getState();
+        const merged = Object.keys(liveness)
+          .map((id) => store.sessions[id])
+          .filter(Boolean) as InboxSession[];
+        const soundState = shouldPlayWaitingSound(
+          merged,
+          store.sessionsWithQueuedMessages,
+          prevWaitingMapRef.current,
+          notifiedWaitingKeysRef.current,
+        );
+        for (const key of soundState.keys)
+          soundIdle(key, () => stillWaiting(key));
+        prevWaitingMapRef.current = soundState.nextWaiting;
+      },
+      [acceptLive],
+    ),
     { coalesceMs: 300 },
   );
 
@@ -508,57 +530,6 @@ export function useSyncInboxSessions() {
     }, []),
   );
 
-  // Recovery heartbeat: a Convex subscription can silently stall after
-  // sleep/wake or WebSocket reconnection, and each one stalls independently.
-  // Poll a one-shot query to catch divergence — same pattern as
-  // useConversationMessages' watermark loop.
-  useRecoveryPoll(
-    lastSyncRef,
-    useCallback(
-      async (signal: AbortSignal) => {
-        // A follower has no subscription of its own to recover.
-        if (!isSyncHost) return;
-        // `_probe` makes this a novel query token so Convex round-trips instead of
-        // serving the (possibly stalled) cache of the live listInboxSessions
-        // subscription — otherwise the "recovery" just re-reads the staleness.
-        const fresh: any = await querySplitWhole(
-          convex,
-          api.conversations.listInboxSessions,
-          LIST_INBOX_SESSIONS_ARGS,
-          "list",
-          signal,
-        );
-        if (signal.aborted || !applyInboxListPayload(fresh, convex)) return;
-        lastSyncRef.current = Date.now();
-      },
-      [convex, isSyncHost],
-    ),
-    INBOX_RECOVERY_STALE_MS,
-  );
-
-  // Liveness can stall independently of the base list — recover it on the same
-  // cadence so a frozen subscription doesn't leave every session reading a stale
-  // (or null) agent_status after a sleep/reconnect.
-  useRecoveryPoll(
-    lastLivenessSyncRef,
-    useCallback(
-      async (signal: AbortSignal) => {
-        if (!isSyncHost) return;
-        const fresh: any = await querySplitWhole(
-          convex,
-          api.conversations.sessionsLiveness,
-          {},
-          "liveness",
-          signal,
-        );
-        if (signal.aborted || !applyMineLivenessPayload(fresh)) return;
-        lastLivenessSyncRef.current = Date.now();
-      },
-      [convex, isSyncHost],
-    ),
-    INBOX_RECOVERY_STALE_MS,
-  );
-
   // The liveness hold (liveness-hold.ts): after a launch from cache, a
   // suspension or a dropped socket, placement reads the facts at the moment
   // they were last current until one fresh read lands. Only the host holds:
@@ -574,18 +545,8 @@ export function useSyncInboxSessions() {
       holdSeq: () => store.getState().livenessHoldSeq,
       hold: (at) => store.getState().holdLiveness(at),
       release: (seq) => store.getState().releaseLiveness(seq),
-      probe: async (signal) => {
-        const fresh: any = await querySplitWhole(
-          convex,
-          api.conversations.sessionsLiveness,
-          {},
-          "liveness",
-          signal,
-        );
-        if (signal.aborted || !applyMineLivenessPayload(fresh)) return false;
-        lastLivenessSyncRef.current = Date.now();
-        return true;
-      },
+      probe: (signal) =>
+        signal.aborted ? Promise.resolve(false) : recoverLiveness(),
       connected: () => convex.connectionState().isWebSocketConnected,
       hidden: () =>
         typeof document !== "undefined" &&
@@ -595,7 +556,7 @@ export function useSyncInboxSessions() {
       onWake: onSyncWake,
       onStore: (fn) => store.subscribe(fn),
     });
-  }, [convex, isSyncHost]);
+  }, [convex, isSyncHost, recoverLiveness]);
 
   // currentUser carries daemon_last_seen — the input to the CLI-offline banner.
   // Its subscription stalls independently of listInboxSessions (sessions can
@@ -778,5 +739,9 @@ export function useSyncInboxSessions() {
         .catch((err) => captureError(err, { source: "stub-heal", stubId }));
   }, [sweepNonce, hydrated]);
 
-  return { activeSessions: inboxSessions };
+  return {
+    activeSessions: inboxSessions,
+    recoverLiveness,
+    isLivenessHealthy: isHealthy,
+  };
 }

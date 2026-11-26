@@ -151,6 +151,7 @@ afterEach(() => nowSpy.mockRestore());
 
 const MONO = 1_000_000;
 const ctx = {
+  subscriptionHealthy: true,
   now: NOW,
   nowMono: MONO + 1_000,
   crawlMetaKey: CRAWL_KEY,

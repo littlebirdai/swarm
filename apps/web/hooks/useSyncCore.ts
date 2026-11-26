@@ -44,13 +44,13 @@ export type SyncCoreProfile = "web" | "mobile";
 // backgrounding pauses everything for free (RN freezes timers), and the
 // "active" transition emits the one catch-up pass the contract requires.
 export function useSyncCore(profile: SyncCoreProfile): void {
-  useSyncInboxSessions();
+  const inboxRecovery = useSyncInboxSessions();
   useSyncTeamInboxSessions();
   useSyncChangeFeed();
   useSyncSessionDecisions();
   useSyncBuckets();
   useSyncSessionReads();
-  useInboxDigestCompare();
+  useInboxDigestCompare(inboxRecovery);
   // The task/doc/plan index every search's instant tier reads (Cmd-K, the
   // phone's search, @-mentions): small rows across every workspace.
   useSyncMentionTasks();

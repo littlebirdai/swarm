@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useConvex, type ConvexReactClient } from "convex/react";
-import { getFunctionName, type FunctionReference } from "convex/server";
+import {
+  getFunctionName,
+  type FunctionArgs,
+  type FunctionReference,
+  type FunctionReturnType,
+} from "convex/server";
 import { convexToJson } from "convex/values";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import {
@@ -162,43 +167,24 @@ export function seedSplitCache(
   else cacheRows(cache, Object.entries(whole?.liveness ?? {}));
 }
 
-/**
- * A one-shot read of a split-capable query's whole result (the recovery
- * polls). It asks for the split form and rebuilds it from the subscription's
- * cache, so a quiet inbox's poll moves the recent rows, not the whole list;
- * the whole result travels only when the cache cannot vouch for a cold row.
- * `_probe` keeps each read a fresh round trip, never the live cache.
- */
-export async function querySplitWhole(
+export async function queryInboxRecovery<Q extends FunctionReference<"query">>(
   convex: Pick<ConvexReactClient, "watchQuery">,
-  query: FunctionReference<"query">,
-  args: Record<string, any>,
-  kind: SplitKind,
+  query: Q,
+  args: FunctionArgs<Q>,
+  kind: SplitKind | null,
   signal: AbortSignal,
-): Promise<any> {
-  const name = getFunctionName(query);
-  const whole = () =>
-    queryWithSignal(
-      convex,
-      query,
-      { ...args, _probe: Date.now() } as any,
-      signal,
-    );
-  if (unsupported.has(name)) return whole();
-  const rebuilt = await rebuildHeld(
-    kind,
-    await queryWithSignal(
-      convex,
-      query,
-      { ...args, split: true, _probe: Date.now() } as any,
-      signal,
-    ),
-    name,
+): Promise<FunctionReturnType<Q>> {
+  const value = await queryWithSignal(
+    convex,
+    query,
+    { ...args, _probe: Date.now() },
+    signal,
   );
-  noteHeldChanged(name);
-  if (rebuilt) return rebuilt;
-  const value = await whole();
-  seedSplitCache(kind, value, cacheFor(name));
+  if (kind && !signal.aborted) {
+    const name = getFunctionName(query);
+    seedSplitCache(kind, value, cacheFor(name));
+    noteHeldChanged(name);
+  }
   return value;
 }
 

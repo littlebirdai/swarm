@@ -601,7 +601,6 @@
     "hooks/__tests__/pendingMessageCoverage.test.ts": 257,
     "hooks/__tests__/projectSessionCounts.test.ts": 251,
     "hooks/__tests__/pttHold.test.ts": 257,
-    "hooks/__tests__/querySplitWhole.test.ts": 252,
     "hooks/__tests__/repoObjectCache.test.ts": 1432,
     "hooks/__tests__/roomRecordingStatus.test.ts": 250,
     "hooks/__tests__/roomThreadAlerts.mount.test.tsx": 309,
