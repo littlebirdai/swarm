@@ -1053,6 +1053,8 @@ export async function abandonAmbiguousAndResendInDb(
     quiet: message.quiet,
     resendOfDeliveryId: fence.deliveryId,
   });
+  if (process.env.SWARM_TURN_BATON === "1")
+    await ctx.db.patch(messageId, { delivery_intent: "queue" });
   // The same stash rule as the send it resends (enqueuePendingMessage): a hidden stash survives a machine wake and a quiet handover.
   const machineWake = message.origin === "scheduler";
   await ctx.db.patch(fence.conversationId, {
