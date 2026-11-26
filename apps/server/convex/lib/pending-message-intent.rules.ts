@@ -4,6 +4,7 @@ import {
   executionHead,
   type DbCtx,
 } from "./execution-binding.state";
+import { isTerminalDeliveryState } from "./executionQueue";
 
 function sameOptionalIds(
   left: unknown[] | undefined,
@@ -42,18 +43,39 @@ export async function pendingMessageMatchesProductIntent(
     return true;
   if (
     message.delivery_protocol_version === undefined ||
-    message.owner_user_id === undefined
+    message.owner_user_id === undefined ||
+    message.execution_epoch === undefined
   )
     return false;
 
-  const head = await executionHead(ctx, conversation._id);
-  if (head?.device_move?.destination_runner_id === message.owner_user_id)
-    return true;
-  if (message.execution_epoch === undefined) return false;
-  const binding = await executionBinding(
+  const head: Doc<"conversation_execution_heads"> | null = await executionHead(
+    ctx,
+    conversation._id,
+  );
+  if (head?.protocol_state !== "fenced" || head.current_epoch === undefined)
+    return false;
+  const binding: Doc<"execution_bindings"> | null = await executionBinding(
     ctx,
     conversation._id,
     message.execution_epoch,
   );
-  return binding?.owner_user_id === message.owner_user_id;
+  if (binding?.owner_user_id !== message.owner_user_id) return false;
+
+  const move = head.device_move;
+  if (
+    (move?.phase === "preparing" || move?.phase === "aborting") &&
+    move.move_id &&
+    head.pending_epoch === move.next_epoch &&
+    message.execution_epoch === move.next_epoch &&
+    message.owner_user_id === move.destination_runner_id &&
+    binding.move_id === move.move_id
+  )
+    return true;
+
+  return (
+    message.execution_epoch < head.current_epoch &&
+    isTerminalDeliveryState(message.delivery_status) &&
+    (binding.state === "stopped" || binding.state === "quarantined") &&
+    !!binding.handle
+  );
 }
