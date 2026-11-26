@@ -174,6 +174,12 @@ export function conversationSessionsBeatingSince(
   conversationId: Id<"conversations">,
   since: number,
 ) {
+  if (!inboxLeaseWritesEnabled())
+    return ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_heartbeat", (q) =>
+        q.eq("conversation_id", conversationId).gt("last_heartbeat", since),
+      );
   return ctx.db
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q) =>

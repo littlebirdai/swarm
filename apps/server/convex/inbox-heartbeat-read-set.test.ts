@@ -216,37 +216,45 @@ test("an inbox status transition changes the actionable row order", async () => 
   ]);
 });
 
-test("an active heartbeat keeps an older park from changing inbox status", async () => {
-  const { viewer, t, working } = await seed(10_000);
-  await viewer.mutation(api.managedSessions.heartbeatBatch, {
-    sessions: [
-      { session_id: "working-trace", agent_status: "working", client_ts: now },
-    ],
-  });
-  const park = (clientTs: number) =>
-    viewer.mutation(api.managedSessions.updateAgentStatus, {
-      conversation_id: working.conversation,
-      agent_status: "hibernated",
-      hibernated_at: now,
-      client_ts: clientTs,
+test.each(["enabled", "disabled"] as const)(
+  "an active lease heartbeat keeps an older park from changing inbox status with leases %s",
+  async (flag) => {
+    const { viewer, t, working } = await seed(10_000);
+    await viewer.mutation(api.managedSessions.heartbeatBatch, {
+      sessions: [
+        {
+          session_id: "working-trace",
+          agent_status: "working",
+          client_ts: now,
+        },
+      ],
     });
-  expect(await park(now - 1000)).toEqual({
-    applied: false,
-    reason: "stale_status",
-  });
-  const unchanged = await t.run(({ db }) => db.get(working.managed));
-  expect(unchanged).toMatchObject({
-    agent_status: "working",
-    agent_status_updated_at: now - 2000,
-  });
-  expect(await park(now + 1)).toMatchObject({ applied: true });
-  const parked = await t.run(({ db }) => db.get(working.managed));
-  expect(parked).toMatchObject({
-    agent_status: "hibernated",
-    agent_status_updated_at: now + 1,
-    hibernated_at: now,
-  });
-});
+    if (flag === "disabled") delete process.env.INBOX_LIVENESS_LEASES;
+    const park = (clientTs: number) =>
+      viewer.mutation(api.managedSessions.updateAgentStatus, {
+        conversation_id: working.conversation,
+        agent_status: "hibernated",
+        hibernated_at: now,
+        client_ts: clientTs,
+      });
+    expect(await park(now - 1000)).toEqual({
+      applied: false,
+      reason: "stale_status",
+    });
+    const unchanged = await t.run(({ db }) => db.get(working.managed));
+    expect(unchanged).toMatchObject({
+      agent_status: "working",
+      agent_status_updated_at: now - 2000,
+    });
+    expect(await park(now + 1)).toMatchObject({ applied: true });
+    const parked = await t.run(({ db }) => db.get(working.managed));
+    expect(parked).toMatchObject({
+      agent_status: "hibernated",
+      agent_status_updated_at: now + 1,
+      hibernated_at: now,
+    });
+  },
+);
 
 test("renewals leave the inbox read sets untouched and expire after the last beat", async () => {
   const { viewer, t, working, team } = await seed(0, false);

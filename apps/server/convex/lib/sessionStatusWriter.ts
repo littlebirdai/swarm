@@ -265,7 +265,17 @@ export async function writeAgentStatus(
   session: Doc<"managed_sessions">,
   args: AgentStatusWrite,
 ) {
-  const row = await heartbeatRow(ctx, session._id);
+  if (statusWriteIsStale(session, args.agent_status, args.client_ts))
+    return null;
+  const active = ACTIVE_AGENT_STATUSES.has(args.agent_status);
+  const leases = inboxLeaseWritesEnabled();
+  const hasLeaseHistory =
+    session.liveness_lease !== undefined ||
+    session.liveness_lease_generation !== undefined;
+  const row =
+    leases || active || (args.client_ts !== undefined && hasLeaseHistory)
+      ? await heartbeatRow(ctx, session._id)
+      : null;
   if (
     statusWriteIsStale(
       session,
@@ -300,11 +310,10 @@ export async function writeAgentStatus(
     patch.agent_status_updated_at = args.client_ts ?? Date.now();
   }
 
-  const active = ACTIVE_AGENT_STATUSES.has(args.agent_status);
-  const leases = inboxLeaseWritesEnabled();
   const at = active ? now : resolveHeartbeat(session, row?.heartbeat_at);
   const writeAt = args.client_ts ?? now;
-  if (!leases) patch.agent_status_write_at = writeAt;
+  if (!leases || (!active && session.liveness_lease_generation === undefined))
+    patch.agent_status_write_at = writeAt;
   if (active || leases) {
     await persistSessionHeartbeat(
       ctx,
