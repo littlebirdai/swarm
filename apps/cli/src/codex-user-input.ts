@@ -48,13 +48,34 @@ export function codexUserInputResponse(
   poll: PollMessage | null,
 ): CodexUserInputResponse {
   if (!poll) return { answers: {} };
-  const keys = pollMenuSteps(poll).map(({ key }) => key);
+  const steps = Array.isArray(poll.steps)
+    ? poll.steps.flatMap((step) =>
+        typeof step?.key === "string"
+          ? [
+              {
+                key: step.key,
+                text: typeof step.text === "string" ? step.text : undefined,
+              },
+            ]
+          : [],
+      )
+    : undefined;
+  const keys = pollMenuSteps({
+    steps,
+    keys: Array.isArray(poll.keys)
+      ? poll.keys.filter((key) => typeof key === "string")
+      : undefined,
+  }).map(({ key }) => key);
   if (keys.includes("Escape")) return { answers: {} };
-  const embedded = poll.steps?.flatMap(({ text }) =>
+  const embedded = steps?.flatMap(({ text }) =>
     text === undefined ? [] : [text],
   );
   const typed =
-    poll.text ?? (embedded?.length ? embedded.join("\n\n") : undefined);
+    typeof poll.text === "string"
+      ? poll.text
+      : embedded?.length
+        ? embedded.join("\n\n")
+        : undefined;
   const values = new Map<string, string>();
   if (typed !== undefined) {
     if (questions.length === 1) {

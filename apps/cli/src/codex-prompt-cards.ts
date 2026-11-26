@@ -111,7 +111,8 @@ export function codexPromptHandlers(
           holdConversationForPrompt(conversationId);
         const poll = await promise;
         const display = poll?.display || poll?.text;
-        if (display) resolution = `Answered from the app: ${display}`;
+        if (typeof display === "string" && display)
+          resolution = `Answered from the app: ${display}`;
         return poll;
       } finally {
         signal.removeEventListener("abort", cancel);

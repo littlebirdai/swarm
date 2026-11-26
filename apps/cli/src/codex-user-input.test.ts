@@ -93,6 +93,14 @@ test("sends question card choices by Codex question ID and cancels an unanswered
           "include-summary": { answers: ["Yes"] },
         },
       ],
+      [
+        "invalid-fields",
+        { keys: ["1", "1"], steps: null, text: { unexpected: true } },
+        {
+          "review-size": { answers: ["Short"] },
+          "include-summary": { answers: ["Yes"] },
+        },
+      ],
       ["dismissed", { keys: ["Escape"] }, {}],
       ["cancelled", null, {}],
     ] as const) {
@@ -152,7 +160,12 @@ test("sends question card choices by Codex question ID and cancels an unanswered
       }, `Codex receives reply for ${id}`);
       expect(result).toEqual({ answers: expected });
     }
-    expect(delivered).toEqual(["answered", "typed", "dismissed"]);
+    expect(delivered).toEqual([
+      "answered",
+      "typed",
+      "invalid-fields",
+      "dismissed",
+    ]);
     expect(closed.at(-1)).toBe("Codex question cancelled");
   } finally {
     client.stop();
