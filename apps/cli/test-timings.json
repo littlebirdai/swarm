@@ -925,7 +925,7 @@
     "src/workers/ingestReceipt.test.ts": 250,
     "src/workers/ingestRestart.test.ts": 269,
     "src/workers/ingestRetryOwner.test.ts": 314,
-    "src/workers/ingestReview.control.test.ts": 3522,
+    "src/workers/ingest-review.control.test.ts": 3522,
     "src/workers/ingestReview.e2e.test.ts": 15422,
     "src/workers/ingestSubBatch.e2e.test.ts": 15538,
     "src/workers/ingestTransport.test.ts": 256,
