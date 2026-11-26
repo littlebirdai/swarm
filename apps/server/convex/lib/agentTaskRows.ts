@@ -389,6 +389,7 @@ type RoleHandoff = {
   runner: Id<"users">;
   claimed: boolean;
   started: boolean;
+  cursor?: string | null;
 };
 
 function readRoleHandoff(row: Doc<"system_config">): RoleHandoff {
@@ -459,6 +460,7 @@ async function handRoleTriggersForSeat(
         runner: seat.user_id,
         claimed,
         started: false,
+        cursor: null,
       });
       return 0;
     }
@@ -503,6 +505,7 @@ export const continueRoleTriggerHandoff = internalMutation({
     conversationId: v.id("conversations"),
     runner: v.id("users"),
     cursor: v.union(v.null(), v.string()),
+    seenKind: v.optional(v.union(v.literal("none"), v.literal("once"))),
     repair: v.union(
       v.literal("pending"),
       v.literal("witness"),
@@ -512,6 +515,8 @@ export const continueRoleTriggerHandoff = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     const handoff = args.handoffId && (await ctx.db.get(args.handoffId));
     if (args.handoffId && !handoff) return;
+    const state = handoff ? readRoleHandoff(handoff) : null;
+    if (state?.cursor !== undefined && state.cursor !== args.cursor) return;
     const seat = await ctx.db.get(args.conversationId);
     if (!seat || seat.user_id !== args.runner) {
       if (handoff) await ctx.db.delete(handoff._id);
@@ -559,13 +564,16 @@ export const continueRoleTriggerHandoff = internalMutation({
       await writeArmedTriggerKind(ctx, seat, kind);
       repair = "done";
     };
-    const state = handoff ? readRoleHandoff(handoff) : null;
     if (state?.claimed) await repairKind();
     await handRoleTriggerPage(ctx, seat, page.page, repairKind);
+    const seenKind =
+      args.seenKind === "once" || pageKind === "once" ? "once" : "none";
     if (repair === "witness") {
       if (pageKind === "standing") {
         await writeArmedTriggerKind(ctx, seat, "standing");
         repair = "done";
+      } else if (page.isDone) {
+        await writeArmedTriggerKind(ctx, seat, seenKind);
       } else if (
         args.repair === "witness" &&
         pageKind === "once" &&
@@ -582,6 +590,7 @@ export const continueRoleTriggerHandoff = internalMutation({
           ...args,
           cursor: page.continueCursor,
           repair,
+          seenKind,
         },
       );
       if (handoff && state) {
@@ -589,6 +598,7 @@ export const continueRoleTriggerHandoff = internalMutation({
           ...state,
           jobId,
           started: true,
+          cursor: page.continueCursor,
         });
       }
     } else if (handoff) {

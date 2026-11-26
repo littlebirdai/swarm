@@ -6,6 +6,7 @@ import {
   type ServerTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
+import type { FunctionArgs } from "convex/server";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
@@ -412,3 +413,51 @@ test("an explicit restart carries projection repair from a claim on the old chai
     "standing",
   );
 });
+
+test("replaying a completed handoff page does not queue another successor", async () => {
+  const t = serverTest({});
+  const { seat, runner, moved } = await seedSeat(t, 500);
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  const [firstPage] = await scheduledJobs(t, continuation);
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect(await scheduledJobs(t, continuation)).toHaveLength(2);
+  await t.mutation(
+    continuation,
+    firstPage.args[0] as FunctionArgs<typeof continuation>,
+  );
+  expect(await scheduledJobs(t, continuation)).toHaveLength(2);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(moved.at(-1)!)))?.user_id).toBe(
+    runner,
+  );
+});
+
+test.each(["none", "once"] as const)(
+  "the last witness page lowers stale standing to %s using the earlier pages",
+  async (expected) => {
+    const t = serverTest({});
+    const { seat, moved, personal, offSeat, alreadyOwned } = await seedSeat(
+      t,
+      120,
+      "Check in ".repeat(5_000),
+    );
+    await t.run(async ({ db }) => {
+      await db.patch(seat, { armed_trigger_kind: "standing" });
+      for (const id of [personal, offSeat, alreadyOwned, ...moved]) {
+        if (expected === "once" && id === moved[0]) continue;
+        await db.patch(id, { status: "completed" });
+      }
+    });
+    await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+    jest.runOnlyPendingTimers();
+    await t.finishInProgressScheduledFunctions();
+    expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+      "standing",
+    );
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+      expected,
+    );
+  },
+);
