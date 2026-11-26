@@ -77,7 +77,7 @@ export const readCanonicalEvent = tagged("kind", {
     object({ from_machine: nonEmptyString, to_machine: nonEmptyString }),
   ),
   "session.ended": event("session.ended", object({ reason: nonEmptyString })),
-  "turn.started": event("turn.started", object({})),
+  "turn.started": event("turn.started", object({ starter: optional(actor) })),
   "turn.ended": event("turn.ended", object({ reason: nonEmptyString })),
   "message.user": event(
     "message.user",

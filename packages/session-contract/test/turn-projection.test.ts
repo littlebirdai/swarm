@@ -4,6 +4,8 @@ import { testFaker } from "@codecast/test-helpers/faker";
 import { sessionMachine } from "@codecast/session-contract";
 import {
   projectTurn,
+  TURN_PROJECTION_VERSION,
+  TURN_STARTER_PROJECTION_VERSION,
   type TurnProjection,
 } from "@codecast/session-contract/turn-projection";
 import { ready, scope, request } from "./fixtures";
@@ -209,6 +211,40 @@ test("settles concurrent prompts by ID and stays blocked until the last settleme
     id: "A",
     promptIds: [],
   });
+});
+
+test("rows without a starter keep version 1 and rows with a starter use version 2", () => {
+  expect(TURN_PROJECTION_VERSION).toBe(1);
+  expect(TURN_STARTER_PROJECTION_VERSION).toBe(2);
+});
+
+test("the accepted turn starter survives a persisted projection and clears with the turn", () => {
+  const person = { kind: "person", id: "user-1" } as const;
+  const agent = { kind: "agent", id: "agent-1" } as const;
+  const opened = projectTurn(starter, [
+    event(1, "A", { kind: "turn.started", body: { starter: person } }),
+  ]);
+  expect(opened.openTurn).toEqual({ id: "A", promptIds: [], starter: person });
+
+  const blocked = projectTurn(JSON.parse(JSON.stringify(opened)), [
+    event(2, "B", { kind: "turn.started", body: { starter: agent } }),
+    event(3, "A", payloads["prompt.opened"]),
+  ]);
+  expect(blocked.openTurn).toEqual({
+    id: "A",
+    promptIds: ["first"],
+    starter: person,
+  });
+  const ended = projectTurn(blocked, [event(4, "A", payloads["turn.ended"])]);
+  expect(ended.openTurn).toBeNull();
+  expect(
+    projectTurn(ended, [event(5, "C", payloads["turn.started"])]).openTurn,
+  ).toEqual({ id: "C", promptIds: [] });
+  expect(
+    projectTurn(ended, [
+      event(5, "C", { kind: "turn.started", body: { starter: agent } }),
+    ]).openTurn,
+  ).toEqual({ id: "C", promptIds: [], starter: agent });
 });
 
 test("an equal sequence cannot apply a different transition", () => {

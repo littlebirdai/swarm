@@ -54,6 +54,7 @@ const verbs = [
   "claim",
   "renew",
   "release",
+  "takeover.ack",
 ] as const;
 const stems = verbs.map(
   (verb) =>

@@ -32,6 +32,10 @@ export type { SessionFact } from "./facts";
 type Turn = {
   readonly status: TurnStatus;
   readonly id: TurnId | null;
+  readonly starter?: Extract<
+    CanonicalEvent,
+    { kind: "turn.started" }
+  >["body"]["starter"];
   readonly prompts: readonly {
     readonly id: PromptId;
     readonly answerRequested: boolean;
@@ -317,7 +321,12 @@ function applyEvent(state: SessionState, event: CanonicalEvent): Result {
     return {
       state: {
         ...stamped,
-        turn: { ...noTurn, status, id: event.turn },
+        turn: {
+          ...noTurn,
+          status,
+          id: event.turn,
+          ...(event.body.starter && { starter: event.body.starter }),
+        },
         turnIds: retainRecent(state.turnIds, event.turn),
         providerError: null,
       },

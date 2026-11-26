@@ -133,5 +133,15 @@
       "v": 1,
       "status": "stale"
     }
+  ],
+  "takeover.ack": [
+    {
+      "v": 1,
+      "status": "duplicate"
+    },
+    {
+      "v": 1,
+      "status": "stale"
+    }
   ]
 }

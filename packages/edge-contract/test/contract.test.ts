@@ -14,6 +14,8 @@ import permitsNext from "./fixtures/permits.next.json";
 import deliveryStart from "./fixtures/delivery.start.json";
 import deliverySettle from "./fixtures/delivery.settle.json";
 import deliveryResolution from "./fixtures/delivery-resolution.json";
+import guardedActions from "./fixtures/guarded-actions.json";
+import takeoverAck from "./fixtures/takeover.ack.json";
 import commandsNext from "./fixtures/commands.next.json";
 import commandsResult from "./fixtures/commands.result.json";
 import responseVariants from "./fixtures/response-variants.json";
@@ -65,6 +67,12 @@ const verbs = [
     deliverySettle,
     edge.parseDeliverySettleRequest,
     edge.parseDeliverySettleResponse,
+  ],
+  [
+    "takeover.ack",
+    takeoverAck,
+    edge.parseTakeoverAckRequest,
+    edge.parseTakeoverAckResponse,
   ],
   [
     "commands.next",
@@ -557,7 +565,7 @@ describe("permits and claims", () => {
   });
 
   test("parses an authorized steer permit for an agent sender", () => {
-    const permit = { ...permitsNext.response, intent: "steer" };
+    const permit = { ...permitsNext.response, ...guardedActions.steer };
     expectParsed(edge.parsePermitsNextResponse(permit), permit);
   });
 
@@ -641,6 +649,7 @@ describe("permits and claims", () => {
       [deliverySettle.request, edge.parseDeliverySettleRequest],
       [renew.request, edge.parseRenewRequest],
       [release.request, edge.parseReleaseRequest],
+      [takeoverAck.request, edge.parseTakeoverAckRequest],
     ] as const;
     for (const [request, parse] of cases) {
       const { fencing_token: _token, ...withoutToken } = request;

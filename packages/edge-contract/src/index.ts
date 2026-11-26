@@ -22,6 +22,7 @@ export {
 } from "./envelope";
 export {
   EXPECTED_CAPABILITY,
+  STEER_BATON_CAPABILITY,
   parseHelloRequest,
   parseHelloResponse,
   parseHeartbeatRequest,
@@ -75,3 +76,9 @@ export {
   type ReleaseRequest,
   type ReleaseResponse,
 } from "./claims";
+export {
+  parseTakeoverAckRequest,
+  parseTakeoverAckResponse,
+  type TakeoverAckRequest,
+  type TakeoverAckResponse,
+} from "./takeover";

@@ -32,7 +32,10 @@ test("responses preserve each guard and ignore additive guard fields", () => {
     }),
     permit,
   );
-  const betweenTurns = { ...permit, expected: { kind: "turn", turn: null } };
+  const betweenTurns = {
+    ...permitsNext.response,
+    expected: { kind: "turn", turn: null },
+  };
   expectParsed(edge.parsePermitsNextResponse(betweenTurns), betweenTurns);
   for (const fields of guarded.commands) {
     const command = { ...commandsNext.response, ...fields };

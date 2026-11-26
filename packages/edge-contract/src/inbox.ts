@@ -3,6 +3,7 @@ import {
   boolean,
   EdgeParseError,
   nonEmptyString,
+  nullable,
   object,
   oneOf,
   optional,
@@ -51,15 +52,30 @@ const inputPart = tagged("type", {
 });
 
 const permitsNextRequest = object({ v: readV1, ...fence });
+const permitFields = {
+  v: readV1,
+  status: oneOf("permit"),
+  ...responseDelivery,
+  state: oneOf("new", "started"),
+  input: array(inputPart),
+};
 const permitsNextResponse = response(
   tagged("status", {
-    permit: responseObject({
-      v: readV1,
-      status: oneOf("permit"),
-      ...responseDelivery,
-      state: oneOf("new", "started"),
-      input: array(inputPart),
-      expected: optional(readExpectedTurn),
+    permit: tagged("intent", {
+      queue: responseObject({
+        ...permitFields,
+        intent: oneOf("queue"),
+        expected: optional(readExpectedTurn),
+      }),
+      steer: responseObject({
+        ...permitFields,
+        intent: oneOf("steer"),
+        baton_token: nullable(positiveInteger),
+        expected: responseObject({
+          kind: oneOf("turn"),
+          turn: nonEmptyString,
+        }),
+      }),
     }),
     empty: responseObject({ v: readV1, status: oneOf("empty") }),
     stale: responseObject({ v: readV1, status: oneOf("stale") }),

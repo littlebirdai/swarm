@@ -2,12 +2,14 @@ import type { CanonicalEvent } from "@codecast/edge-contract";
 import { sessionMachine, type SessionState } from "./session-machine";
 
 export const TURN_PROJECTION_VERSION = 1;
+export const TURN_STARTER_PROJECTION_VERSION = 2;
 
 export type TurnProjection = Readonly<
   Pick<SessionState, "session" | "run" | "status" | "eventSeq" | "turnIds"> & {
     openTurn: {
       readonly id: string;
       readonly promptIds: readonly string[];
+      readonly starter?: SessionState["turn"]["starter"];
     } | null;
   }
 >;
@@ -30,6 +32,7 @@ export function projectTurn(
           ...initial.turn,
           id: openTurn.id,
           status: openTurn.promptIds.length ? "blocked" : "running",
+          ...(openTurn.starter && { starter: openTurn.starter }),
           prompts: openTurn.promptIds.map((id) => ({
             id,
             answerRequested: false,
@@ -58,6 +61,7 @@ export function projectTurn(
         ? {
             id: state.turn.id,
             promptIds: state.turn.prompts.map(({ id }) => id),
+            ...(state.turn.starter && { starter: state.turn.starter }),
           }
         : null,
   };
