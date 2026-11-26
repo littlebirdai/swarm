@@ -21696,6 +21696,9 @@
   "apps/web/hooks/__tests__/useWorkspaceCollection.test.ts": {
     "swarm/no-comments": 11
   },
+  "apps/web/hooks/conversation-wake-signature.ts": {
+    "swarm/no-comments": 22
+  },
   "apps/web/hooks/conversationMessageMerge.ts": {
     "swarm/no-comments": 9
   },
@@ -21754,7 +21757,7 @@
     "swarm/no-comments": 13
   },
   "apps/web/hooks/use-conversation-messages.ts": {
-    "swarm/no-comments": 282,
+    "swarm/no-comments": 260,
     "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
