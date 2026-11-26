@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { getReceipt } from "./localFirstCommands";
-import {
-  pendingMessageMatchesProductIntent,
-  sendMessageV2,
-} from "./pendingMessages";
+import { sendMessageV2 } from "./pendingMessages";
+import { pendingMessageMatchesProductIntent } from "./lib/pending-message-intent.rules";
 import {
   getMessageCoverageV2,
   MESSAGE_COVERAGE_COMMAND_ID_LIMIT,
@@ -727,21 +725,29 @@ describe("messages.byConversation/v2 command coverage", () => {
 });
 
 describe("pending intent identity comparison", () => {
-  test("matches every canonical field and nothing operational", () => {
+  test("matches every canonical field and nothing operational", async () => {
     const conv = conversation();
+    const ctx = context(OWNER);
     expect(
-      pendingMessageMatchesProductIntent(pending(), conv, OWNER, {
-        content: "hello from durable intent",
-        clientId: COMMAND,
-      }),
+      await pendingMessageMatchesProductIntent(
+        ctx,
+        pending() as any,
+        conv,
+        OWNER,
+        {
+          content: "hello from durable intent",
+          clientId: COMMAND,
+        },
+      ),
     ).toBe(true);
     expect(
-      pendingMessageMatchesProductIntent(
+      await pendingMessageMatchesProductIntent(
+        ctx,
         pending(COMMAND, {
           status: "injected",
           retry_count: 9,
           delivered_at: 20,
-        }),
+        }) as any,
         conv,
         OWNER,
         {

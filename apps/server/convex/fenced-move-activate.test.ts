@@ -500,6 +500,52 @@ test("retargeting changes at most 100 old rows per call and activates the new ru
   ).toMatchObject({ status: "granted", run: 2 });
 });
 
+test("product sends replay from staged and historical epoch ownership", async () => {
+  const f = await fixture();
+  const staged = "move-staged-replay";
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.conversation, { owner_user_id: f.owner });
+    await db.patch(f.message, {
+      content: "staged message",
+      status: "delivered",
+      delivery_status: "delivered",
+    });
+  });
+  const token = await f.lease();
+  const move = await f.record();
+  await move.prepare();
+  expect(await f.send(staged)).toMatchObject({ status: "acknowledged" });
+  const withoutReceipt = () =>
+    f.t.run(async ({ db }) => {
+      const receipt = await db
+        .query("local_command_receipts")
+        .withIndex("by_principal_command", (q) =>
+          q.eq("principal_id", f.owner).eq("command_id", staged),
+        )
+        .unique();
+      if (!receipt) throw new Error("Expected a send receipt");
+      await db.delete(receipt._id);
+    });
+  const before = await f.queued();
+  expect(before.at(-1)).toMatchObject({
+    execution_epoch: 2,
+    owner_user_id: f.destination,
+  });
+  await withoutReceipt();
+  expect(await f.send(staged)).toMatchObject({ status: "acknowledged" });
+  expect(await f.queued()).toEqual(before);
+
+  await move.stop(token);
+  await move.begin();
+  await move.ready();
+  await move.activate();
+  expect((await f.read()).conversation?.user_id).toBe(f.destination);
+  await withoutReceipt();
+  expect(await f.send(staged)).toMatchObject({ status: "acknowledged" });
+  expect(await f.send("delivery")).toMatchObject({ status: "acknowledged" });
+  expect(await f.queued()).toEqual(before);
+});
+
 test("a ready destination cannot activate while the recorded source attempt is ambiguous", async () => {
   const f = await fixture();
   const token = await f.lease();

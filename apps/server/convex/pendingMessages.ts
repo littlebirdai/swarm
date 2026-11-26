@@ -115,6 +115,7 @@ import {
   parseJointMessage,
 } from "@codecast/messages/jointMessage";
 import { quotesWaiting, stampQuotesSent } from "./quoteDrafts";
+import { pendingMessageMatchesProductIntent } from "./lib/pending-message-intent.rules";
 
 export {
   MESSAGES_VIEW_CONTRACT_ID,
@@ -138,43 +139,6 @@ export async function canSendProductMessage(
   return (
     access === "shared" &&
     (await hasGrantedSendAccess(ctx, conversation._id, userId))
-  );
-}
-
-function sameOptionalIds(
-  left: unknown[] | undefined,
-  right: unknown[] | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return left === right;
-  return (
-    left.length === right.length &&
-    left.every((value, index) => String(value) === String(right[index]))
-  );
-}
-
-/** Exact intent comparison before legacy client-id dedupe may be trusted. */
-export function pendingMessageMatchesProductIntent(
-  message: any,
-  conversation: any,
-  userId: Id<"users">,
-  intent: {
-    content: string;
-    imageStorageIds?: Id<"_storage">[];
-    clientId: string;
-  },
-): boolean {
-  return (
-    String(message.conversation_id) === String(conversation._id) &&
-    String(message.from_user_id) === String(userId) &&
-    pendingMessageOwnerId(message, conversation.user_id) ===
-      conversation.user_id &&
-    message.content === intent.content &&
-    message.client_id === intent.clientId &&
-    message.image_storage_id === undefined &&
-    sameOptionalIds(message.image_storage_ids, intent.imageStorageIds) &&
-    message.from_conversation_id === undefined &&
-    message.origin === undefined &&
-    message.resend_of_delivery_id === undefined
   );
 }
 
@@ -1039,11 +1003,17 @@ export const sendMessageV2 = mutation({
         const existing = existingRows[0];
         if (
           existing &&
-          !pendingMessageMatchesProductIntent(existing, conversation, userId, {
-            content: args.content,
-            imageStorageIds,
-            clientId: args.client_id,
-          })
+          !(await pendingMessageMatchesProductIntent(
+            ctx,
+            existing,
+            conversation,
+            userId,
+            {
+              content: args.content,
+              imageStorageIds,
+              clientId: args.client_id,
+            },
+          ))
         ) {
           return {
             status: "rejected" as const,
