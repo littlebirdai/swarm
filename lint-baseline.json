@@ -1782,7 +1782,7 @@
     "swarm/no-comments": 12
   },
   "apps/cli/src/codex-app-server.ts": {
-    "swarm/no-comments": 72
+    "swarm/no-comments": 70
   },
   "apps/cli/src/codex-prompt-cards.ts": {
     "swarm/no-comments": 5

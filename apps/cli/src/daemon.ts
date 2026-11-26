@@ -25976,7 +25976,7 @@ async function rehydratePersistedAppServerThreads(
       const policy =
         record.approvalPolicy ??
         resolveCodexPermissionDefaults(activeConfig).approvalPolicy;
-      const response = await server.threadResume(
+      const { thread, model, sandbox } = await server.threadResume(
         codexResumeParams(record, policy),
       );
       if (
@@ -25994,7 +25994,7 @@ async function rehydratePersistedAppServerThreads(
         sandbox: record.sandbox,
       });
       log(
-        `[codex-app-server] resumed thread ${record.threadId.slice(0, 8)} policy=${response.sandbox?.type ?? "server-default"} approvalPolicy=${policy}`,
+        `[codex-app-server] resumed thread ${record.threadId.slice(0, 8)} policy=${sandbox?.type ?? "server-default"} approvalPolicy=${policy}`,
       );
       // The server row that names this thread may be gone (reaped while the
       // daemon was down). Heartbeats only refresh a row that exists, and the
@@ -26010,12 +26010,20 @@ async function rehydratePersistedAppServerThreads(
         .catch(logConvexFailure);
       ensureManagedSessionHeartbeat(record.threadId);
       resumed++;
+      const active = thread.turns
+        ?.filter((t) => t.status === "inProgress")
+        .at(-1);
+      if (active && !appServerTurnProgress.has(active.id)) {
+        const progress = makeAppServerTurnProgress(record.threadId, model);
+        progress.items = active.items?.slice() ?? [];
+        appServerTurnProgress.set(active.id, progress);
+      }
       if (hasPendingMessages) continue;
       appServerRecoveringThreads.add(record.threadId);
       try {
         const action = await recoverCodexTurn({
           record,
-          thread: response.thread,
+          thread,
           save: (next) => {
             persistedAppServerThreads.set(conversationId, next);
             persistAppServerThreadRegistrations();
@@ -26033,17 +26041,6 @@ async function rehydratePersistedAppServerThreads(
           syncServiceRef
             ?.setSessionError(conversationId, undefined, { force: true })
             .catch(logConvexFailure);
-        }
-        if (action === "active") {
-          const turn = response.thread.turns
-            ?.slice()
-            .reverse()
-            .find((t) => t.status === "inProgress");
-          if (turn)
-            appServerTurnProgress.set(
-              turn.id,
-              makeAppServerTurnProgress(record.threadId, response.model),
-            );
         }
         appServerRecoveryRetryAt.delete(conversationId);
       } finally {
@@ -43660,10 +43657,11 @@ async function main(): Promise<void> {
     "turnStarted",
     (threadId: string, turnId: string, model?: string) => {
       const entry = appServerThreads.get(threadId);
-      appServerTurnProgress.set(
-        turnId,
-        makeAppServerTurnProgress(threadId, model),
-      );
+      if (!appServerTurnProgress.has(turnId))
+        appServerTurnProgress.set(
+          turnId,
+          makeAppServerTurnProgress(threadId, model),
+        );
       if (entry) {
         const previous = persistedAppServerThreads.get(entry.conversationId);
         persistedAppServerThreads.set(entry.conversationId, {
@@ -43724,7 +43722,8 @@ async function main(): Promise<void> {
         persistAppServerThreadRegistrations();
       }
       removeAppServerPartial(progress, item.id);
-      progress.items.push(item);
+      const index = progress.items.findIndex((entry) => entry.id === item.id);
+      progress.items[index < 0 ? progress.items.length : index] = item;
       const messages = threadItemsToMessages(progress.items) as RawMessage[];
       syncAppServerTurnMessagesIfChanged(
         turnId,
