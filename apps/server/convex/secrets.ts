@@ -2223,6 +2223,7 @@ async function reachedUser(
         )
         .first();
       if (exact) return true;
+      if (before !== undefined && version > before) continue;
       const legacy = await events()
         .withIndex("by_secret_actor_kind_version_at", (q: any) => {
           const dated = key(q)
@@ -2330,9 +2331,9 @@ export const recordRedactionSync = internalMutation({
       const row = await ctx.db.get(id);
       if (
         row &&
-        valueVersion(row) === version &&
         !(await reachedUser(ctx, row, args.user_id, {
           kinds: ["redaction_sync"],
+          version,
         }))
       )
         await recordSecretEvent(ctx, row, "redaction_sync", {
