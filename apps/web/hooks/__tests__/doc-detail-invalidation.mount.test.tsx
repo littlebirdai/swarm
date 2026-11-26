@@ -6,6 +6,7 @@ import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { hideInvalidatedDetails } from "../../store/doc-detail-authority";
 import {
+  canHydrateDetail,
   resetDetailInvalidations,
   setDetailInvalidationReporter,
 } from "../../store/doc-detail-cache";
@@ -40,6 +41,7 @@ test("resolved access loss reports authority even when a detail was already evic
   setDetailInvalidationReporter((evidence) => {
     reports.push(evidence);
     hideInvalidatedDetails(evidence.ids);
+    return true;
   });
   await act(async () => {
     ui.store.getState().dropDocDetail(id);
@@ -59,9 +61,13 @@ test("a gap hides the body until a current authority read refills it", async () 
       backend.set(api.taskMining.webGetDocDetail, row);
     },
   });
+  let reads = 0;
   setDetailInvalidationReporter(
-    () => {},
-    () => current.promise,
+    () => true,
+    () => {
+      reads++;
+      return current.promise;
+    },
   );
   await act(async () => flushSyncPublishes());
   expect(ui.container.textContent).toBe(row.content);
@@ -83,6 +89,16 @@ test("a gap hides the body until a current authority read refills it", async () 
   );
   await act(async () => flushSyncPublishes());
   expect(ui.container.textContent).toBe("Current authorized result");
+  expect(canHydrateDetail(id)).toBe(true);
+  await act(async () =>
+    ui.backend.set(api.taskMining.webGetDocDetail, {
+      ...row,
+      content: "Later live body",
+    }),
+  );
+  await act(async () => flushSyncPublishes());
+  expect(ui.container.textContent).toBe("Later live body");
+  expect(reads).toBe(1);
 });
 
 test("an optimistic archive reports authority only after dispatch confirms it", async () => {
@@ -100,7 +116,10 @@ test("an optimistic archive reports authority only after dispatch confirms it", 
     },
   });
   const reports: unknown[] = [];
-  setDetailInvalidationReporter((evidence) => reports.push(evidence));
+  setDetailInvalidationReporter((evidence) => {
+    reports.push(evidence);
+    return true;
+  });
   await act(async () => {
     void ui.store.getState().archiveDoc(id);
   });
@@ -108,4 +127,60 @@ test("an optimistic archive reports authority only after dispatch confirms it", 
   expect(reports).toEqual([]);
   await act(async () => accepted.resolve(null));
   expect(reports).toEqual([{ ids: [id], cause: "archive" }]);
+});
+
+test("a confirmed archive undo reauthorizes the body for hydration and subsequent live pushes", async () => {
+  process.env[flag] = "1";
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => null);
+    },
+  });
+  const restored = Promise.withResolvers<typeof row>();
+  setDetailInvalidationReporter(
+    (evidence) => {
+      hideInvalidatedDetails(evidence.ids);
+      return true;
+    },
+    () => restored.promise,
+  );
+  await act(async () => {
+    void ui.store.getState().archiveDoc(id);
+  });
+  expect(canHydrateDetail(id)).toBe(false);
+  await act(async () => {
+    void ui.store.getState().restoreArchivedDoc(id);
+  });
+  await act(async () => restored.resolve({ ...row, content: "Restored" }));
+  await act(async () => flushSyncPublishes());
+  expect(canHydrateDetail(id)).toBe(true);
+  expect(ui.container.textContent).toBe("Restored");
+  await act(async () =>
+    ui.backend.set(api.taskMining.webGetDocDetail, {
+      ...row,
+      content: "Updated after undo",
+    }),
+  );
+  await act(async () => flushSyncPublishes());
+  expect(ui.container.textContent).toBe("Updated after undo");
+});
+
+test("a declined invalidation uses the untagged legacy store drop", async () => {
+  process.env[flag] = "1";
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+    },
+  });
+  await act(async () => flushSyncPublishes());
+  expect(ui.container.textContent).toBe(row.content);
+  setDetailInvalidationReporter(() => false);
+  await act(async () => ui.backend.set(api.taskMining.webGetDocDetail, null));
+  await act(async () => flushSyncPublishes());
+  expect(ui.container.textContent).toBe("No body");
+  expect(canHydrateDetail(id)).toBe(true);
 });

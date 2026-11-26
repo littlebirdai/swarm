@@ -1,10 +1,11 @@
 import { cacheEvictionEnabled } from "../store/cache-eviction";
 import {
+  acceptRecoveryFeed,
   canHydrateDetail,
   detailInvalidationRevision,
+  fetchFreshDocDetail,
   detailReadIsCurrent,
   detailReadPosition,
-  readFreshDocDetail,
   reportDetailInvalidation,
   reportCompleteDocCrawl,
   subscribeDetailInvalidations,
@@ -143,12 +144,12 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
     for (const [id, row] of rowById)
       attemptedRef.current.set(id, row.updated_at);
     let cancelled = false;
+    const position = detailReadPosition();
     (async () => {
       const ids = [...rowById.keys()];
       for (let i = 0; i < ids.length && !cancelled; i += 6) {
         const batch = ids.slice(i, i + 6);
         try {
-          const position = detailReadPosition();
           const { bodies } = await convex.query(api.docs.webGetBodies, {
             ids: batch,
           });
@@ -157,8 +158,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
           for (const body of bodies ?? []) {
             if (
               cacheEvictionEnabled() &&
-              (!detailReadIsCurrent(body._id, position) ||
-                !canHydrateDetail(body._id))
+              !acceptRecoveryFeed(body._id, position)
             )
               continue;
             // Compose a list-shaped row + body so the cached detail can carry
@@ -372,13 +372,9 @@ function syncAuthorizedDocDetail(id: string, data: Record<string, unknown>) {
 
 function refreshInvalidatedDocDetail(id: string) {
   const position = detailReadPosition();
-  void readFreshDocDetail(id)
-    ?.then((detail) => {
-      if (
-        detail &&
-        detail.archived_at === undefined &&
-        detailReadIsCurrent(id, position)
-      )
+  void fetchFreshDocDetail(id)
+    .then((detail) => {
+      if (detail && detailReadIsCurrent(id, position))
         syncAuthorizedDocDetail(id, detail);
     })
     .catch(() => {});
@@ -389,7 +385,10 @@ export function useSyncDocDetail(id?: string) {
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
-    () => (enabled && id ? detailInvalidationRevision(id) : 0),
+    () =>
+      enabled && id && !canHydrateDetail(id)
+        ? detailInvalidationRevision(id)
+        : 0,
     () => 0,
   );
   const data = useQueryNoThrow(

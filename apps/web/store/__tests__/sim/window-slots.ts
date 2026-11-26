@@ -72,6 +72,8 @@ export const ENGINE = "../../platform/packages/engine/src/";
 
 /** "<path under apps/web>:<binding>" to its class. */
 export const WINDOW_SLOTS: Record<string, SlotClass> = {
+  "store/cache-eviction.ts:current": "transient",
+  "store/doc-detail-cache.ts:detailCache": "window",
   // store/inboxStore.ts
   "store/inboxStore.ts:FOLLOWED_UI_KEYS": {
     shared:
@@ -607,6 +609,10 @@ function inboxStoreSeam(b: InboxBindings): SlotSeam {
 }
 
 const SEAMS: Record<string, () => SlotSeam> = {
+  "store/doc-detail-cache.ts": () =>
+    load<typeof import("../../doc-detail-cache")>(
+      "../../doc-detail-cache",
+    ).__detailCacheSimSlots() as SlotSeam,
   "store/inboxStore.ts": () =>
     inboxStoreSeam(
       load<typeof import("../../inboxStore")>("../../inboxStore")
@@ -771,7 +777,13 @@ export function settleTransients(): void {
 /** Throws unless every transient binding is idle: a held publish belongs to the store that produced it. */
 export function assertTransientIdle(): void {
   windowSeams();
-  if (!syncTransaction!.__syncTransactionIdleForTests()) {
+  const eviction = load<typeof import("../../cache-eviction")>(
+    "../../cache-eviction",
+  );
+  if (
+    !syncTransaction!.__syncTransactionIdleForTests() ||
+    !eviction.__cacheEvictionsIdleForTests()
+  ) {
     throw new Error(
       `sim slots: a window switch found ${keysOfClass("transient").join(", ")} busy (a sync transaction open or a folded publish held)`,
     );

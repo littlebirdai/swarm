@@ -6,101 +6,164 @@ export type DetailInvalidation = {
   workspace?: string;
 };
 
-let revision = 0;
-let account = 0;
-let recovery = 0;
-const invalidated = new Map<string, number>();
-const listeners = new Set<() => void>();
-let readFresh:
-  | ((id: string) => Promise<Record<string, unknown> | null>)
-  | undefined;
-let report: ((evidence: DetailInvalidation) => void) | undefined;
-let reportCrawl:
-  | ((
-      workspace: string,
-      ids: ReadonlySet<string>,
-      position: ReturnType<typeof detailReadPosition>,
-    ) => Promise<void>)
-  | undefined;
+type Position = { account: number; revision: number };
+type CachedResult = Record<string, unknown> | null;
+type Reporter = (evidence: DetailInvalidation) => boolean;
+type CrawlReporter = (
+  workspace: string,
+  ids: ReadonlySet<string>,
+  position: Position,
+) => Promise<void>;
 
-export function detailReadPosition() {
-  return { account, revision };
+function freshDetailCache(account = 0, listeners = new Set<() => void>()) {
+  return {
+    account,
+    revision: 0,
+    recovery: 0,
+    invalidated: new Map<string, number>(),
+    confirmed: new Map<string, number>(),
+    reads: new Map<
+      string,
+      { barrier: number; promise: Promise<CachedResult> }
+    >(),
+    listeners,
+    readFresh: undefined as ((id: string) => Promise<CachedResult>) | undefined,
+    report: undefined as Reporter | undefined,
+    reportCrawl: undefined as CrawlReporter | undefined,
+  };
 }
 
-export function detailAccountIsCurrent(
-  position: ReturnType<typeof detailReadPosition>,
-): boolean {
-  return position.account === account;
+let detailCache = freshDetailCache();
+
+export function detailReadPosition(): Position {
+  return { account: detailCache.account, revision: detailCache.revision };
 }
 
-export function detailReadIsCurrent(
-  id: string,
-  position: ReturnType<typeof detailReadPosition>,
-): boolean {
+export function detailAccountIsCurrent(position: Position): boolean {
+  return position.account === detailCache.account;
+}
+
+export function detailReadIsCurrent(id: string, position: Position): boolean {
   return (
     detailAccountIsCurrent(position) &&
-    position.revision >= recovery &&
-    position.revision >= (invalidated.get(id) ?? 0)
+    position.revision >= detailInvalidationRevision(id)
   );
 }
 
 export function detailInvalidationRevision(id: string): number {
-  return Math.max(recovery, invalidated.get(id) ?? 0);
+  return Math.max(
+    detailCache.recovery,
+    detailCache.invalidated.get(id) ?? 0,
+    detailCache.confirmed.get(id) ?? 0,
+  );
 }
 
 export function subscribeDetailInvalidations(listener: () => void) {
-  listeners.add(listener);
+  detailCache.listeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    detailCache.listeners.delete(listener);
   };
 }
 
 export function invalidateDetailReads(ids?: readonly string[]): number {
-  const version = ++revision;
-  if (ids) for (const id of ids) invalidated.set(id, version);
-  else recovery = version;
-  for (const listener of listeners) listener();
+  const version = ++detailCache.revision;
+  if (ids)
+    for (const id of ids) {
+      detailCache.invalidated.set(id, version);
+      detailCache.confirmed.delete(id);
+    }
+  else {
+    detailCache.recovery = version;
+    detailCache.confirmed.clear();
+  }
+  for (const listener of detailCache.listeners) listener();
   return version;
 }
 
 export function canHydrateDetail(id: string): boolean {
-  return !cacheEvictionEnabled() || detailInvalidationRevision(id) === 0;
+  return (
+    !cacheEvictionEnabled() ||
+    (detailCache.confirmed.get(id) ?? 0) >= detailInvalidationRevision(id)
+  );
+}
+
+export function acceptFreshDocDetail(id: string, position: Position): boolean {
+  if (!detailReadIsCurrent(id, position)) return false;
+  if (!canHydrateDetail(id)) {
+    detailCache.confirmed.set(id, detailInvalidationRevision(id));
+    detailCache.invalidated.delete(id);
+    for (const listener of detailCache.listeners) listener();
+  }
+  return true;
+}
+
+export function acceptRecoveryFeed(id: string, position: Position): boolean {
+  if (!detailReadIsCurrent(id, position)) return false;
+  if (canHydrateDetail(id)) return true;
+  if (detailCache.invalidated.has(id)) return false;
+  return acceptFreshDocDetail(id, position);
 }
 
 export function resetDetailInvalidations(): void {
-  account++;
-  revision = 0;
-  recovery = 0;
-  invalidated.clear();
-  setDetailInvalidationReporter();
+  detailCache = freshDetailCache(
+    detailCache.account + 1,
+    detailCache.listeners,
+  );
 }
 
 export function setDetailInvalidationReporter(
-  next?: typeof report,
-  read?: typeof readFresh,
-  crawl?: typeof reportCrawl,
+  report?: Reporter,
+  readFresh?: typeof detailCache.readFresh,
+  reportCrawl?: CrawlReporter,
 ) {
-  report = next;
-  readFresh = read;
-  reportCrawl = crawl;
+  Object.assign(detailCache, { report, readFresh, reportCrawl });
 }
 
 export function reportCompleteDocCrawl(
   workspace: string,
   ids: ReadonlySet<string>,
-  position: ReturnType<typeof detailReadPosition>,
+  position: Position,
 ) {
-  return reportCrawl?.(workspace, ids, position);
+  return detailCache.reportCrawl?.(workspace, ids, position);
 }
 
-export function readFreshDocDetail(id: string) {
-  return readFresh?.(id);
+export function fetchFreshDocDetail(id: string): Promise<CachedResult> {
+  const cache = detailCache;
+  const barrier = detailInvalidationRevision(id);
+  const existing = cache.reads.get(id);
+  if (existing?.barrier === barrier) return existing.promise;
+  const position = detailReadPosition();
+  const promise = Promise.resolve(cache.readFresh?.(id))
+    .then((detail) =>
+      detail &&
+      detail.archived_at === undefined &&
+      acceptFreshDocDetail(id, position)
+        ? detail
+        : null,
+    )
+    .finally(() => {
+      if (cache.reads.get(id)?.promise === promise) cache.reads.delete(id);
+    });
+  cache.reads.set(id, { barrier, promise });
+  return promise;
 }
 
 export function reportDetailInvalidation(
   evidence: DetailInvalidation,
 ): boolean {
-  if (!cacheEvictionEnabled() || !report || !evidence.ids.length) return false;
-  report(evidence);
-  return true;
+  return (
+    cacheEvictionEnabled() &&
+    !!evidence.ids.length &&
+    (detailCache.report?.(evidence) ?? false)
+  );
+}
+
+export function __detailCacheSimSlots() {
+  return {
+    get: () => ({ detailCache }),
+    set: (slots: { detailCache: typeof detailCache }) => {
+      detailCache = slots.detailCache;
+    },
+    fresh: () => ({ detailCache: freshDetailCache() }),
+  };
 }

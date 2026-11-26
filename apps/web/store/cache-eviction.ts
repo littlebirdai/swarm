@@ -54,3 +54,7 @@ export function withoutEvictionPatches(
       !evictions.some(({ key, id }) => path[0] === key && path[1] === id),
   );
 }
+
+export function __cacheEvictionsIdleForTests(): boolean {
+  return current.length === 0;
+}

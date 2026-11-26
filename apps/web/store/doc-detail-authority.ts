@@ -56,7 +56,7 @@ export async function persistDetailInvalidation(
       current() &&
       !pendingCreate(id) &&
       detailInvalidationRevision(id) === revision &&
-      state.docs[id] === docs[id] &&
+      (state.docs[id] === undefined || state.docs[id] === docs[id]) &&
       state.docDetails[id] === undefined
     );
   });
@@ -139,11 +139,7 @@ export async function verifyDetailInvalidation(
     const confirmed = await Promise.all(
       [...absent].map(async (id) => {
         const detail = await reader.detail(id);
-        return !detail ||
-          detail.archived_at !== undefined ||
-          detail.workspace === workspace
-          ? id
-          : null;
+        return !detail || detail.archived_at !== undefined ? id : null;
       }),
     );
     return current()

@@ -101,7 +101,11 @@ function hub() {
   };
 }
 
-function makeHost(bus: ReturnType<typeof hub>, reader?: DetailAuthorityReader) {
+function makeHost(
+  bus: ReturnType<typeof hub>,
+  reader?: DetailAuthorityReader,
+  now?: () => number,
+) {
   let host: ReplicationHost | null = null;
   const channel = bus.channel("host");
   const disk = new Map([[docId, row]]);
@@ -110,6 +114,7 @@ function makeHost(bus: ReturnType<typeof hub>, reader?: DetailAuthorityReader) {
     ? createDetailInvalidationTransport({
         selfId: "host",
         channel,
+        now,
         host: () => host,
         current: active,
         verify: (request, current) =>
@@ -163,11 +168,13 @@ function makeFollower(
     isCollectionKey: () => true,
     onPosition: protocol?.onPosition,
     onSnapshot: protocol?.onSnapshot,
-    applyUpdates(updates, origin) {
+    applyUpdates(updates, origin, hostCommit) {
       for (const update of updates)
         if (update.kind === "authoritativeRemoval" && update.ids)
           protocol?.applyRemoval(update.ids, origin);
-      applyUpdatesToStore(updates);
+      applyUpdatesToStore(updates, {
+        recoverDetails: !!protocol && hostCommit,
+      });
     },
   });
   cleanup.push(follower.stop);
@@ -255,14 +262,12 @@ test("the disk diff preserves a cache-only removal even when the same id has an 
 });
 
 test.each(["access", "archive", "crawl"] as const)(
-  "a follower's %s invalidation is confirmed and removes a pinned detail even when the host has no row",
+  "a follower's %s invalidation removes the detail even when the host has no row",
   async (cause) => {
     const bus = hub();
     const host = makeHost(bus, {
       async detail() {
-        return cause === "access"
-          ? null
-          : { ...row, ...(cause === "archive" ? { archived_at: 1 } : {}) };
+        return cause === "archive" ? { ...row, archived_at: 1 } : null;
       },
       async page(scope) {
         expect(scope).toBe(workspace);
@@ -272,11 +277,6 @@ test.each(["access", "archive", "crawl"] as const)(
     const follower = makeFollower(bus, true);
     expect(follower.follower.synced()).toBe(true);
     useInboxStore.getState().syncRecord("docDetails", docId, row);
-    cleanup.push(pinDetailRows("docDetails", [docId]));
-    host.host.publish([{ key: "docDetails", removes: [docId] }]);
-    expect(useInboxStore.getState().docDetails[docId]?.content).toBe(
-      "cached body",
-    );
     const delivered = bus.next(isAuthoritativeRemoval);
     follower.protocol?.report({
       ids: [docId],
@@ -290,39 +290,107 @@ test.each(["access", "archive", "crawl"] as const)(
   },
 );
 
-test("a supporting follower preserves a pinned row when an older host omits capability", () => {
+test("a supporting follower uses the legacy path when an older host omits capability", () => {
   const bus = hub();
   const { host } = makeHost(bus);
   const follower = makeFollower(bus, true);
-  useInboxStore.getState().syncRecord("docDetails", docId, row);
-  cleanup.push(pinDetailRows("docDetails", [docId]));
-  follower.protocol?.report({ ids: [docId], cause: "access" });
-  host.publish([{ key: "docDetails", removes: [docId] }]);
+  const store = useInboxStore.getState();
+  store.syncRecord("taskComments", docId, {
+    _id: docId,
+    comments: [],
+    as_of: 1,
+    _cachedAt: 1,
+  });
+  cleanup.push(pinDetailRows("taskComments", [docId]));
+  expect(follower.protocol?.report({ ids: [docId], cause: "access" })).toBe(
+    false,
+  );
+  host.publish([{ key: "taskComments", removes: [docId] }]);
   expect(bus.sent.some((msg) => msg.type === "mut")).toBe(false);
-  expect(useInboxStore.getState().docDetails[docId]).toBeDefined();
+  expect(useInboxStore.getState().taskComments[docId]).toBeDefined();
 });
 
-test("a legacy follower joining disables new invalidations for its cohort", () => {
+test("mixed cohorts confirm host removals through the legacy wire format and recover after a legacy peer expires", async () => {
   const bus = hub();
-  const { options, applied } = makeHost(bus, {
-    async detail() {
-      return null;
+  let now = 0;
+  const { host, options, disk } = makeHost(
+    bus,
+    {
+      async detail() {
+        return null;
+      },
+      async page() {
+        return { page: [], isDone: true, continueCursor: "" };
+      },
     },
-    async page() {
-      return { page: [], isDone: true, continueCursor: "" };
-    },
-  });
-  const follower = makeFollower(bus, true);
-  makeFollower(bus, false, "legacy");
-  follower.protocol?.report({ ids: [docId], cause: "access" });
-  options?.report({ ids: [docId], cause: "access" });
+    () => now,
+  );
+  const { protocol } = makeFollower(bus, true);
+  const { follower: legacy } = makeFollower(bus, false, "legacy");
+  expect(protocol?.report({ ids: [docId], cause: "access" })).toBe(false);
   expect(bus.sent.some((msg) => msg.type === "mut")).toBe(false);
+  const legacyRemoval = bus.next(
+    (msg) =>
+      msg.type === "update" &&
+      msg.updates.some((update) => update.removes?.includes(docId)),
+  );
+  expect(options?.report({ ids: [docId], cause: "access" })).toBe(false);
+  await legacyRemoval;
+  expect(disk.has(docId)).toBe(false);
   expect(bus.sent.some(isAuthoritativeRemoval)).toBe(false);
-  expect(applied).toEqual([]);
+  legacy.stop();
+  now += 10 * 60_000;
+  host.publish([{ key: "docDetails", upserts: [] }]);
+  const advertised = bus.next(isAuthoritativeRemoval);
+  expect(protocol?.report({ ids: [other], cause: "access" })).toBe(true);
+  const restored = await advertised;
+  expect(restored).toMatchObject({
+    updates: [{ ids: [other], removes: [other] }],
+  });
 });
+
+test.each([false, true])(
+  "a rejected request settles after resync (initial acknowledgement lost: %s)",
+  async (loseAck) => {
+    const bus = hub();
+    let verified = 0;
+    const { host } = makeHost(bus, {
+      async detail() {
+        verified++;
+        return row;
+      },
+      async page() {
+        return { page: [], isDone: true, continueCursor: "" };
+      },
+    });
+    const { protocol } = makeFollower(bus, true);
+    const settled = bus.next(
+      (msg) => msg.type === "mut" && msg.from === "host",
+    );
+    if (loseAck)
+      bus.omit(
+        (receiver, msg) =>
+          receiver === "follower" && msg.type === "mut" && msg.from === "host",
+      );
+    expect(protocol?.report({ ids: [docId], cause: "access" })).toBe(true);
+    await settled;
+    for (let gap = 0; gap < 2; gap++) {
+      bus.omit(
+        (receiver, msg) => receiver === "follower" && msg.type === "update",
+      );
+      host.publish([{ key: "docDetails", upserts: [] }]);
+      bus.omit();
+      host.publish([{ key: "docDetails", upserts: [] }]);
+    }
+    expect(
+      bus.sent.filter((msg) => msg.type === "mut" && msg.from === "follower"),
+    ).toHaveLength(loseAck ? 2 : 1);
+    expect(verified).toBe(1);
+  },
+);
 
 test.each([1, 129])(
-  "a replication gap after %i missed invalidations recovers pinned bodies only from supported authority",
+  "a replication gap after %i missed invalidations clears unverified bodies and admits later host updates",
   async (count) => {
     const bus = hub();
     const { host, options, applied } = makeHost(bus, {
@@ -338,7 +406,6 @@ test.each([1, 129])(
     useInboxStore
       .getState()
       .syncRecord("docDetails", other, { ...row, _id: other });
-    cleanup.push(pinDetailRows("docDetails", [docId, other]));
     bus.omit(
       (receiver, msg) => receiver === "follower" && isAuthoritativeRemoval(msg),
     );
@@ -358,12 +425,24 @@ test.each([1, 129])(
       count === 1,
     );
     expect(applied.flat()).not.toContain(other);
+    host.publish([
+      {
+        key: "docDetails",
+        upserts: [{ ...row, _id: other, content: "New host body" }],
+      },
+    ]);
+    expect(useInboxStore.getState().docDetails[other]?.content).toBe(
+      "New host body",
+    );
   },
 );
 
 test("a complete workspace crawl includes a detail even when its thin row is missing", async () => {
   const reported: unknown[] = [];
-  setDetailInvalidationReporter((evidence) => reported.push(evidence));
+  setDetailInvalidationReporter((evidence) => {
+    reported.push(evidence);
+    return true;
+  });
   useInboxStore.getState().syncRecord("docDetails", docId, row);
   useInboxStore.getState().syncRecord("docDetails", other, {
     ...row,
@@ -405,6 +484,23 @@ test("the host refuses stale or incomplete evidence", async () => {
   expect(
     await verifyDetailInvalidation(
       reader,
+      { cause: "crawl", ids: [docId], workspace },
+      active,
+    ),
+  ).toEqual([]);
+});
+
+test("a complete crawl cannot revoke an accessible document omitted from the list", async () => {
+  expect(
+    await verifyDetailInvalidation(
+      {
+        async detail() {
+          return row;
+        },
+        async page() {
+          return { page: [], isDone: true, continueCursor: "" };
+        },
+      },
       { cause: "crawl", ids: [docId], workspace },
       active,
     ),

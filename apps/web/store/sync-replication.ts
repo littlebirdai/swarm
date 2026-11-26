@@ -5,6 +5,7 @@ import {
   withoutEvictionPatches,
 } from "./cache-eviction";
 import {
+  acceptRecoveryFeed,
   canHydrateDetail,
   detailAccountIsCurrent,
   detailReadPosition,
@@ -337,7 +338,7 @@ export function replicationFollowerFor(
     channel,
     replicatedKeys: REPLICATED_STORE_KEYS,
     isCollectionKey: isReplicatedCollectionKey,
-    applyUpdates: (updates, origin) => {
+    applyUpdates: (updates, origin, hostCommit) => {
       for (const update of updates) {
         if (
           update.key === "docDetails" &&
@@ -346,7 +347,7 @@ export function replicationFollowerFor(
         )
           details?.applyRemoval(update.ids, origin);
       }
-      applyUpdatesToStore(updates);
+      applyUpdatesToStore(updates, { recoverDetails: hostCommit && !!details });
     },
     onPosition: details?.onPosition,
     onSnapshot: details?.onSnapshot,
@@ -405,7 +406,7 @@ export function applyBridgedGesture(msg: GestureMessage): void {
 // otherwise re-assert the follower's stale value over every host row forever.
 export function applyUpdatesToStore(
   updates: MutUpdate[],
-  opts?: { optimistic?: boolean },
+  opts?: { optimistic?: boolean; recoverDetails?: boolean },
 ): void {
   // One replayed page is one logical change, but it writes a key at a time —
   // and every one of those writes used to visit every subscriber. Replicated
@@ -416,7 +417,7 @@ export function applyUpdatesToStore(
 
 function applyUpdatesToStoreInner(
   updates: MutUpdate[],
-  opts?: { optimistic?: boolean },
+  opts?: { optimistic?: boolean; recoverDetails?: boolean },
 ): void {
   const state = useInboxStore.getState();
   for (const original of updates) {
@@ -428,7 +429,9 @@ function applyUpdatesToStoreInner(
         ? {
             ...original,
             upserts: original.upserts.filter((row) =>
-              canHydrateDetail(String(row._id)),
+              opts?.recoverDetails
+                ? acceptRecoveryFeed(String(row._id), detailReadPosition())
+                : canHydrateDetail(String(row._id)),
             ),
           }
         : original;
@@ -605,6 +608,7 @@ export function startSyncReplication(opts: {
           void verifyDetailInvalidation(authority, evidence, current)
             .then((ids) => persistDetailInvalidation(ids, current))
             .catch(() => {});
+          return true;
         },
         authority.detail,
         collectCompleteDocCrawlAbsences,
@@ -665,8 +669,9 @@ export function startSyncReplication(opts: {
   if (details && authority)
     setDetailInvalidationReporter(
       (evidence) => {
+        if (!details.report(evidence)) return false;
         if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
-        details.report(evidence);
+        return true;
       },
       authority.detail,
       collectCompleteDocCrawlAbsences,

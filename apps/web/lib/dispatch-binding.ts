@@ -2,7 +2,9 @@ import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
 import { cacheEvictionEnabled } from "../store/cache-eviction";
 import {
   detailAccountIsCurrent,
+  detailReadIsCurrent,
   detailReadPosition,
+  fetchFreshDocDetail,
   invalidateDetailReads,
   reportDetailInvalidation,
 } from "../store/doc-detail-cache";
@@ -92,7 +94,19 @@ export function makeDispatchBinding(
         ) {
           if (action === "archiveDoc")
             reportDetailInvalidation({ ids: [args[0]], cause: "archive" });
-          else invalidateDetailReads([args[0]]);
+          else {
+            const id = args[0];
+            invalidateDetailReads([id]);
+            const position = detailReadPosition();
+            void fetchFreshDocDetail(id)
+              .then((detail) => {
+                if (detail && detailReadIsCurrent(id, position)) {
+                  const { embedding: _embedding, ...row } = detail;
+                  useInboxStore.getState().syncRecord("docDetails", id, row);
+                }
+              })
+              .catch(() => {});
+          }
         }
         if (
           action === "convCommand" &&

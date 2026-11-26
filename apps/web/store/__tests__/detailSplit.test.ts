@@ -444,9 +444,11 @@ describe("the caps hold while the window lives", () => {
     expect(state().taskComments[cid(41)]).toBeDefined();
   });
 
-  it("an evicted row may leave disk in the window that writes it, and only there", () => {
+  it("only legacy host evictions authorize disk removal", () => {
     openPrs(1, PR_CAP + 1);
-    expect(deleteAllowed("pullRequestDetails", cid(1), {})).toBe(true);
+    expect(deleteAllowed("pullRequestDetails", cid(1), {})).toBe(
+      process.env.VITE_CACHE_EVICTION_METADATA !== "1",
+    );
     expect(deleteAllowed("pullRequestDetails", cid(2), {})).toBe(false);
 
     // A follower holds shared threads in memory and never writes them: it

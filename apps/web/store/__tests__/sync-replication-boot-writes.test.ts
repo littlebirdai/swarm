@@ -323,9 +323,7 @@ test.each(["access", "archive", "crawl"] as const)(
       principalId: TEST_PRINCIPAL,
       detailAuthority: {
         async detail() {
-          return cause === "access"
-            ? null
-            : { ...row, ...(cause === "archive" ? { archived_at: 1 } : {}) };
+          return cause === "archive" ? { ...row, archived_at: 1 } : null;
         },
         async page(workspace) {
           expect(workspace).toBe(row.workspace);
@@ -412,7 +410,10 @@ test("the complete crawl compares disk-only details by workspace", async () => {
   await bootCache();
   await COLLECTION_TABLES.docDetails.bulkPut([here, elsewhere, live]);
   const reported: unknown[] = [];
-  setDetailInvalidationReporter((evidence) => reported.push(evidence));
+  setDetailInvalidationReporter((evidence) => {
+    reported.push(evidence);
+    return true;
+  });
   try {
     expect(state().docDetails[here._id]).toBeUndefined();
     expect(state().docs[here._id]).toBeUndefined();
@@ -429,4 +430,20 @@ test("the complete crawl compares disk-only details by workspace", async () => {
     if (original === undefined) delete process.env[flag];
     else process.env[flag] = original;
   }
+});
+
+test("a thin row disappearing during the disk transaction does not cancel a verified deletion", async () => {
+  const { persistDetailInvalidation } = await import("../doc-detail-authority");
+  const doc = {
+    _id: "s".repeat(32),
+    title: "Removed during write",
+    content: "cached",
+  };
+  await bootCache();
+  await COLLECTION_TABLES.docDetails.put(doc);
+  state().syncRecord("docs", doc._id, doc);
+  const removal = persistDetailInvalidation([doc._id], () => true);
+  state().dropRows("docs", [doc._id]);
+  expect(await removal).toEqual([doc._id]);
+  expect(await COLLECTION_TABLES.docDetails.get(doc._id)).toBeUndefined();
 });

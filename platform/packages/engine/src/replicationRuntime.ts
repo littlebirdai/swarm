@@ -57,7 +57,7 @@ export type ReplicationChannel = {
 /** How the app lands updates in its store. MUST apply through the store's
  *  sync machinery (pending protection, no-op bails), never raw assignment.
  *  `origin` names the window whose write produced the updates. */
-export type ApplyUpdatesFn = (updates: ReplicationUpdate[], origin: string) => void;
+export type ApplyUpdatesFn = (updates: ReplicationUpdate[], origin: string, hostCommit?: boolean) => void;
 
 export type ReplicationHostOptions = {
   hostId: string;
@@ -281,7 +281,7 @@ export function createReplicationFollower(opts: ReplicationFollowerOptions): Rep
         opts.onOwnEcho?.(m.updates);
         continue;
       }
-      opts.applyUpdates(m.updates, m.origin);
+      opts.applyUpdates(m.updates, m.origin, m.origin === m.hostId);
     }
   };
 
