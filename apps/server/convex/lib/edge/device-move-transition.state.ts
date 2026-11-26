@@ -12,7 +12,12 @@ import {
   wireIsolation,
 } from "../execution-binding.validators";
 import { handRoleTriggersToRunner } from "../agentTaskRows";
-import { DEVICE_MOVE_FENCE, expireMoveSettlement } from "./device-move.state";
+import {
+  activeMoveAttempt,
+  DEVICE_MOVE_FENCE,
+  expireMoveSettlement,
+  requireForcedDeviceMoveEnabled,
+} from "./device-move.state";
 import { activateEventRun, clearEventTurn } from "./runEvents";
 
 type DbCtx = Pick<MutationCtx, "db">;
@@ -81,6 +86,10 @@ async function registeredBoot(ctx: DbCtx, runner: Id<"users">, device: string) {
 }
 
 async function assertSourceEnded(ctx: DbCtx, { move, source }: MoveContext) {
+  if (move.forced) {
+    requireForcedDeviceMoveEnabled();
+    return;
+  }
   if (move.source_stopped_at !== undefined) return;
   const registered = await registeredBoot(
     ctx,
@@ -432,7 +441,28 @@ export async function activateDeviceMove(
     throw new ConvexError("The exact destination binding must be ready");
   await assertSourceEnded(ctx, state);
   const attempt = move.attempt_id && (await ctx.db.get(move.attempt_id));
-  if (
+  if (move.forced && head.active_delivery_state === "ambiguous") {
+    if (
+      !binding.runtime_id ||
+      head.active_delivery_attempt_id !== move.attempt_id
+    )
+      throw new ConvexError("The uncertain delivery does not match the move");
+    const { attempt, message } = await activeMoveAttempt(ctx, head, move);
+    await ctx.db.patch(attempt._id, {
+      forced_move_source_epoch:
+        attempt.forced_move_source_epoch ?? source.epoch,
+      execution_epoch: binding.epoch,
+      configuration_revision: binding.configuration_revision,
+      owner_user_id: binding.owner_user_id,
+      owner_device_id: binding.owner_device_id,
+      daemon_boot_id: binding.daemon_boot_id,
+      runtime_id: binding.runtime_id,
+    });
+    await ctx.db.patch(message._id, {
+      execution_epoch: binding.epoch,
+      owner_user_id: binding.owner_user_id,
+    });
+  } else if (
     head.active_delivery_attempt_id ||
     head.active_delivery_state ||
     (move.attempt_id &&
@@ -460,11 +490,25 @@ export async function activateDeviceMove(
     await ctx.db.patch(lease._id, { released_at: now });
   await clearEventTurn(ctx, source, now, true);
   await ctx.db.patch(source._id, {
-    state: move.source_stopped_at === undefined ? "quarantined" : "stopped",
-    stopped_reason:
-      move.source_stopped_at === undefined
-        ? "source daemon boot replaced"
-        : "source stop confirmed",
+    ...(move.forced
+      ? {
+          state: "quarantined" as const,
+          stopped_reason: "session owner forced the device move",
+          forced_device_move: {
+            ...move.forced,
+            move_id: args.move_id,
+            destination_epoch: binding.epoch,
+          },
+        }
+      : move.source_stopped_at === undefined
+        ? {
+            state: "quarantined" as const,
+            stopped_reason: "source daemon boot replaced",
+          }
+        : {
+            state: "stopped" as const,
+            stopped_reason: "source stop confirmed",
+          }),
     updated_at: now,
   });
   const [cursor, turn] = await Promise.all([
