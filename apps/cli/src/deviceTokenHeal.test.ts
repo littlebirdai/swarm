@@ -20,6 +20,10 @@ const rows = new Map<string, string | undefined>();
 let mints = 0;
 let refuseAll = false;
 let hang = false;
+let firstMint: {
+  started: PromiseWithResolvers<void>;
+  release: PromiseWithResolvers<void>;
+} | null = null;
 const seen: string[] = [];
 const server = Bun.serve({
   port: 0,
@@ -37,12 +41,17 @@ const server = Bun.serve({
       });
     const { api_token, device_id } = body.args![0];
     const [secret, device] = api_token.split(".");
-    // A real round trip, so concurrent readers overlap it; or a server that never answers.
-    // The hung wait ends when the client gives up, so the server can stop.
-    await Promise.race([
-      Bun.sleep(hang ? 60_000 : 250),
-      new Promise((r) => req.signal.addEventListener("abort", r)),
-    ]);
+    if (firstMint) {
+      const gate = firstMint;
+      firstMint = null;
+      gate.started.resolve();
+      await gate.release.promise;
+    }
+    if (hang && !req.signal.aborted) {
+      await new Promise<void>((resolve) =>
+        req.signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+    }
     if (req.signal.aborted) return new Response(null, { status: 499 });
     if (refuseAll || !rows.has(secret) || rows.get(secret) !== device) {
       return Response.json({
@@ -64,6 +73,7 @@ beforeEach(() => {
   mints = 0;
   refuseAll = false;
   hang = false;
+  firstMint = null;
   seen.length = 0;
 });
 
@@ -170,15 +180,45 @@ describe("a bound token on a machine whose device id moved", () => {
     rows.set(OLD, oldDevice);
     migrate();
 
-    const [a, b, c] = await Promise.all([
-      cast("read"),
-      cast("read"),
-      cast("read"),
-    ]);
-    for (const r of [a, b, c]) expect(r.error).toBeUndefined();
-    expect(mints).toBe(1);
-    expect((await cast("read")).bearer).toBe(`bound_n3w1.${a.device}`);
-    expect(mints).toBe(1);
+    const gate = {
+      started: Promise.withResolvers<void>(),
+      release: Promise.withResolvers<void>(),
+    };
+    firstMint = gate;
+    const twoFinished = Promise.withResolvers<void>();
+    let finished = 0;
+    const reads = Array.from({ length: 3 }, async () => {
+      const result = await cast("read");
+      if (++finished === 2) twoFinished.resolve();
+      return result;
+    });
+    const all = Promise.all(reads);
+    try {
+      await Promise.race([
+        Promise.all([gate.started.promise, twoFinished.promise]),
+        all.then(() => {
+          throw new Error("All readers finished before the held mint");
+        }),
+      ]);
+      expect(seen).toEqual(["apiTokens:mintForDevice"]);
+      expect(mints).toBe(0);
+      gate.release.resolve();
+      const results = await all;
+      expect(mints).toBe(1);
+      const mintedDevice = rows.get("bound_n3w1");
+      expect(mintedDevice).toBeDefined();
+      expect(mintedDevice).not.toBe(oldDevice);
+      for (const result of results) {
+        expect(result.error).toBeUndefined();
+        expect(result.device).toBe(mintedDevice!);
+        expect(result.bearer).toBe(`${OLD}.${oldDevice}`);
+      }
+      expect((await cast("read")).bearer).toBe(`bound_n3w1.${mintedDevice}`);
+      expect(mints).toBe(1);
+    } finally {
+      gate.release.resolve();
+      await Promise.allSettled(reads);
+    }
   }, 30_000);
 
   it("recovers the minted device from .machine_key.prev for a token stored without one", async () => {
