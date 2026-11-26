@@ -41,6 +41,7 @@ import {
 } from "./host.js";
 import { FakeExtension, TEST_TOKEN, testBridgeHost } from "./host.testutil.js";
 import { freePort } from "../instance.js";
+import { browserHome } from "../profile.js";
 import { isRealSession, realSessionKey } from "../engine.js";
 import { withAdvancedClone } from "../advanced.js";
 import { BRIDGE_STORE_URL, tabIdOfTarget, targetIdOfTab } from "./protocol.js";
@@ -73,6 +74,22 @@ describe("target id minting", () => {
 });
 
 describe("sticky target", () => {
+  test("settling the same sticky mode leaves the state file alone", () => {
+    const session = "session:a";
+    const file = path.join(browserHome(), "real.json");
+    setStickyTarget(session, "real");
+    fs.utimesSync(file, 100, 100);
+    const mtime = fs.statSync(file).mtimeMs;
+
+    setStickyTarget(session, "real");
+    expect(isRealMode({}, session)).toBe(true);
+    expect(fs.statSync(file).mtimeMs).toBe(mtime);
+
+    setStickyTarget(session, "pane");
+    expect(explicitTarget(session)).toBe("pane");
+    expect(fs.statSync(file).mtimeMs).toBeGreaterThan(mtime);
+  });
+
   test("defaults to the human Chrome even before an extension has paired", () => {
     expect(stickyTarget("session:a")).toBe("real");
     expect(isRealMode({}, "session:a")).toBe(true);
