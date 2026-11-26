@@ -114,6 +114,47 @@ test("a holder passes two waiting queues in steer sequence order and settlement 
   ).toEqual([1, 2, 3, 4]);
 });
 
+test("a correlated replay of an already delivered steer keeps the next attempt in flight", async () => {
+  const f = await fixture();
+  await f.send("already-delivered", observed);
+  const settled = await f.permit();
+  expect(settled.selected).toMatchObject({ intent: "steer" });
+  expect(await f.begin(settled.request)).toMatchObject({ status: "started" });
+  expect(await f.settle(settled.request, "applied")).toMatchObject({
+    status: "recorded",
+  });
+
+  await f.send("next-steer", observed);
+  const next = await f.permit();
+  expect(next.selected).toMatchObject({
+    delivery_id: "next-steer",
+    intent: "steer",
+  });
+  expect(await f.begin(next.request)).toMatchObject({ status: "started" });
+  const before = await f.rows();
+  expect(
+    before.attempts.find(
+      (attempt) => attempt._id === settled.request.attempt_id,
+    )?.state,
+  ).toBe("delivered");
+  const evidence = {
+    resolution_evidence: "provider receipt for already-delivered",
+  };
+  expect(
+    await f.settle(
+      { ...settled.request, seq: next.request.seq },
+      "applied",
+      evidence,
+    ),
+  ).toMatchObject({
+    status: "stale",
+  });
+  expect(await f.settle(settled.request, "applied", evidence)).toMatchObject({
+    status: "duplicate",
+  });
+  expect(await f.rows()).toEqual(before);
+});
+
 test("start rejects a claimed steer for a reused turn ID without releasing the replacement slot on replay", async () => {
   const f = await fixture();
   await f.send("old-turn", observed);
