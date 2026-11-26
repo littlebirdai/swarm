@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CodexAppServer, type SandboxPolicy } from "./codexAppServer.js";
+import { CodexAppServer, type SandboxPolicy } from "./codex-app-server.js";
 import {
   codexResumeParams,
   type PersistedCodexThread,

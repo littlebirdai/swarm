@@ -75,7 +75,7 @@ apps/cli/src/cloudAgents/openaiAgents.test.ts 1350
 apps/cli/src/cloudAgents/openaiAgents.ts 1200
 apps/cli/src/cloudAgents/watcher.ts 1200
 apps/cli/src/codexAppServer.test.ts 1050
-apps/cli/src/codexAppServer.ts 1800
+apps/cli/src/codex-app-server.ts 1800
 apps/cli/src/commandGroups.ts 900
 apps/cli/src/computer/cli.test.ts 1000
 apps/cli/src/computer/client.ts 850

@@ -7,7 +7,7 @@ import {
   type ThreadResumeParams,
   type ThreadResumeResponse,
   type Turn,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 
 export type PersistedCodexThread = {
   threadId: string;

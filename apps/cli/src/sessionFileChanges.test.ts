@@ -7,7 +7,7 @@ import {
   parseGrokSessionFile,
   type ParsedMessage,
 } from "./parser";
-import { threadItemToMessage } from "./codexAppServer";
+import { threadItemToMessage } from "./codex-app-server";
 import {
   extractFileChanges,
   hasFileChangeToolCall,

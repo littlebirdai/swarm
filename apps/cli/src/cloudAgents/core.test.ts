@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/agent-clients/apiErrorBanner";
-import { threadItemToMessage, type ThreadItem } from "../codexAppServer.js";
+import { threadItemToMessage, type ThreadItem } from "../codex-app-server.js";
 import {
   parseCursorTranscriptFile,
   parseMirrorTranscriptFile,

@@ -14,7 +14,7 @@ import {
   sandboxResumeParams,
   type SandboxPolicy,
   type TurnStatus,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 
 const record: PersistedCodexThread = {
   threadId: "thread",

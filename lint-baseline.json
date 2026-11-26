@@ -1781,6 +1781,9 @@
   "apps/cli/src/codecastOwned.ts": {
     "swarm/no-comments": 12
   },
+  "apps/cli/src/codex-app-server.ts": {
+    "swarm/no-comments": 72
+  },
   "apps/cli/src/codexAccounts.test.ts": {
     "swarm/no-comments": 11
   },
@@ -1789,9 +1792,6 @@
   },
   "apps/cli/src/codexAppServer.test.ts": {
     "swarm/no-comments": 51
-  },
-  "apps/cli/src/codexAppServer.ts": {
-    "swarm/no-comments": 72
   },
   "apps/cli/src/codexAuthDecode.ts": {
     "swarm/no-comments": 11

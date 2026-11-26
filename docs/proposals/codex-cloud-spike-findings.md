@@ -29,7 +29,7 @@ Parse `detail` and `error.message`.
 
 Every task created today records on its assistant turn:
 
-- `thread_events.events`: Codex **app-server v2 notifications**, the same protocol codecast already speaks in `packages/cli/src/codexAppServer.ts`.
+- `thread_events.events`: Codex **app-server v2 notifications**, the same protocol codecast already speaks in `packages/cli/src/codex-app-server.ts`.
   - Methods seen: `thread/started`, `thread/status/changed`, `turn/started`, `item/completed`, `rawResponseItem/completed`, `turn/completed`.
   - Item types seen: `userMessage`, `reasoning`, `commandExecution`, `agentMessage`.
   - `threadItemToMessage(item, ts)` in `codexAppServer.ts` converts these. Reuse it; do not write a second parser.

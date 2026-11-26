@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CodexAppServer } from "./codexAppServer";
+import { CodexAppServer } from "./codex-app-server";
 import { parseCodexSessionFile } from "./parser";
 import {
   SAFETY_BANNER_PREFIX,

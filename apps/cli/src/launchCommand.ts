@@ -30,7 +30,7 @@ import type {
   ApprovalPolicy,
   SandboxMode,
   ThreadStartParams,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 
 export function blankCodexRecoveryParams(
   data: {

@@ -4,7 +4,7 @@ import { isShellTool } from "@codecast/render/toolKinds";
 import { atomicWriteFile } from "./atomicWrite.js";
 import type { ParsedMessage } from "./parser.js";
 import type { EventEmitter } from "node:events";
-import { threadItemToMessage, type ThreadItem } from "./codexAppServer.js";
+import { threadItemToMessage, type ThreadItem } from "./codex-app-server.js";
 
 function shellCommands(source: string, depth = 0): string[][] {
   const commands: string[][] = [];

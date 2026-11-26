@@ -40,7 +40,7 @@ import {
   parseBackendUsageResponse,
   requestCodexBackendUsage,
 } from "../codexBackendUsage.js";
-import { threadItemToMessage, type ThreadItem } from "../codexAppServer.js";
+import { threadItemToMessage, type ThreadItem } from "../codex-app-server.js";
 import type { ParsedMessage } from "../parser.js";
 import { splitPatches } from "../repoMirror.js";
 import { CloudApiError, cloudApiVerdict, cloudRequestName } from "./http.js";

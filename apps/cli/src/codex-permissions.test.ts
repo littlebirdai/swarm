@@ -2,7 +2,7 @@ import { functionBlock } from "./test-helpers/sourceRegion.js";
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CodexAppServer, type ThreadStartParams } from "./codexAppServer";
+import { CodexAppServer, type ThreadStartParams } from "./codex-app-server";
 import {
   applyPolicyInPlace,
   codexResumeParams,

@@ -15,7 +15,7 @@ import { waitFor } from "@codecast/test-helpers/waitFor";
 import {
   CodexAppServer,
   type ApprovalRequest,
-} from "../../apps/cli/src/codexAppServer";
+} from "../../apps/cli/src/codex-app-server";
 import { CodexAppServerRuntimeDriver } from "../../apps/cli/src/execution/drivers/codexAppServer";
 import type { RuntimeStartRequest } from "../../apps/cli/src/execution/types";
 import type { ParsedMessage } from "../../apps/cli/src/parser";

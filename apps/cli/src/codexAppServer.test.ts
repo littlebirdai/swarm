@@ -11,7 +11,7 @@ import {
   threadForkTimeoutMsForBytes,
   threadItemToMessage,
   threadItemsToMessages,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 import { persistedPolicyFor } from "./codexTurnRecovery.js";
 import { pollUntil } from "./test-helpers/pollUntil.js";
 

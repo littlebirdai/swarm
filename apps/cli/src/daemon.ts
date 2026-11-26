@@ -674,7 +674,7 @@ import {
   type SandboxPolicy,
   type ApprovalRequest,
   type ThreadItem,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 import { CodexRecoveryQueue } from "./codexRecoveryQueue.js";
 import {
   choosePreferredCodexCandidate,
