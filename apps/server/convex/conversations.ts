@@ -1,5 +1,9 @@
 import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
-import { heartbeatsFor, inboxHeartbeatOf } from "./lib/sessionHeartbeat";
+import {
+  hasLiveInboxLease,
+  heartbeatsFor,
+  inboxHeartbeatsFor,
+} from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
 import { sanitizeConvexObjectKeys } from "./lib/convexFieldNames";
@@ -10174,7 +10178,7 @@ async function buildUserSessionMaps(
     .collect();
   return sessionMapsFromManagedRows(
     managedSessions,
-    managedSessions.map(inboxHeartbeatOf),
+    await inboxHeartbeatsFor(ctx, managedSessions),
     now,
   );
 }
@@ -10250,7 +10254,7 @@ export async function buildNamedSessionMaps(
   return {
     maps: sessionMapsFromManagedRows(
       own,
-      own.map(inboxHeartbeatOf),
+      await inboxHeartbeatsFor(ctx, own),
       now,
       user?.daemon_last_seen,
     ),
@@ -10275,7 +10279,7 @@ export function sessionMapsFromManagedRows(
   let latestHeartbeat: number | undefined;
   for (const [i, s] of managedSessions.entries()) {
     const beat = beats[i];
-    const live = s.liveness_lease?.expired === false;
+    const live = hasLiveInboxLease(s);
     if (live && isDaemonManagedRow(s)) hasLiveDaemonLease = true;
     // Only a daemon's heartbeat vouches for the user's other sessions; a
     // hosted row's heartbeat is a running turn and stays on its own row.
@@ -10416,13 +10420,14 @@ async function mergeForeignConversationLiveness(
         .first(),
     ),
   );
+  const beats = await inboxHeartbeatsFor(ctx, managedRows);
   for (let i = 0; i < convs.length; i++) {
     const conv = convs[i];
     const cid = conv._id.toString();
     const managed = managedRows[i];
     if (!managed) continue;
-    if (managed.liveness_lease?.expired === false) maps.liveLeaseIds.add(cid);
-    noteHeartbeat(maps, cid, inboxHeartbeatOf(managed), now);
+    if (hasLiveInboxLease(managed)) maps.liveLeaseIds.add(cid);
+    noteHeartbeat(maps, cid, beats[i], now);
     if (managed.tmux_session)
       maps.tmuxSessionMap.set(cid, managed.tmux_session);
     if (managed.backend === "sdk") maps.sdkBackendConvIds.add(cid);

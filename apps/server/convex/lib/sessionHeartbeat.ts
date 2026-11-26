@@ -21,17 +21,34 @@ export function resolveHeartbeat(
   return Math.max(beat ?? 0, session.last_heartbeat ?? 0);
 }
 
-export function inboxHeartbeatOf(
-  session: Pick<
-    Doc<"managed_sessions">,
-    "liveness_lease" | "last_heartbeat"
-  > | null,
-): number {
+export function inboxLeaseWritesEnabled(): boolean {
+  return process.env.INBOX_LIVENESS_LEASES === "1";
+}
+
+export function hasLiveInboxLease(
+  session: Pick<Doc<"managed_sessions">, "liveness_lease">,
+): boolean {
+  return inboxLeaseWritesEnabled() && session.liveness_lease?.expired === false;
+}
+
+function inboxHeartbeatOf(
+  ctx: Reader,
+  session: Doc<"managed_sessions"> | null,
+) {
   if (!session) return 0;
+  if (!inboxLeaseWritesEnabled() && session.liveness_lease?.expired === false)
+    return heartbeatOf(ctx, session);
   return Math.max(
     session.last_heartbeat,
     (session.liveness_lease?.end ?? 0) - HEARTBEAT_ALIVE_MS,
   );
+}
+
+export function inboxHeartbeatsFor(
+  ctx: Reader,
+  sessions: Array<Doc<"managed_sessions"> | null>,
+) {
+  return Promise.all(sessions.map((row) => inboxHeartbeatOf(ctx, row)));
 }
 
 export async function heartbeatOf(

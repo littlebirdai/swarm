@@ -313,9 +313,8 @@ export async function performRegisterManagedSession(
   });
 
   await writeSessionHeartbeat(ctx, id, authUserId, now);
-  await ctx.db.patch(id, {
-    liveness_lease: await startInboxLease(ctx, id, now, now),
-  });
+  const lease = await startInboxLease(ctx, id, now, now);
+  if (lease) await ctx.db.patch(id, { liveness_lease: lease });
 
   // Claim ownership: stamp this device as the conversation's owner. Also clear
   // any stale "no local checkout" banner — a fresh local process disproves it

@@ -9,13 +9,25 @@ import {
   HEARTBEAT_FLUSH_INTERVAL_MS,
 } from "@codecast/sessions/agentStatus";
 import { conversationSessionsBeatingSince } from "./lib/sessionHeartbeat";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   asUser,
   scheduledJobs,
   serverTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
+
+let originalLeaseFlag: string | undefined;
+
+beforeEach(() => {
+  originalLeaseFlag = process.env.INBOX_LIVENESS_LEASES;
+  process.env.INBOX_LIVENESS_LEASES = "1";
+});
+
+afterEach(() => {
+  if (originalLeaseFlag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
+  else process.env.INBOX_LIVENESS_LEASES = originalLeaseFlag;
+});
 
 const now = 1_750_000_020_000;
 const token = "b".repeat(64);
@@ -335,3 +347,79 @@ test("renewals leave the inbox read sets untouched and expire after the last bea
   await heartbeat();
   expect((await latest()).liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
 });
+
+for (const flag of [undefined, "0"]) {
+  test(`a legacy client stays connected when the rollout flag is ${flag ?? "unset"}`, async () => {
+    if (flag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
+    else process.env.INBOX_LIVENESS_LEASES = flag;
+    const { viewer, t, working } = await seed(0, false);
+    for (let i = 1; i <= 6; i++) {
+      const at = now + i * HEARTBEAT_FLUSH_INTERVAL_MS;
+      jest.setSystemTime(at);
+      const writes = await recordDocuments(() =>
+        viewer.mutation(api.managedSessions.heartbeatBatch, {
+          sessions: [
+            {
+              session_id: "working-trace",
+              agent_status: "working",
+              client_ts: at,
+            },
+          ],
+        }),
+      );
+      expect(writes.writes.has(working.managed)).toBe(true);
+      const result = await viewer.query(api.conversations.sessionsLiveness, {});
+      if (!("liveness" in result)) throw new Error("Expected whole liveness");
+      const row = result.liveness[working.conversation];
+      expect(at - row.last_heartbeat!).toBeLessThan(HEARTBEAT_ALIVE_MS);
+      expect(row.liveness_lease_end).toBe(
+        row.last_heartbeat! + HEARTBEAT_ALIVE_MS,
+      );
+    }
+    expect(
+      (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease,
+    ).toBeUndefined();
+    expect(await scheduledJobs(t)).toEqual([]);
+  });
+}
+
+for (const exit of ["a heartbeat", "the pending check"]) {
+  test(`turning the flag off restores the legacy timestamp through ${exit}`, async () => {
+    const { viewer, t, working } = await seed(0, false);
+    const beat = (clientTs: number) =>
+      viewer.mutation(api.managedSessions.heartbeat, {
+        session_id: "working-trace",
+        agent_status: "working",
+        client_ts: clientTs,
+      });
+    await beat(now);
+    const late = now + HEARTBEAT_ALIVE_MS + 1;
+    jest.setSystemTime(late);
+    await beat(late);
+    expect(
+      (await t.run(({ db }) => db.get(working.managed)))?.last_heartbeat,
+    ).toBe(now);
+
+    delete process.env.INBOX_LIVENESS_LEASES;
+    const result = await viewer.query(api.conversations.sessionsLiveness, {});
+    if (!("liveness" in result)) throw new Error("Expected whole liveness");
+    expect(result.liveness[working.conversation]?.last_heartbeat).toBe(late);
+    if (exit === "a heartbeat") await beat(late + 1);
+    else {
+      await t.mutation(internal.managedSessions.checkInboxLivenessLease, {
+        id: working.managed,
+        end: now + HEARTBEAT_ALIVE_MS,
+      });
+    }
+    const restored = await t.run(({ db }) => db.get(working.managed));
+    expect(restored?.last_heartbeat).toBe(late);
+    expect(restored?.liveness_lease).toBeUndefined();
+
+    process.env.INBOX_LIVENESS_LEASES = "1";
+    await beat(late + 2);
+    expect(
+      (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease
+        ?.expired,
+    ).toBe(false);
+  });
+}
