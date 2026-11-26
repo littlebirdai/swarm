@@ -198,8 +198,9 @@ describe("keyboard window", () => {
 
   it("a redone entry is reachable by the next blind undo, however old its record", () => {
     const realNow = Date.now;
-    const t0 = realNow();
+    const t0 = Date.UTC(2025, 0, 1);
     try {
+      Date.now = () => t0;
       const entry = generic("old");
       Date.now = () => t0 + 4 * 60_000;
       expect(performUndo()).toBe(true);
