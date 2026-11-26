@@ -335,22 +335,6 @@ import {
 } from "./lib/conversationBasics";
 export { generateShareToken, isNonEmptyMessage };
 
-// Single relevance-ranked search-index lookup shared by every message-search
-// surface (web searchConversations, searchForCLI, feedForCLI). One combined
-// lookup instead of a per-term fan-out: per-lookup overhead dominates on long
-// queries (a 7-term query = 7 index scans) and timed out the whole Convex query.
-// BM25 already ranks docs matching more/rarer terms first, so a single pool is
-// also the better candidate set for coverage ranking. The take() is the recall/speed
-// knob: message docs can be large (tool results), so a bigger pool costs bytes.
-//
-// NOTE: `.take()` bounds only what's RETURNED, not what the full-text index
-// SCANS. For a token that appears across a large fraction of the multi-million-
-// row messages table (any common word), search_content_v2 scores the whole
-// posting list and exceeds the query budget regardless of take size. That is
-// why content search serves from the message_search_recent mirror (bounded
-// corpus, see searchMirror.ts) whenever its cron is caught up — the deep index
-// below is only the fallback while the mirror is cold or its walker is behind
-// (its staleness then shows as timeouts again, ct-37627).
 // The narrow shape every search consumer actually reads. Both tiers project
 // to it so the mirror and the deep index are interchangeable downstream
 // (_id is the real messages id either way — deep links depend on it).
@@ -370,9 +354,6 @@ type SearchPoolFilter = {
   team_id?: Id<"teams">;
 };
 
-// The message index content search reads right now, as one function: the
-// recent mirror while its walker is caught up, else the deep messages index,
-// which can only be narrowed to one conversation (its sole filter field).
 // Rows one message lookup returns. A lookup that comes back full may have left
 // matches behind, so a word the pool lacks is unknown there, not absent.
 const MESSAGE_POOL_TAKE = 512;
