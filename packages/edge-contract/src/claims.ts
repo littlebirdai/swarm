@@ -105,10 +105,7 @@ export function isRelayGrantUrl(value: string): boolean {
     return (
       url.protocol === "wss:" &&
       url.pathname === "/relay" &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
+      url.origin + url.pathname === value
     );
   } catch {
     return false;

@@ -166,9 +166,14 @@ test("only the current run owner can obtain a signed run-scoped grant", async ()
     db.patch(f.conversation, { owner_device_id: machine }),
   );
 
-  delete process.env.CODECAST_EDGE_V1;
-  expect(await (await mint()).json()).toEqual({ v: 1, status: "unavailable" });
-  process.env.CODECAST_EDGE_V1 = "1";
+  for (const flag of ["CODECAST_EDGE_V1", "CODECAST_EDGE_RELAY_LIVENESS_V1"]) {
+    delete process.env[flag];
+    expect(await (await mint()).json()).toEqual({
+      v: 1,
+      status: "unavailable",
+    });
+    process.env[flag] = "1";
+  }
 
   setSystemTime(new Date(start + leaseMs - 1));
   expect(await (await mint()).json()).toMatchObject({

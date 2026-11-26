@@ -57,6 +57,10 @@ test("relay grant responses carry the secure relay endpoint and a positive lifet
     "ws://relay.example.test/relay",
     "wss://relay.example.test",
     "wss://u:p@relay.example.test/relay",
+    `${accepted.url}?`,
+    `${accepted.url}#`,
+    ` ${accepted.url}`,
+    `${accepted.url} `,
   ]) {
     expectParseError(
       parseRelayGrantResponse({ ...accepted, url }),
