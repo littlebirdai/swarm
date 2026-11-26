@@ -871,6 +871,7 @@ function fixture(transport = "tmux", cached = true) {
       blockAt(source, source.indexOf("class InputBlockedError")).text,
       blockAt(source, source.indexOf("class UnreadableScreenError")).text,
       "class UndeliverableMessageError extends Error {}",
+      blockAt(source, source.indexOf("class CodexDeliveryInDoubt")).text,
       ...constants.map(constant),
       ...names.map((name) => functionBlock(source, name).text),
       `const scheduleMessageRetry = ((setTimeout) => { ${functionBlock(source, "scheduleMessageRetry").text}; return scheduleMessageRetry; })(recordTimer);`,
