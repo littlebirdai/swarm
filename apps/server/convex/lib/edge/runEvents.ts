@@ -120,9 +120,17 @@ export async function clearEventTurn(
 
 type OpenTurn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
 type PromptDetails = NonNullable<OpenTurn["prompt_details"]>[number];
+const MAX_QUESTIONS_PER_PROMPT = 32;
+const MAX_QUESTION_ID_LENGTH = 256;
+const MAX_PROMPT_DETAILS_BYTES = 32_768;
 
 function questionDetails(value: EdgeJson): PromptDetails["questions"] {
-  if (!Array.isArray(value) || value.length === 0) return;
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_QUESTIONS_PER_PROMPT
+  )
+    return;
   const questions: NonNullable<PromptDetails["questions"]> = [];
   const ids = new Set<string>();
   for (const question of value) {
@@ -131,6 +139,7 @@ function questionDetails(value: EdgeJson): PromptDetails["questions"] {
       typeof question !== "object" ||
       Array.isArray(question) ||
       typeof question.id !== "string" ||
+      question.id.length > MAX_QUESTION_ID_LENGTH ||
       !question.id.trim() ||
       typeof question.is_secret !== "boolean" ||
       ids.has(question.id)
@@ -152,6 +161,14 @@ function projectPromptTurn(
   const details = new Map(
     previousDetails.map((prompt) => [prompt.prompt_id, prompt]),
   );
+  const setDetails = (prompt: PromptDetails) => {
+    const proposed = new Map(details).set(prompt.prompt_id, prompt);
+    const bytes = new TextEncoder().encode(
+      JSON.stringify([...proposed.values()]),
+    );
+    if (bytes.length <= MAX_PROMPT_DETAILS_BYTES)
+      details.set(prompt.prompt_id, prompt);
+  };
   for (const event of events) {
     const before = state.openTurn;
     switch (event.kind) {
@@ -169,7 +186,7 @@ function projectPromptTurn(
         const prompt = details.get(data.prompt_id);
         if (prompt?.kind !== "question" || prompt.questions) break;
         const questions = questionDetails(data.questions);
-        if (questions) details.set(prompt.prompt_id, { ...prompt, questions });
+        if (questions) setDetails({ ...prompt, questions });
         break;
       }
       case "session.started":
@@ -188,7 +205,7 @@ function projectPromptTurn(
             !before?.promptIds.includes(prompt_id) &&
             after?.promptIds.includes(prompt_id)
           )
-            details.set(prompt_id, {
+            setDetails({
               prompt_id,
               kind,
               ...(tool_call_id ? { tool_call_id } : {}),

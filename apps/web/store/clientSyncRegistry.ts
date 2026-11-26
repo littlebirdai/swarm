@@ -1768,7 +1768,7 @@ export const CLIENT_SYNC_REGISTRY = {
     },
     hydration: { phase: "deferred" },
     indexes: "_id, conversation_id",
-    sync: { isDelta: true },
+    sync: { isDelta: true, deepFields: ["questions"] },
     feeds: ["permissions.listAnswerablePromptAddresses"],
   },
   // Pending tool-permission requests, per conversation. Each conversation's

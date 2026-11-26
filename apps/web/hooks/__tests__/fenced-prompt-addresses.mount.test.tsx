@@ -65,6 +65,25 @@ test("a conversation feed inserts and removes its addresses without dropping oth
     expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
       prompt,
     );
+    const before = web.store.getState().fencedPromptAddresses[prompt._id];
+    await act(async () =>
+      web.backend.set(feed, [
+        structuredClone(prompt),
+        row(conversation, "new"),
+      ]),
+    );
+    expect(web.container.querySelector("output")?.textContent).toBe(
+      "ask,new,sibling",
+    );
+    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toBe(before);
+    const revised = {
+      ...prompt,
+      questions: [{ id: "second", is_secret: false }],
+    };
+    await act(async () => web.backend.set(feed, [revised]));
+    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
+      revised,
+    );
     await act(async () => web.backend.set(feed, []));
     expect(web.container.querySelector("output")?.textContent).toBe("sibling");
     expect(

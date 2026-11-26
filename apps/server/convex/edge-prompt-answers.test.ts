@@ -633,3 +633,96 @@ test("a replacement lease starts without question metadata from the expired leas
     { id: "replacement", is_secret: false },
   ]);
 });
+
+test("the prompt feed keeps only the 32 prompts admitted by the turn", async () => {
+  const f = await fixture("permission");
+  await f.append(
+    Array.from({ length: 32 }, (_, index) => ({
+      ...f.base,
+      seq: index + 3,
+      kind: "prompt.opened" as const,
+      body: { prompt_id: `approval-${index}`, kind: "permission" as const },
+    })),
+  );
+  const rows = await f.browser.query(
+    api.permissions.listAnswerablePromptAddresses,
+    {
+      conversation_id: f.conversation,
+    },
+  );
+  expect(rows.map(({ prompt_id }) => prompt_id)).toEqual([
+    f.target.prompt_id,
+    ...Array.from({ length: 31 }, (_, index) => `approval-${index}`),
+  ]);
+});
+
+test.each([
+  [
+    "question count",
+    Array.from({ length: 33 }, (_, index) => `question-${index}`),
+  ],
+  ["question id length", ["q".repeat(257)]],
+])("the prompt feed refuses excessive %s", async (_bound, ids) => {
+  const f = await fixture();
+  await f.append([
+    {
+      ...f.base,
+      seq: 3,
+      kind: "context",
+      body: {
+        data: {
+          prompt_id: f.target.prompt_id,
+          questions: ids.map((id) => ({ id, is_secret: false })),
+        },
+      },
+    },
+  ]);
+  expect(
+    await f.browser.query(api.permissions.listAnswerablePromptAddresses, {
+      conversation_id: f.conversation,
+    }),
+  ).toEqual([]);
+});
+
+test("question metadata respects the total turn budget and can use space freed by a settled prompt", async () => {
+  const f = await fixture();
+  const ids = [f.target.prompt_id, "second", "third", "fourth"];
+  const questions = Array.from({ length: 32 }, (_, index) => ({
+    id: String(index).padStart(256, "q"),
+    is_secret: true,
+  }));
+  const context = (prompt_id: string, seq: number): CanonicalEvent => ({
+    ...f.base,
+    seq,
+    kind: "context",
+    body: { data: { prompt_id, questions } },
+  });
+  await f.append([
+    ...ids.slice(1).map((prompt_id, index) => ({
+      ...f.base,
+      seq: index + 3,
+      kind: "prompt.opened" as const,
+      body: { prompt_id, kind: "question" as const },
+    })),
+    ...ids.map((prompt_id, index) => context(prompt_id, index + 6)),
+  ]);
+  const feed = () =>
+    f.browser.query(api.permissions.listAnswerablePromptAddresses, {
+      conversation_id: f.conversation,
+    });
+  const addresses = await feed();
+  expect(addresses.map(({ prompt_id }) => prompt_id)).toEqual(ids.slice(0, 3));
+  expect(addresses[0]?.questions).toEqual(questions);
+  await f.append([
+    {
+      ...f.base,
+      seq: 10,
+      kind: "prompt.settled",
+      body: { prompt_id: f.target.prompt_id, outcome: "answered" },
+    },
+    context("fourth", 11),
+  ]);
+  expect((await feed()).map(({ prompt_id }) => prompt_id)).toEqual(
+    ids.slice(1),
+  );
+});
