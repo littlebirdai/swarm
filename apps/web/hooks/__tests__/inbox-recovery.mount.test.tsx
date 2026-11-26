@@ -1,16 +1,18 @@
 import { afterEach, expect, jest, spyOn, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { getFunctionName } from "convex/server";
-import { act } from "react";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
+import { getFunctionName, makeFunctionReference } from "convex/server";
+import { act, type ReactNode } from "react";
 import {
   emptyInboxTally,
   INBOX_PROJECTION_VERSION,
   type InboxProjection,
 } from "@codecast/inbox/inboxProjection";
 import { mountWeb } from "../../test-helpers/mountWeb";
-import type { testConvex } from "../../test-helpers/testConvex";
+import { pending, type testConvex } from "../../test-helpers/testConvex";
 import { emitSyncWake } from "../syncWake";
+import { useInboxRecovery } from "../use-inbox-recovery";
 import { useInboxDigestCompare } from "../useInboxDigestCompare";
 import { useSyncInboxSessions } from "../useSyncInboxSessions";
 import { useSyncTeamInboxSessions } from "../useSyncTeamInboxSessions";
@@ -60,10 +62,10 @@ function setInboxQueries(
   backend.set(api.conversations.teamSessionsLiveness, reply(liveness));
 }
 
-async function mountInbox() {
+async function mountInbox(node: ReactNode = <Feeders />) {
   const random = spyOn(Math, "random").mockReturnValue(0.5);
   restoreRandom = () => random.mockRestore();
-  const mount = await mountWeb(<Feeders />, {
+  const mount = await mountWeb(node, {
     clock: true,
     setup(backend) {
       backend.set(api.client_state.get, {
@@ -209,4 +211,119 @@ test("successive subscription errors allow one read per query every 15 seconds",
       .sort(),
   ).toEqual(names);
   expect(probes()[4].at - probes()[0].at).toBe(15_000);
+});
+
+test("a persistent subscription error retries until a recovery applies", async () => {
+  const { backend, clock, probes, store } = await mountInbox();
+  const query = api.conversations.sessionsLiveness;
+  let attempts = 0;
+  await act(async () => {
+    backend.set(query, ({ _probe }) => {
+      if (_probe === undefined || ++attempts < 3)
+        return new Error("offline feed");
+      return {
+        ...liveness,
+        projection: { ...liveness.projection, set_digest: "recovered" },
+      };
+    });
+  });
+  await clock.advance(7_500);
+  expect(probes()).toHaveLength(1);
+  await clock.advance(14_999);
+  expect(probes()).toHaveLength(1);
+  await clock.advance(1);
+  expect(probes()).toHaveLength(2);
+  await clock.advance(29_999);
+  expect(probes()).toHaveLength(2);
+  await clock.advance(1);
+  expect(probes()).toHaveLength(3);
+  expect(store.getState().sessionsProjection.mine?.set_digest).toBe(
+    "recovered",
+  );
+  await clock.advance(30_000);
+  expect(probes()).toHaveLength(3);
+});
+
+test.each(["timeout", "rejected apply"] as const)(
+  "an inbox recovery retries after %s",
+  async (failure) => {
+    const random = spyOn(Math, "random").mockReturnValue(0.5);
+    restoreRandom = () => random.mockRestore();
+    const query = makeFunctionReference<"query", { _probe?: number }, number>(
+      "test:inboxRetry",
+    );
+    const applied: number[] = [];
+    const apply = (value: number) => {
+      if (value === 0) return false;
+      applied.push(value);
+      return true;
+    };
+    const args = {};
+    function Recovery() {
+      useInboxRecovery(query, args, null, undefined, apply);
+      return null;
+    }
+    let attempts = 0;
+    const { clock } = await mountWeb(<Recovery />, {
+      clock: true,
+      setup(backend) {
+        backend.set(query, () =>
+          ++attempts === 1 ? (failure === "timeout" ? pending : 0) : 1,
+        );
+      },
+    });
+    await act(async () => emitSyncWake());
+    await clock!.advance(7_500);
+    expect(attempts).toBe(1);
+    expect(applied).toEqual([]);
+    if (failure === "timeout") await clock!.advance(20_000);
+    await clock!.advance(14_999);
+    expect(attempts).toBe(1);
+    await clock!.advance(1);
+    expect(attempts).toBe(2);
+    expect(applied).toEqual([1]);
+  },
+);
+
+async function fetchInboxTestToken() {
+  const claims = Buffer.from(JSON.stringify({ iat: 1, exp: 3601 })).toString(
+    "base64url",
+  );
+  return `eyJhbGciOiJIUzI1NiJ9.${claims}.test`;
+}
+
+function InboxIdentity({ authenticated }: { authenticated: boolean }) {
+  const client = useConvex();
+  return (
+    <ConvexProviderWithAuth
+      client={client}
+      useAuth={() => ({
+        isAuthenticated: authenticated,
+        isLoading: false,
+        fetchAccessToken: fetchInboxTestToken,
+      })}
+    >
+      <Feeders />
+    </ConvexProviderWithAuth>
+  );
+}
+
+test("inbox recovery preserves cached lists when the server loses identity", async () => {
+  const { backend, clock, probes, rerender, store } = await mountInbox(
+    <InboxIdentity authenticated={true} />,
+  );
+  await act(async () => {
+    store.getState().setLiveInboxIds(["personal"]);
+    store.getState().setTeamInboxIds(["team"], null);
+    emitSyncWake();
+  });
+  await rerender(<InboxIdentity authenticated={false} />);
+  await act(async () => {
+    setInboxQueries(backend);
+    emitSyncWake();
+  });
+  await clock.advance(30_000);
+  expect(probes()).toEqual([]);
+  expect(store.getState().liveInboxIdList).toEqual(["personal"]);
+  expect(store.getState().teamInboxIdSnapshot?.ids).toEqual(["team"]);
 });

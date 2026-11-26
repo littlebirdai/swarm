@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useConvex, type ConvexReactClient } from "convex/react";
 import {
   getFunctionName,
@@ -16,10 +16,12 @@ import {
 import { onSyncWake } from "./syncWake";
 import { subscribeCoarseTick } from "./useCoarseNow";
 import { RECOVERY_FETCH_TIMEOUT_MS } from "./useRecoveryPoll";
+import { useServerIdentityLost } from "./useServerAuthSettled";
 import { queryInboxRecovery, type SplitKind } from "./useSplitQuery";
 import { useWatchEffect } from "./useWatchEffect";
 
 const RECOVERY_INTERVAL_MS = 15_000;
+const MAX_RETRY_DELAY_MS = 60_000;
 
 type Recovery = {
   promise: Promise<boolean>;
@@ -41,23 +43,25 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
   let active: AbortController | null = null;
   let disposed = false;
   let healthy = false;
+  let retryDelay = 0;
+  let retryAt = 0;
+  const canRead = () => !disposed && connected;
 
   function arm() {
-    if (disposed || !pending || !connected || active || timer !== null) return;
+    if (!canRead() || !pending || active || timer !== null) return;
     timer = setTimeout(
       () => {
         timer = null;
-        if (connected && pending) void read(pending);
+        if (canRead() && pending) void read(pending);
       },
       Math.max(
-        nextAt.current - Date.now(),
+        Math.max(nextAt.current, retryAt) - Date.now(),
         Math.random() * RECOVERY_INTERVAL_MS,
       ),
     );
   }
 
   async function read(recovery: Recovery) {
-    pending = null;
     nextAt.current = Date.now() + RECOVERY_INTERVAL_MS;
     const controller = new AbortController();
     active = controller;
@@ -76,7 +80,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
         kind,
         signal,
       );
-      if (signal.aborted) return;
+      if (signal.aborted || !canRead()) return;
       applied = await new Promise<boolean>((resolve, reject) => {
         let cancel: (() => void) | undefined;
         const abort = () => {
@@ -87,7 +91,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
         cancel = whenInputQuiet(() => {
           signal.removeEventListener("abort", abort);
           try {
-            resolve(apply(fresh));
+            resolve(!signal.aborted && canRead() && apply(fresh));
           } catch (error) {
             reject(error);
           }
@@ -99,13 +103,32 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
       clearTimeout(timeout);
       active = null;
       endActivity();
-      if (applied) healthy = true;
-      recovery.resolve(applied);
+      if (pending === recovery) {
+        if (applied || !canRead()) {
+          healthy = applied;
+          finish(applied);
+        } else {
+          retryDelay = Math.min(
+            MAX_RETRY_DELAY_MS,
+            Math.max(RECOVERY_INTERVAL_MS, retryDelay * 2),
+          );
+          retryAt = Date.now() + retryDelay;
+        }
+      }
       arm();
     }
   }
 
+  function finish(applied: boolean) {
+    const recovery = pending;
+    pending = null;
+    retryDelay = 0;
+    retryAt = 0;
+    recovery?.resolve(applied);
+  }
+
   function request(): Promise<boolean> {
+    if (disposed) return Promise.resolve(false);
     healthy = false;
     if (!pending) {
       let resolve!: (applied: boolean) => void;
@@ -124,11 +147,12 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
     connected = state.isWebSocketConnected;
     connectionCount = state.connectionCount;
     if (disconnected) {
+      healthy = false;
       if (timer !== null) clearTimeout(timer);
       timer = null;
+      finish(false);
       active?.abort();
-    }
-    if (disconnected || reconnected) void request();
+    } else if (reconnected) void request();
     else arm();
   });
 
@@ -156,9 +180,9 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
 
   return {
     request,
-    isHealthy: () => healthy && connected && !pending && !active,
+    isHealthy: () => healthy && canRead() && !pending && !active,
     acceptLive: () => {
-      healthy = true;
+      if (canRead()) healthy = true;
     },
     dispose: () => {
       disposed = true;
@@ -167,7 +191,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
       offTick();
       if (timer !== null) clearTimeout(timer);
       active?.abort();
-      pending?.resolve(false);
+      finish(false);
     },
   };
 }
@@ -180,6 +204,7 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   apply: (data: FunctionReturnType<Q>) => boolean,
 ) {
   const convex = useConvex();
+  const lost = useServerIdentityLost();
   const queryName = getFunctionName(query);
   const reference = useMemo(
     () =>
@@ -191,8 +216,8 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   const recovery = useRef<ReturnType<typeof startInboxRecovery> | null>(null);
   const nextAt = useRef(0);
 
-  useWatchEffect(() => {
-    if (args === "skip") return;
+  useLayoutEffect(() => {
+    if (args === "skip" || lost) return;
     const controller = startInboxRecovery<typeof reference>(
       convex,
       reference,
@@ -206,11 +231,11 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
       recovery.current = null;
       controller.dispose();
     };
-  }, [convex, reference, args, kind, apply]);
+  }, [convex, reference, args, kind, apply, lost]);
 
   useWatchEffect(() => {
     if (error) void recovery.current?.request();
-  }, [error, convex, reference, args, kind, apply]);
+  }, [error, convex, reference, args, kind, apply, lost]);
 
   return {
     request: useCallback(
