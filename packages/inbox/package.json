@@ -13,7 +13,7 @@
     "./__fixtures__/teamWorldGen": "./src/__fixtures__/teamWorldGen.ts",
     "./closedSession": "./src/closedSession.ts",
     "./idleDigest": "./src/idleDigest.ts",
-    "./inboxFields": "./src/inboxFields.ts",
+    "./inboxFields": "./src/inbox-fields.ts",
     "./inboxMembership": "./src/inboxMembership.ts",
     "./inboxProjection": "./src/inboxProjection.ts",
     "./inboxSplit": "./src/inboxSplit.ts"

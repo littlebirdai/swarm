@@ -34,7 +34,7 @@ import {
   rollupParentIdOf,
 } from "./inboxMembership";
 // Field ownership (design C1): which channel writes which row field.
-export * from "./inboxFields";
+export * from "./inbox-fields";
 // Membership identity (subagents, rollups, stacked asks).
 export * from "./inboxMembership";
 
