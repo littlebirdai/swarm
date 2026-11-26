@@ -1294,8 +1294,6 @@ export const reparentSessionToDevice = mutation({
 });
 
 // The caller repeats the transfer until `more` is false.
-const CLAIM_ACCOUNT_PAGE = 100;
-
 export type ClaimDeviceAccountResult = {
   moved: number;
   more: boolean;
@@ -1363,20 +1361,13 @@ export async function performClaimDeviceAccount(
   if (previousDevice && now - previousDevice.last_seen < DEVICE_ONLINE_MS) {
     return { moved: 0, more: false, pending: true };
   }
-  const { rows, fenced } = await scanDeviceRows(
+  const { rows, more, skipped, refusal } = await scanDeviceRows(
     ctx,
-    args.previousUserId,
-    args.deviceId,
+    callerId,
+    mine,
+    { userId: args.previousUserId, lastSeen: previousDevice?.last_seen },
   );
-  const caller = await ctx.db.get(callerId);
-  const movable: any[] = [];
   for (const conv of rows) {
-    const access = await checkConversationAccess(ctx, callerId, conv);
-    if (access === "owner" || (access === "team" && caller && !caller.is_bot))
-      movable.push(conv);
-  }
-  const page = movable.slice(0, CLAIM_ACCOUNT_PAGE);
-  for (const conv of page) {
     await ctx.db.patch(conv._id, {
       user_id: callerId,
       author_user_id: conv.author_user_id ?? conv.user_id,
@@ -1394,11 +1385,8 @@ export async function performClaimDeviceAccount(
       }
     }
   }
-  const more = movable.length > CLAIM_ACCOUNT_PAGE;
-  const refusal = !more && fenced ? fencedMoveRefusal(fenced) : undefined;
-  const skipped = rows.length - movable.length + Number(!!refusal);
   return {
-    moved: page.length,
+    moved: rows.length,
     more,
     ...(skipped > 0 ? { skipped } : {}),
     ...(refusal ? { error: refusal } : {}),
