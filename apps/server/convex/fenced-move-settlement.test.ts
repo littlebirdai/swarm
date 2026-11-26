@@ -12,6 +12,7 @@ import { api, internal } from "./_generated/api";
 const flag = "CODECAST_FORCED_DEVICE_MOVE_V1";
 const previous = process.env[flag];
 const expires = internal.edgeRunLease.expireMove;
+const replacementBoot = "replacement-source";
 
 beforeEach(() => {
   jest.useFakeTimers({ now: start });
@@ -65,7 +66,43 @@ async function fixture() {
       ...permit,
       outcome: "applied",
     });
-  return { ...f, lease, record, read, expire, settle };
+  const confirm = async (
+    proof: "stop" | "replacement boot",
+    moveId: string,
+  ) => {
+    const address = {
+      conversation_id: f.conversation,
+      bearer: f.bearer,
+      move_id: moveId,
+    };
+    if (proof === "stop") {
+      await f.t.mutation(internal.edgeRunLease.confirmMoveSourceStop, {
+        ...address,
+        daemon_boot_id: boot,
+        runtime_id: "runtime",
+        fencing_token: lease.fencing_token,
+      });
+      return;
+    }
+    await f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
+      api_token: f.bearer,
+      owner_device_id: machine,
+      daemon_boot_id: replacementBoot,
+    });
+    await f.t.mutation(internal.edgeRunLease.confirmMoveSourceReplacementBoot, {
+      ...address,
+      daemon_boot_id: replacementBoot,
+    });
+  };
+  return { ...f, lease, record, read, expire, settle, confirm };
+}
+
+async function extendSourceLease(f: Awaited<ReturnType<typeof fixture>>) {
+  await f.t.run(async ({ db }) => {
+    const lease = await db.query("run_leases").unique();
+    if (!lease) throw new Error("Expected a stored lease");
+    await db.patch(lease._id, { expires_at: start + 120_000 });
+  });
 }
 
 test.each([5_000, 24_000])(
@@ -92,11 +129,7 @@ test.each([5_000, 24_000])(
 test("a stored lease longer than the settlement limit cannot extend the window", async () => {
   const f = await fixture();
   const recordedAt = start + 2_000;
-  await f.t.run(async ({ db }) => {
-    const lease = await db.query("run_leases").unique();
-    if (!lease) throw new Error("Expected a stored lease");
-    await db.patch(lease._id, { expires_at: start + 120_000 });
-  });
+  await extendSourceLease(f);
   jest.setSystemTime(recordedAt);
   await f.record();
   const deadline = recordedAt + 30_000;
@@ -117,7 +150,7 @@ test("the source can settle its recorded attempt after the old ten-second limit"
   expect(await f.settle()).toMatchObject({ status: "recorded" });
 });
 
-test.each(["released", "expired"] as const)(
+test.each(["released", "expired", "missing"] as const)(
   "settlement stays closed when the source lease is %s",
   async (state) => {
     const f = await fixture();
@@ -129,8 +162,14 @@ test.each(["released", "expired"] as const)(
           f.requestFence(f.lease.fencing_token),
         ),
       ).toMatchObject({ status: "released" });
-    } else {
+    } else if (state === "expired") {
       jest.setSystemTime(start + leaseMs + 1);
+    } else {
+      await f.t.run(async ({ db }) => {
+        const lease = await db.query("run_leases").unique();
+        if (!lease) throw new Error("Expected a stored lease");
+        await db.delete(lease._id);
+      });
     }
     await f.record();
     expect(await f.read()).toMatchObject({
@@ -145,35 +184,10 @@ test.each(["stop", "replacement boot"] as const)(
   "a confirmed %s shortens the deadline and closes settlement",
   async (proof) => {
     const f = await fixture();
-    const address = {
-      conversation_id: f.conversation,
-      bearer: f.bearer,
-      move_id: await f.record(),
-    };
+    const moveId = await f.record();
     const closedAt = start + 4_000;
     jest.setSystemTime(closedAt);
-    if (proof === "stop") {
-      await f.t.mutation(internal.edgeRunLease.confirmMoveSourceStop, {
-        ...address,
-        daemon_boot_id: boot,
-        runtime_id: "runtime",
-        fencing_token: f.lease.fencing_token,
-      });
-    } else {
-      const replacement = "replacement-source";
-      await f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
-        api_token: f.bearer,
-        owner_device_id: machine,
-        daemon_boot_id: replacement,
-      });
-      await f.t.mutation(
-        internal.edgeRunLease.confirmMoveSourceReplacementBoot,
-        {
-          ...address,
-          daemon_boot_id: replacement,
-        },
-      );
-    }
+    await f.confirm(proof, moveId);
     expect(await f.read()).toMatchObject({
       device_move: { settlement_deadline: closedAt },
       active_delivery_state: "ambiguous",
@@ -183,25 +197,56 @@ test.each(["stop", "replacement boot"] as const)(
   },
 );
 
-test("the flag off keeps the old window and expiry schedule", async () => {
-  delete process.env[flag];
+test.each(["stop", "replacement boot"] as const)(
+  "the flag off keeps the old window and expiry schedule after %s",
+  async (proof) => {
+    delete process.env[flag];
+    const f = await fixture();
+    const recordedAt = start + 5_000;
+    jest.setSystemTime(recordedAt);
+    const moveId = await f.record();
+    const deadline = recordedAt + 10_000;
+    expect((await f.read())?.device_move?.settlement_deadline).toBe(deadline);
+    expect(await scheduledJobs(f.t, expires)).toMatchObject([
+      { scheduledTime: deadline },
+    ]);
+    const confirmedAt = recordedAt + 1_000;
+    jest.setSystemTime(confirmedAt);
+    await f.confirm(proof, moveId);
+    expect((await f.read())?.device_move).toMatchObject({
+      settlement_deadline: deadline,
+      ...(proof === "stop"
+        ? { source_stopped_at: confirmedAt }
+        : { source_replacement_boot_id: replacementBoot }),
+    });
+  },
+);
+
+test("a replacement boot after the settlement cap cannot extend the deadline", async () => {
   const f = await fixture();
-  const recordedAt = start + 5_000;
-  jest.setSystemTime(recordedAt);
+  await extendSourceLease(f);
   const moveId = await f.record();
-  const deadline = recordedAt + 10_000;
+  const deadline = start + 30_000;
   expect((await f.read())?.device_move?.settlement_deadline).toBe(deadline);
-  expect(await scheduledJobs(f.t, expires)).toMatchObject([
-    { scheduledTime: deadline },
-  ]);
-  jest.setSystemTime(recordedAt + 1_000);
-  await f.t.mutation(internal.edgeRunLease.confirmMoveSourceStop, {
-    conversation_id: f.conversation,
-    move_id: moveId,
-    bearer: f.bearer,
-    daemon_boot_id: boot,
-    runtime_id: "runtime",
-    fencing_token: f.lease.fencing_token,
+  jest.setSystemTime(deadline + 1_000);
+  await f.confirm("replacement boot", moveId);
+  expect(await f.read()).toMatchObject({
+    device_move: {
+      settlement_deadline: deadline,
+      source_replacement_boot_id: replacementBoot,
+    },
+    active_delivery_state: "ambiguous",
   });
-  expect((await f.read())?.device_move?.settlement_deadline).toBe(deadline);
+});
+
+test("a stale epoch stop cannot shorten the settlement window", async () => {
+  const f = await fixture();
+  const moveId = await f.record();
+  await f.t.run(({ db }) => db.patch(f.head, { current_epoch: 2 }));
+  const head = await f.read();
+  jest.setSystemTime(start + 4_000);
+  await expect(f.confirm("stop", moveId)).rejects.toThrow(
+    "The move record is missing or has changed",
+  );
+  expect(await f.read()).toEqual(head);
 });
