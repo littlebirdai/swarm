@@ -34,6 +34,7 @@ type Options = {
   deleteDetails: (ids: string[], current: () => boolean) => Promise<string[]>;
   apply: (ids?: string[]) => void;
   current: () => boolean;
+  onHostActivity?: () => void;
   now?: () => number;
 };
 
@@ -49,6 +50,8 @@ export function createDetailInvalidationTransport(opts: Options) {
   let legacyObserved = false;
   let knownHost: string | undefined;
   let compatibleHost: string | undefined;
+  let joiningHostSupportsInvalidation: boolean | undefined;
+  let soloChecks: Set<string> | undefined;
   const now = opts.now ?? Date.now;
 
   const compatible = () => {
@@ -81,12 +84,15 @@ export function createDetailInvalidationTransport(opts: Options) {
     request: DetailInvalidation,
     current: () => boolean,
   ): Promise<boolean> => {
+    await Promise.resolve();
+    if (!current()) return false;
     const verified = await opts.verify(request, current);
     if (!current()) return false;
     if (!verified.length) return true;
     const deleted = await opts.deleteDetails(verified, current);
     const host = opts.host();
-    if (!current() || !host || !deleted.length) return false;
+    if (!current() || !deleted.length) return false;
+    if (!host) return true;
     log.push({ seq: host.seq() + 1, ids: deleted });
     if (log.length > LOG_LIMIT) prunedThrough = log.shift()!.seq;
     host.publish(
@@ -104,6 +110,21 @@ export function createDetailInvalidationTransport(opts: Options) {
     acknowledge(deleted);
     return true;
   };
+
+  function drainSolo(checks: Set<string>) {
+    for (const [id, request] of pending) {
+      if (checks.has(id)) continue;
+      checks.add(id);
+      const current = () =>
+        opts.current() && soloChecks === checks && pending.get(id) === request;
+      void commit(request, current)
+        .then((settled) => {
+          if (settled && current()) pending.delete(id);
+        })
+        .catch(() => {})
+        .finally(() => checks.delete(id));
+    }
+  }
 
   function applyRequest(
     msg: Extract<ReplicationMessage, { type: "mut" }>,
@@ -207,6 +228,19 @@ export function createDetailInvalidationTransport(opts: Options) {
         if (!opts.current()) return;
         const msg: Message = raw;
         const extension = msg.detailInvalidation;
+        if (
+          (msg.type === "update" ||
+            msg.type === "snapshot" ||
+            msg.type === "snapshotChunk") &&
+          msg.hostId !== opts.selfId
+        ) {
+          if (soloChecks || joiningHostSupportsInvalidation !== undefined) {
+            soloChecks = undefined;
+            joiningHostSupportsInvalidation =
+              extension?.version === 1 && extension.compatible === true;
+          }
+          opts.onHostActivity?.();
+        }
         if (msg.type === "hello") {
           const wasCompatible = compatible();
           if (extension?.version !== 1) legacyObserved = true;
@@ -251,7 +285,8 @@ export function createDetailInvalidationTransport(opts: Options) {
         void commit(evidence, current).catch(() => {});
         return supported;
       }
-      if (!compatibleHost) return false;
+      if (!soloChecks && !compatibleHost && !joiningHostSupportsInvalidation)
+        return false;
       for (let i = 0; i < evidence.ids.length; i += REQUEST_LIMIT) {
         const request = {
           ...evidence,
@@ -261,8 +296,16 @@ export function createDetailInvalidationTransport(opts: Options) {
         if (pending.size > LOG_LIMIT * 2)
           pending.delete(pending.keys().next().value!);
       }
-      sendPending();
+      if (soloChecks) drainSolo(soloChecks);
+      else sendPending();
       return true;
+    },
+    enterSolo() {
+      knownHost = undefined;
+      compatibleHost = undefined;
+      joiningHostSupportsInvalidation = undefined;
+      soloChecks = new Set();
+      drainSolo(soloChecks);
     },
     onPosition(hostId: string, seq: number) {
       position = { hostId, seq };
@@ -271,6 +314,7 @@ export function createDetailInvalidationTransport(opts: Options) {
       const msg: Message = raw;
       if (msg.type !== "snapshot" && msg.type !== "snapshotChunk") return;
       const extension = msg.detailInvalidation;
+      joiningHostSupportsInvalidation = undefined;
       knownHost = msg.hostId;
       compatibleHost =
         extension?.version === 1 && extension.compatible
@@ -290,6 +334,8 @@ export function createDetailInvalidationTransport(opts: Options) {
       acknowledge(ids);
     },
     promote() {
+      soloChecks = undefined;
+      joiningHostSupportsInvalidation = undefined;
       knownHost = undefined;
       compatibleHost = undefined;
       const host = opts.host();

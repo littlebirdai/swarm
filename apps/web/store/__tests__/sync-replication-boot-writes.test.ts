@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
   createReplicationFollower,
   createReplicationHost,
+  type ReplicationMessage,
   type ReplicationUpdate,
 } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
@@ -65,8 +66,9 @@ db.use({
 });
 
 async function waitFor(condition: () => boolean) {
-  const deadline = Date.now() + 2000;
-  while (!condition() && Date.now() < deadline) await Bun.sleep(1);
+  const deadline = Bun.nanoseconds() + 2_000_000_000;
+  while (!condition() && Bun.nanoseconds() < deadline)
+    await new Promise<void>((resolve) => setImmediate(resolve));
   expect(condition()).toBe(true);
 }
 
@@ -523,6 +525,145 @@ test.each(["access", "archive", "crawl"] as const)(
       }
     } finally {
       stopSyncReplication();
+      resetDetailInvalidations();
+    }
+  },
+);
+
+test.each(["elected", "follower", "solo"] as const)(
+  "an accepted invalidation reaches the authority when the window becomes %s",
+  async (nextRole) => {
+    const enabled = process.env.VITE_CACHE_EVICTION_METADATA === "1";
+    const { reportDetailInvalidation, resetDetailInvalidations } =
+      await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    const releaseLock = holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "t".repeat(32),
+      workspace: "team:alpha",
+      content: "Body on disk only",
+    };
+    const table = COLLECTION_TABLES.docDetails;
+    await table.put(row);
+    mutations = [];
+    const evidence = { cause: "access" as const, ids: [row._id] };
+    const oldVerdict = Promise.withResolvers<null>();
+    const localReads: string[] = [];
+    const hostId = "detail-authority";
+    const peer = replicationTransport(
+      replicationChannelName(TEST_PRINCIPAL),
+      hostId,
+    );
+    const messages: Array<
+      ReplicationMessage & { detailInvalidation?: { request?: unknown } }
+    > = [];
+    peer.channel.onMessage((message) => messages.push(message));
+    cleanups.push(peer.close);
+    const getStatus = () =>
+      (
+        dom.window as Window & {
+          __syncReplication: () => SyncReplicationStatus;
+        }
+      ).__syncReplication();
+    const capability = { version: 1, compatible: true };
+    const sendSnapshot = () => {
+      const snapshot = {
+        type: "snapshot" as const,
+        hostId,
+        to: getStatus().selfId,
+        seq: 0,
+        entries: {},
+        detailInvalidation: capability,
+      };
+      peer.channel.post(snapshot);
+    };
+    const requests = () =>
+      messages.flatMap((msg) => msg.detailInvalidation?.request ?? []);
+    const hellos = () => messages.filter((msg) => msg.type === "hello").length;
+    jest.useFakeTimers();
+    try {
+      startSyncReplication({
+        eligible: nextRole === "elected",
+        principalId: TEST_PRINCIPAL,
+        detailAuthority: {
+          detail(id) {
+            localReads.push(id);
+            return nextRole !== "solo" && localReads.length === 1
+              ? oldVerdict.promise
+              : Promise.resolve(null);
+          },
+          async page() {
+            return { page: [], isDone: true, continueCursor: "" };
+          },
+        },
+      });
+      await waitFor(() => hellos() === 1);
+      if (nextRole === "solo") {
+        sendSnapshot();
+        await waitFor(() => getStatus().synced);
+        const skippedUpdate = {
+          type: "update" as const,
+          hostId,
+          origin: hostId,
+          seq: 2,
+          updates: [],
+          detailInvalidation: capability,
+        };
+        peer.channel.post(skippedUpdate);
+        await waitFor(() => hellos() === 2);
+      } else {
+        jest.advanceTimersByTime(8000);
+      }
+
+      expect(reportDetailInvalidation(evidence)).toBe(enabled);
+      if (nextRole === "solo") {
+        await waitFor(() => !enabled || requests().length === 1);
+        expect(localReads).toEqual([]);
+        jest.advanceTimersByTime(8001);
+      } else {
+        await waitFor(() => !enabled || localReads.length === 1);
+        if (nextRole === "elected") {
+          releaseLock();
+          await waitFor(() => getStatus().elected);
+        } else {
+          sendSnapshot();
+          await waitFor(() => getStatus().synced);
+        }
+      }
+      jest.useRealTimers();
+      if (!enabled) {
+        expect(localReads).toEqual([]);
+        expect(requests()).toEqual([]);
+        expect(await table.get(row._id)).toEqual(row);
+      } else if (nextRole === "follower") {
+        await waitFor(() => requests().length === 1);
+        expect(requests()).toEqual([
+          expect.objectContaining({ ...evidence, toHost: hostId }),
+        ]);
+        oldVerdict.resolve(null);
+        await drainWrites();
+        expect(localReads).toEqual([row._id]);
+        expect(await table.get(row._id)).toEqual(row);
+      } else {
+        await waitFor(
+          () => localReads.length === (nextRole === "elected" ? 2 : 1),
+        );
+        await waitFor(() =>
+          mutations!.some(
+            ({ table, type, keys }) =>
+              table === "docDetails" &&
+              type === "delete" &&
+              keys.includes(row._id),
+          ),
+        );
+        await drainWrites();
+        expect(await table.get(row._id)).toBeUndefined();
+      }
+    } finally {
+      jest.useRealTimers();
+      stopSyncReplication();
+      oldVerdict.resolve(null);
       resetDetailInvalidations();
     }
   },

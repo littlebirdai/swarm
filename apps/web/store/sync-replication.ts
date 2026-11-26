@@ -9,7 +9,6 @@ import {
   canHydrateDetail,
   detailAccountIsCurrent,
   detailReadPosition,
-  type DetailInvalidation,
   setDetailInvalidationReporter,
 } from "./doc-detail-cache";
 import { createDetailInvalidationTransport } from "./detail-invalidation-transport";
@@ -599,23 +598,19 @@ export function startSyncReplication(opts: {
     cacheEvictionEnabled() && opts.principalId
       ? opts.detailAuthority
       : undefined;
-  const reportLocally = (
-    evidence: DetailInvalidation,
-    current: () => boolean,
-  ) => {
-    if (!authority || !current()) return false;
-    if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
-    void verifyDetailInvalidation(authority, evidence, current)
-      .then((ids) => persistDetailInvalidation(ids, current))
-      .catch(() => {});
-    return true;
-  };
   if (!transportAvailable() || !opts.principalId) {
     if (authority) {
       let active = true;
       const current = () => active && detailAccountIsCurrent(account);
       setDetailInvalidationReporter(
-        (evidence) => reportLocally(evidence, current),
+        (evidence) => {
+          if (!current()) return false;
+          if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
+          void verifyDetailInvalidation(authority, evidence, current)
+            .then((ids) => persistDetailInvalidation(ids, current))
+            .catch(() => {});
+          return true;
+        },
         authority.detail,
         collectCompleteDocCrawlAbsences,
       );
@@ -652,8 +647,6 @@ export function startSyncReplication(opts: {
   );
   let stopped = false;
   let elected = false;
-  let solo = false;
-  const currentSolo = () => solo && !stopped && detailAccountIsCurrent(account);
   let follower: ReplicationFollower | null = null;
   let host: ReplicationHost | null = null;
   let soloTimer: ReturnType<typeof setTimeout> | null = null;
@@ -671,13 +664,15 @@ export function startSyncReplication(opts: {
           persistDetailInvalidation(ids, current),
         apply: hideInvalidatedDetails,
         current: () => !stopped && detailAccountIsCurrent(account),
+        onHostActivity: () => {
+          if (!elected && !follower?.synced()) armSoloFallback();
+        },
       })
     : undefined;
   const channel = details?.channel ?? transport.channel;
   if (details && authority)
     setDetailInvalidationReporter(
       (evidence) => {
-        if (solo) return reportLocally(evidence, currentSolo);
         if (!details.report(evidence)) return false;
         if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
         return true;
@@ -697,7 +692,7 @@ export function startSyncReplication(opts: {
         setActionTee(null);
         internals._setIDBWrite(persistence.hostWrite);
         persistence.persistSkipped();
-        solo = true;
+        details?.enterSolo();
         setRole("host");
       }
     }, SOLO_FALLBACK_MS);
@@ -711,7 +706,6 @@ export function startSyncReplication(opts: {
       (synced) => {
         if (stopped || elected) return;
         if (synced) {
-          solo = false;
           if (soloTimer) clearTimeout(soloTimer);
           setRole("follower");
           // The host persists the shared slice; nothing skipped is owed.
@@ -732,7 +726,6 @@ export function startSyncReplication(opts: {
   const becomeElectedHost = () => {
     if (stopped) return;
     elected = true;
-    solo = false;
     if (soloTimer) clearTimeout(soloTimer);
     host = promoteToHost(follower, () =>
       replicationHostFor(selfId, channel, () => useInboxStore.getState()),

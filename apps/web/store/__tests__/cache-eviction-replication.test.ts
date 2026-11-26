@@ -564,3 +564,57 @@ test("document cache simulation snapshots detach collections on save and restore
   expect(current.detailCache.reads).not.toBe(saved.detailCache.reads);
   expect(current.detailCache.listeners).not.toBe(saved.detailCache.listeners);
 });
+
+test("a host update stops an old solo delete before the snapshot arrives", async () => {
+  const bus = hub();
+  const { host, disk } = makeHost(bus, {
+    async detail() {
+      return row;
+    },
+    async page() {
+      return { page: [], isDone: true, continueCursor: "" };
+    },
+  });
+  bus.omit(
+    (receiver, msg) => receiver === "solo" && msg.type === "snapshotChunk",
+  );
+  const verdict = Promise.withResolvers<string[]>();
+  const checking = Promise.withResolvers<void>();
+  const protocol = createDetailInvalidationTransport({
+    selfId: "solo",
+    channel: bus.channel("solo"),
+    host: () => null,
+    current: active,
+    verify() {
+      checking.resolve();
+      return verdict.promise;
+    },
+    async deleteDetails(ids, current) {
+      if (!current()) return [];
+      for (const id of ids) disk.delete(id);
+      return ids;
+    },
+    apply() {},
+  });
+  const follower = createReplicationFollower({
+    selfId: "solo",
+    channel: protocol.channel,
+    replicatedKeys: ["docDetails"],
+    isCollectionKey: () => true,
+    onSnapshot: protocol.onSnapshot,
+    applyUpdates() {},
+  });
+  cleanup.push(follower.stop);
+  expect(follower.synced()).toBe(false);
+  protocol.enterSolo();
+  expect(protocol.report({ cause: "access", ids: [docId] })).toBe(true);
+  await checking.promise;
+
+  const restored = { ...row, content: "Restored by the host" };
+  disk.set(docId, restored);
+  host.publish([{ key: "docDetails", upserts: [restored] }]);
+  expect(follower.synced()).toBe(false);
+  verdict.resolve([docId]);
+  await verdict.promise;
+  expect(disk.get(docId)).toEqual(restored);
+});
