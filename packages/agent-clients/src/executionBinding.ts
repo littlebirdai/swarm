@@ -5,6 +5,7 @@ import type {
 
 /** The first protocol version whose delivery side effects require a server permit. */
 export const FENCED_EXECUTION_PROTOCOL_VERSION = 1 as const;
+export const OWNED_CODEX_CHECKPOINT_PREFIX = "owned-codex-v1:";
 
 export const FENCED_RUNTIME_CAPABILITIES = [
   "single-flight-binding",

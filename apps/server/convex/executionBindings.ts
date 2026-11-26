@@ -73,6 +73,7 @@ import {
   cancelUnstartedOldEpoch,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
+  watchesOwnedCodexInbox,
   executionRequestWire,
   bindingEvidenceWire,
 } from "./lib/execution-binding.state";
@@ -2175,6 +2176,7 @@ export const listExecutionWork = query({
     daemon_boot_id: v.string(),
     protocol_version: v.number(),
     capabilities: v.array(capabilityValidator),
+    owned_codex_conversation_id: v.optional(v.string()),
     api_token: v.string(),
   },
   handler: async (ctx, args) => {
@@ -2277,6 +2279,13 @@ export const listExecutionWork = query({
           pendingPolicy: head.pending_policy,
           bindings,
           pendingIntent,
+          ...(watchesOwnedCodexInbox(
+            args.owned_codex_conversation_id,
+            head,
+            bindings,
+          )
+            ? { nextDeliverySequence: head.next_conversation_sequence }
+            : {}),
         });
       }
     }

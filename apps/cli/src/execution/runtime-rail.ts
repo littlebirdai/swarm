@@ -339,6 +339,7 @@ export class DaemonExecutionRuntime {
       daemonBootId: this.daemonBootId,
       protocolVersion: FENCED_EXECUTION_PROTOCOL_VERSION,
       capabilities: [...FENCED_RUNTIME_CAPABILITIES],
+      ownedCodexConversationId: this.codexOwnedPilot?.conversationId,
     };
   }
 

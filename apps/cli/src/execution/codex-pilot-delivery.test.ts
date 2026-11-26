@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import {
   existsSync,
   readFileSync,
@@ -95,6 +95,123 @@ async function reportReceipt(
   );
   if (beforeRpcReply) await f.sendFrame({ ackStart: true });
 }
+
+test("a live work update sends a newly queued message through the owned bridge", async () => {
+  const f = fixture("pilot", true, "receipt-before-reply");
+  try {
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    expect(providerSends(f)).toEqual([]);
+    const { args, onUpdate } = f.workSubscription();
+    expect(args.owned_codex_conversation_id).toBe("pilot");
+
+    f.enqueue(1);
+    onUpdate([
+      {
+        ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+        nextDeliverySequence: 2,
+      },
+    ]);
+    const settledByUpdate = f.runtime
+      .processWorkUpdate([])
+      .then(() => structuredClone(f.settlements));
+    await reportReceipt(f, 1, true);
+    expect(await settledByUpdate).toContainEqual(
+      expect.objectContaining({
+        delivery_id: "delivery-1",
+        outcome: "applied",
+      }),
+    );
+    expect(providerSends(f)).toHaveLength(1);
+    expect(f.actions).not.toContain("claim-delivery:pilot:1");
+  } finally {
+    await f.dispose();
+  }
+});
+
+test.each(["poll", "wake"])(
+  "a %s in flight serializes the poll and two close delivery wakes",
+  async (first) => {
+    const f = fixture("pilot", true, "receipt-before-reply");
+    const schedule = globalThis.setTimeout;
+    const polls: (() => void)[] = [];
+    const timers = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const timer = schedule(callback, delay, ...args);
+      if (delay === 2_000) {
+        clearTimeout(timer);
+        polls.push(() => callback(...args));
+      }
+      return timer;
+    }) as typeof setTimeout);
+    let unblock: (() => void) | undefined;
+    try {
+      f.initial([item(f.pilotRequest)]);
+      await f.runtime.start();
+      const poll = polls.shift();
+      if (!poll) throw new Error("Expected the owned delivery poll");
+      const { onUpdate } = f.workSubscription();
+      const work = item(f.pilotRequest, f.ready(f.pilotRequest));
+      const wake = (nextDeliverySequence: number) =>
+        onUpdate([{ ...work, nextDeliverySequence }]);
+      const read = f.pauseNextPermitRead();
+      unblock = read.resume;
+      if (first === "poll") poll();
+      else wake(2);
+      await read.started;
+      const reads = () =>
+        f.actions.filter((action) => action === "edge:permits.next").length;
+      const before = reads();
+      if (first === "wake") poll();
+      wake(3);
+      wake(4);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(reads()).toBe(before);
+
+      f.enqueue(1);
+      const settled = f.runtime.processWorkUpdate([]);
+      read.resume();
+      await reportReceipt(f, 1, true);
+      await settled;
+      expect(reads()).toBeGreaterThan(before);
+      expect(
+        f.actions.filter((action) => action === "edge:delivery.start"),
+      ).toHaveLength(1);
+      expect(providerSends(f)).toHaveLength(1);
+      expect(f.settlements.map(({ outcome }) => outcome)).toEqual(["applied"]);
+    } finally {
+      unblock?.();
+      timers.mockRestore();
+      await f.dispose();
+    }
+  },
+);
+
+test("a live wake after lease loss does not try the legacy drain", async () => {
+  const f = fixture("pilot", true, "receipt-before-reply");
+  try {
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    f.enqueue(1);
+    f.setPermitReadStatus("stale");
+    f.workSubscription().onUpdate([
+      {
+        ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+        nextDeliverySequence: 2,
+      },
+    ]);
+    await f.runtime.processWorkUpdate([]);
+    expect(f.logs.join("\n")).toContain("Owned Codex delivery lease is stale");
+    expect(f.actions).not.toContain("claim-delivery:pilot:1");
+    expect(f.actions).not.toContain("edge:delivery.start");
+    expect(providerSends(f)).toEqual([]);
+  } finally {
+    await f.dispose();
+  }
+});
 
 test("the pilot settles two identical messages with separate durable receipts", async () => {
   const f = fixture("pilot", true, "receipt-before-reply");
@@ -658,12 +775,17 @@ test("an in-doubt image stays readable until the server releases its delivery", 
 test("with the flag off a queued message still drains through the legacy rail", async () => {
   const f = fixture("pilot", false, "receipt");
   try {
-    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    expect(f.workSubscription().args).not.toHaveProperty(
+      "owned_codex_conversation_id",
+    );
     expect(f.actions).toEqual([
       "legacy-start:pilot:1",
       "claim-delivery:pilot:1",
       "legacy-deliver:pilot:1:2",
       "claim-delivery:pilot:1",
+      "subscribed",
     ]);
     expect(f.appServer.wire()).toEqual([]);
   } finally {

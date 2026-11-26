@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
+import {
+  OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
+  type ReadyBinding,
+} from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
 import {
   EDGE_PROTOCOL_VERSION as v,
@@ -43,7 +46,6 @@ import type {
 } from "./types.js";
 import { structuredFailure } from "./types.js";
 
-const handlePrefix = "owned-codex-v1:";
 const provider = { agent: "codex", version: "0.153.4" } as const;
 
 export function ownsCodexCheckpoint(handle: string): boolean {
@@ -151,7 +153,7 @@ export class CodexOwnedPilot {
   private controller = new AbortController();
 
   constructor(
-    private readonly conversationId: string,
+    readonly conversationId: string,
     private readonly options: PilotOptions,
   ) {}
 
