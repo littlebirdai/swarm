@@ -77,30 +77,47 @@ cache alone.
   `apps/web/store/inboxStore.ts:22248`.
 - **Give Activity an authoritative Git outcome feed.** Compute history-dependent
   pull request outcomes, session ties, and commit counts from server history.
-  Check each source event with `canReadEvent`. Use the stored workspace and
-  `workspaceGrantsAccess`, or check access to the linked conversation. Omit
-  events without either proof. The existing legacy fallback in
-  `canReadEvent` uses `team_id` when no workspace exists. Exclude that fallback
-  from this feed. `listForTeam` selects rows by routing. Use workspace and conversation
-  indexes for this feed. Independently check every session tie with `canAccessConversation` before adding an ID,
-  label, or count to the result. Never use `team_id` as access evidence.
-  `apps/server/convex/externalEvents.ts:230`,
-  `apps/server/convex/externalEvents.ts:264`,
-  `apps/server/convex/lib/access.ts:544`.
+  Git events leave `workspace` unset, and PR events can lack
+  `conversation_id`. Keep Git events without a workspace key.
 
-  Require an explicit workspace for the feed. For a team view, use
-  `team:<id>` and require access to that workspace. For a personal view, use
-  `user:<authenticated user ID>`. Personal never falls back to a team ID.
-  Select events in that workspace, plus linked events whose canonical
-  conversation scope matches it. Check access to each candidate before it
-  contributes to an outcome, including the history that supports a late check.
+  Require an explicit scope. For `team:<id>`, require access to the named
+  team and scan `by_team_source_created` with that routing ID and an unset
+  `source_id`. This excludes ingestion rows. Use the index only to find
+  candidates and filter for Git event kinds. Confirm the PR belongs to the
+  named team on its own record. Confirm session scope with
+  `workspaceForConversation`. Also consider direct Git events from readable
+  sessions in that scope if those rows have no routing ID.
+
+  For `user:<authenticated user ID>`, start from readable conversations whose
+  canonical scope is that personal workspace. Read their direct Git events
+  through `by_conversation_created`. Follow `pull_request_sessions.by_conversation`
+  and read the history of those PRs through `by_pr_created`. A PR can
+  contribute to a personal outcome only through an explicit link to one of
+  those conversations. A personal request never falls back to an active team.
   A missing or unknown scope returns no rows.
 
+  Check access to each event that contributes to an outcome, including the
+  history that supports a late check. Resolve `pr_id` through `pull_requests`
+  and use `canAccessPullRequest`. Resolve `conversation_id` and use
+  `canAccessConversation`. Require both checks for an event with both links.
+  Omit events with no readable source. Independently check each session tie
+  with `canAccessConversation` before adding a session ID, label, or count
+  to the projection. The event's routing `team_id` grants no access.
+  `apps/server/convex/schema/events.tables.ts:83`,
+  `apps/server/convex/schema/events.tables.ts:94`,
+  `apps/server/convex/schema/pull-requests.tables.ts:185`,
+  `apps/server/convex/externalEvents.ts:264`,
+  `apps/server/convex/lib/access.ts:136`,
+  `apps/server/convex/lib/access.ts:369`,
+  `apps/server/convex/lib/access.ts:544`,
+  `CLAUDE.md:169`.
+
   Register `activityGitOutcomes` in `CLIENT_SYNC_REGISTRY` with
-  `DATA_SCOPE: workspace` and `REPLICATION_CLASSIFICATION: local`. Key rows by
-  workspace and outcome ID. Use a per-view feeder and read the result from the
-  store through the workspace selector. Give this collection its own cap.
-  Start with 500 inactive outcomes per window and protect the current page.
+  `DATA_SCOPE: workspace` and `REPLICATION_CLASSIFICATION: local`. Keep this
+  collection in memory per window. Key rows by scope and outcome ID. Use a
+  per-view feeder and read the result from the store through the workspace
+  selector. Start with a cap of 500 inactive outcomes per window and protect
+  the current page.
   Keep task and decision outcomes and the live `pr_status` overlay derived
   from current store rows. The Git feed supplies only history-dependent facts.
   `apps/web/store/clientSyncRegistry.ts:137`,
@@ -201,9 +218,11 @@ If a peer lacks support or its capability is unknown, keep the new cap off
 and retain the legacy wire behavior and detail query checks. Recheck peer
 support when a window joins. Test both directions of mixed builds and
 preserve snapshot sequence and gap recovery. During recovery, replay the
-explicit invalidations that the follower missed. If the bounded
-invalidation history cannot cover the gap, revalidate its cached details
-before they can render. A snapshot omission alone grants no delete.
+explicit invalidations that the follower missed. If the bounded invalidation
+log cannot cover the gap, drop unverified `docDetails` rows from memory,
+including pinned rows. Refill them from current authoritative query results.
+This recovery drop grants no disk delete. A snapshot omission alone grants
+no delete.
 `apps/web/store/storage-transport.ts:15`,
 `platform/packages/engine/src/replication.ts:19`,
 `apps/web/store/sync-replication.ts:524`,
@@ -219,8 +238,10 @@ liveness writes. A queued liveness flush can put the row back within 60
 seconds. For an authoritative invalidation, cancel any queued liveness put
 and wait for an in-flight put before the delete. Use compact row versions or
 fingerprints for the disk shadow so it does not keep the reclaimed payloads
-in memory. On host promotion, refresh the shadow from IndexedDB before
-reclamation. A follower's `lastPersisted` only describes disk at boot.
+in memory. For collections with `liveFields`, also keep a digest of the
+non-liveness fields. Compare that digest to distinguish a liveness-only
+update from a change that needs an immediate write. On host promotion,
+refresh the shadow from IndexedDB before reclamation. A follower's `lastPersisted` only describes disk at boot.
 Preserve disk rows that the promoted window evicted only from memory.
 
 Reject delayed work after a host or account change. Keep reclamation
@@ -228,6 +249,8 @@ idempotent and let a fresh feed or open view restore the row. Before
 reclamation ships, protect a document that an active follower has open with
 a renewable pin that expires if the window disappears.
 `apps/web/store/persistence/idb-liveness-lane.ts:164`,
+`apps/web/store/persistence/idb-liveness-lane.ts:258`,
+`apps/web/store/clientSyncRegistry.ts:2360`,
 `apps/web/store/persistence/collection-writer.ts:68`,
 `apps/web/store/sync-replication.ts:328`,
 `docs/architecture/sync-host.md:157`.
@@ -295,20 +318,26 @@ fallback for keys whose live caps are off.
    replication paths. Test that an eviction followed by a whole-collection
    diff emits no removal for the evicted ID. Test a follower invalidation when the host has
    no memory patch, including access loss, archive, and complete crawl
-   absence. Test mixed builds and pinned readers. Keep snapshot gap recovery
-   and leave the timer off.
+   absence. Test mixed builds and pinned readers. Test a gap beyond the
+   invalidation log and confirm that affected details leave memory. Leave the
+   timer off.
 2. Add document pins and enable memory caps for document details in each
    window behind a separate flag. Cover every reader, eviction between
    render and commit, an unchanged query result, rapid navigation, and
    account reset. Cover open documents
    during host promotion.
 3. Add the Activity outcome feed and compare its results with the current
-   projection in replay. Cover private or revoked ties, scope switches, and
-   a personal request without a team. Verify that task, decision, and live PR
-   changes still paint from the store. Add the view queries for older history.
+   projection in replay. Cover unstamped PR events with no conversation link,
+   ingestion noise, private or revoked ties, scope switches, and a personal
+   request without a team. Verify that a personal session can include history
+   from a readable linked PR. A routing ID alone grants no access. Verify that
+   task, decision, and live PR changes still paint from the store. Add the view
+   queries for older history.
    Leave timed Git event eviction off.
 4. Enable the timed sweep for eligible collections one at a time. Require
    per-window caps, outcome parity, and a passing typing guard.
 5. Add host-only disk reclamation. Require version checks, protection for
    active readers, and tests for promotion with a stale disk shadow, queued
-   liveness writes, account changes, and reopening reclaimed rows.
+   liveness writes, account changes, and reopening reclaimed rows. Verify that
+   the compact shadow still distinguishes an immediate write from a liveness
+   update.
