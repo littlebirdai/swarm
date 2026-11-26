@@ -123,6 +123,12 @@ the lease and prove cleanup before release or rollback.
 - **Launch and policy.** Apply `withWorktreeConfig` and pass stable developer instructions. Set `STABLE_ENV_MODE` to off and use the agent spawn path. Preserve auth refresh, policy invalidation, and sandbox state across resume. [Worktree](../../apps/cli/src/worktreeEnv.ts#L144), [instructions](../../apps/cli/src/daemon.ts#L34348), [spawn](../../apps/cli/src/codexAppServer.ts#L976-L997), [auth refresh](../../apps/cli/src/codexAppServer.ts#L584-L648) and [policy on resume](../../apps/cli/src/codexAppServer.ts#L785-L938), [invalidation](../../apps/cli/src/codexAppServer.ts#L850-L867)
 - **Fork and Escape.** Keep fork on its existing route. Route Escape to the exact active turn and keep the press-time guard and queued-message release rules. [Fork](../../apps/cli/src/daemon-commands/resume-forks.ts#L181-L195), [Escape](../../apps/cli/src/daemon-commands/session-input.ts#L77-L186)
 
+A fresh adapter session opens with the start operation ID as its local fence.
+The edge grants the run lease after the ready binding is published. The writer
+uses that lease token for appends, and a resumed adapter opens with it. The
+delivery bridge must align the fresh adapter with the granted token before the
+first send.
+
 A linked Codex user echo is insufficient for a delivery receipt. The adapter
 matches the echo by content against requests held in memory. It does not record
 a durable association between the delivery ID and the provider's accepted

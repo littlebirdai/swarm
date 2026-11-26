@@ -72,8 +72,10 @@ export function createCodexOwnedPilot(
 ): CodexOwnedPilot | undefined {
   const conversationId = env.CODECAST_CODEX_OWNED_PILOT_SESSION?.trim();
   if (env.CODECAST_FENCED_EXECUTION_V1 !== "1" || !conversationId) return;
-  if (!options.bearer)
-    throw new Error("Owned Codex pilot requires daemon auth");
+  if (!options.bearer) {
+    options.log("[owned-codex] pilot requires daemon auth");
+    return;
+  }
   return new CodexOwnedPilot(conversationId, options);
 }
 
@@ -82,6 +84,8 @@ export class CodexOwnedPilot {
   private session?: OwnedSession;
   private opening?: Promise<OwnedSession>;
   private claim?: ClaimGrant;
+  private claiming?: Promise<ClaimGrant>;
+  private stopping = false;
   private activation?: Promise<void>;
   private closing?: Promise<void>;
   private renewal?: ReturnType<typeof setTimeout>;
@@ -93,6 +97,19 @@ export class CodexOwnedPilot {
     private readonly options: PilotOptions,
   ) {}
 
+  selects(conversationId: string, epoch = 1): boolean {
+    return conversationId === this.conversationId && epoch === 1;
+  }
+
+  owns(binding: ReadyBinding): boolean {
+    return (
+      this.selects(binding.conversationId, binding.epoch) &&
+      binding.actualAgent === "codex" &&
+      binding.transport === "app-server" &&
+      ownsCodexCheckpoint(binding.handle)
+    );
+  }
+
   register(legacy: RuntimeDriver): RuntimeDriver {
     return {
       id: "codex-app-server-with-owned-pilot-v1",
@@ -100,8 +117,7 @@ export class CodexOwnedPilot {
       supportedAgents: legacy.supportedAgents,
       capabilities: legacy.capabilities,
       start: (request) =>
-        request.target.conversationId === this.conversationId &&
-        request.target.epoch === 1
+        this.selects(request.target.conversationId, request.target.epoch)
           ? this.start(request)
           : legacy.start(request),
       adopt: (request) =>
@@ -125,13 +141,9 @@ export class CodexOwnedPilot {
             })
           : legacy.deliver(request),
       stop: (binding) =>
-        ownsCodexCheckpoint(binding.handle)
-          ? this.close()
-          : legacy.stop(binding),
+        this.owns(binding) ? this.close() : legacy.stop(binding),
       quarantine: (binding, reason) =>
-        ownsCodexCheckpoint(binding.handle)
-          ? this.close()
-          : legacy.quarantine(binding, reason),
+        this.owns(binding) ? this.close() : legacy.quarantine(binding, reason),
     };
   }
 
@@ -166,6 +178,7 @@ export class CodexOwnedPilot {
   ): Promise<OwnedSession> {
     const { createProviderAdapter } =
       await import("@codecast/provider-adapter");
+    this.controller.signal.throwIfAborted();
     this.adapter ??= createProviderAdapter({
       provider,
       command: this.options.command(),
@@ -225,13 +238,23 @@ export class CodexOwnedPilot {
     binding: ReadyBinding,
     request: EnsureBindingRequest,
   ): Promise<void> {
-    if (binding.conversationId !== this.conversationId || binding.epoch !== 1)
-      return Promise.reject(
-        new Error("Owned Codex binding does not match the pilot session"),
-      );
+    if (this.stopping || !this.owns(binding)) return Promise.resolve();
     return (this.activation ??= this.claimAndRead(binding, request).catch(
       async (error) => {
-        await this.close();
+        if (this.claim || this.stopping) {
+          await this.close();
+        } else {
+          await (this.closing ??= this.closeOwned());
+          if (!this.stopping) {
+            this.session = undefined;
+            this.opening = undefined;
+            this.adapter = undefined;
+            this.claiming = undefined;
+            this.controller = new AbortController();
+            this.closing = undefined;
+            this.activation = undefined;
+          }
+        }
         throw error;
       },
     ));
@@ -277,7 +300,7 @@ export class CodexOwnedPilot {
     binding: ReadyBinding,
     request: EnsureBindingRequest,
   ): Promise<void> {
-    const claim = await this.edge(
+    this.claiming = this.edge(
       "claim",
       {
         v,
@@ -287,10 +310,16 @@ export class CodexOwnedPilot {
         claim_id: randomUUID(),
       },
       parseClaimResponse,
-    );
-    if (claim.status !== "granted")
-      throw new Error("Owned Codex pilot could not claim the run");
-    this.claim = claim;
+    ).then((claim) => {
+      if (claim.status !== "granted")
+        throw new Error(
+          `Owned Codex pilot could not claim the run: ${claim.status}`,
+        );
+      this.claim = claim;
+      return claim;
+    });
+    const claim = await this.claiming;
+    this.controller.signal.throwIfAborted();
     if (claim.session !== binding.conversationId || claim.run !== binding.epoch)
       throw new Error("Owned Codex lease does not match the binding");
     this.scheduleRenewal(claim, claim.lease_ms);
@@ -385,19 +414,21 @@ export class CodexOwnedPilot {
   }
 
   close(): Promise<void> {
+    this.stopping = true;
     return (this.closing ??= this.closeOwned());
   }
 
   private async closeOwned(): Promise<void> {
     this.controller.abort();
     clearTimeout(this.renewal);
+    await this.claiming?.catch(() => {});
     await this.renewalTask?.catch(() => {});
     const session =
       this.session ?? (await this.opening?.catch(() => undefined));
     if (session && (await session.close()).status !== "closed")
       throw new Error("Owned Codex cleanup could not be confirmed");
     await this.adapter?.dispose();
-    if (this.claim) {
+    if (this.claim && session) {
       await this.edge(
         "release",
         { v, ...this.fence(this.claim) },

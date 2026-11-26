@@ -43852,20 +43852,22 @@ async function main(): Promise<void> {
     );
   }
 
-  const codexOwnedPilot = createCodexOwnedPilot({
-    siteUrl: (config.convex_url || "").replace(".cloud", ".site"),
-    bearer: config.auth_token,
-    command: () => [launchBinary("codex"), "app-server"],
-    permissions: () => resolveCodexPermissionDefaults(activeConfig),
-    instructions: ({ target }) =>
-      buildCodexStableContext(
-        activeConfig,
-        target.projectPath,
-        {},
-        target.conversationId,
-      ).then((built) => built?.text),
-    log,
-  });
+  const codexOwnedPilot = fencedExecutionEnabled()
+    ? createCodexOwnedPilot({
+        siteUrl: convexUrl.replace(".cloud", ".site"),
+        bearer: config.auth_token,
+        command: () => [launchBinary("codex"), "app-server"],
+        permissions: () => resolveCodexPermissionDefaults(activeConfig),
+        instructions: ({ target }) =>
+          buildCodexStableContext(
+            activeConfig,
+            target.projectPath,
+            {},
+            target.conversationId,
+          ).then((built) => built?.text),
+        log,
+      })
+    : undefined;
   const fencedRuntime = fencedExecutionEnabled()
     ? getProcessExecutionRuntime({
         transport: syncService,
@@ -45295,7 +45297,7 @@ async function main(): Promise<void> {
     if (unsubscribe) {
       unsubscribe();
     }
-    fencedRuntime?.stop();
+    await fencedRuntime?.stop();
 
     if (permissionUnsubscribe) {
       permissionUnsubscribe();

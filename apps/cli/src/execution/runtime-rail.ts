@@ -363,10 +363,10 @@ export class DaemonExecutionRuntime {
     );
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.unsubscribe?.();
     this.unsubscribe = undefined;
-    void this.codexOwnedPilot
+    await this.codexOwnedPilot
       ?.close()
       .catch((error) => this.onLog(String(error)));
   }
@@ -374,7 +374,21 @@ export class DaemonExecutionRuntime {
   processWorkUpdate(value: unknown): Promise<void> {
     const work = parseWork(value);
     const next = this.workChain.then(async () => {
-      for (const item of work) await this.processItem(item);
+      for (const item of work) {
+        try {
+          await this.processItem(item);
+        } catch (error) {
+          const isPilotWork =
+            this.codexOwnedPilot?.selects(item.conversationId) ||
+            item.bindings.some(
+              ({ binding }) => binding && ownsCodexCheckpoint(binding.handle),
+            );
+          if (!isPilotWork) throw error;
+          this.onLog(
+            `[owned-codex] work failed for ${item.conversationId}: ${String(error)}`,
+          );
+        }
+      }
     });
     this.workChain = next.catch(() => {});
     return next;
@@ -449,15 +463,10 @@ export class DaemonExecutionRuntime {
     }
 
     const current = ready.get(item.currentEpoch);
-    if (
-      current?.state === "ready" &&
-      current.binding.actualAgent === "codex" &&
+    const currentOwned =
+      current?.binding.actualAgent === "codex" &&
       current.binding.transport === "app-server" &&
-      ownsCodexCheckpoint(current.binding.handle)
-    ) {
-      await this.codexOwnedPilot?.activate(current.binding, current.request);
-      return;
-    }
+      ownsCodexCheckpoint(current.binding.handle);
     const pendingEpoch =
       item.pendingEpoch ?? item.pendingIntent?.request.target.epoch;
     const successor =
@@ -466,7 +475,7 @@ export class DaemonExecutionRuntime {
 
     if (current && successor && policy) {
       if (current.state === "ready") {
-        if (policy === "drain-current")
+        if (policy === "drain-current" && !currentOwned)
           await this.drain(current.binding, current.request);
         const driver = this.drivers.resolve(
           current.binding.actualAgent,
@@ -496,8 +505,13 @@ export class DaemonExecutionRuntime {
       }
       return;
     }
-    if (current?.state === "ready")
-      await this.drain(current.binding, current.request);
+    if (current?.state !== "ready") return;
+    if (currentOwned) {
+      if (this.codexOwnedPilot?.owns(current.binding))
+        await this.codexOwnedPilot.activate(current.binding, current.request);
+      return;
+    }
+    await this.drain(current.binding, current.request);
   }
 
   private async drain(
