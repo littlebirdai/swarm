@@ -217,6 +217,7 @@ export function fixture(
   const promptPermissions = new Map<string, { id: string; turn: string }>();
   const cancelledPermissions: string[] = [];
   let promptCleanupError = false;
+  let failedPermissionCleanup: string | undefined;
   let questionWrite: Promise<void> | undefined;
   let renewal: Promise<void> | undefined;
   function createPilot(flag = enabled) {
@@ -262,7 +263,8 @@ export function fixture(
               return rowId;
             },
             async cancelPermissionRequest(rowId) {
-              if (promptCleanupError) throw new Error("Prompt sync failed");
+              if (promptCleanupError || rowId === failedPermissionCleanup)
+                throw new Error("Prompt sync failed");
               const removed = promptPermissions.delete(rowId);
               if (removed) cancelledPermissions.push(rowId);
               return removed;
@@ -556,6 +558,9 @@ export function fixture(
     cancelledPermissions,
     rejectPromptCleanup(value: boolean) {
       promptCleanupError = value;
+    },
+    rejectPermissionCleanup(rowId: string) {
+      failedPermissionCleanup = rowId;
     },
     pauseQuestionWrite(gate: Promise<void>) {
       questionWrite = gate;

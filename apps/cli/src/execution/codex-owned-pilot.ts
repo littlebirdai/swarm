@@ -262,6 +262,7 @@ export class CodexOwnedPilot {
         this.promptCards.retain(frame);
       },
       receiptJournal: this.delivery.receiptJournal,
+      uniquePromptIds: true,
     });
     const result =
       "checkpoint" in spec
@@ -650,8 +651,7 @@ export class CodexOwnedPilot {
     await this.renewalTask?.catch(() => {});
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
-    if (session && (await session.close()).status !== "closed")
-      throw new Error("Owned Codex cleanup could not be confirmed");
+    const outcome = await session?.close();
     await this.eventWriter;
     await this.promptCards
       .closeAll(
@@ -664,6 +664,8 @@ export class CodexOwnedPilot {
           `[owned-codex] prompt card cleanup failed: ${String(error)}`,
         ),
       );
+    if (outcome && outcome.status !== "closed")
+      throw new Error("Owned Codex cleanup could not be confirmed");
     await this.adapter?.dispose();
     await this.delivery.clearImages();
     if (this.claim && session) {

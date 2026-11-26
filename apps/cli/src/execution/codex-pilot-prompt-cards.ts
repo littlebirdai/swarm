@@ -155,11 +155,14 @@ export class CodexPilotPromptCards {
     conversationId: string,
     at: number,
     syncService: SyncService,
+    turn?: string | null,
   ): Promise<void> {
     const results = await Promise.allSettled(
-      Array.from(this.open, ([id, card]) =>
-        this.close(id, card, conversationId, at, syncService, null),
-      ),
+      [...this.open]
+        .filter(([, card]) => turn === undefined || card.turn === turn)
+        .map(([id, card]) =>
+          this.close(id, card, conversationId, at, syncService, null),
+        ),
     );
     const failure = results.find((result) => result.status === "rejected");
     if (failure) throw failure.reason;
@@ -183,7 +186,14 @@ export class CodexPilotPromptCards {
     }
     this.approval.set(key, {
       method: message.method,
-      preview: redactSecrets(JSON.stringify(args)).slice(0, 200),
+      preview: JSON.stringify(args, (name, value: unknown) => {
+        if (typeof value !== "string") return value;
+        const label = `${name}="`;
+        const redacted = redactSecrets(`${label}${value}"`);
+        return redacted.startsWith(label)
+          ? redacted.slice(label.length, -1)
+          : redactSecrets(value);
+      }).slice(0, 200),
     });
   }
 
@@ -284,9 +294,7 @@ export class CodexPilotPromptCards {
     } else if (event.kind === "session.ended") {
       await this.closeAll(conversationId, at, syncService);
     } else if (event.kind === "turn.ended") {
-      for (const [id, card] of this.open)
-        if (card.turn === turn)
-          await this.close(id, card, conversationId, at, syncService, null);
+      await this.closeAll(conversationId, at, syncService, turn);
     }
   }
 

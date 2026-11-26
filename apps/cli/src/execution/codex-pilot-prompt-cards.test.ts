@@ -27,6 +27,8 @@ const claim: ClaimGrant = {
   last_pane_instance: 0,
 };
 const previewToken = "ghp_0123456789abcdefghijklmnopqrstuvwxyz";
+const assignmentSecret = "quotedSecret70123456789";
+const jsonSecret = "nestedApiKey90123456789";
 
 test("owned Codex publishes legacy-shaped prompt cards and closes them on provider settlement", async () => {
   const directory = mkdtempSync(join(tmpdir(), "owned-codex-cards-"));
@@ -103,7 +105,8 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
           params: {
             ...params,
             itemId: "exec",
-            command: `pwd && echo ${previewToken}`,
+            input: { api_key: jsonSecret },
+            command: `export API_SECRET="${assignmentSecret}" && echo ${previewToken}`,
             reason: "Show the working directory",
           },
         },
@@ -133,6 +136,11 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
       "publish visible cards",
     );
     expect(permissions[0]?.arguments_preview).not.toContain(previewToken);
+    expect(permissions[0]?.arguments_preview).not.toContain(assignmentSecret);
+    expect(permissions[0]?.arguments_preview).not.toContain(jsonSecret);
+    expect(permissions[0]?.arguments_preview).toContain(
+      '"api_key":"[redacted:secret-assignment]"',
+    );
     expect(permissions[0]).toMatchObject({
       conversation_id: claim.session,
       session_id: app.thread,
@@ -140,7 +148,9 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
       fenced_prompt_turn_id: turnId,
       tool_name: "item/commandExecution/requestApproval",
       arguments_preview: expect.stringContaining(
-        "pwd && echo [redacted:github-token]",
+        JSON.stringify(
+          'export API_SECRET="[redacted:secret-assignment]"',
+        ).slice(0, -1),
       ),
     });
     const questionCall = messages[0]!.toolCalls?.[0];
@@ -425,9 +435,9 @@ test.each(["turn ends", "provider resolves its request"])(
         () => f.promptMessages.length === 1,
         "owned runtime writes the card",
       );
-      expect(f.promptMessages[0]?.toolCalls?.[0]?.id).toBe(
-        "1:app-server:string:open",
-      );
+      const promptId = f.promptMessages[0]?.toolCalls?.[0]?.id;
+      if (!promptId) throw new Error("Expected the published question ID");
+      expect(promptId).toMatch(/^1:app-server:[a-f0-9-]+:string:open$/);
       f.appServer.send({
         frames: [
           ending === "turn ends"
@@ -450,7 +460,7 @@ test.each(["turn ends", "provider resolves its request"])(
       );
       expect(f.promptMessages[1]?.toolResults).toEqual([
         {
-          toolUseId: "1:app-server:string:open",
+          toolUseId: promptId,
           content: "Codex question cancelled",
         },
       ]);
@@ -459,6 +469,121 @@ test.each(["turn ends", "provider resolves its request"])(
     }
   },
 );
+
+test("a question reissued after recovery with the same RPC id gets a live card", async () => {
+  const f = fixture();
+  const turnId = f.appServer.turn(3);
+  const threadId = f.appServer.thread;
+  const frames = [
+    {
+      id: 0,
+      method: "item/tool/requestUserInput",
+      params: { threadId, turnId, itemId: "ask-item", questions: [question] },
+    },
+  ];
+  try {
+    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+    f.appServer.send({ frames });
+    await until(() => f.promptMessages.length === 1, "publish the old card");
+    const previous = f.promptMessages[0]!;
+    f.rejectPromptCleanup(true);
+    await f.restart(undefined, () => f.rejectPromptCleanup(false));
+    expect(f.promptMessages[1]?.messageUuid).toBe(
+      `${previous.messageUuid}-closed`,
+    );
+
+    f.appServer.send({ frames });
+    await until(() => f.promptMessages.length === 3, "publish the live card");
+    const live = f.promptMessages[2]!;
+    const newPrompt = live.toolCalls?.[0]?.id;
+    if (!newPrompt) throw new Error("Expected the reissued question ID");
+    expect(live.messageUuid).not.toBe(previous.messageUuid);
+    expect(newPrompt).toMatch(/^1:app-server:[a-f0-9-]+:number:0$/);
+    expect(newPrompt).not.toBe(previous.toolCalls?.[0]?.id);
+    expect(
+      f.promptMessages.some(
+        ({ messageUuid }) => messageUuid === `${live.messageUuid}-closed`,
+      ),
+    ).toBe(false);
+
+    f.appServer.send({
+      frames: [
+        {
+          method: "serverRequest/resolved",
+          params: { threadId, requestId: 0 },
+        },
+      ],
+    });
+    await until(() => f.promptMessages.length === 4, "settle the live card");
+    expect(f.promptMessages[3]).toMatchObject({
+      messageUuid: `${live.messageUuid}-closed`,
+      toolResults: [
+        { toolUseId: newPrompt, content: "Codex question cancelled" },
+      ],
+    });
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("turn end closes the question when cancelling the permission fails", async () => {
+  const f = fixture();
+  const turnId = f.appServer.turn(3);
+  const threadId = f.appServer.thread;
+  try {
+    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+    f.appServer.send({
+      frames: [
+        {
+          id: "approve",
+          method: "item/commandExecution/requestApproval",
+          params: { threadId, turnId, itemId: "command", command: "pwd" },
+        },
+        {
+          id: "ask",
+          method: "item/tool/requestUserInput",
+          params: {
+            threadId,
+            turnId,
+            itemId: "ask-item",
+            questions: [question],
+          },
+        },
+      ],
+    });
+    await until(
+      () => f.promptPermissions.size === 1 && f.promptMessages.length === 1,
+      "publish both cards",
+    );
+    const promptId = f.promptMessages[0]?.toolCalls?.[0]?.id;
+    if (!promptId) throw new Error("Expected the published question ID");
+    f.rejectPermissionCleanup([...f.promptPermissions.keys()][0]!);
+    f.appServer.send({
+      frames: [
+        {
+          method: "turn/completed",
+          params: {
+            threadId,
+            turn: { id: turnId, items: [], status: "completed" },
+          },
+        },
+      ],
+    });
+    await until(
+      () => f.logs.some((line) => line.includes("Prompt sync failed")),
+      "report the failed permission cancellation",
+    );
+    expect(f.promptPermissions.size).toBe(1);
+    expect(f.promptMessages[1]?.toolResults).toEqual([
+      {
+        toolUseId: promptId,
+        content: "Codex question cancelled",
+      },
+    ]);
+  } finally {
+    await f.dispose();
+  }
+});
 
 test.each(["lease loss", "close", "restart", "sync error"] as const)(
   "the owned runtime closes stranded prompt cards on %s",
@@ -503,6 +628,7 @@ test.each(["lease loss", "close", "restart", "sync error"] as const)(
         () => f.promptPermissions.size === 2 && f.promptMessages.length === 2,
         "publish every open card",
       );
+      const permissionIds = [...f.promptPermissions.keys()].sort();
 
       if (scenario === "close") {
         f.pauseQuestionWrite(write.promise);
@@ -555,20 +681,19 @@ test.each(["lease loss", "close", "restart", "sync error"] as const)(
         return;
       }
 
-      const questionIds =
-        scenario === "close" ? ["one", "two", "late"] : ["one", "two"];
+      const questionIds = f.promptMessages.flatMap(({ toolCalls }) =>
+        (toolCalls ?? []).map(({ id }) => id),
+      );
+      expect(questionIds).toHaveLength(scenario === "close" ? 3 : 2);
       expect(f.promptPermissions.size).toBe(0);
-      expect(f.cancelledPermissions.sort()).toEqual([
-        "row-1:app-server:string:approve-one",
-        "row-1:app-server:string:approve-two",
-      ]);
+      expect(f.cancelledPermissions.sort()).toEqual(permissionIds);
       expect(
         f.promptMessages
           .flatMap(({ toolResults }) => toolResults ?? [])
           .sort((a, b) => a.toolUseId.localeCompare(b.toolUseId)),
       ).toEqual(
         questionIds.sort().map((id) => ({
-          toolUseId: `1:app-server:string:ask-${id}`,
+          toolUseId: id,
           content: "Codex question cancelled",
         })),
       );

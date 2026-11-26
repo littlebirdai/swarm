@@ -1,4 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
+import { until } from "../../../../tests/codex-driver-parity/peers.js";
+import { question } from "../../../../tests/codex-driver-parity/recording.js";
 import {
   bindingFor,
   fixture,
@@ -180,10 +182,30 @@ test("runtime shutdown retains the edge lease when provider cleanup is unconfirm
   try {
     await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
     expect(child).toBeDefined();
+    f.appServer.send({
+      frames: [
+        {
+          id: "cleanup-question",
+          method: "item/tool/requestUserInput",
+          params: {
+            threadId: f.appServer.thread,
+            turnId: f.appServer.turn(3),
+            itemId: "ask-item",
+            questions: [question],
+          },
+        },
+      ],
+    });
+    await until(() => f.promptMessages.length === 1, "publish a question");
+    const promptId = f.promptMessages[0]?.toolCalls?.[0]?.id;
+    if (!promptId) throw new Error("Expected the published question ID");
     denyCleanup = true;
     await f.runtime.stop();
     expect(f.logs.join("\n")).toContain("cleanup could not be confirmed");
     expect(f.actions).not.toContain("edge:release");
+    expect(f.promptMessages[1]?.toolResults).toEqual([
+      { toolUseId: promptId, content: "Codex question cancelled" },
+    ]);
   } finally {
     spawnSpy.mockRestore();
     killSpy.mockRestore();

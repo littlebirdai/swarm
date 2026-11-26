@@ -208,8 +208,11 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     }
   }
 
+  const promptNamespace = options.uniquePromptIds
+    ? `${crypto.randomUUID()}:`
+    : "";
   function promptId(id: RpcId) {
-    return `${spec.run}:app-server:${typeof id}:${id}`;
+    return `${spec.run}:app-server:${promptNamespace}${typeof id}:${id}`;
   }
 
   function rejectRequest(id: RpcId, code: number, message: string) {
