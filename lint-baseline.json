@@ -10348,7 +10348,7 @@
   "apps/server/convex/lib/peerLinkRows.ts": {
     "swarm/no-comments": 1
   },
-  "apps/server/convex/lib/pending-message-enqueue.ts": {
+  "apps/server/convex/lib/pending-message-enqueue.rules.ts": {
     "swarm/no-comments": 36
   },
   "apps/server/convex/lib/pendingJob.ts": {

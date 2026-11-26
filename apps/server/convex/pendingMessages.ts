@@ -49,7 +49,7 @@ import {
   admitFencedHumanSend,
   observedTurnValidator,
   type PendingMessageEnqueueFields,
-} from "./lib/pending-message-enqueue";
+} from "./lib/pending-message-enqueue.rules";
 import { requireUser } from "./lib/auth";
 import { runLocalCommand } from "./localFirstCommands";
 import {

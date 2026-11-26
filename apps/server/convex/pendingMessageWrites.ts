@@ -1,5 +1,5 @@
 import type { Doc, Id } from "./_generated/dataModel";
-import type { SendAdmission } from "./lib/pending-message-enqueue";
+import type { SendAdmission } from "./lib/pending-message-enqueue.rules";
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 
 type DbCtx = { db: any };
