@@ -208,7 +208,12 @@ const CALLER_REPORTED_ACTIONS = new Set([
 // composer's batch is the person's state and works the same without them, so
 // a refusal (a backend from before quoteDrafts, a conversation since lost) is
 // news to nobody: no toast, no failure mark, no error report.
-const QUIET_ACTIONS = new Set(["saveQuoteDrafts", "removeQuoteDrafts"]);
+const QUIET_ACTIONS = new Set([
+  "saveQuoteDrafts",
+  "removeQuoteDrafts",
+  "beginSavedReadingAnchor",
+  "saveSavedReadingAnchor",
+]);
 
 // chat.markRead's refusal of a marker that was deleted or sits in another
 // room, from servers deployed before markRead stopped refusing it.

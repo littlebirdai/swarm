@@ -342,7 +342,9 @@ import {
   mountedTranscriptRow,
   observeComposerBand,
   publishReadingPosition,
+  readingRowForMessage,
   restoreReadingPosition,
+  watchReadingScroll,
   transcriptViewportRects,
 } from "./conversation/reading-viewport";
 import {
@@ -3628,7 +3630,6 @@ const ConversationViewInner = function ConversationView(
   useMountEffect(() =>
     observeComposerBand(containerRef.current, setMessageInputHeight),
   );
-
   const observeSavedReading = useSavedReadingAnchor({
     enabled: import.meta.env.VITE_SESSION_READ_ANCHORS === "1",
     conversationId:
@@ -3636,7 +3637,7 @@ const ConversationViewInner = function ConversationView(
         ? (conversation._id as Id<"conversations">)
         : null,
     userId: currentUser?._id,
-    restore(anchor, requestedWindow) {
+    restore(anchor, requestedWindow, expired) {
       if (
         userScrolledRef.current ||
         targetMessageId ||
@@ -3645,16 +3646,27 @@ const ConversationViewInner = function ConversationView(
         branchAnchorRef.current?.targetId === conversation?._id?.toString()
       )
         return "fallback";
-      return restoreReadingPosition(anchor, requestedWindow, {
-        container: containerRef.current,
-        timeline,
-        virtualizer,
-        jumpToTimestamp: onJumpToTimestamp,
-        takePosition: () => setUserScrolled(true),
-      });
+      const result = expired
+        ? "fallback"
+        : restoreReadingPosition(anchor, requestedWindow, {
+            container: containerRef.current,
+            timeline,
+            virtualizer,
+            jumpToTimestamp: onJumpToTimestamp,
+            windowLoaded: isLoadingOlder === false,
+            resolveMessage: (id) =>
+              readingRowForMessage(
+                id,
+                feedDensity,
+                { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf },
+                expandedGroups,
+              ),
+            takePosition: () => setUserScrolled(true),
+          });
+      if (requestedWindow && result === "fallback") onJumpToEnd?.();
+      return result;
     },
   });
-
   useWatchEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -3866,15 +3878,16 @@ const ConversationViewInner = function ConversationView(
       }
     };
     schedule();
-    const onScroll = observeSavedReading
-      ? () => {
-          anchorScroll = true;
-          schedule();
-        }
-      : schedule;
-    el.addEventListener("scroll", onScroll, { passive: true });
+    const stopReadingScroll = watchReadingScroll(
+      el,
+      (readerMoved) => {
+        anchorScroll ||= readerMoved;
+        schedule();
+      },
+      !!observeSavedReading,
+    );
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      stopReadingScroll();
       cancelAnimationFrame(frame);
     };
   }, [

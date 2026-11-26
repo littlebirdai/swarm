@@ -139,6 +139,8 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   commentOnDecision: SEND,
   dropDecisionComment: LOCAL_ECHO,
   askDecisionSession: SEND,
+  beginSavedReadingAnchor: never("Claims the current reading visit."),
+  saveSavedReadingAnchor: never("Saves an independent reading position."),
   askSideQuestion: never(
     "send: the question goes to the model at once; its answer is private to the asker",
   ),

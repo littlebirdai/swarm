@@ -238,3 +238,120 @@ test("account delete removes the viewer's anchors in other sessions", async () =
   expect(await f.rows()).toMatchObject([{ user_id: f.owner }]);
   expect(await f.get()).toMatchObject({ message_id: f.first });
 });
+
+test("a summary-only teammate cannot read, begin or save an anchor", async () => {
+  const f = await setup();
+  await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "summary only");
+    const team_id = await rows.team();
+    await rows.membership(f.owner, team_id);
+    await rows.membership(f.other, team_id);
+    await db.patch(f.conversation, {
+      team_id,
+      is_private: false,
+      team_visibility: "summary",
+    });
+    await db.insert("conversation_read_anchors", {
+      ...f.args,
+      user_id: f.other,
+      view_id: "earlier-view",
+      sequence: 1,
+      anchor: { message_id: f.first, changed_at: 20, offset: 0.5 },
+    });
+  });
+  const teammate = asUser(f.t, f.other);
+  const before = await f.rows();
+  expect(await f.get(teammate)).toBeNull();
+  expect(await f.begin(teammate)).toBeNull();
+  expect(await f.save("earlier-view", 2, f.second, 0.5, teammate)).toBe(
+    "unavailable",
+  );
+  expect(
+    await teammate.mutation(api.dispatch.dispatch, {
+      action: "beginSavedReadingAnchor",
+      args: [f.conversation],
+    }),
+  ).toBeNull();
+  expect(
+    await teammate.mutation(api.dispatch.dispatch, {
+      action: "saveSavedReadingAnchor",
+      args: [
+        {
+          ...f.args,
+          view_id: "earlier-view",
+          sequence: 2,
+          message_id: f.second,
+          offset: 0.5,
+        },
+      ],
+    }),
+  ).toBe("unavailable");
+  expect(await f.rows()).toEqual(before);
+});
+
+test("dispatch claims a view and saves through the same fence", async () => {
+  const f = await setup();
+  const dispatch = (action: string, args: unknown[]) =>
+    f.reader.mutation(api.dispatch.dispatch, { action, args });
+  const view_id = await dispatch("beginSavedReadingAnchor", [f.conversation]);
+  expect(view_id).toBeString();
+  expect(
+    await dispatch("saveSavedReadingAnchor", [
+      {
+        ...f.args,
+        view_id,
+        sequence: 1,
+        message_id: f.first,
+        offset: 0.4,
+      },
+    ]),
+  ).toBe("saved");
+  expect(
+    await dispatch("saveSavedReadingAnchor", [
+      {
+        ...f.args,
+        view_id,
+        sequence: 1,
+        message_id: f.second,
+        offset: 0,
+      },
+    ]),
+  ).toBe("stale");
+  expect(await f.get()).toMatchObject({ message_id: f.first, offset: 0.4 });
+});
+
+test("merge transfers an anchor without a destination row and removes denied rows", async () => {
+  const f = await setup();
+  await f.save(await f.begin(), 1);
+  await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "denied destination");
+    const stranger = await rows.user();
+    const conversation_id = await rows.conversation(stranger);
+    const message_id = await rows.message(conversation_id);
+    for (const user_id of [f.owner, f.other]) {
+      await db.insert("conversation_read_anchors", {
+        conversation_id,
+        user_id,
+        anchor: { message_id, changed_at: 50, offset: 0.5 },
+      });
+    }
+  });
+  const retained = (await f.rows()).find(
+    (row) => row.conversation_id === f.conversation,
+  )!;
+  await f.t.mutation(internal.admin_mergeUser.mergeDuplicateUser, {
+    from_user_id: f.owner,
+    to_user_id: f.other,
+    dry_run: false,
+    delete_source: true,
+  });
+  expect(await f.rows()).toEqual([
+    {
+      _id: retained._id,
+      _creationTime: retained._creationTime,
+      ...f.args,
+      user_id: f.other,
+      anchor: retained.anchor,
+    },
+  ]);
+});

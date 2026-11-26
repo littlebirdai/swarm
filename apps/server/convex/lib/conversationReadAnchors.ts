@@ -2,11 +2,14 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { checkConversationAccess } from "../privacy";
 
+type AnchorReadCtx = Pick<QueryCtx, "db">;
+type AnchorWriteCtx = Pick<MutationCtx, "db">;
+
 export const readAnchorsEnabled = () =>
   process.env.CODECAST_SESSION_READ_ANCHORS === "1";
 
 export async function canReadAnchor(
-  ctx: QueryCtx,
+  ctx: AnchorReadCtx,
   userId: Id<"users">,
   conversationId: Id<"conversations">,
 ) {
@@ -18,7 +21,7 @@ export async function canReadAnchor(
 }
 
 export function readAnchorRow(
-  ctx: QueryCtx,
+  ctx: AnchorReadCtx,
   userId: Id<"users">,
   conversationId: Id<"conversations">,
 ) {
@@ -31,7 +34,7 @@ export function readAnchorRow(
 }
 
 export async function readAnchorMessage(
-  ctx: QueryCtx,
+  ctx: AnchorReadCtx,
   conversationId: Id<"conversations">,
   anchor: { message_id: Id<"messages">; offset: number },
 ) {
@@ -42,7 +45,7 @@ export async function readAnchorMessage(
 }
 
 export async function saveLegacyReadAnchor(
-  ctx: MutationCtx,
+  ctx: AnchorWriteCtx,
   presence: Doc<"doc_presence">,
 ) {
   if (!presence.anchor || presence.anchor_at === undefined) return;
@@ -79,7 +82,7 @@ export async function saveLegacyReadAnchor(
 }
 
 export async function mergeReadAnchor(
-  ctx: MutationCtx,
+  ctx: AnchorWriteCtx,
   source: Doc<"conversation_read_anchors">,
   userId: Id<"users">,
 ) {
@@ -118,3 +121,111 @@ export async function mergeReadAnchor(
     });
   } else await ctx.db.delete(source._id);
 }
+
+type SaveReadAnchorArgs = {
+  conversation_id: Id<"conversations">;
+  message_id: Id<"messages">;
+  offset: number;
+  view_id: string;
+  sequence: number;
+};
+
+export async function beginReadAnchor(
+  ctx: AnchorWriteCtx,
+  userId: Id<"users">,
+  conversation_id: Id<"conversations">,
+) {
+  const row = await readAnchorRow(ctx, userId, conversation_id);
+  const viewId = crypto.randomUUID();
+  if (row) await ctx.db.patch(row._id, { view_id: viewId, sequence: 0 });
+  else
+    await ctx.db.insert("conversation_read_anchors", {
+      conversation_id,
+      user_id: userId,
+      view_id: viewId,
+      sequence: 0,
+    });
+  return viewId;
+}
+
+export async function saveReadAnchor(
+  ctx: AnchorWriteCtx,
+  userId: Id<"users">,
+  args: SaveReadAnchorArgs,
+) {
+  const row = await readAnchorRow(ctx, userId, args.conversation_id);
+  if (
+    !row ||
+    row.view_id !== args.view_id ||
+    !Number.isSafeInteger(args.sequence) ||
+    args.sequence <= (row.sequence ?? 0)
+  )
+    return "stale" as const;
+  if (!(await readAnchorMessage(ctx, args.conversation_id, args)))
+    return "invalid" as const;
+  const unchanged =
+    row.anchor?.message_id === args.message_id &&
+    row.anchor.offset === args.offset;
+  await ctx.db.patch(row._id, {
+    sequence: args.sequence,
+    ...(unchanged
+      ? {}
+      : {
+          anchor: {
+            message_id: args.message_id,
+            offset: args.offset,
+            changed_at: Date.now(),
+          },
+        }),
+  });
+  return unchanged ? ("unchanged" as const) : ("saved" as const);
+}
+
+export const readAnchorDispatch = {
+  beginSavedReadingAnchor: async (
+    ctx: AnchorWriteCtx,
+    userId: Id<"users">,
+    args: unknown,
+  ) => {
+    const id = Array.isArray(args) ? args[0] : undefined;
+    if (!readAnchorsEnabled() || typeof id !== "string") return null;
+    const conversation = ctx.db.normalizeId("conversations", id);
+    if (!conversation || !(await canReadAnchor(ctx, userId, conversation)))
+      return null;
+    return beginReadAnchor(ctx, userId, conversation);
+  },
+  saveSavedReadingAnchor: async (
+    ctx: AnchorWriteCtx,
+    userId: Id<"users">,
+    actionArgs: unknown,
+  ) => {
+    const args = Array.isArray(actionArgs) ? actionArgs[0] : undefined;
+    if (
+      !readAnchorsEnabled() ||
+      typeof args?.conversation_id !== "string" ||
+      typeof args.message_id !== "string" ||
+      typeof args.view_id !== "string" ||
+      typeof args.sequence !== "number" ||
+      typeof args.offset !== "number"
+    )
+      return "unavailable";
+    const conversation = ctx.db.normalizeId(
+      "conversations",
+      args.conversation_id,
+    );
+    const message = ctx.db.normalizeId("messages", args.message_id);
+    if (
+      !conversation ||
+      !message ||
+      !(await canReadAnchor(ctx, userId, conversation))
+    )
+      return "unavailable";
+    return saveReadAnchor(ctx, userId, {
+      conversation_id: conversation,
+      message_id: message,
+      view_id: args.view_id,
+      sequence: args.sequence,
+      offset: args.offset,
+    });
+  },
+};

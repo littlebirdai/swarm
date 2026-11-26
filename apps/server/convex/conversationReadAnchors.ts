@@ -4,10 +4,12 @@ import { mutation, query } from "./functions";
 import type { Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import {
+  beginReadAnchor,
   canReadAnchor,
   readAnchorMessage,
   readAnchorRow,
   readAnchorsEnabled,
+  saveReadAnchor,
 } from "./lib/conversationReadAnchors";
 
 async function viewer(ctx: QueryCtx, conversationId: Id<"conversations">) {
@@ -40,18 +42,7 @@ export const begin = mutation({
   args: { conversation_id: v.id("conversations") },
   handler: async (ctx, { conversation_id }) => {
     const userId = await viewer(ctx, conversation_id);
-    if (!userId) return null;
-    const row = await readAnchorRow(ctx, userId, conversation_id);
-    const viewId = crypto.randomUUID();
-    if (row) await ctx.db.patch(row._id, { view_id: viewId, sequence: 0 });
-    else
-      await ctx.db.insert("conversation_read_anchors", {
-        conversation_id,
-        user_id: userId,
-        view_id: viewId,
-        sequence: 0,
-      });
-    return viewId;
+    return userId ? beginReadAnchor(ctx, userId, conversation_id) : null;
   },
 });
 
@@ -65,32 +56,6 @@ export const save = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await viewer(ctx, args.conversation_id);
-    if (!userId) return "unavailable" as const;
-    const row = await readAnchorRow(ctx, userId, args.conversation_id);
-    if (
-      !row ||
-      row.view_id !== args.view_id ||
-      !Number.isSafeInteger(args.sequence) ||
-      args.sequence <= (row.sequence ?? 0)
-    )
-      return "stale" as const;
-    if (!(await readAnchorMessage(ctx, args.conversation_id, args)))
-      return "invalid" as const;
-    const unchanged =
-      row.anchor?.message_id === args.message_id &&
-      row.anchor.offset === args.offset;
-    await ctx.db.patch(row._id, {
-      sequence: args.sequence,
-      ...(unchanged
-        ? {}
-        : {
-            anchor: {
-              message_id: args.message_id,
-              offset: args.offset,
-              changed_at: Date.now(),
-            },
-          }),
-    });
-    return unchanged ? ("unchanged" as const) : ("saved" as const);
+    return userId ? saveReadAnchor(ctx, userId, args) : "unavailable";
   },
 });

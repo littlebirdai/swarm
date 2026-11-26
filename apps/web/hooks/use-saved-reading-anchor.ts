@@ -1,12 +1,12 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { useMutation, type ReactMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { isConvexId } from "../lib/entityLinks";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../lib/inputQuiet";
+import type { ReadingAnchorsSlice } from "../store/reading-anchors-slice";
 import { useInboxStore } from "../store/inboxStore";
-import { usePageReading } from "./usePagePresence";
+import { useTabVisible } from "./usePagePresence";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
@@ -20,16 +20,21 @@ type Visit = {
   observe: (position: Position, scrolled: boolean) => void;
   confirmed: (position: Position | null) => void;
   placed: () => void;
+  startRestoreDeadline: (expire: () => void) => void;
   restore: "pending" | "waiting" | "done";
 };
 
 function dropSavedReadingAnchor(id: string) {
-  const rows = useInboxStore.getState().sessionReadAnchors;
-  if (!rows[id]) return;
-  const next = { ...rows };
-  delete next[id];
-  useInboxStore.setState({ sessionReadAnchors: next });
+  useInboxStore.getState().dropSavedReadingAnchor(id);
 }
+
+function subscribeVisibility(notify: () => void) {
+  document.addEventListener("visibilitychange", notify);
+  return () => document.removeEventListener("visibilitychange", notify);
+}
+
+const readVisibility = () => document.visibilityState === "visible";
+const hiddenOnServer = () => false;
 
 const CHECKPOINT_MS = 30_000;
 const RESTORE_LIMIT_MS = 5000;
@@ -40,7 +45,7 @@ function createReadingVisit(
   active: Id<"conversations">,
   key: string,
   acquired: Promise<string | null>,
-  save: ReactMutation<typeof api.conversationReadAnchors.save>,
+  save: ReadingAnchorsSlice["saveSavedReadingAnchor"],
 ) {
   const lifetime = new AbortController();
   let ready = false;
@@ -48,6 +53,7 @@ function createReadingVisit(
   let initial: Position | null = null;
   let sequence = 0;
   let checkpoint: ReturnType<typeof setTimeout> | undefined;
+  let restoreDeadline: ReturnType<typeof setTimeout> | undefined;
   let latest: Position | null = null;
   let lastSent: Position | null = null;
   void acquired.then((id) => {
@@ -98,6 +104,9 @@ function createReadingVisit(
       if (!ready) lastSent = position;
       ready = true;
     },
+    startRestoreDeadline(expire) {
+      restoreDeadline ??= setTimeout(expire, RESTORE_LIMIT_MS);
+    },
     placed() {
       latest = null;
       clearTimeout(checkpoint);
@@ -107,7 +116,7 @@ function createReadingVisit(
       if (lifetime.signal.aborted || current.restore === "waiting") return;
       const baseline = lastSent ?? initial;
       initial ??= position;
-      latest = position;
+      if (scrolled) latest = position;
       if (
         scrolled &&
         baseline &&
@@ -120,6 +129,7 @@ function createReadingVisit(
   const finish = () => {
     if (lifetime.signal.aborted) return;
     lifetime.abort();
+    clearTimeout(restoreDeadline);
     clearTimeout(checkpoint);
     if (viewId === undefined) void acquired.then((id) => flush(id, true));
     else flush(viewId, true);
@@ -139,13 +149,22 @@ export function useSavedReadingAnchor({
   restore: (
     anchor: SavedReadingAnchor,
     requestedWindow: boolean,
+    expired: boolean,
   ) => "restored" | "loading" | "requested" | "fallback";
 }) {
-  const reading = usePageReading();
-  const active = enabled && reading && userId ? conversationId : null;
+  const tabVisible = useTabVisible();
+  const visible = useSyncExternalStore(
+    subscribeVisibility,
+    readVisibility,
+    hiddenOnServer,
+  );
+  const active =
+    enabled && tabVisible && visible && userId ? conversationId : null;
   const key = active ? `${userId}:${active}` : "";
-  const begin = useMutation(api.conversationReadAnchors.begin);
-  const save = useMutation(api.conversationReadAnchors.save);
+  const restoreRef = useRef(restore);
+  useWatchEffect(() => {
+    restoreRef.current = restore;
+  }, [restore]);
   const response = useQueryNoThrow(
     api.conversationReadAnchors.get,
     active ? { conversation_id: active } : "skip",
@@ -155,8 +174,15 @@ export function useSavedReadingAnchor({
 
   useWatchEffect(() => {
     if (!active) return;
-    const acquired = begin({ conversation_id: active }).catch(() => null);
-    const { current, finish } = createReadingVisit(active, key, acquired, save);
+    const { beginSavedReadingAnchor, saveSavedReadingAnchor } =
+      useInboxStore.getState();
+    const acquired = beginSavedReadingAnchor(active).catch(() => null);
+    const { current, finish } = createReadingVisit(
+      active,
+      key,
+      acquired,
+      saveSavedReadingAnchor,
+    );
     visit.current = current;
     window.addEventListener("pagehide", finish);
     return () => {
@@ -165,7 +191,7 @@ export function useSavedReadingAnchor({
       dropSavedReadingAnchor(active);
       visit.current = null;
     };
-  }, [active, key, begin, save]);
+  }, [active, key]);
 
   useWatchEffect(() => {
     if (!active) return;
@@ -190,7 +216,13 @@ export function useSavedReadingAnchor({
       : undefined;
     if (!response.data || saved?.user_id !== userId || !saved) return;
     current.confirmed(saved);
-    const result = restore(saved, current.restore === "waiting");
+    current.startRestoreDeadline(() => {
+      if (current.restore === "done") return;
+      const requested = current.restore === "waiting";
+      current.restore = "done";
+      restoreRef.current(saved, requested, true);
+    });
+    const result = restore(saved, current.restore === "waiting", false);
     if (result === "restored") current.placed();
     if (result === "requested") current.restore = "waiting";
     else if (result !== "loading") current.restore = "done";

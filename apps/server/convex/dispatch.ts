@@ -41,6 +41,7 @@ import {
   resolveCore as resolveDecisionThreadCore,
 } from "./decisionThread";
 import { sendLineChatCore } from "./lineChat";
+import { readAnchorDispatch } from "./lib/conversationReadAnchors";
 import { askCore as askSideQuestionCore } from "./sideAnswers";
 import {
   clearHoldCore,
@@ -453,7 +454,6 @@ const PATCH_ONLY_ACTIONS = new Set([
   "wsShow",
   "wsToggle",
 ]);
-
 export function isDispatchAction(action: string): boolean {
   return (
     Object.prototype.hasOwnProperty.call(SIDE_EFFECTS, action) ||
@@ -976,8 +976,8 @@ export async function applyPatches(
     );
   }
 }
-
 const SIDE_EFFECTS: Record<string, HandlerFn> = {
+  ...readAnchorDispatch,
   // Decisions (docs/architecture/decisions-as-documents.md D2 / D5). The web
   // patches sessionDecisions and decisionStacks on the draft first; these are
   // the server writes the optimistic rows reconcile against.

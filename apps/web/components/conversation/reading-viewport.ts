@@ -4,7 +4,11 @@ import { hasCoPresent } from "../../lib/composerPresence";
 import { anchorFromRects } from "../../lib/follow";
 import { messageRowKey } from "../../lib/messageRowKey";
 import { useInboxStore } from "../../store/inboxStore";
-import { settleTimelineItemAtOffset } from "../conversationScroll";
+import {
+  jumpRowForMessage,
+  READER_SCROLL_WINDOW_MS,
+  settleTimelineItemAtOffset,
+} from "../conversationScroll";
 import type { TimelineItem } from "./types";
 
 type TranscriptVirtualizer = Virtualizer<HTMLDivElement, Element>;
@@ -56,6 +60,25 @@ export function publishReadingPosition(
   if (observe && anchor) observe(anchor.messageId, anchor.offset, scrolled);
 }
 
+export function readingRowForMessage(
+  id: string,
+  density: Parameters<typeof jumpRowForMessage>[1],
+  aggregates: Parameters<typeof jumpRowForMessage>[2] & {
+    lastTextOf: ReadonlyMap<string, string>;
+    firstAssistOf: ReadonlyMap<string, string>;
+  },
+  expandedGroups: ReadonlySet<string>,
+) {
+  const { scrollToId, expandKey } = jumpRowForMessage(id, density, aggregates);
+  if (density !== "compact" || !expandKey || expandedGroups.has(expandKey))
+    return scrollToId;
+  return (
+    aggregates.lastTextOf.get(expandKey) ??
+    aggregates.firstAssistOf.get(expandKey) ??
+    scrollToId
+  );
+}
+
 export function restoreReadingPosition(
   anchor: SavedReadingAnchor,
   requestedWindow: boolean,
@@ -65,21 +88,27 @@ export function restoreReadingPosition(
     virtualizer,
     jumpToTimestamp,
     takePosition,
+    resolveMessage = (id) => id,
+    windowLoaded,
   }: {
     container: HTMLElement | null;
     timeline: readonly TimelineItem[];
     virtualizer: Parameters<typeof settleTimelineItemAtOffset>[1];
     jumpToTimestamp: ((timestamp: number) => void) | undefined;
     takePosition: () => void;
+    resolveMessage?: (id: string) => string;
+    windowLoaded?: boolean;
   },
 ) {
-  if (!container || !timeline.length) return "loading";
+  if (!container || !timeline.some((item) => item.type === "message"))
+    return requestedWindow && windowLoaded ? "fallback" : "loading";
+  const messageId = resolveMessage(anchor.message_id);
   const index = timeline.findIndex(
-    (item) => item.type === "message" && item.data._id === anchor.message_id,
+    (item) => item.type === "message" && item.data._id === messageId,
   );
   const item = timeline[index];
   if (item?.type !== "message") {
-    if (requestedWindow) return "loading";
+    if (requestedWindow) return windowLoaded ? "fallback" : "loading";
     if (!jumpToTimestamp) return "fallback";
     jumpToTimestamp(anchor.timestamp);
     return "requested";
@@ -91,6 +120,76 @@ export function restoreReadingPosition(
     itemKey: messageRowKey(item.data),
   });
   return "restored";
+}
+
+export function watchReadingScroll(
+  feed: HTMLElement,
+  onScroll: (readerMoved: boolean) => void,
+  watchInput = true,
+) {
+  if (!watchInput) {
+    const scroll = () => onScroll(false);
+    feed.addEventListener("scroll", scroll, { passive: true });
+    return () => feed.removeEventListener("scroll", scroll);
+  }
+  let inputAt = -Infinity;
+  let scrollbarHeld = false;
+  const input = () => {
+    inputAt = performance.now();
+  };
+  const wheel = (event: WheelEvent) => {
+    if (event.deltaY !== 0 && !event.ctrlKey) input();
+  };
+  const key = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        target.closest("input, textarea, select, button"))
+    )
+      return;
+    if (
+      [
+        "ArrowUp",
+        "ArrowDown",
+        "PageUp",
+        "PageDown",
+        "Home",
+        "End",
+        " ",
+      ].includes(event.key)
+    )
+      input();
+  };
+  const down = (event: PointerEvent) => {
+    if (event.target === feed && event.offsetX > feed.clientWidth)
+      scrollbarHeld = true;
+  };
+  const up = () => {
+    scrollbarHeld = false;
+  };
+  const scroll = () => {
+    onScroll(
+      scrollbarHeld || performance.now() - inputAt < READER_SCROLL_WINDOW_MS,
+    );
+    inputAt = -Infinity;
+  };
+  feed.addEventListener("wheel", wheel, { passive: true });
+  feed.addEventListener("touchmove", input, { passive: true });
+  feed.addEventListener("keydown", key);
+  feed.addEventListener("pointerdown", down);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("pointercancel", up, true);
+  feed.addEventListener("scroll", scroll, { passive: true });
+  return () => {
+    feed.removeEventListener("wheel", wheel);
+    feed.removeEventListener("touchmove", input);
+    feed.removeEventListener("keydown", key);
+    feed.removeEventListener("pointerdown", down);
+    window.removeEventListener("pointerup", up, true);
+    window.removeEventListener("pointercancel", up, true);
+    feed.removeEventListener("scroll", scroll);
+  };
 }
 
 export function observeComposerBand(
