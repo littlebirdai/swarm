@@ -906,7 +906,7 @@ export async function retireTeam(
     invite_code_expires_at: now,
   });
   for (const m of memberships)
-    await endMembership(ctx, m.user_id, team._id, actorId);
+    await endMembership(ctx, m.user_id, team._id, actorId, "team");
   await ctx.scheduler.runAfter(0, internal.terminalWatch.purgeTeamRows, {
     team_id: team._id,
   });

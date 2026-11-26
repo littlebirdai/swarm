@@ -43,6 +43,7 @@ import { v } from "convex/values";
 import { query, mutation, internalMutation } from "./functions";
 import { requireUserOrToken } from "./lib/auth";
 import { terminalPublisher } from "./lib/terminalPublisher";
+import { usesFencedTerminal } from "./lib/claims";
 import { resolveReachableRunnerDevice } from "./devices";
 import {
   PANE_COMMAND_DEBOUNCE_MS,
@@ -376,8 +377,9 @@ export const cliPushFrame = mutation({
     // That is what makes delivery exactly-once: a push that never reaches the
     // daemon also never cleared the buffer, so the next one carries the same
     // keystrokes rather than losing them.
-    const input = row.pending_input ?? "";
-    if (input) patch.pending_input = undefined;
+    const fenced = await usesFencedTerminal(ctx, userId, args.device_id);
+    const input = fenced ? "" : (row.pending_input ?? "");
+    if (row.pending_input) patch.pending_input = undefined;
 
     await ctx.db.patch(row._id, patch);
 
@@ -422,6 +424,8 @@ export const sendPaneInput = mutation({
 
     const userId = await resolveQueueUser(ctx, viewerId, args);
     if (!userId) return { ok: false as const, reason: "not-watching" as const };
+    if (await usesFencedTerminal(ctx, userId, args.device_id))
+      return { ok: false as const, reason: "stale" as const };
     const row = await findRow(ctx, userId, args.device_id, args.target);
     if (!row) return { ok: false as const, reason: "not-watching" as const };
 

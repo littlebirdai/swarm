@@ -13,8 +13,10 @@ export const frame = "redacted screen";
 const secret = DEVICE_BOUND_TOKEN_PREFIX + "terminal-daemon-token";
 const token = presentToken(secret, deviceId);
 
-export async function terminalWatchFixture() {
-  const t = serverTest();
+export async function terminalWatchFixture(
+  limits?: Parameters<typeof serverTest>[0],
+) {
+  const t = serverTest(limits);
   const ids = await t.run(async ({ db }) => {
     const rows = fixtureRows(db, "terminal-watch");
     const team = await rows.team();

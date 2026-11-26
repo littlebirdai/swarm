@@ -11,6 +11,7 @@ import { getUserOrToken, requireUser } from "./lib/auth";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import { canTeamMemberAccess, isTeamMember, teamReadLevel } from "./privacy";
 import { resolveReachableRunnerDevice } from "./devices";
+import { deleteTerminalTypingGrant } from "./lib/claims";
 import { terminalPublisher } from "./lib/terminalPublisher";
 import {
   deleteTerminalShare,
@@ -590,6 +591,46 @@ export const pruneExpired = internalMutation({
   },
 });
 
+export const purgeMemberTypingGrants = internalMutation({
+  args: {
+    team_id: v.id("teams"),
+    user_id: v.id("users"),
+    role: v.union(v.literal("owner_id"), v.literal("user_id")),
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const indexed = ctx.db.query("terminal_typing_grants");
+    const owner = args.role === "owner_id";
+    const grants = owner
+      ? indexed.withIndex("by_owner", (q) =>
+          q.eq("owner_id", args.user_id).eq("team_id", args.team_id),
+        )
+      : indexed.withIndex("by_user", (q) =>
+          q.eq("user_id", args.user_id).eq("team_id", args.team_id),
+        );
+    const page = await grants.paginate({
+      cursor: args.cursor,
+      numItems: 100,
+      maximumRowsRead: 100,
+    });
+    for (const grant of page.page) {
+      const pin = owner ? grant.owner_membership : grant.membership;
+      const membership = pin ? await ctx.db.get(pin) : null;
+      if (
+        membership?.user_id !== args.user_id ||
+        membership.team_id !== args.team_id
+      )
+        await deleteTerminalTypingGrant(ctx.db, grant);
+    }
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.terminalWatch.purgeMemberTypingGrants,
+        { ...args, cursor: page.continueCursor },
+      );
+  },
+});
+
 export const purgeTeamRows = internalMutation({
   args: { team_id: v.id("teams") },
   handler: async (ctx, args) => {
@@ -615,7 +656,12 @@ export const purgeTeamRows = internalMutation({
         await ctx.db.patch(block._id, { team_id: movedTo._id });
       else await ctx.db.delete(block._id);
     }
-    if (shares.length === 20 || blocks.length === 100)
+    const grants = await ctx.db
+      .query("terminal_typing_grants")
+      .withIndex("by_team", (q) => q.eq("team_id", args.team_id))
+      .take(100);
+    for (const grant of grants) await deleteTerminalTypingGrant(ctx.db, grant);
+    if (shares.length === 20 || blocks.length === 100 || grants.length === 100)
       await ctx.scheduler.runAfter(
         0,
         internal.terminalWatch.purgeTeamRows,
