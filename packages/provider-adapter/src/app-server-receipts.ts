@@ -11,6 +11,7 @@ import { processError } from "./provider-process";
 
 const clientPrefix = "codecast-delivery:";
 const maxPending = 128;
+const maxCommitted = 128;
 
 export function deliveryClientId(deliveryId: string) {
   return clientPrefix + deliveryId;
@@ -32,14 +33,45 @@ export const appServerReceipts = Effect.fn("app-server.receipts")(function* (
             ),
         })
       : [];
-  const recovered = new Map(
-    entries.map(({ delivery_id }) => [delivery_id, { delivery_id }]),
-  );
-  const committed = new Map(recovered);
+  const committed = new Map<string, DeliveryReceipt>();
   const pending = new Map<
     string,
     { deliveryId: string; committing: boolean }
   >();
+
+  function remember(receipt: DeliveryReceipt): void {
+    committed.delete(receipt.delivery_id);
+    committed.set(receipt.delivery_id, receipt);
+    if (committed.size > maxCommitted) {
+      const oldest = committed.keys().next().value;
+      if (oldest !== undefined) committed.delete(oldest);
+    }
+  }
+
+  for (const { delivery_id } of entries) remember({ delivery_id });
+
+  const find = Effect.fn("app-server.receipts.find")(function* (
+    checkpoint: string,
+    deliveryId: string,
+  ) {
+    const cached = committed.get(deliveryId);
+    if (cached || !journal || !deliveryId) return cached;
+    const stored = yield* Effect.tryPromise({
+      try: (signal) =>
+        journal.find(spec.session, checkpoint, deliveryId, signal),
+      catch: (cause) =>
+        processError(
+          "receipt-read-failed",
+          "Could not read delivery receipt",
+          cause,
+        ),
+    });
+    if (stored) {
+      const receipt = { delivery_id: stored.delivery_id };
+      remember(receipt);
+      return receipt;
+    }
+  });
 
   function retry(deliveryId: string) {
     const receipt = committed.get(deliveryId);
@@ -103,7 +135,7 @@ export const appServerReceipts = Effect.fn("app-server.receipts")(function* (
         ),
     }).pipe(
       Effect.map(() => {
-        committed.set(match.deliveryId, receipt);
+        remember(receipt);
         pending.delete(clientId);
         return receipt;
       }),
@@ -114,16 +146,19 @@ export const appServerReceipts = Effect.fn("app-server.receipts")(function* (
   const inDoubtIds = new Set(
     "checkpoint" in spec ? spec.inDoubtDeliveryIds : [],
   );
+  const replay = entries
+    .filter(({ delivery_id }) => inDoubtIds.has(delivery_id))
+    .map(({ delivery_id }) => ({ delivery_id }));
+  const recovered = new Map(committed);
+  for (const receipt of replay) recovered.set(receipt.delivery_id, receipt);
   return {
     enabled: journal !== undefined,
     recovered: [...recovered.values()],
-    replay: [...recovered.values()].filter(({ delivery_id }) =>
-      inDoubtIds.has(delivery_id),
-    ),
+    replay,
+    find,
     retry,
     reserve,
     reject,
     observe,
-    committed: (deliveryId: string) => committed.get(deliveryId),
   };
 });

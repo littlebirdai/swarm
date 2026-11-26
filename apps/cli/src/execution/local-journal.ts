@@ -352,6 +352,20 @@ export class InMemoryExecutionOperationJournal implements ExecutionOperationJour
           []),
       ].map((receipt) => ({ ...receipt }));
     },
+    find: async (session, checkpoint, deliveryId, signal) => {
+      signal.throwIfAborted();
+      const receipt = this.receipts
+        .get(receiptScope(session, checkpoint))
+        ?.get(deliveryId);
+      return receipt && { ...receipt };
+    },
+    forget: async (session, checkpoint, deliveryId, signal) => {
+      signal.throwIfAborted();
+      const scope = receiptScope(session, checkpoint);
+      const records = this.receipts.get(scope);
+      records?.delete(deliveryId);
+      if (records?.size === 0) this.receipts.delete(scope);
+    },
     record: async (session, checkpoint, receipt, signal) => {
       signal.throwIfAborted();
       assertReceipt(receipt);
@@ -408,6 +422,7 @@ export class FileExecutionOperationJournal implements ExecutionOperationJournal 
           if (!name.startsWith(prefix) || !name.endsWith(".receipt")) return [];
           const file = path.join(this.directory, name);
           const receipt = this.readReceipt(file);
+          if (!receipt) return [];
           if (
             file !== this.receiptPath(session, checkpoint, receipt.delivery_id)
           )
@@ -418,12 +433,30 @@ export class FileExecutionOperationJournal implements ExecutionOperationJournal 
           return [receipt];
         });
     },
+    find: async (session, checkpoint, deliveryId, signal) => {
+      signal.throwIfAborted();
+      const file = this.receiptPath(session, checkpoint, deliveryId);
+      const receipt = this.readReceipt(file);
+      if (receipt && receipt.delivery_id !== deliveryId)
+        throw new ExecutionJournalCorruptError(
+          file,
+          "receipt identity differs from file name",
+        );
+      return receipt;
+    },
+    forget: async (session, checkpoint, deliveryId, signal) => {
+      signal.throwIfAborted();
+      fs.rmSync(this.receiptPath(session, checkpoint, deliveryId), {
+        force: true,
+      });
+    },
     record: async (session, checkpoint, receipt, signal) => {
       signal.throwIfAborted();
       assertReceipt(receipt);
       const file = this.receiptPath(session, checkpoint, receipt.delivery_id);
-      if (fs.existsSync(file)) {
-        sameReceipt(this.readReceipt(file), receipt);
+      const previous = this.readReceipt(file);
+      if (previous) {
+        sameReceipt(previous, receipt);
         return;
       }
       atomicWriteFile(file, `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
@@ -442,9 +475,16 @@ export class FileExecutionOperationJournal implements ExecutionOperationJournal 
     );
   }
 
-  private readReceipt(file: string): DeliveryReceiptRecord {
+  private readReceipt(file: string): DeliveryReceiptRecord | undefined {
+    let source: string;
     try {
-      const receipt: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+      source = fs.readFileSync(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw new ExecutionJournalCorruptError(file, String(error));
+    }
+    try {
+      const receipt: unknown = JSON.parse(source);
       assertReceipt(receipt);
       return receipt;
     } catch (error) {

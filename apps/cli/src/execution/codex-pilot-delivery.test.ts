@@ -1,7 +1,15 @@
 import { expect, test } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { fixture, item, pending } from "./codex-owned-pilot-fixture.js";
+import { FileExecutionOperationJournal } from "./local-journal.js";
 
 async function finishTurn(f: ReturnType<typeof fixture>, turn: string) {
   await f.sendFrame({
@@ -79,9 +87,28 @@ async function reportReceipt(
 
 test("the pilot settles two identical messages with separate durable receipts", async () => {
   const f = fixture("pilot", true, "receipt-before-reply");
+  const { deliveryReceipts } = new FileExecutionOperationJournal(
+    f.journalDirectory,
+  );
+  const signal = new AbortController().signal;
   const work = [item(f.pilotRequest)];
   try {
     await f.runtime.processWorkUpdate(work);
+    await deliveryReceipts.record(
+      "pilot",
+      f.deliveryThread,
+      {
+        delivery_id: "unrelated",
+        provider_item_id: "other-item",
+        turn: "other-turn",
+      },
+      signal,
+    );
+    const unrelated = readdirSync(f.journalDirectory).find((file) =>
+      file.endsWith(".receipt"),
+    )!;
+    const unrelatedPath = join(f.journalDirectory, unrelated);
+    writeFileSync(unrelatedPath, "invalid");
     f.enqueue(1);
     f.enqueue(2);
 
@@ -96,6 +123,10 @@ test("the pilot settles two identical messages with separate durable receipts", 
     ).toEqual(["delivery-1"]);
     expect(f.runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
     expect(turnStarts(f)).toHaveLength(1);
+    rmSync(unrelatedPath);
+    expect(
+      await deliveryReceipts.read("pilot", f.deliveryThread, signal),
+    ).toEqual([]);
 
     await finishTurn(f, "actual-turn-1");
     const second = f.runtime.processWorkUpdate(work);
@@ -131,6 +162,9 @@ test("the pilot settles two identical messages with separate durable receipts", 
       [{ type: "text", text: "identical follow-up" }],
     ]);
     expect(f.runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
+    expect(
+      await deliveryReceipts.read("pilot", f.deliveryThread, signal),
+    ).toEqual([]);
   } finally {
     await f.dispose();
   }
@@ -188,6 +222,32 @@ test("a missing receipt holds the slot until the server settles that delivery", 
   }
 });
 
+test("a receipt arriving after the server clears its attempt is removed", async () => {
+  const f = fixture("pilot", true, "receipt");
+  const work = [item(f.pilotRequest)];
+  try {
+    await f.runtime.processWorkUpdate(work);
+    f.enqueue(1);
+    await f.runtime.processWorkUpdate(work);
+    await until(() => f.settlements.length === 1, "server records ambiguity");
+    f.queue.shift();
+    await f.runtime.processWorkUpdate(work);
+    expect(f.runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
+
+    await reportReceipt(f, 1);
+    await until(
+      () =>
+        !readdirSync(f.journalDirectory).some((file) =>
+          file.endsWith(".receipt"),
+        ),
+      "the receipt for the settled attempt is removed",
+    );
+    expect(f.settlements.map(({ outcome }) => outcome)).toEqual(["in_doubt"]);
+  } finally {
+    await f.dispose();
+  }
+});
+
 test("a pending successor leaves the pilot running until its receipt settles", async () => {
   const f = fixture("pilot", true, "receipt");
   const work = [item(f.pilotRequest)];
@@ -232,6 +292,10 @@ test("a pending successor leaves the pilot running until its receipt settles", a
 
 test("the pilot replays its journal receipt on restart and never resends the started attempt", async () => {
   const f = fixture("pilot", true, "receipt");
+  const { deliveryReceipts } = new FileExecutionOperationJournal(
+    f.journalDirectory,
+  );
+  const signal = new AbortController().signal;
   const work = [item(f.pilotRequest)];
   try {
     f.rejectSettlements(true);
@@ -243,12 +307,37 @@ test("the pilot replays its journal receipt on restart and never resends the sta
     );
     await reportReceipt(f, 1);
     await f.runtime.processWorkUpdate(work);
+    const saved = await deliveryReceipts.find(
+      "pilot",
+      f.deliveryThread,
+      "delivery-1",
+      signal,
+    );
+    expect(saved).toMatchObject({ provider_item_id: "provider-item-1" });
+    await deliveryReceipts.record(
+      "pilot",
+      f.deliveryThread,
+      {
+        delivery_id: "already-settled",
+        provider_item_id: "settled-item",
+        turn: "settled-turn",
+      },
+      signal,
+    );
     expect(f.runtime.coordinator.getActiveDelivery("pilot")?.state).toBe(
       "ambiguous",
     );
 
     f.rejectSettlements(false);
     const { restarted, work: resumed } = await f.restart();
+    expect(
+      await deliveryReceipts.find(
+        "pilot",
+        f.deliveryThread,
+        "already-settled",
+        signal,
+      ),
+    ).toBeUndefined();
     await until(
       () => f.events.filter(({ kind }) => kind === "receipt").length === 2,
       "restart replays the durable receipt",
@@ -265,6 +354,34 @@ test("the pilot replays its journal receipt on restart and never resends the sta
     ]);
     expect(restarted.coordinator.getActiveDelivery("pilot")).toBeUndefined();
     expect(turnStarts(f)).toHaveLength(1);
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("a restart without a receipt holds the started attempt without resending", async () => {
+  const f = fixture("pilot", true, "receipt");
+  try {
+    const work = [item(f.pilotRequest)];
+    await f.runtime.processWorkUpdate(work);
+    f.enqueue(1);
+    f.enqueue(2);
+    await f.runtime.processWorkUpdate(work);
+    await until(() => f.settlements.length === 1, "server records ambiguity");
+
+    const { restarted, work: resumed } = await f.restart();
+    await restarted.processWorkUpdate([resumed]);
+    expect(
+      f.actions.filter((action) => action === "edge:delivery.start"),
+    ).toHaveLength(1);
+    expect(turnStarts(f)).toHaveLength(1);
+    expect(restarted.coordinator.getActiveDelivery("pilot")).toMatchObject({
+      attemptId: "attempt-1",
+      state: "ambiguous",
+    });
+    expect(f.settlements.every(({ outcome }) => outcome === "in_doubt")).toBe(
+      true,
+    );
   } finally {
     await f.dispose();
   }

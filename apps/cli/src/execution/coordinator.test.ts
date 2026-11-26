@@ -616,6 +616,19 @@ describe("ExecutionCoordinator delivery ambiguity", () => {
     );
     expect(controlPlane.ambiguousAttempts).toEqual(["attempt-1"]);
 
+    let confirmations = 0;
+    expect(
+      await execution.reconcileOwnedDelivery(
+        "conversation-1",
+        "attempt-1",
+        async () => {
+          confirmations++;
+          return "released";
+        },
+      ),
+    ).toBe(false);
+    expect(confirmations).toBe(0);
+
     // Re-observing the same attempt returns its existing result without reinjection.
     expect(
       (await execution.deliver({ binding: request, permit, delivery })).state,

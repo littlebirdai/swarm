@@ -135,6 +135,7 @@ export class CodexOwnedPilot {
   private readonly display = new CodexPilotDisplay();
   private readonly delivery = new CodexPilotDelivery(
     this.edgeResponse.bind(this),
+    (message) => this.options.log(message),
   );
   private deliveryReady = false;
   private adapter?: ProviderAdapterClient;
@@ -416,6 +417,12 @@ export class CodexOwnedPilot {
       if ((await this.session.close()).status !== "closed")
         throw new Error("Could not close the provisional owned Codex session");
     }
+    await this.delivery.pruneSettledReceipts(
+      claim.session,
+      checkpoint.threadId,
+      pending?.delivery_id,
+      this.controller.signal,
+    );
     this.session = await this.open({
       session: claim.session,
       run: claim.run,
@@ -494,7 +501,7 @@ export class CodexOwnedPilot {
     for await (const event of session.events) {
       if (event.kind === "message.delta") continue;
       await this.append(claim, event);
-      this.delivery.observe(event);
+      await this.delivery.observe(event, session, this.controller.signal);
       await this.display
         .publish(
           runtimeId,

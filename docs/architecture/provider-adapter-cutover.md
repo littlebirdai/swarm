@@ -131,13 +131,21 @@ The adapter commits the delivery ID, provider item ID, and turn to the daemon's
 local journal before it emits a receipt. An RPC acknowledgement or a text echo
 alone leaves the delivery in doubt. After restart, the adapter replays the
 receipt for the server's started attempt. The daemon appends the receipt and
-uses its journal record as evidence for the server settlement.
+reads that delivery's journal record as evidence for settlement. It removes the
+record after the server confirms settlement. On restart, the fenced queue head
+identifies the only delivery that can still need its receipt. The daemon keeps
+that receipt and removes older records for the checkpoint. The adapter keeps up
+to 128 recent receipts in memory and checks the journal for older retries.
 [Journal](../../apps/cli/src/execution/local-journal.ts),
 [adapter receipts](../../packages/provider-adapter/src/app-server-receipts.ts)
 
 The pilot also requires `CODECAST_EDGE_DELIVERY_V1` on the server. Without a
 completed Codex user item that echoes the client delivery ID, the server keeps
 the attempt in doubt until it receives settlement evidence.
+
+Keep steer permits disabled for the pilot until the server can settle a permit
+whose expected turn has ended. The pilot leaves such a permit at the queue head
+without sending it. The current settlement route refuses the `stale` outcome.
 
 A pending successor waits for any started delivery on the owned run to settle.
 The server still needs a route to record the disposition of a leased run after

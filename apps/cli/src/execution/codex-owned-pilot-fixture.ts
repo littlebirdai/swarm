@@ -425,6 +425,7 @@ export function fixture(
   );
   return {
     actions,
+    journalDirectory,
     logs,
     runtime,
     pilot: pilot!,

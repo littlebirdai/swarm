@@ -79,8 +79,49 @@ export class CodexPilotDelivery {
   private readonly appendedReceipts = new Set<string>();
   private readonly images = new Map<string, string>();
   private activeTurn: string | null = null;
+  private headDeliveryId: string | null = null;
 
-  constructor(private readonly fetch: FetchEdge) {}
+  constructor(
+    private readonly fetch: FetchEdge,
+    private readonly log: (message: string) => void,
+  ) {}
+
+  private async forgetReceipt(
+    session: string,
+    checkpoint: string,
+    deliveryId: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await this.receiptJournal?.forget(
+        session,
+        checkpoint,
+        deliveryId,
+        signal,
+      );
+    } catch (error) {
+      this.log(
+        `[owned-codex] could not remove a settled receipt: ${String(error)}`,
+      );
+    }
+  }
+
+  async pruneSettledReceipts(
+    session: string,
+    checkpoint: string,
+    pendingDeliveryId: string | undefined,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const records = await this.receiptJournal?.read(
+      session,
+      checkpoint,
+      signal,
+    );
+    for (const { delivery_id } of records ?? []) {
+      if (delivery_id !== pendingDeliveryId)
+        await this.forgetReceipt(session, checkpoint, delivery_id, signal);
+    }
+  }
 
   async clearImages(attemptId?: string): Promise<void> {
     if (attemptId === undefined) {
@@ -95,9 +136,23 @@ export class CodexPilotDelivery {
     await rm(directory, { recursive: true, force: true }).catch(() => {});
   }
 
-  observe(event: CanonicalEvent): void {
-    if (event.kind === "receipt")
-      this.appendedReceipts.add(event.body.delivery_id);
+  async observe(
+    event: CanonicalEvent,
+    session: OwnedSession,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (event.kind === "receipt") {
+      const { delivery_id } = event.body;
+      if (delivery_id === this.headDeliveryId)
+        this.appendedReceipts.add(delivery_id);
+      else
+        await this.forgetReceipt(
+          event.session,
+          session.getCheckpoint(),
+          delivery_id,
+          signal,
+        );
+    }
     if (event.kind === "turn.started") this.activeTurn = event.turn;
     if (event.kind === "turn.ended" && this.activeTurn === event.turn)
       this.activeTurn = null;
@@ -116,7 +171,10 @@ export class CodexPilotDelivery {
     );
     if (next.status === "stale")
       throw new Error("Owned Codex delivery lease is stale");
-    if (next.status === "empty") return;
+    if (next.status === "empty") {
+      this.headDeliveryId = null;
+      return;
+    }
     if (next.status === "error")
       throw new Error(`Owned Codex delivery lookup failed: ${next.code}`);
     if (
@@ -125,6 +183,7 @@ export class CodexPilotDelivery {
       next.fencing_token !== claim.fencing_token
     )
       throw new Error("Owned Codex permit does not match the lease");
+    this.headDeliveryId = next.delivery_id;
     return next;
   }
 
@@ -152,6 +211,13 @@ export class CodexPilotDelivery {
               permit.state === "new"
             ) {
               this.appendedReceipts.delete(held.deliveryId);
+              if (permit?.delivery_id !== held.deliveryId)
+                await this.forgetReceipt(
+                  claim.session,
+                  session.getCheckpoint(),
+                  held.deliveryId,
+                  signal,
+                );
               await this.clearImages(held.attemptId);
               return "released";
             }
@@ -340,13 +406,11 @@ export class CodexPilotDelivery {
     const base = { v, ...permitIdentity(permit) } as const;
     let request: DeliverySettleRequest | DeliveryResolutionRequest;
     if (result.state === "delivered") {
-      const receipts = await this.receiptJournal?.read(
+      const record = await this.receiptJournal?.find(
         permit.session,
         session.getCheckpoint(),
+        permit.delivery_id,
         signal,
-      );
-      const record = receipts?.find(
-        ({ delivery_id }) => delivery_id === permit.delivery_id,
       );
       if (!record)
         throw new Error("Owned Codex receipt is absent from the journal");
@@ -380,6 +444,13 @@ export class CodexPilotDelivery {
       );
     if (result.state !== "ambiguous") {
       this.appendedReceipts.delete(permit.delivery_id);
+      if (result.state === "delivered")
+        await this.forgetReceipt(
+          permit.session,
+          session.getCheckpoint(),
+          permit.delivery_id,
+          signal,
+        );
       await this.clearImages(permit.attempt_id);
     }
   }

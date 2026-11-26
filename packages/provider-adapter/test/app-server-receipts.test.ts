@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { open, readFile } from "node:fs/promises";
+import { open, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { it } from "@codecast/effect-kit/effect/testing";
 import type {
@@ -27,28 +27,44 @@ installAppServerFixtureHooks();
 
 function journalAt(directory: string): DeliveryReceiptJournal {
   const path = join(directory, "delivery-receipts.jsonl");
+  async function load(): Promise<
+    { session: string; checkpoint: string; record: DeliveryReceiptRecord }[]
+  > {
+    const source = await readFile(path, "utf8").catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      },
+    );
+    return source
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  }
   return {
     async read(session, checkpoint) {
-      const source = await readFile(path, "utf8").catch(
-        (error: NodeJS.ErrnoException) => {
-          if (error.code === "ENOENT") return "";
-          throw error;
-        },
+      return (await load()).flatMap((saved) =>
+        saved.session === session && saved.checkpoint === checkpoint
+          ? [saved.record]
+          : [],
       );
-      return source
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .flatMap((line) => {
-          const saved: {
-            session: string;
-            checkpoint: string;
-            record: DeliveryReceiptRecord;
-          } = JSON.parse(line);
-          return saved.session === session && saved.checkpoint === checkpoint
-            ? [saved.record]
-            : [];
-        });
+    },
+    async find(session, checkpoint, deliveryId, signal) {
+      return (await this.read(session, checkpoint, signal)).find(
+        (receipt) => receipt.delivery_id === deliveryId,
+      );
+    },
+    async forget(session, checkpoint, deliveryId) {
+      const remaining = (await load()).filter(
+        (saved) =>
+          saved.session !== session ||
+          saved.checkpoint !== checkpoint ||
+          saved.record.delivery_id !== deliveryId,
+      );
+      await writeFile(
+        path,
+        remaining.map((entry) => JSON.stringify(entry) + "\n").join(""),
+      );
     },
     async record(session, checkpoint, record) {
       const file = await open(path, "a");
@@ -63,6 +79,48 @@ function journalAt(directory: string): DeliveryReceiptJournal {
     },
   };
 }
+
+it.effect("an evicted receipt still deduplicates from the journal", () =>
+  Effect.gen(function* () {
+    const fake = fixture();
+    const journal = journalAt(fake.directory);
+    yield* Effect.promise(async (signal) => {
+      for (let index = 0; index <= 128; index++) {
+        await journal.record(
+          fake.spec.session,
+          threadId,
+          {
+            delivery_id: `delivery-${index}`,
+            provider_item_id: `item-${index}`,
+            turn,
+          },
+          signal,
+        );
+      }
+    });
+    let lookups = 0;
+    const provider = yield* adapter(fake, {
+      ...journal,
+      async find(...args) {
+        lookups++;
+        return journal.find(...args);
+      },
+    });
+    const { session } = requireOpened(
+      yield* provider.own({ ...fake.spec, checkpoint: threadId }),
+    );
+    expect(session.recoveredReceipts).toHaveLength(128);
+    expect(
+      yield* session.steer({ ...steer, delivery_id: "delivery-0" }),
+    ).toEqual({
+      status: "duplicate",
+      receipt: { delivery_id: "delivery-0" },
+    });
+    expect(lookups).toBe(1);
+    expect(fake.observed()).toHaveLength(0);
+    yield* session.close;
+  }),
+);
 
 function adapter(
   fake: ReturnType<typeof fixture>,
@@ -290,7 +348,17 @@ it.effect(
       yield* session.close;
 
       const fresh = fixture();
-      const restarted = yield* adapter(fresh, journalAt(fake.directory));
+      const journal = journalAt(fake.directory);
+      const settled = { delivery_id: "already-settled" };
+      yield* Effect.promise((signal) =>
+        journal.record(
+          fresh.spec.session,
+          checkpoint,
+          { ...settled, provider_item_id: "settled-item", turn },
+          signal,
+        ),
+      );
+      const restarted = yield* adapter(fresh, journal);
       const resumed = requireOpened(
         yield* restarted.own({
           ...fresh.spec,
@@ -300,7 +368,7 @@ it.effect(
           inDoubtDeliveryIds: [steer.delivery_id, steer.delivery_id, "missing"],
         }),
       ).session;
-      expect(resumed.recoveredReceipts).toEqual([receipt]);
+      expect(resumed.recoveredReceipts).toEqual([receipt, settled]);
       const recoveredEvents = yield* Effect.forkChild(
         Stream.runCollect(resumed.events),
       );
