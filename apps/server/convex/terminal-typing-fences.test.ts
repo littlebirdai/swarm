@@ -236,3 +236,45 @@ test("grants issued without an owner membership pin require a fresh grant", asyn
     { owner_membership: f.ids.ownerMembership },
   ]);
 });
+
+test("the daemon can allocate a fresh pane generation without inheriting queued input", async () => {
+  const f = await terminalTypingFixture();
+  const catalog = { api_token: f.token };
+  const legacy = await f.t.query(
+    api.managedSessions.listManagedSessionsForDaemon,
+    catalog,
+  );
+  expect(
+    legacy.find((row) => row.conversation_id === f.ids.conversation_id),
+  ).not.toHaveProperty("agent_started_at");
+  const typingRows = await f.t.query(
+    api.managedSessions.listManagedSessionsForDaemon,
+    {
+      ...catalog,
+      terminal_typing: true,
+    },
+  );
+  expect(
+    typingRows.find((row) => row.conversation_id === f.ids.conversation_id),
+  ).toMatchObject({ agent_started_at: f.machine.agent_started_at });
+  await f.report(1);
+  const control = await f.grantAndFocus();
+  await f.poll(control.sequence);
+  expect(await f.send()).toEqual({ status: "accepted" });
+  expect(await f.report(0, "started")).toEqual({
+    status: "ok",
+    last_pane_instance: 2,
+  });
+  expect(await f.poll()).toEqual({ status: "stale" });
+  expect(await f.poll(undefined, null, 2)).toMatchObject({
+    status: "ok",
+    control: { token: null },
+  });
+  expect((await claim(f))?.terminal?.pending_input).toBeUndefined();
+  expect(await f.report(0, "ended")).toEqual({ status: "stale" });
+  expect(await f.report(2, "ended")).toMatchObject({ status: "ok" });
+  expect(await f.report(0, "started")).toEqual({
+    status: "ok",
+    last_pane_instance: 3,
+  });
+});

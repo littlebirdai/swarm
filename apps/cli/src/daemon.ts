@@ -984,6 +984,7 @@ import {
   TMUX_WINDOW_HEIGHT,
   TMUX_WINDOW_WIDTH,
 } from "./terminal/daemon-bridge.js";
+import { startDaemonTerminalTyping } from "./terminal/daemon-terminal-typing.js";
 import { attachWatchServer } from "./browser/watchServer.js";
 
 import { handleBrowserFocusHttp } from "./browser/focusHttp.js";
@@ -40202,6 +40203,11 @@ async function main(): Promise<void> {
     userId: config.user_id,
   });
   syncServiceRef = syncService;
+  const stopTerminalTyping = startDaemonTerminalTyping(
+    convexUrl,
+    config.auth_token,
+    observePaneInput,
+  );
   // Before any transcript is read: redactSecrets replaces this machine's real
   // secret values from here on (known-value-redaction.ts).
   startKnownValueRedaction({
@@ -45219,6 +45225,7 @@ async function main(): Promise<void> {
 
   setupCommandSubscription();
   const shutdown = async () => {
+    const terminalTypingStopped = stopTerminalTyping?.();
     await edgeLink?.then((m) => m.closeEdgeConnection()).catch(() => {});
     closeDaemonWorkers();
     stopEvalsBridge();
@@ -45251,6 +45258,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }, 15_000);
     hardExitTimer.unref();
+    if (terminalTypingStopped) await terminalTypingStopped;
 
     saveDaemonState({ connected: false });
 

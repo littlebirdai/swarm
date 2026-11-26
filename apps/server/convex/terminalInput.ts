@@ -494,7 +494,8 @@ export const cliReportPane = mutation({
     if (
       !pane ||
       !Number.isSafeInteger(args.pane_instance) ||
-      args.pane_instance < 1 ||
+      args.pane_instance < 0 ||
+      (args.pane_instance === 0 && args.observation !== "started") ||
       (args.watch_pane_instance?.length ?? 0) > 256
     )
       return stale;
@@ -502,26 +503,27 @@ export const cliReportPane = mutation({
     const row = await findClaim(ctx.db, resource(args.conversation_id));
     const old = row?.terminal;
     const last = row?.pane_instance ?? 0;
+    const instance = args.pane_instance || last + 1;
+    if (!Number.isSafeInteger(instance)) return stale;
     const ended = args.observation === "ended";
     if (
-      args.pane_instance < last ||
-      (ended &&
-        (args.pane_instance !== last || !old || !matchesBinding(old, pane)))
+      instance < last ||
+      (ended && (instance !== last || !old || !matchesBinding(old, pane)))
     )
       return { ...stale, last_pane_instance: last };
     if (
-      args.pane_instance === last &&
+      instance === last &&
       (!old || !matchesBinding(old, pane) || (!ended && !old.open))
     )
       return { ...stale, last_pane_instance: last };
 
     const ok = {
       status: "ok" as const,
-      last_pane_instance: args.pane_instance,
+      last_pane_instance: instance,
     };
     const now = Date.now();
     const live_until = now + PANE_LIVENESS_MS;
-    if (args.pane_instance === last && row && old) {
+    if (instance === last && row && old) {
       if (ended) {
         await closeTerminalPane(ctx.db, args.conversation_id, pane.session._id);
         return ok;
@@ -546,7 +548,7 @@ export const cliReportPane = mutation({
     }
 
     const incoming = {
-      pane_instance: args.pane_instance,
+      pane_instance: instance,
       holder: undefined,
       lease_until: 0,
       terminal: {
