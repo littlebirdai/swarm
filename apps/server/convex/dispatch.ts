@@ -4369,11 +4369,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       { id },
     );
   },
-
-  answerFencedPrompt: async (ctx, _userId, [, args]) => {
-    return await ctx.runMutation!(api.permissions.answerPrompt, args);
-  },
-  // The client already removed the permission card (store resolvePermission).
+  answerFencedPrompt: (ctx, _userId, [, args]) =>
+    ctx.runMutation!(api.permissions.answerPrompt, args),
   resolvePermission: async (
     ctx,
     _userId,
