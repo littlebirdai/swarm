@@ -21790,7 +21790,7 @@
         "apps/server/convex/passkeys.test.ts",
         "apps/server/convex/resourceOffload.test.ts",
         "apps/server/convex/sessionDecisions.run.test.ts",
-        "apps/server/convex/sessionGoals.test.ts",
+        "apps/server/convex/session-goals.test.ts",
         "apps/server/convex/sideAnswers.test.ts",
         "apps/server/convex/simBackend.test.ts",
         "apps/server/convex/weeklyCards.test.ts",
@@ -35250,7 +35250,7 @@
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
         "apps/server/convex/assistant.entry.test.ts",
-        "apps/server/convex/sessionGoals.test.ts"
+        "apps/server/convex/session-goals.test.ts"
       ],
       "routes": [],
       "line": 772
@@ -54819,7 +54819,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "apps/server/convex/sessionGoals.test.ts"
+        "apps/server/convex/session-goals.test.ts"
       ],
       "routes": [],
       "line": 436
@@ -54843,7 +54843,7 @@
       "risk": "high",
       "reason": "no authentication or token check visible in the handler",
       "testedBy": [
-        "apps/server/convex/sessionGoals.test.ts"
+        "apps/server/convex/session-goals.test.ts"
       ],
       "routes": [],
       "line": 427
@@ -54871,7 +54871,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "apps/server/convex/sessionGoals.test.ts"
+        "apps/server/convex/session-goals.test.ts"
       ],
       "routes": [],
       "line": 445
@@ -54899,7 +54899,7 @@
       "risk": "none",
       "reason": "judged by checkConversationAccess",
       "testedBy": [
-        "apps/server/convex/sessionGoals.test.ts"
+        "apps/server/convex/session-goals.test.ts"
       ],
       "routes": [],
       "line": 391

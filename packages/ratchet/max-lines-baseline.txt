@@ -399,7 +399,7 @@ apps/server/convex/secrets.test.ts 2850
 apps/server/convex/secrets.ts 2450
 apps/server/convex/sessionDecisions.test.ts 2650
 apps/server/convex/sessionDecisions.ts 4350
-apps/server/convex/sessionGoals.test.ts 900
+apps/server/convex/session-goals.test.ts 900
 apps/server/convex/sessionInsights.ts 1100
 apps/server/convex/sessionMigrations.test.ts 1450
 apps/server/convex/sessionMigrations.ts 1650
