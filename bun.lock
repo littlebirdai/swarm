@@ -805,6 +805,9 @@
     "packages/edge-contract": {
       "name": "@codecast/edge-contract",
       "version": "0.0.1",
+      "dependencies": {
+        "@codecast/relay-contract": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },

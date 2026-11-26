@@ -7,9 +7,14 @@ import {
   RELAY_MAX_GRANTS_PER_TOKEN,
   type RelayGrantClaims,
 } from "@codecast/relay-contract";
+import {
+  EDGE_PROTOCOL_VERSION,
+  isRelayGrantUrl,
+} from "@codecast/edge-contract";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./functions";
+import { internalMutation, mutation } from "./functions";
+import { currentClaim } from "./lib/edge/runLease";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { checkRateLimit, RateLimitError } from "./rateLimit";
 
@@ -45,17 +50,8 @@ export const mint = mutation({
     v.object({ status: v.literal("rate_limited") }),
   ),
   handler: async (ctx, { hubs }) => {
-    const audience = process.env.RELAY_AUDIENCE;
-    const secret = process.env.RELAY_HMAC_KEY;
-    const key = secret ? base64urlDecode(secret) : null;
-    if (
-      !audience ||
-      !relayId.test(audience) ||
-      !key ||
-      key.length < 32 ||
-      base64urlEncode(key) !== secret
-    )
-      return { status: "unavailable" } as const;
+    const config = relayGrantConfig();
+    if (!config) return { status: "unavailable" } as const;
 
     const userId = await getAuthUserId(ctx);
     if (!userId || !(await ctx.db.get(userId)))
@@ -119,39 +115,144 @@ export const mint = mutation({
         }
       }
       if (!grants.length) return { status: "denied", omitted } as const;
-      const claims: RelayGrantClaims = {
-        v: RELAY_GRANT_VERSION,
-        audience,
-        subject: { kind: "user", id: userId },
-        issued_at_ms: issuedAtMs,
-        grant_seq: sequence,
-        expires_at_ms: expiresAtMs,
-        grants,
-      };
-      const signingInput = `v1.${base64urlEncode(encoder.encode(JSON.stringify(claims)))}`;
-      const signingKey = await crypto.subtle.importKey(
-        "raw",
-        key,
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"],
-      );
-      const signature = new Uint8Array(
-        await crypto.subtle.sign(
-          "HMAC",
-          signingKey,
-          encoder.encode(signingInput),
-        ),
-      );
       return {
         status: "ok",
-        token: `${signingInput}.${base64urlEncode(signature)}`,
+        token: await signRelayGrant(config, {
+          subject: { kind: "user", id: userId },
+          issued_at_ms: issuedAtMs,
+          grant_seq: sequence,
+          expires_at_ms: expiresAtMs,
+          grants,
+        }),
         ttl_ms: expiresAtMs - issuedAtMs,
         omitted,
       } as const;
     } catch (error) {
       if (error instanceof RateLimitError)
         return { status: "rate_limited" } as const;
+      throw new ConvexError("unavailable");
+    }
+  },
+});
+
+function relayGrantConfig() {
+  const audience = process.env.RELAY_AUDIENCE;
+  const secret = process.env.RELAY_HMAC_KEY;
+  const key = secret ? base64urlDecode(secret) : null;
+  return audience &&
+    relayId.test(audience) &&
+    key &&
+    key.length >= 32 &&
+    base64urlEncode(key) === secret
+    ? { audience, key }
+    : null;
+}
+
+export function machineRelayGrantConfig() {
+  if (
+    process.env.CODECAST_EDGE_V1 !== "1" ||
+    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
+    process.env.CODECAST_EDGE_RELAY_LIVENESS_V1 !== "1"
+  )
+    return null;
+  const config = relayGrantConfig();
+  const url = process.env.RELAY_PUBLIC_URL;
+  return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
+}
+
+async function signRelayGrant(
+  { audience, key }: NonNullable<ReturnType<typeof relayGrantConfig>>,
+  claims: Omit<RelayGrantClaims, "v" | "audience">,
+) {
+  const payload: RelayGrantClaims = {
+    v: RELAY_GRANT_VERSION,
+    audience,
+    ...claims,
+  };
+  const signingInput = `v1.${base64urlEncode(encoder.encode(JSON.stringify(payload)))}`;
+  const signingKey = await crypto.subtle.importKey(
+    "raw",
+    key,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = new Uint8Array(
+    await crypto.subtle.sign("HMAC", signingKey, encoder.encode(signingInput)),
+  );
+  return `${signingInput}.${base64urlEncode(signature)}`;
+}
+
+export const mintMachineLiveness = internalMutation({
+  args: {
+    bearer: v.string(),
+    sessions: v.array(
+      v.object({
+        session: v.string(),
+        run: v.number(),
+        fencing_token: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, { bearer, sessions }) => {
+    const v = EDGE_PROTOCOL_VERSION;
+    const config = machineRelayGrantConfig();
+    if (!config) return { v, status: "unavailable" } as const;
+    if (
+      !sessions.length ||
+      sessions.length > RELAY_MAX_GRANTS_PER_TOKEN ||
+      new Set(sessions.map(({ session }) => session)).size !== sessions.length
+    )
+      return { v, status: "stale" } as const;
+
+    const now = Date.now();
+    const grants: RelayGrantClaims["grants"] = [];
+    let owner: Awaited<ReturnType<typeof currentClaim>> = null;
+    let expires = now + TTL_MS;
+    for (const { session, run, fencing_token } of sessions) {
+      const claim = await currentClaim(
+        ctx,
+        { bearer, conversation_id: session, run, fencing_token },
+        now,
+      );
+      if (!claim) return { v, status: "stale" } as const;
+      owner ??= claim;
+      expires = Math.min(expires, claim.lease.expires_at);
+      grants.push({
+        kind: "session",
+        id: claim.binding.conversation_id,
+        run,
+        publish: ["session_liveness"],
+      });
+    }
+    if (!owner) return { v, status: "stale" } as const;
+    const { binding } = owner;
+    try {
+      const issuance = await checkRateLimit(
+        ctx,
+        binding.owner_user_id,
+        `relayGrants.machine:${binding.owner_device_id}`,
+        REQUESTS_PER_MINUTE,
+        1,
+        expires,
+      );
+      if (!issuance) return { v, status: "unavailable" } as const;
+      return {
+        v,
+        status: "ok",
+        url: config.url,
+        token: await signRelayGrant(config, {
+          subject: { kind: "machine", id: binding.owner_device_id },
+          issued_at_ms: issuance.issuedAtMs,
+          grant_seq: issuance.sequence,
+          expires_at_ms: expires,
+          grants,
+        }),
+        ttl_ms: expires - issuance.issuedAtMs,
+      } as const;
+    } catch (error) {
+      if (error instanceof RateLimitError)
+        return { v, status: "rate_limited" } as const;
       throw new ConvexError("unavailable");
     }
   },

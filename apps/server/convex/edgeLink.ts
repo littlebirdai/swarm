@@ -13,7 +13,9 @@ export const admit = internalMutation({
   args: {
     bearer: v.string(),
     machine: v.optional(v.string()),
-    operation: v.optional(v.union(v.literal("renew"), v.literal("blob"))),
+    operation: v.optional(
+      v.union(v.literal("renew"), v.literal("blob"), v.literal("relay_grant")),
+    ),
   },
   handler: async (ctx, { bearer, machine, operation }) => {
     const auth = await verifyDeviceApiToken(ctx, bearer);
@@ -26,9 +28,11 @@ export const admit = internalMutation({
         ? { scope: "edge/v1/renew", limit: 360 }
         : operation === "blob"
           ? { scope: "edge/v1/blobs", limit: 120 }
-          : machine === undefined
-            ? { scope: "edge/v1/work", limit: 120 }
-            : { scope: "edge/v1", limit: 12 };
+          : operation === "relay_grant"
+            ? { scope: "edge/v1/relay-grant", limit: 120 }
+            : machine === undefined
+              ? { scope: "edge/v1/work", limit: 120 }
+              : { scope: "edge/v1", limit: 12 };
     const result = await bumpWindow(
       ctx.db,
       `${budget.scope}:${auth.userId}:${auth.deviceId}`,

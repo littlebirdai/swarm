@@ -311,7 +311,13 @@ export function openConnection(
     subject = claims.subject;
     state = applied.state;
     for (const capability of capabilities)
-      if (frame.capabilities.includes(capability)) enabled.add(capability);
+      if (
+        frame.capabilities.includes(capability) &&
+        (subject.kind === "user" ||
+          capability === "session_liveness" ||
+          capability === "machine_liveness")
+      )
+        enabled.add(capability);
     setDeadline(nextGrantDeadline());
     yield* control({
       type: "hello",
@@ -451,7 +457,16 @@ export function openConnection(
   ) {
     const member = memberships.get(hubKey(signal.hub));
     const permission = member?.permissions.get(signal.type);
-    const deadline = permission?.grant?.expires_at_ms ?? 0;
+    const publishDeadline = () => {
+      const grant = permission?.grant;
+      if (
+        signal.type === "session_liveness" &&
+        (grant?.kind !== "session" || grant.run !== signal.run)
+      )
+        return 0;
+      return grant?.expires_at_ms ?? 0;
+    };
+    const deadline = publishDeadline();
     if (
       !member ||
       !permission ||
@@ -466,7 +481,7 @@ export function openConnection(
       publicationFor(
         frame,
         deadline,
-        () => permission.grant?.expires_at_ms ?? 0,
+        publishDeadline,
         clock.monotonicTimeNanosUnsafe(),
       ),
     );

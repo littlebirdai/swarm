@@ -1,3 +1,4 @@
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { TURN_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import {
@@ -118,6 +119,7 @@ export async function runForDeliverySettlement(
   const conversation = await ctx.db.get(conversationId);
   if (
     conversation?.user_id !== auth.userId ||
+    isHostedAgentType(conversation.agent_type) ||
     conversation.execution_protocol_state !== "fenced" ||
     !conversation.owner_device_id
   )
@@ -242,7 +244,7 @@ export async function claimRunLease(
   } as const;
 }
 
-async function currentClaim(
+export async function currentClaim(
   ctx: MutationCtx,
   args: Fence,
   now: number,

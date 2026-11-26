@@ -1,6 +1,7 @@
 import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION,
+  RELAY_SESSION_LIVENESS_CAPABILITY,
   negotiateEdgeVersion,
   parseBlobsGetRequest,
   parseClaimRequest,
@@ -12,6 +13,7 @@ import {
   parseHeartbeatRequest,
   parseHelloRequest,
   parsePermitsNextRequest,
+  parseRelayGrantRequest,
   parseReleaseRequest,
   parseRenewRequest,
   type EdgeErrorResponse,
@@ -25,6 +27,7 @@ import type { HttpRouter } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
+import { machineRelayGrantConfig } from "../../relayGrants";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
@@ -119,7 +122,7 @@ function workAction<T>(
     | EventsAppendResponse
   >,
   options?: {
-    operation?: "renew" | "blob";
+    operation?: "renew" | "blob" | "relay_grant";
     batches?: (body: T) => number;
     enabled?: () => boolean;
   },
@@ -236,9 +239,12 @@ export function registerEdgeRoutes(http: HttpRouter) {
         ...version,
         policy: {
           ...policy,
-          capabilities: policy.capabilities.filter((capability) =>
-            body.capabilities.includes(capability),
-          ),
+          capabilities: [
+            ...policy.capabilities,
+            ...(machineRelayGrantConfig()
+              ? [RELAY_SESSION_LIVENESS_CAPABILITY]
+              : []),
+          ].filter((capability) => body.capabilities.includes(capability)),
         },
       };
     }),
@@ -279,6 +285,19 @@ export function registerEdgeRoutes(http: HttpRouter) {
           fencing_token,
         }),
       { operation: "renew" },
+    ),
+  });
+  http.route({
+    path: "/edge/v1/relay-grant",
+    method: "POST",
+    handler: workAction(
+      parseRelayGrantRequest,
+      (ctx, bearer, { sessions }) =>
+        ctx.runMutation(internal.relayGrants.mintMachineLiveness, {
+          bearer,
+          sessions,
+        }),
+      { operation: "relay_grant" },
     ),
   });
   http.route({
