@@ -21,8 +21,8 @@ let mints = 0;
 let refuseAll = false;
 let hang = false;
 let firstMint: {
-  started: PromiseWithResolvers<void>;
-  release: PromiseWithResolvers<void>;
+  started: { resolve: () => void };
+  release: { promise: Promise<void> };
 } | null = null;
 const seen: string[] = [];
 const server = Bun.serve({

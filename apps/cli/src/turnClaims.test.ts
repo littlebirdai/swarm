@@ -2,9 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createInterface } from "node:readline";
-import { Readable } from "node:stream";
 import { REVIVE_BUDGET } from "./midWorkRevive.js";
+import { bootFixture } from "./turn-claim-recovery.testkit.js";
 import {
   CLAIM_MAX_AGE_MS,
   MAX_TURN_RESUME_ATTEMPTS,
@@ -806,69 +805,6 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 });
 `;
 
-async function bootFixture(dir: string, source: string) {
-  const script = path.join(dir, "daemon.ts");
-  fs.writeFileSync(script, source);
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      script,
-      path.join(dir, "claims.json"),
-      path.join(dir, "resumes.jsonl"),
-    ],
-    {
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "inherit",
-      timeout: 10_000,
-      killSignal: "SIGKILL",
-    },
-  );
-  const output = createInterface({ input: Readable.fromWeb(child.stdout) });
-  const lines = output[Symbol.asyncIterator]();
-  const waitFor = async (want: string) => {
-    for (;;) {
-      const line = await lines.next();
-      if (line.done)
-        throw new Error(
-          `Turn fixture exited with ${await child.exited} before ${want}`,
-        );
-      if (line.value === want) return;
-    }
-  };
-  const finish = async (signal: "SIGTERM" | "SIGKILL") => {
-    if (child.exitCode === null && child.signalCode === null)
-      child.kill(signal);
-    await child.exited;
-    output.close();
-  };
-  try {
-    await waitFor("booted");
-  } catch (error) {
-    await finish("SIGKILL");
-    throw error;
-  }
-  return {
-    status: async (status: string, boundary = false) => {
-      child.stdin.write(
-        JSON.stringify({
-          session: "sess-1",
-          conv: "conv-1",
-          status,
-          boundary,
-        }) + "\n",
-      );
-      await child.stdin.flush();
-      await waitFor(`ack ${status}`);
-    },
-    kill: () => finish("SIGKILL"),
-    stop: async () => {
-      child.stdin.end();
-      await finish("SIGTERM");
-    },
-  };
-}
-
 test("a turn fixture that exits without booting reports its exit", async () => {
   await expect(bootFixture(scratch(), "process.exit(86)")).rejects.toThrow(
     "Turn fixture exited with 86 before booted",
@@ -890,39 +826,45 @@ const resumesIn = (dir: string): TurnClaim[] => {
 
 test("a daemon killed mid-turn resumes the claimed session exactly once after it restarts", async () => {
   const dir = scratch();
-  let fixture = await bootFixture(dir, FIXTURE);
+  const fixtures: Awaited<ReturnType<typeof bootFixture>>[] = [];
+  const boot = async () => {
+    const fixture = await bootFixture(dir, FIXTURE);
+    fixtures.push(fixture);
+    return fixture;
+  };
   try {
+    const first = await boot();
     expect(resumesIn(dir)).toEqual([]);
-    await fixture.status("thinking");
-    await fixture.status("working");
-    await fixture.kill();
+    await first.status("thinking");
+    await first.status("working");
+    await first.kill();
 
     // The restart resumes the claim, with the attempt on disk before the continue is queued.
-    fixture = await bootFixture(dir, FIXTURE);
+    const second = await boot();
     expect(resumesIn(dir)).toHaveLength(1);
     expect(resumesIn(dir)[0]).toMatchObject({
       sessionId: "sess-1",
       conversationId: "conv-1",
       attempts: 1,
     });
-    await fixture.kill();
+    await second.kill();
 
     // A crash while that resume is still starting does not resume it again.
-    fixture = await bootFixture(dir, FIXTURE);
+    const third = await boot();
     expect(resumesIn(dir)).toHaveLength(1);
     // The resumed session lands at its prompt, takes the continue, and finishes the turn.
-    await fixture.status("idle", true);
-    await fixture.status("thinking");
-    await fixture.status("idle");
-    await fixture.stop();
+    await third.status("idle", true);
+    await third.status("thinking");
+    await third.status("idle");
+    await third.stop();
 
-    fixture = await bootFixture(dir, FIXTURE);
+    const fourth = await boot();
     expect(resumesIn(dir)).toHaveLength(1);
     expect(
       JSON.parse(fs.readFileSync(path.join(dir, "claims.json"), "utf8")).claims,
     ).toEqual({});
-    await fixture.stop();
+    await fourth.stop();
   } finally {
-    await fixture.kill();
+    await Promise.all(fixtures.map((fixture) => fixture.kill()));
   }
 }, 60_000);
