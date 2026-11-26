@@ -1489,6 +1489,7 @@ export const continueRoleTriggerCancellation = internalMutation({
     const role = await ctx.db.get(state.role);
     if (role?.status !== "retired") {
       await ctx.db.delete(sweep._id);
+      await handRoleTriggersToRunner(ctx, conversationId);
       return;
     }
     const page = await triggerPage(ctx.db, conversationId, args.cursor);
@@ -1530,8 +1531,8 @@ export const continueRoleTriggerCancellation = internalMutation({
     if (page.isDone) {
       await writeArmedTriggerKind(ctx, seat, kind);
       await ctx.db.delete(sweep._id);
-      if (seat && state.keepTitle !== undefined)
-        await handRoleTriggersToRunner(ctx, conversationId);
+      if (state.keepTitle !== undefined)
+        await handRoleTriggersToRunner(ctx, conversationId, true);
       return;
     }
     const cursor = page.continueCursor;
@@ -1549,7 +1550,6 @@ export const continueRoleTriggerCancellation = internalMutation({
     });
   },
 });
-
 // A reset clears the org (org-staffing.md S27): every role is retired with
 // its standing session and its triggers, the sessions under it return to
 // their owners, and every proposal is withdrawn and archived. One act for the

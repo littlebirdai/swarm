@@ -22,7 +22,7 @@ import {
   setSessionOwnerRows,
   syncPrimaryOwnerCache,
 } from "./sessionOwners";
-import { patchTask } from "./lib/agentTaskRows";
+import { patchTask, refreshArmedTriggerKind } from "./lib/agentTaskRows";
 import { recalcPlanProgress } from "./tasks";
 import { setTaskStatus } from "./orgInit";
 import { outsideKeptArea, scopeIds } from "./lib/orgScope";
@@ -712,7 +712,12 @@ export async function planUndo(
   return { original, target, preview, steps };
 }
 
-async function restoreWrite(ctx: Ctx, userId: Id<"users">, w: OrgWrite) {
+async function restoreWrite(
+  ctx: Ctx,
+  userId: Id<"users">,
+  w: OrgWrite,
+  triggerHomes: Set<Id<"conversations">>,
+) {
   const current = await ctx.db.get(w.id);
   // A row logged before a role's charter moved to its doc (lib/roleCharter) may name the old field: it is never written back.
   const {
@@ -825,14 +830,23 @@ async function restoreWrite(ctx: Ctx, userId: Id<"users">, w: OrgWrite) {
     interval &&
     (patch.status === "scheduled" ||
       ("interval_ms" in patch && current.status === "scheduled"));
-  if (w.table === "agent_tasks")
-    await patchTask(ctx, current, {
-      ...patch,
-      ...(rearm
-        ? { run_at: Date.now() + interval, cadence_slot_at: undefined }
-        : {}),
-    });
-  else await ctx.db.patch(w.id, patch);
+  if (w.table === "agent_tasks") {
+    await patchTask(
+      ctx,
+      current,
+      {
+        ...patch,
+        ...(rearm
+          ? { run_at: Date.now() + interval, cadence_slot_at: undefined }
+          : {}),
+      },
+      async () => {},
+    );
+    if (current.originating_conversation_id)
+      triggerHomes.add(current.originating_conversation_id);
+    if (patch.originating_conversation_id)
+      triggerHomes.add(patch.originating_conversation_id);
+  } else await ctx.db.patch(w.id, patch);
   if (w.table === "conversations" && owners)
     await setSessionOwnerRows(
       ctx,
@@ -895,6 +909,7 @@ export async function performUndo(
     gesture: redo ? "redo" : "undo",
     undoes: plan.target._id,
   });
+  const triggerHomes = new Set<Id<"conversations">>();
   for (const step of plan.steps) {
     await withOrgChange(
       ctx,
@@ -906,7 +921,7 @@ export async function performUndo(
       },
       async () => {
         for (const w of [...step.writes].reverse())
-          await restoreWrite(ctx, userId, w);
+          await restoreWrite(ctx, userId, w, triggerHomes);
         if (step.parent) {
           const c = await ctx.db.get(step.row.subject.id);
           await performReparentSession(ctx, userId, {
@@ -939,6 +954,7 @@ export async function performUndo(
       },
     );
   }
+  for (const home of triggerHomes) await refreshArmedTriggerKind(ctx, home);
   const batch = openBatchId(ctx)!;
   for (const id of new Set(plan.steps.map((s) => s.row.batch)))
     await ctx.db.patch(id, {

@@ -12,7 +12,6 @@ import { hostedHomeStamp } from "../assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
 import { getDocumentSize, v } from "convex/values";
 export const RETIRED_TRIGGER_HOME = Symbol();
-
 export type TaskCtx = {
   db: any;
   [RETIRED_TRIGGER_HOME]?: Id<"conversations">;
@@ -20,7 +19,6 @@ export type TaskCtx = {
     runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown>;
   };
 };
-
 export async function refreshArmedTriggerKind(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
@@ -28,18 +26,18 @@ export async function refreshArmedTriggerKind(
   const tasks = await tasksOriginatedBy(ctx, conversationId);
   const conv = await ctx.db.get(conversationId);
   await writeArmedTriggerKind(ctx, conv, armedTriggerKindFor(tasks));
-  const sweep = await activeCancellation(ctx.db, conversationId);
-  if (!sweep) return;
-  const { row, state } = sweep;
-  const boundary = state.seenThrough;
-  if (boundary !== null) {
+  for await (const { row, state } of activeCancellations(
+    ctx.db,
+    conversationId,
+  )) {
+    const boundary = state.seenThrough;
+    if (boundary === null) continue;
     const kind = armedTriggerKindFor(
       tasks.filter((task) => task._creationTime <= boundary),
     );
     if (kind !== state.kind) await writeSweep(ctx, row._id, { ...state, kind });
   }
 }
-
 export async function writeArmedTriggerKind(
   ctx: TaskCtx,
   conv: Doc<"conversations"> | null,
@@ -49,9 +47,7 @@ export async function writeArmedTriggerKind(
   if ((conv.armed_trigger_kind ?? "none") === kind) return;
   await ctx.db.patch(conv._id, { armed_trigger_kind: kind });
 }
-
 type TriggerRestamp = (task: Doc<"agent_tasks">) => Promise<void>;
-
 export async function patchTask(
   ctx: TaskCtx,
   task: Doc<"agent_tasks">,
@@ -254,14 +250,12 @@ export async function cancelTasksBoundToConversation(
   }
   return cancelled;
 }
-
 export async function tasksOriginatedBy(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<Doc<"agent_tasks">[]> {
   return await triggersForConversation(ctx.db, conversationId).collect();
 }
-
 function triggersForConversation(
   db: DatabaseReader,
   conversationId: Id<"conversations">,
@@ -272,7 +266,6 @@ function triggersForConversation(
       q.eq("originating_conversation_id", conversationId),
     );
 }
-
 export async function runnerTasksOriginatedBy(
   ctx: TaskCtx,
   userId: Id<"users">,
@@ -282,7 +275,6 @@ export async function runnerTasksOriginatedBy(
     (task) => task.user_id.toString() === userId.toString(),
   );
 }
-
 export async function roleSeatOf(
   ctx: TaskCtx,
   roleId: Id<"org_roles"> | undefined,
@@ -290,7 +282,6 @@ export async function roleSeatOf(
   const seat = await roleSeatId(ctx, roleId);
   return seat ? await ctx.db.get(seat) : null;
 }
-
 async function roleSeatId(
   ctx: TaskCtx,
   roleId: Id<"org_roles"> | undefined,
@@ -300,7 +291,6 @@ async function roleSeatId(
   const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
   return anchor?.conversation_id ?? null;
 }
-
 export async function roleTriggerRunnerOf(
   ctx: TaskCtx,
   task: Pick<
@@ -313,7 +303,6 @@ export async function roleTriggerRunnerOf(
     ? seat.user_id
     : null;
 }
-
 export async function seatOfRoleTrigger(
   ctx: TaskCtx,
   task: Pick<Doc<"agent_tasks">, "role_id" | "originating_conversation_id">,
@@ -343,12 +332,10 @@ export async function rewriterOf(
     ? { userId: seat.user_id, seat: true }
     : { userId: task.user_id, seat: false };
 }
-
 const HANDOFF_PAGE_ROWS = 128;
 const HANDOFF_PAGE_BYTES = 1_000_000;
 const HANDOFF_KIND_ROWS = 4096;
 const HANDOFF_KIND_BYTES = 4_000_000;
-
 async function smallTriggerSet(db: DatabaseReader, seat: Id<"conversations">) {
   const tasks: Doc<"agent_tasks">[] = [];
   let bytes = 0;
@@ -363,22 +350,22 @@ async function smallTriggerSet(db: DatabaseReader, seat: Id<"conversations">) {
 export async function handRoleTriggersToRunner(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
+  repairAll = false,
 ): Promise<number> {
   const seat: Doc<"conversations"> | null = await ctx.db.get(conversationId);
-  if (!seat) return 0;
-  return handRoleTriggersForSeat(ctx, seat, false);
+  return seat ? handRoleTriggersForSeat(ctx, seat, repairAll) : 0;
 }
 export async function handClaimedRoleTriggerToRunner(
   ctx: TaskCtx,
   task: Doc<"agent_tasks">,
 ): Promise<boolean> {
   const home = task.originating_conversation_id;
-  const sweep = home && (await activeCancellation(ctx.db, home));
-  if (
-    sweep &&
-    shouldCancelForRetirement(task, sweep.state, sweep.row._creationTime)
-  )
-    return true;
+  if (home) {
+    for await (const { row, state } of activeCancellations(ctx.db, home)) {
+      if (shouldCancelForRetirement(task, state, row._creationTime))
+        return true;
+    }
+  }
   const seat = await seatOfRoleTrigger(ctx, task);
   if (!seat || seat.user_id === task.user_id) return false;
   await ctx.db.patch(task._id, { user_id: seat.user_id });
@@ -392,8 +379,7 @@ type RoleHandoff = {
   started: boolean;
   cursor?: string | null;
 };
-type SweepKind = "handoff" | "cancellation";
-const sweepKey = (seat: Id<"conversations">, kind: SweepKind = "handoff") =>
+const sweepKey = (seat: Id<"conversations">, kind = "handoff") =>
   `role-trigger-${kind}:${seat}`;
 function scheduledSweep(db: DatabaseReader, key: string) {
   return db
@@ -401,18 +387,23 @@ function scheduledSweep(db: DatabaseReader, key: string) {
     .withIndex("by_key", (q) => q.eq("key", key))
     .unique();
 }
-async function activeCancellation(
+async function* activeCancellations(
   db: DatabaseReader,
   seat: Id<"conversations">,
 ) {
-  const row = await scheduledSweep(db, sweepKey(seat, "cancellation"));
-  if (!row) return null;
-  const state = readSweep(row);
-  if (!("role" in state) || !(await sweepIsActive(db, state.jobId)))
-    return null;
-  return (await db.get(state.role))?.status === "retired"
-    ? { row, state }
-    : null;
+  const key = sweepKey(seat, "cancellation");
+  const rows = db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.gte("key", key).lt("key", `${key};`));
+  for await (const row of rows) {
+    const state = readSweep(row);
+    if (
+      "role" in state &&
+      (await sweepIsActive(db, state.jobId)) &&
+      (await db.get(state.role))?.status === "retired"
+    )
+      yield { row, state };
+  }
 }
 export function readSweep(
   row: Doc<"system_config">,
@@ -456,7 +447,7 @@ async function handRoleTriggersForSeat(
   seat: Doc<"conversations">,
   claimed: boolean,
 ): Promise<number> {
-  if (await activeCancellation(ctx.db, seat._id)) return 0;
+  for await (const _ of activeCancellations(ctx.db, seat._id)) return 0;
   const handoff = await scheduledSweep(ctx.db, sweepKey(seat._id));
   if (handoff) {
     const state = readSweep(handoff);
@@ -683,9 +674,16 @@ export async function cancelTasksOriginatingFrom(
 ) {
   if (retirement.keepTitle === undefined)
     ctx[RETIRED_TRIGGER_HOME] = conversationId;
-  const key = sweepKey(conversationId, "cancellation");
-  const existing = await scheduledSweep(ctx.db, key);
-  if (existing) await ctx.db.delete(existing._id);
+  const seatKey = sweepKey(conversationId, "cancellation");
+  const roleKey = `${seatKey}:${retirement.role}`;
+  const key = retirement.keepTitle === undefined ? seatKey : roleKey;
+  for (const priorKey of [seatKey, roleKey]) {
+    const row = await scheduledSweep(ctx.db, priorKey);
+    if (!row) continue;
+    const state = readSweep(row);
+    if (priorKey === key || ("role" in state && state.role === retirement.role))
+      await ctx.db.delete(row._id);
+  }
   const tasks = await smallTriggerSet(ctx.db, conversationId);
   if (!tasks) {
     if (!ctx.scheduler)
@@ -717,17 +715,15 @@ export async function cancelTasksOriginatingFrom(
   for (const task of tasks) remaining[armedTriggerKindOf(task)]++;
   return cancelRetirementPage(ctx, cancelling, async (task) => {
     remaining[armedTriggerKindOf(task)]--;
-    const kind =
-      remaining.standing > 0
-        ? "standing"
-        : remaining.once > 0
-          ? "once"
-          : "none";
+    const kind = remaining.standing
+      ? "standing"
+      : remaining.once
+        ? "once"
+        : "none";
     await writeArmedTriggerKind(ctx, seat, kind);
     if (seat) seat = { ...seat, armed_trigger_kind: kind };
   });
 }
-
 export async function reactivateTasksCanceledOnKill(
   ctx: TaskCtx,
   userId: Id<"users">,

@@ -6,10 +6,11 @@ import {
   serverTest,
   type ServerTest,
 } from "../test-helpers/database.testkit";
+import { seedSeat } from "../test-helpers/role-trigger.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import type { FunctionArgs } from "convex/server";
 import { api, internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import {
   cancelTasksOriginatingFrom,
   handRoleTriggersToRunner,
@@ -42,88 +43,6 @@ async function oldRunnerClaims(
       daemon_id: "old-daemon",
       task_id,
     });
-}
-
-async function seedSeat(
-  t: ServerTest,
-  triggerCount: number,
-  prompt = "Check in",
-) {
-  return t.run(async ({ db }) => {
-    const fixtures = fixtureRows(db, "role-trigger-handoff");
-    const oldRunner = await fixtures.user();
-    const runner = await fixtures.user();
-    const otherSeat = await fixtures.conversation(oldRunner);
-    const seat = await fixtures.conversation(runner, {
-      armed_trigger_kind: "once",
-    });
-    async function roleAt(conversation: typeof seat, handle: string) {
-      const anchor = await db.insert("anchors", {
-        conversation_id: conversation,
-        scope_type: "user",
-        scope_user_id: oldRunner,
-        host_user_id: oldRunner,
-        bot_user_id: oldRunner,
-        name: handle,
-        status: "active",
-        created_at: 1,
-      });
-      return db.insert("org_roles", {
-        anchor_id: anchor,
-        short_id: handle,
-        scope_type: "user",
-        scope_user_id: oldRunner,
-        host_user_id: oldRunner,
-        name: handle,
-        handle,
-        scope: { project_ids: [], plan_ids: [] },
-        reports_to: { kind: "user", user_id: oldRunner },
-        status: "active",
-        created_by: oldRunner,
-        created_at: 1,
-        updated_at: 1,
-      });
-    }
-    const role = await roleAt(seat, "seated-role");
-    const otherRole = await roleAt(otherSeat, "other-role");
-    const trigger = (data: Partial<Doc<"agent_tasks">> = {}) =>
-      db.insert("agent_tasks", {
-        user_id: oldRunner,
-        originating_conversation_id: seat,
-        title: "Follow up",
-        prompt,
-        mode: "apply",
-        schedule_type: "once",
-        status: "scheduled",
-        created_at: 1,
-        retry_count: 0,
-        run_count: 0,
-        ...data,
-      });
-    const personal = await trigger();
-    const offSeat = await trigger({ role_id: otherRole });
-    const alreadyOwned = await trigger({ user_id: runner, role_id: role });
-    const moved = [];
-    for (let i = 0; i < triggerCount; i++) {
-      moved.push(
-        await trigger({
-          role_id: role,
-          schedule_type: i === triggerCount - 1 ? "recurring" : "once",
-        }),
-      );
-    }
-    return {
-      seat,
-      runner,
-      oldRunner,
-      moved,
-      personal,
-      offSeat,
-      alreadyOwned,
-      role,
-      otherSeat,
-    };
-  });
 }
 
 test("handoff keeps owner writes in trigger order and repairs the kind after the first write", async () => {
@@ -719,9 +638,13 @@ test("retire after undo replaces the pending keep cancellation", async () => {
     owner.mutation(api.orgRoles.retire, { role_id: role, standing_session });
   const cancel = internal.orgRoles.continueRoleTriggerCancellation;
   await retire("keep");
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect((await t.run(({ db }) => db.get(moved[0])))?.status).toBe("cancelled");
   await undoRetirement(t, oldRunner, role);
+  expect((await t.run(({ db }) => db.get(moved[0])))?.status).toBe("scheduled");
   await retire("retire");
-  expect(await scheduledJobs(t, cancel)).toHaveLength(2);
+  expect(await scheduledJobs(t, cancel)).toHaveLength(3);
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
   await t.run(async ({ db }) => {
     expect(await db.get(personal)).toMatchObject({ status: "cancelled" });
@@ -786,5 +709,53 @@ test("a claim after undo no longer waits for the cancelled retirement", async ()
       status: "scheduled",
     });
     expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
+  });
+});
+
+test("undoing retirement resumes the superseded handoff without a new claim", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved } = await seedSeat(t, 500);
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  const last = moved.at(-1)!;
+  expect((await t.run(({ db }) => db.get(last)))?.user_id).toBe(oldRunner);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await t.run(({ db }) => db.get(last))).toMatchObject({
+    status: "scheduled",
+    user_id: runner,
+  });
+});
+
+test("two keep retirements on one seat both drain and repair its armed kind", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, moved, personal, offSeat } = await seedSeat(
+    t,
+    500,
+  );
+  const anotherRole = await t.run(async ({ db }) => {
+    await db.patch(offSeat, { schedule_type: "recurring" });
+    const id = (await db.get(offSeat))!.role_id!;
+    const anchor = (await db.get(id))!.anchor_id!;
+    await db.patch(anchor, { conversation_id: seat });
+    return id;
+  });
+  for (const role_id of [role, anotherRole])
+    await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+      role_id,
+      standing_session: "keep",
+    });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    for (const id of [offSeat, ...moved])
+      expect((await db.get(id))?.status).toBe("cancelled");
+    expect((await db.get(personal))?.status).toBe("scheduled");
+    expect(await db.get(seat)).toMatchObject({ armed_trigger_kind: "once" });
+    expect((await db.get(seat))?.inbox_killed_at).toBeUndefined();
   });
 });
