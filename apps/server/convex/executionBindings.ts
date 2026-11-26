@@ -1358,6 +1358,7 @@ export async function claimExecutionStartInDb(
     };
   }
   if (
+    conversation.owner_device_id !== args.ownerDeviceId ||
     binding.owner_device_id !== args.ownerDeviceId ||
     binding.configuration_revision !== args.configurationRevision ||
     binding.protocol_version !== args.protocolVersion ||

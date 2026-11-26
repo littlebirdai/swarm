@@ -374,3 +374,56 @@ test("adopting a pending binding leaves the current delivery slot intact", async
     permit: { attemptId: permit.attemptId, daemonBootId: boot },
   });
 });
+
+test.each([
+  ["moved", "destination-machine"],
+  ["unassigned", undefined],
+] as const)(
+  "the %s conversation case refuses the old device's boot recovery and writes nothing",
+  async (_case, ownerDevice) => {
+    setSystemTime(new Date(start));
+    const { t, bearer, owner, conversation, binding, head, message, deliver } =
+      await setupRunLease();
+    const { permit } = await deliver();
+    await t.run((ctx) =>
+      startDeliveryInDb(ctx, owner, {
+        ...permit,
+        conversationId: conversation,
+        conversationSequence: Number(permit.conversationSequence),
+        now: start,
+      }),
+    );
+    const device = {
+      owner_device_id: machine,
+      daemon_boot_id: "replacement",
+      api_token: bearer,
+    };
+    await t.mutation(api.executionBindings.registerExecutionDaemonBoot, device);
+    await t.run(({ db }) =>
+      db.patch(conversation, { owner_device_id: ownerDevice }),
+    );
+    const rows = () =>
+      t.run(async ({ db }) => ({
+        binding: await db.get(binding),
+        head: await db.get(head),
+        message: await db.get(message),
+        attempts: await db.query("delivery_attempts").collect(),
+      }));
+    const before = await rows();
+    expect(
+      await t.mutation(api.executionBindings.claimExecutionStart, {
+        ...device,
+        conversation_id: conversation,
+        epoch: 1,
+        configuration_revision: 1,
+        protocol_version: 1,
+        required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        proposed_operation_id: "operation",
+      }),
+    ).toMatchObject({
+      state: "rejected",
+      failure: { code: "EXECUTION_BINDING_FENCE_MISMATCH" },
+    });
+    expect(await rows()).toEqual(before);
+  },
+);
