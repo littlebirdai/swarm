@@ -6,8 +6,11 @@ import type {
 import {
   projectTurn,
   TURN_PROJECTION_VERSION,
+  TURN_STARTER_PROJECTION_VERSION,
   type TurnProjection,
 } from "@codecast/session-contract/turn-projection";
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import { findClaim } from "../claims";
 import { convexToJson } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
@@ -119,6 +122,7 @@ export async function clearEventTurn(
 }
 
 type OpenTurn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
+type TurnStarted = Extract<CanonicalEvent, { kind: "turn.started" }>;
 type PromptDetails = NonNullable<OpenTurn["prompt_details"]>[number];
 const MAX_QUESTIONS_PER_PROMPT = 32;
 const MAX_QUESTION_ID_LENGTH = 256;
@@ -158,6 +162,7 @@ function projectPromptTurn(
   events: readonly CanonicalEvent[],
 ) {
   let state = initial;
+  let opened: TurnStarted | undefined;
   const details = new Map(
     previousDetails.map((prompt) => [prompt.prompt_id, prompt]),
   );
@@ -198,6 +203,8 @@ function projectPromptTurn(
         state = projectTurn(state, [event]);
         const after = state.openTurn;
         if (before?.id !== after?.id) details.clear();
+        if (!after) opened = undefined;
+        else if (!before && event.kind === "turn.started") opened = event;
         if (event.kind === "prompt.opened") {
           const { prompt_id, kind, tool_call_id } = event.body;
           if (
@@ -222,6 +229,7 @@ function projectPromptTurn(
   }
   const promptDetails = [...details.values()];
   return {
+    opened,
     status: state.status,
     turn_ids: [...state.turnIds],
     open_turn: state.openTurn && {
@@ -230,6 +238,58 @@ function projectPromptTurn(
       ...(promptDetails.length ? { prompt_details: promptDetails } : {}),
     },
   };
+}
+
+async function verifiedStarter(
+  ctx: Db,
+  binding: Doc<"execution_bindings">,
+  starter: TurnStarted["body"]["starter"],
+) {
+  if (!starter) return;
+  const head = await ctx.db
+    .query("conversation_execution_heads")
+    .withIndex("by_conversation", (q) =>
+      q.eq("conversation_id", binding.conversation_id),
+    )
+    .unique();
+  if (
+    head?.current_epoch !== binding.epoch ||
+    head.active_delivery_state !== "delivery-started" ||
+    !head.active_delivery_attempt_id
+  )
+    return;
+
+  const attempt = await ctx.db.get(head.active_delivery_attempt_id);
+  if (
+    attempt?.state !== "delivery-started" ||
+    attempt.conversation_id !== binding.conversation_id ||
+    attempt.execution_epoch !== binding.epoch ||
+    attempt.configuration_revision !== binding.configuration_revision ||
+    attempt.owner_device_id !== binding.owner_device_id ||
+    attempt.daemon_boot_id !== binding.daemon_boot_id ||
+    attempt.runtime_id !== binding.runtime_id
+  )
+    return;
+
+  const message = await ctx.db.get(attempt.message_id);
+  if (
+    message?.active_delivery_attempt_id !== attempt._id ||
+    message.conversation_id !== binding.conversation_id ||
+    message.execution_epoch !== binding.epoch ||
+    message.delivery_intent === "steer" ||
+    message.origin !== undefined ||
+    message.delivery_status !== "delivery-started"
+  )
+    return;
+
+  if (starter.kind === "agent") {
+    if (starter.id === message.from_conversation_id) return starter;
+  } else if (
+    message.from_conversation_id === undefined &&
+    message.human === true &&
+    starter.id === message.from_user_id
+  )
+    return starter;
 }
 
 export async function appendRunEvents(
@@ -248,13 +308,22 @@ export async function appendRunEvents(
     return { session, status: "gap", expected_seq: base + 1 };
 
   const row = await turnProjection(ctx, binding);
-  if (!row || row.projection_version === TURN_PROJECTION_VERSION) {
+  if (
+    !row ||
+    row.projection_version === TURN_PROJECTION_VERSION ||
+    row.projection_version === TURN_STARTER_PROJECTION_VERSION
+  ) {
     const before = {
+      projection_version: row?.projection_version ?? TURN_PROJECTION_VERSION,
       status: row?.status ?? "active",
       turn_ids: row?.turn_ids ?? [],
       open_turn: row?.open_turn ?? null,
     } as const;
-    const after = projectPromptTurn(
+    const {
+      opened,
+      open_turn: projectedTurn,
+      ...projection
+    } = projectPromptTurn(
       {
         session,
         run: binding.epoch,
@@ -269,18 +338,70 @@ export async function appendRunEvents(
       before.open_turn?.prompt_details ?? [],
       suffix,
     );
+    let projection_version = TURN_PROJECTION_VERSION;
+    let open_turn: OpenTurn | null = projectedTurn;
+    const batonEnabled =
+      process.env.SWARM_TURN_BATON === "1" &&
+      binding.capabilities?.includes(STEER_BATON_CAPABILITY);
+    if (batonEnabled) {
+      if (!open_turn) projection_version = TURN_STARTER_PROJECTION_VERSION;
+      else if (opened) {
+        const starter = await verifiedStarter(
+          ctx,
+          binding,
+          opened.body.starter,
+        );
+        const claim = await findClaim(ctx.db, {
+          kind: "steer",
+          id: binding.conversation_id,
+        });
+        projection_version = TURN_STARTER_PROJECTION_VERSION;
+        open_turn = {
+          ...open_turn,
+          ...(starter && { starter }),
+          start_event_seq: opened.seq,
+          ...(claim?.holder !== undefined &&
+            claim.lease_until > now && {
+              baton_converted: true,
+            }),
+        };
+      } else if (
+        before.projection_version === TURN_STARTER_PROJECTION_VERSION &&
+        before.open_turn?.start_event_seq !== undefined
+      ) {
+        projection_version = TURN_STARTER_PROJECTION_VERSION;
+        const { starter, start_event_seq, baton_converted } = before.open_turn;
+        open_turn = {
+          ...open_turn,
+          ...(starter && { starter }),
+          start_event_seq,
+          ...(baton_converted !== undefined && { baton_converted }),
+        };
+      }
+    }
+    const after = {
+      projection_version,
+      ...projection,
+      open_turn,
+    };
     if (!row) {
       await ctx.db.insert("run_turn_projections", {
         ...runFields(binding),
         ...after,
-        projection_version: TURN_PROJECTION_VERSION,
         received_at: now,
       });
     } else if (
       JSON.stringify(convexToJson(before)) !==
       JSON.stringify(convexToJson(after))
     ) {
-      await ctx.db.patch(row._id, { ...after, received_at: now });
+      const { projection_version: version, ...fields } = after;
+      await ctx.db.patch(row._id, {
+        ...fields,
+        ...(version !== before.projection_version && {
+          projection_version: version,
+        }),
+        received_at: now,
+      });
     }
   }
 

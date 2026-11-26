@@ -67,6 +67,14 @@ under the original rules before issuing a queue permit to its successor.
 | Turn projection  | Store the verified starter, start event sequence, and `baton_converted` with the open turn. Set the marker when an explicit claim becomes authoritative for that turn, including one already active at turn start. Drop the marker when the turn ends or its projection resets. The existing conversation-and-run index locates the projection. The start event sequence distinguishes a reused turn ID after boot transfer. |
 | Execution head   | Keep one admission counter, one oldest nonterminal sequence, and one active delivery attempt ID. Use the existing conversation index.                                                                                                                                                                                                                                                                                        |
 
+With the baton flag and run capability enabled, the event writer records the
+sequence of the accepted `turn.started` event. The machine appends the event
+while the queue delivery that opened the turn still owns the active started
+slot. The server matches the reported starter to that delivery's sender in
+the current run. An absent or unverified starter leaves the turn open with
+an unknown starter. A turn already open in a version 1 projection keeps
+that version through its end.
+
 Look up pending queue rows under both index keys, `intent: "queue"` and
 `intent: undefined`. Merge the two ordered results by original sequence
 before selecting the oldest eligible queue row. A legacy row at 10 must
