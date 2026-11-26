@@ -56,7 +56,7 @@ export const runTransitions = {
 
 export const turnTransitions = {
   start: { none: "running", ended: "running" },
-  prompt: { running: "blocked" },
+  prompt: { running: "blocked", blocked: "blocked" },
   answer: { blocked: "running" },
   end: { running: "ended", blocked: "ended" },
 } satisfies Table<TurnStatus>;

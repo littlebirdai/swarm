@@ -84,7 +84,7 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
     state.turn.status === "running" || state.turn.status === "blocked"
       ? state.turn.id
       : null;
-  const prompt_id = state.turn.prompt ?? "missing-prompt";
+  const prompt_id = state.turn.prompts[0]?.id ?? "missing-prompt";
   const seq = state.eventSeq + 1;
   return [
     {

@@ -238,7 +238,7 @@ test("turns start, wait for a named prompt, resume, and end with the provider re
     body: { prompt_id: "approval", by: request.sender, answer: true },
   });
   const resumed = applyFacts(blocked, settled);
-  expect([resumed.turn.status, resumed.turn.prompt]).toEqual(["running", null]);
+  expect([resumed.turn.status, resumed.turn.prompts]).toEqual(["running", []]);
   const result = sessionMachine.apply(resumed, ended);
   expect(result.effects).toEqual([
     { ...scope, kind: "turn.ended", turn: "turn-1", reason: "completed" },
