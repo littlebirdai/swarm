@@ -222,22 +222,28 @@ test.each(["stop", "replacement boot"] as const)(
   },
 );
 
-test("a replacement boot after the settlement cap cannot extend the deadline", async () => {
-  const f = await fixture();
-  await extendSourceLease(f);
-  const moveId = await f.record();
-  const deadline = start + 30_000;
-  expect((await f.read())?.device_move?.settlement_deadline).toBe(deadline);
-  jest.setSystemTime(deadline + 1_000);
-  await f.confirm("replacement boot", moveId);
-  expect(await f.read()).toMatchObject({
-    device_move: {
-      settlement_deadline: deadline,
-      source_replacement_boot_id: replacementBoot,
-    },
-    active_delivery_state: "ambiguous",
-  });
-});
+test.each(["stop", "replacement boot"] as const)(
+  "a confirmed %s after the settlement cap cannot extend the deadline",
+  async (proof) => {
+    const f = await fixture();
+    await extendSourceLease(f);
+    const moveId = await f.record();
+    const deadline = start + 30_000;
+    expect((await f.read())?.device_move?.settlement_deadline).toBe(deadline);
+    const confirmedAt = deadline + 1_000;
+    jest.setSystemTime(confirmedAt);
+    await f.confirm(proof, moveId);
+    expect(await f.read()).toMatchObject({
+      device_move: {
+        settlement_deadline: deadline,
+        ...(proof === "stop"
+          ? { source_stopped_at: confirmedAt }
+          : { source_replacement_boot_id: replacementBoot }),
+      },
+      active_delivery_state: "ambiguous",
+    });
+  },
+);
 
 test("a stale epoch stop cannot shorten the settlement window", async () => {
   const f = await fixture();
