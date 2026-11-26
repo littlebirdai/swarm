@@ -21,3 +21,20 @@ Blob reads verify the permit and lease before and after the storage read.
 A binding that receives an edge run lease requires an active lease for fenced
 delivery writes. Turning the flag off disables the routes. The legacy daemon
 still cannot deliver on that binding, even after release or expiry.
+
+## Fenced prompt answers
+
+The route requires both `CODECAST_FENCED_EXECUTION_V1` and
+`CODECAST_EDGE_DELIVERY_V1`.
+
+The owner can answer an open prompt through `permissions.answerPrompt`. Cards
+use the run, turn, prompt ID, and lease ID from `permissions.getPromptAddress`.
+Keep that address with the card when it opens. The answer mutation takes the
+actor from the authenticated session. It records one answer for that actor and
+prompt in a separate command queue.
+
+`POST /edge/v1/commands.next` returns a `prompt_answer` with the expected run and
+prompt ID, current lease fence, and answer with its actor. The same command
+can be read again until `commands.result` acknowledges it or the prompt
+settles. Stale runs, leases, and prompts cannot issue a command. The server
+requires the session owner until turn baton authority is available.

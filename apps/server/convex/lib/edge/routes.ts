@@ -4,6 +4,8 @@ import {
   negotiateEdgeVersion,
   parseBlobsGetRequest,
   parseClaimRequest,
+  parseCommandsNextRequest,
+  parseCommandsResultRequest,
   parseDeliverySettleRequest,
   parseDeliveryStartRequest,
   parseEventsAppendRequest,
@@ -25,6 +27,7 @@ import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
+import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
 import type { AppendResult } from "./runEvents";
 
 const policy = {
@@ -115,10 +118,17 @@ function workAction<T>(
     | { status: string; retry_after_ms?: number }
     | EventsAppendResponse
   >,
-  options?: { operation?: "renew" | "blob"; batches?: (body: T) => number },
+  options?: {
+    operation?: "renew" | "blob";
+    batches?: (body: T) => number;
+    enabled?: () => boolean;
+  },
 ) {
   return httpAction(async (ctx, request) => {
-    if (process.env.CODECAST_EDGE_DELIVERY_V1 !== "1") {
+    if (
+      process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
+      options?.enabled?.() === false
+    ) {
       const { pathname } = new URL(request.url);
       return new Response(`No HttpAction routed for ${pathname}`, {
         status: 404,
@@ -308,6 +318,36 @@ export function registerEdgeRoutes(http: HttpRouter) {
         return batches.length;
       },
     }),
+  });
+  http.route({
+    path: "/edge/v1/commands.next",
+    method: "POST",
+    handler: workAction(
+      parseCommandsNextRequest,
+      (ctx, bearer, { machine, boot }) =>
+        ctx.runMutation(internal.permissions.nextEdgePromptAnswer, {
+          bearer,
+          machine,
+          boot,
+        }),
+      { enabled: fencedPromptAnswersEnabled },
+    ),
+  });
+  http.route({
+    path: "/edge/v1/commands.result",
+    method: "POST",
+    handler: workAction(
+      parseCommandsResultRequest,
+      (ctx, bearer, { machine, boot, command_id, claim }) =>
+        ctx.runMutation(internal.permissions.finishEdgePromptAnswer, {
+          bearer,
+          machine,
+          boot,
+          command_id,
+          claim,
+        }),
+      { enabled: fencedPromptAnswersEnabled },
+    ),
   });
   http.route({
     path: "/edge/v1/permits.next",
