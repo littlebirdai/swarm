@@ -70,12 +70,9 @@ export function ModernAskUserQuestion({
     conversationId,
     Boolean(fencedTurnId && onSendMessage && !result),
   );
-  const address = findFencedPromptAddress(
-    rows,
-    tool.id,
-    fencedTurnId,
-    "question",
-  );
+  const address = fencedTurnId
+    ? findFencedPromptAddress(rows, tool.id, fencedTurnId, "question")
+    : undefined;
   const secret =
     parsedInput.questions?.some(({ isSecret }) => isSecret) ||
     address?.questions.some(({ is_secret }) => is_secret);
@@ -134,10 +131,7 @@ export function ModernAskUserQuestion({
           },
         ]),
       );
-      if (
-        submitFencedPromptAnswer(useInboxStore.getState(), address, { answers })
-      )
-        setSelections(sels);
+      submitFencedPromptAnswer(useInboxStore.getState(), address, { answers });
       return;
     }
     if (awaitingAddress || secret) return;
@@ -159,7 +153,11 @@ export function ModernAskUserQuestion({
         {questions.map((q, i) => {
           const picked =
             answers[q.question] ??
-            selections[i]?.map((s) => s.label).join(", ");
+            (fencedTurnId
+              ? submitted && q.id
+                ? address?.answerSummary?.[q.id]
+                : undefined
+              : selections[i]?.map((s) => s.label).join(", "));
           return (
             <ModernAnsweredRow
               key={i}

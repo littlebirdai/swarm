@@ -28035,9 +28035,6 @@
   "apps/web/store/expectationsSlice.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/fenced-prompt-answer.ts": {
-    "swarm/no-comments": 9
-  },
   "apps/web/store/firstRunState.ts": {
     "swarm/no-comments": 6
   },

@@ -516,25 +516,32 @@ type AskUserQuestionInput = {
 
 export function AskUserQuestionBlock(props: AskUserQuestionProps) {
   const proposals = useTeamProposalRole();
-  if (/^\d+:app-server:(?:string|number):/.test(props.tool.id))
+  let parsedInput: AskUserQuestionInput = {};
+  try {
+    parsedInput = JSON.parse(props.tool.input) ?? {};
+  } catch {}
+  if (parsedInput.fencedTurnId)
     return (
       <AskUserQuestionInner
         {...props}
+        parsedInput={parsedInput}
         conversationId={props.conversationId ?? proposals?.conversationId}
       />
     );
   if (proposals?.role === "teammate" && !props.onSendMessage && !props.result)
-    return <TeammateAskUserQuestion {...props} />;
+    return <TeammateAskUserQuestion {...props} parsedInput={parsedInput} />;
   if (proposals?.role === "owner" && props.onSendMessage && !props.result)
-    return <OwnerAskUserQuestion {...props} />;
-  return <AskUserQuestionInner {...props} />;
+    return <OwnerAskUserQuestion {...props} parsedInput={parsedInput} />;
+  return <AskUserQuestionInner {...props} parsedInput={parsedInput} />;
 }
 
 // The owner's open question with the teammates' proposed answers under it.
 // Sending one answers the question, so the card closes as if pressed: a
 // second answer before the transcript catches up would land in whatever the
 // terminal shows next.
-function OwnerAskUserQuestion(props: AskUserQuestionProps) {
+function OwnerAskUserQuestion(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
   const [rev, setRev] = useState(0);
   const [answered, setAnswered] = useState(false);
   const closeCard = () => {
@@ -568,11 +575,10 @@ function OwnerAskUserQuestion(props: AskUserQuestionProps) {
   );
 }
 
-function AskUserQuestionInner(props: AskUserQuestionProps) {
-  let parsedInput: AskUserQuestionInput = {};
-  try {
-    parsedInput = JSON.parse(props.tool.input);
-  } catch {}
+function AskUserQuestionInner(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
+  const { parsedInput } = props;
   // Only a terminal dialog still counting down holds a ticking clock.
   return typeof parsedInput.deniesAt === "number" && !props.result ? (
     <TimedAskUserQuestion
@@ -588,7 +594,9 @@ function AskUserQuestionInner(props: AskUserQuestionProps) {
 // A teammate's press on an open question proposes that answer to the owner
 // (convex teamSuggestions.proposeAnswerFor). The card stays open, so another
 // pick replaces the proposal until the owner answers.
-function TeammateAskUserQuestion(props: AskUserQuestionProps) {
+function TeammateAskUserQuestion(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
   const ctx = useTeamProposalRole()!;
   const [rev, setRev] = useState(0);
   const propose = useInboxStore((s) => s.proposeAnswer);

@@ -26,7 +26,7 @@ export function useSyncFencedPromptAddresses(
 }
 
 const submissionSignature = (row: FencedPromptAddress) =>
-  JSON.stringify([row.submitted ?? false, row.questions]);
+  JSON.stringify([row.submitted ?? false, row.answerSummary, row.questions]);
 
 export function useFencedPromptAddresses(
   conversationId: string | undefined,

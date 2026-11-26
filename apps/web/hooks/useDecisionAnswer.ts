@@ -16,6 +16,12 @@ import { PERMISSION_SKIP_TOOLS } from "../components/permission-card";
 import type { QueueItem } from "../lib/decisionQueue";
 import { useApproveGate } from "../lib/passkeyPresence";
 
+function hasFencedQuestion(conversationId: string) {
+  return !!openQuestionFromMessages(
+    useInboxStore.getState().messages[conversationId],
+  )?.fencedTurnId;
+}
+
 // What a queue item asks and the three gestures that settle it: answer an
 // option, answer in words, or dismiss. One model for every surface that
 // answers an agent (the decision card in a conversation, the agent dock on
@@ -60,6 +66,7 @@ export function useDecisionAnswer(item: QueueItem | null) {
     () => (needsMessages ? openQuestionFromMessages(messages as any[]) : null),
     [needsMessages, messages],
   );
+  const isFencedQuestion = item?.source !== "decide" && !!poll?.fencedTurnId;
   const recentText = useMemo(
     () => (needsMessages ? lastAssistantText(messages as any[]) : undefined),
     [needsMessages, messages],
@@ -77,8 +84,8 @@ export function useDecisionAnswer(item: QueueItem | null) {
         description: o.description,
         index,
       }));
-    return poll ? visibleOptions(poll.question) : [];
-  }, [item, poll]);
+    return poll && !isFencedQuestion ? visibleOptions(poll.question) : [];
+  }, [item, poll, isFencedQuestion]);
 
   // A usage/billing interstitial is not a decision about the work, and its
   // options commit real money: rendered un-answerable everywhere.
@@ -98,14 +105,18 @@ export function useDecisionAnswer(item: QueueItem | null) {
         return gatedAnswer(index, (presence) =>
           answerDecision(id, { index, presence }),
         );
-      } else if (poll) {
+      } else if (
+        poll &&
+        !isFencedQuestion &&
+        !hasFencedQuestion(item.conversationId)
+      ) {
         sendToSession(
           item.conversationId,
           buildSingleAnswerPayload(poll.question, index),
         );
       }
     },
-    [item, poll, answerDecision, gatedAnswer],
+    [item, poll, isFencedQuestion, answerDecision, gatedAnswer],
   );
 
   const answerFreeText = useCallback(
@@ -114,14 +125,14 @@ export function useDecisionAnswer(item: QueueItem | null) {
       if (!item || !trimmed) return;
       if (item.source === "decide" && item.decisionId) {
         answerDecision(item.decisionId, { text: trimmed });
-      } else {
+      } else if (!isFencedQuestion && !hasFencedQuestion(item.conversationId)) {
         // No parsed poll needed: the free-text payload is the decline-then-type
         // form, which the daemon can drive at any AskUserQuestion menu — this is
         // how a buffered question (present in no transcript yet) gets answered.
         sendToSession(item.conversationId, buildFreeTextPayload(trimmed));
       }
     },
-    [item, answerDecision],
+    [item, isFencedQuestion, answerDecision],
   );
 
   // "I am not going to answer this." A `cast decide` row resolves as dismissed
@@ -145,6 +156,7 @@ export function useDecisionAnswer(item: QueueItem | null) {
     permissions,
     isPermissionCard,
     isInfraDialog,
+    isFencedQuestion,
     answer,
     gated,
     answerFreeText,

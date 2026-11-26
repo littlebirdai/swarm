@@ -166,6 +166,7 @@ export function SessionDecisionCard({
     permissions,
     isPermissionCard,
     isInfraDialog,
+    isFencedQuestion,
     answer: answerItem,
     gated,
     answerFreeText: answerItemFreeText,
@@ -362,11 +363,11 @@ export function SessionDecisionCard({
   );
   const answerFreeText = useCallback(
     (text: string) => {
-      if (!text.trim()) return;
+      if (!text.trim() || isFencedQuestion) return;
       answerItemFreeText(text);
       onDone();
     },
-    [answerItemFreeText, onDone],
+    [answerItemFreeText, isFencedQuestion, onDone],
   );
   const dismiss = useCallback(() => {
     dismissItem();
@@ -423,7 +424,8 @@ export function SessionDecisionCard({
   );
   // Answering in the person's own words: the text goes to the agent as the answer and the question closes.
   // "Discuss with …" on this card opens the same box, since talking it over with the session is that answer.
-  const ownWords = !isInfraDialog && !richControls && !isPermissionCard;
+  const ownWords =
+    !isInfraDialog && !richControls && !isPermissionCard && !isFencedQuestion;
   const openOwnWords = useCallback(() => {
     setOtherOpen(true);
     setTimeout(() => otherRef.current?.focus(), 0);
@@ -1002,14 +1004,14 @@ export function SessionDecisionCard({
           )}
           {/* A permission prompt is answered by Approve/Deny only; an infra
               dialog is handled in the session. Neither takes typed answers. */}
-          {!isPermissionCard && <TypeAnswerButton keys onOpen={openOwnWords} />}
+          {ownWords && <TypeAnswerButton keys onOpen={openOwnWords} />}
         </div>
       )}
       <RunFallbackLine
         run={decisionRow?.status === "pending" ? decisionRow.run : undefined}
         className="mt-3"
       />
-      {otherOpen && (
+      {otherOpen && !isFencedQuestion && (
         <div className="mt-3">
           <textarea
             ref={otherRef}
@@ -1263,13 +1265,9 @@ export function SessionDecisionCard({
           onPick={onPick ? (key) => onPick(key, "line") : undefined}
           held={(i) => !!held(i)}
           onAnswer={answer}
-          onAnswerText={
-            isPermissionCard || isInfraDialog || richControls
-              ? undefined
-              : answerFreeText
-          }
+          onAnswerText={ownWords ? answerFreeText : undefined}
           onOpen={grow}
-          answerable={!isPermissionCard && !isInfraDialog && !richControls}
+          answerable={ownWords}
           collapsed={dockCollapsed}
           onCollapsed={(v) =>
             useInboxStore

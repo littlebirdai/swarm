@@ -2162,6 +2162,7 @@ function AssistantBlockImpl({
       <AskUserQuestionBlock
         key={tc.id}
         tool={tc}
+        conversationId={conversationId}
         result={result}
         onSendMessage={onSendInlineMessage}
       />

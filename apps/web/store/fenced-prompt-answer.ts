@@ -8,7 +8,7 @@ type AnswerArgs = FunctionArgs<typeof api.permissions.answerPrompt>;
 
 export type FencedPromptAddress = FunctionReturnType<
   typeof api.permissions.listAnswerablePromptAddresses
->[number] & { submitted?: true };
+>[number] & { submitted?: true; answerSummary?: Record<string, string> };
 
 export interface FencedPromptAnswerActions {
   answerFencedPrompt: (rowId: string, args: AnswerArgs) => void;
@@ -24,20 +24,19 @@ export const promptAnswerActions: FencedPromptAnswerActions &
   answerFencedPrompt: action(function (
     this: { fencedPromptAddresses: Record<string, FencedPromptAddress> },
     rowId: string,
-    _args: AnswerArgs,
+    { answer }: AnswerArgs,
   ) {
     const row = this.fencedPromptAddresses[rowId];
-    if (row) row.submitted = true;
+    if (!row) return;
+    row.submitted = true;
+    if (answer !== null && typeof answer === "object" && "answers" in answer)
+      row.answerSummary = Object.fromEntries(
+        Object.entries(answer.answers).map(([id, response]) => [
+          id,
+          response.answers.join(", "),
+        ]),
+      );
   }),
-  // `pendingPermissions` is localFirst, so removing the row plants an exclude
-  // that holds over pushes racing the write and is released if the server
-  // refuses it. Resolving the conversation's last pending request unblocks
-  // the session, so its question is marked resolved in the same commit. The
-  // resolvePermission side effect runs permissions.updatePermissionStatus.
-  // A denial with a reason settles the session's other cards, the same rule
-  // the server applies (cascadeFromAnswer), so they leave on the press. What
-  // an "always" approves depends on every saved rule, denies included, which
-  // only the server holds: those cards leave with its next snapshot.
   resolvePermission: action(function (
     this: PermissionDraft,
     permissionId: string,

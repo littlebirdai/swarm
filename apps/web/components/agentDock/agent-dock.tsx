@@ -616,7 +616,8 @@ function DockCard({
       ) : (
         <div className="px-3 pb-3 pt-1.5">
           {entry.kind === "ask" ? (
-            !decision.isPermissionCard && (
+            !decision.isPermissionCard &&
+            !decision.isFencedQuestion && (
               <DockInput
                 placeholder="Type your answer…"
                 onSend={(text) =>

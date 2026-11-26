@@ -4,18 +4,21 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { ConvexError } from "convex/values";
 import { act } from "react";
 import { mountWeb } from "../../../test-helpers/mountWeb";
+import { expectToast } from "../../../test-helpers/expectToast";
 import type { FencedPromptAddress } from "../../../store/fenced-prompt-answer";
 import { DispatchFailureToast } from "../../dispatch-failure-toast";
 import { PermissionCard } from "../../permission-card";
 import { TeamProposalContext } from "../../../hooks/useTeamProposals";
 import { AskUserQuestionBlock } from "../blocks/interactive-blocks";
 import { ModernAskUserQuestion } from "../blocks/modern-ask-user-question";
+import { AssistantBlock } from "../blocks/turnBlocks";
+import { useDecisionAnswer } from "../../../hooks/useDecisionAnswer";
 
 const conversationId = "a".repeat(32) as Id<"conversations">;
 const leaseId = "b".repeat(32) as Id<"run_leases">;
 const permissionId = "c".repeat(32) as Id<"pending_permissions">;
 const questionId = "native-question";
-const promptId = "1:app-server:string:question";
+const promptId = "provider-question-tool";
 const permissionPromptId = "1:app-server:string:approval";
 const refusal =
   "The prompt has closed or you no longer have permission to answer it.";
@@ -108,7 +111,7 @@ test("a question is answered optimistically and a double click sends its exact a
       choose.click();
       choose.click();
       expect(
-        web.store.getState().fencedPromptAddresses[row._id].submitted,
+        web.store.getState().fencedPromptAddresses[row._id]?.submitted,
       ).toBe(true);
     });
     expect(
@@ -183,16 +186,185 @@ test("a permission answer rolls back on refusal and shows the reason", async () 
         { prompt_id: permissionPromptId, answer: { behavior: "allow" } },
       ],
     });
-    await act(async () => web.backend.set(query, [{ ...row }]));
+    await act(async () =>
+      web.backend.set(query, [{ ...row, tool_call_id: "approval-tool" }]),
+    );
+    expect(
+      web.store.getState().fencedPromptAddresses[row._id].tool_call_id,
+    ).toBe("approval-tool");
     expect(web.container.textContent).toContain("Permission decision sent");
     await act(async () => gate.resolve(error));
     expect(
       web.store.getState().fencedPromptAddresses[row._id].submitted,
     ).toBeUndefined();
     expect(button(web.container, "Approve").disabled).toBe(false);
-    expect(web.dom.window.document.body.textContent).toContain(refusal);
+    await expectToast(
+      "error",
+      `Answer fenced prompt didn't go through — ${refusal}`,
+    );
   } finally {
     gate.resolve(error);
+    await web.close();
+  }
+});
+
+test.each([
+  ["shows Question closed after a refusal if the prompt was dropped", true],
+  ["reopens unchecked after a refusal if the prompt is still open", false],
+] as const)("a fenced question %s", async (_name, dropped) => {
+  const row = address();
+  const gate = Promise.withResolvers<Error>();
+  const error = new ConvexError(refusal);
+  error.message = `[Request ID: fake] Server Error\nUncaught ConvexError: ${refusal}`;
+  const web = await mountWeb(
+    <Question
+      legacySend={() => {
+        throw new Error("legacy send");
+      }}
+    />,
+    {
+      authenticated: true,
+      dispatch: true,
+      expectedConsoleErrors: [
+        /CONVEX M\(dispatch:dispatch\).*ConvexError/,
+        /dispatch failed after retries: answerFencedPrompt/,
+      ],
+      setup(backend) {
+        backend.set(query, [row]);
+        backend.mutation(api.dispatch.dispatch, () => gate.promise);
+      },
+    },
+  );
+  try {
+    await act(async () => button(web.container, "Short").click());
+    expect(
+      web.container.querySelector("[data-cc-ask-settled]")?.textContent,
+    ).toContain("Short");
+    if (dropped) await act(async () => web.backend.set(query, []));
+    await act(async () => gate.resolve(error));
+    if (dropped) {
+      const text = web.container.querySelector(
+        "[data-cc-ask-settled]",
+      )?.textContent;
+      expect(text).toContain("Question closed");
+      expect(text).not.toContain("Short");
+    } else {
+      const option = button(web.container, "Short");
+      expect(option.disabled).toBe(false);
+      expect(option.querySelector("svg")).toBeNull();
+      expect(
+        web.store.getState().fencedPromptAddresses[row._id].answerSummary,
+      ).toBeUndefined();
+    }
+  } finally {
+    gate.resolve(error);
+    await web.close();
+  }
+});
+
+test("the transcript passes the conversation for a fenced question without an app-server tool id", async () => {
+  const row = address();
+  const tool = {
+    id: promptId,
+    name: "AskUserQuestion",
+    input: JSON.stringify({
+      fencedTurnId: "turn",
+      questions: [
+        { id: questionId, question: "Output?", options: [{ label: "Short" }] },
+      ],
+    }),
+  };
+  const web = await mountWeb(
+    <AssistantBlock
+      messageId="message"
+      timestamp={1}
+      toolCalls={[tool]}
+      showHeader={false}
+      conversationId={conversationId}
+      onSendInlineMessage={() => {
+        throw new Error("legacy send");
+      }}
+    />,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend) {
+        backend.set(query, [row]);
+        backend.mutation(api.dispatch.dispatch, null);
+      },
+    },
+  );
+  try {
+    await act(async () => button(web.container, "Short").click());
+    expect(web.backend.mutations).toHaveLength(1);
+    expect(web.backend.mutations[0]?.args).toMatchObject({
+      action: "answerFencedPrompt",
+      args: [row._id, { prompt_id: promptId, turn_id: "turn" }],
+    });
+  } finally {
+    await web.close();
+  }
+});
+
+test("decision surfaces cannot send a legacy choice or free-text answer to a fenced question", async () => {
+  function Probe() {
+    const decision = useDecisionAnswer({
+      key: "ask",
+      source: "ask",
+      conversationId,
+      question: "",
+      options: [],
+      blocking: true,
+      createdAt: 1,
+    });
+    return (
+      <>
+        <output data-option-count={decision.options.length}>
+          {decision.question}
+        </output>
+        <button onClick={() => void decision.answer(0)}>Choose</button>
+        <button onClick={() => decision.answerFreeText("Custom text")}>
+          Type answer
+        </button>
+      </>
+    );
+  }
+  const web = await mountWeb(<Probe />, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend, store) {
+      store.setMessages(conversationId, [
+        {
+          _id: "assistant",
+          role: "assistant",
+          timestamp: 1,
+          tool_calls: [
+            {
+              id: promptId,
+              name: "AskUserQuestion",
+              input: JSON.stringify({
+                fencedTurnId: "turn",
+                questions: [
+                  { question: "Output?", options: [{ label: "Short" }] },
+                ],
+              }),
+            },
+          ],
+        },
+      ]);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
+  });
+  try {
+    const output = web.container.querySelector("output");
+    expect(output?.textContent).toBe("Output?");
+    await act(async () => {
+      button(web.container, "Choose").click();
+      button(web.container, "Type answer").click();
+    });
+    expect(web.backend.mutations).toEqual([]);
+    expect(output?.dataset.optionCount).toBe("0");
+  } finally {
     await web.close();
   }
 });
