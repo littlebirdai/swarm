@@ -80,49 +80,71 @@ cache alone.
   Git events leave `workspace` unset, and PR events can lack
   `conversation_id`. Keep Git events without a workspace key.
 
-  Require an explicit scope. For `team:<id>`, require access to the named
-  team and scan `by_team_source_created` with that routing ID and an unset
-  `source_id`. This excludes ingestion rows. Use the index only to find
-  candidates and filter for Git event kinds. Confirm the PR belongs to the
-  named team on its own record. Confirm session scope with
-  `workspaceForConversation`. Also consider direct Git events from readable
-  sessions in that scope if those rows have no routing ID.
+  Require an explicit view scope. For `team:<id>`, require access to the
+  named team and scan `by_team_source_created` with that routing ID and an
+  unset `source_id`. This excludes ingestion rows. Use the index only to
+  find Git candidates. The event's routing `team_id` grants no access.
+  Confirm the PR belongs to the named team on its own record. For session
+  outcomes, use the readable sessions in the Team Activity view. Include
+  the viewer's own private sessions routed to that team. These
+  `hiddenFromTeam` rows keep their outcomes for the viewer through
+  `canAccessConversation`.
 
-  For `user:<authenticated user ID>`, start from readable conversations whose
-  canonical scope is that personal workspace. Read their direct Git events
-  through `by_conversation_created`. Follow `pull_request_sessions.by_conversation`
-  and read the history of those PRs through `by_pr_created`. A PR can
-  contribute to a personal outcome only through an explicit link to one of
-  those conversations. A personal request never falls back to an active team.
-  A missing or unknown scope returns no rows.
-
-  Check access to each event that contributes to an outcome, including the
-  history that supports a late check. Resolve `pr_id` through `pull_requests`
-  and use `canAccessPullRequest`. Resolve `conversation_id` and use
-  `canAccessConversation`. Require both checks for an event with both links.
-  Omit events with no readable source. Independently check each session tie
-  with `canAccessConversation` before adding a session ID, label, or count
-  to the projection. The event's routing `team_id` grants no access.
+  For `user:<authenticated user ID>`, use the viewer's readable own sessions
+  shown in Personal Activity, including team-shared sessions. The personal
+  key names the view, so a session's workspace does not have to match it.
+  Local Git reports only publish for team-shared paths. Resolve PRs through
+  explicit links to the displayed sessions. A personal request never
+  falls back to a team ID or scans a team's feed. A missing or unknown
+  scope returns no rows.
   `apps/server/convex/schema/events.tables.ts:83`,
   `apps/server/convex/schema/events.tables.ts:94`,
-  `apps/server/convex/schema/pull-requests.tables.ts:185`,
   `apps/server/convex/externalEvents.ts:264`,
-  `apps/server/convex/lib/access.ts:136`,
-  `apps/server/convex/lib/access.ts:369`,
-  `apps/server/convex/lib/access.ts:544`,
+  `apps/server/convex/gitActivity.ts:143`,
+  `apps/web/components/activity/ActivityPage.tsx:184`,
+  `apps/web/components/activity/useActivityItems.ts:223`,
   `CLAUDE.md:169`.
+
+  In both modes, expand each candidate PR through `by_pr_created` for
+  its full state and tie history. Use `pull_request_sessions.by_conversation`
+  to find PRs linked to displayed sessions. Read each displayed session's
+  commit history through `by_conversation_created`. Check access for each
+  row, including the older history. A late check must find its earlier
+  merge even if that merge is outside the recent candidate page.
+  `apps/server/convex/schema/events.tables.ts:100`,
+  `apps/server/convex/schema/pull-requests.tables.ts:185`.
+
+  Check PR facts and session facts separately. Resolve `pr_id` through
+  `pull_requests` and use `canAccessPullRequest` for PR state, reviews, and
+  checks. Resolve `conversation_id` and use `canAccessConversation` for
+  session ties and commit facts. A private, summary-only, or deleted shepherd
+  session can leave an authorized PR fact intact. Omit the session ID,
+  label, tie, and commit facts when session access fails. If PR access
+  fails, omit the PR facts and its tie. Omit the event if no readable
+  facts remain. Count only authorized commit facts and ties.
+  `apps/server/convex/githubWebhooks.ts:1047`,
+  `apps/server/convex/repos.ts:1968`,
+  `apps/server/convex/lib/access.ts:136`,
+  `apps/server/convex/lib/access.ts:544`.
 
   Register `activityGitOutcomes` in `CLIENT_SYNC_REGISTRY` with
   `DATA_SCOPE: workspace` and `REPLICATION_CLASSIFICATION: local`. Keep this
-  collection in memory per window. Key rows by scope and outcome ID. Use a
-  per-view feeder and read the result from the store through the workspace
-  selector. Start with a cap of 500 inactive outcomes per window and protect
-  the current page.
+  collection in memory per window. Stamp each authorized projection with
+  the view scope as its workspace. Key rows by view scope and outcome ID.
+  Today, the workspace selector only accepts persisted collections. Widen
+  `WorkspaceScopedStoreKey` and `WORKSPACE_SCOPED_KEYS` to use
+  `RegisteredCollectionKey` and its runtime list. Use a per-view feeder and
+  read from the store through `useWorkspaceCollection`. Pass the explicit
+  Personal Activity scope even when a team is active. Start with a cap of
+  500 inactive outcomes per window and protect the current page.
   Keep task and decision outcomes and the live `pr_status` overlay derived
   from current store rows. The Git feed supplies only history-dependent facts.
   `apps/web/store/clientSyncRegistry.ts:137`,
   `apps/web/store/clientSyncRegistry.scope.ts:7`,
-  `apps/web/store/clientSyncRegistry.ts:2595`,
+  `apps/web/store/clientSyncRegistry.ts:2459`,
+  `apps/web/store/clientSyncRegistry.ts:2489`,
+  `apps/web/store/clientSyncRegistry.ts:2826`,
+  `apps/web/hooks/useWorkspaceCollection.ts:177`,
   `apps/web/components/activity/useActivityItems.ts:100`,
   `apps/web/components/activity/useActivityItems.ts:219`,
   `CLAUDE.md:284`.
@@ -239,8 +261,8 @@ seconds. For an authoritative invalidation, cancel any queued liveness put
 and wait for an in-flight put before the delete. Use compact row versions or
 fingerprints for the disk shadow so it does not keep the reclaimed payloads
 in memory. For collections with `liveFields`, also keep a digest of the
-non-liveness fields. Compare that digest to distinguish a liveness-only
-update from a change that needs an immediate write. On host promotion,
+non-liveness fields. Use it for the `onlyLiveFieldsChanged` comparison in
+`holdLivenessRows` to distinguish deferred updates from immediate writes. On host promotion,
 refresh the shadow from IndexedDB before reclamation. A follower's `lastPersisted` only describes disk at boot.
 Preserve disk rows that the promoted window evicted only from memory.
 
@@ -249,7 +271,8 @@ idempotent and let a fresh feed or open view restore the row. Before
 reclamation ships, protect a document that an active follower has open with
 a renewable pin that expires if the window disappears.
 `apps/web/store/persistence/idb-liveness-lane.ts:164`,
-`apps/web/store/persistence/idb-liveness-lane.ts:258`,
+`apps/web/store/persistence/idb-liveness-lane.ts:47`,
+`apps/web/store/persistence/idb-liveness-lane.ts:217`,
 `apps/web/store/clientSyncRegistry.ts:2360`,
 `apps/web/store/persistence/collection-writer.ts:68`,
 `apps/web/store/sync-replication.ts:328`,
@@ -327,13 +350,18 @@ fallback for keys whose live caps are off.
    account reset. Cover open documents
    during host promotion.
 3. Add the Activity outcome feed and compare its results with the current
-   projection in replay. Cover unstamped PR events with no conversation link,
-   ingestion noise, private or revoked ties, scope switches, and a personal
-   request without a team. Verify that a personal session can include history
-   from a readable linked PR. A routing ID alone grants no access. Verify that
-   task, decision, and live PR changes still paint from the store. Add the view
-   queries for older history.
-   Leave timed Git event eviction off.
+   projection in replay. Cover a late check with an older merge outside
+   the team candidate page. Verify that a readable PR keeps its facts
+   when its shepherd is private, summary-only, or deleted. Cover the
+   inverse case where the PR is inaccessible and the session is readable.
+   Check the viewer's team-shared sessions in Personal Activity and their
+   own `hiddenFromTeam` sessions in Team Activity. Test ingestion noise,
+   routing-only candidates, and a personal view while a team is active.
+   Extend `apps/web/store/__tests__/workspaceScopeReaders.test.ts` and
+   `apps/web/lib/__tests__/workspace-enumeration.guard.test.ts` to cover
+   the memory-only workspace collection and explicit scope. Verify that
+   task, decision, and live PR changes still paint from the store. Add
+   view queries for older history. Leave timed Git event eviction off.
 4. Enable the timed sweep for eligible collections one at a time. Require
    per-window caps, outcome parity, and a passing typing guard.
 5. Add host-only disk reclamation. Require version checks, protection for
