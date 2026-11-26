@@ -49,12 +49,12 @@ const verbs = [
   "permits.next",
   "delivery.start",
   "delivery.settle",
+  "takeover.ack",
   "commands.next",
   "commands.result",
   "claim",
   "renew",
   "release",
-  "takeover.ack",
 ] as const;
 const stems = verbs.map(
   (verb) =>
@@ -65,6 +65,45 @@ const stems = verbs.map(
       ),
     ] as const,
 );
+
+function compatibleVariants(
+  verb: string,
+  variants: readonly WireObject[],
+  capabilities: unknown,
+) {
+  if (
+    verb !== "permits.next" ||
+    (Array.isArray(capabilities) &&
+      capabilities.includes(current.STEER_BATON_CAPABILITY) &&
+      capabilities.includes(current.TAKEOVER_FENCE_CAPABILITY))
+  )
+    return variants;
+  return variants.filter(({ status }) => status !== "takeover_fence");
+}
+
+test("frozen permit variants require both baton and takeover support", async () => {
+  const variants: Record<string, WireObject[]> = await Bun.file(
+    join(currentDir, "response-variants.json"),
+  ).json();
+  const all = variants["permits.next"];
+  const baseline = ["permit", "empty", "stale"];
+  for (const capabilities of [
+    [],
+    [current.STEER_BATON_CAPABILITY],
+    [current.TAKEOVER_FENCE_CAPABILITY],
+  ])
+    expect(
+      compatibleVariants("permits.next", all, capabilities).map(
+        ({ status }) => status,
+      ),
+    ).toEqual(baseline);
+  const hello: WirePair = await Bun.file(join(currentDir, "hello.json")).json();
+  expect(
+    compatibleVariants("permits.next", all, hello.request.capabilities).map(
+      ({ status }) => status,
+    ),
+  ).toEqual(["takeover_fence", ...baseline]);
+});
 
 const versions = releaseBaseline(root, process.env.EDGE_RELEASE_BASE);
 for (const version of versions) {
@@ -190,6 +229,9 @@ if (latest)
         join(previousDir, "manifest.json"),
       ).json();
       const previous = await loadPrevious(manifest.revision, tmp);
+      const hello: WirePair = await Bun.file(
+        join(previousDir, "hello.json"),
+      ).json();
       const variants: Record<string, WireObject[]> = await Bun.file(
         join(currentDir, "response-variants.json"),
       ).json();
@@ -203,7 +245,11 @@ if (latest)
         ).json();
         for (const value of [
           wire.response,
-          ...(variants[verb] ?? []),
+          ...compatibleVariants(
+            verb,
+            variants[verb] ?? [],
+            hello.request.capabilities,
+          ),
           ...errors,
         ]) {
           const parsed = response(value);

@@ -29,6 +29,17 @@
   "permits.next": [
     {
       "v": 1,
+      "status": "takeover_fence",
+      "session": "session-1",
+      "run": 3,
+      "fencing_token": "claim-token-1",
+      "fence_id": "takeover-1",
+      "turn": "turn-1",
+      "baton_token": 17,
+      "new_baton_token": 18
+    },
+    {
+      "v": 1,
       "status": "permit",
       "session": "session-1",
       "run": 3,

@@ -23,6 +23,7 @@ export {
 export {
   EXPECTED_CAPABILITY,
   STEER_BATON_CAPABILITY,
+  TAKEOVER_FENCE_CAPABILITY,
   parseHelloRequest,
   parseHelloResponse,
   parseHeartbeatRequest,
@@ -81,4 +82,5 @@ export {
   parseTakeoverAckResponse,
   type TakeoverAckRequest,
   type TakeoverAckResponse,
+  type TakeoverFence,
 } from "./takeover";

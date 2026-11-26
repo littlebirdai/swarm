@@ -10,4 +10,4 @@
 //
 // This file is excluded from its own hash, and it imports nothing on purpose:
 // the CLI fast path reads it, so it must never pull in a module graph.
-export const DAEMON_BUILD_ID = "73bd58af548b";
+export const DAEMON_BUILD_ID = "9b1cf3de5dc7";

@@ -326,18 +326,42 @@ event batches. An absent starter means unknown. The starter clears when the
 turn ends. Existing consumers keep storage version 1 until they can store
 the new field.
 
-### Takeover fence acknowledgment
+### Takeover fence
 
-The server gives each takeover fence a unique `fence_id`, the `turn`, and
-the `baton_token` of the steer it fences. The daemon stops handover of
-steers for that turn and token.
-It records a steer handover before it passes the steer to the agent. It
-acknowledges the fence only when no handed steer for that token remains open.
+The daemon offers `STEER_BATON_CAPABILITY` and
+`TAKEOVER_FENCE_CAPABILITY` (`"takeover-fence-v1"`) in `hello`. The server
+returns this response only if both capabilities are in the negotiated
+policy for that boot. A client without both capabilities receives the
+existing response variants.
 
-Send `POST /edge/v1/takeover.ack` with the device-bound bearer token. The JSON
-body carries `v`, `session`, `run`, `fencing_token`, `fence_id`, `turn`
-and `baton_token`. Retries use the same values. Each response carries `v` and
-`status`.
+| `permits.next` status | Rule                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `takeover_fence`      | A takeover waits for this run. Handle the fence before any previously returned steer for its turn and baton token. |
+| `stale`               | The poll lacks the current run lease. It receives no fence or permit.                                              |
+
+A `takeover_fence` response names `session`, `run`, `fencing_token`,
+`turn`, `fence_id`, `baton_token`, and `new_baton_token`. The server
+returns the same fence on each poll while it waits. It gives the fence
+priority over a permit, including replay of a started permit.
+
+A null `baton_token` names the old starter's implied right. The new
+baton token is a positive safe integer. If the old token is a number,
+the new token must be greater. The new token is reserved for the
+takeover. A fence response alone grants no right to steer.
+
+The daemon accepts a fence only for its current session, run lease, and
+turn. A mismatch has no effect. The daemon blocks new handovers for
+the named turn and old token, including a handover with a start response
+already on the machine. It records an outstanding steer handover
+before it passes the steer to the agent. It acknowledges the fence
+only after all such handovers have settled. A repeated fence keeps the
+same identity and can be acknowledged again.
+
+Send `POST /edge/v1/takeover.ack` with the device-bound bearer token.
+Copy `v`, `session`, `run`, `fencing_token`, `fence_id`, `turn`, and
+`baton_token` into the request. The fence ID binds the reserved token
+on the server. Retries use the same values. The response carries `v`
+and `status`.
 
 | Status      | Meaning                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------- |

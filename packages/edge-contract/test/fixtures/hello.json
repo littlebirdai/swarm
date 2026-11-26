@@ -3,7 +3,12 @@
     "machine": "machine-laptop",
     "boot": "boot-1",
     "versions": [1],
-    "capabilities": ["delivery-permit-v1", "expected"],
+    "capabilities": [
+      "delivery-permit-v1",
+      "expected",
+      "steer-baton-v1",
+      "takeover-fence-v1"
+    ],
     "providers": [
       {
         "name": "claude",
@@ -28,7 +33,11 @@
     "policy": {
       "revision": 2,
       "heartbeat_interval_ms": 10000,
-      "capabilities": ["delivery-permit-v1"],
+      "capabilities": [
+        "delivery-permit-v1",
+        "steer-baton-v1",
+        "takeover-fence-v1"
+      ],
       "uplink_interval_ms": 300,
       "limits": {
         "max_batch_events": 100,

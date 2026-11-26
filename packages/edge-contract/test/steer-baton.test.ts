@@ -9,12 +9,9 @@ import takeoverAck from "./fixtures/takeover.ack.json";
 const steer = { ...permitsNext.response, ...guarded.steer };
 
 test("hello carries the versioned steer baton capability", () => {
-  const request = {
-    ...hello.request,
-    capabilities: [...hello.request.capabilities, "steer-baton-v1"],
-  };
   expect(edge.STEER_BATON_CAPABILITY).toBe("steer-baton-v1");
-  expectParsed(edge.parseHelloRequest(request), request);
+  expect(hello.request.capabilities).toContain(edge.STEER_BATON_CAPABILITY);
+  expectParsed(edge.parseHelloRequest(hello.request), hello.request);
 });
 
 test("a steer permit requires a baton token or an explicit implied right and a turn ID", () => {
