@@ -680,8 +680,8 @@ apps/web/lib/desktop.test.ts 1500
 apps/web/lib/desktop.ts 2150
 apps/web/lib/desktopHandoff.ts 850
 apps/web/lib/entityLinks.test.ts 950
-apps/web/lib/faces/faceRow.test.ts 1300
-apps/web/lib/faces/faceRow.ts 1250
+apps/web/lib/faces/face-row.test.ts 1300
+apps/web/lib/faces/face-row.ts 1250
 apps/web/lib/line/__tests__/causeHistory.test.ts 1250
 apps/web/lib/line/__tests__/lineInbox.test.ts 1200
 apps/web/lib/line/__tests__/problemPage.test.ts 1750

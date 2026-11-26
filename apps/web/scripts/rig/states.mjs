@@ -1,5 +1,5 @@
 // Every state of the row as a recipe for the engine fake
-// (window.__faceRow.fake, lib/faces/faceRow.ts): the walkie's status, the
+// (window.__faceRow.fake, lib/faces/face-row.ts): the walkie's status, the
 // join announcement and a store side overlay (seats, rings, the call plane),
 // with no store write and no second person on the line. The same recipes
 // serve the headless shots (shots.mjs) and the founder's Chrome

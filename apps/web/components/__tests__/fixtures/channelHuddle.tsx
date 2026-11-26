@@ -59,7 +59,7 @@ mock.module("../../../lib/calls/actions", () => ({
     joins.push(room);
   },
 }));
-mock.module("../../../lib/faces/faceRow", () => ({
+mock.module("../../../lib/faces/face-row", () => ({
   roomHeldAsBurst: () => false,
 }));
 mock.module("../../../hooks/useFaceRow", () => ({

@@ -1,4 +1,4 @@
-import type { FaceCard } from "./faceRow";
+import type { FaceCard } from "./face-row";
 import {
   cancelOutgoing,
   declineInvite,

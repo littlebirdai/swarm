@@ -3,7 +3,7 @@
 import { useFaceRow } from "../../hooks/useFaceRow";
 import { BELOW_SM, useMediaQuery } from "../../hooks/useIsPhone";
 import { useCallStageOpen } from "../../lib/calls/callStage";
-import { isCallCard } from "../../lib/faces/faceRow";
+import { isCallCard } from "../../lib/faces/face-row";
 import { EngagementCard } from "../faces/EngagementCard";
 import { CallCardAccessories } from "./CallCardAccessories";
 

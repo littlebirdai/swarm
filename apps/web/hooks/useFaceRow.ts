@@ -8,7 +8,7 @@ import {
   readFaceRow,
   subscribeFaceRow,
   type FaceRow,
-} from "../lib/faces/faceRow";
+} from "../lib/faces/face-row";
 
 export type {
   FaceRow,
@@ -18,7 +18,7 @@ export type {
   FaceTier,
   Link,
   LinkKind,
-} from "../lib/faces/faceRow";
+} from "../lib/faces/face-row";
 
 export function useFaceRow(): FaceRow {
   return useSyncExternalStore(subscribeFaceRow, readFaceRow, readFaceRow);

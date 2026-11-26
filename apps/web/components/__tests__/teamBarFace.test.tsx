@@ -32,7 +32,7 @@ import type {
   FaceEntry,
   FaceRow as FaceRowModel,
   Link,
-} from "../../lib/faces/faceRow";
+} from "../../lib/faces/face-row";
 import { teamBarSig } from "../presence/memberPresence";
 import { walkieFacesSig } from "../presence/useFaceKey";
 

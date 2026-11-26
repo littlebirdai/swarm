@@ -1,5 +1,5 @@
 // The face row's shared reader (readFaceRow) and its input signature, and the
-// DM unread line a face carries. The model itself is tested in faceRow.test.ts.
+// DM unread line a face carries. The model itself is tested in face-row.test.ts.
 import { beforeEach, describe, expect, test } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
 import { dmUnreadOf } from "./faceDmUnread";
@@ -8,7 +8,7 @@ import {
   isInCall,
   readFaceRow,
   resetFaceRow,
-} from "./faceRow";
+} from "./face-row";
 import {
   NOW,
   ME,

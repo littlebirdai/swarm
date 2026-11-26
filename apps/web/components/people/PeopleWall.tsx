@@ -18,7 +18,7 @@ import { type WallFace } from "./peopleWallLayout";
 import { usePeopleRoster, type PeopleRosterData } from "./usePeopleRoster";
 import { useWall } from "./usePeopleWall";
 import "./people.css";
-import { engagementOf, isInHuddle, isTalking } from "../../lib/faces/faceRow";
+import { engagementOf, isInHuddle, isTalking } from "../../lib/faces/face-row";
 
 /** What a face tells the surface about itself as a pointer or focus arrives:
  *  the words the wall would float under the circle, for shapes (the strip)

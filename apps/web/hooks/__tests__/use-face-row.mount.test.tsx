@@ -19,7 +19,7 @@ import {
   announceJoin,
   clearJoinAnnouncement,
 } from "../../lib/calls/joinAnnounce";
-import { resetFaceRow, type FaceRow } from "../../lib/faces/faceRow";
+import { resetFaceRow, type FaceRow } from "../../lib/faces/face-row";
 import { useFaceRow } from "../useFaceRow";
 
 // THE ROW'S WAKE DISCIPLINE (pl-756 F1). The header bar is mounted for the

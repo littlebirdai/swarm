@@ -1,6 +1,6 @@
 import { MessageSquare } from "lucide-react";
 import { useFaceRowSelect } from "../../hooks/useFaceRow";
-import { callRoomOf } from "../../lib/faces/faceRow";
+import { callRoomOf } from "../../lib/faces/face-row";
 import { useRoomThreadUnread } from "../../hooks/useRoomThreadUnread";
 import { requestCallThread } from "../../lib/calls/callStage";
 import "./arrival.css";

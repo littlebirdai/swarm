@@ -18,7 +18,7 @@ import {
   isInHuddle,
   roomHeldAsBurst,
   callRoomOf,
-} from "./faceRow";
+} from "./face-row";
 import {
   NOW,
   ME,

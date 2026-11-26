@@ -23758,7 +23758,7 @@
   "apps/web/lib/__tests__/visitRecorder.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/__tests__/voiceHost.test.ts": {
+  "apps/web/lib/__tests__/voice-host.test.ts": {
     "swarm/no-comments": 58
   },
   "apps/web/lib/__tests__/voiceHostView.test.ts": {
@@ -24696,17 +24696,17 @@
   "apps/web/lib/faces/cardActions.ts": {
     "swarm/no-comments": 11
   },
-  "apps/web/lib/faces/faceDmUnread.ts": {
-    "swarm/no-comments": 7
-  },
-  "apps/web/lib/faces/faceRow.reader.test.ts": {
+  "apps/web/lib/faces/face-row.reader.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/faces/faceRow.test.ts": {
+  "apps/web/lib/faces/face-row.test.ts": {
     "swarm/no-comments": 40
   },
-  "apps/web/lib/faces/faceRow.ts": {
+  "apps/web/lib/faces/face-row.ts": {
     "swarm/no-comments": 152
+  },
+  "apps/web/lib/faces/faceDmUnread.ts": {
+    "swarm/no-comments": 7
   },
   "apps/web/lib/faces/faceRowFixtures.ts": {
     "swarm/no-comments": 1

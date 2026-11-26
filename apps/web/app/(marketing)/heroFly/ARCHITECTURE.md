@@ -176,7 +176,7 @@ All ids look like `hero-*` (not Convex-shaped). All timestamps are `mountNow - o
   - `run.node_statuses[]` per lib/workflowRun.ts, with no `session`.
 - **Team (chapter 9):**
   - `ChatMessageView[]` (chat/chatTypes.ts): no attachments, no `call`, `mentionRefs` for pills.
-  - `deriveFaceRow(FaceRowInput, null)` (faceRow.ts:473).
+  - `deriveFaceRow(FaceRowInput, null)` (face-row.ts:473).
   - `Turn[]` via `groupTurns`.
   - `ORG_FIXTURE` inside a fixed, untransformed inner box with `pointer-events: none` on role cards.
   - FeedCard `conv` with `author_avatar: null`.

@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";
 import { useFaceRowSelect } from "../../hooks/useFaceRow";
 import { showCallPanel, voiceHostElsewhere } from "../../lib/desktop";
-import type { FaceRow } from "../../lib/faces/faceRow";
+import type { FaceRow } from "../../lib/faces/face-row";
 import { CallCardRecordingMark } from "./RoomRecording";
 
 /**

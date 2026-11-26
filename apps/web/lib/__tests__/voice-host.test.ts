@@ -24,7 +24,7 @@ import {
   deriveFaceRow,
   faceRowInputFrom,
   faceRowInputSig,
-} from "../faces/faceRow";
+} from "../faces/face-row";
 import { walkieDoorOpen } from "../calls/walkieDoor";
 import { useInboxStore } from "../../store/inboxStore";
 

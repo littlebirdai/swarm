@@ -18,7 +18,7 @@ import {
 import { memberDisplayName } from "./presence/memberPresence";
 import { FaceRow } from "./faces/FaceRow";
 import { EngagementCard } from "./faces/EngagementCard";
-import { isCallCard } from "../lib/faces/faceRow";
+import { isCallCard } from "../lib/faces/face-row";
 import { CallCardAccessories } from "./calls/CallCardAccessories";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";

@@ -18,7 +18,7 @@ import type {
   FaceEntry,
   FaceRow as FaceRowModel,
   Link,
-} from "../../../lib/faces/faceRow";
+} from "../../../lib/faces/face-row";
 import type { PushToTalk } from "../../../hooks/useWalkie";
 import { MORPH_EASING, MORPH_MS } from "../../calls/useSurfaceMorph";
 
