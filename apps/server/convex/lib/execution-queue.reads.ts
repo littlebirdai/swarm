@@ -69,6 +69,43 @@ export function pendingByIntent(
     .take(limit);
 }
 
+function messageAtHead(ctx: Db, head: Head) {
+  return ctx.db
+    .query("pending_messages")
+    .withIndex("by_conversation_sequence", (q) =>
+      q
+        .eq("conversation_id", head.conversation_id)
+        .eq("conversation_sequence", head.next_nonterminal_sequence),
+    )
+    .first();
+}
+
+export async function canRecoverQueueAfterSteer(
+  ctx: Db,
+  head: Head,
+  epoch: number,
+  attemptSequence: number,
+): Promise<boolean> {
+  const first = await messageAtHead(ctx, head);
+  if (
+    first?.delivery_protocol_version === undefined ||
+    first.delivery_status === undefined ||
+    first.execution_epoch !== epoch ||
+    first.delivery_intent !== "steer" ||
+    orderedNonterminalMessages([first], head).length === 0
+  )
+    return false;
+
+  const [[queue], [legacy]] = await Promise.all([
+    pendingByIntent(ctx, head, epoch, "queue", 1),
+    pendingByIntent(ctx, head, epoch, undefined, 1),
+  ]);
+  return (
+    (queue?.conversation_sequence ?? Infinity) >= attemptSequence &&
+    (legacy?.conversation_sequence ?? Infinity) >= attemptSequence
+  );
+}
+
 export async function hasNonterminalAtEpoch(
   ctx: Db,
   conversation: Id<"conversations">,
@@ -122,14 +159,7 @@ export async function oldestNonterminal(
 ): Promise<Message | undefined> {
   const from = head.next_nonterminal_sequence;
   if (from >= head.next_conversation_sequence) return;
-  const atHead = await ctx.db
-    .query("pending_messages")
-    .withIndex("by_conversation_sequence", (q) =>
-      q
-        .eq("conversation_id", head.conversation_id)
-        .eq("conversation_sequence", from),
-    )
-    .first();
+  const atHead = await messageAtHead(ctx, head);
   if (
     atHead?.delivery_protocol_version !== undefined &&
     orderedNonterminalMessages([atHead], head).length

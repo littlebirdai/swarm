@@ -153,7 +153,94 @@ test("fenced queue rows cannot be merged or reordered", async () => {
   expect(await f.rows()).toEqual(before);
 });
 
-test.each(["queue selection", "boot transfer"] as const)(
+type Fixture = Awaited<ReturnType<typeof fixture>>;
+
+async function startQueue(
+  f: Fixture,
+  wire: Awaited<ReturnType<Fixture["next"]>>,
+) {
+  if (wire.status !== "permit") throw new Error("Expected queue permit");
+  const { delivery_id, attempt_id, seq, intent, sender } = wire;
+  expect(
+    await f.t.mutation(internal.edgeDelivery.start, {
+      ...f.fence,
+      v: 1,
+      bearer: f.bearer,
+      delivery_id,
+      attempt_id,
+      seq,
+      intent,
+      sender,
+    }),
+  ).toMatchObject({ status: "started", intent: "queue" });
+  const id = await f.t.run(({ db }) =>
+    db.normalizeId("delivery_attempts", attempt_id),
+  );
+  if (!id) throw new Error("Expected delivery attempt ID");
+  return id;
+}
+
+async function replaceDaemon(f: Fixture) {
+  const replacement = {
+    owner_device_id: machine,
+    daemon_boot_id: "replacement",
+    api_token: f.bearer,
+  };
+  await f.t.mutation(
+    api.executionBindings.registerExecutionDaemonBoot,
+    replacement,
+  );
+  return f.t.mutation(api.executionBindings.claimExecutionStart, {
+    ...replacement,
+    conversation_id: f.conversation,
+    epoch: 1,
+    configuration_revision: 1,
+    protocol_version: 1,
+    required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+    proposed_operation_id: "operation",
+  });
+}
+
+test.each(["baton on", "baton off"] as const)(
+  "boot transfer refuses a queue attempt behind a waiting queue with %s",
+  async (mode) => {
+    const f = await fixture();
+    await f.turn(null);
+    await f.send("waiting-queue", undefined);
+    const edge = { ...f.fence, v: 1 as const, bearer: f.bearer };
+    const wire = await f.t.mutation(internal.edgeDelivery.next, edge);
+    const attemptId = await startQueue(f, wire);
+    await f.t.run(async ({ db }) => {
+      const waiting = await db
+        .query("pending_messages")
+        .withIndex("by_conversation_client_id", (q) =>
+          q
+            .eq("conversation_id", f.conversation)
+            .eq("client_id", "waiting-queue"),
+        )
+        .unique();
+      if (!waiting) throw new Error("Expected waiting queue");
+      await db.patch(waiting._id, { conversation_sequence: 1 });
+      await db.patch(f.message, { conversation_sequence: 2 });
+      await db.patch(attemptId, { conversation_sequence: 2 });
+    });
+    if (mode === "baton off") delete process.env[flag];
+
+    const before = await f.rows();
+    await expect(replaceDaemon(f)).rejects.toThrow("DELIVERY_SLOT_INVARIANT");
+    expect(await f.rows()).toEqual(before);
+  },
+);
+
+test.each([
+  "queue selection",
+  "boot transfer",
+  "boot transfer with flag off",
+  "boot transfer with capability dropped",
+  "claimed queue head",
+  "earlier explicit queue",
+  "earlier legacy queue",
+] as const)(
   "idle delivery keeps the legacy queue slot behind 65 stale steers during %s",
   async (mode) => {
     const f = await fixture();
@@ -203,37 +290,52 @@ test.each(["queue selection", "boot transfer"] as const)(
     expect(rows.head?.next_nonterminal_sequence).toBe(65);
 
     if (mode === "queue selection") return;
-    if (wire.status !== "permit") throw new Error("Expected queue permit");
-    const { delivery_id, attempt_id, seq, intent, sender } = wire;
-    const request = { delivery_id, attempt_id, seq, intent, sender };
-    expect(
-      await f.t.mutation(internal.edgeDelivery.start, {
-        ...f.fence,
-        v: 1,
-        bearer: f.bearer,
-        ...request,
-      }),
-    ).toMatchObject({ status: "started" });
-    const replacement = {
-      owner_device_id: machine,
-      daemon_boot_id: "replacement",
-      api_token: f.bearer,
-    };
-    await f.t.mutation(
-      api.executionBindings.registerExecutionDaemonBoot,
-      replacement,
-    );
-    expect(
-      await f.t.mutation(api.executionBindings.claimExecutionStart, {
-        ...replacement,
-        conversation_id: f.conversation,
-        epoch: 1,
-        configuration_revision: 1,
-        protocol_version: 1,
-        required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-        proposed_operation_id: "operation",
-      }),
-    ).toMatchObject({ state: "ready" });
+    const attempt_id = await startQueue(f, wire);
+    if (mode === "boot transfer with flag off") delete process.env[flag];
+    if (mode === "boot transfer with capability dropped") {
+      await f.t.run(async ({ db }) => {
+        const binding = (await db.get(f.binding))!;
+        await db.patch(f.binding, {
+          capabilities: binding.required_capabilities,
+        });
+      });
+    }
+    if (mode === "claimed queue head") {
+      const headMessage = rows.messages.find(
+        (row) => row.conversation_sequence === 65,
+      );
+      if (!headMessage) throw new Error("Expected the remaining head message");
+      await f.t.run(({ db }) =>
+        db.patch(headMessage._id, {
+          delivery_status: "claimed",
+          delivery_intent: "queue",
+        }),
+      );
+      const before = await f.rows();
+      await expect(replaceDaemon(f)).rejects.toThrow("DELIVERY_SLOT_INVARIANT");
+      expect(await f.rows()).toEqual(before);
+      return;
+    }
+    if (mode === "earlier explicit queue" || mode === "earlier legacy queue") {
+      await f.t.run(async ({ db }) => {
+        const waiting = rows.messages.find(
+          (row) => row.delivery_id === "explicit-queue",
+        );
+        if (!waiting) throw new Error("Expected waiting queue");
+        await db.patch(waiting._id, {
+          conversation_sequence: 66,
+          delivery_intent:
+            mode === "earlier explicit queue" ? "queue" : undefined,
+        });
+        await db.patch(f.message, { conversation_sequence: 67 });
+        await db.patch(attempt_id, { conversation_sequence: 67 });
+      });
+      const before = await f.rows();
+      await expect(replaceDaemon(f)).rejects.toThrow("DELIVERY_SLOT_INVARIANT");
+      expect(await f.rows()).toEqual(before);
+      return;
+    }
+    expect(await replaceDaemon(f)).toMatchObject({ state: "ready" });
 
     const recovered = await f.rows();
     expect(recovered.head).toMatchObject({
