@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
@@ -631,7 +632,7 @@ export async function performMoveSessionToDevice(
       throw new Error(checkoutInUseMessage(args.project_path, occupant));
   }
 
-  await ctx.db.patch(args.conversation_id, {
+  await patchConversationLifecycle(ctx, args.conversation_id, {
     owner_device_id: args.owner_device_id,
     project_path: args.project_path,
     status: "active" as const,
@@ -899,7 +900,7 @@ export async function performReassignToDevice(
 
   const prevOwner = (conv as any).owner_device_id as string | undefined;
 
-  await ctx.db.patch(args.conversation_id, {
+  await patchConversationLifecycle(ctx, args.conversation_id, {
     owner_device_id: args.device_id,
     session_error: undefined,
     status: "active" as const,
@@ -1152,7 +1153,7 @@ export async function performReparentSessionToDevice(
     if (!conv.author_user_id) patch.author_user_id = conv.user_id;
     patch.user_id = runnerId;
   }
-  await ctx.db.patch(conv._id, patch);
+  await patchConversationLifecycle(ctx, conv._id, patch);
   if (crossUser) await followNewRunner(ctx, conv._id, runnerId);
   // The prompts written so far keep their author once user_id names someone else.
   if (crossUser)
