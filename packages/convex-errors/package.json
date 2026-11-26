@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
-    "./convexErrors": "./src/convexErrors.ts"
+    "./convexErrors": "./src/convex-errors.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

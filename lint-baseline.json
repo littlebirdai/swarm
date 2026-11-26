@@ -17504,6 +17504,9 @@
   "apps/web/components/diff/virtualizer.ts": {
     "swarm/no-comments": 18
   },
+  "apps/web/components/dispatch-failure-toast.tsx": {
+    "swarm/no-comments": 8
+  },
   "apps/web/components/docs/DocRow.markup.test.tsx": {
     "swarm/no-comments": 3
   },
@@ -27149,7 +27152,7 @@
   "apps/web/src/providers.tsx": {
     "react/purity": 1,
     "react/refs": 4,
-    "swarm/no-comments": 24
+    "swarm/no-comments": 16
   },
   "apps/web/src/routes.manifest.test.ts": {
     "swarm/no-comments": 94
@@ -28998,10 +29001,10 @@
   "packages/connectors/test/codecastSignature.test.ts": {
     "swarm/no-comments": 3
   },
-  "packages/convex-errors/src/convexErrors.ts": {
+  "packages/convex-errors/src/convex-errors.ts": {
     "swarm/no-comments": 13
   },
-  "packages/convex-errors/test/convexErrors.test.ts": {
+  "packages/convex-errors/test/convex-errors.test.ts": {
     "swarm/no-comments": 7
   },
   "packages/daemon/src/daemonCommands.ts": {

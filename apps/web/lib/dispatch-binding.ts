@@ -344,7 +344,10 @@ export function applyDispatchFailure(
       lastDispatchFailure: {
         action,
         args,
-        message: String((error as Error)?.message ?? error),
+        message:
+          typeof (error as { data?: unknown })?.data === "string"
+            ? humanizeConvexError(error)
+            : String((error as Error)?.message ?? error),
         at: Date.now(),
       },
     });

@@ -3,7 +3,7 @@ import {
   argumentValidationProblem,
   cliErrorMessage,
   humanizeConvexError,
-} from "../src/convexErrors";
+} from "../src/convex-errors";
 
 describe("humanizeConvexError", () => {
   test("structured ConvexError data answers with its message", () => {
@@ -12,6 +12,17 @@ describe("humanizeConvexError", () => {
         data: { code: "NOT_FOUND", message: "Channel not found" },
       }),
     ).toBe("Channel not found");
+  });
+
+  test("a wrapped ConvexError reads its plain string data", () => {
+    const data = 'The checkout "main" is already in use';
+    const err = Object.assign(
+      new Error(
+        `[CONVEX M(dispatch:dispatch)] [Request ID: abc] Server Error\nUncaught ConvexError: ${JSON.stringify(data)}\n    at handler (../convex/dispatch.ts:1:1)`,
+      ),
+      { name: "ConvexError", data },
+    );
+    expect(humanizeConvexError(err)).toBe(data);
   });
 
   test("strips the client wrapper and the stack tail", () => {

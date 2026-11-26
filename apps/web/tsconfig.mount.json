@@ -14,6 +14,7 @@
     "components/relay-presence-provider.mount.test.tsx",
     "components/conversation/session-control-composer.mount.test.tsx",
     "components/conversation/session-control-regressions.mount.test.tsx",
+    "components/conversation/session-move-refusal.mount.test.tsx",
     "app/auth/cli/page.mount.test.tsx",
     "app/confirm/page.mount.test.tsx",
     "app/projects/[id]/ProjectHeader.mount.test.tsx",

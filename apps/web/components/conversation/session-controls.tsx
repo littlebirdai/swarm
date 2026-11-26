@@ -79,7 +79,10 @@ import {
   type BucketItem,
   resolveCloudStartFrom,
 } from "../../store/inboxStore";
-import { isParkedDispatchError } from "../../store/mutativeMiddleware";
+import {
+  isParkedDispatchError,
+  isPermanentDispatchError,
+} from "../../store/mutativeMiddleware";
 import { withoutUndo } from "../../store/undoStack";
 import { getLabelColor } from "../../lib/labelColors";
 import {
@@ -771,9 +774,13 @@ export function ProjectSwitcher({
           withoutUndo(() =>
             useInboxStore.getState().updateSessionProject(convexId!, prevPath),
           );
-        toast.error(
-          err instanceof Error ? err.message : "Failed to switch project",
-        );
+        if (isPermanentDispatchError(err)) {
+          toastWriteError(err, "Failed to switch project");
+        } else {
+          toast.error(
+            err instanceof Error ? err.message : "Failed to switch project",
+          );
+        }
       });
     },
     [
