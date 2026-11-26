@@ -142,7 +142,7 @@ import {
   deriveRestartStage,
 } from "../../../hooks/useSessionRestart";
 import { useConversationCommands } from "../../../hooks/useSessionCommands";
-import { requestSessionRestart } from "../../../lib/sessionCommands";
+import { requestSessionRestart } from "../../../lib/session-commands";
 import { CastCommandBlock } from "./castBlocks";
 import { RewindReview } from "../RewindToHere";
 import { useCanRewindFiles } from "../../../hooks/useCanRewindFiles";

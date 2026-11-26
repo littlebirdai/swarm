@@ -20,7 +20,7 @@ import {
 import {
   DISPATCH_REFUSED,
   settleSessionCommand,
-} from "../../lib/sessionCommands";
+} from "../../lib/session-commands";
 
 const s = () => useInboxStore.getState() as any;
 const PID = "p".repeat(32);

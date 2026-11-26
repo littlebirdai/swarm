@@ -13,7 +13,7 @@ import {
   sessionCommandStartedAt,
   sessionCommandTimedOut,
   type SessionCommandRow,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 
 // How long the "restored" confirmation stays up before clearing to idle.
 const RESTART_RESTORED_LINGER_MS = 5_000;

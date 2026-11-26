@@ -9,7 +9,7 @@ import { SquareTerminal, Zap } from "lucide-react";
 import type { ClaudeBackend } from "@codecast/agent-clients/claudeBackend";
 import { useClaudeBackend } from "../hooks/useSessionCommands";
 import { useManagedSessionFields } from "../hooks/useManagedSessionFields";
-import { requestBackendSwitch } from "../lib/sessionCommands";
+import { requestBackendSwitch } from "../lib/session-commands";
 import { backendRows, type BackendRow } from "../lib/claudeBackendControl";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import {

@@ -1,4 +1,4 @@
-// The one writer of a painted sessionCommands row (lib/sessionCommands). A new
+// The one writer of a painted sessionCommands row (lib/session-commands). A new
 // request for the same target replaces the last (a conversation, or a machine
 // for a switch), and rows age out after a day. A line edit's target is one
 // project's keys: an edit replaces a settled one on the same keys, and edits

@@ -15,7 +15,7 @@ import {
   latestSessionCommand,
   requestAccountSwitchCommand,
   type SessionCommandRow,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import { useInboxStore } from "../store/inboxStore";
 import { useCoarseNow } from "./useCoarseNow";
 

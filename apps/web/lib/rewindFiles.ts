@@ -2,7 +2,7 @@
 // that message changed go back to how they stood before it, on the session's
 // own machine (cli/src/rewindTree.ts), and the conversation continues in a
 // fork from the message before. Every step is a sessionCommands row (one
-// home: lib/sessionCommands), painted on the press and settled by the daemon's
+// home: lib/session-commands), painted on the press and settled by the daemon's
 // reply; this file reads those rows and builds the review's ledger from them.
 
 import type {
@@ -22,7 +22,7 @@ import {
   newRequestId,
   recordSessionCommandDispatchError,
   type SessionCommandRow,
-} from "./sessionCommands";
+} from "./session-commands";
 
 /** Ask the session's machine for one rewind step; returns the request id its row is keyed by. */
 export function requestRewind(

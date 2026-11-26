@@ -23,7 +23,7 @@ import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 import { lineProjectParam, paintStationEdits } from "./line/lineStations";
 import { SHIPPED_LINE } from "./line/shippedLine.generated";
 import type { SenseSource } from "./lineFlow";
-import { DISPATCH_REFUSED } from "./sessionCommands";
+import { DISPATCH_REFUSED } from "./session-commands";
 
 export type LineFieldKind = LineValueKind;
 

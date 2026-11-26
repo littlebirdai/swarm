@@ -79,7 +79,7 @@ export type ClientSyncRegistryEntry = {
   // Convex modules whose public mutations write the server rows this key
   // mirrors, beyond the modules of its feeds ("teams", "orgSplit"). A
   // localFirst key declares feeds or writers: the store-action guard
-  // (lib/__tests__/storeActionMutations.guard.test.ts) reads both, and fails a
+  // (lib/__tests__/store-action-mutations.guard.test.ts) reads both, and fails a
   // surface that calls such a mutation past the store action owning the write.
   writtenBy?: readonly string[];
   // Boot hydration is automatic for every persisted key — registering a

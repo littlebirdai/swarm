@@ -10,7 +10,7 @@ describe("parked convCommand caller policy", () => {
     // board's drill-in mounts it too.
     const [restartHook, commands, queuePage] = await Promise.all([
       source("../../hooks/useSessionRestart.ts"),
-      source("../../lib/sessionCommands.ts"),
+      source("../../lib/session-commands.ts"),
       source("../../app/inbox/QueuePageClient.tsx"),
     ]);
 

@@ -30,7 +30,7 @@ import {
   OVERWRITE_OPTIONS,
 } from "../../lib/rewindFiles";
 
-import { COMMAND_UNCLAIMED_WARN_MS } from "../../lib/sessionCommands";
+import { COMMAND_UNCLAIMED_WARN_MS } from "../../lib/session-commands";
 import { useMissingSessionRow } from "../../hooks/useMissingSessionRow";
 
 const row = (id: string | null) => (s: any) =>

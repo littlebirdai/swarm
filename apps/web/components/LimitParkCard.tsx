@@ -41,7 +41,7 @@ import {
   DISPATCH_REFUSED,
   latestSessionCommand,
   switchPending,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import {
   formatResetPhrase,
   limitResetAsPrinted,

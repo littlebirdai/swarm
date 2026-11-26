@@ -266,7 +266,7 @@ const directSyncedWrites = checkRatchet({
   pin: PIN_DIRECT_SYNCED_WRITES,
   fix: "Add a store action for the gesture (draft write + named dispatch side effect in convex/dispatch.ts), classify it in store/undo/policy.ts, and call it.",
   pruneCommand:
-    "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/storeActionMutations.guard.test.ts",
+    "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/store-action-mutations.guard.test.ts",
   minScanned: 400,
 });
 

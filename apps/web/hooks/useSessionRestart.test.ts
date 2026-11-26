@@ -6,7 +6,7 @@ import {
   restartResumeRow,
   type RestartProgressRow,
 } from "./useSessionRestart";
-import { RESTART_GIVE_UP_AFTER_MS } from "../lib/sessionCommands";
+import { RESTART_GIVE_UP_AFTER_MS } from "../lib/session-commands";
 
 const A = "a".repeat(32);
 const B = "b".repeat(32);

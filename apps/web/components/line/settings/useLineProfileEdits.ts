@@ -11,7 +11,7 @@ import type {
   PublishedLineProfile,
 } from "@codecast/line/lineProfile";
 import { useInboxStore } from "../../../store/inboxStore";
-import { newRequestId } from "../../../lib/sessionCommands";
+import { newRequestId } from "../../../lib/session-commands";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import {
   lineEditRows,

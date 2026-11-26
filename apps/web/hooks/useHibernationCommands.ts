@@ -5,7 +5,7 @@ import { isParkedDispatchError } from "../store/mutativeMiddleware";
 import {
   newRequestId,
   recordSessionCommandDispatchError,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import { useSessionCommandResults } from "./useSessionCommands";
 import { captureException } from "@sentry/react";
 

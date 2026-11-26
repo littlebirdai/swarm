@@ -13,7 +13,7 @@ import {
   type LineStep,
 } from "../../../../lib/line/lineModel";
 import { drawnWorkflowId, saveState } from "../../../../lib/line/lineActions";
-import { newRequestId } from "../../../../lib/sessionCommands";
+import { newRequestId } from "../../../../lib/session-commands";
 import { useInboxStore } from "../../../../store/inboxStore";
 import {
   useGraphEditability,

@@ -170,7 +170,7 @@ import { useConversationCommands } from "../hooks/useSessionCommands";
 import {
   latestRestartRow,
   requestSessionRestart,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
 import { WorkingStatusLine } from "./conversation/sessionChrome";
 import { LiveCompactionCard } from "./conversation/CompactionProgressCard";

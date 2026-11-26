@@ -23669,7 +23669,7 @@
   "apps/web/lib/__tests__/standaloneBootGraph.guard.test.ts": {
     "swarm/no-comments": 22
   },
-  "apps/web/lib/__tests__/storeActionMutations.guard.test.ts": {
+  "apps/web/lib/__tests__/store-action-mutations.guard.test.ts": {
     "swarm/no-comments": 48
   },
   "apps/web/lib/__tests__/supersededReaders.guard.test.ts": {
@@ -26069,6 +26069,9 @@
   "apps/web/lib/seoRoutes.ts": {
     "swarm/no-comments": 9
   },
+  "apps/web/lib/session-commands.ts": {
+    "swarm/no-comments": 54
+  },
   "apps/web/lib/sessionAccountLabel.ts": {
     "swarm/no-comments": 6
   },
@@ -26092,9 +26095,6 @@
   },
   "apps/web/lib/sessionClose.ts": {
     "swarm/no-comments": 21
-  },
-  "apps/web/lib/sessionCommands.ts": {
-    "swarm/no-comments": 54
   },
   "apps/web/lib/sessionControl.ts": {
     "swarm/no-comments": 12

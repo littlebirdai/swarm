@@ -8,7 +8,7 @@ import {
   newRequestId,
   recordSessionCommandDispatchError,
   settleSessionCommand,
-} from "../../lib/sessionCommands";
+} from "../../lib/session-commands";
 import { useInboxStore } from "../../store/inboxStore";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { Button } from "../ui/button";

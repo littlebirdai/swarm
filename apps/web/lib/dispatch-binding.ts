@@ -17,7 +17,7 @@ import { offerRollbackToHost } from "../store/sync-replication";
 import {
   recordSessionCommandDispatchError,
   SESSION_COMMAND_ACTIONS,
-} from "./sessionCommands";
+} from "./session-commands";
 import { deadRecordingPress } from "./calls/recordingPress";
 import { storableActionArgs } from "./tabSafePath";
 import { getWriteLog, recordWrite } from "../store/writeLog";

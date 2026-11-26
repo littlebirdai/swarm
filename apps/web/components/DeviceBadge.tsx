@@ -42,7 +42,7 @@ import {
   requestSessionMove,
   sessionCommandTimedOut,
   type MoveTarget,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import {
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -499,7 +499,7 @@ export function RunOnDeviceItems({
 // worktree transfer (remote only), then a resume on the destination. The store
 // action (requestSessionMove → moveSessionToDevice) paints the move's
 // sessionCommands row on the click; this reads it and the conversation's
-// pipeline rows (lib/sessionCommands deviceMoveStatusOf) for the header strip.
+// pipeline rows (lib/session-commands deviceMoveStatusOf) for the header strip.
 
 export type { MoveTarget };
 

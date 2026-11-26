@@ -1,7 +1,7 @@
 // Line profile writes (plan pl-838). A project's line profile lives in its
 // repo's `.codecast/line.toml`; projects.line_profile is the copy the daemon
 // publishes from it, and only a publish writes that copy. An edit is a
-// sessionCommands row (lib/sessionCommands), painted here on the click and
+// sessionCommands row (lib/session-commands), painted here on the click and
 // riding `dispatch` to the side effect of the same name (convex/dispatch.ts
 // editLineProfile), which hands it to the daemon on the machine holding the
 // checkout under the row's request id. The daemon's answer, and later its
