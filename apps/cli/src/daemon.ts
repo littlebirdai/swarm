@@ -43660,10 +43660,11 @@ async function main(): Promise<void> {
     "turnStarted",
     (threadId: string, turnId: string, model?: string) => {
       const entry = appServerThreads.get(threadId);
-      appServerTurnProgress.set(
-        turnId,
-        makeAppServerTurnProgress(threadId, model),
-      );
+      if (!appServerTurnProgress.has(turnId))
+        appServerTurnProgress.set(
+          turnId,
+          makeAppServerTurnProgress(threadId, model),
+        );
       if (entry) {
         const previous = persistedAppServerThreads.get(entry.conversationId);
         persistedAppServerThreads.set(entry.conversationId, {
@@ -43724,7 +43725,8 @@ async function main(): Promise<void> {
         persistAppServerThreadRegistrations();
       }
       removeAppServerPartial(progress, item.id);
-      progress.items.push(item);
+      const index = progress.items.findIndex((entry) => entry.id === item.id);
+      progress.items[index < 0 ? progress.items.length : index] = item;
       const messages = threadItemsToMessages(progress.items) as RawMessage[];
       syncAppServerTurnMessagesIfChanged(
         turnId,
