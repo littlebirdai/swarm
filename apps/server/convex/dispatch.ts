@@ -683,7 +683,6 @@ export async function applyPatches(
         );
         continue;
       }
-
       if (config.kind === "collection") {
         const documentId = ctx.db.normalizeId(table, docKey);
         if (!documentId) continue;
@@ -836,6 +835,12 @@ export async function applyPatches(
             doc as any,
             finalSafe as any,
             "advance",
+          );
+        } else if (table === "conversations") {
+          await patchConversationLifecycle(
+            ctx,
+            documentId as Id<"conversations">,
+            finalSafe,
           );
         } else {
           await ctx.db.patch(documentId, finalSafe);

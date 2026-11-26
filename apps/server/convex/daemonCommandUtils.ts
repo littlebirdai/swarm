@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import type { Doc, Id } from "./_generated/dataModel";
 import { commandsSession } from "@codecast/inbox/inboxProjection";
 import { isClosedSession } from "@codecast/inbox/closedSession";
@@ -473,7 +474,9 @@ export async function resumeConversationSession(
   // more (every machine reader would otherwise treat the live session as torn
   // down). Ending the dismissal ends the close (shared isClosedSession).
   if (isClosedSession(conversation))
-    await ctx.db.patch(conversation._id, { inbox_dismissed_at: undefined });
+    await patchConversationLifecycle(ctx, conversation._id, {
+      inbox_dismissed_at: undefined,
+    });
 
   const { deduplicated, command_id } = await enqueueResumeSession(
     ctx,

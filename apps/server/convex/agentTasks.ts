@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
@@ -2249,7 +2250,6 @@ export async function settleRunConversation(
       args.needs_attention ? "blocked" : "done",
     );
   }
-
   const outcome: RunOutcome = reported
     ? args.needs_attention
       ? "attention"
@@ -2292,7 +2292,6 @@ export async function settleRunConversation(
     });
     posted = true;
   }
-
   const repeatingSpawn =
     (task.schedule_type === "recurring" || task.schedule_type === "event") &&
     !task.originating_conversation_id;
@@ -2309,7 +2308,9 @@ export async function settleRunConversation(
     // Folded = out of the way, NOT retired: the run's history is living state,
     // so the fold writes the stash stamp (Stashed bucket) rather than the
     // legacy dismissed stamp that files rows under Killed.
-    await ctx.db.patch(runConv._id, { inbox_stashed_at: now });
+    await patchConversationLifecycle(ctx, runConv._id, {
+      inbox_stashed_at: now,
+    });
   }
   return ownerNotified;
 }
@@ -2696,7 +2697,6 @@ export const linkRunConversation = mutation({
     if (!auth) throw new Error("Unauthorized");
     const task = await getOwnedTask(ctx, args.task_id, auth.userId);
     if (!task) return { linked: false, retry: false };
-
     const conv = await stampRunConversation(
       ctx,
       auth.userId,
@@ -2704,7 +2704,6 @@ export const linkRunConversation = mutation({
       args.run_session_uuid,
     );
     if (!conv) return { linked: false, retry: true }; // not synced yet — daemon retries
-
     const repeatingSpawn =
       (task.schedule_type === "recurring" || task.schedule_type === "event") &&
       !task.originating_conversation_id;
@@ -2748,13 +2747,14 @@ export const linkRunConversation = mutation({
       ) {
         // Same fold, same stamp as completeTaskRun above: superseded runs are
         // set aside, not killed.
-        await ctx.db.patch(prev._id, { inbox_stashed_at: Date.now() });
+        await patchConversationLifecycle(ctx, prev._id, {
+          inbox_stashed_at: Date.now(),
+        });
       }
     }
     return { linked: true, retry: false };
   },
 });
-
 export const cancelTask = cliTaskAction(applyCancel, getManageableTask);
 export const pauseTask = cliTaskAction(applyPause, getManageableTask);
 export const resumeTask = cliTaskAction(applyResume, getArmableTask);

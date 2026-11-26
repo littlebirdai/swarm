@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import type { Doc } from "./_generated/dataModel";
 // Single source of truth for the "agent is actively producing" set and the
 // stale-status trust TTL. Re-exported so existing `from "./inboxFilters"`
@@ -112,7 +113,7 @@ export async function restoreToInbox(
     !(conv.inbox_stashed_at || conv.inbox_dismissed_at)
   )
     return false;
-  await ctx.db.patch(conv._id, {
+  await patchConversationLifecycle(ctx, conv._id, {
     inbox_stashed_at: undefined,
     inbox_dismissed_at: undefined,
   });

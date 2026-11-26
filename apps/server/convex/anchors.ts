@@ -1,4 +1,7 @@
-import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
+import {
+  insertConversationWithStatus,
+  patchConversationLifecycle,
+} from "./lib/sessionStatusWriter";
 import { internalMutation, mutation, query } from "./functions";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -1092,7 +1095,7 @@ export async function decommissionAnchorRow(
       // Persistence comes off first so the kill completes the row instead of
       // putting it to sleep; the kill then tears the agent down, cancels what
       // would revive it, and files the card under Killed, out of the inbox.
-      await ctx.db.patch(anchor.conversation_id, {
+      await patchConversationLifecycle(ctx, anchor.conversation_id, {
         persistent: false,
         inbox_pinned_at: undefined,
       });
