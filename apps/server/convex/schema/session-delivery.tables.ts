@@ -480,6 +480,18 @@ export const sessionDeliveryTables = {
         ),
         start_event_seq: v.optional(v.number()),
         baton_converted: v.optional(v.boolean()),
+        prompt_details: v.optional(
+          v.array(
+            v.object({
+              prompt_id: v.string(),
+              kind: v.union(v.literal("question"), v.literal("permission")),
+              tool_call_id: v.optional(v.string()),
+              questions: v.optional(
+                v.array(v.object({ id: v.string(), is_secret: v.boolean() })),
+              ),
+            }),
+          ),
+        ),
       }),
     ),
     received_at: v.number(),

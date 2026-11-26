@@ -140,7 +140,7 @@ cache alone.
   Keep task and decision outcomes and the live `pr_status` overlay derived
   from current store rows. The Git feed supplies only history-dependent facts.
   `apps/web/store/clientSyncRegistry.ts:137`,
-  `apps/web/store/clientSyncRegistry.scope.ts:7`,
+  `apps/web/store/client-sync-registry.scope.ts:7`,
   `apps/web/store/clientSyncRegistry.ts:2459`,
   `apps/web/store/clientSyncRegistry.ts:2489`,
   `apps/web/store/clientSyncRegistry.ts:2826`,

@@ -10,6 +10,7 @@
     "test-helpers/**/*.tsx"
   ],
   "files": [
+    "hooks/__tests__/fenced-prompt-addresses.mount.test.tsx",
     "components/terminal/team-terminal.mount.test.tsx",
     "components/relay-presence-provider.mount.test.tsx",
     "components/conversation/session-control-composer.mount.test.tsx",
