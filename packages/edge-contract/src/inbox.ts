@@ -18,6 +18,7 @@ import { readV1 } from "./version";
 import { response } from "./response";
 import { fence } from "./claims";
 import { readExpectedTurn, readObservedTurn } from "./expected";
+import { readTakeoverFence } from "./takeover";
 
 export const actorFields = {
   kind: oneOf("person", "agent"),
@@ -77,6 +78,7 @@ const permitsNextResponse = response(
         }),
       }),
     }),
+    takeover_fence: readTakeoverFence,
     empty: responseObject({ v: readV1, status: oneOf("empty") }),
     stale: responseObject({ v: readV1, status: oneOf("stale") }),
   }),

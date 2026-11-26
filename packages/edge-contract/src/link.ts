@@ -14,6 +14,7 @@ import { response } from "./response";
 
 export const EXPECTED_CAPABILITY = "expected";
 export const STEER_BATON_CAPABILITY = "steer-baton-v1";
+export const TAKEOVER_FENCE_CAPABILITY = "takeover-fence-v1";
 
 export const daemon = {
   machine: nonEmptyString,
