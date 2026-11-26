@@ -12,7 +12,7 @@ import {
 
 for (const enabled of [false, true])
   test(
-    `physical TaskCreate occurrence mutation fails actual backend replacement control worker=${enabled}`,
+    `the replay check detects duplicate tasks with inode-based keys worker=${enabled}`,
     async () => {
       const home = productionHome("f3-review-control-");
       const receipts = () => records(home.root, /^producer-\d+\.json$/);
@@ -39,16 +39,6 @@ for (const enabled of [false, true])
           invocations = records(home.root, /^invocations-\d+\.jsonl$/, {
             lines: true,
           });
-        console.log(
-          JSON.stringify({
-            enabled,
-            productionSha256: mutation.originalSha256,
-            scratchSha256,
-            outcome: result,
-            controls,
-            invocations,
-          }),
-        );
         expect(result.ok).toBe(false);
         expect(result.stderr).toContain("AssertionError");
         expect(result.stderr).toContain("5 !== 4");
@@ -72,7 +62,7 @@ for (const enabled of [false, true])
         console.log(
           JSON.stringify({
             enabled,
-            expectedFailure: "5 !== 4",
+            duplicateDetected: true,
             productionSha256: mutation.originalSha256,
             scratchSha256,
             controls,

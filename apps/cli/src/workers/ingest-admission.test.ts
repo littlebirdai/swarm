@@ -17,10 +17,12 @@ import {
   readTranscriptIngest,
 } from "./ingest-client.js";
 import { IngestCursors } from "./ingestCursors.js";
+import { IngestDeadline } from "./ingestDeadline.js";
 import type { IngestPayload } from "./ingestTypes.js";
 import {
   encodeFrame,
   FrameDecoder,
+  MAX_DEADLINE_MS,
   MAX_INFLIGHT,
   MAX_QUEUE,
 } from "./protocol.js";
@@ -167,10 +169,15 @@ async function fullWorker() {
       transcript(`held-${index}`),
     ),
   );
-  const held = inputs.map((input) => read(input));
+  const readsBySession = new Map(
+    inputs.map((input) => [input.sessionId, read(input)]),
+  );
   await pollUntil(
     () => worker.opens.length === MAX_INFLIGHT,
     "all cursor slots occupied",
+  );
+  const held = worker.opens.map(({ payload }) =>
+    readsBySession.get(payload.job.sessionId)!,
   );
   return {
     ...worker,
@@ -322,22 +329,39 @@ test(
     ]);
     const worker = await fullWorker();
     const controller = new AbortController();
-    const head = read(cancelled, { signal: controller.signal });
-    const successor = read(live, { timeoutMs: loadScaledMs(2_000) });
+    let now = 0;
+    const deadline = new IngestDeadline(MAX_DEADLINE_MS, undefined, () => now);
+    let successorReserved = false;
+    const stat = interceptStat((file, readStat) => {
+      if (file === live.file) successorReserved = true;
+      return readStat();
+    });
+    try {
+      const head = read(cancelled, { signal: controller.signal });
+      const successor = read(live, { signal: deadline.signal });
 
-    worker.refuse(0);
-    controller.abort();
+      worker.refuse(0);
+      controller.abort();
 
-    await expect(worker.held[0]).rejects.toBeInstanceOf(WorkerOperationError);
-    await expect(head).rejects.toBeInstanceOf(IngestCancelled);
-    expect((await successor).messages.map(({ uuid }) => uuid)).toEqual([
-      live.sessionId,
-    ]);
-    expect(
-      worker.opens
-        .slice(MAX_INFLIGHT)
-        .map(({ payload }) => payload.job.sessionId),
-    ).toEqual([live.sessionId]);
+      await expect(worker.held[0]).rejects.toBeInstanceOf(WorkerOperationError);
+      await expect(head).rejects.toBeInstanceOf(IngestCancelled);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (!successorReserved) {
+        now = MAX_DEADLINE_MS;
+        expect(() => deadline.check()).toThrow(IngestDeadlineExceeded);
+      }
+      expect((await successor).messages.map(({ uuid }) => uuid)).toEqual([
+        live.sessionId,
+      ]);
+      expect(
+        worker.opens
+          .slice(MAX_INFLIGHT)
+          .map(({ payload }) => payload.job.sessionId),
+      ).toEqual([live.sessionId]);
+    } finally {
+      stat.mockRestore();
+      deadline.dispose();
+    }
   },
   loadScaledMs(8_000),
 );
