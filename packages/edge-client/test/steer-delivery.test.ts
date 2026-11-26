@@ -1,129 +1,28 @@
 import { expect } from "bun:test";
 import {
-  EXPECTED_CAPABILITY,
   STEER_BATON_CAPABILITY,
-  TAKEOVER_FENCE_CAPABILITY,
   type DeliveryResolutionRequest,
-  type PermitsNextRequest,
-  type TakeoverFence,
 } from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
 import * as Effect from "effect/Effect";
 import { join } from "effect/Fiber";
 import { adjust } from "effect/testing/TestClock";
-import hello from "../../edge-contract/test/fixtures/hello.json";
-import { EdgeClient } from "../src/effect";
+import { EdgeTransportError, type EdgeSteerOutcome } from "../src";
+import { reply } from "./scripted-transport";
 import {
-  EdgeTransportError,
-  type EdgeSteerJournal,
-  type EdgeSteerOutcome,
-  type EdgeSteerPermit,
-  type EdgeSteeringHost,
-} from "../src";
-import { reply, scriptedTransport, type Step } from "./scripted-transport";
+  connected,
+  fence,
+  helloReply,
+  machine,
+  recorded,
+  run,
+  started,
+  startRequest,
+  steer,
+} from "./steer-testkit";
 
-const run = {
-  v: 1,
-  session: "session",
-  run: 1,
-  fencing_token: "lease",
-} satisfies PermitsNextRequest;
-const startRequest = {
-  ...run,
-  delivery_id: "send",
-  attempt_id: "attempt",
-  seq: 2,
-  intent: "steer" as const,
-  sender: { kind: "person" as const, id: "ana" },
-};
-const steer: EdgeSteerPermit = {
-  ...startRequest,
-  status: "permit",
-  state: "new",
-  input: [{ type: "text", text: "hello" }],
-  expected: { kind: "turn", turn: "turn" },
-  baton_token: null,
-};
-const fence = {
-  ...run,
-  status: "takeover_fence",
-  turn: "turn",
-  fence_id: "fence",
-  baton_token: null,
-  new_baton_token: 1,
-} satisfies TakeoverFence;
-const capabilities = [
-  EXPECTED_CAPABILITY,
-  STEER_BATON_CAPABILITY,
-  TAKEOVER_FENCE_CAPABILITY,
-];
-const helloReply = {
-  ...hello.response,
-  policy: { ...hello.response.policy, capabilities },
-};
-const recorded = { v: 1, status: "recorded" } as const;
 const duplicate = { v: 1, status: "duplicate" } as const;
 const stale = { v: 1, status: "stale" } as const;
-const started = { ...startRequest, status: "started" };
-
-function machine() {
-  let currentTurn: string | null = "turn";
-  let durable: EdgeSteerJournal | undefined;
-  const handed: string[] = [];
-  const prepared: string[] = [];
-  const host: EdgeSteeringHost = {
-    runningTurn: () => currentTurn,
-    prepare: async (permit) => {
-      prepared.push(permit.attempt_id);
-      return async () => {
-        expect(
-          durable?.handovers.some(
-            (item) => item.attempt_id === permit.attempt_id,
-          ),
-        ).toBe(true);
-        handed.push(permit.attempt_id);
-        return { outcome: "applied" };
-      };
-    },
-    recover: async () => ({ outcome: "in_doubt" }),
-    journal: {
-      load: async () => structuredClone(durable),
-      save: async (_, journal) => {
-        durable = structuredClone(journal);
-      },
-    },
-  };
-  const turn = (id: string | null) => {
-    currentTurn = id;
-  };
-  return {
-    host,
-    turn,
-    handed,
-    prepared,
-    journal: () => structuredClone(durable),
-  };
-}
-
-function connected(
-  host: EdgeSteeringHost,
-  steps: Step[],
-  body: (
-    client: EdgeClient["Service"],
-    calls: ReturnType<typeof scriptedTransport>["calls"],
-  ) => Effect.Effect<void, unknown>,
-  policy = helloReply,
-) {
-  const { calls, transport } = scriptedTransport(reply(policy), ...steps);
-  return Effect.gen(function* () {
-    const client = yield* EdgeClient;
-    yield* client.hello({ ...hello.request, capabilities: ["heartbeat"] });
-    expect(calls[0]?.request).toMatchObject({
-      capabilities: ["heartbeat", ...capabilities],
-    });
-    yield* body(client, calls);
-  }).pipe(Effect.provide(EdgeClient.layer({ transport, steering: host })));
-}
 
 it.effect(
   "a host offer does not enable a steer or fence the server did not negotiate",
@@ -490,6 +389,7 @@ it.effect(
           reply(steer),
           reply(started),
           reply(fence),
+          reply({ ...fence, new_baton_token: 2 }),
           reply(fence),
           reply(recorded),
         ],
@@ -504,6 +404,9 @@ it.effect(
               code: "steer_journal_write_failed",
             });
             expect(calls.at(-1)?.operation).toBe("permits.next");
+            expect(yield* Effect.flip(client.deliverNext(run))).toMatchObject({
+              code: "takeover_fence_conflict",
+            });
             diskIsWritable = true;
             release.resolve();
             expect(yield* join(old)).toEqual({ status: "fenced" });

@@ -228,8 +228,10 @@ export function makeDelivery(
             item.baton_token !== fence.baton_token ||
             item.new_baton_token !== fence.new_baton_token),
       )
-    )
+    ) {
+      if (!unrecorded) unrecordedFences.delete(key);
       return yield* reject("takeover_fence_conflict", "takeover.ack");
+    }
     if (!old || old.fencing_token !== fence.fencing_token) {
       journal = {
         ...journal,
@@ -344,7 +346,10 @@ export function makeDelivery(
               journal,
             );
           const recorded = yield* recordHand(run, journal, hand);
-          if (!agreed(STEER_BATON_CAPABILITY)) return fenced;
+          if (!agreed(STEER_BATON_CAPABILITY)) {
+            if (recorded !== journal) yield* save(run, journal);
+            return fenced;
+          }
           const current = observed(run);
           if (!matchesExpected(hand.expected, current))
             return yield* settle(
