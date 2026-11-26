@@ -8,7 +8,7 @@ import type { RuntimeStartRequest } from "../types.js";
 import {
   CodexAppServerRuntimeDriver,
   type CodexAppServerIo,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 
 function startRequest(): RuntimeStartRequest {
   return {

@@ -2775,7 +2775,7 @@
   "apps/cli/src/execution/driver.ts": {
     "swarm/no-comments": 3
   },
-  "apps/cli/src/execution/drivers/codexAppServer.ts": {
+  "apps/cli/src/execution/drivers/codex-app-server.ts": {
     "swarm/no-comments": 2
   },
   "apps/cli/src/execution/drivers/managedTmux.ts": {
