@@ -1,6 +1,13 @@
 import { useWatchEffect } from "../useWatchEffect";
 import type { Root } from "react-dom/client";
-import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  expect,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
@@ -56,6 +63,7 @@ function Probe() {
 
 let root: Root | null = null;
 beforeEach(() => {
+  setSystemTime(new Date("2026-11-01T12:00:05Z"));
   renders = 0;
   resetFaceRow();
   clearJoinAnnouncement();
@@ -77,9 +85,13 @@ beforeEach(() => {
   } as any);
 });
 afterEach(async () => {
-  await act(async () => root?.unmount());
-  root = null;
-  clearJoinAnnouncement();
+  try {
+    await act(async () => root?.unmount());
+    root = null;
+    clearJoinAnnouncement();
+  } finally {
+    setSystemTime();
+  }
 });
 async function mount() {
   root = createRoot(

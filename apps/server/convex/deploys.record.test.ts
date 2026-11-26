@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
 import { api, internal } from "./_generated/api";
 import { projectDeployViews, recordDeployMarker } from "./deploys";
 import { latestLiveDeploy } from "./lib/deployRows";
@@ -23,6 +23,7 @@ import {
 // dropped name there hears about it. Synthetic data only.
 
 describe("a deploy.sh push", () => {
+  afterEach(() => setSystemTime());
   test("a dirty push lands on no live deploy of the same sha, clean or dirty: each is a deploy of its own", async () => {
     const { mark, deploys } = await setup();
     const clean = await mark("ana", { via: "deploy.sh", machine: "ana-mac" });
@@ -384,9 +385,11 @@ describe("a deploy.sh push", () => {
     const { t, ids, tokens, settle, save, view, deploys, addedBy } =
       await withTarget();
     const pushed = Date.now();
-    await pause();
+    const devSaved = pushed + 1_000;
+    const reported = pushed + 2_000;
+    setSystemTime(new Date(devSaved));
     await save("ben", { sha: SHA2, dirty: 2, adds: ["fn:b:x"] });
-    await pause();
+    setSystemTime(new Date(reported));
     const pass = await t.mutation(api.deployTargets.recordShipPass, {
       api_token: tokens.ana,
       team_id: ids.team,
@@ -407,15 +410,15 @@ describe("a deploy.sh push", () => {
           via: "deploy.sh",
           adds: [],
           drops: [],
-          changes_read_age_ms: Date.now() - pushed + 30_000,
-          pushed_age_ms: Date.now() - pushed,
+          changes_read_age_ms: reported - pushed + 30_000,
+          pushed_age_ms: reported - pushed,
         },
       ],
     });
     await settle();
     const [row] = await deploys();
     expect(row.short_id).toBe(pass.deploys[0].deploy);
-    expect(row.live_at).toBeLessThanOrEqual(pushed + 2);
+    expect(row.live_at).toBe(pushed);
     const shown = await view();
     expect(shown.live).toMatchObject({ short_id: row.short_id });
     expect(shown.dev_push).toMatchObject({ by: "Ben", adds_count: 1 });

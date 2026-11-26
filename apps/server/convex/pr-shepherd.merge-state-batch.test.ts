@@ -32,15 +32,52 @@ const modules = {
 
 const REPO = "acme/app";
 const realFetch = globalThis.fetch;
-beforeEach(() => jest.useFakeTimers());
-afterEach(() => {
-  jest.clearAllTimers();
-  jest.useRealTimers();
-  globalThis.fetch = realFetch;
+let backend: ReturnType<typeof convexTest<typeof schema>> | undefined;
+let recomputeOdd: boolean;
+beforeEach(() => {
+  jest.useFakeTimers();
+  recomputeOdd = false;
+  globalThis.fetch = (async (input) => {
+    const url = String(input);
+    const pull = url.match(/\/pulls\/(\d+)$/);
+    if (pull) {
+      const n = Number(pull[1]);
+      const computing = recomputeOdd && n % 2 === 1;
+      return new Response(
+        JSON.stringify({
+          mergeable: computing ? null : true,
+          mergeable_state: computing ? "unknown" : "clean",
+          base: { ref: "main", sha: "b" },
+          head: { ref: `ana/pr-${n}`, sha: `h${n}` },
+          draft: false,
+          requested_reviewers: [],
+        }),
+      );
+    }
+    if (url.includes("/compare/"))
+      return new Response(JSON.stringify({ behind_by: 2 }));
+    return new Response("{}", { status: 404 });
+  }) as typeof fetch;
+});
+afterEach(async () => {
+  try {
+    if (!backend) return;
+    await backend.finishAllScheduledFunctions(() => jest.runAllTimers());
+    const jobs = await backend.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(jobs.filter((job) => job.state.kind !== "success")).toEqual([]);
+  } finally {
+    backend = undefined;
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    globalThis.fetch = realFetch;
+  }
 });
 
 async function setup(openOnMain: number) {
   const t = convexTest(schema, modules);
+  backend = t;
   const ids = await t.run(async (ctx) => {
     const team = await ctx.db.insert("teams", {
       name: "Acme",
@@ -52,8 +89,6 @@ async function setup(openOnMain: number) {
       team_id: team,
       github_access_token: "tok",
     } as any);
-    // The push handler routes by the App install; the refresh reads with the
-    // linked session's user token (no install token is minted under test).
     await ctx.db.insert("github_app_installations", {
       team_id: team,
       installation_id: 7,
@@ -62,6 +97,11 @@ async function setup(openOnMain: number) {
       account_id: 1,
       repository_selection: "all",
     } as any);
+    await ctx.db.insert("github_installation_tokens", {
+      installation_id: 7,
+      token: "test-installation-token",
+      expires_at: Date.now() + 86_400_000,
+    });
     const session = await ctx.db.insert("conversations", {
       user_id: ana,
       team_id: team,
@@ -147,27 +187,7 @@ describe("merge state refresh after a push to a base branch", () => {
 
   test("a batch writes the answers and re-asks only the PRs GitHub had not computed", async () => {
     const { t, ids, pending } = await setup(6);
-    // GitHub answers mergeable for even PR numbers and null (still computing) for odd ones.
-    globalThis.fetch = (async (input: any) => {
-      const url = String(input);
-      const pull = url.match(/\/pulls\/(\d+)$/);
-      if (pull) {
-        const n = Number(pull[1]);
-        return new Response(
-          JSON.stringify({
-            mergeable: n % 2 === 0 ? true : null,
-            mergeable_state: n % 2 === 0 ? "clean" : "unknown",
-            base: { ref: "main", sha: "b" },
-            head: { ref: `ana/pr-${n}`, sha: `h${n}` },
-            draft: false,
-            requested_reviewers: [],
-          }),
-        );
-      }
-      if (url.includes("/compare/"))
-        return new Response(JSON.stringify({ behind_by: 2 }));
-      return new Response("{}", { status: 404 });
-    }) as typeof fetch;
+    recomputeOdd = true;
 
     await t.action(internal.prShepherd.refreshMergeStates, {
       pr_ids: ids.onMain,
@@ -189,5 +209,6 @@ describe("merge state refresh after a push to a base branch", () => {
     expect(new Set((retries[0].args[0] as any).pr_ids)).toEqual(
       new Set(rows.filter((p) => p!.number % 2 === 1).map((p) => p!._id)),
     );
+    recomputeOdd = false;
   });
 });
