@@ -1,4 +1,8 @@
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
+import {
+  fencedMoveRefusal,
+  scanDeviceRows,
+} from "./lib/fenced-device-move.rules";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
@@ -609,6 +613,7 @@ export async function performMoveSessionToDevice(
   const conv = await ctx.db.get(args.conversation_id);
   if (!conv || conv.user_id.toString() !== userId.toString())
     throw new Error("not your conversation");
+  fencedMoveRefusal(conv, "throw");
   const priorDeviceId = conv.owner_device_id as string | undefined;
   // A move onto a HOST merges into its main checkout of the repo, which the
   // sessions already there keep sharing the way they share a laptop folder.
@@ -759,6 +764,7 @@ export const moveToRemote = mutation({
       (candidate: any) => candidate.user_id.toString() === userId.toString(),
     );
     if (!conv) throw new Error("not your conversation");
+    fencedMoveRefusal(conv, "throw");
 
     const now = Date.now();
     const devices = await ctx.db
@@ -897,7 +903,7 @@ export async function performReassignToDevice(
       request_id: args.request_id,
     });
   }
-
+  fencedMoveRefusal(conv, "throw");
   const prevOwner = (conv as any).owner_device_id as string | undefined;
 
   await patchConversationLifecycle(ctx, args.conversation_id, {
@@ -1106,7 +1112,7 @@ export async function performReparentSessionToDevice(
   ) {
     throw new Error("Only a session you run or own can move to a team machine");
   }
-
+  fencedMoveRefusal(conv, "throw");
   const crossUser = conv.user_id.toString() !== runnerId.toString(); // account actually changes hands
   const previousConversation = { ...conv };
 
@@ -1287,13 +1293,8 @@ export const reparentSessionToDevice = mutation({
   },
 });
 
-// How many sessions one claim moves. A machine that signed into a different
-// account can own more than this; the caller repeats until `more` is false.
+// The caller repeats the transfer until `more` is false.
 const CLAIM_ACCOUNT_PAGE = 100;
-// How many of the previous account's sessions on the device one claim reads to
-// find that page. Sessions the caller may not take stay put and are re-read by
-// every call, so the read is wider than the page.
-const CLAIM_ACCOUNT_SCAN = 500;
 
 export type ClaimDeviceAccountResult = {
   moved: number;
@@ -1302,8 +1303,7 @@ export type ClaimDeviceAccountResult = {
   // goes quiet. Nothing was moved.
   pending?: boolean;
   error?: string;
-  // Sessions left with the previous account because the caller could not have
-  // pulled them (private to that account).
+  // Sessions left with the previous account, including fenced sessions.
   skipped?: number;
   // Refused for want of the previous account's token. The daemon keeps the
   // handover and asks again; nothing was moved.
@@ -1354,7 +1354,6 @@ export async function performClaimDeviceAccount(
       more: false,
       error: "the two accounts do not share a team",
     };
-
   const previousDevice = await ctx.db
     .query("devices")
     .withIndex("by_user_device", (q: any) =>
@@ -1364,31 +1363,24 @@ export async function performClaimDeviceAccount(
   if (previousDevice && now - previousDevice.last_seen < DEVICE_ONLINE_MS) {
     return { moved: 0, more: false, pending: true };
   }
-
-  const rows = await ctx.db
-    .query("conversations")
-    .withIndex("by_owner_device", (q: any) =>
-      q.eq("user_id", args.previousUserId).eq("owner_device_id", args.deviceId),
-    )
-    .take(CLAIM_ACCOUNT_SCAN);
+  const { rows, fenced } = await scanDeviceRows(
+    ctx,
+    args.previousUserId,
+    args.deviceId,
+  );
   const caller = await ctx.db.get(callerId);
   const movable: any[] = [];
   for (const conv of rows) {
     const access = await checkConversationAccess(ctx, callerId, conv);
-    if (access === "owner" || (access === "team" && !!caller && !caller.is_bot))
+    if (access === "owner" || (access === "team" && caller && !caller.is_bot))
       movable.push(conv);
   }
-  const skipped = rows.length - movable.length;
   const page = movable.slice(0, CLAIM_ACCOUNT_PAGE);
   for (const conv of page) {
-    if (!conv.author_user_id) {
-      await ctx.db.patch(conv._id, {
-        user_id: callerId,
-        author_user_id: conv.user_id,
-      });
-    } else {
-      await ctx.db.patch(conv._id, { user_id: callerId });
-    }
+    await ctx.db.patch(conv._id, {
+      user_id: callerId,
+      author_user_id: conv.author_user_id ?? conv.user_id,
+    });
     await followNewRunner(ctx, conv._id, callerId);
     const managed = await ctx.db
       .query("managed_sessions")
@@ -1402,13 +1394,16 @@ export async function performClaimDeviceAccount(
       }
     }
   }
+  const more = movable.length > CLAIM_ACCOUNT_PAGE;
+  const refusal = !more && fenced ? fencedMoveRefusal(fenced) : undefined;
+  const skipped = rows.length - movable.length + Number(!!refusal);
   return {
     moved: page.length,
-    more: movable.length > CLAIM_ACCOUNT_PAGE,
+    more,
     ...(skipped > 0 ? { skipped } : {}),
+    ...(refusal ? { error: refusal } : {}),
   };
 }
-
 export const claimDeviceAccount = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -2486,6 +2481,7 @@ export const claimConversation = mutation({
     if (!convId) return;
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id.toString() !== userId.toString()) return;
+    fencedMoveRefusal(conv, "throw");
     const device = await ownDevice(ctx, userId, args.device_id);
     await ctx.db.patch(convId, {
       owner_device_id: args.device_id,
@@ -2521,7 +2517,9 @@ export const claimConversationForStart = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id.toString() !== userId.toString())
       return { won: false as const };
-    const owner = (conv as any).owner_device_id as string | undefined;
+    const owner = conv.owner_device_id;
+    const reason = fencedMoveRefusal(conv);
+    if (reason) return { won: false as const, owner, reason };
     if (owner && owner !== args.device_id) {
       const ownerDevice = await ctx.db
         .query("devices")
@@ -2577,6 +2575,7 @@ export const setConversationOwner = mutation({
     if (!conv) throw new Error("conversation not found");
     if (conv.user_id.toString() !== userId.toString())
       throw new Error("not your conversation");
+    fencedMoveRefusal(conv, "throw");
     const device = args.owner_device_id
       ? await ownDevice(ctx, userId, args.owner_device_id)
       : null;

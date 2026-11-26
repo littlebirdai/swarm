@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import {
   heartbeatOf,
   heartbeatsFor,
@@ -2005,7 +2006,11 @@ export const createConversation = mutation({
       }
       // Adopt an unowned conversation; never steal one another device owns
       // (explicit ownership transfers go through sessionOwnership).
-      if (args.owner_device_id && !existing.owner_device_id) {
+      if (
+        args.owner_device_id &&
+        !existing.owner_device_id &&
+        !fencedMoveRefusal(existing)
+      ) {
         patch.owner_device_id = args.owner_device_id;
       }
       if (Object.keys(patch).length > 0) {
@@ -15751,6 +15756,14 @@ export const reconfigureSession = mutation({
         !(await isSessionOwner(ctx, conv._id, userId)))
     )
       throw new Error("Not found");
+    if (
+      args.cloud_device_id !== undefined ||
+      (args.target_device_id !== undefined &&
+        args.target_device_id !== conv.owner_device_id)
+    ) {
+      const reason = fencedMoveRefusal(conv);
+      if (reason) return { reconfigured: false as const, reason };
+    }
     // A hosted conversation has no machine, folder or local agent to pick.
     const hostedRefusal = agentTypeChangeRefusal(
       conv.agent_type,

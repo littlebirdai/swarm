@@ -9,7 +9,7 @@
  * here; from that point every existing rail — start_session routing, pending
  * message delivery, resume on wake — treats it like any other device.
  */
-
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { action, internalQuery, mutation, query } from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -138,6 +138,7 @@ export const placeConversation = mutation({
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv || conv.user_id.toString() !== userId.toString())
       throw new Error("not your conversation");
+    fencedMoveRefusal(conv, "throw");
     const device = await ctx.db
       .query("devices")
       .withIndex("by_user_device", (q: any) =>
@@ -273,6 +274,7 @@ export const claimSharedCheckout = mutation({
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv || conv.user_id.toString() !== userId.toString())
       throw new Error("not your conversation");
+    fencedMoveRefusal(conv, "throw");
     const device = await ctx.db
       .query("devices")
       .withIndex("by_user_device", (q: any) =>

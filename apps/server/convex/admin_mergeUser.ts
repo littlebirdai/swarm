@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -200,6 +201,20 @@ export const mergeDuplicateUser = internalMutation({
       );
     }
 
+    if (!args.dry_run) {
+      const head = await ctx.db
+        .query("conversation_execution_heads")
+        .withIndex("by_owner_state", (q) =>
+          q.eq("owner_user_id", args.from_user_id),
+        )
+        .first();
+      if (head)
+        fencedMoveRefusal(
+          { execution_protocol_state: head.protocol_state },
+          "throw",
+        );
+    }
+
     const perTable: Record<string, number> = {};
     let totalUpdated = 0;
     let more = false;
@@ -288,6 +303,8 @@ export const mergeDuplicateUser = internalMutation({
             for (const duplicate of duplicates)
               await ctx.db.delete(duplicate._id);
           } else {
+            if (table === "conversations" && field === "user_id")
+              fencedMoveRefusal(row, "throw");
             await ctx.db.patch(row._id, { [field]: args.to_user_id } as any);
           }
         }

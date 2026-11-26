@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { heartbeatOf, managedHeartbeatPage } from "./lib/sessionHeartbeat";
 import {
   applyHeartbeat,
@@ -195,6 +196,17 @@ export async function performRegisterManagedSession(
   // can register a session before that beat lands. Refusing there loses the
   // session entirely, so the registration proceeds and only the ownership
   // stamp waits for a device we can confirm.
+  const conversation =
+    args.device_id && effectiveConversationId
+      ? await ctx.db.get(effectiveConversationId)
+      : null;
+  const refusal = conversation && fencedMoveRefusal(conversation);
+  if (refusal && args.device_id !== conversation.owner_device_id)
+    return {
+      notOwner: true as const,
+      owner: conversation.owner_device_id,
+      reason: refusal,
+    };
   const ownedDevice = args.device_id
     ? await ctx.db
         .query("devices")
@@ -203,11 +215,10 @@ export async function performRegisterManagedSession(
         )
         .first()
     : null;
-  const stampDeviceId = ownedDevice ? args.device_id : undefined;
+  const stampDeviceId = ownedDevice && !refusal ? args.device_id : undefined;
 
   if (stampDeviceId && effectiveConversationId) {
-    const conv = await ctx.db.get(effectiveConversationId);
-    const owner = (conv as any)?.owner_device_id as string | undefined;
+    const owner = conversation?.owner_device_id as string | undefined;
     if (owner && owner !== args.device_id) {
       const ownerDevice = await ctx.db
         .query("devices")

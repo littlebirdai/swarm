@@ -1,3 +1,4 @@
+import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 /**
  * Bulk session migration: move MANY sessions between a local machine and a
@@ -243,10 +244,13 @@ export function heldReason(
     _id: string;
     session_id?: string;
     is_subagent?: boolean;
+    execution_protocol_state?: string;
     parent_conversation_id?: string;
   },
   facts: MovabilityFacts,
 ): string | null {
+  const refusal = fencedMoveRefusal(c);
+  if (refusal) return refusal;
   const id = String(c._id);
   // A step's session is named by its conversation short id, its session id, or (tmux runtime) only by its parent run.
   const isStep =
@@ -819,6 +823,8 @@ export async function performBeginSession(
     });
     return { ok: false as const, reason: error };
   };
+  const refusal = fencedMoveRefusal(conv);
+  if (refusal) return fail(refusal);
   if (
     conv.migration &&
     conv.migration.migration_id.toString() !== row._id.toString()
@@ -832,7 +838,6 @@ export async function performBeginSession(
   if (conv.owner_device_id === row.to_device_id)
     return fail("already on the destination");
   if (!conv.session_id) return fail("the session has no transcript yet");
-
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
@@ -847,7 +852,6 @@ export async function performBeginSession(
     return fail("the session is already on a cloud host");
   if (row.direction === "to_local" && !owner?.is_remote)
     return fail("the session is no longer on a cloud host");
-
   const managed = conv.session_id
     ? await ctx.db
         .query("managed_sessions")
@@ -856,7 +860,6 @@ export async function performBeginSession(
         )
         .first()
     : null;
-
   await ctx.db.patch(conv._id, {
     migration: {
       batch_id: row.batch_id,
@@ -1019,6 +1022,7 @@ export async function performEnqueueQuiesce(
     throw new Error("This offload was cancelled before the session stopped");
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv) throw new Error("the session no longer exists");
+  fencedMoveRefusal(conv, "throw");
   // An unowned row moving to the cloud can only be running on the executor
   // (it holds the transcript); a move back always has a remote owner.
   const target: string | undefined =
@@ -1047,7 +1051,6 @@ export async function performEnqueueQuiesce(
   });
   return { command_id: id.toString(), target_device_id: target };
 }
-
 export const enqueueQuiesce = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -1338,7 +1341,7 @@ export async function performFailSession(
   // starts again where it is, so a failed move leaves nothing interrupted.
   if (args.restore) {
     const conv = await ctx.db.get(row.conversation_id);
-    if (conv?.owner_device_id)
+    if (conv?.owner_device_id && !fencedMoveRefusal(conv))
       await enqueueTargetedResume(
         ctx,
         userId,
@@ -1357,7 +1360,6 @@ export async function performFailSession(
   });
   return { ok: true, status };
 }
-
 export const failSession = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -1589,6 +1591,7 @@ export async function performRunHere(
     throw new Error(
       "not your conversation (you can only move a session you run or own, or one visible to your team)",
     );
+  fencedMoveRefusal(conv, "throw");
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
