@@ -43657,10 +43657,11 @@ async function main(): Promise<void> {
     "turnStarted",
     (threadId: string, turnId: string, model?: string) => {
       const entry = appServerThreads.get(threadId);
-      appServerTurnProgress.set(
-        turnId,
-        makeAppServerTurnProgress(threadId, model),
-      );
+      if (!appServerTurnProgress.has(turnId))
+        appServerTurnProgress.set(
+          turnId,
+          makeAppServerTurnProgress(threadId, model),
+        );
       if (entry) {
         const previous = persistedAppServerThreads.get(entry.conversationId);
         persistedAppServerThreads.set(entry.conversationId, {
