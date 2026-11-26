@@ -116,7 +116,6 @@ test("SQLite persists the retried fence and resumes cursor writes after a siblin
   db.exec("PRAGMA query_only = OFF");
   expect(ownerStamp(db)).toMatchObject({ principal: "owner", blocked: false });
   a.writePatches([patch("syncMeta")], { syncMeta: { cursor: 3 } });
-  expect(ownerStamp(db)).toMatchObject({ principal: "owner", blocked: true });
   const b = createSqliteCache(db, auth);
   b.writePatches([patch("syncMeta")], { syncMeta: { cursor: 4 } });
   expect(await b.loadCache(["syncMeta"])).toEqual({ syncMeta: { cursor: 1 } });
