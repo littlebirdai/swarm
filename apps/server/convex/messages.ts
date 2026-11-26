@@ -1194,8 +1194,9 @@ export async function stampedEchoRows(
     if (String(row.conversation_id) === String(conversation._id))
       rows.push(row);
     else if (
-      String(row.owner_user_id ?? row.from_user_id) ===
-      String(conversation.user_id)
+      (row.delivery_protocol_version !== undefined
+        ? (await ctx.db.get(row.conversation_id))?.user_id
+        : (row.owner_user_id ?? row.from_user_id)) === conversation.user_id
     )
       rows.push(row);
   }

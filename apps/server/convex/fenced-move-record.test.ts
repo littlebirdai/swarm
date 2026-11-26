@@ -122,6 +122,8 @@ test("record preserves source and destination identity and clears an unstarted c
   await f.record();
   const after = await f.rows(permit.attempt_id);
   expect(after.head?.device_move).toEqual({
+    move_id: expect.any(String),
+    recorded_at: start,
     source_epoch: 1,
     source_lease_id: before.lease?._id,
     attempt_id: permit.attempt_id,

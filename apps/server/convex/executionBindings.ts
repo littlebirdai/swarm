@@ -26,7 +26,10 @@ import {
   attemptMatchesFence,
   type ReadyBindingFence,
 } from "./lib/delivery-slot.state";
-import { requireNoDeviceMove } from "./lib/edge/device-move.state";
+import {
+  assertMoveAdmissionOpen,
+  requireNoDeviceMove,
+} from "./lib/edge/device-move.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
 import {
   EXECUTION_PROTOCOL_VERSION,
@@ -125,6 +128,7 @@ export async function allocateFencedDeliveryMetadata(
   conversationSequence: number;
   executionEpoch: number;
   deliveryId: string;
+  moveOwnerUserId?: Id<"users">;
 }> {
   const head = await executionHead(ctx, conversation._id);
   const marker = conversation.execution_protocol_state;
@@ -152,6 +156,7 @@ export async function allocateFencedDeliveryMetadata(
     );
   }
   requireProtocolVersion(head.protocol_version);
+  assertMoveAdmissionOpen(head);
   const executionEpoch = head.admission_epoch ?? head.current_epoch;
   requireSafePositive(executionEpoch, "admissionEpoch");
   const binding = await executionBinding(ctx, conversation._id, executionEpoch);
@@ -172,6 +177,9 @@ export async function allocateFencedDeliveryMetadata(
     conversationSequence,
     executionEpoch,
     deliveryId: clientId,
+    ...(head.device_move?.phase === "preparing"
+      ? { moveOwnerUserId: binding.owner_user_id }
+      : {}),
   };
 }
 
@@ -1742,6 +1750,7 @@ export const claimExecutionStart = mutation({
     required_capabilities: v.array(capabilityValidator),
     proposed_operation_id: v.string(),
     api_token: v.string(),
+    move_id: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await claimExecutionStartInDb(
@@ -1761,6 +1770,8 @@ export const claimExecutionStart = mutation({
         requiredCapabilities: args.required_capabilities,
         proposedOperationId: args.proposed_operation_id,
         now: Date.now(),
+        moveId: args.move_id,
+        moveBearer: args.api_token,
       },
     ),
 });
@@ -1781,6 +1792,7 @@ export const publishReadyBinding = mutation({
     protocol_version: v.number(),
     capabilities: v.array(capabilityValidator),
     api_token: v.string(),
+    move_id: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await publishReadyBindingInDb(
@@ -1801,12 +1813,14 @@ export const publishReadyBinding = mutation({
         protocolVersion: args.protocol_version,
         capabilities: args.capabilities,
         now: Date.now(),
+        moveId: args.move_id,
+        moveBearer: args.api_token,
       },
     ),
 });
 
 export const publishStartFailedBeforeEffect = mutation({
-  args: startOutcomeArgs,
+  args: { ...startOutcomeArgs, move_id: v.optional(v.string()) },
   handler: async (ctx, args) =>
     await publishStartOutcomeInDb(
       ctx,
@@ -1823,12 +1837,18 @@ export const publishStartFailedBeforeEffect = mutation({
         failureRetryable: args.failure_retryable,
         outcome: "start-failed-before-effect",
         now: Date.now(),
+        moveId: args.move_id,
+        moveBearer: args.api_token,
       },
     ),
 });
 
 export const publishStartAmbiguous = mutation({
-  args: { ...startOutcomeArgs, suspected_runtime_id: v.optional(v.string()) },
+  args: {
+    ...startOutcomeArgs,
+    move_id: v.optional(v.string()),
+    suspected_runtime_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) =>
     await publishStartOutcomeInDb(
       ctx,
@@ -1846,6 +1866,8 @@ export const publishStartAmbiguous = mutation({
         suspectedRuntimeId: args.suspected_runtime_id,
         outcome: "start-ambiguous",
         now: Date.now(),
+        moveId: args.move_id,
+        moveBearer: args.api_token,
       },
     ),
 });
@@ -1872,6 +1894,7 @@ export const disposePreReadyBinding = mutation({
     suspected_runtime_id: v.optional(v.string()),
     evidence: v.string(),
     api_token: v.string(),
+    move_id: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await disposePreReadyBindingInDb(
@@ -1889,6 +1912,8 @@ export const disposePreReadyBinding = mutation({
         suspectedRuntimeId: args.suspected_runtime_id,
         evidence: args.evidence,
         now: Date.now(),
+        moveId: args.move_id,
+        moveBearer: args.api_token,
       },
     ),
 });

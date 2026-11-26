@@ -192,6 +192,12 @@ export const listSessionThreads = query({
     for (const r of recent) {
       const parsed = parseSessionThreadMessage(r.content);
       const toConv = convCache.get(r.conversation_id.toString());
+      if (
+        r.delivery_protocol_version !== undefined &&
+        r.from_user_id !== me &&
+        toConv?.user_id !== me
+      )
+        continue;
       const toId =
         addNode(toConv) ?? addGhost(r.conversation_id.toString().slice(0, 7));
 

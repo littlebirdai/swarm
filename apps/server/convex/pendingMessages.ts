@@ -166,7 +166,8 @@ export function pendingMessageMatchesProductIntent(
   return (
     String(message.conversation_id) === String(conversation._id) &&
     String(message.from_user_id) === String(userId) &&
-    String(message.owner_user_id) === String(conversation.user_id) &&
+    pendingMessageOwnerId(message, conversation.user_id) ===
+      conversation.user_id &&
     message.content === intent.content &&
     message.client_id === intent.clientId &&
     message.image_storage_id === undefined &&
@@ -301,12 +302,11 @@ export async function patchPendingMessageStatus(
 
 // The owner of a pending message is whoever owns the target conversation — that's the daemon
 // responsible for delivering it. For a self-send owner == sender; for a team send they differ.
-// owner_user_id is denormalized onto the row (backfilled on legacy rows); fall back to the
-// conversation's user_id so an un-backfilled row still routes correctly.
 export function pendingMessageOwnerId(
   message: { owner_user_id?: Id<"users"> },
   runner: Id<"users">,
 ): Id<"users"> {
+  if (isFencedPendingMessage(message)) return runner;
   return message.owner_user_id ?? runner;
 }
 

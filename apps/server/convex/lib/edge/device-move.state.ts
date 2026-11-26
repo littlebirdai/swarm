@@ -83,13 +83,28 @@ export async function recordDeviceMove(
     )
     .unique();
   const existing = head?.device_move;
-  if (existing) {
+  if (head && existing) {
     if (
       existing.source_epoch === args.expected_source_epoch &&
       existing.destination_device_id === args.destination_device_id &&
       existing.destination_runner_id === args.destination_runner_id
-    )
-      return null;
+    ) {
+      const moveId = existing.move_id ?? crypto.randomUUID();
+      if (!existing.move_id || existing.recorded_at === undefined)
+        await ctx.db.patch(head._id, {
+          device_move: {
+            ...existing,
+            move_id: moveId,
+            recorded_at: existing.recorded_at ?? now,
+          },
+        });
+      return {
+        moveId,
+        headId: head._id,
+        sourceEpoch: existing.source_epoch,
+        expiresAt: null,
+      };
+    }
     requireNoDeviceMove(head);
   }
   if (
@@ -129,7 +144,10 @@ export async function recordDeviceMove(
       ? lease
       : null;
   const started = head.active_delivery_state === "delivery-started";
+  const moveId = crypto.randomUUID();
   const move: Move = {
+    move_id: moveId,
+    recorded_at: now,
     source_epoch: binding.epoch,
     source_lease_id: sourceLease?._id,
     attempt_id: head.active_delivery_attempt_id,
@@ -151,6 +169,7 @@ export async function recordDeviceMove(
       ? Math.min(move.settlement_deadline, sourceLease.expires_at)
       : now;
   return {
+    moveId,
     headId: head._id,
     sourceEpoch: binding.epoch,
     expiresAt: started ? expiresAt : null,
@@ -213,4 +232,8 @@ export async function expireMoveSettlement(
     failure_message:
       "The source could not confirm delivery before its settlement window ended",
   });
+}
+
+export function assertMoveAdmissionOpen(head: Pick<Head, "device_move">) {
+  if (head.device_move?.phase === "aborting") requireNoDeviceMove(head);
 }

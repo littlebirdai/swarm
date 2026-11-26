@@ -160,6 +160,11 @@ export const sessionDeliveryTables = {
       "conversation_id",
       "conversation_sequence",
     ])
+    .index("by_conversation_epoch_delivery", [
+      "conversation_id",
+      "execution_epoch",
+      "delivery_status",
+    ])
     .index("by_conversation_client_id", ["conversation_id", "client_id"])
     // `cast send --status`: one sender's sends into one target, newest first.
     .index("by_from_conversation", ["from_conversation_id", "conversation_id"]),
@@ -199,6 +204,13 @@ export const sessionDeliveryTables = {
     pending_epoch: v.optional(v.number()),
     device_move: v.optional(
       v.object({
+        move_id: v.optional(v.string()),
+        recorded_at: v.optional(v.number()),
+        phase: v.optional(
+          v.union(v.literal("preparing"), v.literal("aborting")),
+        ),
+        source_stopped_at: v.optional(v.number()),
+        source_replacement_boot_id: v.optional(v.string()),
         source_epoch: v.number(),
         source_lease_id: v.optional(v.id("run_leases")),
         attempt_id: v.optional(v.id("delivery_attempts")),
@@ -345,6 +357,8 @@ export const sessionDeliveryTables = {
     owner_user_id: v.id("users"),
     owner_device_id: v.string(),
     daemon_boot_id: v.string(),
+    move_id: v.optional(v.string()),
+    requires_run_lease: v.optional(v.boolean()),
     claim_id: v.optional(v.string()),
     requested_agent: v.union(
       v.literal("claude"),
