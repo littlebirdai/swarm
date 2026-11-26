@@ -2519,7 +2519,7 @@
   },
   "apps/cli/src/daemon.ts": {
     "swarm/no-blocking-child-process-call": 2,
-    "swarm/no-comments": 6746
+    "swarm/no-comments": 6743
   },
   "apps/cli/src/daemon.turn-claims-wiring.test.ts": {
     "swarm/no-comments": 23
@@ -2770,7 +2770,7 @@
     "swarm/no-comments": 2
   },
   "apps/cli/src/execution/coordinator.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 28
   },
   "apps/cli/src/execution/driver.ts": {
     "swarm/no-comments": 3
@@ -2784,14 +2784,14 @@
   "apps/cli/src/execution/externalEffectsBoundary.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/cli/src/execution/localJournal.ts": {
+  "apps/cli/src/execution/local-journal.ts": {
     "swarm/no-comments": 6
+  },
+  "apps/cli/src/execution/runtime-rail.ts": {
+    "swarm/no-comments": 18
   },
   "apps/cli/src/execution/runtimeRail.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/cli/src/execution/runtimeRail.ts": {
-    "swarm/no-comments": 18
   },
   "apps/cli/src/execution/types.ts": {
     "swarm/no-comments": 4

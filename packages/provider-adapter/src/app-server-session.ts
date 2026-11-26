@@ -524,6 +524,12 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     if (preflight) return preflight;
     const replay = receipts.retry(request.delivery_id);
     if (replay) return replay;
+    const stored = yield* Effect.result(
+      receipts.find(threadId, request.delivery_id),
+    );
+    if (stored._tag === "Failure")
+      return inDoubt("unknown", stored.failure.code, stored.failure.message);
+    if (stored.success) return { status: "duplicate", receipt: stored.success };
     if (starting || unlocatedTurn)
       return inDoubt(
         "unknown",
@@ -576,7 +582,9 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         },
       ),
     );
-    const receipt = receipts.committed(request.delivery_id);
+    const receipt = yield* receipts
+      .find(threadId, request.delivery_id)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)));
     const accepted = receipt && ({ status: "accepted", receipt } as const);
     if (result._tag === "Failure")
       return result.failure instanceof AdapterError

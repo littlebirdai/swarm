@@ -61,7 +61,10 @@ An adapter can use a `DeliveryReceiptJournal` to retain the provider item ID
 and turn. The journal keys each receipt by session, checkpoint, and delivery
 ID. A write must commit before it resolves. Exact repeats are idempotent.
 Reject a write that conflicts with a stored receipt. Reads return committed
-records and must work after a restart. The canonical receipt event carries
+records and must work after a restart. Use `find` to read one receipt by its
+delivery ID. It returns `undefined` when the receipt is absent. Use `forget`
+to remove that receipt once the control plane confirms settlement. Repeating
+`forget` for a missing receipt succeeds. The canonical receipt event carries
 the delivery ID. On resume, `inDoubtDeliveryIds` selects which recovered
 receipts to emit again. The adapter emits each selected ID once per open.
 

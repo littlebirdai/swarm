@@ -19,7 +19,7 @@ import {
   EXECUTION_JOURNAL_SCHEMA_VERSION,
   InMemoryExecutionOperationJournal,
   type ExecutionJournalRecord,
-} from "./localJournal.js";
+} from "./local-journal.js";
 import type {
   DriverDeliveryResult,
   EnsureBindingRequest,
@@ -615,6 +615,19 @@ describe("ExecutionCoordinator delivery ambiguity", () => {
       "ambiguous",
     );
     expect(controlPlane.ambiguousAttempts).toEqual(["attempt-1"]);
+
+    let confirmations = 0;
+    expect(
+      await execution.reconcileOwnedDelivery(
+        "conversation-1",
+        "attempt-1",
+        async () => {
+          confirmations++;
+          return "released";
+        },
+      ),
+    ).toBe(false);
+    expect(confirmations).toBe(0);
 
     // Re-observing the same attempt returns its existing result without reinjection.
     expect(
