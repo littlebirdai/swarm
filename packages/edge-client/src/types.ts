@@ -73,7 +73,9 @@ export type EdgeSteerHandover = DeliveryStartRequest & {
 type RunIdentity = Pick<PermitsNextRequest, "session" | "run">;
 
 export type EdgeSteerJournal = {
-  readonly fences: readonly TakeoverFence[];
+  readonly fences: readonly (TakeoverFence & {
+    readonly acknowledged?: true;
+  })[];
   readonly handovers: readonly EdgeSteerHandover[];
 };
 

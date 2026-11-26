@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -18,6 +18,7 @@ import type {
 } from "@codecast/edge-contract";
 import hello from "../../../../packages/edge-contract/test/fixtures/hello.json";
 import { createDaemonEdgeClient } from "./daemon-edge-client.js";
+import { daemonSteerJournal } from "./daemon-steer-journal.js";
 
 const enabled = { SWARM_TURN_BATON: "1", CODECAST_EDGE_DELIVERY_V1: "1" };
 const run = {
@@ -51,8 +52,14 @@ const fence = {
   new_baton_token: 2,
 } satisfies TakeoverFence;
 const recorded = { v: 1, status: "recorded" } as const;
+const duplicate = { v: 1, status: "duplicate" } as const;
+const empty = { v: 1, status: "empty" } as const;
+const stale = { v: 1, status: "stale" } as const;
 
-function fakeEdge(permit: PermitsNextResponse) {
+function fakeEdge(
+  permit: PermitsNextResponse,
+  ack: typeof recorded | typeof duplicate | typeof stale = recorded,
+) {
   const calls: {
     operation: EdgeOperation;
     request: EdgeRequests[EdgeOperation];
@@ -75,8 +82,9 @@ function fakeEdge(permit: PermitsNextResponse) {
           },
         };
       case "delivery.settle":
-      case "takeover.ack":
         return { status: 200, body: recorded };
+      case "takeover.ack":
+        return { status: 200, body: ack };
       default:
         throw new Error(`Unexpected edge operation ${operation}`);
     }
@@ -139,7 +147,7 @@ afterEach(async () => {
 
 async function connect(
   edge: ReturnType<typeof fakeEdge>,
-  agent: Agent,
+  agent: Agent | undefined,
   env: Parameters<typeof createDaemonEdgeClient>[1] = enabled,
 ) {
   const client = createDaemonEdgeClient(
@@ -156,9 +164,14 @@ async function connect(
   return client;
 }
 
-test.each([{}, { CODECAST_EDGE_DELIVERY_V1: "1" }, { SWARM_TURN_BATON: "1" }])(
+test.each([
+  { env: {}, hasAgent: true },
+  { env: { CODECAST_EDGE_DELIVERY_V1: "1" }, hasAgent: true },
+  { env: { SWARM_TURN_BATON: "1" }, hasAgent: true },
+  { env: enabled, hasAgent: false },
+])(
   "offers the queue capability alone unless both flags are on (%j)",
-  async (env) => {
+  async ({ env, hasAgent }) => {
     const queue = {
       ...attempt,
       status: "permit",
@@ -168,7 +181,11 @@ test.each([{}, { CODECAST_EDGE_DELIVERY_V1: "1" }, { SWARM_TURN_BATON: "1" }])(
     } as const;
     const edge = fakeEdge({ ...queue, input: [...queue.input] });
     const machine = fakeAgent();
-    const client = await connect(edge, machine.agent, env);
+    const client = await connect(
+      edge,
+      hasAgent ? machine.agent : undefined,
+      env,
+    );
     expect(edge.calls[0]?.request).toMatchObject({
       capabilities: ["delivery-permit-v1"],
     });
@@ -207,6 +224,7 @@ test("hands the confirmed input to the agent with the named open turn and lease"
       input: [{ type: "text", text: "server input" }],
     },
   ]);
+  expect(await readdir(journalDirectory)).toEqual([]);
 });
 
 test("settles a stale steer without handing it to the agent", async () => {
@@ -239,6 +257,9 @@ test("withholds takeover ack until the covered handover settles", async () => {
     ok: true,
     value: { outcome: "in_doubt" },
   });
+  const [file] = await readdir(journalDirectory);
+  if (file === undefined) throw new Error("No steer journal exists");
+  expect((await stat(join(journalDirectory, file))).mode & 0o777).toBe(0o600);
   edge.offer(fence);
   expect(await client.deliverNext(run)).toEqual({
     ok: true,
@@ -264,6 +285,15 @@ test("withholds takeover ack until the covered handover settles", async () => {
     resolution_evidence: "published receipt",
   });
   expect(machine.steers).toHaveLength(1);
+  expect(
+    await daemonSteerJournal(journalDirectory).load(
+      run,
+      new AbortController().signal,
+    ),
+  ).toEqual({
+    fences: [{ ...fence, acknowledged: true }],
+    handovers: [],
+  });
 });
 
 test("a restart before ack preserves the fence and recovers the open handover without resending", async () => {
@@ -328,7 +358,103 @@ test("a restart before ack preserves the fence and recovers the open handover wi
   });
 });
 
-test("corrupt journal evidence prevents a takeover acknowledgement", async () => {
+test("a duplicate ack after restart preserves the fence until the turn ends", async () => {
+  const original = fakeEdge(fence);
+  const first = await connect(
+    {
+      ...original,
+      transport: async (operation, request, signal) => {
+        const response = await original.transport(operation, request, signal);
+        return operation === "takeover.ack"
+          ? { ...response, body: null }
+          : response;
+      },
+    },
+    fakeAgent().agent,
+  );
+  expect(await first.deliverNext(run)).toMatchObject({
+    ok: false,
+    error: { kind: "parse", operation: "takeover.ack" },
+  });
+  await first.close();
+
+  const edge = fakeEdge(fence, duplicate);
+  const machine = fakeAgent();
+  const restarted = await connect(edge, machine.agent);
+  expect(await restarted.deliverNext(run)).toEqual({
+    ok: true,
+    value: { status: "takeover", receipt: duplicate },
+  });
+  expect(machine.steers).toEqual([]);
+  expect(edge.calls.slice(1).map(({ operation }) => operation)).toEqual([
+    "permits.next",
+    "takeover.ack",
+  ]);
+  edge.offer(empty);
+  expect(await restarted.deliverNext(run)).toEqual({ ok: true, value: empty });
+  expect(await readdir(journalDirectory)).toHaveLength(1);
+  await restarted.close();
+
+  const ended = await connect(fakeEdge(empty), fakeAgent("next-turn").agent);
+  expect(await ended.deliverNext(run)).toEqual({ ok: true, value: empty });
+  expect(await readdir(journalDirectory)).toEqual([]);
+});
+
+test("a stale ack cannot retire a fence after the turn changes", async () => {
+  const client = await connect(fakeEdge(fence, stale), fakeAgent().agent);
+  expect(await client.deliverNext(run)).toEqual({
+    ok: true,
+    value: { status: "takeover", receipt: stale },
+  });
+  await client.close();
+
+  const ended = await connect(fakeEdge(empty), fakeAgent("next-turn").agent);
+  expect(await ended.deliverNext(run)).toEqual({ ok: true, value: empty });
+  expect(await readdir(journalDirectory)).toHaveLength(1);
+});
+
+const handover = {
+  ...attempt,
+  intent: "steer",
+  expected: steer.expected,
+  baton_token: steer.baton_token,
+};
+const emptyJournal = { version: 1, fences: [], handovers: [] };
+test.each([
+  { name: "truncated JSON", content: '{"version":1,' },
+  { name: "unsupported version", content: { ...emptyJournal, version: 2 } },
+  {
+    name: "fence from another session",
+    content: { ...emptyJournal, fences: [{ ...fence, session: "another" }] },
+  },
+  {
+    name: "fence from another run",
+    content: { ...emptyJournal, fences: [{ ...fence, run: 2 }] },
+  },
+  {
+    name: "handover from another session",
+    content: {
+      ...emptyJournal,
+      handovers: [{ ...handover, session: "another" }],
+    },
+  },
+  {
+    name: "handover from another run",
+    content: { ...emptyJournal, handovers: [{ ...handover, run: 2 }] },
+  },
+  {
+    name: "missing handover identity",
+    content: { ...emptyJournal, handovers: [{}] },
+  },
+  {
+    name: "array handover",
+    content: { ...emptyJournal, handovers: [[handover]] },
+  },
+  ...["status", "state", "input"].map((key) => ({
+    name: `handover with a wire ${key} field`,
+    content: { ...emptyJournal, handovers: [{ ...handover, [key]: null }] },
+  })),
+])("fails closed for $name in the journal", async ({ content }) => {
   const edge = fakeEdge(steer);
   const machine = fakeAgent("open-turn", { outcome: "in_doubt" });
   const client = await connect(edge, machine.agent);
@@ -340,7 +466,7 @@ test("corrupt journal evidence prevents a takeover acknowledgement", async () =>
   if (file === undefined) throw new Error("No steer journal exists");
   await writeFile(
     join(journalDirectory, file),
-    '{"version":1,"fences":[],"handovers":[{}]}',
+    typeof content === "string" ? content : JSON.stringify(content),
   );
 
   edge.offer(fence);
@@ -352,4 +478,24 @@ test("corrupt journal evidence prevents a takeover acknowledgement", async () =>
     false,
   );
   expect(machine.recoveries).toEqual([]);
+});
+
+test("aborted journal operations leave durable state untouched", async () => {
+  const journal = daemonSteerJournal(journalDirectory);
+  const live = new AbortController().signal;
+  const aborted = AbortSignal.abort();
+  const state = { fences: [fence], handovers: [] };
+  await journal.save(run, state, live);
+  await expect(journal.load(run, aborted)).rejects.toBe(aborted.reason);
+  await expect(
+    journal.save(run, { ...state, fences: [] }, aborted),
+  ).rejects.toBe(aborted.reason);
+  await expect(
+    journal.save(
+      run,
+      { ...state, fences: [{ ...fence, fence_id: "another" }] },
+      aborted,
+    ),
+  ).rejects.toBe(aborted.reason);
+  expect(await journal.load(run, live)).toEqual(state);
 });

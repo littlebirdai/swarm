@@ -133,6 +133,32 @@ export function makeDelivery(
     turn: host!.runningTurn(run),
   });
 
+  function withoutClosedFences(
+    run: PermitsNextRequest,
+    journal: EdgeSteerJournal,
+  ) {
+    if (!journal.fences.length) return journal;
+    const { turn } = observed(run);
+    const fences = journal.fences.filter(
+      (fence) =>
+        !fence.acknowledged ||
+        fence.turn === turn ||
+        journal.handovers.some((hand) => covers(fence, hand)),
+    );
+    return fences.length === journal.fences.length
+      ? journal
+      : { ...journal, fences };
+  }
+
+  const loadPruned = Effect.fn("edgeClient.pruneClosedFences")(function* (
+    run: PermitsNextRequest,
+  ) {
+    const saved = yield* load(run);
+    const pruned = withoutClosedFences(run, saved);
+    if (pruned !== saved) yield* save(run, pruned);
+    return pruned;
+  });
+
   const recordHand = Effect.fn("edgeClient.recordSteer")(function* (
     run: PermitsNextRequest,
     state: EdgeSteerJournal,
@@ -212,7 +238,10 @@ export function makeDelivery(
     run: PermitsNextRequest,
     fence: TakeoverFence,
   ) {
-    if (observed(run).turn !== fence.turn) return fenced;
+    if (observed(run).turn !== fence.turn) {
+      yield* loadPruned(run);
+      return fenced;
+    }
     const key = JSON.stringify([run.session, run.run, fence.fence_id]);
     const unrecorded = unrecordedFences.get(key);
     if (!unrecorded) unrecordedFences.set(key, fence);
@@ -237,7 +266,7 @@ export function makeDelivery(
         ...journal,
         fences: [
           ...journal.fences.filter((item) => item.fence_id !== fence.fence_id),
-          fence,
+          old?.acknowledged ? { ...fence, acknowledged: true } : fence,
         ],
       };
       yield* save(run, journal);
@@ -267,6 +296,19 @@ export function makeDelivery(
       { v, session, run: epoch, fencing_token, fence_id, turn, baton_token },
       parseTakeoverAckResponse,
     );
+    const confirmed =
+      receipt.status !== "stale" && !old?.acknowledged
+        ? {
+            ...journal,
+            fences: journal.fences.map((item) =>
+              item.fence_id === fence_id
+                ? { ...item, acknowledged: true as const }
+                : item,
+            ),
+          }
+        : journal;
+    const pruned = withoutClosedFences(run, confirmed);
+    if (pruned !== journal) yield* save(run, pruned);
     return { status: "takeover", receipt } as const;
   });
 
@@ -278,16 +320,22 @@ export function makeDelivery(
       run,
       parsePermitsNextResponse,
     );
-    if (value.status === "empty" || value.status === "stale") return value;
-    if (!sameLease(run, value)) return yield* reject("delivery_lease_mismatch");
-    if (value.status === "permit" && value.intent === "queue") return value;
-    if (!host || !agreed(STEER_BATON_CAPABILITY))
-      return yield* reject("steer_not_negotiated");
+    if (value.status === "stale") return value;
+    if (value.status !== "empty" && !sameLease(run, value))
+      return yield* reject("delivery_lease_mismatch");
+    const steering = host && agreed(STEER_BATON_CAPABILITY);
     if (value.status === "takeover_fence") {
+      if (!steering) return yield* reject("steer_not_negotiated");
       if (!agreed(TAKEOVER_FENCE_CAPABILITY))
         return yield* reject("takeover_not_negotiated");
       return yield* receiveFence(run, value);
     }
+
+    if (value.status === "empty" || value.intent === "queue") {
+      if (steering) yield* loadPruned(run);
+      return value;
+    }
+    if (!steering) return yield* reject("steer_not_negotiated");
 
     const hand = {
       ...identity(value),
@@ -295,7 +343,7 @@ export function makeDelivery(
       baton_token: value.baton_token,
     };
     if (activeAttempts.has(keyOf(hand))) return pending;
-    const journal = yield* load(run);
+    const journal = yield* loadPruned(run);
     if (
       value.state === "started" ||
       journal.handovers.some((item) => item.attempt_id === hand.attempt_id)
