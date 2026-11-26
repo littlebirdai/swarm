@@ -39,9 +39,6 @@
   "apps/cli/learning/bunToMatchObject.learning.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/cli/learning/tmuxSendKeys.learning.test.ts": {
-    "swarm/no-comments": 7
-  },
   "apps/cli/npm/bin/codecast.js": {
     "swarm/no-comments": 3
   },
@@ -2235,7 +2232,7 @@
   "apps/cli/src/daemon.heartbeat-body-before-timer.guard.test.ts": {
     "swarm/no-comments": 7
   },
-  "apps/cli/src/daemon.heartbeat-health.test.ts": {
+  "apps/cli/src/daemon.heartbeat-health.e2e.test.ts": {
     "swarm/no-comments": 6
   },
   "apps/cli/src/daemon.heartbeat-status.test.ts": {
@@ -2277,7 +2274,7 @@
   "apps/cli/src/daemon.ingest-window.test.ts": {
     "swarm/no-comments": 28
   },
-  "apps/cli/src/daemon.inject-clear.test.ts": {
+  "apps/cli/src/daemon.inject-clear.e2e.test.ts": {
     "swarm/no-comments": 72
   },
   "apps/cli/src/daemon.inject-collapsed-paste.e2e.test.ts": {
@@ -2286,10 +2283,10 @@
   "apps/cli/src/daemon.inject-cross-user-paste.e2e.test.ts": {
     "swarm/no-comments": 48
   },
-  "apps/cli/src/daemon.inject-deaf-pane.test.ts": {
+  "apps/cli/src/daemon.inject-deaf-pane.e2e.test.ts": {
     "swarm/no-comments": 6
   },
-  "apps/cli/src/daemon.inject-double-paste.test.ts": {
+  "apps/cli/src/daemon.inject-double-paste.e2e.test.ts": {
     "swarm/no-comments": 53
   },
   "apps/cli/src/daemon.inject-enter-gate.test.ts": {
@@ -2334,10 +2331,10 @@
   "apps/cli/src/daemon.isolated-worktree.guard.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/cli/src/daemon.keystroke-callers.test.ts": {
+  "apps/cli/src/daemon.keystroke-callers.e2e.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/cli/src/daemon.kill-foreign-tmux.test.ts": {
+  "apps/cli/src/daemon.kill-foreign-tmux.e2e.test.ts": {
     "swarm/no-comments": 5
   },
   "apps/cli/src/daemon.kill-keeps-codex-resume.test.ts": {
@@ -3924,6 +3921,9 @@
     "swarm/no-comments": 45,
     "swarm/no-raw-child-process": 1
   },
+  "apps/cli/src/process-table.e2e.test.ts": {
+    "swarm/no-comments": 33
+  },
   "apps/cli/src/processCwdCache.test.ts": {
     "swarm/no-comments": 1
   },
@@ -3950,9 +3950,6 @@
   },
   "apps/cli/src/processTable.restoreSocket.e2e.test.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/cli/src/processTable.test.ts": {
-    "swarm/no-comments": 33
   },
   "apps/cli/src/processTable.ts": {
     "swarm/no-blocking-child-process-call": 2,
@@ -4746,7 +4743,7 @@
   "apps/cli/src/tempFiles.ts": {
     "swarm/no-comments": 14
   },
-  "apps/cli/src/terminal/controlClient.test.ts": {
+  "apps/cli/src/terminal/control-client.e2e.test.ts": {
     "swarm/no-comments": 27
   },
   "apps/cli/src/terminal/controlClient.ts": {
@@ -4770,8 +4767,11 @@
   "apps/cli/src/terminal/paneStream.ts": {
     "swarm/no-comments": 108
   },
-  "apps/cli/src/terminal/terminalColors.test.ts": {
+  "apps/cli/src/terminal/terminal-colors.e2e.test.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/cli/src/terminal/terminal-server.e2e.test.ts": {
+    "swarm/no-comments": 8
   },
   "apps/cli/src/terminal/terminalHub.e2e.test.ts": {
     "swarm/no-comments": 36
@@ -4781,9 +4781,6 @@
   },
   "apps/cli/src/terminal/terminalHub.ts": {
     "swarm/no-comments": 99
-  },
-  "apps/cli/src/terminal/terminalServer.test.ts": {
-    "swarm/no-comments": 8
   },
   "apps/cli/src/terminal/terminalServer.ts": {
     "swarm/no-comments": 76
@@ -4941,6 +4938,9 @@
   "apps/cli/src/titleGenerator.test.ts": {
     "swarm/no-comments": 4
   },
+  "apps/cli/src/tmux-send-keys.learning.e2e.test.ts": {
+    "swarm/no-comments": 7
+  },
   "apps/cli/src/tmux.hasTmux.test.ts": {
     "swarm/no-comments": 9
   },
@@ -4950,7 +4950,7 @@
   "apps/cli/src/tmux.serverStart.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/cli/src/tmux.timeout.test.ts": {
+  "apps/cli/src/tmux.timeout.e2e.test.ts": {
     "swarm/no-comments": 18
   },
   "apps/cli/src/tmux.ts": {
@@ -5263,7 +5263,7 @@
   "apps/cli/src/workers/scanPolicy.ts": {
     "swarm/no-comments": 6
   },
-  "apps/cli/src/workers/subprocess.test.ts": {
+  "apps/cli/src/workers/subprocess.e2e.test.ts": {
     "swarm/no-comments": 6
   },
   "apps/cli/src/workers/terminalSnapshot.test.ts": {
@@ -5560,6 +5560,9 @@
   "apps/cli/src/workflow/reviewNote.ts": {
     "swarm/no-comments": 7
   },
+  "apps/cli/src/workflow/run-resume.e2e.test.ts": {
+    "swarm/no-comments": 45
+  },
   "apps/cli/src/workflow/run-worktree.test.ts": {
     "swarm/no-comments": 11
   },
@@ -5575,9 +5578,6 @@
   },
   "apps/cli/src/workflow/runFailure.ts": {
     "swarm/no-comments": 10
-  },
-  "apps/cli/src/workflow/runResume.test.ts": {
-    "swarm/no-comments": 45
   },
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
