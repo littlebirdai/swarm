@@ -230,22 +230,32 @@ test.each([
     state: "stopped",
     status: "pending",
     handle: "prior-handle",
+    abandoned: undefined,
   },
   {
     name: "terminal row from a failed start with a stray handle",
     state: "start-failed-before-effect",
     status: "delivered",
     handle: "stray-handle",
+    abandoned: undefined,
   },
   {
     name: "terminal row from a handleless quarantine",
     state: "quarantined",
     status: "delivered",
     handle: undefined,
+    abandoned: undefined,
+  },
+  {
+    name: "terminal row from a quarantined abandoned move",
+    state: "quarantined",
+    status: "delivered",
+    handle: "abandoned-handle",
+    abandoned: true,
   },
 ] as const)(
   "a $name does not authorize a historical owner",
-  async ({ state, status, handle }) => {
+  async ({ state, status, handle, abandoned }) => {
     const f = await setupRunLease();
     await f.t.run(async ({ db }) => {
       const rows = fixtureRows(db, "historical replay owner");
@@ -261,6 +271,7 @@ test.each([
         owner_device_id: "prior-device",
         state,
         handle,
+        abandoned_move: abandoned,
       });
       await db.insert("execution_bindings", { ...binding, epoch: 3 });
       await db.patch(f.head, { current_epoch: 3, admission_epoch: 3 });

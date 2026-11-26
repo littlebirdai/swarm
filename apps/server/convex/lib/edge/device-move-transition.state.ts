@@ -147,7 +147,7 @@ export async function destinationBinding(
   if (
     !binding ||
     head.pending_epoch !== move.next_epoch ||
-    binding.move_id !== move.move_id ||
+    binding.move_id !== (move.replacement?.abandoned_move_id ?? move.move_id) ||
     binding.owner_user_id !== move.destination_runner_id ||
     binding.owner_device_id !== move.destination_device_id
   )
@@ -219,6 +219,10 @@ export async function prepareDeviceMove(
 ) {
   const state = await moveContext(ctx, args);
   assertDestination(state);
+  if (state.move.driver?.step === "failed")
+    throw new ConvexError(
+      "The session owner must choose where the failed move resumes",
+    );
   return prepareRecordedDeviceMove(ctx, state, args.daemon_boot_id, now);
 }
 
@@ -373,6 +377,14 @@ export async function retargetDeviceMove(
 ) {
   const state = await moveContext(ctx, args);
   const { move, source } = state;
+  if (move.driver?.step === "failed" && move.phase !== "aborting")
+    throw new ConvexError(
+      "The session owner must choose where the failed move resumes",
+    );
+  if (move.replacement)
+    throw new ConvexError(
+      "The move driver is restoring the abandoned destination",
+    );
   const aborting = move.phase === "aborting";
   if (aborting) {
     if (
@@ -409,9 +421,18 @@ export async function retargetRecordedDeviceMove(
       owner_user_id: to.owner_user_id,
     });
   if (aborting && isDone) {
-    await ctx.db.delete(binding._id);
+    if (!move.replacement) await ctx.db.delete(binding._id);
     await ctx.db.patch(head._id, {
-      device_move: undefined,
+      device_move: move.replacement
+        ? {
+            ...move,
+            destination_device_id: move.replacement.destination_device_id,
+            destination_runner_id: move.replacement.destination_runner_id,
+            phase: undefined,
+            replacement: undefined,
+            next_epoch: binding.epoch + 1,
+          }
+        : undefined,
       pending_epoch: undefined,
       admission_epoch: source.epoch,
       updated_at: now,
@@ -432,6 +453,13 @@ export async function abortDeviceMove(
     auth.deviceId !== source.owner_device_id
   )
     throw new ConvexError("Only the source device can abort a move");
+  if (
+    move.forced &&
+    (move.driver?.step === "failed" || move.driver?.owner_retried)
+  )
+    throw new ConvexError(
+      "Only the session owner can choose where the failed move resumes",
+    );
   if (move.phase === "aborting") return { done: false };
   if (move.source_stopped_at !== undefined || source.state !== "ready")
     throw new ConvexError("A stopped source cannot resume this binding");
@@ -474,6 +502,10 @@ export async function activateDeviceMove(
 ) {
   const state = await moveContext(ctx, args);
   assertDestination(state);
+  if (state.move.driver?.step === "failed")
+    throw new ConvexError(
+      "The session owner must choose where the failed move resumes",
+    );
   return activateRecordedDeviceMove(ctx, state, args, now);
 }
 

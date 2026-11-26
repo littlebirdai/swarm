@@ -68,11 +68,12 @@ export async function pendingMessageMatchesProductIntent(
     head.pending_epoch === move.next_epoch &&
     message.execution_epoch === move.next_epoch &&
     message.owner_user_id === move.destination_runner_id &&
-    binding.move_id === move.move_id
+    binding.move_id === (move.replacement?.abandoned_move_id ?? move.move_id)
   )
     return true;
 
   return (
+    !binding.abandoned_move &&
     message.execution_epoch < head.current_epoch &&
     isTerminalDeliveryState(message.delivery_status) &&
     (binding.state === "stopped" || binding.state === "quarantined") &&

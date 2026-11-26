@@ -23,6 +23,7 @@ type Ticket = RecordedMoveAddress & { revision: number };
 type StepResult =
   | { kind: "prepared" }
   | { kind: "retargeted"; moved: number; done: boolean }
+  | { kind: "restored"; done: boolean }
   | { kind: "activated" };
 
 async function driverHead(ctx: MutationCtx, args: RecordedMoveAddress) {
@@ -37,7 +38,7 @@ async function driverHead(ctx: MutationCtx, args: RecordedMoveAddress) {
     !head ||
     !move ||
     move.move_id !== args.move_id ||
-    move.phase === "aborting" ||
+    (move.phase === "aborting" && !move.replacement) ||
     head.protocol_state !== "fenced" ||
     head.current_epoch !== move.source_epoch
   )
@@ -48,9 +49,16 @@ async function driverHead(ctx: MutationCtx, args: RecordedMoveAddress) {
 export async function startDeviceMoveDriver(
   ctx: MutationCtx,
   args: RecordedMoveAddress,
+  ownerRequested = false,
 ): Promise<void> {
   const state = await driverHead(ctx, args);
-  if (!state || state.move.driver) return;
+  if (!state) return;
+  const prior = state.move.driver;
+  if (
+    prior &&
+    !(ownerRequested && state.move.forced && prior.step === "failed")
+  )
+    return;
   const { head, move } = state;
   if (
     move.forced
@@ -58,7 +66,21 @@ export async function startDeviceMoveDriver(
       : move.source_stopped_at === undefined && !move.source_replacement_boot_id
   )
     return;
-  const driver: Driver = { revision: 0, step: "prepare", retries: 0, moved: 0 };
+  const driver: Driver = {
+    ...prior,
+    revision: prior ? prior.revision + 1 : 0,
+    step: move.replacement
+      ? "restore"
+      : prior?.retargeted_at !== undefined
+        ? "activate"
+        : prior?.prepared_at !== undefined
+          ? "retarget"
+          : "prepare",
+    retries: 0,
+    moved: prior?.moved ?? 0,
+    last_error: undefined,
+    owner_retried: prior ? true : undefined,
+  };
   await ctx.db.patch(head._id, {
     device_move: { ...move, driver },
     last_device_move: undefined,
@@ -77,7 +99,11 @@ export async function runDeviceMoveStep(
   const state = await loadRecordedDeviceMove(ctx, args);
   const { move } = state;
   const driver = move.driver;
-  if (!driver || driver.revision !== args.revision || move.phase === "aborting")
+  if (
+    !driver ||
+    driver.revision !== args.revision ||
+    (move.phase === "aborting" && !move.replacement)
+  )
     throw new ConvexError("The device move changed");
   await assertSourceEnded(ctx, state);
   const now = Date.now();
@@ -92,6 +118,12 @@ export async function runDeviceMoveStep(
         throw new ConvexError("Waiting for the destination daemon to connect");
       await prepareRecordedDeviceMove(ctx, state, boot.daemon_boot_id, now);
       return { kind: "prepared" };
+    }
+    case "restore": {
+      if (!move.replacement)
+        throw new ConvexError("The device move replacement changed");
+      const { done } = await retargetRecordedDeviceMove(ctx, state, now);
+      return { kind: "restored", done };
     }
     case "retarget": {
       const page = await retargetRecordedDeviceMove(ctx, state, now);
@@ -151,6 +183,8 @@ export async function driveDeviceMove(
     if (outcome.kind === "prepared") {
       next.step = "retarget";
       next.prepared_at = now;
+    } else if (outcome.kind === "restored") {
+      if (outcome.done) next.step = "prepare";
     } else {
       next.moved += outcome.moved;
       if (outcome.done) {

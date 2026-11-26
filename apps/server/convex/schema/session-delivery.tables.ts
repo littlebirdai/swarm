@@ -227,6 +227,13 @@ export const sessionDeliveryTables = {
         phase: v.optional(
           v.union(v.literal("preparing"), v.literal("aborting")),
         ),
+        replacement: v.optional(
+          v.object({
+            abandoned_move_id: v.string(),
+            destination_device_id: v.string(),
+            destination_runner_id: v.id("users"),
+          }),
+        ),
         source_stopped_at: v.optional(v.number()),
         source_replacement_boot_id: v.optional(v.string()),
         forced: v.optional(
@@ -244,11 +251,13 @@ export const sessionDeliveryTables = {
             revision: v.number(),
             step: v.union(
               v.literal("prepare"),
+              v.literal("restore"),
               v.literal("retarget"),
               v.literal("activate"),
               v.literal("failed"),
             ),
             retries: v.number(),
+            owner_retried: v.optional(v.boolean()),
             moved: v.number(),
             prepared_at: v.optional(v.number()),
             retargeted_at: v.optional(v.number()),
@@ -509,6 +518,7 @@ export const sessionDeliveryTables = {
     failure_retryable: v.optional(v.boolean()),
     suspected_runtime_id: v.optional(v.string()),
     stopped_reason: v.optional(v.string()),
+    abandoned_move: v.optional(v.boolean()),
     forced_device_move: v.optional(
       v.object({
         move_id: v.string(),

@@ -38,12 +38,22 @@ export async function forceSessionMove(
     destination_device_id,
     ,
     acknowledge_source_may_still_run,
-  ]: [string, Id<"conversations">, number, string, string, true],
+    retry_failed_move,
+  ]: [
+    string,
+    Id<"conversations">,
+    number,
+    string,
+    string,
+    true,
+    { move_id: string; revision: number }?,
+  ],
 ) {
   return ctx.runMutation!(api.edgeRunLease.forceMove, {
     conversation_id,
     expected_source_epoch,
     destination_device_id,
     acknowledge_source_may_still_run,
+    retry_failed_move,
   });
 }

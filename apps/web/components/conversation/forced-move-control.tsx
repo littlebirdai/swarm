@@ -17,6 +17,7 @@ async function requestForcedMove(
   conversationId: string,
   epoch: number,
   target: { id: string; label: string },
+  failedMove?: { move_id: string; revision: number },
 ) {
   const requestId = newRequestId();
   try {
@@ -29,6 +30,7 @@ async function requestForcedMove(
         target.id,
         target.label,
         true,
+        ...(failedMove ? ([failedMove] as const) : []),
       );
     settleSessionCommand(requestId, { result: "requested" });
   } catch (error) {
@@ -65,17 +67,30 @@ export function ForcedMoveControl({
     currentRequest._id !== dismissed
       ? currentRequest
       : undefined;
+  const progress = options?.progress;
+  const failed = progress === "failed";
+  const receiptExpired =
+    progress === "done" &&
+    options?.doneUntil !== undefined &&
+    now >= options.doneUntil;
   const echoedDestination = options?.requestedDestination;
   const requestLabel = currentRequest?.to_label;
-  const requested =
-    echoedDestination ?? (result === "requested" ? requestLabel : undefined);
+  const requested = receiptExpired
+    ? undefined
+    : (echoedDestination ??
+      (result === "requested" ? requestLabel : undefined));
   const pending = currentRequest?.executed_at === null;
   useWatchEffect(() => {
-    if (echoedDestination && pending && currentRequest)
+    if (
+      echoedDestination &&
+      !receiptExpired &&
+      !failed &&
+      pending &&
+      currentRequest
+    )
       settleSessionCommand(currentRequest._id, { result: "requested" });
-  }, [echoedDestination, pending, currentRequest]);
-  if (requested) {
-    const progress = options?.progress;
+  }, [echoedDestination, receiptExpired, failed, pending, currentRequest]);
+  if (requested && !failed) {
     const label =
       progress === "preparing"
         ? `Preparing ${requested}`
@@ -83,22 +98,20 @@ export function ForcedMoveControl({
           ? `Moving session to ${requested}`
           : progress === "done"
             ? `Session moved to ${requested}`
-            : progress === "failed"
-              ? `Move to ${requested} failed`
-              : `Move to ${requested} requested`;
+            : `Move to ${requested} requested`;
     return (
       <div
         className="px-4 py-1.5 text-[12px] text-sol-text-muted"
-        role={progress === "failed" ? "alert" : "status"}
+        role="status"
       >
         <span>{label}</span>
-        {options?.failure && (
-          <span className="text-sol-red">{options.failure}</span>
-        )}
       </div>
     );
   }
-  if (!options || !offline || (!options.destinations.length && !refusal))
+  if (
+    !options ||
+    (!failed && (!offline || (!options.destinations.length && !refusal)))
+  )
     return null;
   const target = options.destinations.find((d) => d.id === selected);
 
@@ -106,18 +119,32 @@ export function ForcedMoveControl({
     if (!target || submitting.current) return;
     submitting.current = true;
     setReviewing(false);
-    void requestForcedMove(conversationId, options.epoch, target).finally(
-      () => {
-        submitting.current = false;
-      },
-    );
+    void requestForcedMove(
+      conversationId,
+      options.epoch,
+      target,
+      options.failedMove,
+    ).finally(() => {
+      submitting.current = false;
+    });
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-1.5 text-[12px] text-sol-text-muted">
+      {failed && (
+        <span role="alert">
+          Move to {requested} failed
+          {options.failure && (
+            <>
+              {" "}
+              · <span className="text-sol-red">{options.failure}</span>
+            </>
+          )}
+        </span>
+      )}
       {options.destinations.length > 0 && (
         <>
-          <span>{options.sourceLabel} is offline</span>
+          {!failed && <span>{options.sourceLabel} is offline</span>}
           <Button
             type="button"
             variant="ghost"
@@ -128,7 +155,11 @@ export function ForcedMoveControl({
               setReviewing(true);
             }}
           >
-            {pending ? "Requesting move…" : "Move to another device"}
+            {pending
+              ? "Requesting move…"
+              : failed
+                ? "Choose a computer"
+                : "Move to another device"}
           </Button>
         </>
       )}
