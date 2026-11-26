@@ -42,12 +42,13 @@ test("sends question card choices by Codex question ID and cancels an unanswered
       delivered.push(messageId);
     },
   });
+  const blocked: string[] = [];
   const { onUserInput } = codexPromptHandlers(
     service,
     (threadId) =>
       threadId === "thread" ? { conversationId: "conversation" } : undefined,
     () => {},
-    () => {},
+    (conversation, thread) => blocked.push(`${conversation}:${thread}`),
     (_thread, conversation, _id, resolution) => {
       releasePromptHold(conversation);
       closed.push(resolution);
@@ -59,6 +60,35 @@ test("sends question card choices by Codex question ID and cancels an unanswered
     onApproval: async () => false,
     onUserInput,
   });
+  const readReply = async (id: string) => {
+    let result: unknown;
+    await pollUntil(() => {
+      try {
+        for (const line of readFileSync(join(directory, "effects"), "utf8")
+          .trim()
+          .split("\n")) {
+          const { action, message } = JSON.parse(line);
+          if (action === "answer" && message.id === id) result = message.result;
+        }
+      } catch {}
+      return result !== undefined;
+    }, `Codex receives reply for ${id}`);
+    return result;
+  };
+  const request = (id: string, threadId: string, questions: unknown) => {
+    const command = join(directory, "next");
+    writeFileSync(
+      command,
+      JSON.stringify({
+        frame: {
+          id,
+          method: "item/tool/requestUserInput",
+          params: { threadId, turnId: "turn", itemId: "item", questions },
+        },
+      }),
+    );
+    renameSync(command, join(directory, `${id}.command`));
+  };
   const questions = [
     {
       id: "review-size",
@@ -104,23 +134,7 @@ test("sends question card choices by Codex question ID and cancels an unanswered
       ["dismissed", { keys: ["Escape"] }, {}],
       ["cancelled", null, {}],
     ] as const) {
-      const command = join(directory, "next");
-      writeFileSync(
-        command,
-        JSON.stringify({
-          frame: {
-            id,
-            method: "item/tool/requestUserInput",
-            params: {
-              threadId: answer ? "thread" : "missing",
-              turnId: "turn",
-              itemId: "item",
-              questions,
-            },
-          },
-        }),
-      );
-      renameSync(command, join(directory, `${id}.command`));
+      request(id, answer ? "thread" : "missing", questions);
       if (answer) {
         await pollUntil(
           () => cards.length > delivered.length,
@@ -145,20 +159,7 @@ test("sends question card choices by Codex question ID and cancels an unanswered
           ),
         ).toBe("handled");
       }
-      let result: unknown;
-      await pollUntil(() => {
-        try {
-          for (const line of readFileSync(join(directory, "effects"), "utf8")
-            .trim()
-            .split("\n")) {
-            const { action, message } = JSON.parse(line);
-            if (action === "answer" && message.id === id)
-              result = message.result;
-          }
-        } catch {}
-        return result !== undefined;
-      }, `Codex receives reply for ${id}`);
-      expect(result).toEqual({ answers: expected });
+      expect(await readReply(id)).toEqual({ answers: expected });
     }
     expect(delivered).toEqual([
       "answered",
@@ -167,6 +168,17 @@ test("sends question card choices by Codex question ID and cancels an unanswered
       "dismissed",
     ]);
     expect(closed.at(-1)).toBe("Codex question cancelled");
+    expect(blocked).toEqual(
+      Array.from({ length: 4 }, () => "conversation:thread"),
+    );
+    const published = cards.length;
+    request("secret", "thread", [
+      { ...questions[0], isSecret: true },
+      questions[1],
+    ]);
+    expect(await readReply("secret")).toEqual({ answers: {} });
+    expect(cards).toHaveLength(published);
+    expect(blocked).toHaveLength(4);
   } finally {
     client.stop();
     rmSync(directory, { recursive: true, force: true });

@@ -107,8 +107,10 @@ export function codexPromptHandlers(
           ],
         });
         published = true;
-        if (!signal.aborted && appServerUserInput.get(threadId) === resolve)
+        if (!signal.aborted && appServerUserInput.get(threadId) === resolve) {
           holdConversationForPrompt(conversationId);
+          markBlocked(conversationId, threadId);
+        }
         const poll = await promise;
         const display = poll?.display || poll?.text;
         if (typeof display === "string" && display)
