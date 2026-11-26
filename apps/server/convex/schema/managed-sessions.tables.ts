@@ -27,6 +27,7 @@ export const managedSessionTables = {
     liveness_lease: v.optional(
       v.object({ end: v.number(), expired: v.boolean() }),
     ),
+    liveness_lease_generation: v.optional(v.number()),
     agent_status: v.optional(agentStatusFieldValidator),
     agent_status_updated_at: v.optional(v.number()),
     agent_status_write_at: v.optional(v.number()),

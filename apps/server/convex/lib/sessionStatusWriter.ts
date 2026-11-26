@@ -121,7 +121,7 @@ export async function applyHeartbeat(
   const status = patch?.agent_status;
   const lease =
     !session.liveness_lease || session.liveness_lease.expired
-      ? await startInboxLease(ctx, session._id, at, now)
+      ? await startInboxLease(ctx, session, at, now)
       : undefined;
   if (status || lease) {
     await ctx.db.patch(session._id, {
@@ -131,7 +131,7 @@ export async function applyHeartbeat(
         agent_status_updated_at: patch?.agent_status_updated_at,
         agent_status_boundary: undefined,
       }),
-      ...(lease && { liveness_lease: lease, last_heartbeat: at }),
+      ...(lease && { ...lease, last_heartbeat: at }),
     });
   }
   return patch;
@@ -189,27 +189,39 @@ async function persistSessionHeartbeat(
 
 export async function startInboxLease(
   ctx: Pick<MutationCtx, "scheduler">,
-  id: Id<"managed_sessions">,
+  {
+    _id: id,
+    liveness_lease_generation: previousGeneration = 0,
+  }: Pick<Doc<"managed_sessions">, "_id" | "liveness_lease_generation">,
   heartbeat: number,
   now: number,
-): Promise<Doc<"managed_sessions">["liveness_lease"]> {
+) {
   const end = heartbeat + HEARTBEAT_ALIVE_MS;
   if (!inboxLeaseWritesEnabled() || end <= now) return undefined;
+  const generation = previousGeneration + 1;
   await ctx.scheduler.runAfter(
     end - now,
     internal.managedSessions.checkInboxLivenessLease,
-    { id, end },
+    { id, end, generation },
   );
-  return { end, expired: false };
+  return {
+    liveness_lease: { end, expired: false },
+    liveness_lease_generation: generation,
+  };
 }
 
 export async function checkInboxLease(
   ctx: MutationCtx,
   id: Id<"managed_sessions">,
   end: number,
+  generation?: number,
 ): Promise<void> {
   const session = await ctx.db.get(id);
-  if (session?.liveness_lease?.end !== end || session.liveness_lease.expired)
+  if (
+    session?.liveness_lease?.end !== end ||
+    session.liveness_lease.expired ||
+    session.liveness_lease_generation !== generation
+  )
     return;
   const row = await heartbeatRow(ctx, id);
   const latest = resolveHeartbeat(session, row?.heartbeat_at);
@@ -226,7 +238,7 @@ export async function checkInboxLease(
     await ctx.scheduler.runAfter(
       remaining,
       internal.managedSessions.checkInboxLivenessLease,
-      { id, end },
+      { id, end, generation },
     );
     return;
   }
@@ -306,7 +318,8 @@ export async function writeAgentStatus(
   if (active) {
     patch.last_heartbeat = at;
     if (!session.liveness_lease || session.liveness_lease.expired) {
-      patch.liveness_lease = await startInboxLease(ctx, session._id, at, now);
+      const lease = await startInboxLease(ctx, session, at, now);
+      Object.assign(patch, lease ?? { liveness_lease: undefined });
     }
   }
 

@@ -350,8 +350,9 @@ export function holdBoot(m: Model) {
   const h = m.hold;
   h.running = true;
   h.lastAlive = m.t;
-  // The cached facts are as old as their latest heartbeat (cachedFactsAsOf).
-  if (m.client.lastBeat <= m.t) holdAt(m, m.client.lastBeat);
+  const { lastBeat, updatedAt, statusAt } = m.client;
+  const past = [lastBeat, updatedAt, statusAt].filter((at) => at <= m.t);
+  if (past.length > 0) holdAt(m, Math.max(...past));
 }
 
 export function holdProbeAnswered(m: Model) {

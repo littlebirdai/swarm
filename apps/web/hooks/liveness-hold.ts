@@ -17,16 +17,32 @@ export const LIVENESS_SUSPEND_GAP_MS = 40_000;
  *  minute, later under load, so a shorter gap there is throttling, not sleep. */
 export const LIVENESS_HIDDEN_SUSPEND_GAP_MS = 150_000;
 
-/** The latest heartbeat the cached facts carry: about when they were last refreshed. */
+type CachedLivenessFacts = {
+  last_heartbeat?: number | null;
+  updated_at?: number | null;
+  agent_status_updated_at?: number | null;
+};
+
 export function cachedFactsAsOf(
-  sessions: Record<string, { last_heartbeat?: number | null } | undefined>,
+  sessions: Record<string, CachedLivenessFacts | undefined>,
   now: number,
 ): number | null {
   let at: number | null = null;
   for (const id in sessions) {
-    const beat = sessions[id]?.last_heartbeat;
-    if (typeof beat === "number" && beat <= now && (at === null || beat > at))
-      at = beat;
+    const row = sessions[id];
+    if (!row) continue;
+    for (const stamp of [
+      row.last_heartbeat,
+      row.updated_at,
+      row.agent_status_updated_at,
+    ]) {
+      if (
+        typeof stamp === "number" &&
+        stamp <= now &&
+        (at === null || stamp > at)
+      )
+        at = stamp;
+    }
   }
   return at;
 }
@@ -35,10 +51,7 @@ export type LivenessHoldIO = {
   now: () => number;
   /** Store reads and the two transitions. */
   hydrated: () => boolean;
-  sessions: () => Record<
-    string,
-    { last_heartbeat?: number | null } | undefined
-  >;
+  sessions: () => Record<string, CachedLivenessFacts | undefined>;
   heldAt: () => number | null;
   holdSeq: () => number;
   hold: (at: number) => void;
@@ -83,7 +96,6 @@ export function startLivenessHold(io: LivenessHoldIO): () => void {
     probe();
   };
 
-  // Launch from cache: the facts are as old as their latest heartbeat.
   const boot = () => {
     if (booted || !io.hydrated()) return;
     booted = true;

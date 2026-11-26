@@ -245,11 +245,11 @@ export async function performRegisterManagedSession(
     } else {
       const lease =
         !existing.liveness_lease || existing.liveness_lease.expired
-          ? await startInboxLease(ctx, existing._id, now, now)
+          ? await startInboxLease(ctx, existing, now, now)
           : undefined;
       await ctx.db.patch(existing._id, {
         pid: args.pid,
-        ...(lease && { liveness_lease: lease }),
+        ...lease,
         last_heartbeat: now,
         ...backendPatch(args),
         ...(args.tmux_session !== undefined
@@ -313,8 +313,8 @@ export async function performRegisterManagedSession(
   });
 
   await writeSessionHeartbeat(ctx, id, authUserId, now);
-  const lease = await startInboxLease(ctx, id, now, now);
-  if (lease) await ctx.db.patch(id, { liveness_lease: lease });
+  const lease = await startInboxLease(ctx, { _id: id }, now, now);
+  if (lease) await ctx.db.patch(id, lease);
 
   // Claim ownership: stamp this device as the conversation's owner. Also clear
   // any stale "no local checkout" banner — a fresh local process disproves it
@@ -501,8 +501,13 @@ export const updateManagedSessionId = mutation({
 });
 
 export const checkInboxLivenessLease = internalMutation({
-  args: { id: v.id("managed_sessions"), end: v.number() },
-  handler: async (ctx, { id, end }) => checkInboxLease(ctx, id, end),
+  args: {
+    id: v.id("managed_sessions"),
+    end: v.number(),
+    generation: v.optional(v.number()),
+  },
+  handler: async (ctx, { id, end, generation }) =>
+    checkInboxLease(ctx, id, end, generation),
 });
 
 // Derived from the single source of truth in @codecast/sessions/agentStatus so the

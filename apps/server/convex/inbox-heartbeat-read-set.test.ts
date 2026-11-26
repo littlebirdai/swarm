@@ -409,6 +409,8 @@ for (const exit of ["a heartbeat", "the pending check"]) {
       await t.mutation(internal.managedSessions.checkInboxLivenessLease, {
         id: working.managed,
         end: now + HEARTBEAT_ALIVE_MS,
+        generation: (await t.run(({ db }) => db.get(working.managed)))
+          ?.liveness_lease_generation,
       });
     }
     const restored = await t.run(({ db }) => db.get(working.managed));
@@ -423,3 +425,37 @@ for (const exit of ["a heartbeat", "the pending check"]) {
     ).toBe(false);
   });
 }
+
+test("re-enabling a lease with the same deadline leaves one pending renewal", async () => {
+  const { viewer, t } = await seed(0, false);
+  const beat = () =>
+    viewer.mutation(api.managedSessions.heartbeat, {
+      session_id: "working-trace",
+      agent_status: "working",
+      client_ts: Date.now(),
+    });
+  await beat();
+  process.env.INBOX_LIVENESS_LEASES = "0";
+  await beat();
+  process.env.INBOX_LIVENESS_LEASES = "1";
+  await beat();
+
+  const check = internal.managedSessions.checkInboxLivenessLease;
+  const jobs = await scheduledJobs(t, check);
+  expect(jobs.map((job) => job.scheduledTime)).toEqual([
+    now + HEARTBEAT_ALIVE_MS,
+    now + HEARTBEAT_ALIVE_MS,
+  ]);
+
+  const freshAt = HEARTBEAT_ALIVE_MS - HEARTBEAT_FLUSH_INTERVAL_MS / 2;
+  jest.advanceTimersByTime(freshAt);
+  await beat();
+  jest.advanceTimersByTime(HEARTBEAT_ALIVE_MS - freshAt);
+  await t.finishInProgressScheduledFunctions();
+  const pending = (await scheduledJobs(t, check)).filter(
+    (job) => job.state.kind === "pending",
+  );
+  expect(pending.map((job) => job.scheduledTime)).toEqual([
+    now + freshAt + HEARTBEAT_ALIVE_MS,
+  ]);
+});

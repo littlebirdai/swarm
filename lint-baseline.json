@@ -21724,7 +21724,7 @@
     "swarm/no-comments": 27
   },
   "apps/web/hooks/liveness-hold.ts": {
-    "swarm/no-comments": 27
+    "swarm/no-comments": 25
   },
   "apps/web/hooks/machineMoveFold.test.ts": {
     "swarm/no-comments": 2
@@ -27379,6 +27379,12 @@
   "apps/web/store/__tests__/inbox-hydration.test.ts": {
     "swarm/no-comments": 7
   },
+  "apps/web/store/__tests__/inbox-lifecycle.model.test.ts": {
+    "swarm/no-comments": 89
+  },
+  "apps/web/store/__tests__/inbox-lifecycle.model.ts": {
+    "swarm/no-comments": 96
+  },
   "apps/web/store/__tests__/inbox-store.test.ts": {
     "swarm/no-comments": 613
   },
@@ -27390,12 +27396,6 @@
   },
   "apps/web/store/__tests__/inboxDigestIdentity.test.ts": {
     "swarm/no-comments": 43
-  },
-  "apps/web/store/__tests__/inbox-lifecycle.model.test.ts": {
-    "swarm/no-comments": 89
-  },
-  "apps/web/store/__tests__/inbox-lifecycle.model.ts": {
-    "swarm/no-comments": 97
   },
   "apps/web/store/__tests__/inboxMultiWindowSim.test.ts": {
     "swarm/no-comments": 56
