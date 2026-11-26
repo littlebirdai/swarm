@@ -151,7 +151,7 @@ export class CodexOwnedPilot {
   private controller = new AbortController();
 
   constructor(
-    private readonly conversationId: string,
+    readonly conversationId: string,
     private readonly options: PilotOptions,
   ) {}
 

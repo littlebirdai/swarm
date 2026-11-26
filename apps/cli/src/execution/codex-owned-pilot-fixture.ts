@@ -251,6 +251,9 @@ export function fixture(
   }
   const pilot = createPilot();
   let initial: unknown = [];
+  let workSubscription:
+    | { args: Record<string, unknown>; onUpdate: (value: unknown) => void }
+    | undefined;
   const permits = new Map<string, StartedDeliveryPermit>();
   const remaining = new Map([
     ["legacy:1", 2],
@@ -262,9 +265,12 @@ export function fixture(
     async executionControlQuery() {
       return initial;
     },
-    subscribeExecutionControlQuery() {
+    subscribeExecutionControlQuery(_name, args, onUpdate) {
       actions.push("subscribed");
-      return () => {};
+      workSubscription = { args, onUpdate };
+      return () => {
+        workSubscription = undefined;
+      };
     },
     async executionControlMutation(name, args) {
       const key = `${args.conversation_id}:${args.epoch ?? args.execution_epoch}`;
@@ -536,6 +542,11 @@ export function fixture(
     },
     initial(work: unknown) {
       initial = work;
+    },
+    workSubscription() {
+      if (!workSubscription)
+        throw new Error("Execution work is not subscribed");
+      return workSubscription;
     },
     ready(request: RuntimeStartRequest, binding?: ReadyBinding) {
       const row = ledger.get(

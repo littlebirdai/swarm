@@ -96,6 +96,39 @@ async function reportReceipt(
   if (beforeRpcReply) await f.sendFrame({ ackStart: true });
 }
 
+test("a live work update sends a newly queued message through the owned bridge", async () => {
+  const f = fixture("pilot", true, "receipt-before-reply");
+  try {
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    expect(providerSends(f)).toEqual([]);
+    const { args, onUpdate } = f.workSubscription();
+    expect(args.owned_codex_conversation_id).toBe("pilot");
+
+    f.enqueue(1);
+    onUpdate([
+      {
+        ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+        nextDeliverySequence: 2,
+      },
+    ]);
+    const settledByUpdate = f.runtime
+      .processWorkUpdate([])
+      .then(() => structuredClone(f.settlements));
+    await reportReceipt(f, 1, true);
+    expect(await settledByUpdate).toContainEqual(
+      expect.objectContaining({
+        delivery_id: "delivery-1",
+        outcome: "applied",
+      }),
+    );
+    expect(providerSends(f)).toHaveLength(1);
+    expect(f.actions).not.toContain("claim-delivery:pilot:1");
+  } finally {
+    await f.dispose();
+  }
+});
+
 test("the pilot settles two identical messages with separate durable receipts", async () => {
   const f = fixture("pilot", true, "receipt-before-reply");
   const { deliveryReceipts } = new FileExecutionOperationJournal(
@@ -658,12 +691,17 @@ test("an in-doubt image stays readable until the server releases its delivery", 
 test("with the flag off a queued message still drains through the legacy rail", async () => {
   const f = fixture("pilot", false, "receipt");
   try {
-    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    expect(f.workSubscription().args).not.toHaveProperty(
+      "owned_codex_conversation_id",
+    );
     expect(f.actions).toEqual([
       "legacy-start:pilot:1",
       "claim-delivery:pilot:1",
       "legacy-deliver:pilot:1:2",
       "claim-delivery:pilot:1",
+      "subscribed",
     ]);
     expect(f.appServer.wire()).toEqual([]);
   } finally {

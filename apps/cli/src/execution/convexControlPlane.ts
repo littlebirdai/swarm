@@ -32,6 +32,26 @@ export interface ExecutionConvexTransport {
   ): () => void;
 }
 
+type ExecutionWorkHandshake = {
+  ownerDeviceId: string;
+  daemonBootId: string;
+  protocolVersion: number;
+  capabilities: readonly string[];
+  ownedCodexConversationId?: string;
+};
+
+function executionWorkArguments(handshake: ExecutionWorkHandshake) {
+  return {
+    owner_device_id: handshake.ownerDeviceId,
+    daemon_boot_id: handshake.daemonBootId,
+    protocol_version: handshake.protocolVersion,
+    capabilities: [...handshake.capabilities],
+    ...(handshake.ownedCodexConversationId === undefined
+      ? {}
+      : { owned_codex_conversation_id: handshake.ownedCodexConversationId }),
+  };
+}
+
 function record(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new TypeError(`Invalid ${label}: expected an object`);
@@ -533,27 +553,15 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     };
   }
 
-  listExecutionWork(handshake: {
-    ownerDeviceId: string;
-    daemonBootId: string;
-    protocolVersion: number;
-    capabilities: readonly string[];
-  }): Promise<unknown> {
-    return this.transport.executionControlQuery("listExecutionWork", {
-      owner_device_id: handshake.ownerDeviceId,
-      daemon_boot_id: handshake.daemonBootId,
-      protocol_version: handshake.protocolVersion,
-      capabilities: [...handshake.capabilities],
-    });
+  listExecutionWork(handshake: ExecutionWorkHandshake): Promise<unknown> {
+    return this.transport.executionControlQuery(
+      "listExecutionWork",
+      executionWorkArguments(handshake),
+    );
   }
 
   subscribeExecutionWork(
-    handshake: {
-      ownerDeviceId: string;
-      daemonBootId: string;
-      protocolVersion: number;
-      capabilities: readonly string[];
-    },
+    handshake: ExecutionWorkHandshake,
     onUpdate: (value: unknown) => void,
   ): () => void {
     if (!this.transport.subscribeExecutionControlQuery) {
@@ -563,12 +571,7 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     }
     return this.transport.subscribeExecutionControlQuery(
       "listExecutionWork",
-      {
-        owner_device_id: handshake.ownerDeviceId,
-        daemon_boot_id: handshake.daemonBootId,
-        protocol_version: handshake.protocolVersion,
-        capabilities: [...handshake.capabilities],
-      },
+      executionWorkArguments(handshake),
       onUpdate,
     );
   }

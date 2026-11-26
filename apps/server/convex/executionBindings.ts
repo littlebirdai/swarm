@@ -2175,6 +2175,7 @@ export const listExecutionWork = query({
     daemon_boot_id: v.string(),
     protocol_version: v.number(),
     capabilities: v.array(capabilityValidator),
+    owned_codex_conversation_id: v.optional(v.string()),
     api_token: v.string(),
   },
   handler: async (ctx, args) => {
@@ -2270,6 +2271,17 @@ export const listExecutionWork = query({
             }
           : undefined;
       if (bindings.length > 0 || pendingIntent) {
+        const watchesOwnedInbox =
+          process.env.CODECAST_EDGE_DELIVERY_V1 === "1" &&
+          args.owned_codex_conversation_id === String(head.conversation_id) &&
+          bindings.some(
+            ({ request, state }) =>
+              state === "ready" &&
+              request.target.epoch === 1 &&
+              request.target.epoch === head.current_epoch &&
+              request.target.requestedAgent === "codex" &&
+              request.target.transport === "app-server",
+          );
         work.push({
           conversationId: String(head.conversation_id),
           currentEpoch: head.current_epoch,
@@ -2277,6 +2289,9 @@ export const listExecutionWork = query({
           pendingPolicy: head.pending_policy,
           bindings,
           pendingIntent,
+          ...(watchesOwnedInbox
+            ? { nextDeliverySequence: head.next_conversation_sequence }
+            : {}),
         });
       }
     }
