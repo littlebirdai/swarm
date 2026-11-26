@@ -4,6 +4,6 @@ export * from "./convexControlPlane.js";
 export * from "./driver.js";
 export * from "./localJournal.js";
 export * from "./coordinator.js";
-export * from "./runtimeRail.js";
+export * from "./runtime-rail.js";
 export * from "./drivers/managedTmux.js";
 export * from "./drivers/codexAppServer.js";

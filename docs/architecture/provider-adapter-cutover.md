@@ -102,7 +102,7 @@ Start with one fresh managed Codex app-server session at the pinned version.
 Its fenced driver and journal already exist. Add a default-off pilot flag
 under `CODECAST_FENCED_EXECUTION_V1`. Persist the driver choice in the pilot
 binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
-[Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtimeRail.ts#L275-L327)
+[Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtime-rail.ts#L275-L327)
 
 Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
 Use one event writer. Save the checkpoint and last durable sequence. Renew
@@ -111,7 +111,7 @@ the lease and prove cleanup before release or rollback.
 
 ### Pilot bridges
 
-- **Delivery.** Map `in-doubt/best-effort` to ambiguity. The coordinator keeps the `activeDeliveries` slot and the runtime stops draining. Reconcile or release the slot with control-plane authority before the next send. Require a durable receipt for success. [Coordinator](../../apps/cli/src/execution/coordinator.ts#L1039-L1112), [drain](../../apps/cli/src/execution/runtimeRail.ts#L484-L529)
+- **Delivery.** Map `in-doubt/best-effort` to ambiguity. The coordinator keeps the `activeDeliveries` slot and the runtime stops draining. Reconcile or release the slot with control-plane authority before the next send. Require a durable receipt for success. [Coordinator](../../apps/cli/src/execution/coordinator.ts#L1039-L1112), [drain](../../apps/cli/src/execution/runtime-rail.ts#L484-L529)
 - **Restart and controls.** Add runtime routes for checkpoint resume, interrupt, and answer. `RuntimeDriver` has none. Codex `adopt` checks a live in-memory registration and cannot restore a thread after restart on its own. Prove the previous boot ended, resume from the journal, and use the active-turn event with the journal or transcript for history. The adapter returns no historical turns. [Driver](../../apps/cli/src/execution/driver.ts#L21-L37), [boot fence](../../apps/cli/src/execution/coordinator.ts#L506-L547), [Codex inspection](../../apps/cli/src/daemon.ts#L43999-L44007), [adapter resume](../../packages/provider-adapter/src/app-server-session.ts#L199-L211)
 - **Prompts.** Route permission decisions and question choices to the fenced prompt ID with the actor. Send structured answers by question ID. The old client grants permissions for the session, and the adapter grants them for one turn. [Legacy replies](../../apps/cli/src/codex-app-server.ts#L438-L465), [adapter replies](../../packages/provider-adapter/src/app-server-prompts.ts#L65-L110)
 - **Events and display.** Map status and name context to `statusChanged` and `threadNameUpdated` effects. Restore `itemStarted` spawn tracking from tool starts. Map canonical errors to banners. Preserve inline image extraction, MCP tool names, and formatted file diffs. [Daemon hooks](../../apps/cli/src/daemon.ts#L43678-L43834), [spawn tracking](../../apps/cli/src/tmuxSpawns.ts#L122), [error banners](../../apps/cli/src/codex-app-server.ts#L1270-L1292), [tool display](../../apps/cli/src/codex-app-server.ts#L1435-L1560)

@@ -13,7 +13,7 @@ import {
   assertLegacyDeliveryEnvelope,
   fencedExecutionEnabled,
   getProcessExecutionRuntime,
-} from "./runtimeRail.js";
+} from "./runtime-rail.js";
 
 function binding(epoch = 1, daemonBootId = "boot-1"): ReadyBinding {
   return {
@@ -353,7 +353,7 @@ describe("fenced daemon runtime rail", () => {
 
   test("static guard keeps the fenced service out of generic daemon delivery", () => {
     const executionSource = fs.readFileSync(
-      path.join(import.meta.dir, "runtimeRail.ts"),
+      path.join(import.meta.dir, "runtime-rail.ts"),
       "utf8",
     );
     expect(executionSource).not.toContain("claimPendingMessageForDelivery(");
