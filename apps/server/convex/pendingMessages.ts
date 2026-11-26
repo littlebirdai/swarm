@@ -102,6 +102,7 @@ import {
   queueAtBefore,
 } from "./lib/sessionQueue";
 export { headOfEachQueue, isControlMessage };
+export { requestTurnTakeover } from "./lib/turn-takeover.definition";
 import {
   formatJointMessage,
   jointPartsOf,
