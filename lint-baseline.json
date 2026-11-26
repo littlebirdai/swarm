@@ -21562,9 +21562,6 @@
   "apps/web/hooks/__tests__/pttHold.test.ts": {
     "swarm/no-comments": 7
   },
-  "apps/web/hooks/__tests__/querySplitWhole.test.ts": {
-    "swarm/no-comments": 6
-  },
   "apps/web/hooks/__tests__/roomRecordingStatus.test.ts": {
     "swarm/no-comments": 5
   },
@@ -22181,8 +22178,7 @@
     "swarm/no-comments": 11
   },
   "apps/web/hooks/useInboxDigestCompare.ts": {
-    "swarm/no-comments": 18,
-    "swarm/no-direct-use-effect": 1
+    "swarm/no-comments": 18
   },
   "apps/web/hooks/useInitiatives.ts": {
     "swarm/no-comments": 13
@@ -22257,7 +22253,6 @@
     "swarm/no-comments": 14
   },
   "apps/web/hooks/useLiveInboxSessions.ts": {
-    "react/refs": 1,
     "swarm/no-comments": 23
   },
   "apps/web/hooks/useLiveRoomCount.ts": {
@@ -22721,7 +22716,7 @@
     "swarm/no-comments": 1
   },
   "apps/web/hooks/useSplitQuery.ts": {
-    "swarm/no-comments": 25
+    "swarm/no-comments": 24
   },
   "apps/web/hooks/useSqueezeToFit.ts": {
     "react/immutability": 1,
@@ -22828,8 +22823,8 @@
     "swarm/no-comments": 2
   },
   "apps/web/hooks/useSyncInboxSessions.ts": {
-    "react/purity": 3,
-    "swarm/no-comments": 183
+    "react/purity": 1,
+    "swarm/no-comments": 172
   },
   "apps/web/hooks/useSyncIssueSyncSources.ts": {
     "swarm/no-comments": 9
@@ -22945,8 +22940,7 @@
     "swarm/no-direct-use-effect": 3
   },
   "apps/web/hooks/useSyncTeamInboxSessions.ts": {
-    "react/purity": 2,
-    "swarm/no-comments": 36
+    "swarm/no-comments": 29
   },
   "apps/web/hooks/useSyncTeamKit.ts": {
     "react/refs": 3,
@@ -23673,7 +23667,7 @@
     "swarm/no-comments": 11
   },
   "apps/web/lib/__tests__/syncCoreParity.guard.test.ts": {
-    "swarm/no-comments": 64
+    "swarm/no-comments": 62
   },
   "apps/web/lib/__tests__/syncLogCargo.test.ts": {
     "swarm/no-comments": 5
@@ -27396,10 +27390,10 @@
     "swarm/no-comments": 613
   },
   "apps/web/store/__tests__/inboxConvergenceSim.test.ts": {
-    "swarm/no-comments": 66
+    "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/inboxDigestCompare.test.ts": {
-    "swarm/no-comments": 57
+    "swarm/no-comments": 55
   },
   "apps/web/store/__tests__/inboxDigestIdentity.test.ts": {
     "swarm/no-comments": 43
@@ -28072,14 +28066,14 @@
     "swarm/no-comments": 18
   },
   "apps/web/store/inboxDigestCompare.ts": {
-    "swarm/no-comments": 130
+    "swarm/no-comments": 123
   },
   "apps/web/store/inboxOverlays.ts": {
     "swarm/no-comments": 97
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5067
+    "swarm/no-comments": 5062
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4

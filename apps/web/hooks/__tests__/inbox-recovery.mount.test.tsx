@@ -308,22 +308,51 @@ function InboxIdentity({ authenticated }: { authenticated: boolean }) {
   );
 }
 
-test("inbox recovery preserves cached lists when the server loses identity", async () => {
+test("identity loss cancels in-flight inbox reads and recovery resumes after sign-in", async () => {
   const { backend, clock, probes, rerender, store } = await mountInbox(
     <InboxIdentity authenticated={true} />,
   );
+  await clock.advance(301);
   await act(async () => {
     store.getState().setLiveInboxIds(["personal"]);
     store.getState().setTeamInboxIds(["team"], null);
+    backend.set(api.conversations.listInboxSessions, pending);
+    backend.set(api.conversations.listTeamInboxSessions, pending);
     emitSyncWake();
   });
+  await clock.advance(7_500);
+  expect(
+    probes()
+      .map(({ name }) => name)
+      .sort(),
+  ).toEqual(names);
+  expect(store.getState().liveInboxIdList).toEqual(["personal"]);
+  expect(store.getState().teamInboxIdSnapshot?.ids).toEqual(["team"]);
+
   await rerender(<InboxIdentity authenticated={false} />);
   await act(async () => {
-    setInboxQueries(backend);
+    backend.set(api.conversations.listInboxSessions, ({ _probe }) =>
+      _probe === undefined ? pending : list,
+    );
+    backend.set(api.conversations.listTeamInboxSessions, ({ _probe }) =>
+      _probe === undefined ? pending : { ...list, team_id: null },
+    );
     emitSyncWake();
   });
   await clock.advance(30_000);
-  expect(probes()).toEqual([]);
   expect(store.getState().liveInboxIdList).toEqual(["personal"]);
   expect(store.getState().teamInboxIdSnapshot?.ids).toEqual(["team"]);
+  expect(probes()).toHaveLength(4);
+
+  await rerender(<InboxIdentity authenticated={true} />);
+  await act(async () => emitSyncWake());
+  await clock.advance(7_500);
+  expect(
+    probes()
+      .slice(4)
+      .map(({ name }) => name)
+      .sort(),
+  ).toEqual(names);
+  expect(store.getState().liveInboxIdList).toEqual([]);
+  expect(store.getState().teamInboxIdSnapshot?.ids).toEqual([]);
 });
