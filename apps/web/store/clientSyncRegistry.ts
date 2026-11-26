@@ -1760,6 +1760,17 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { kind: "list" },
     feeds: ["managedSessions.getAggregateMetrics"],
   },
+  fencedPromptAddresses: {
+    persistence: {
+      kind: "collection",
+      key: "fencedPromptAddresses",
+      perWindow: true,
+    },
+    hydration: { phase: "deferred" },
+    indexes: "_id, conversation_id",
+    sync: { isDelta: true },
+    feeds: ["permissions.listAnswerablePromptAddresses"],
+  },
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
   // syncs with pruneAbsentScope for it (a resolved permission leaves the
@@ -2759,6 +2770,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   sessionCommands: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
+  fencedPromptAddresses: "local",
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",
