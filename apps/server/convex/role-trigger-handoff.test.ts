@@ -694,3 +694,97 @@ test("the cancellation projection follows a kept trigger edited after its page",
     expect((await db.get(seat))?.armed_trigger_kind).toBe("once");
   });
 });
+
+async function undoRetirement(
+  t: ServerTest,
+  owner: Id<"users">,
+  role: Id<"org_roles">,
+) {
+  const batch = await t.run(async ({ db }) => {
+    const change = await db
+      .query("org_changes")
+      .withIndex("by_subject", (q) => q.eq("subject.id", role))
+      .first();
+    return change!.batch;
+  });
+  await asUser(t, owner).mutation(api.orgChanges.undo, { batch });
+  expect((await t.run(({ db }) => db.get(role)))?.status).toBe("active");
+}
+
+test("retire after undo replaces the pending keep cancellation", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, moved, personal } = await seedSeat(t, 500);
+  const owner = asUser(t, oldRunner);
+  const retire = (standing_session: "keep" | "retire") =>
+    owner.mutation(api.orgRoles.retire, { role_id: role, standing_session });
+  const cancel = internal.orgRoles.continueRoleTriggerCancellation;
+  await retire("keep");
+  await undoRetirement(t, oldRunner, role);
+  await retire("retire");
+  expect(await scheduledJobs(t, cancel)).toHaveLength(2);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(personal)).toMatchObject({ status: "cancelled" });
+    expect(await db.get(moved.at(-1)!)).toMatchObject({ status: "cancelled" });
+    const row = (await db.get(role))!;
+    expect(await db.get(row.anchor_id!)).toMatchObject({
+      status: "decommissioned",
+    });
+    expect(await db.get(seat)).toMatchObject({
+      armed_trigger_kind: "none",
+      inbox_killed_at: expect.any(Number),
+    });
+  });
+});
+
+test("kept seat hands its other active role to the runner after cancellation", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved, offSeat } = await seedSeat(
+    t,
+    500,
+  );
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await t.run(async (ctx) => {
+    const task = (await ctx.db.get(offSeat))!;
+    const otherRole = (await ctx.db.get(task.role_id!))!;
+    await ctx.db.patch(otherRole.anchor_id!, { conversation_id: seat });
+    await handRoleTriggersToRunner(ctx, seat);
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(offSeat)).toMatchObject({
+      user_id: runner,
+      status: "scheduled",
+    });
+    expect(await db.get(moved.at(-1)!)).toMatchObject({ status: "cancelled" });
+    expect((await db.get(seat))?.inbox_killed_at).toBeUndefined();
+  });
+});
+
+test("a claim after undo no longer waits for the cancelled retirement", async () => {
+  const t = serverTest({});
+  const { role, oldRunner, runner, moved, seat } = await seedSeat(t, 500);
+  const due = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [due]);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  expect(await claim(due)).toBeNull();
+  expect(await t.run(({ db }) => db.get(due))).toMatchObject({
+    user_id: runner,
+    status: "scheduled",
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(moved[0])).toMatchObject({
+      user_id: runner,
+      status: "scheduled",
+    });
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
+  });
+});

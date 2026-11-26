@@ -28,15 +28,15 @@ export async function refreshArmedTriggerKind(
   const tasks = await tasksOriginatedBy(ctx, conversationId);
   const conv = await ctx.db.get(conversationId);
   await writeArmedTriggerKind(ctx, conv, armedTriggerKindFor(tasks));
-  const sweep = await scheduledSweep(ctx.db, conversationId);
-  const state = sweep && readSweep(sweep);
-  if (sweep && state && "role" in state && state.seenThrough !== null) {
-    const boundary = state.seenThrough;
+  const sweep = await activeCancellation(ctx.db, conversationId);
+  if (!sweep) return;
+  const { row, state } = sweep;
+  const boundary = state.seenThrough;
+  if (boundary !== null) {
     const kind = armedTriggerKindFor(
       tasks.filter((task) => task._creationTime <= boundary),
     );
-    if (kind !== state.kind)
-      await writeSweep(ctx, sweep._id, { ...state, kind });
+    if (kind !== state.kind) await writeSweep(ctx, row._id, { ...state, kind });
   }
 }
 
@@ -360,7 +360,6 @@ async function smallTriggerSet(db: DatabaseReader, seat: Id<"conversations">) {
   }
   return tasks;
 }
-
 export async function handRoleTriggersToRunner(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
@@ -369,28 +368,23 @@ export async function handRoleTriggersToRunner(
   if (!seat) return 0;
   return handRoleTriggersForSeat(ctx, seat, false);
 }
-
 export async function handClaimedRoleTriggerToRunner(
   ctx: TaskCtx,
   task: Doc<"agent_tasks">,
 ): Promise<boolean> {
   const home = task.originating_conversation_id;
-  const sweep = home && (await scheduledSweep(ctx.db, home));
-  if (sweep) {
-    const state = readSweep(sweep);
-    if (
-      "role" in state &&
-      shouldCancelForRetirement(task, state, sweep._creationTime)
-    )
-      return true;
-  }
+  const sweep = home && (await activeCancellation(ctx.db, home));
+  if (
+    sweep &&
+    shouldCancelForRetirement(task, sweep.state, sweep.row._creationTime)
+  )
+    return true;
   const seat = await seatOfRoleTrigger(ctx, task);
   if (!seat || seat.user_id === task.user_id) return false;
   await ctx.db.patch(task._id, { user_id: seat.user_id });
   await handRoleTriggersForSeat(ctx, seat, true);
   return true;
 }
-
 type RoleHandoff = {
   jobId: Id<"_scheduled_functions">;
   runner: Id<"users">;
@@ -398,22 +392,33 @@ type RoleHandoff = {
   started: boolean;
   cursor?: string | null;
 };
-
-const sweepKey = (seat: Id<"conversations">) => `role-trigger-handoff:${seat}`;
-
-function scheduledSweep(db: DatabaseReader, seat: Id<"conversations">) {
+type SweepKind = "handoff" | "cancellation";
+const sweepKey = (seat: Id<"conversations">, kind: SweepKind = "handoff") =>
+  `role-trigger-${kind}:${seat}`;
+function scheduledSweep(db: DatabaseReader, key: string) {
   return db
     .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", sweepKey(seat)))
+    .withIndex("by_key", (q) => q.eq("key", key))
     .unique();
 }
-
+async function activeCancellation(
+  db: DatabaseReader,
+  seat: Id<"conversations">,
+) {
+  const row = await scheduledSweep(db, sweepKey(seat, "cancellation"));
+  if (!row) return null;
+  const state = readSweep(row);
+  if (!("role" in state) || !(await sweepIsActive(db, state.jobId)))
+    return null;
+  return (await db.get(state.role))?.status === "retired"
+    ? { row, state }
+    : null;
+}
 export function readSweep(
   row: Doc<"system_config">,
 ): RoleHandoff | TriggerCancellation {
   return JSON.parse(row.value) as RoleHandoff | TriggerCancellation;
 }
-
 async function sweepIsActive(
   db: DatabaseReader,
   id: Id<"_scheduled_functions">,
@@ -421,7 +426,6 @@ async function sweepIsActive(
   const job = await db.system.get(id);
   return job?.state.kind === "pending" || job?.state.kind === "inProgress";
 }
-
 export async function writeSweep(
   ctx: TaskCtx,
   id: Id<"system_config">,
@@ -429,18 +433,13 @@ export async function writeSweep(
 ): Promise<void> {
   await ctx.db.patch(id, { value: JSON.stringify(state) });
 }
-
-function createSweep(
-  ctx: TaskCtx,
-  seat: Id<"conversations">,
-): Promise<Id<"system_config">> {
+function createSweep(ctx: TaskCtx, key: string): Promise<Id<"system_config">> {
   return ctx.db.insert("system_config", {
-    key: sweepKey(seat),
+    key,
     value: "",
     updated_at: Date.now(),
   });
 }
-
 export function triggerPage(
   db: DatabaseReader,
   seat: Id<"conversations">,
@@ -452,17 +451,16 @@ export function triggerPage(
     cursor,
   });
 }
-
 async function handRoleTriggersForSeat(
   ctx: TaskCtx,
   seat: Doc<"conversations">,
   claimed: boolean,
 ): Promise<number> {
-  const handoff = await scheduledSweep(ctx.db, seat._id);
+  if (await activeCancellation(ctx.db, seat._id)) return 0;
+  const handoff = await scheduledSweep(ctx.db, sweepKey(seat._id));
   if (handoff) {
     const state = readSweep(handoff);
-    if ("role" in state) return 0;
-    if (state.runner === seat.user_id) {
+    if (!("role" in state) && state.runner === seat.user_id) {
       if (
         (claimed || state.started === false) &&
         (await sweepIsActive(ctx.db, state.jobId))
@@ -478,7 +476,7 @@ async function handRoleTriggersForSeat(
   const tasks = await smallTriggerSet(ctx.db, seat._id);
   if (!tasks) {
     if (!ctx.scheduler) throw new Error("Trigger handoff requires a scheduler");
-    const handoffId = await createSweep(ctx, seat._id);
+    const handoffId = await createSweep(ctx, sweepKey(seat._id));
     const jobId = (await ctx.scheduler.runAfter(
       0,
       internal.lib.agentTaskRows.continueRoleTriggerHandoff,
@@ -509,7 +507,6 @@ async function handRoleTriggersForSeat(
     claimed ? undefined : repairKind,
   );
 }
-
 async function handRoleTriggerPage(
   ctx: TaskCtx,
   seat: Doc<"conversations">,
@@ -532,7 +529,6 @@ async function handRoleTriggerPage(
   }
   return handed;
 }
-
 export const continueRoleTriggerHandoff = internalMutation({
   args: {
     handoffId: v.optional(v.id("system_config")),
@@ -640,20 +636,18 @@ export const continueRoleTriggerHandoff = internalMutation({
     }
   },
 });
-
 type Retirement = {
   role: Id<"org_roles">;
   by: Id<"users">;
   keepTitle?: string;
 };
-
 type TriggerCancellation = Retirement & {
   batchKey: string;
+  jobId: Id<"_scheduled_functions">;
   cursor: string | null;
   kind: ArmedTriggerKind;
   seenThrough: number | null;
 };
-
 export function shouldCancelForRetirement(
   task: Doc<"agent_tasks">,
   retirement: Retirement,
@@ -669,7 +663,6 @@ export function shouldCancelForRetirement(
           task.role_id === retirement.role)))
   );
 }
-
 export async function cancelRetirementPage(
   ctx: TaskCtx,
   tasks: Doc<"agent_tasks">[],
@@ -682,7 +675,6 @@ export async function cancelRetirementPage(
   }
   return stopped;
 }
-
 export async function cancelTasksOriginatingFrom(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
@@ -691,26 +683,26 @@ export async function cancelTasksOriginatingFrom(
 ) {
   if (retirement.keepTitle === undefined)
     ctx[RETIRED_TRIGGER_HOME] = conversationId;
-  const sweep = await scheduledSweep(ctx.db, conversationId);
-  if (sweep) {
-    const state = readSweep(sweep);
-    if ("role" in state && state.role === retirement.role) return null;
-    await ctx.db.delete(sweep._id);
-  }
+  const key = sweepKey(conversationId, "cancellation");
+  const existing = await scheduledSweep(ctx.db, key);
+  if (existing) await ctx.db.delete(existing._id);
   const tasks = await smallTriggerSet(ctx.db, conversationId);
   if (!tasks) {
     if (!ctx.scheduler)
       throw new Error("Trigger cancellation requires a scheduler");
-    const sweepId = await createSweep(ctx, conversationId);
+    const handoff = await scheduledSweep(ctx.db, sweepKey(conversationId));
+    if (handoff) await ctx.db.delete(handoff._id);
+    const sweepId = await createSweep(ctx, key);
     const batchKey = await prepareBatch(sweepId);
-    await ctx.scheduler.runAfter(
+    const jobId = (await ctx.scheduler.runAfter(
       0,
       internal.orgRoles.continueRoleTriggerCancellation,
       { conversationId, sweepId, cursor: null },
-    );
+    )) as Id<"_scheduled_functions">;
     await writeSweep(ctx, sweepId, {
       ...retirement,
       batchKey,
+      jobId,
       cursor: null,
       kind: "none",
       seenThrough: null,

@@ -1473,7 +1473,6 @@ async function performRetireRoleCore(
     standing_session: standing ? (keepStanding ? "kept" : "retired") : "none",
   };
 }
-
 export const continueRoleTriggerCancellation = internalMutation({
   args: {
     conversationId: v.id("conversations"),
@@ -1531,10 +1530,12 @@ export const continueRoleTriggerCancellation = internalMutation({
     if (page.isDone) {
       await writeArmedTriggerKind(ctx, seat, kind);
       await ctx.db.delete(sweep._id);
+      if (seat && state.keepTitle !== undefined)
+        await handRoleTriggersToRunner(ctx, conversationId);
       return;
     }
     const cursor = page.continueCursor;
-    await ctx.scheduler.runAfter(
+    const jobId = await ctx.scheduler.runAfter(
       0,
       internal.orgRoles.continueRoleTriggerCancellation,
       { ...args, cursor },
@@ -1542,6 +1543,7 @@ export const continueRoleTriggerCancellation = internalMutation({
     await writeSweep(ctx, sweep._id, {
       ...state,
       cursor,
+      jobId,
       kind,
       seenThrough: page.page.at(-1)?._creationTime ?? state.seenThrough,
     });
