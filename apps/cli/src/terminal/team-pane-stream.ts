@@ -12,8 +12,7 @@ import { deviceId } from "../remote/device.js";
 import { tmuxRunAsync } from "../tmux.js";
 import { redactTeamScreen } from "./team-pane-redaction.js";
 
-const PANE_IDENTITY =
-  "#{session_name}|#{session_created}|#{pid}|#{pane_id}|#{pane_pid}|#{pane_dead}";
+import { WATCH_PANE_IDENTITY } from "./tmux-typing-pane.js";
 const MAX_PUSH_FAILURES = 6;
 
 export async function captureTeamPane(target: string) {
@@ -25,7 +24,7 @@ export async function captureTeamPane(target: string) {
     "-t",
     pane,
     "-F",
-    PANE_IDENTITY,
+    WATCH_PANE_IDENTITY,
     ";",
     "capture-pane",
     "-p",
@@ -38,7 +37,7 @@ export async function captureTeamPane(target: string) {
     "-t",
     pane,
     "-F",
-    PANE_IDENTITY,
+    WATCH_PANE_IDENTITY,
   ]);
   if (result.status !== 0) return null;
   const output = result.stdout.replace(/\n$/, "");

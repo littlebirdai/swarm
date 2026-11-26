@@ -984,6 +984,7 @@ import {
   TMUX_WINDOW_HEIGHT,
   TMUX_WINDOW_WIDTH,
 } from "./terminal/daemon-bridge.js";
+import { startDaemonTerminalTyping } from "./terminal/daemon-terminal-typing.js";
 import { attachWatchServer } from "./browser/watchServer.js";
 
 import { handleBrowserFocusHttp } from "./browser/focusHttp.js";
@@ -40241,6 +40242,11 @@ async function main(): Promise<void> {
   // routes attached below need; /hook/status answers 503 until its handler
   // registers at the end of boot (setHookStatusSink).
   hookServer = startHookServer();
+  const stopTerminalTyping = startDaemonTerminalTyping(
+    convexUrl,
+    config.auth_token,
+    observePaneInput,
+  );
   // Every echo this daemon uploads names the delivery it settles. Nothing
   // above has awaited since syncService was built, so no upload precedes it.
   syncService.setDeliveryEchoes(deliveryEchoLedger());
@@ -45219,6 +45225,7 @@ async function main(): Promise<void> {
 
   setupCommandSubscription();
   const shutdown = async () => {
+    const terminalTypingStopped = stopTerminalTyping?.();
     await edgeLink?.then((m) => m.closeEdgeConnection()).catch(() => {});
     closeDaemonWorkers();
     stopEvalsBridge();
@@ -45251,6 +45258,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }, 15_000);
     hardExitTimer.unref();
+    if (terminalTypingStopped) await terminalTypingStopped;
 
     saveDaemonState({ connected: false });
 

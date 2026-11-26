@@ -717,6 +717,7 @@ export const unregisterManagedSession = mutation({
 export const listManagedSessionsForDaemon = query({
   args: {
     api_token: v.optional(v.string()),
+    terminal_typing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -735,6 +736,12 @@ export const listManagedSessionsForDaemon = query({
       tmux_session: s.tmux_session,
       agent_pid: s.agent_pid,
       last_metrics_at: s.last_metrics_at,
+      ...(args.terminal_typing &&
+      !s.hosted &&
+      !s.hibernated_at &&
+      s.backend !== "sdk"
+        ? { agent_started_at: s.agent_started_at ?? s.started_at }
+        : {}),
     }));
   },
 });
