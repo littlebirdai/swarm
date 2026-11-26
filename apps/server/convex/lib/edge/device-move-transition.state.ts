@@ -2,16 +2,15 @@ import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import {
-  executionBinding,
-  executionHead,
-  insertRequestedBinding,
-} from "../execution-binding.state";
+import { insertRequestedBinding } from "../execution-binding.state";
 import {
   capabilitiesEqual,
   wireIsolation,
 } from "../execution-binding.validators";
-import { handRoleTriggersToRunner } from "../agentTaskRows";
+import {
+  handRoleTriggersToRunner,
+  roleTriggerRunnerOf,
+} from "../agentTaskRows";
 import {
   activeMoveAttempt,
   DEVICE_MOVE_FENCE,
@@ -21,17 +20,24 @@ import {
 import { activateEventRun, clearEventTurn } from "./runEvents";
 
 type DbCtx = Pick<MutationCtx, "db">;
-type MoveAddress = {
+export type RecordedMoveAddress = {
   conversation_id: Id<"conversations">;
   move_id: string;
-  bearer: string;
 };
+type MoveAddress = RecordedMoveAddress & { bearer: string };
 type Head = Doc<"conversation_execution_heads">;
-type Binding = Doc<"execution_bindings">;
 export type MoveBindingCredential = { moveId?: string; moveBearer?: string };
 
-async function moveContext(ctx: DbCtx, address: MoveAddress) {
-  const head: Head | null = await executionHead(ctx, address.conversation_id);
+export async function loadRecordedDeviceMove(
+  ctx: DbCtx,
+  address: RecordedMoveAddress,
+) {
+  const head = await ctx.db
+    .query("conversation_execution_heads")
+    .withIndex("by_conversation", (q) =>
+      q.eq("conversation_id", address.conversation_id),
+    )
+    .unique();
   const move = head?.device_move;
   if (
     !head ||
@@ -42,29 +48,48 @@ async function moveContext(ctx: DbCtx, address: MoveAddress) {
     head.current_epoch !== move.source_epoch
   )
     throw new ConvexError("The move record is missing or has changed");
-  const [conversation, source, auth] = await Promise.all([
+  const [conversation, source] = await Promise.all([
     ctx.db.get(address.conversation_id),
-    executionBinding(
-      ctx,
-      address.conversation_id,
-      move.source_epoch,
-    ) as Promise<Binding | null>,
-    verifyDeviceApiToken(ctx, address.bearer),
+    moveBinding(ctx, address.conversation_id, move.source_epoch),
   ]);
   if (
     !conversation ||
     !source ||
-    !auth ||
     conversation.execution_protocol_state !== "fenced" ||
     conversation.user_id !== head.owner_user_id ||
     source.owner_user_id !== head.owner_user_id ||
     source.owner_device_id !== conversation.owner_device_id
   )
     throw new ConvexError("The move source or device credentials changed");
-  return { conversation, head, move, source, auth };
+  return { conversation, head, move, source };
+}
+
+type RecordedMove = Awaited<ReturnType<typeof loadRecordedDeviceMove>>;
+
+async function moveContext(ctx: DbCtx, address: MoveAddress) {
+  const [state, auth] = await Promise.all([
+    loadRecordedDeviceMove(ctx, address),
+    verifyDeviceApiToken(ctx, address.bearer),
+  ]);
+  if (!auth)
+    throw new ConvexError("The move source or device credentials changed");
+  return { ...state, auth };
 }
 
 type MoveContext = Awaited<ReturnType<typeof moveContext>>;
+
+function moveBinding(
+  ctx: DbCtx,
+  conversationId: Id<"conversations">,
+  epoch: number,
+) {
+  return ctx.db
+    .query("execution_bindings")
+    .withIndex("by_conversation_epoch", (q) =>
+      q.eq("conversation_id", conversationId).eq("epoch", epoch),
+    )
+    .unique();
+}
 
 function assertDestination({ move, auth }: MoveContext) {
   if (
@@ -76,7 +101,11 @@ function assertDestination({ move, auth }: MoveContext) {
     );
 }
 
-async function registeredBoot(ctx: DbCtx, runner: Id<"users">, device: string) {
+export async function registeredBoot(
+  ctx: DbCtx,
+  runner: Id<"users">,
+  device: string,
+) {
   return await ctx.db
     .query("execution_daemon_boots")
     .withIndex("by_user_device", (q) =>
@@ -85,7 +114,10 @@ async function registeredBoot(ctx: DbCtx, runner: Id<"users">, device: string) {
     .unique();
 }
 
-async function assertSourceEnded(ctx: DbCtx, { move, source }: MoveContext) {
+export async function assertSourceEnded(
+  ctx: DbCtx,
+  { move, source }: RecordedMove,
+) {
   if (move.forced) {
     requireForcedDeviceMoveEnabled();
     return;
@@ -107,12 +139,11 @@ async function assertSourceEnded(ctx: DbCtx, { move, source }: MoveContext) {
     );
 }
 
-async function destinationBinding(ctx: DbCtx, { head, move }: MoveContext) {
-  const binding: Binding | null = await executionBinding(
-    ctx,
-    head.conversation_id,
-    move.next_epoch,
-  );
+export async function destinationBinding(
+  ctx: DbCtx,
+  { head, move }: RecordedMove,
+) {
+  const binding = await moveBinding(ctx, head.conversation_id, move.next_epoch);
   if (
     !binding ||
     head.pending_epoch !== move.next_epoch ||
@@ -140,14 +171,19 @@ export async function authorizeMoveBinding(
     if (args.moveId) throw new ConvexError("The move is no longer active");
     return null;
   }
-  if (!args.moveId || !args.moveBearer)
+  const moveId =
+    args.moveId ??
+    (head.device_move.driver && head.device_move.next_epoch === args.epoch
+      ? head.device_move.move_id
+      : undefined);
+  if (!moveId || !args.moveBearer)
     throw new ConvexError({
       code: DEVICE_MOVE_FENCE,
       message: "Execution is fenced by a device move",
     });
   const state = await moveContext(ctx, {
     conversation_id: args.conversationId,
-    move_id: args.moveId,
+    move_id: moveId,
     bearer: args.moveBearer,
   });
   assertDestination(state);
@@ -168,7 +204,11 @@ export async function authorizeMoveBinding(
     throw new ConvexError(
       "The destination cannot act outside its exact move binding and boot",
     );
-  if (starting) await assertSourceEnded(ctx, state);
+  if (starting) {
+    if (state.move.driver?.step === "failed")
+      throw new ConvexError("The device move stopped before activation");
+    await assertSourceEnded(ctx, state);
+  }
   return { binding, conversation: state.conversation };
 }
 
@@ -179,17 +219,26 @@ export async function prepareDeviceMove(
 ) {
   const state = await moveContext(ctx, args);
   assertDestination(state);
+  return prepareRecordedDeviceMove(ctx, state, args.daemon_boot_id, now);
+}
+
+export async function prepareRecordedDeviceMove(
+  ctx: DbCtx,
+  state: RecordedMove,
+  daemonBootId: string,
+  now: number,
+) {
   const { conversation, head, move, source } = state;
   const boot = await registeredBoot(
     ctx,
     move.destination_runner_id,
     move.destination_device_id,
   );
-  if (boot?.daemon_boot_id !== args.daemon_boot_id)
+  if (boot?.daemon_boot_id !== daemonBootId)
     throw new ConvexError("The destination boot is not registered");
   if (move.phase === "preparing") {
     const existing = await destinationBinding(ctx, state);
-    if (existing.daemon_boot_id !== args.daemon_boot_id)
+    if (existing.daemon_boot_id !== daemonBootId)
       throw new ConvexError("The destination boot changed after preparation");
     return { epoch: move.next_epoch };
   }
@@ -201,7 +250,7 @@ export async function prepareDeviceMove(
     move.next_epoch,
     {
       ownerDeviceId: move.destination_device_id,
-      daemonBootId: args.daemon_boot_id,
+      daemonBootId: daemonBootId,
       requestedAgent: source.requested_agent,
       transport: source.transport,
       projectPath: source.project_path,
@@ -323,7 +372,7 @@ export async function retargetDeviceMove(
   now: number,
 ) {
   const state = await moveContext(ctx, args);
-  const { move, head, source } = state;
+  const { move, source } = state;
   const aborting = move.phase === "aborting";
   if (aborting) {
     if (
@@ -333,14 +382,24 @@ export async function retargetDeviceMove(
       throw new ConvexError("Only the source device can restore a move");
   } else {
     assertDestination(state);
-    if (move.phase !== "preparing")
-      throw new ConvexError("The move is not prepared");
   }
+  return retargetRecordedDeviceMove(ctx, state, now);
+}
+
+export async function retargetRecordedDeviceMove(
+  ctx: DbCtx,
+  state: RecordedMove,
+  now: number,
+) {
+  const { move, head, source } = state;
+  const aborting = move.phase === "aborting";
+  if (!aborting && move.phase !== "preparing")
+    throw new ConvexError("The move is not prepared");
   const binding = await destinationBinding(ctx, state);
   const [from, to] = aborting ? [binding, source] : [source, binding];
   const { page, isDone } = await epochRows(
     ctx,
-    args.conversation_id,
+    head.conversation_id,
     from.epoch,
     aborting ? undefined : "pending",
   ).paginate({ cursor: null, numItems: 100, maximumBytesRead: 512 * 1024 });
@@ -414,8 +473,17 @@ export async function activateDeviceMove(
   now: number,
 ) {
   const state = await moveContext(ctx, args);
-  const { head, move, conversation, source } = state;
   assertDestination(state);
+  return activateRecordedDeviceMove(ctx, state, args, now);
+}
+
+export async function activateRecordedDeviceMove(
+  ctx: DbCtx,
+  state: RecordedMove,
+  args: { daemon_boot_id: string; runtime_id: string; operation_id: string },
+  now: number,
+) {
+  const { head, move, conversation, source } = state;
   if (move.phase !== "preparing")
     throw new ConvexError("The move cannot activate in this phase");
   const binding = await destinationBinding(ctx, state);
@@ -496,7 +564,7 @@ export async function activateDeviceMove(
           stopped_reason: "session owner forced the device move",
           forced_device_move: {
             ...move.forced,
-            move_id: args.move_id,
+            move_id: move.move_id!,
             destination_epoch: binding.epoch,
           },
         }
@@ -533,13 +601,42 @@ export async function activateDeviceMove(
     author_user_id: conversation.author_user_id ?? conversation.user_id,
     owner_device_id: binding.owner_device_id,
   });
-  await handRoleTriggersToRunner(ctx, conversation._id);
+  if (move.driver) {
+    const { page, isDone } = await ctx.db
+      .query("agent_tasks")
+      .withIndex("by_originating_conversation", (q) =>
+        q.eq("originating_conversation_id", conversation._id),
+      )
+      .paginate({ cursor: null, numItems: 100, maximumBytesRead: 512 * 1024 });
+    if (!isDone)
+      throw new ConvexError(
+        "The session has too many triggers for atomic activation",
+      );
+    for (const task of page) {
+      const runner = await roleTriggerRunnerOf(ctx, task);
+      if (runner) await ctx.db.patch(task._id, { user_id: runner });
+    }
+  } else await handRoleTriggersToRunner(ctx, conversation._id);
   await ctx.db.patch(head._id, {
     owner_user_id: binding.owner_user_id,
     current_epoch: binding.epoch,
     admission_epoch: binding.epoch,
     pending_epoch: undefined,
     device_move: undefined,
+    ...(move.driver && {
+      last_device_move: {
+        move_id: move.move_id!,
+        source_runner_id: source.owner_user_id,
+        forced: move.forced !== undefined,
+        destination_device_id: binding.owner_device_id,
+        destination_runner_id: binding.owner_user_id,
+        epoch: binding.epoch,
+        prepared_at: move.driver.prepared_at,
+        retargeted_at: move.driver.retargeted_at,
+        moved: move.driver.moved,
+        activated_at: now,
+      },
+    }),
     updated_at: now,
   });
   return { epoch: binding.epoch };

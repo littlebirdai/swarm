@@ -481,6 +481,8 @@ test("renewal writes only the side row that the work subscription never reads", 
   ).toEqual([
     "api_tokens",
     "conversation_execution_heads",
+    "conversation_execution_heads",
+    "conversation_execution_heads",
     "execution_bindings",
   ]);
   expect(subscription).not.toContainEqual({ method: "get", key: lease._id });

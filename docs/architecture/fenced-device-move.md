@@ -139,3 +139,23 @@ The old device cannot be a move destination for this conversation, even
 after it registers a new boot. The server cannot stop a disconnected process
 from having effects outside the server. The existing abort and retarget
 rules still apply before activation.
+
+## Drive a recorded move
+
+The server schedules a forced move when the owner requests it. For a normal
+recorded move, the server schedules work after it verifies the source stop
+or replacement boot. Public entry points still refuse normal moves.
+
+The driver prepares the destination binding for its registered boot. The
+destination daemon sees the binding in its authenticated execution work feed
+and publishes readiness through its usual startup calls. Each scheduled
+retarget step processes at most 100 messages with a 512 KiB scan budget.
+Activation checks readiness again and transfers ownership in one transaction.
+
+Each job names the move and its driver revision. The server ignores a job
+when the move was aborted, replaced, or already advanced. It retries a step
+up to ten attempts with exponential backoff capped at 30 seconds. The move
+record keeps progress and the last failure. A completed move leaves a
+receipt for the source and destination accounts. Activation fails without
+transferring ownership if more than 100 linked triggers, or more than
+512 KiB of trigger data, would need an atomic handoff.

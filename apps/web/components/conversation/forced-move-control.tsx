@@ -74,15 +74,30 @@ export function ForcedMoveControl({
     if (echoedDestination && pending && currentRequest)
       settleSessionCommand(currentRequest._id, { result: "requested" });
   }, [echoedDestination, pending, currentRequest]);
-  if (requested)
+  if (requested) {
+    const progress = options?.progress;
+    const label =
+      progress === "preparing"
+        ? `Preparing ${requested}`
+        : progress === "moving"
+          ? `Moving session to ${requested}`
+          : progress === "done"
+            ? `Session moved to ${requested}`
+            : progress === "failed"
+              ? `Move to ${requested} failed`
+              : `Move to ${requested} requested`;
     return (
       <div
         className="px-4 py-1.5 text-[12px] text-sol-text-muted"
-        role="status"
+        role={progress === "failed" ? "alert" : "status"}
       >
-        Move to {requested} requested
+        <span>{label}</span>
+        {options?.failure && (
+          <span className="text-sol-red">{options.failure}</span>
+        )}
       </div>
     );
+  }
   if (!options || !offline || (!options.destinations.length && !refusal))
     return null;
   const target = options.destinations.find((d) => d.id === selected);

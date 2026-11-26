@@ -14,8 +14,8 @@ export const machine = "run-machine";
 export const boot = "run-boot";
 const claimFn = internal.edgeRunLease.claim;
 
-export async function setupRunLease() {
-  const t = serverTest();
+export async function setupRunLease(limits?: Parameters<typeof serverTest>[0]) {
+  const t = serverTest(limits);
   const tokens = [
     { secret: "run-owner", device: machine },
     { secret: "run-other-device", device: "wrong-machine" },

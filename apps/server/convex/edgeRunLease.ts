@@ -1,4 +1,9 @@
 import type { Doc } from "./_generated/dataModel";
+import {
+  driveDeviceMove,
+  runDeviceMoveStep,
+  startDeviceMoveDriver,
+} from "./lib/edge/device-move-driver.state";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { listTeamMachines } from "./sessionLaunch";
 import { isConversationSafetyBlocked } from "./conversationSafety";
@@ -76,40 +81,81 @@ export const recordMove = internalMutation({
   },
 });
 
+type ForcedMoveOption = {
+  _id: Doc<"conversations">["_id"];
+  epoch: number;
+  sourceLabel: string;
+  offlineAfter: number;
+  requestedDestination: string | null;
+  progress: "requested" | "preparing" | "moving" | "done" | "failed" | null;
+  failure: string | null;
+  destinations: { id: string; label: string }[];
+};
+
 export const forcedMoveOptions = query({
   args: { conversation_id: v.id("conversations") },
-  handler: async (ctx, { conversation_id }) => {
+  handler: async (ctx, { conversation_id }): Promise<ForcedMoveOption[]> => {
     if (!forcedDeviceMoveEnabled()) return [];
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     const conversation = await ctx.db.get(conversation_id);
     if (
-      conversation?.user_id !== userId ||
-      conversation.execution_protocol_state !== "fenced" ||
+      conversation?.execution_protocol_state !== "fenced" ||
       !conversation.owner_device_id ||
       isConversationSafetyBlocked(conversation)
     )
       return [];
     const sourceId = conversation.owner_device_id;
-    const [head, own] = await Promise.all([
-      ctx.db
-        .query("conversation_execution_heads")
-        .withIndex("by_conversation", (q) =>
-          q.eq("conversation_id", conversation_id),
-        )
-        .unique(),
-      ctx.db
-        .query("devices")
-        .withIndex("by_user_device", (q) => q.eq("user_id", userId))
-        .collect(),
-    ]);
+    const head = await ctx.db
+      .query("conversation_execution_heads")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", conversation_id),
+      )
+      .unique();
+    if (head?.protocol_state !== "fenced" || head.current_epoch === undefined)
+      return [];
+    const receipt = head.last_device_move;
     if (
-      head?.owner_user_id !== userId ||
-      head.protocol_state !== "fenced" ||
-      head.current_epoch === undefined ||
+      !head.device_move &&
+      receipt?.forced &&
+      receipt.epoch === head.current_epoch &&
+      (receipt.source_runner_id === userId ||
+        receipt.destination_runner_id === userId)
+    ) {
+      const device = await ctx.db
+        .query("devices")
+        .withIndex("by_user_device", (q) =>
+          q
+            .eq("user_id", receipt.destination_runner_id)
+            .eq("device_id", receipt.destination_device_id),
+        )
+        .first();
+      return [
+        {
+          _id: conversation_id,
+          epoch: head.current_epoch,
+          sourceLabel: "",
+          offlineAfter: 0,
+          requestedDestination:
+            device?.display_name ||
+            device?.label ||
+            receipt.destination_device_id,
+          progress: "done" as const,
+          failure: null,
+          destinations: [],
+        },
+      ];
+    }
+    if (
+      conversation.user_id !== userId ||
+      head.owner_user_id !== userId ||
       head.device_move?.phase === "aborting"
     )
       return [];
+    const own = await ctx.db
+      .query("devices")
+      .withIndex("by_user_device", (q) => q.eq("user_id", userId))
+      .collect();
     const move = head.device_move;
     if (
       !move &&
@@ -183,6 +229,20 @@ export const forcedMoveOptions = query({
             requested?.label ||
             move.destination_device_id
           : null,
+        progress: !move?.forced
+          ? null
+          : move.driver?.step === "failed"
+            ? ("failed" as const)
+            : move.driver?.step === "activate" || (move.driver?.moved ?? 0) > 0
+              ? ("moving" as const)
+              : move.driver?.prepared_at !== undefined ||
+                  (move.driver?.retries ?? 0) > 0
+                ? ("preparing" as const)
+                : ("requested" as const),
+        failure:
+          move?.driver?.step === "failed"
+            ? (move.driver.last_error ?? "The device move could not finish")
+            : null,
         destinations,
       },
     ];
@@ -204,6 +264,10 @@ export const forceMove = mutation({
       now,
     );
     await expireMoveSettlement(ctx, headId, sourceEpoch, now);
+    await startDeviceMoveDriver(ctx, {
+      conversation_id: args.conversation_id,
+      move_id: moveId,
+    });
     return moveId;
   },
 });
@@ -217,11 +281,21 @@ export const expireMove = internalMutation({
     expireMoveSettlement(ctx, args.head_id, args.source_epoch, Date.now()),
 });
 
-const moveAddress = {
+const recordedMoveAddress = {
   conversation_id: v.id("conversations"),
   move_id: v.string(),
-  bearer: v.string(),
 };
+const moveAddress = { ...recordedMoveAddress, bearer: v.string() };
+const moveTicket = { ...recordedMoveAddress, revision: v.number() };
+
+export const driveMove = internalMutation({
+  args: moveTicket,
+  handler: driveDeviceMove,
+});
+export const runMoveStep = internalMutation({
+  args: moveTicket,
+  handler: runDeviceMoveStep,
+});
 
 export const prepareMove = internalMutation({
   args: { ...moveAddress, daemon_boot_id: v.string() },
@@ -235,12 +309,18 @@ export const confirmMoveSourceStop = internalMutation({
     runtime_id: v.string(),
     fencing_token: v.string(),
   },
-  handler: (ctx, args) => confirmMoveSourceStopped(ctx, args, Date.now()),
+  handler: async (ctx, args): Promise<void> => {
+    await confirmMoveSourceStopped(ctx, args, Date.now());
+    await startDeviceMoveDriver(ctx, args);
+  },
 });
 
 export const confirmMoveSourceReplacementBoot = internalMutation({
   args: { ...moveAddress, daemon_boot_id: v.string() },
-  handler: (ctx, args) => confirmMoveSourceBoot(ctx, args, Date.now()),
+  handler: async (ctx, args): Promise<void> => {
+    await confirmMoveSourceBoot(ctx, args, Date.now());
+    await startDeviceMoveDriver(ctx, args);
+  },
 });
 
 export const retargetMove = internalMutation({

@@ -24,6 +24,8 @@ function moveOptions(conversationId: Id<"conversations">) {
     sourceLabel: "Laptop",
     offlineAfter: 0,
     requestedDestination: null as string | null,
+    progress: null,
+    failure: null,
     destinations,
   };
 }
@@ -265,4 +267,36 @@ test("a transient dispatch failure leaves the request pending", async () => {
   expect(ui.calls).toHaveLength(4);
   expect(ui.container.querySelector('[role="alert"]')).toBeNull();
   expect(button(ui.container, "Requesting move").disabled).toBe(true);
+});
+
+test("the status strip follows the scheduler's progress and failure", async () => {
+  const ui = await mount("accepted");
+  for (const [progress, label, failure, role] of [
+    ["preparing", "Preparing Team Mac", null, "status"],
+    ["moving", "Moving session to Team Mac", null, "status"],
+    [
+      "failed",
+      "Move to Team Mac failed",
+      "The destination daemon did not connect",
+      "alert",
+    ],
+    ["done", "Session moved to Team Mac", null, "status"],
+  ] as const) {
+    await act(async () => {
+      ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+        {
+          ...moveOptions(ui.conversationId),
+          requestedDestination: "Team Mac",
+          progress,
+          failure,
+          destinations: [],
+        },
+      ]);
+      flushSyncPublishes();
+    });
+    const status = ui.container.querySelector(`[role="${role}"]`);
+    expect(status?.textContent).toContain(label);
+    if (failure) expect(status?.textContent).toContain(failure);
+  }
+  expect(ui.calls).toEqual([]);
 });

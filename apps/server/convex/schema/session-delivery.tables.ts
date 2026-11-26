@@ -239,6 +239,36 @@ export const sessionDeliveryTables = {
         destination_runner_id: v.id("users"),
         next_epoch: v.number(),
         settlement_deadline: v.number(),
+        driver: v.optional(
+          v.object({
+            revision: v.number(),
+            step: v.union(
+              v.literal("prepare"),
+              v.literal("retarget"),
+              v.literal("activate"),
+              v.literal("failed"),
+            ),
+            retries: v.number(),
+            moved: v.number(),
+            prepared_at: v.optional(v.number()),
+            retargeted_at: v.optional(v.number()),
+            last_error: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
+    last_device_move: v.optional(
+      v.object({
+        move_id: v.string(),
+        source_runner_id: v.id("users"),
+        forced: v.boolean(),
+        destination_device_id: v.string(),
+        destination_runner_id: v.id("users"),
+        epoch: v.number(),
+        prepared_at: v.optional(v.number()),
+        retargeted_at: v.optional(v.number()),
+        moved: v.number(),
+        activated_at: v.number(),
       }),
     ),
     admission_epoch: v.optional(v.number()),
@@ -355,7 +385,13 @@ export const sessionDeliveryTables = {
     updated_at: v.number(),
   })
     .index("by_conversation", ["conversation_id"])
-    .index("by_owner_state", ["owner_user_id", "protocol_state"]),
+    .index("by_owner_state", ["owner_user_id", "protocol_state"])
+    .index("by_move_destination", [
+      "device_move.destination_runner_id",
+      "device_move.destination_device_id",
+      "device_move.phase",
+      "device_move.driver.step",
+    ]),
 
   // Immutable target/configuration per epoch plus the durable startup CAS.
   // The device's CURRENT fenced-execution daemon boot, upserted at rail
