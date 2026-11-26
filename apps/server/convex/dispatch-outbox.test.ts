@@ -716,6 +716,7 @@ test("a machine-only fallback settles the optimistic owner through its durable r
   const receipts = deliveryReceiptRequests(store.getState().pending);
   expect(receipts).toHaveLength(1);
   const { revision } = receipts[0];
+  expect(revision).toBe(1);
   const id = receipts[0].id as Id<"sync_outbox">;
   await t.mutation(internal.syncOutbox.drain, { id });
   const deliveries = await actor.query(api.syncOutbox.getReceipts, {
@@ -746,4 +747,28 @@ test("a machine-only fallback settles the optimistic owner through its durable r
   expect(store.getState().sessions[conversation].owner_device_id).toBe(
     "laptop",
   );
+});
+
+test("a machine-only move to a valid device emits one conversation revision", async () => {
+  const { t, actor, owner, outbox, conversation } = await setup();
+  await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "machine-only move");
+    for (const device_id of ["laptop", "studio"])
+      await fixtures.device(owner, { device_id, last_seen: Date.now() });
+    await db.patch(conversation, { owner_device_id: "laptop" });
+  });
+  const response = await actor.mutation(api.dispatch.dispatch, {
+    action: "convCommand",
+    args: [conversation, "reconfigureSession", { target_device_id: "studio" }],
+    ack_positions: true,
+    outbox,
+  });
+  const receipts = response.__syncAckV2.filter(
+    (row: { entity_type: string; entity_id: string }) =>
+      row.entity_type === "conversations" && row.entity_id === conversation,
+  );
+  expect(receipts).toEqual([expect.objectContaining({ revision: 1 })]);
+  expect(await t.run(({ db }) => db.get(conversation))).toMatchObject({
+    owner_device_id: "studio",
+  });
 });
