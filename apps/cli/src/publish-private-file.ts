@@ -63,8 +63,7 @@ export function publishPrivateFile(
         if (
           current
             ? !current.isFile() ||
-              (code !== "EEXIST" &&
-                Date.now() - current.mtimeMs < PARTIAL_PUBLICATION_GRACE_MS) ||
+              Date.now() - current.mtimeMs < PARTIAL_PUBLICATION_GRACE_MS ||
               !isIncomplete?.(target)
             : code === "EEXIST"
         )
@@ -117,7 +116,10 @@ function acquirePublicationLock(lock: string): string | undefined {
         fs.rmSync(owner, { force: true });
         removeEmptyLock(lock);
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          removeEmptyLock(lock);
+          throw error;
+        }
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;

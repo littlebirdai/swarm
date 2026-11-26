@@ -181,6 +181,7 @@ describe("machineKey hardware binding", () => {
     });
     try {
       fs.writeFileSync(keyFile, "short");
+      fs.utimesSync(keyFile, 1, 1);
       fs.writeFileSync(competingFile, winner, { mode: 0o600 });
       expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
       expect(fs.readFileSync(keyFile)).toEqual(winner);
@@ -268,6 +269,48 @@ describe("machineKey hardware binding", () => {
     } finally {
       fs.closeSync(fd);
       link.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not replace an unfinished key on a file system with hard links", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const winner = Buffer.alloc(MACHINE_KEY_LEN, 43);
+    const fd = fs.openSync(keyFile, "wx", 0o600);
+    try {
+      expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(
+        "Machine key publication is incomplete",
+      );
+      expect(fs.statSync(keyFile).size).toBe(0);
+      fs.writeFileSync(fd, winner);
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
+      expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+    } finally {
+      fs.closeSync(fd);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("removes its lock when the owner mark cannot be created", () => {
+    const dir = tmpDir();
+    const failure = Object.assign(new Error("No space left"), {
+      code: "ENOSPC",
+    });
+    const open = fs.openSync;
+    const intercept = spyOn(fs, "openSync").mockImplementation(
+      (file, flags, mode) => {
+        if (path.dirname(String(file)).endsWith("lock")) throw failure;
+        return open(file, flags, mode);
+      },
+    );
+    try {
+      expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(failure);
+      expect(
+        fs.readdirSync(dir).filter((name) => name.endsWith("lock")),
+      ).toEqual([]);
+    } finally {
+      intercept.mockRestore();
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
