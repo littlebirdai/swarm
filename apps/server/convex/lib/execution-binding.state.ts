@@ -1,3 +1,4 @@
+import { requireNoDeviceMove } from "./edge/device-move.state";
 import type { Id } from "../_generated/dataModel";
 import {
   fail,
@@ -19,6 +20,7 @@ export type DbCtx = { db: any };
 export async function executionHead(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
+  mode?: "work",
 ): Promise<any | null> {
   const rows = await ctx.db
     .query("conversation_execution_heads")
@@ -31,6 +33,7 @@ export async function executionHead(
       "EXECUTION_PROTOCOL_INVARIANT",
       "conversation has multiple execution heads",
     );
+  if (mode === "work") requireNoDeviceMove(rows[0] ?? null);
   return rows[0] ?? null;
 }
 

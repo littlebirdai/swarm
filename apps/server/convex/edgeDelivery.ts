@@ -30,6 +30,11 @@ import {
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
 import { finalDeliveryReceipt } from "./lib/edge/final-delivery.receipt";
 import {
+  assertMoveSettlementStarted,
+  assertMoveSettlementWindow,
+  DEVICE_MOVE_FENCE,
+} from "./lib/edge/device-move.state";
+import {
   inspectPermitImage,
   permitImageIds,
 } from "./lib/edge/blob-policy.rules";
@@ -80,7 +85,9 @@ async function withFence<T>(
     if (
       (error instanceof ExecutionAuthorityError &&
         refusedFences.has(error.code)) ||
-      (error instanceof ConvexError && error.data?.code === "STALE_RUN_LEASE")
+      (error instanceof ConvexError &&
+        (error.data?.code === "STALE_RUN_LEASE" ||
+          error.data?.code === DEVICE_MOVE_FENCE))
     )
       return refusal;
     throw error;
@@ -198,6 +205,8 @@ async function deliveryContext(
     conversationSequence: args.seq,
   };
   if (!attemptMatchesFence(attempt, fence, run.owner)) return null;
+  if (settling)
+    await assertMoveSettlementWindow(ctx, run.head, attemptId, fence);
   const message = await ctx.db.get(attempt.message_id);
   if (!message) return null;
   const fields = deliveryFields(attempt, message);
@@ -207,7 +216,7 @@ async function deliveryContext(
     fields.sender.id !== args.sender.id
   )
     return null;
-  return { owner: run.owner, fence, attempt, fields, message };
+  return { owner: run.owner, head: run.head, fence, attempt, fields, message };
 }
 
 export const next = internalMutation({
@@ -376,6 +385,7 @@ async function finishEdgeDelivery(
     owner,
     fence,
     states,
+    rejection?.attachment ? undefined : "settle",
   );
   if (rejection?.attachment && isConversationSafetyBlocked(conversation))
     throw new ExecutionAuthorityError(
@@ -451,6 +461,7 @@ export const settle = internalMutation({
           recordedRejection === rejection)
       )
         return { v: v1, status: "duplicate" };
+      assertMoveSettlementStarted(delivery.head, attempt);
       if (attempt.state === "ambiguous" && evidence === undefined)
         throw new ConvexError("resolution_evidence_required");
       if (outcome === "in_doubt") {

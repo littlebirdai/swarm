@@ -26,6 +26,7 @@ import {
   attemptMatchesFence,
   type ReadyBindingFence,
 } from "./lib/delivery-slot.state";
+import { requireNoDeviceMove } from "./lib/edge/device-move.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
 import {
   EXECUTION_PROTOCOL_VERSION,
@@ -588,7 +589,7 @@ export async function recordExecutionSuccessorIntentInDb(
     args.conversationId,
     userId,
   );
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   if (
     !head ||
     head.protocol_state !== "fenced" ||
@@ -778,7 +779,7 @@ export async function requestExecutionSuccessorInDb(
     args.conversationId,
     userId,
   );
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   if (
     !head ||
     head.protocol_state !== "fenced" ||
@@ -984,6 +985,7 @@ export async function abandonAmbiguousAndResendInDb(
     existingResend?.resend_of_delivery_id === fence.deliveryId &&
     existingResend.delivery_id === fence.newClientId
   ) {
+    requireNoDeviceMove(await executionHead(ctx, fence.conversationId));
     return {
       originalDeliveryId: fence.deliveryId,
       messageId: existingResend._id,
@@ -1082,7 +1084,7 @@ export async function publishRuntimeDispositionInDb(
 ): Promise<{ accepted: boolean }> {
   requireNonEmpty(args.reason, "reason");
   await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (
     !head ||
@@ -1355,7 +1357,7 @@ export async function activateExecutionSuccessorInDb(
     args.conversationId,
     userId,
   );
-  const head = await executionHead(ctx, args.conversationId);
+  const head = await executionHead(ctx, args.conversationId, "work");
   if (
     !head ||
     head.protocol_state !== "fenced" ||
