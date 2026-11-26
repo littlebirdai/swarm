@@ -139,13 +139,11 @@ export function setStickyTarget(
   sessionKey: string | null,
   mode: StickyMode,
 ): void {
-  updateRealState((s) => ({
-    ...s,
-    stickyBySession: {
-      ...(s.stickyBySession ?? {}),
-      [keyOf(sessionKey)]: mode,
-    },
-  }));
+  updateRealState((s) => {
+    const key = keyOf(sessionKey);
+    if (s.stickyBySession?.[key] === mode) return null;
+    return { ...s, stickyBySession: { ...s.stickyBySession, [key]: mode } };
+  });
 }
 
 /** The choice a session made with `cast browser target`, or null when it never did. */
