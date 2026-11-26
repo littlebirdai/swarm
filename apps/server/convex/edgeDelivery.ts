@@ -465,6 +465,12 @@ export const settle = internalMutation({
         finalDeliveryReceipt(attempt)
       )
         return { v: v1, status: "duplicate" };
+      if (
+        outcome === "applied" &&
+        evidence !== undefined &&
+        attempt.state === "delivered"
+      )
+        return { v: v1, status: "duplicate" };
       const applied = outcome === "applied" || outcome === "duplicate";
       const rejection =
         outcome === "rejected" || outcome === "stale"
