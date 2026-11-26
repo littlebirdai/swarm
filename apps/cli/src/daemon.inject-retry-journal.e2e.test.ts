@@ -15,6 +15,7 @@ import type { SyncService } from "./syncService.js";
 import {
   prepareTmuxDelivery,
   TmuxDeliveryJournal,
+  TmuxDeliveryUncertainError,
 } from "./tmuxDeliveryJournal.js";
 import { DeliveryEchoLedger } from "./deliveryEchoLedger.js";
 import { tmuxRun } from "./tmux.js";
@@ -177,13 +178,22 @@ test.skipIf(!Bun.which("tmux")).each(["exited", "buffered"] as const)(
         mode === "exited" ? "SESSION_EXITED" : "AGENT_STDIN_NOT_READY",
       );
       if (mode === "exited") {
-        expect(journal.get(delivery.messageId)?.terminalExited).toBe(1);
+        const target = `${pane.tmuxSession}:0.0`;
+        const exited = journal.get(delivery.messageId);
+        expect(exited).toMatchObject({ phase: "submit", terminalExited: 1 });
+        expect(
+          tmuxRun([
+            "display-message",
+            "-p",
+            "-t",
+            target,
+            "#{pane_dead}",
+          ]).stdout.trim(),
+        ).toBe("1");
         await expect(
-          injectViaTmux(`${pane.tmuxSession}:0.0`, "continue", "claude", {
-            delivery,
-            journal,
-          }),
-        ).rejects.toThrow("exited terminal");
+          injectViaTmux(target, "continue", "claude", { delivery, journal }),
+        ).rejects.toBeInstanceOf(TmuxDeliveryUncertainError);
+        expect(journal.get(delivery.messageId)).toEqual(exited);
       }
       pane.tearDown();
       pane = spawnHarness({
