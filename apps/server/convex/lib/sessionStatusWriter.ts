@@ -258,3 +258,16 @@ export function insertConversationWithStatus(
 ) {
   return ctx.db.insert("conversations", fields);
 }
+
+type PendingMessageFields = Omit<
+  Doc<"pending_messages">,
+  "_id" | "_creationTime"
+>;
+
+export function writePendingStatus(
+  ctx: Pick<MutationCtx, "db">,
+  id: Id<"pending_messages">,
+  fields: Pick<PendingMessageFields, "status"> & Partial<PendingMessageFields>,
+) {
+  return ctx.db.patch(id, fields);
+}

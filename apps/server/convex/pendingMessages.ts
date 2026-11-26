@@ -1,3 +1,4 @@
+import { writePendingStatus } from "./lib/sessionStatusWriter";
 import {
   conversationSessionsBeatingSince,
   heartbeatsFor,
@@ -246,7 +247,7 @@ async function rependPendingMessage(
   if (isTerminalPendingStatus(message.status)) return false;
   const conversation = await ctx.db.get(message.conversation_id);
   if (conversation && isConversationSafetyBlocked(conversation)) return false;
-  await ctx.db.patch(message._id, {
+  await writePendingStatus(ctx, message._id, {
     status: "pending" as const,
     retry_count: retryCount,
     delivered_at: undefined,
@@ -277,7 +278,8 @@ export async function patchPendingMessageStatus(
   // Leaving the unconfirmed state (a late echo, a cancel) drops the reason with it.
   const leavesUnconfirmed =
     isUnconfirmedRow(message) && patch.status !== "failed";
-  await ctx.db.patch(
+  await writePendingStatus(
+    ctx,
     message._id,
     leavesUnconfirmed
       ? { ...patch, delivery_disposition_reason: undefined }
@@ -2823,7 +2825,7 @@ export function planStuckMessageHeal(
 }
 
 async function failUnconfirmed(ctx: { db: any }, msg: any): Promise<void> {
-  await ctx.db.patch(msg._id, {
+  await writePendingStatus(ctx, msg._id, {
     status: "failed" as const,
     delivery_disposition_reason: UNCONFIRMED_DELIVERY_REASON,
   });
@@ -3875,9 +3877,8 @@ export const cancelOldPendingMessages = internalMutation({
     const affectedConvs = new Set<Id<"conversations">>();
     for (const row of selected) {
       affectedConvs.add(row.conversation_id);
-      if (!args.dry_run) {
-        await ctx.db.patch(row._id, { status: "cancelled" as const });
-      }
+      if (!args.dry_run)
+        await writePendingStatus(ctx, row._id, { status: "cancelled" });
     }
     if (!args.dry_run) {
       for (const convId of affectedConvs) {
