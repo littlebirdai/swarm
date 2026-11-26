@@ -14,6 +14,7 @@ import {
   attemptMatchesFence,
   startedPermitWire,
   matchesRetryableDeliveryReplay,
+  deliveryRejectionCodes,
   requeueDeliveryBeforeEffect,
   blockDeliveryAsAmbiguous,
 } from "./delivery-slot.state";
@@ -508,6 +509,18 @@ export async function completeDeliveryInDb(
   return { accepted: true };
 }
 
+function requireUnreservedFailureCode(failureCode: string): void {
+  if (
+    failureCode === deliveryRejectionCodes.rejected ||
+    failureCode === deliveryRejectionCodes.finalFailure
+  ) {
+    fail(
+      "RESERVED_DELIVERY_FAILURE_CODE",
+      "failure code is reserved for edge settlement",
+    );
+  }
+}
+
 export async function failDeliveryBeforeEffectInDb(
   ctx: DbCtx,
   userId: Id<"users">,
@@ -517,6 +530,7 @@ export async function failDeliveryBeforeEffectInDb(
     now: number;
   },
 ): Promise<{ retryable: true; deliveryId: string } | FinalDeliveryReceipt> {
+  requireUnreservedFailureCode(fence.failureCode);
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
   const final = finalDeliveryReceipt(existingAttempt);
@@ -556,6 +570,7 @@ export async function markDeliveryAmbiguousInDb(
     now: number;
   },
 ): Promise<{ blocked: true; deliveryId: string }> {
+  requireUnreservedFailureCode(fence.failureCode);
   const { head, message, attempt } = await verifyAttemptFence(
     ctx,
     userId,

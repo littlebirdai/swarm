@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
+import { deliveryRejectionCodes } from "./lib/delivery-slot.state";
 import {
   enqueuePendingMessage,
   claimPendingMessageForDaemon,
@@ -8,6 +9,7 @@ import {
 } from "./pendingMessages";
 import {
   EXECUTION_PROTOCOL_CAPABILITIES,
+  ExecutionAuthorityError,
   abandonAmbiguousAndResendInDb,
   activateAfterLegacyQuiescenceInDb,
   activateExecutionSuccessorInDb,
@@ -1313,16 +1315,41 @@ describe("conversation-global ordered delivery", () => {
         .next_nonterminal_sequence,
     ).toBe(3);
   });
-
-  test("failed-before-effect releases the slot but retries the same sequence and delivery id", async () => {
+  test("delivery failure and ambiguity refuse reserved codes before access and a driver failure stays retryable", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
     const messageId = await enqueue(ctx, "stable-command", "retry me");
-    const firstClaim = await claimDelivery(ctx, messageId);
     const firstStarted = await startDeliveryInDb(ctx, USER, {
-      ...fence(firstClaim.permit),
+      ...fence((await claimDelivery(ctx, messageId)).permit),
       now: 21,
     });
+    const writes = db.__writeCount;
+    const read = spyOn(db, "get");
+    try {
+      for (const report of [
+        failDeliveryBeforeEffectInDb,
+        markDeliveryAmbiguousInDb,
+      ]) {
+        for (const failureCode of Object.values(deliveryRejectionCodes)) {
+          const call = report(ctx, USER, {
+            ...fence(firstStarted),
+            failureCode,
+            failureMessage: "reserved",
+            now: 22,
+          });
+          const error = await call.catch((error: unknown) => error);
+          expect(error).toBeInstanceOf(ExecutionAuthorityError);
+          expect(error).toHaveProperty(
+            "code",
+            "RESERVED_DELIVERY_FAILURE_CODE",
+          );
+        }
+      }
+      expect(read).not.toHaveBeenCalled();
+      expect(db.__writeCount).toBe(writes);
+    } finally {
+      read.mockRestore();
+    }
     const retry = await failDeliveryBeforeEffectInDb(ctx, USER, {
       ...fence(firstStarted),
       failureCode: "DRIVER_REJECTED_BEFORE_WRITE",
@@ -1330,19 +1357,17 @@ describe("conversation-global ordered delivery", () => {
       now: 22,
     });
     expect(retry).toEqual({ retryable: true, deliveryId: "stable-command" });
-
     const message: any = await db.get(messageId);
     expect(message.delivery_status).toBe("pending");
     expect(message.conversation_sequence).toBe(1);
     expect(message.delivery_id).toBe("stable-command");
     const secondClaim = await claimDelivery(ctx, messageId);
-    expect(secondClaim.permit.attemptId).not.toBe(firstClaim.permit.attemptId);
-    expect(secondClaim.permit.deliveryId).toBe(firstClaim.permit.deliveryId);
-    expect(secondClaim.permit.conversationSequence).toBe(
-      firstClaim.permit.conversationSequence,
-    );
+    expect(secondClaim.permit.attemptId).not.toBe(firstStarted.attemptId);
+    expect(secondClaim.permit).toMatchObject({
+      deliveryId: firstStarted.deliveryId,
+      conversationSequence: firstStarted.conversationSequence,
+    });
   });
-
   test("restart may release a claimed permit, but a started permit becomes ambiguity", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
@@ -1391,7 +1416,6 @@ describe("conversation-global ordered delivery", () => {
       (db._tables.conversation_execution_heads[0] as any).active_delivery_state,
     ).toBe("ambiguous");
   });
-
   test("cancel-unstarted closes admission immediately and materializes a bounded audit batch", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
@@ -1511,7 +1535,6 @@ describe("conversation-global ordered delivery", () => {
       ),
     ).toBe(true);
   });
-
   test("risk-bearing resend terminally abandons the original and creates a new logical delivery", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
@@ -1754,7 +1777,6 @@ describe("cancelFencedDeliveriesOnKill", () => {
     expect(row.delivery_status).toBe("delivery-started");
     expect(row.status).not.toBe("cancelled");
   });
-
   test("a started delivery revives the conversation it lands in", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
