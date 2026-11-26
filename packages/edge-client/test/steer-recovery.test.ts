@@ -230,9 +230,9 @@ it.effect(
       state: "new",
       intent: "queue",
       input: steer.input,
-    };
-    const empty = { v: 1, status: "empty" };
-    const stale = { v: 1, status: "stale" };
+    } as const;
+    const empty = { v: 1, status: "empty" } as const;
+    const stale = { v: 1, status: "stale" } as const;
     const { transport, calls } = scriptedTransport(
       reply(helloReply),
       reply(queue),
