@@ -1859,9 +1859,10 @@ export async function reorderQueuedForUser(
     )
     .sort(byQueueOrder);
   const moving = rows.find((m: any) => String(m._id) === ref.messageId);
-  if (!moving || !isWaitingInQueue(moving)) return "not_waiting";
+  if (!moving || isFencedPendingMessage(moving) || !isWaitingInQueue(moving))
+    return "not_waiting";
   const at = queueAtBefore(
-    rows.filter((m: any) => m !== moving),
+    rows.filter((m: any) => m !== moving && !isFencedPendingMessage(m)),
     ref.beforeId,
   );
   if (at === null) return "not_waiting";
@@ -1896,6 +1897,7 @@ export async function mergeQueuedForUser(
       (m: any) =>
         !m ||
         String(m.conversation_id) !== String(conversationId) ||
+        isFencedPendingMessage(m) ||
         !isWaitingInQueue(m),
     ) ||
     ref.messageId === ref.intoId

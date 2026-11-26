@@ -9,12 +9,17 @@ import { canSendProductMessage } from "../pendingMessages";
 import { findClaim } from "./claims";
 import { fail } from "./execution-binding.validators";
 import { byQueueOrder } from "./sessionQueue";
-import { orderedNonterminalMessages } from "./executionQueue";
 import {
+  advanceNonterminalHead,
   clearPendingFlagIfQuiet,
-  fencedMessages,
-  pendingRowsByStatus,
 } from "./execution-binding.state";
+import { assertActiveRunLease } from "./edge/runLease";
+import {
+  hasNonterminalAtEpoch,
+  oldestNonterminal,
+  pendingByIntent,
+  queuedLegacyRows,
+} from "./execution-queue.reads";
 
 type Db = Pick<MutationCtx, "db">;
 type Turn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
@@ -54,24 +59,41 @@ export async function allocateLegacyQueuedRows(
   binding: Doc<"execution_bindings">,
   now: number,
 ): Promise<number> {
-  const first = head.next_conversation_sequence;
   if (
-    head.active_delivery_attempt_id !== undefined ||
-    head.current_epoch !== binding.epoch ||
-    (head.admission_epoch ?? head.current_epoch) !== binding.epoch ||
-    binding.state !== "ready" ||
+    !canAllocateLegacy(head, binding) ||
     (await readBatonTurn(ctx, binding)) !== null
   )
-    return first;
+    return head.next_conversation_sequence;
+  return allocateQueuedRows(ctx, head, binding, now);
+}
+
+function canAllocateLegacy(
+  head: Doc<"conversation_execution_heads">,
+  binding: Doc<"execution_bindings">,
+): boolean {
+  return (
+    head.active_delivery_attempt_id === undefined &&
+    head.current_epoch === binding.epoch &&
+    (head.admission_epoch ?? head.current_epoch) === binding.epoch &&
+    binding.state === "ready"
+  );
+}
+
+async function allocateQueuedRows(
+  ctx: Db,
+  head: Doc<"conversation_execution_heads">,
+  binding: Doc<"execution_bindings">,
+  now: number,
+): Promise<number> {
+  const first = head.next_conversation_sequence;
   const rows = (
-    await pendingRowsByStatus(ctx, head.conversation_id, ["held", "pending"])
+    await Promise.all([
+      queuedLegacyRows(ctx, head.conversation_id, "held"),
+      queuedLegacyRows(ctx, head.conversation_id, "pending"),
+    ])
   )
-    .filter(
-      (row) =>
-        row.queued &&
-        row.conversation_sequence === undefined &&
-        row.delivery_protocol_version === undefined,
-    )
+    .flat()
+    .filter((row) => row.conversation_sequence === undefined)
     .sort(byQueueOrder);
 
   let next = first;
@@ -151,40 +173,36 @@ export async function steerRefusal(
     return "stale-steer-sender";
 }
 
-export async function sweepPendingSteers(
+const steerSweepBatch = 64;
+
+async function sweepPendingSteers(
   ctx: Db,
   conversation: Doc<"conversations">,
-  binding: Doc<"execution_bindings"> | null,
   head: Doc<"conversation_execution_heads">,
-  messages: Doc<"pending_messages">[],
+  turn: Turn | null | undefined,
   now: number,
+  oldest?: Doc<"pending_messages">,
 ) {
-  const enabled = batonEnabled(binding);
-  const turn = enabled && binding ? await readBatonTurn(ctx, binding) : null;
   const run = head.current_epoch;
-  if (
-    turn === undefined ||
-    run === undefined ||
-    (!enabled && messages[0]?.delivery_intent !== "steer")
-  )
-    return { turn, messages, changed: false };
+  if (turn === undefined || run === undefined)
+    return { changed: false, advanced: false };
 
-  const remaining: Doc<"pending_messages">[] = [];
-  const resource = { id: conversation._id, kind: "steer" } as const;
+  const rows = await pendingByIntent(ctx, head, run, "steer", steerSweepBatch);
+  let changed = false;
+  let advanced = false;
+  let firstSteer: Doc<"pending_messages"> | undefined;
   let claim: Doc<"claims"> | null | undefined;
-  for (const message of messages) {
+  for (const message of rows) {
     if (
-      message.execution_epoch !== run ||
-      (!enabled && remaining.length > 0) ||
-      message.delivery_intent !== "steer" ||
-      message.delivery_status !== "pending" ||
-      message.active_delivery_attempt_id !== undefined
-    ) {
-      remaining.push(message);
+      message.active_delivery_attempt_id !== undefined ||
+      (head.pending_policy === "cancel-unstarted" &&
+        message.conversation_sequence! <= head.cancelled_through_sequence!)
+    )
       continue;
-    }
     if (claim === undefined)
-      claim = turn ? await findClaim(ctx.db, resource) : null;
+      claim = turn
+        ? await findClaim(ctx.db, { id: conversation._id, kind: "steer" })
+        : null;
     const reason = await steerRefusal(
       ctx,
       conversation,
@@ -195,7 +213,7 @@ export async function sweepPendingSteers(
       now,
     );
     if (!reason) {
-      remaining.push(message);
+      firstSteer ??= message;
       continue;
     }
     await ctx.db.patch(message._id, {
@@ -203,18 +221,51 @@ export async function sweepPendingSteers(
       status: "cancelled",
       delivery_disposition_reason: reason,
     });
+    changed = true;
+    advanced ||= oldest === undefined || message._id === oldest._id;
   }
-  const changed = remaining.length !== messages.length;
-  if (changed) {
-    await ctx.db.patch(head._id, {
-      next_nonterminal_sequence:
-        remaining[0]?.conversation_sequence ?? head.next_conversation_sequence,
-      updated_at: now,
-    });
-    if (remaining.length === 0)
+  if (advanced) {
+    const next = await advanceNonterminalHead(ctx, head, now);
+    if (next === head.next_conversation_sequence)
       await clearPendingFlagIfQuiet(ctx, conversation._id);
   }
-  return { turn, messages: remaining, changed };
+  return { changed, advanced, firstSteer };
+}
+
+export async function canStopAfterDrain(
+  ctx: Db,
+  conversation: Doc<"conversations">,
+  head: Doc<"conversation_execution_heads">,
+  binding: Doc<"execution_bindings">,
+  fencingToken: string | undefined,
+  now: number,
+): Promise<boolean> {
+  const enabled = batonEnabled(binding);
+  if (enabled && !fencingToken) return false;
+  const oldest = enabled ? undefined : await oldestNonterminal(ctx, head);
+  let changed = false;
+  if (
+    enabled ||
+    (oldest?.execution_epoch === binding.epoch &&
+      oldest?.delivery_intent === "steer")
+  ) {
+    await assertActiveRunLease(ctx, binding, fencingToken, now);
+    const turn = enabled ? await readBatonTurn(ctx, binding) : null;
+    ({ changed } = await sweepPendingSteers(
+      ctx,
+      conversation,
+      head,
+      turn,
+      now,
+    ));
+  }
+  if (!(await hasNonterminalAtEpoch(ctx, conversation._id, binding.epoch)))
+    return true;
+  if (enabled || changed) return false;
+  fail(
+    "EXECUTION_SUCCESSOR_WAITING_FOR_DRAIN",
+    "drain-current cannot stop its only ready runtime while old-epoch messages remain",
+  );
 }
 
 export async function oldestEligibleDelivery(
@@ -225,23 +276,30 @@ export async function oldestEligibleDelivery(
   now: number,
 ) {
   const enabled = batonEnabled(binding);
+  const turn = enabled && binding ? await readBatonTurn(ctx, binding) : null;
   const nextSequence =
-    enabled && binding
-      ? await allocateLegacyQueuedRows(ctx, head, binding, now)
+    enabled && binding && turn === null && canAllocateLegacy(head, binding)
+      ? await allocateQueuedRows(ctx, head, binding, now)
       : head.next_conversation_sequence;
-  const messages = orderedNonterminalMessages(
-    await fencedMessages(ctx, conversation._id, head.next_nonterminal_sequence),
-    head,
-  );
-  const admission = await sweepPendingSteers(
-    ctx,
-    conversation,
-    binding,
-    { ...head, next_conversation_sequence: nextSequence },
-    messages,
-    now,
-  );
-  const oldest = admission.messages[0];
+  const selectionHead =
+    nextSequence === head.next_conversation_sequence
+      ? head
+      : { ...head, next_conversation_sequence: nextSequence };
+  const beforeSweep = await oldestNonterminal(ctx, selectionHead);
+  const admission =
+    enabled || beforeSweep?.delivery_intent === "steer"
+      ? await sweepPendingSteers(
+          ctx,
+          conversation,
+          selectionHead,
+          turn,
+          now,
+          beforeSweep,
+        )
+      : { changed: false, advanced: false };
+  const oldest = admission.advanced
+    ? await oldestNonterminal(ctx, selectionHead)
+    : beforeSweep;
   if (!oldest) {
     if (!admission.changed && head.next_nonterminal_sequence !== nextSequence)
       await ctx.db.patch(head._id, {
@@ -258,11 +316,24 @@ export async function oldestEligibleDelivery(
       "DELIVERY_SEQUENCE_HEAD_MISMATCH",
       `durable head ${head.next_nonterminal_sequence} differs from first nonterminal ${oldest.conversation_sequence}`,
     );
-  if (!enabled || oldest.execution_epoch !== head.current_epoch) return oldest;
-  if (admission.turn === undefined) return;
-  return admission.messages.find(
-    (candidate) =>
-      candidate.execution_epoch === head.current_epoch &&
-      (candidate.delivery_intent === "steer") === (admission.turn !== null),
-  );
+  if (
+    oldest.execution_epoch !== head.current_epoch ||
+    oldest.delivery_status !== "pending"
+  )
+    return oldest;
+  if (!enabled) return oldest.delivery_intent === "steer" ? undefined : oldest;
+  if (turn === undefined || head.current_epoch === undefined) return;
+  if (turn) return admission.firstSteer;
+  if (oldest.delivery_intent !== "steer") return oldest;
+
+  const [[queue], [legacy]] = await Promise.all([
+    pendingByIntent(ctx, selectionHead, head.current_epoch, "queue", 1),
+    pendingByIntent(ctx, selectionHead, head.current_epoch, undefined, 1),
+  ]);
+  if (
+    !queue ||
+    (legacy && legacy.conversation_sequence! < queue.conversation_sequence!)
+  )
+    return legacy;
+  return queue;
 }

@@ -10,10 +10,12 @@ import {
   wireIsolation,
   capabilitiesEqual,
 } from "./execution-binding.validators";
+import { isTerminalDeliveryState } from "./executionQueue";
 import {
-  orderedNonterminalMessages,
-  isTerminalDeliveryState,
-} from "./executionQueue";
+  hasNonterminalDelivery,
+  legacyPendingRows,
+  oldestNonterminal,
+} from "./execution-queue.reads";
 
 export type DbCtx = { db: any };
 
@@ -141,36 +143,29 @@ export function bindingTargetMatches(
 export async function fencedMessages(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
-  fromSequence?: number,
-): Promise<any[]> {
-  const query = ctx.db.query("pending_messages");
-  const messages = await (
-    fromSequence === undefined
-      ? query.withIndex("by_conversation_id", (q: any) =>
-          q.eq("conversation_id", conversationId),
-        )
-      : query.withIndex("by_conversation_sequence", (q: any) =>
-          q
-            .eq("conversation_id", conversationId)
-            .gte("conversation_sequence", fromSequence),
-        )
-  ).collect();
+): Promise<Doc<"pending_messages">[]> {
+  const messages: Doc<"pending_messages">[] = await ctx.db
+    .query("pending_messages")
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .collect();
   return messages.filter(
-    (message: any) => message.delivery_protocol_version !== undefined,
+    (message) => message.delivery_protocol_version !== undefined,
   );
 }
 
-export async function pendingRowsByStatus(
+async function pendingRowsByStatus(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
-  statuses: readonly Doc<"pending_messages">["status"][] = [
+): Promise<Doc<"pending_messages">[]> {
+  const statuses = [
     "pending",
     "held",
     "injected",
     "failed",
     "undeliverable",
-  ],
-): Promise<Doc<"pending_messages">[]> {
+  ] as const;
   const rows = await Promise.all(
     statuses.map((status) =>
       ctx.db
@@ -266,12 +261,7 @@ export async function advanceNonterminalHead(
   head: any,
   now: number,
 ): Promise<number> {
-  const messages = await fencedMessages(
-    ctx,
-    head.conversation_id,
-    head.next_nonterminal_sequence,
-  );
-  const first = orderedNonterminalMessages(messages, head)[0];
+  const first = await oldestNonterminal(ctx, head);
   const next = first?.conversation_sequence ?? head.next_conversation_sequence;
   await ctx.db.patch(head._id, {
     next_nonterminal_sequence: next,
@@ -284,15 +274,17 @@ export async function clearPendingFlagIfQuiet(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
 ): Promise<void> {
-  const messages = await pendingRowsByStatus(ctx, conversationId);
-  if (
-    !messages.some(
-      (message) =>
-        message.delivery_protocol_version === undefined ||
-        !isTerminalDeliveryState(message.delivery_status),
-    )
-  )
-    await ctx.db.patch(conversationId, { has_pending_messages: false });
+  if (await hasNonterminalDelivery(ctx, conversationId)) return;
+  for (const status of [
+    "pending",
+    "held",
+    "injected",
+    "failed",
+    "undeliverable",
+  ] as const) {
+    if (await legacyPendingRows(ctx, conversationId, status).first()) return;
+  }
+  await ctx.db.patch(conversationId, { has_pending_messages: false });
 }
 
 export function bindingEvidenceWire(binding: any): any {

@@ -8,14 +8,12 @@
  */
 import { mutation, query } from "./functions";
 import { seedEventRun } from "./lib/edge/runEvents";
-import {
-  isTerminalDeliveryState,
-  orderedNonterminalMessages,
-} from "./lib/executionQueue";
+import { isTerminalDeliveryState } from "./lib/executionQueue";
+import { hasNonterminalAtEpoch } from "./lib/execution-queue.reads";
 import {
   allocateLegacyQueuedRows,
   batonEnabled,
-  sweepPendingSteers,
+  canStopAfterDrain,
 } from "./lib/execution-steer-admission.rules";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -1151,44 +1149,17 @@ export async function publishRuntimeDispositionInDb(
   }
   if (
     head.current_epoch === args.epoch &&
-    head.pending_policy === "drain-current"
-  ) {
-    const enabled = batonEnabled(binding);
-    if (enabled) {
-      if (!args.fencingToken) return { accepted: false };
-      await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
-    }
-    const messages = await fencedMessages(
+    head.pending_policy === "drain-current" &&
+    !(await canStopAfterDrain(
       ctx,
-      args.conversationId,
-      head.next_nonterminal_sequence,
-    );
-    const remaining = (
-      enabled
-        ? (
-            await sweepPendingSteers(
-              ctx,
-              conversation,
-              binding,
-              head,
-              orderedNonterminalMessages(messages, head),
-              args.now,
-            )
-          ).messages
-        : messages
-    ).filter(
-      (message) =>
-        message.execution_epoch === args.epoch &&
-        !isTerminalDeliveryState(message.delivery_status),
-    );
-    if (remaining.length > 0) {
-      if (enabled) return { accepted: false };
-      fail(
-        "EXECUTION_SUCCESSOR_WAITING_FOR_DRAIN",
-        "drain-current cannot stop its only ready runtime while old-epoch messages remain",
-      );
-    }
-  }
+      conversation,
+      head,
+      binding,
+      args.fencingToken,
+      args.now,
+    ))
+  )
+    return { accepted: false };
   await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   await ctx.db.patch(binding._id, {
     state: args.disposition,
@@ -1506,23 +1477,17 @@ export async function activateExecutionSuccessorInDb(
     );
   }
 
-  const remainingOld = (
-    await fencedMessages(
+  if (
+    await hasNonterminalAtEpoch(
       ctx,
       args.conversationId,
-      head.next_nonterminal_sequence,
+      args.expectedCurrentEpoch,
     )
-  ).filter(
-    (message) =>
-      message.execution_epoch === args.expectedCurrentEpoch &&
-      !isTerminalDeliveryState(message.delivery_status),
-  );
-  if (remainingOld.length > 0) {
+  )
     fail(
       "EXECUTION_SUCCESSOR_WAITING_FOR_DRAIN",
-      `${remainingOld.length} old-epoch message(s) are still nonterminal`,
+      "old-epoch messages are still nonterminal",
     );
-  }
 
   await seedEventRun(
     ctx,
