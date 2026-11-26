@@ -43,7 +43,7 @@ Measure the current position even when a viewer is alone. Save it on conversatio
 
 ### Client store and access
 
-Use one `CLIENT_SYNC_REGISTRY` key for each record. Feed each key only while its conversation is visible. Read the rendered data from the store. Keep the client copies in memory and local to the window. Clear them on access loss, expiry, or account change. Authorize reads and writes in Convex. Derive user IDs from the authenticated principal and use the conversation access rules. Never use `team_id` as an access check. `apps/web/store/clientSyncRegistry.ts:137`, `apps/web/store/clientSyncRegistry.scope.ts:7`, `apps/web/store/clientSyncRegistry.ts:2595`.
+Use one `CLIENT_SYNC_REGISTRY` key for each record. Feed each key only while its conversation is visible. Read the rendered data from the store. Keep the client copies in memory and local to the window. Clear them on access loss, expiry, or account change. Authorize reads and writes in Convex. Derive user IDs from the authenticated principal and use the conversation access rules. Never use `team_id` as an access check. `apps/web/store/clientSyncRegistry.ts:137`, `apps/web/store/client-sync-registry.scope.ts:7`, `apps/web/store/clientSyncRegistry.ts:2595`.
 
 | Convex table                | Access check                                                                                                                                 | `CLIENT_SYNC_REGISTRY` key | `DATA_SCOPE` | `REPLICATION_CLASSIFICATION` |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------ | ---------------------------- |
