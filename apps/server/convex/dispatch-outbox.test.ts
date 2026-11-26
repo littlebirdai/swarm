@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
+  deliveryReceiptRequests,
+  settleDeliveryReceipts,
+  stampDeliveryReceipts,
+} from "../../web/lib/syncDeliveryReceipts";
+import {
+  __createInboxStoreForTests,
+  syncLogScopeMetaKey,
+} from "../../web/store/inboxStore";
+import {
   asUser,
   scheduledJobs,
   serverTest,
@@ -652,4 +661,114 @@ test("reconfigure dispatch returns the durable receipt for its conversation upda
       position: expect.any(Number),
     },
   ]);
+});
+
+test("reconfigure dispatch rejects a malformed launch option during argument validation", async () => {
+  const { actor, outbox, conversation } = await setup();
+  await expect(
+    actor.mutation(api.dispatch.dispatch, {
+      action: "convCommand",
+      args: [conversation, "reconfigureSession", { isolated: "yes" }],
+      ack_positions: true,
+      outbox,
+    }),
+  ).rejects.toThrow(
+    "ArgumentValidationError: Invalid reconfigureSession argument isolated",
+  );
+});
+
+test("a machine-only fallback settles the optimistic owner through its durable receipt", async () => {
+  const { t, actor, owner, outbox, conversation } = await setup();
+  await t.run(async ({ db }) => {
+    await fixtureRows(db, "reconfigure fallback").device(owner, {
+      device_id: "laptop",
+      last_seen: Date.now(),
+    });
+    await db.patch(conversation, { owner_device_id: "laptop" });
+  });
+  const store = __createInboxStoreForTests();
+  const field = `sessions:${conversation}:owner_device_id`;
+  const pick = { owner_device_id: "removed-device" };
+  store.getState().syncTable("sessions", [{ _id: conversation, ...pick }]);
+  store.setState({
+    pending: {
+      [field]: { type: "field", value: pick.owner_device_id, ts: Date.now() },
+    },
+  });
+
+  const response = await actor.mutation(api.dispatch.dispatch, {
+    action: "convCommand",
+    args: [
+      conversation,
+      "reconfigureSession",
+      { target_device_id: pick.owner_device_id },
+    ],
+    ack_positions: true,
+    outbox,
+  });
+  expect(response.__syncAckV1).toEqual([]);
+  stampDeliveryReceipts(
+    store.getState(),
+    { conversations: { [conversation]: pick } },
+    response.__syncAckV2,
+    Date.now(),
+  );
+  const receipts = deliveryReceiptRequests(store.getState().pending);
+  expect(receipts).toHaveLength(1);
+  const { revision } = receipts[0];
+  expect(revision).toBe(1);
+  const id = receipts[0].id as Id<"sync_outbox">;
+  await t.mutation(internal.syncOutbox.drain, { id });
+  const deliveries = await actor.query(api.syncOutbox.getReceipts, {
+    receipts: [{ id, revision }],
+  });
+  const scope = `user:${owner}`;
+  expect(deliveries).toEqual([
+    { ...receipts[0], scope_key: scope, position: expect.any(Number) },
+  ]);
+  const { actions, nextFrom } = await actor.query(api.syncLog.getRange, {
+    scope_key: scope,
+    from: 0,
+    cargo: true,
+  });
+  const update = actions.find((action) => action.entity_id === conversation);
+  expect(update?.patch).toMatchObject({ owner_device_id: "laptop" });
+  store
+    .getState()
+    .syncTable("sessions", [{ ...update?.patch, _id: conversation }]);
+  expect(store.getState().sessions[conversation].owner_device_id).toBe(
+    pick.owner_device_id,
+  );
+  store
+    .getState()
+    .recordSyncMeta(syncLogScopeMetaKey(scope), { cursor: nextFrom });
+  settleDeliveryReceipts(store.getState(), deliveries, syncLogScopeMetaKey);
+  expect(store.getState().pending[field]).toBeUndefined();
+  expect(store.getState().sessions[conversation].owner_device_id).toBe(
+    "laptop",
+  );
+});
+
+test("a machine-only move to a valid device emits one conversation revision", async () => {
+  const { t, actor, owner, outbox, conversation } = await setup();
+  await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "machine-only move");
+    for (const device_id of ["laptop", "studio"])
+      await fixtures.device(owner, { device_id, last_seen: Date.now() });
+    await db.patch(conversation, { owner_device_id: "laptop" });
+  });
+  const response = await actor.mutation(api.dispatch.dispatch, {
+    action: "convCommand",
+    args: [conversation, "reconfigureSession", { target_device_id: "studio" }],
+    ack_positions: true,
+    outbox,
+  });
+  const receipts = response.__syncAckV2.filter(
+    (row: { entity_type: string; entity_id: string }) =>
+      row.entity_type === "conversations" && row.entity_id === conversation,
+  );
+  expect(receipts).toEqual([expect.objectContaining({ revision: 1 })]);
+  expect(await t.run(({ db }) => db.get(conversation))).toMatchObject({
+    owner_device_id: "studio",
+  });
 });

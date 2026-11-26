@@ -20,9 +20,11 @@ import {
   query,
   internalMutation,
   internalQuery,
+  syncAckReceipts,
   type QueryCtx,
   type MutationCtx,
 } from "./functions";
+import { syncLogDisabled } from "./syncLog";
 import { v, type GenericValidator, type ObjectType } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
 import {
@@ -15786,11 +15788,10 @@ const reconfigureSessionDefinition = {
         !(await isSessionOwner(ctx, conv._id, userId)))
     )
       throw new Error("Not found");
-    if (
-      args.cloud_device_id !== undefined ||
-      (args.target_device_id !== undefined &&
-        args.target_device_id !== conv.owner_device_id)
-    ) {
+    const targetChanged =
+      args.target_device_id !== undefined &&
+      args.target_device_id !== conv.owner_device_id;
+    if (args.cloud_device_id !== undefined || targetChanged) {
       const reason = fencedMoveRefusal(conv);
       if (reason) return { reconfigured: false as const, reason };
     }
@@ -15821,12 +15822,6 @@ const reconfigureSessionDefinition = {
     // placement is cancelled (a late `cast cloud start` is fenced by the
     // token and removes the worktree it acquired), the live cloud_spawn is
     // superseded, and the normal start below sees a non-pending row.
-    //
-    // The same row pointed at the HOST again (the web sends target_device_id
-    // for a folder the shared predicate calls native, cloud_device_id
-    // otherwise) is re-decided below once the folder is known: native →
-    // un-park to the host (a plain start there), else → re-park.
-    let unpark = false;
     let hostTarget: any = null;
     const patch: Record<string, any> = { updated_at: Date.now() };
     if (
@@ -15841,8 +15836,7 @@ const reconfigureSessionDefinition = {
         )
         .first();
       const unparkFields = await unparkForMove(ctx, conv, target);
-      unpark = Object.keys(unparkFields).length > 0;
-      if (unpark)
+      if (Object.keys(unparkFields).length > 0)
         Object.assign(patch, unparkFields, {
           owner_device_id: undefined,
           session_error: undefined,
@@ -15893,7 +15887,6 @@ const reconfigureSessionDefinition = {
       patch.is_private = isPrivate;
       patch.auto_shared = autoShared || undefined;
     }
-
     // A pending row re-pointed at its host: with the folder it will have
     // AFTER this patch, does the host already hold it? Then the placement is
     // done with (no laptop needs to prepare anything) and the row starts on
@@ -15915,7 +15908,6 @@ const reconfigureSessionDefinition = {
       if (unparkToHost)
         Object.assign(patch, CLOUD_UNPARK_PATCH, { session_error: undefined });
     }
-
     await ctx.db.patch(args.conversation_id, patch);
     // A project-path change re-resolves team/privacy; if the access inputs
     // actually moved, advance the comment view head (matrix SRV-02). Guarded
@@ -15927,7 +15919,6 @@ const reconfigureSessionDefinition = {
     ) {
       await advanceCommentsAccessRevision(ctx, conv);
     }
-
     if (unparkToHost)
       await supersedeCloudSpawns(ctx, conv.user_id, args.conversation_id);
     // The folder moved under a park: the cloud_spawn a laptop may already be
@@ -15935,7 +15926,6 @@ const reconfigureSessionDefinition = {
     // ask again with a fresh token.
     const pathChanged =
       args.project_path !== undefined && args.project_path !== priorProjectPath;
-
     const updated = { ...conv, ...patch };
     const daemonAgentType = fromConvexAgentType(updated.agent_type);
     const stampedModelKey =
@@ -16009,12 +15999,22 @@ const reconfigureSessionDefinition = {
       isolated: args.isolated,
       targetDeviceId: args.target_device_id ?? null,
     });
+    if (
+      args.project_path === undefined &&
+      targetChanged &&
+      !syncLogDisabled() &&
+      !syncAckReceipts(ctx).some(
+        (receipt: { entity_type: string; entity_id: string }) =>
+          receipt.entity_type === "conversations" &&
+          receipt.entity_id === conv._id,
+      )
+    )
+      await ctx.db.patch(conv._id, { owner_device_id: conv.owner_device_id });
   },
 };
 
 export const reconfigureSession = mutation(reconfigureSessionDefinition);
 export const reconfigureSessionCore = reconfigureSessionDefinition.handler;
-
 /** The launch option key a conversation's stamped model names ("claude-opus"
  *  → "opus"), or undefined when the stamp is no launchable option and the
  *  launch should fall back to the user's default. */
