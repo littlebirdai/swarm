@@ -67,6 +67,12 @@ the open turn, its prompts, and the recent turn IDs. Adapters can reuse
 turn IDs after a restart. A boot change clears the turn row
 even while the upload flag is off.
 
+The device's registered replacement boot can claim the current ready binding
+again to recover a delivery slot that still names an older boot. The server
+checks the exact attempt and changes a started attempt to ambiguous. The
+replacement boot must supply evidence to settle that attempt. If the binding
+has a lease claim, the replacement boot must obtain a new lease.
+
 A fresh projection requires a ready `execution_bindings` row and an active lease.
 It also requires the same run, the current version, and active status.
 
