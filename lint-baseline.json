@@ -2650,14 +2650,14 @@
   "apps/cli/src/destructiveCommands.ts": {
     "swarm/no-comments": 37
   },
+  "apps/cli/src/device-token-heal.test.ts": {
+    "swarm/no-comments": 10
+  },
   "apps/cli/src/deviceAccount.test.ts": {
     "swarm/no-comments": 2
   },
   "apps/cli/src/deviceAccount.ts": {
     "swarm/no-comments": 13
-  },
-  "apps/cli/src/deviceTokenHeal.test.ts": {
-    "swarm/no-comments": 12
   },
   "apps/cli/src/deviceTokenHeal.ts": {
     "swarm/no-comments": 17
@@ -5041,7 +5041,7 @@
   "apps/cli/src/tscFileVersion.ts": {
     "swarm/no-comments": 5
   },
-  "apps/cli/src/turnClaims.test.ts": {
+  "apps/cli/src/turn-claims.test.ts": {
     "swarm/no-comments": 80
   },
   "apps/cli/src/turnClaims.ts": {

@@ -2,9 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { createInterface } from "node:readline";
 import { REVIVE_BUDGET } from "./midWorkRevive.js";
+import { bootFixture } from "./turn-claim-recovery.testkit.js";
 import {
   CLAIM_MAX_AGE_MS,
   MAX_TURN_RESUME_ATTEMPTS,
@@ -806,49 +805,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 });
 `;
 
-async function bootFixture(dir: string) {
-  const script = path.join(dir, "daemon.ts");
-  fs.writeFileSync(script, FIXTURE);
-  const child = spawn(
-    process.execPath,
-    [script, path.join(dir, "claims.json"), path.join(dir, "resumes.jsonl")],
-    { stdio: ["pipe", "pipe", "inherit"] },
+test("a turn fixture that exits without booting reports its exit", async () => {
+  await expect(bootFixture(scratch(), "process.exit(86)")).rejects.toThrow(
+    "Turn fixture exited with 86 before booted",
   );
-  const lines: string[] = [];
-  const waiters: Array<() => void> = [];
-  createInterface({ input: child.stdout! }).on("line", (l) => {
-    lines.push(l);
-    waiters.splice(0).forEach((w) => w());
-  });
-  const waitFor = async (want: string) => {
-    while (!lines.includes(want))
-      await new Promise<void>((r) => waiters.push(r));
-    lines.splice(lines.indexOf(want), 1);
-  };
-  await waitFor("booted");
-  return {
-    status: async (status: string, boundary = false) => {
-      child.stdin!.write(
-        JSON.stringify({
-          session: "sess-1",
-          conv: "conv-1",
-          status,
-          boundary,
-        }) + "\n",
-      );
-      await waitFor(`ack ${status}`);
-    },
-    kill: async () => {
-      child.kill("SIGKILL");
-      await new Promise((r) => child.once("exit", r));
-    },
-    stop: async () => {
-      child.stdin!.end();
-      child.kill();
-      await new Promise((r) => child.once("exit", r));
-    },
-  };
-}
+});
 
 const resumesIn = (dir: string): TurnClaim[] => {
   try {
@@ -865,35 +826,45 @@ const resumesIn = (dir: string): TurnClaim[] => {
 
 test("a daemon killed mid-turn resumes the claimed session exactly once after it restarts", async () => {
   const dir = scratch();
-  const first = await bootFixture(dir);
-  expect(resumesIn(dir)).toEqual([]);
-  await first.status("thinking");
-  await first.status("working");
-  await first.kill();
+  const fixtures: Awaited<ReturnType<typeof bootFixture>>[] = [];
+  const boot = async () => {
+    const fixture = await bootFixture(dir, FIXTURE);
+    fixtures.push(fixture);
+    return fixture;
+  };
+  try {
+    const first = await boot();
+    expect(resumesIn(dir)).toEqual([]);
+    await first.status("thinking");
+    await first.status("working");
+    await first.kill();
 
-  // The restart resumes the claim, with the attempt on disk before the continue is queued.
-  const second = await bootFixture(dir);
-  expect(resumesIn(dir)).toHaveLength(1);
-  expect(resumesIn(dir)[0]).toMatchObject({
-    sessionId: "sess-1",
-    conversationId: "conv-1",
-    attempts: 1,
-  });
-  await second.kill();
+    // The restart resumes the claim, with the attempt on disk before the continue is queued.
+    const second = await boot();
+    expect(resumesIn(dir)).toHaveLength(1);
+    expect(resumesIn(dir)[0]).toMatchObject({
+      sessionId: "sess-1",
+      conversationId: "conv-1",
+      attempts: 1,
+    });
+    await second.kill();
 
-  // A crash while that resume is still starting does not resume it again.
-  const third = await bootFixture(dir);
-  expect(resumesIn(dir)).toHaveLength(1);
-  // The resumed session lands at its prompt, takes the continue, and finishes the turn.
-  await third.status("idle", true);
-  await third.status("thinking");
-  await third.status("idle");
-  await third.stop();
+    // A crash while that resume is still starting does not resume it again.
+    const third = await boot();
+    expect(resumesIn(dir)).toHaveLength(1);
+    // The resumed session lands at its prompt, takes the continue, and finishes the turn.
+    await third.status("idle", true);
+    await third.status("thinking");
+    await third.status("idle");
+    await third.stop();
 
-  const fourth = await bootFixture(dir);
-  expect(resumesIn(dir)).toHaveLength(1);
-  expect(
-    JSON.parse(fs.readFileSync(path.join(dir, "claims.json"), "utf8")).claims,
-  ).toEqual({});
-  await fourth.stop();
+    const fourth = await boot();
+    expect(resumesIn(dir)).toHaveLength(1);
+    expect(
+      JSON.parse(fs.readFileSync(path.join(dir, "claims.json"), "utf8")).claims,
+    ).toEqual({});
+    await fourth.stop();
+  } finally {
+    await Promise.all(fixtures.map((fixture) => fixture.kill()));
+  }
 }, 60_000);
