@@ -92,7 +92,19 @@ test.each(["row", "encode", "meta-only"] as const)(
   },
 );
 
-test("SQLite retries a fence marker after the database becomes writable", async () => {
+test("SQLite advances sync metadata with a legacy owner row", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, auth);
+  const insert = db.query("INSERT INTO meta (key, value) VALUES (?, ?)");
+  insert.run("cacheOwner", JSON.stringify({ principal: "owner" }));
+  insert.run("syncMeta", JSON.stringify({ cursor: 1 }));
+  store.writePatches([patch("syncMeta")], { syncMeta: { cursor: 2 } });
+  expect(await store.loadCache(["syncMeta"])).toEqual({
+    syncMeta: { cursor: 2 },
+  });
+});
+
+test("SQLite persists the retried fence and resumes cursor writes after a sibling purge", async () => {
   using db = new Database(":memory:");
   const a = createSqliteCache(db, auth);
   a.writePatches([patch("syncMeta")], { syncMeta: { cursor: 1 } });
@@ -102,10 +114,14 @@ test("SQLite retries a fence marker after the database becomes writable", async 
     syncMeta: { cursor: 2 },
   });
   db.exec("PRAGMA query_only = OFF");
+  expect(ownerStamp(db)).toMatchObject({ principal: "owner", blocked: false });
   a.writePatches([patch("syncMeta")], { syncMeta: { cursor: 3 } });
   const b = createSqliteCache(db, auth);
   b.writePatches([patch("syncMeta")], { syncMeta: { cursor: 4 } });
   expect(await b.loadCache(["syncMeta"])).toEqual({ syncMeta: { cursor: 1 } });
+  await b.purgeLocalCache({ keepPendingInputFor: "owner" });
+  a.writePatches([patch("syncMeta")], { syncMeta: { cursor: 5 } });
+  expect(await b.loadCache(["syncMeta"])).toEqual({ syncMeta: { cursor: 5 } });
 });
 
 test("SQLite refuses writes to ownerless residue before the first load", () => {

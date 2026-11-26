@@ -314,6 +314,35 @@ for (const reason of ["cancel", "timeout"] as const)
   );
 
 test(
+  "a cursor release skips a head waiter aborted in the same turn",
+  async () => {
+    const [cancelled, live] = await Promise.all([
+      transcript("cancelled-head"),
+      transcript("live-successor"),
+    ]);
+    const worker = await fullWorker();
+    const controller = new AbortController();
+    const head = read(cancelled, { signal: controller.signal });
+    const successor = read(live, { timeoutMs: loadScaledMs(2_000) });
+
+    worker.refuse(0);
+    controller.abort();
+
+    await expect(worker.held[0]).rejects.toBeInstanceOf(WorkerOperationError);
+    await expect(head).rejects.toBeInstanceOf(IngestCancelled);
+    expect((await successor).messages.map(({ uuid }) => uuid)).toEqual([
+      live.sessionId,
+    ]);
+    expect(
+      worker.opens
+        .slice(MAX_INFLIGHT)
+        .map(({ payload }) => payload.job.sessionId),
+    ).toEqual([live.sessionId]);
+  },
+  loadScaledMs(8_000),
+);
+
+test(
   "the first read past the cursor and waiter limits rejects for capacity",
   async () => {
     const worker = await fullWorker();
