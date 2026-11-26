@@ -9,6 +9,7 @@ import {
   deleteTerminalViewer,
 } from "./lib/terminalWatchRows";
 import { deleteBookmarkWithRevision } from "./bookmarkViewWrites";
+import { nextTerminalControl } from "./lib/claims";
 
 // Deleting an account runs in budgeted background passes: an account with a
 // few hundred sessions holds far more rows than one mutation can delete inside
@@ -23,6 +24,8 @@ const FIRST: ReadonlyArray<readonly [string, string, string]> = [
 ];
 const AFTER_CONVERSATIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["terminal_watch_blocks", "by_user_team", "user_id"],
+  ["terminal_typing_grants", "by_owner", "owner_id"],
+  ["terminal_typing_grants", "by_user", "user_id"],
   ["decisions", "by_user_id", "user_id"],
   ["patterns", "by_user_id", "user_id"],
   ["sync_cursors", "by_user_id", "user_id"],
@@ -85,6 +88,12 @@ export async function purgeAccountPass(
       ...(claim.request_holder === userId
         ? { request_id: undefined, request_holder: undefined }
         : {}),
+      ...(claim.terminal && {
+        terminal: {
+          ...nextTerminalControl(claim.terminal),
+          ended_at: Date.now(),
+        },
+      }),
     });
   }
   budget -= heldClaims.length;

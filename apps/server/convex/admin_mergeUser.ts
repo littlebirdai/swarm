@@ -11,6 +11,7 @@ import {
   isConversationComment,
 } from "./lib/conversationCommentRows";
 import { moveBookmarkPrincipalWithRevision } from "./bookmarkViewWrites";
+import { clearTerminalClaim, findClaim } from "./lib/claims";
 
 // (table, field, indexName | null) — when indexName is present, use the
 // indexed query; otherwise fall back to a small filter scan. All app tables
@@ -32,6 +33,8 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
     { table: "api_tokens", field: "user_id", index: "by_user_id" },
     { table: "edge_prompt_answers", field: "owner_user_id", index: "by_owner" },
+    { table: "terminal_typing_grants", field: "owner_id", index: "by_owner" },
+    { table: "terminal_typing_grants", field: "user_id", index: "by_user" },
     { table: "run_event_cursors", field: "owner_user_id", index: "by_owner" },
     {
       table: "run_turn_projections",
@@ -253,7 +256,19 @@ export const mergeDuplicateUser = internalMutation({
       totalUpdated += rows.length;
       if (!args.dry_run) {
         for (const row of rows) {
-          if (table === "bookmarks" && field === "user_id") {
+          if (table === "terminal_typing_grants") {
+            const lease = await findClaim(ctx.db, {
+              kind: "terminal",
+              id: row.conversation_id,
+            });
+            if (
+              lease &&
+              lease.holder === row.user_id &&
+              lease.terminal?.device === row.device
+            )
+              await clearTerminalClaim(ctx, lease);
+            await ctx.db.delete(row._id);
+          } else if (table === "bookmarks" && field === "user_id") {
             await moveBookmarkPrincipalWithRevision(ctx, row, args.to_user_id);
           } else if (
             table === "review_comments" &&

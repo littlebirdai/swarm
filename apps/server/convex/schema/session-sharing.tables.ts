@@ -12,10 +12,42 @@ export const sessionSharingTables = {
     lease_until: v.number(),
     request_id: v.optional(v.string()),
     request_holder: v.optional(v.id("users")),
+    terminal: v.optional(
+      v.object({
+        device: v.id("devices"),
+        session: v.id("managed_sessions"),
+        target: v.string(),
+        agent_started_at: v.number(),
+        watch_pane_instance: v.optional(v.string()),
+        viewer: v.optional(v.id("terminal_watch_viewers")),
+        grant: v.optional(v.id("terminal_typing_grants")),
+        open: v.boolean(),
+        sequence: v.number(),
+        ack_sequence: v.optional(v.number()),
+        pending_input: v.optional(v.string()),
+        started_at: v.optional(v.number()),
+        ended_at: v.optional(v.number()),
+      }),
+    ),
   })
     .index("by_conversation_kind", ["conversation_id", "kind"])
     .index("by_holder", ["holder"])
-    .index("by_request_holder", ["request_holder"]),
+    .index("by_request_holder", ["request_holder"])
+    .index("by_terminal_device", ["terminal.device"]),
+
+  terminal_typing_grants: defineTable({
+    conversation_id: v.id("conversations"),
+    team_id: v.id("teams"),
+    owner_id: v.id("users"),
+    user_id: v.id("users"),
+    membership: v.id("team_memberships"),
+    device: v.id("devices"),
+    granted_at: v.number(),
+  })
+    .index("by_conversation_user", ["conversation_id", "user_id"])
+    .index("by_owner", ["owner_id"])
+    .index("by_user", ["user_id"])
+    .index("by_team", ["team_id"]),
 
   share_redemptions: defineTable({
     conversation_id: v.id("conversations"),

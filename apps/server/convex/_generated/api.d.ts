@@ -825,6 +825,7 @@ import type * as teamScopeSweep from "../teamScopeSweep.js";
 import type * as teamSuggestions from "../teamSuggestions.js";
 import type * as teamVisibility from "../teamVisibility.js";
 import type * as teams from "../teams.js";
+import type * as terminalInput from "../terminalInput.js";
 import type * as terminalStream from "../terminalStream.js";
 import type * as terminalWatch from "../terminalWatch.js";
 import type * as testComments from "../testComments.js";
@@ -1682,6 +1683,7 @@ declare const fullApi: ApiFromModules<{
   teamSuggestions: typeof teamSuggestions;
   teamVisibility: typeof teamVisibility;
   teams: typeof teams;
+  terminalInput: typeof terminalInput;
   terminalStream: typeof terminalStream;
   terminalWatch: typeof terminalWatch;
   testComments: typeof testComments;
