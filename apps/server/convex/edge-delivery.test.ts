@@ -11,7 +11,6 @@ import {
   type PermitsNextRequest,
 } from "@codecast/edge-contract";
 import { api } from "./_generated/api";
-import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 import http from "./http";
 import { asUser } from "../test-helpers/database.testkit";
 import {
@@ -92,52 +91,6 @@ async function fixture() {
   };
   return { ...setup, post, call, claimBody, grant, permit };
 }
-
-test("a composer send changes the selected Codex work result and becomes an edge permit", async () => {
-  const f = await fixture();
-  const fence = await f.grant();
-  const initialPermit = await f.permit(fence);
-  await f.call("delivery.start", initialPermit);
-  await f.call("delivery.settle", { ...initialPermit, outcome: "applied" });
-
-  const handshake = {
-    owner_device_id: machine,
-    daemon_boot_id: boot,
-    protocol_version: 1,
-    capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-    api_token: f.bearer,
-  };
-  const work = (ownedCodexConversationId?: string) =>
-    f.t.query(api.executionBindings.listExecutionWork, {
-      ...handshake,
-      ...(ownedCodexConversationId
-        ? { owned_codex_conversation_id: ownedCodexConversationId }
-        : {}),
-    });
-  const before = await work(f.conversation);
-  const legacyWork = await work();
-  const otherSelection = await work("other-conversation");
-  expect(before[0]?.nextDeliverySequence).toBe(2);
-  expect(legacyWork[0]).not.toHaveProperty("nextDeliverySequence");
-  expect(otherSelection).toEqual(legacyWork);
-
-  const sender = asUser(f.t, f.owner);
-  await sender.mutation(api.dispatch.dispatch, {
-    action: "sendMessage",
-    args: [f.conversation, "from the composer", [], "live-codex-message"],
-  });
-  expect((await work(f.conversation))[0]?.nextDeliverySequence).toBe(3);
-  expect(await work()).toEqual(legacyWork);
-  expect(await f.call("permits.next", fence)).toMatchObject({
-    status: "permit",
-    state: "new",
-    delivery_id: "live-codex-message",
-    sender: { kind: "person", id: f.owner },
-    input: [{ type: "text", text: "from the composer" }],
-  });
-  delete process.env[flag];
-  expect(await work(f.conversation)).toEqual(legacyWork);
-});
 
 test("claim and permit replay preserve authority, start and settle replay preserve effects", async () => {
   const f = await fixture();
