@@ -4,6 +4,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 const relinkBytes = 512 * 1024;
+const relinkKeyPrefix = "pending_queue_relink:";
+const relinkStaleMs = 2 * 60_000;
+const recoveryPageRows = 64;
 const statuses = [
   "pending",
   "held",
@@ -23,7 +26,7 @@ export function pendingQueueRelinkBudget() {
 }
 
 function relinkKey(conversationId: Id<"conversations">) {
-  return `pending_queue_relink:${conversationId}`;
+  return relinkKeyPrefix + conversationId;
 }
 
 export function pendingQueueRelinkOf(
@@ -45,6 +48,19 @@ async function relinkRows(
     if (row.owner_user_id !== runnerId)
       await db.patch(row._id, { owner_user_id: runnerId });
   }
+}
+
+function scheduleRelink(
+  scheduler: MutationCtx["scheduler"],
+  conversationId: Id<"conversations">,
+  jobId: Id<"system_config">,
+  cursor: string | null,
+) {
+  return scheduler.runAfter(0, internal.devices.continueClaimQueueRelink, {
+    conversationId,
+    jobId,
+    cursor,
+  });
 }
 
 export async function relinkPendingQueue(
@@ -86,11 +102,7 @@ export async function relinkPendingQueue(
     updated_at: Date.now(),
     updated_by: runnerId,
   });
-  await ctx.scheduler.runAfter(0, internal.devices.continueClaimQueueRelink, {
-    conversationId,
-    jobId,
-    cursor: null,
-  });
+  await scheduleRelink(ctx.scheduler, conversationId, jobId, null);
 }
 
 export const claimQueueRelinkContinuation = {
@@ -137,13 +149,57 @@ export const claimQueueRelinkContinuation = {
     if (isDone) {
       await ctx.db.delete(jobId);
     } else {
-      await ctx.db.patch(jobId, { value: continueCursor });
+      await ctx.db.patch(jobId, {
+        value: continueCursor,
+        updated_at: Date.now(),
+      });
+      await scheduleRelink(
+        ctx.scheduler,
+        conversationId,
+        jobId,
+        continueCursor,
+      );
+    }
+  },
+};
+
+export const claimQueueRelinkRecovery = {
+  args: { cursor: v.optional(v.string()) },
+  async handler(
+    ctx: MutationCtx,
+    { cursor }: { cursor?: string },
+  ): Promise<void> {
+    const now = Date.now();
+    const { page, isDone, continueCursor } = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) =>
+        q.gte("key", relinkKeyPrefix).lt("key", relinkKeyPrefix + "\uffff"),
+      )
+      .paginate({
+        cursor: cursor ?? null,
+        numItems: recoveryPageRows,
+        maximumBytesRead: relinkBytes,
+      });
+    for (const job of page) {
+      if (job.updated_at >= now - relinkStaleMs) continue;
+      const conversationId = ctx.db.normalizeId(
+        "conversations",
+        job.key.slice(relinkKeyPrefix.length),
+      );
+      if (!conversationId) continue;
+      await ctx.db.patch(job._id, { updated_at: now });
+      await scheduleRelink(
+        ctx.scheduler,
+        conversationId,
+        job._id,
+        job.value || null,
+      );
+    }
+    if (!isDone) {
       await ctx.scheduler.runAfter(
         0,
-        internal.devices.continueClaimQueueRelink,
+        internal.devices.recoverClaimQueueRelinks,
         {
-          conversationId,
-          jobId,
           cursor: continueCursor,
         },
       );

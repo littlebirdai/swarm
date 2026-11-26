@@ -223,10 +223,9 @@ describe("messages.send/v2 durable command", () => {
     ).toBe(false);
   });
 
-  test("every poisoned existing row rejects instead of being accepted as dedupe", async () => {
+  test("every conflicting existing intent rejects instead of being accepted as dedupe", async () => {
     const poisonCases: Array<[string, Record<string, unknown>]> = [
       ["principal", { from_user_id: OTHER }],
-      ["delivery owner", { owner_user_id: OTHER }],
       ["content", { content: "poisoned" }],
       ["singular image", { image_storage_id: "storage-poison" }],
       ["image list", { image_storage_ids: ["storage-poison"] }],
@@ -725,7 +724,7 @@ describe("messages.byConversation/v2 command coverage", () => {
 });
 
 describe("pending intent identity comparison", () => {
-  test("matches every canonical field and nothing operational", async () => {
+  test("matches the canonical intent and rejects an unrelated owner stamp", async () => {
     const conv = conversation();
     const ctx = context(OWNER);
     expect(
@@ -744,6 +743,7 @@ describe("pending intent identity comparison", () => {
       await pendingMessageMatchesProductIntent(
         ctx,
         pending(COMMAND, {
+          owner_user_id: OTHER,
           status: "injected",
           retry_count: 9,
           delivered_at: 20,
@@ -755,6 +755,6 @@ describe("pending intent identity comparison", () => {
           clientId: COMMAND,
         },
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

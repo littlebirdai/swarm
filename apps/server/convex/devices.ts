@@ -6,7 +6,10 @@ import {
   scanDeviceRows,
   transferClaimedConversations,
 } from "./lib/fenced-device-move.rules";
-import { claimQueueRelinkContinuation } from "./lib/pending-queue-relink";
+import {
+  claimQueueRelinkContinuation,
+  claimQueueRelinkRecovery,
+} from "./lib/pending-queue-relink";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
 import {
@@ -1390,6 +1393,9 @@ export async function performClaimDeviceAccount(
 }
 export const continueClaimQueueRelink = internalMutation(
   claimQueueRelinkContinuation,
+);
+export const recoverClaimQueueRelinks = internalMutation(
+  claimQueueRelinkRecovery,
 );
 export const claimDeviceAccount = mutation({
   args: {
