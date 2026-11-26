@@ -62,6 +62,8 @@ test("holds a Codex delivery in doubt when an accepted turn loses its RPC reply"
       conversationId: "conversation",
       messageId: "message",
       content: "Send once",
+      withoutDeliveryId: (content: string) => content,
+      deliverCodexPromptAnswer: async () => "none",
       deliveryStep: (_id: string, _name: string, work: () => Promise<void>) =>
         work(),
       admit: async () => {},
