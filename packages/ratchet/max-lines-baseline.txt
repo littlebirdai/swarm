@@ -295,7 +295,7 @@ apps/server/convex/docs.staleWrite.test.ts 850
 apps/server/convex/docs.ts 3100
 apps/server/convex/envCases.test.ts 900
 apps/server/convex/execution-bindings.test.ts 1800
-apps/server/convex/executionBindings.ts 4000
+apps/server/convex/executionBindings.ts 2350
 apps/server/convex/expectations.test.ts 1950
 apps/server/convex/expectations.ts 1300
 apps/server/convex/flowMap.test.ts 1200

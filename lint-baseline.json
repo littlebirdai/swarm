@@ -9392,7 +9392,7 @@
     "swarm/no-comments": 24
   },
   "apps/server/convex/executionBindings.ts": {
-    "swarm/no-comments": 49
+    "swarm/no-comments": 18
   },
   "apps/server/convex/expectations.test.ts": {
     "swarm/no-comments": 18
@@ -10017,6 +10017,15 @@
   },
   "apps/server/convex/lib/eventFilterValidator.ts": {
     "swarm/no-comments": 18
+  },
+  "apps/server/convex/lib/execution-binding.validators.ts": {
+    "swarm/no-comments": 5
+  },
+  "apps/server/convex/lib/execution-daemon.state.ts": {
+    "swarm/no-comments": 16
+  },
+  "apps/server/convex/lib/execution-delivery.attempts.ts": {
+    "swarm/no-comments": 10
   },
   "apps/server/convex/lib/expectationsApply.ts": {
     "swarm/no-comments": 11
