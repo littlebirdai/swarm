@@ -178,7 +178,9 @@ it.effect(
               status: "takeover",
               receipt: recorded,
             });
-            expect(m.journal()?.fences).toEqual([fence]);
+            expect(m.journal()?.fences).toEqual([
+              { ...fence, acknowledged: true },
+            ]);
             expect(calls.at(-1)?.request).toEqual({
               ...run,
               fence_id: fence.fence_id,
@@ -415,7 +417,9 @@ it.effect(
               status: "takeover",
               receipt: recorded,
             });
-            expect(m.journal()?.fences).toEqual([fence]);
+            expect(m.journal()?.fences).toEqual([
+              { ...fence, acknowledged: true },
+            ]);
           }),
       );
     }),

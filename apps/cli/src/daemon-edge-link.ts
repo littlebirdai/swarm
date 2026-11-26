@@ -1,6 +1,5 @@
 import { freemem, totalmem } from "node:os";
 import {
-  createEdgeClient,
   createHttpEdgeTransport,
   type EdgeClient,
   type EdgeFailure,
@@ -9,6 +8,7 @@ import {
   EDGE_PROTOCOL_VERSION,
   type HelloRequest,
 } from "@codecast/edge-contract";
+import { createDaemonEdgeClient } from "./execution/daemon-edge-client.js";
 import { deviceId, isRemoteDevice } from "./remote/device.js";
 
 type Connection = {
@@ -69,7 +69,7 @@ export function createDaemonEdgeLink() {
         active = undefined;
         active = {
           connection,
-          client: createEdgeClient({
+          client: createDaemonEdgeClient({
             transport: createHttpEdgeTransport(new URL("/edge/v1/", siteUrl), {
               Authorization: `Bearer ${bearer}`,
             }),

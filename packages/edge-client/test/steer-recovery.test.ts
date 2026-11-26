@@ -59,7 +59,7 @@ it.effect(
           }),
       );
       expect(m.handed).toEqual(["attempt"]);
-      expect(m.journal()?.fences).toEqual([fence]);
+      expect(m.journal()?.fences).toEqual([{ ...fence, acknowledged: true }]);
     }),
 );
 
