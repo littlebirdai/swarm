@@ -1761,7 +1761,13 @@ export const CLIENT_SYNC_REGISTRY = {
       deepFields: ["questions"],
       preserveFields: ["accepted", "feedAbsent", "answerSummary"],
     },
-    feeds: ["permissions.listAnswerablePromptAddresses"],
+    feeds: [
+      "permissions.listAnswerablePromptAddresses",
+      "permissions.getFencedPromptFeed",
+    ],
+  },
+  fencedObservedTurns: {
+    sync: { isDelta: true, deepFields: ["observed_turn"] },
   },
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
@@ -2765,6 +2771,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
   fencedPromptAddresses: "local",
+  fencedObservedTurns: "local",
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",

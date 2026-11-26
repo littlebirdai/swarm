@@ -3,7 +3,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { FunctionArgs } from "convex/server";
 import { act } from "react";
-import { FencedPromptAddressesFeeder } from "../../hooks/use-sync-fenced-prompt-addresses";
+import { FencedObservedTurnFeeder } from "../../hooks/use-sync-fenced-prompt-addresses";
 import {
   createComposerMount,
   owner,
@@ -12,15 +12,15 @@ import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
 
 const conversation = "t".repeat(32) as Id<"conversations">;
-const feed = api.permissions.listAnswerablePromptAddresses;
+const feed = api.permissions.getFencedPromptFeed;
 const turn = { id: "current-turn", run: 4, start_event_seq: 19 };
 const row = {
   _id: conversation,
-  conversation_id: conversation,
-  prompts: [],
   observed_turn: turn,
   lease_remaining_ms: 30_000,
 };
+const emptyFeed = { prompts: [], turn: null };
+const activeFeed = { prompts: [], turn: row };
 const mountComposer = createComposerMount(mountWeb);
 
 function Surface({
@@ -32,7 +32,7 @@ function Surface({
 }) {
   return (
     <>
-      {feeding && <FencedPromptAddressesFeeder conversationId={conversation} />}
+      {feeding && <FencedObservedTurnFeeder conversationId={conversation} />}
       {owner(conversation, undefined, { agentStatus })}
     </>
   );
@@ -48,19 +48,20 @@ test.each([
       backend.set(
         feed,
         enabled
-          ? [
-              {
+          ? {
+              prompts: [],
+              turn: {
                 ...row,
                 observed_turn: { id: "previous", run: 3, start_event_seq: 8 },
               },
-            ]
-          : [],
+            }
+          : emptyFeed,
       );
     },
   });
   try {
     await ui.type("Hello from the composer");
-    if (enabled) await act(async () => ui.backend.set(feed, [row]));
+    if (enabled) await act(async () => ui.backend.set(feed, activeFeed));
     await ui.press("Enter", { metaKey });
     const calls = ui.backend.mutations
       .filter((entry) => entry.name === "dispatch:dispatch")
@@ -104,16 +105,16 @@ test.each([
   const clock = spyOn(performance, "now").mockImplementation(() => now);
   const ui = await mountComposer(<Surface />, {
     setup(backend) {
-      backend.set(feed, [row]);
+      backend.set(feed, activeFeed);
     },
   });
   try {
-    expect(
-      ui.store.getState().fencedPromptAddresses[conversation],
-    ).toMatchObject({
-      observed_turn: turn,
-      local_lease_deadline: now + row.lease_remaining_ms,
-    });
+    expect(ui.store.getState().fencedObservedTurns[conversation]).toMatchObject(
+      {
+        observed_turn: turn,
+        local_lease_deadline: now + row.lease_remaining_ms,
+      },
+    );
     if (scenario === "expired lease") now += row.lease_remaining_ms;
     else if (scenario === "remount without a push") {
       await ui.rerender(<Surface feeding={false} />);
@@ -123,7 +124,7 @@ test.each([
       await act(async () =>
         ui.backend.set(
           feed,
-          scenario === "ended turn" ? [] : new Error("feed unavailable"),
+          scenario === "ended turn" ? emptyFeed : new Error("feed unavailable"),
         ),
       );
     }
@@ -144,13 +145,13 @@ test.each([
 test("a queued draft drains without observing the active turn", async () => {
   const ui = await mountComposer(<Surface />, {
     setup(backend, store) {
-      backend.set(feed, [row]);
+      backend.set(feed, activeFeed);
       store.setQueuedMessagesFor(conversation, ["Queued before the switch"]);
     },
   });
   try {
     expect(
-      ui.store.getState().fencedPromptAddresses[conversation]?.observed_turn,
+      ui.store.getState().fencedObservedTurns[conversation]?.observed_turn,
     ).toEqual(turn);
     await ui.rerender(<Surface agentStatus="idle" />);
     expect(

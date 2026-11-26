@@ -5,48 +5,39 @@ import type { FunctionReturnType } from "convex/server";
 import { act } from "react";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { useCollectionRows } from "../useCollectionRows";
-import { useSyncFencedPromptAddresses } from "../use-sync-fenced-prompt-addresses";
+import {
+  FencedObservedTurnFeeder,
+  useSyncFencedPromptAddresses,
+} from "../use-sync-fenced-prompt-addresses";
+import { COLLECTION_STORE_KEYS } from "../../store/clientSyncRegistry";
 
-const feed = api.permissions.listAnswerablePromptAddresses;
-type Row = FunctionReturnType<typeof feed>[number];
+const feed = api.permissions.getFencedPromptFeed;
+type Reply = FunctionReturnType<typeof feed>;
+type Row = Reply["prompts"][number];
 
 const conversation = "a".repeat(32) as Id<"conversations">;
 const other = "b".repeat(32) as Id<"conversations">;
 function row(conversation_id: Id<"conversations">, prompt_id: string): Row {
   const lease_id = conversation_id as string as Id<"run_leases">;
   return {
-    _id: conversation_id,
+    _id: JSON.stringify([lease_id, "turn", prompt_id]),
+    lease_id,
     conversation_id,
-    lease_remaining_ms: 5000,
-    observed_turn: null,
-    prompts: [
-      {
-        _id: JSON.stringify([lease_id, "turn", prompt_id]),
-        lease_id,
-        conversation_id,
-        run: 1,
-        turn_id: "turn",
-        prompt_id,
-        kind: "question",
-        questions: [{ id: "question", is_secret: true }],
-      },
-    ],
+    run: 1,
+    turn_id: "turn",
+    prompt_id,
+    kind: "question",
+    questions: [{ id: "question", is_secret: true }],
   };
 }
 
-function Feed({
-  enabled,
-  id = conversation,
-}: {
-  enabled: boolean;
-  id?: typeof conversation;
-}) {
-  useSyncFencedPromptAddresses(id, enabled);
+function Feed({ enabled }: { enabled: boolean }) {
+  useSyncFencedPromptAddresses(conversation, enabled);
   const rows = useCollectionRows<Row>("fencedPromptAddresses");
   return (
     <output>
       {rows
-        .flatMap(({ prompts }) => prompts.map(({ prompt_id }) => prompt_id))
+        .map(({ prompt_id }) => prompt_id)
         .sort()
         .join(",")}
     </output>
@@ -56,11 +47,10 @@ function Feed({
 test("a conversation feed inserts and removes its addresses without dropping other conversations", async () => {
   const sibling = row(other, "sibling");
   const prompt = row(conversation, "ask");
-  const clock = spyOn(performance, "now").mockReturnValue(1000);
   const web = await mountWeb(<Feed enabled={false} />, {
     authenticated: true,
     setup(backend, store) {
-      backend.set(feed, [prompt]);
+      backend.set(feed, { prompts: [prompt], turn: null });
       store.syncTable("fencedPromptAddresses", [sibling]);
     },
   });
@@ -70,59 +60,107 @@ test("a conversation feed inserts and removes its addresses without dropping oth
     await web.rerender(<Feed enabled />);
     expect(web.backend.queryRequests).toEqual([
       {
-        name: "permissions:listAnswerablePromptAddresses",
+        name: "permissions:getFencedPromptFeed",
         args: { conversation_id: conversation },
       },
     ]);
     expect(web.container.querySelector("output")?.textContent).toBe(
       "ask,sibling",
     );
-    expect(
-      web.store.getState().fencedPromptAddresses[prompt._id],
-    ).toMatchObject({ prompts: prompt.prompts, local_lease_deadline: 6000 });
+    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
+      prompt,
+    );
     const before = web.store.getState().fencedPromptAddresses[prompt._id];
-    await act(async () => web.backend.set(feed, [structuredClone(prompt)]));
+    await act(async () =>
+      web.backend.set(feed, {
+        prompts: [structuredClone(prompt), row(conversation, "new")],
+        turn: null,
+      }),
+    );
+    expect(web.container.querySelector("output")?.textContent).toBe(
+      "ask,new,sibling",
+    );
     expect(web.store.getState().fencedPromptAddresses[prompt._id]).toBe(before);
-    const revised: Row = {
+    const revised = {
       ...prompt,
-      prompts: prompt.prompts.map((p) => ({
-        ...p,
-        questions: [{ id: "second", is_secret: false }],
-      })),
+      questions: [{ id: "second", is_secret: false }],
     };
-    await act(async () => web.backend.set(feed, [revised]));
-    expect(
-      web.store.getState().fencedPromptAddresses[prompt._id],
-    ).toMatchObject({ prompts: revised.prompts, local_lease_deadline: 6000 });
-    await act(async () => web.backend.set(feed, []));
+    await act(async () =>
+      web.backend.set(feed, { prompts: [revised], turn: null }),
+    );
+    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
+      revised,
+    );
+    await act(async () => web.backend.set(feed, { prompts: [], turn: null }));
     expect(web.container.querySelector("output")?.textContent).toBe("sibling");
     expect(
       web.store.getState().fencedPromptAddresses[prompt._id],
     ).toBeUndefined();
   } finally {
-    clock.mockRestore();
     await web.close();
   }
 });
 
-test("changing conversation clears the old feed row", async () => {
+function PromptAndTurn({ id }: { id: Id<"conversations"> }) {
+  return (
+    <>
+      <Feed enabled />
+      <FencedObservedTurnFeeder conversationId={id} />
+    </>
+  );
+}
+
+test("one query feeds prompt rows and an independent memory-only turn row", async () => {
   const prompt = row(conversation, "ask");
-  const web = await mountWeb(<Feed enabled />, {
+  const turn = {
+    _id: conversation,
+    observed_turn: { id: "turn", run: 1, start_event_seq: 1 },
+    lease_remaining_ms: 5000,
+  };
+  const clock = spyOn(performance, "now").mockReturnValue(1000);
+  const web = await mountWeb(<PromptAndTurn id={conversation} />, {
     authenticated: true,
     setup(backend) {
-      backend.set(feed, (args) =>
-        args.conversation_id === conversation ? [prompt] : [],
+      backend.set(feed, ({ conversation_id }) =>
+        conversation_id === conversation
+          ? { prompts: [prompt], turn }
+          : { prompts: [], turn: null },
       );
     },
   });
   try {
-    expect(web.container.querySelector("output")?.textContent).toBe("ask");
-    await web.rerender(<Feed enabled id={other} />);
-    expect(web.container.querySelector("output")?.textContent).toBe("");
-    expect(
-      web.store.getState().fencedPromptAddresses[conversation],
-    ).toBeUndefined();
+    expect(web.backend.queryRequests).toEqual([
+      {
+        name: "permissions:getFencedPromptFeed",
+        args: { conversation_id: conversation },
+      },
+    ]);
+    expect(COLLECTION_STORE_KEYS).not.toContain("fencedPromptAddresses");
+    expect(COLLECTION_STORE_KEYS).not.toContain("fencedObservedTurns");
+    expect(web.store.getState().fencedPromptAddresses).toEqual({
+      [prompt._id]: prompt,
+    });
+    expect(web.store.getState().fencedObservedTurns).toEqual({
+      [conversation]: {
+        _id: conversation,
+        observed_turn: turn.observed_turn,
+        local_lease_deadline: 6000,
+      },
+    });
+    const observed = web.store.getState().fencedObservedTurns[conversation];
+    await act(async () => web.backend.set(feed, { prompts: [], turn }));
+    expect(web.store.getState().fencedPromptAddresses).toEqual({});
+    expect(web.store.getState().fencedObservedTurns[conversation]).toBe(
+      observed,
+    );
+    await act(async () => web.backend.set(feed, { prompts: [prompt], turn }));
+    await web.rerender(<PromptAndTurn id={other} />);
+    expect(web.store.getState().fencedObservedTurns).toEqual({});
+    expect(web.store.getState().fencedPromptAddresses).toEqual({
+      [prompt._id]: prompt,
+    });
   } finally {
+    clock.mockRestore();
     await web.close();
   }
 });

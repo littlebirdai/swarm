@@ -78,11 +78,11 @@ test("the owner receives a current steer observation and eligible collaborators 
     return sender;
   });
   const args = { conversation_id: f.conversation };
-  const feed = api.permissions.listAnswerablePromptAddresses;
+  const feed = api.permissions.getFencedPromptFeed;
   const ownerFeed = () => asUser(f.t, f.owner).query(feed, args);
   const senderFeed = () => asUser(f.t, sender).query(feed, args);
 
-  expect(await senderFeed()).toEqual([]);
+  expect(await senderFeed()).toEqual({ prompts: [], turn: null });
   await append([
     {
       ...base,
@@ -100,17 +100,14 @@ test("the owner receives a current steer observation and eligible collaborators 
     },
   ]);
   const observed_turn = { id: "next", run: 1, start_event_seq: 1 };
-  expect(await ownerFeed()).toMatchObject([
-    {
-      _id: f.conversation,
-      observed_turn,
-      prompts: [{ prompt_id: "next-prompt" }],
-    },
-  ]);
-  expect(await senderFeed()).toEqual([]);
-  expect((await ownerFeed())[0]?.lease_remaining_ms).toBe(leaseMs);
+  expect(await ownerFeed()).toMatchObject({
+    prompts: [{ prompt_id: "next-prompt" }],
+    turn: { _id: f.conversation, observed_turn },
+  });
+  expect(await senderFeed()).toEqual({ prompts: [], turn: null });
+  expect((await ownerFeed()).turn?.lease_remaining_ms).toBe(leaseMs);
   setSystemTime(new Date(start + 5_000));
-  expect((await ownerFeed())[0]?.lease_remaining_ms).toBe(leaseMs - 5_000);
+  expect((await ownerFeed()).turn?.lease_remaining_ms).toBe(leaseMs - 5_000);
   await f.t.run(async ({ db }) => {
     const projection = await db.query("run_turn_projections").unique();
     if (!projection) throw new Error("Expected turn projection");
@@ -118,9 +115,10 @@ test("the owner receives a current steer observation and eligible collaborators 
       projection_version: TURN_PROJECTION_VERSION,
     });
   });
-  expect(await ownerFeed()).toMatchObject([
-    { observed_turn: null, prompts: [{ prompt_id: "next-prompt" }] },
-  ]);
+  expect(await ownerFeed()).toMatchObject({
+    prompts: [{ prompt_id: "next-prompt" }],
+    turn: null,
+  });
   await f.t.run(async ({ db }) => {
     const projection = await db.query("run_turn_projections").unique();
     if (!projection) throw new Error("Expected turn projection");
@@ -133,10 +131,11 @@ test("the owner receives a current steer observation and eligible collaborators 
     if (!head) throw new Error("Expected execution head");
     await db.patch(head._id, { admission_epoch: 2 });
   });
-  expect(await senderFeed()).toEqual([]);
-  expect(await ownerFeed()).toMatchObject([
-    { observed_turn: null, prompts: [{ prompt_id: "next-prompt" }] },
-  ]);
+  expect(await senderFeed()).toEqual({ prompts: [], turn: null });
+  expect(await ownerFeed()).toMatchObject({
+    prompts: [{ prompt_id: "next-prompt" }],
+    turn: null,
+  });
   await f.t.run(async ({ db }) => {
     const head = await db.query("conversation_execution_heads").unique();
     if (!head) throw new Error("Expected execution head");
@@ -145,7 +144,7 @@ test("the owner receives a current steer observation and eligible collaborators 
   await append([
     { ...base, seq: 3, kind: "turn.ended", body: { reason: "completed" } },
   ]);
-  expect(await ownerFeed()).toEqual([]);
+  expect(await ownerFeed()).toEqual({ prompts: [], turn: null });
   await append([
     {
       ...base,
@@ -155,11 +154,12 @@ test("the owner receives a current steer observation and eligible collaborators 
       body: { starter: { kind: "person", id: sender } },
     },
   ]);
-  expect(await ownerFeed()).toMatchObject([
-    { observed_turn: { id: "new", run: 1, start_event_seq: 4 } },
-  ]);
+  expect(await ownerFeed()).toMatchObject({
+    prompts: [],
+    turn: { observed_turn: { id: "new", run: 1, start_event_seq: 4 } },
+  });
   setSystemTime(new Date(start + leaseMs));
   const nextLease = await f.claim("turn-feed-replacement");
   expect(nextLease.status).toBe("granted");
-  expect(await ownerFeed()).toEqual([]);
+  expect(await ownerFeed()).toEqual({ prompts: [], turn: null });
 });

@@ -167,9 +167,9 @@ export async function answerablePromptAddresses(
 ) {
   const mayAnswer =
     conversation.user_id === actor && fencedPromptAnswersEnabled();
-  if (!mayAnswer && !maySteer) return [];
+  if (!mayAnswer && !maySteer) return { prompts: [], turn: null };
   const opened = await openPromptTurn(ctx, conversation);
-  if (!opened) return [];
+  if (!opened) return { prompts: [], turn: null };
   const {
     binding,
     lease,
@@ -217,16 +217,12 @@ export async function answerablePromptAddresses(
           start_event_seq: turn.start_event_seq,
         }
       : undefined;
-  if (!prompts.length && !observed_turn) return [];
-  return [
-    {
-      _id: conversation_id,
-      conversation_id,
-      prompts,
-      observed_turn: observed_turn ?? null,
-      lease_remaining_ms,
-    },
-  ];
+  return {
+    prompts,
+    turn: observed_turn
+      ? { _id: conversation_id, observed_turn, lease_remaining_ms }
+      : null,
+  };
 }
 
 function command(

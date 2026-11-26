@@ -198,7 +198,7 @@ import { ReviewScrollIndicators } from "./ReviewNavigation";
 import { useReviewNavigation } from "../hooks/useReviewNavigation";
 import { useConversationCommentsSync } from "../hooks/useConversationComments";
 import { useSyncQuoteDrafts } from "../hooks/useSyncQuoteDrafts";
-import { FencedPromptAddressesFeeder } from "../hooks/use-sync-fenced-prompt-addresses";
+import { FencedObservedTurnFeeder } from "../hooks/use-sync-fenced-prompt-addresses";
 import {
   useSyncConversationExternalEvents,
   useExternalEvents,
@@ -6918,7 +6918,7 @@ const ConversationViewInner = function ConversationView(
                                   onDrop={handleDrop}
                                 >
                                   {showMessageInput && !guest && (
-                                    <FencedPromptAddressesFeeder
+                                    <FencedObservedTurnFeeder
                                       conversationId={conversation?._id}
                                     />
                                   )}

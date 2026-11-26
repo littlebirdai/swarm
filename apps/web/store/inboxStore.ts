@@ -16266,7 +16266,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (target && hasThreadState(target))
         Object.assign(target, answeredThreadStateFields());
     }
-    const turn = this.fencedPromptAddresses[_convId];
+    const turn = this.fencedObservedTurns[_convId];
     if (
       observeTurn &&
       turn?.observed_turn &&
