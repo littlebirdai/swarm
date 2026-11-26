@@ -136,6 +136,11 @@ export function lastTurnAllowsPark(conv: {
 export const ARMED_TRIGGER_KINDS = ["none", "standing", "once"] as const;
 export type ArmedTriggerKind = (typeof ARMED_TRIGGER_KINDS)[number];
 
+export function armedTriggerKindOf(task: InjectTriggerTask): ArmedTriggerKind {
+  if (!isArmedInjectTrigger(task)) return "none";
+  return isStandingInjectTrigger(task) ? "standing" : "once";
+}
+
 // The kind for one conversation given every agent_tasks row that injects into
 // it. Standing wins over once: a recurring loop owns the session outright.
 export function armedTriggerKindFor(
@@ -143,9 +148,9 @@ export function armedTriggerKindFor(
 ): ArmedTriggerKind {
   let kind: ArmedTriggerKind = "none";
   for (const task of tasks) {
-    if (!isArmedInjectTrigger(task)) continue;
-    if (isStandingInjectTrigger(task)) return "standing";
-    kind = "once";
+    const next = armedTriggerKindOf(task);
+    if (next === "standing") return next;
+    if (next === "once") kind = next;
   }
   return kind;
 }

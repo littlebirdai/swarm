@@ -4,11 +4,18 @@
 // agentTasks.ts so conversations.ts and cleanup.ts can call them without
 // importing agentTasks, which reaches the big import cycle (ct-92432).
 import type { Doc, Id } from "../_generated/dataModel";
+import type { DatabaseReader } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { armedTriggerKindFor } from "../dormancy";
+import {
+  armedTriggerKindFor,
+  armedTriggerKindOf,
+  type ArmedTriggerKind,
+} from "../dormancy";
+import { internalMutation } from "../functions";
 import { runParentOf } from "@codecast/triggers/triggerLifecycle";
 import { hostedHomeStamp } from "../assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
+import { getDocumentSize, v } from "convex/values";
 
 export type TaskCtx = {
   db: any;
@@ -31,9 +38,17 @@ export async function refreshArmedTriggerKind(
     await tasksOriginatedBy(ctx, conversationId),
   );
   const conv = await ctx.db.get(conversationId);
+  await writeArmedTriggerKind(ctx, conv, kind);
+}
+
+async function writeArmedTriggerKind(
+  ctx: TaskCtx,
+  conv: Doc<"conversations"> | null,
+  kind: ArmedTriggerKind,
+): Promise<void> {
   if (!conv) return;
   if ((conv.armed_trigger_kind ?? "none") === kind) return;
-  await ctx.db.patch(conversationId, { armed_trigger_kind: kind });
+  await ctx.db.patch(conv._id, { armed_trigger_kind: kind });
 }
 
 // Patch a trigger and keep its home's armed_trigger_kind in step.
@@ -246,12 +261,18 @@ export async function tasksOriginatedBy(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<Doc<"agent_tasks">[]> {
-  return await ctx.db
+  return await triggersForConversation(ctx.db, conversationId).collect();
+}
+
+function triggersForConversation(
+  db: DatabaseReader,
+  conversationId: Id<"conversations">,
+) {
+  return db
     .query("agent_tasks")
-    .withIndex("by_originating_conversation", (q: any) =>
+    .withIndex("by_originating_conversation", (q) =>
       q.eq("originating_conversation_id", conversationId),
-    )
-    .collect();
+    );
 }
 
 export async function runnerTasksOriginatedBy(
@@ -270,11 +291,17 @@ export async function roleSeatOf(
   ctx: TaskCtx,
   roleId: Id<"org_roles"> | undefined,
 ): Promise<Doc<"conversations"> | null> {
+  const seat = await roleSeatId(ctx, roleId);
+  return seat ? await ctx.db.get(seat) : null;
+}
+
+async function roleSeatId(
+  ctx: TaskCtx,
+  roleId: Id<"org_roles"> | undefined,
+): Promise<Id<"conversations"> | null> {
   const role = roleId ? await ctx.db.get(roleId) : null;
   const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-  return anchor?.conversation_id
-    ? await ctx.db.get(anchor.conversation_id)
-    : null;
+  return anchor?.conversation_id ?? null;
 }
 
 // A role's triggers belong to its standing session, so they fire as the
@@ -332,21 +359,256 @@ export async function rewriterOf(
     : { userId: task.user_id, seat: false };
 }
 
-/** Hand every role trigger seated on a conversation to the account that runs
- *  it. Returns how many changed hands. */
+const HANDOFF_PAGE_ROWS = 128;
+const HANDOFF_PAGE_BYTES = 1_000_000;
+const HANDOFF_KIND_ROWS = 4096;
+const HANDOFF_KIND_BYTES = 4_000_000;
+
 export async function handRoleTriggersToRunner(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<number> {
+  const seat: Doc<"conversations"> | null = await ctx.db.get(conversationId);
+  if (!seat) return 0;
+  return handRoleTriggersForSeat(ctx, seat, false);
+}
+
+export async function handClaimedRoleTriggerToRunner(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<boolean> {
+  const seat = await seatOfRoleTrigger(ctx, task);
+  if (!seat || seat.user_id === task.user_id) return false;
+  await ctx.db.patch(task._id, { user_id: seat.user_id });
+  await handRoleTriggersForSeat(ctx, seat, true);
+  return true;
+}
+
+type RoleHandoff = {
+  jobId: Id<"_scheduled_functions">;
+  runner: Id<"users">;
+  claimed: boolean;
+  started: boolean;
+  cursor?: string | null;
+};
+
+function readRoleHandoff(row: Doc<"system_config">): RoleHandoff {
+  return JSON.parse(row.value) as RoleHandoff;
+}
+
+async function writeRoleHandoff(
+  ctx: TaskCtx,
+  id: Id<"system_config">,
+  state: RoleHandoff,
+): Promise<void> {
+  await ctx.db.patch(id, { value: JSON.stringify(state) });
+}
+
+async function handRoleTriggersForSeat(
+  ctx: TaskCtx,
+  seat: Doc<"conversations">,
+  claimed: boolean,
+): Promise<number> {
+  const key = `role-trigger-handoff:${seat._id}`;
+  const db: DatabaseReader = ctx.db;
+  const handoff = await db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+  if (handoff) {
+    const state = readRoleHandoff(handoff);
+    if (state.runner === seat.user_id) {
+      const job = await db.system.get(state.jobId);
+      if (
+        (claimed || state.started === false) &&
+        (job?.state.kind === "pending" || job?.state.kind === "inProgress")
+      ) {
+        if (claimed && !state.claimed) {
+          await writeRoleHandoff(ctx, handoff._id, { ...state, claimed });
+        }
+        return 0;
+      }
+      claimed ||= state.claimed;
+    }
+    await ctx.db.delete(handoff._id);
+  }
+  const tasks: Doc<"agent_tasks">[] = [];
+  let bytes = 0;
+  for await (const task of triggersForConversation(ctx.db, seat._id)) {
+    tasks.push(task);
+    bytes += getDocumentSize(task);
+    if (tasks.length >= HANDOFF_PAGE_ROWS || bytes >= HANDOFF_PAGE_BYTES) {
+      if (!ctx.scheduler)
+        throw new Error("Trigger handoff requires a scheduler");
+      const handoffId: Id<"system_config"> = await ctx.db.insert(
+        "system_config",
+        { key, value: "", updated_at: Date.now() },
+      );
+      const jobId = (await ctx.scheduler.runAfter(
+        0,
+        internal.lib.agentTaskRows.continueRoleTriggerHandoff,
+        {
+          conversationId: seat._id,
+          runner: seat.user_id,
+          cursor: null,
+          repair: "pending",
+          handoffId,
+        },
+      )) as Id<"_scheduled_functions">;
+      await writeRoleHandoff(ctx, handoffId, {
+        jobId,
+        runner: seat.user_id,
+        claimed,
+        started: false,
+        cursor: null,
+      });
+      return 0;
+    }
+  }
+  const repairKind = () =>
+    writeArmedTriggerKind(ctx, seat, armedTriggerKindFor(tasks));
+  if (claimed) await repairKind();
+  return handRoleTriggerPage(
+    ctx,
+    seat,
+    tasks,
+    claimed ? undefined : repairKind,
+  );
+}
+
+async function handRoleTriggerPage(
+  ctx: TaskCtx,
+  seat: Doc<"conversations">,
+  tasks: Doc<"agent_tasks">[],
+  afterFirstWrite?: () => Promise<void>,
+): Promise<number> {
+  const roleBelongsToSeat = new Map<Id<"org_roles">, boolean>();
   let handed = 0;
-  for (const task of await tasksOriginatedBy(ctx, conversationId)) {
-    const runner = await roleTriggerRunnerOf(ctx, task);
-    if (!runner) continue;
-    await patchTask(ctx, task, { user_id: runner });
+  for (const task of tasks) {
+    if (!task.role_id || task.user_id === seat.user_id) continue;
+    let belongs = roleBelongsToSeat.get(task.role_id);
+    if (belongs === undefined) {
+      belongs = (await roleSeatId(ctx, task.role_id)) === seat._id;
+      roleBelongsToSeat.set(task.role_id, belongs);
+    }
+    if (!belongs) continue;
+    await ctx.db.patch(task._id, { user_id: seat.user_id });
+    if (handed === 0) await afterFirstWrite?.();
     handed++;
   }
   return handed;
 }
+
+export const continueRoleTriggerHandoff = internalMutation({
+  args: {
+    handoffId: v.optional(v.id("system_config")),
+    conversationId: v.id("conversations"),
+    runner: v.id("users"),
+    cursor: v.union(v.null(), v.string()),
+    seenKind: v.optional(
+      v.union(v.literal("none"), v.literal("once"), v.literal("standing")),
+    ),
+    repair: v.union(
+      v.literal("pending"),
+      v.literal("witness"),
+      v.literal("done"),
+    ),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const handoff = args.handoffId && (await ctx.db.get(args.handoffId));
+    if (args.handoffId && !handoff) return;
+    const state = handoff ? readRoleHandoff(handoff) : null;
+    if (state?.cursor !== undefined && state.cursor !== args.cursor) return;
+    const seat = await ctx.db.get(args.conversationId);
+    if (!seat || seat.user_id !== args.runner) {
+      if (handoff) await ctx.db.delete(handoff._id);
+      return;
+    }
+    const page = await triggersForConversation(ctx.db, seat._id).paginate({
+      numItems: HANDOFF_PAGE_ROWS,
+      maximumBytesRead: HANDOFF_PAGE_BYTES,
+      cursor: args.cursor,
+    });
+    const pageKind =
+      args.repair === "done" ? undefined : armedTriggerKindFor(page.page);
+    const seenKind =
+      args.seenKind === "standing" || pageKind === "standing"
+        ? "standing"
+        : args.seenKind === "once" || pageKind === "once"
+          ? "once"
+          : "none";
+    let repair = args.repair;
+    const seatKind = seat.armed_trigger_kind ?? "none";
+    const repairKind = async () => {
+      if (repair !== "pending") return;
+      if (seenKind === "standing" || (args.cursor === null && page.isDone)) {
+        await writeArmedTriggerKind(ctx, seat, seenKind);
+        repair = "done";
+        return;
+      }
+      let kind: ArmedTriggerKind = "none";
+      let count = 0;
+      let bytes = 0;
+      for await (const task of triggersForConversation(ctx.db, seat._id)) {
+        const next = armedTriggerKindOf(task);
+        if (next === "standing") {
+          kind = "standing";
+          break;
+        }
+        if (next === "once") kind = "once";
+        count++;
+        bytes += getDocumentSize(task);
+        if (count >= HANDOFF_KIND_ROWS || bytes >= HANDOFF_KIND_BYTES) {
+          if ((kind === "once" || pageKind === "once") && seatKind === "none") {
+            await writeArmedTriggerKind(ctx, seat, "once");
+          }
+          repair = "witness";
+          return;
+        }
+      }
+      await writeArmedTriggerKind(ctx, seat, kind);
+      repair = "done";
+    };
+    if (state?.claimed) await repairKind();
+    await handRoleTriggerPage(ctx, seat, page.page, repairKind);
+    if (repair === "witness") {
+      if (seenKind === "standing") {
+        await writeArmedTriggerKind(ctx, seat, "standing");
+        repair = "done";
+      } else if (page.isDone) {
+        await writeArmedTriggerKind(ctx, seat, seenKind);
+      } else if (
+        args.repair === "witness" &&
+        pageKind === "once" &&
+        seatKind === "none"
+      ) {
+        await writeArmedTriggerKind(ctx, seat, "once");
+      }
+    }
+    if (!page.isDone) {
+      const jobId = await ctx.scheduler.runAfter(
+        0,
+        internal.lib.agentTaskRows.continueRoleTriggerHandoff,
+        {
+          ...args,
+          cursor: page.continueCursor,
+          repair,
+          seenKind,
+        },
+      );
+      if (handoff && state) {
+        await writeRoleHandoff(ctx, handoff._id, {
+          ...state,
+          jobId,
+          started: true,
+          cursor: page.continueCursor,
+        });
+      }
+    } else if (handoff) {
+      await ctx.db.delete(handoff._id);
+    }
+  },
+});
 
 /** Cancel every open task a conversation originated (a retired standing role's
  *  routines): cancelled, not completed, so nothing re-arms them. Returns the count. */
