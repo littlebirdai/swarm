@@ -228,31 +228,57 @@ describe("real tab claims under concurrency", () => {
   // Each session's claim is a read-modify-write of one shared file; two that
   // overlapped each wrote back a copy without the other's claim, and the loser
   // was told it had no tab while its tab leaked (soak ct-87421).
-  test("every session's claim survives many processes writing at once", async () => {
+  test("every session's claim survives concurrent writers and pruners", async () => {
     const real = path.resolve(import.meta.dir, "real.ts");
-    const writers = 8;
-    const rounds = 25;
-    const script = (i: number) => `
+    const claims = Array.from({ length: 3 }, (_, writer) =>
+      Array.from({ length: 8 }, (_, round) => `T${writer}-${round}`),
+    );
+    const script = (tabs: string[]) => `
       const { rememberRealTab, pruneRealTabs } = await import(${JSON.stringify(real)});
-      const live = new Set(Array.from({ length: ${writers * rounds} }, (_, n) => "T" + Math.floor(n / ${rounds}) + "-" + (n % ${rounds})));
-      for (let r = 0; r < ${rounds}; r++) {
-        rememberRealTab("session:${i}", "T${i}-" + r);
-        // A claim on a closed tab, pruned by this writer while the others write theirs.
-        rememberRealTab("session:dead-${i}", "GONE");
+      const live = new Set(${JSON.stringify(claims.flat())});
+      process.stdout.write("R");
+      await Bun.stdin.text();
+      for (const tab of ${JSON.stringify(tabs)}) {
+        rememberRealTab("session:" + tab, tab);
+        rememberRealTab("closed:" + tab, "GONE");
         pruneRealTabs(live);
       }`;
-    const procs = Array.from({ length: writers }, (_, i) =>
-      Bun.spawn(["bun", "-e", script(i)], {
+    const procs = claims.map((tabs) =>
+      Bun.spawn([process.execPath, "-e", script(tabs)], {
         env: { ...process.env, CODECAST_DIR: dir },
-        stdout: "ignore",
+        stdin: "pipe",
+        stdout: "pipe",
         stderr: "pipe",
       }),
     );
-    const codes = await Promise.all(procs.map((p) => p.exited));
-    expect(codes).toEqual(Array(writers).fill(0));
-    for (let i = 0; i < writers; i++) {
-      expect(ownedRealTab(`session:${i}`)).toBe(`T${i}-${rounds - 1}`);
-      expect(ownedRealTab(`session:dead-${i}`)).toBeUndefined();
+    const exits = Promise.all(
+      procs.map((proc) =>
+        Promise.all([proc.exited, new Response(proc.stderr).text()]),
+      ),
+    );
+    try {
+      const ready = await Promise.all(
+        procs.map(async (proc) => {
+          const reader = proc.stdout.getReader();
+          try {
+            return !(await reader.read()).done;
+          } finally {
+            reader.releaseLock();
+          }
+        }),
+      );
+      for (const proc of procs) proc.stdin.end();
+      for (const [code, stderr] of await exits) expect(code, stderr).toBe(0);
+      expect(ready).toEqual(claims.map(() => true));
+      for (const tab of claims.flat()) {
+        expect(ownedRealTab(`session:${tab}`)).toBe(tab);
+        expect(ownedRealTab(`closed:${tab}`)).toBeUndefined();
+      }
+    } finally {
+      for (const proc of procs) {
+        if (proc.exitCode === null) proc.kill();
+      }
+      await exits;
     }
   }, 60_000);
 });
