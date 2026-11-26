@@ -200,3 +200,24 @@ test("a task cannot assign a role ID outside its workspace", async () => {
   ).rejects.toThrow("a team role cannot take it");
   expect(await t.run(({ db }) => db.query("tasks").collect())).toEqual([]);
 });
+
+test("the first synced session stamps its owner and the second keeps the stamp", async () => {
+  const { t, user } = await setup();
+  const create = (session_id: string) =>
+    t.mutation(api.conversations.createConversation, {
+      api_token: apiToken,
+      user_id: user,
+      agent_type: "claude_code",
+      session_id,
+      project_path: "/work/app",
+    });
+  await create("first-session");
+  const stamped = (await t.run(({ db }) => db.get(user)))
+    ?.first_session_synced_at;
+  expect(stamped).toBeNumber();
+  jest.advanceTimersByTime(60_000);
+  await create("second-session");
+  expect((await t.run(({ db }) => db.get(user)))?.first_session_synced_at).toBe(
+    stamped,
+  );
+});
