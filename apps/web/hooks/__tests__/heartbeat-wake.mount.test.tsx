@@ -116,6 +116,8 @@ test("the watch row disappears when the lease expires at the same clock tick", a
     session_id: id,
     agent_type: "claude_code",
     message_count: 1,
+    is_idle: true,
+    has_pending: false,
     updated_at: heartbeat,
     last_heartbeat: heartbeat,
     liveness_lease_end: watchNow + 1,

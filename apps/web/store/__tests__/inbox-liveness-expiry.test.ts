@@ -25,6 +25,8 @@ function cachedRow(_id: string, fields: Partial<InboxSession>): InboxSession {
     agent_type: "claude_code",
     updated_at: heartbeat,
     message_count: 1,
+    is_idle: true,
+    has_pending: false,
     ...live,
     ...fields,
   };
