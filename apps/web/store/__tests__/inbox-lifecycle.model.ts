@@ -1,5 +1,5 @@
 // A model of how ONE session moves between inbox sections over time, written
-// as a small explicit state machine. inboxLifecycle.model.test.ts drives random
+// as a small explicit state machine. inbox-lifecycle.model.test.ts drives random
 // action sequences through this model and through the real code side by side
 // (the shared placement in packages/inbox/src/inboxProjection.ts and the
 // web store's chokepoint, placeInboxRows) and asserts after every action that
@@ -33,7 +33,7 @@ import {
   STATUS_TRUST_TTL_MS,
 } from "@codecast/sessions/agentStatus";
 import { PENDING_SEND_WORKING_TTL_MS } from "../inboxOverlays";
-import { LIVENESS_SUSPEND_GAP_MS } from "../../hooks/livenessHold";
+import { LIVENESS_SUSPEND_GAP_MS } from "../../hooks/liveness-hold";
 
 export type Section =
   | "stashed"
@@ -285,7 +285,7 @@ export function serverSection(m: Model): Section {
 
 // The window's clock: while the liveness facts are held, time-driven terms
 // read at the moment they were last known current (placeInboxRows
-// livenessHeldAt, hooks/livenessHold.ts).
+// livenessHeldAt, hooks/liveness-hold.ts).
 export const clientNow = (m: Model) => Math.min(m.t, m.hold.heldAt ?? Infinity);
 
 // A send of the person's this window still waits to confirm, inside the
@@ -316,7 +316,7 @@ export function clientSection(m: Model): Section {
   return base;
 }
 
-// ── The liveness hold, as a machine (hooks/livenessHold.ts) ────────────────
+// ── The liveness hold, as a machine (hooks/liveness-hold.ts) ────────────────
 // A window holds its placement clock when it cannot know its facts are
 // current: a launch from cache, a suspension, a dropped socket. One fresh read
 // started after the latest hold releases it. Stopping the machine (the window

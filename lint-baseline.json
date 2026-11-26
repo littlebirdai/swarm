@@ -21537,7 +21537,7 @@
   "apps/web/hooks/__tests__/liveRunsCheck.test.ts": {
     "swarm/no-comments": 1
   },
-  "apps/web/hooks/__tests__/livenessHold.test.ts": {
+  "apps/web/hooks/__tests__/liveness-hold.test.ts": {
     "swarm/no-comments": 15
   },
   "apps/web/hooks/__tests__/matchScore.test.ts": {
@@ -21723,7 +21723,7 @@
   "apps/web/hooks/liveRoomRows.ts": {
     "swarm/no-comments": 27
   },
-  "apps/web/hooks/livenessHold.ts": {
+  "apps/web/hooks/liveness-hold.ts": {
     "swarm/no-comments": 27
   },
   "apps/web/hooks/machineMoveFold.test.ts": {
@@ -27391,10 +27391,10 @@
   "apps/web/store/__tests__/inboxDigestIdentity.test.ts": {
     "swarm/no-comments": 43
   },
-  "apps/web/store/__tests__/inboxLifecycle.model.test.ts": {
+  "apps/web/store/__tests__/inbox-lifecycle.model.test.ts": {
     "swarm/no-comments": 89
   },
-  "apps/web/store/__tests__/inboxLifecycle.model.ts": {
+  "apps/web/store/__tests__/inbox-lifecycle.model.ts": {
     "swarm/no-comments": 97
   },
   "apps/web/store/__tests__/inboxMultiWindowSim.test.ts": {

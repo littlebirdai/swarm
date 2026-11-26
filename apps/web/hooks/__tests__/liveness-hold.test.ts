@@ -4,7 +4,7 @@ import {
   LIVENESS_SUSPEND_GAP_MS,
   startLivenessHold,
   type LivenessHoldIO,
-} from "../livenessHold";
+} from "../liveness-hold";
 
 // The controller that decides when the device's liveness facts may be stale
 // (a launch from cache, a suspension, a dropped socket) and when a fresh read

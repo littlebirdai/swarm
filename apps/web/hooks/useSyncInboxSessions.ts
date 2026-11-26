@@ -30,7 +30,7 @@ import { useQueryNoThrow } from "./useQueryNoThrow";
 import { querySplitWhole, useSplitQueryNoThrow } from "./useSplitQuery";
 import { useFeederError } from "./useSyncCollection";
 import { onSyncWake } from "./syncWake";
-import { startLivenessHold } from "./livenessHold";
+import { startLivenessHold } from "./liveness-hold";
 import { subscribeCoarseTick } from "./useCoarseNow";
 import { useWatchEffect } from "./useWatchEffect";
 import {
@@ -559,7 +559,7 @@ export function useSyncInboxSessions() {
     INBOX_RECOVERY_STALE_MS,
   );
 
-  // The liveness hold (livenessHold.ts): after a launch from cache, a
+  // The liveness hold (liveness-hold.ts): after a launch from cache, a
   // suspension or a dropped socket, placement reads the facts at the moment
   // they were last current until one fresh read lands. Only the host holds:
   // it is the window that runs the read that releases it.
