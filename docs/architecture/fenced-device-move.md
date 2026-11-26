@@ -69,7 +69,9 @@ until the first two steps pass together.
    Only a started slot opens a settlement window. The source must present
    the recorded lease token while both the attempt and slot are started.
    Releasing the lease closes the window. An ambiguous slot stays held for
-   evidence review during successor preparation. The window uses a
+   evidence review during successor preparation. While the recorded lease
+   and window are live, an identical outcome can return a duplicate receipt
+   without changing the slot. The window uses a
    provisional server constant of 10 seconds.
 
 2. **Prepare and activate.** Authorize successor creation from the move

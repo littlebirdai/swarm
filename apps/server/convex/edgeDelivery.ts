@@ -30,7 +30,8 @@ import {
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
 import { finalDeliveryReceipt } from "./lib/edge/final-delivery.receipt";
 import {
-  assertMoveSettlement,
+  assertMoveSettlementStarted,
+  assertMoveSettlementWindow,
   DEVICE_MOVE_FENCE,
 } from "./lib/edge/device-move.state";
 import {
@@ -204,7 +205,8 @@ async function deliveryContext(
     conversationSequence: args.seq,
   };
   if (!attemptMatchesFence(attempt, fence, run.owner)) return null;
-  if (settling) await assertMoveSettlement(ctx, run.head, attempt, fence);
+  if (settling)
+    await assertMoveSettlementWindow(ctx, run.head, attemptId, fence);
   const message = await ctx.db.get(attempt.message_id);
   if (!message) return null;
   const fields = deliveryFields(attempt, message);
@@ -214,7 +216,7 @@ async function deliveryContext(
     fields.sender.id !== args.sender.id
   )
     return null;
-  return { owner: run.owner, fence, attempt, fields, message };
+  return { owner: run.owner, head: run.head, fence, attempt, fields, message };
 }
 
 export const next = internalMutation({
@@ -459,6 +461,7 @@ export const settle = internalMutation({
           recordedRejection === rejection)
       )
         return { v: v1, status: "duplicate" };
+      assertMoveSettlementStarted(delivery.head, attempt);
       if (attempt.state === "ambiguous" && evidence === undefined)
         throw new ConvexError("resolution_evidence_required");
       if (outcome === "in_doubt") {

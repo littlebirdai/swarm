@@ -25,10 +25,10 @@ export function requireNoDeviceMove(head: Pick<Head, "device_move"> | null) {
     });
 }
 
-export async function assertMoveSettlement(
+export async function assertMoveSettlementWindow(
   ctx: Pick<QueryCtx, "db">,
   head: Head,
-  attempt: Doc<"delivery_attempts">,
+  attemptId: Id<"delivery_attempts">,
   fence: PermitFence & { now: number },
 ) {
   const move = head.device_move;
@@ -36,9 +36,7 @@ export async function assertMoveSettlement(
   const lease =
     move.source_lease_id && (await ctx.db.get(move.source_lease_id));
   if (
-    attempt._id !== move.attempt_id ||
-    attempt.state !== "delivery-started" ||
-    head.active_delivery_state !== "delivery-started" ||
+    attemptId !== move.attempt_id ||
     fence.executionEpoch !== move.source_epoch ||
     fence.now >= move.settlement_deadline ||
     !lease ||
@@ -47,6 +45,27 @@ export async function assertMoveSettlement(
     lease.fencing_token !== fence.fencingToken
   )
     requireNoDeviceMove(head);
+}
+
+export function assertMoveSettlementStarted(
+  head: Head,
+  attempt: Doc<"delivery_attempts">,
+) {
+  if (
+    attempt.state !== "delivery-started" ||
+    head.active_delivery_state !== "delivery-started"
+  )
+    requireNoDeviceMove(head);
+}
+
+export async function assertMoveSettlement(
+  ctx: Pick<QueryCtx, "db">,
+  head: Head,
+  attempt: Doc<"delivery_attempts">,
+  fence: PermitFence & { now: number },
+) {
+  await assertMoveSettlementWindow(ctx, head, attempt._id, fence);
+  assertMoveSettlementStarted(head, attempt);
 }
 
 export async function recordDeviceMove(

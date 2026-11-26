@@ -493,6 +493,60 @@ test.each(["before", "during"] as const)(
   },
 );
 
+test.each(["applied", "failed", "in_doubt"] as const)(
+  "an exact %s replay is read-only and needs a live move window",
+  async (outcome) => {
+    const f = await fixture();
+    const permit = await f.permit(await f.grant());
+    await f.t.mutation(internal.edgeDelivery.start, permit);
+    await f.record();
+    const settle = (args: {
+      outcome: "applied" | "failed" | "in_doubt";
+      resolution_evidence?: string;
+    }) => f.t.mutation(internal.edgeDelivery.settle, { ...permit, ...args });
+    expect(await settle({ outcome })).toEqual({ v: 1, status: "recorded" });
+    const recorded = await f.rows(permit.attempt_id);
+    jest.setSystemTime(start + 1);
+    expect(await settle({ outcome })).toEqual({ v: 1, status: "duplicate" });
+    const different = outcome === "applied" ? "failed" : "applied";
+    expect(await settle({ outcome: different })).toEqual(stale);
+    expect(
+      await settle({
+        outcome: different,
+        resolution_evidence: "source report",
+      }),
+    ).toEqual(stale);
+    expect(await f.rows(permit.attempt_id)).toEqual(recorded);
+
+    jest.setSystemTime(start + windowMs);
+    expect(await settle({ outcome })).toEqual(stale);
+    expect(await f.rows(permit.attempt_id)).toEqual(recorded);
+  },
+);
+
+test("an exact settlement replay is stale after release of the recorded lease", async () => {
+  const f = await fixture();
+  const permit = await f.permit(await f.grant());
+  await f.t.mutation(internal.edgeDelivery.start, permit);
+  await f.record();
+  const settle = () =>
+    f.t.mutation(internal.edgeDelivery.settle, {
+      ...permit,
+      outcome: "applied",
+    });
+  expect(await settle()).toEqual({ v: 1, status: "recorded" });
+  jest.setSystemTime(start + 1);
+  expect(
+    await f.t.mutation(
+      internal.edgeRunLease.release,
+      f.requestFence(permit.fencing_token),
+    ),
+  ).toEqual({ v: 1, status: "released" });
+  const released = await f.rows(permit.attempt_id);
+  expect(await settle()).toEqual(stale);
+  expect(await f.rows(permit.attempt_id)).toEqual(released);
+});
+
 test.each(["attempt", "slot", "recorded attempt"] as const)(
   "the settlement rule refuses a mismatch in the %s",
   async (field) => {
