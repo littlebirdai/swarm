@@ -131,7 +131,7 @@ function deliveryFields(
     delivery_id: attempt.delivery_id,
     attempt_id: attempt._id,
     seq: attempt.conversation_sequence,
-    intent: "queue" as const,
+    intent: message.delivery_intent ?? ("queue" as const),
     sender: message.from_conversation_id
       ? { kind: "agent" as const, id: message.from_conversation_id }
       : { kind: "person" as const, id: message.from_user_id },
@@ -269,15 +269,27 @@ export const next = internalMutation({
         });
         return { v: v1, status: "empty" };
       }
-      return {
+      const { intent, ...fields } = deliveryFields(attempt, message);
+      const permit = {
         v: v1,
         status: "permit",
         session: run.fence.conversationId,
         run: run.fence.executionEpoch,
         fencing_token: args.fencing_token,
-        ...deliveryFields(attempt, message),
+        ...fields,
         state: attempt.state === "claimed" ? "new" : "started",
         input: prepared.input,
+      } as const;
+      if (intent === "queue") return { ...permit, intent };
+      const { delivery_observed_turn: observed, delivery_baton_token: token } =
+        message;
+      if (!observed || token === undefined)
+        throw new Error("Steer admission is missing");
+      return {
+        ...permit,
+        intent,
+        baton_token: token,
+        expected: { kind: "turn", turn: observed.id },
       };
     }),
 });
@@ -308,7 +320,9 @@ export const start = internalMutation({
         });
         return { ...rejected, reason: prepared.reason };
       }
-      await startDeliveryInDb(ctx, owner, fence);
+      const started = await startDeliveryInDb(ctx, owner, fence);
+      if (started.state === "stale-steer")
+        return { ...rejected, reason: started.reason };
       return {
         ...fields,
         v: v1,
@@ -418,6 +432,13 @@ export const settle = internalMutation({
       v.literal("failed"),
       v.literal("in_doubt"),
       v.literal("rejected"),
+      v.literal("stale"),
+    ),
+    observed: v.optional(
+      v.object({
+        kind: v.literal("turn"),
+        turn: v.union(v.string(), v.null()),
+      }),
     ),
     detail: v.optional(v.string()),
     retryable: v.optional(v.boolean()),
@@ -427,8 +448,16 @@ export const settle = internalMutation({
     withFence<DeliverySettleResponse>(stale, async () => {
       const delivery = await deliveryContext(ctx, args, true);
       if (!delivery) return stale;
-      const { owner, fence, attempt } = delivery;
+      const { owner, fence, attempt, message } = delivery;
       const { outcome, resolution_evidence: evidence } = args;
+      if (
+        outcome === "stale" &&
+        (args.intent !== "steer" ||
+          !args.observed ||
+          !message.delivery_observed_turn ||
+          args.observed.turn === message.delivery_observed_turn.id)
+      )
+        return stale;
       if (
         outcome === "failed" &&
         args.retryable !== false &&
@@ -438,7 +467,7 @@ export const settle = internalMutation({
         return { v: v1, status: "duplicate" };
       const applied = outcome === "applied" || outcome === "duplicate";
       const rejection =
-        outcome === "rejected"
+        outcome === "rejected" || outcome === "stale"
           ? rejectedCode
           : outcome === "failed" && args.retryable === false
             ? finalFailureCode
@@ -473,7 +502,10 @@ export const settle = internalMutation({
       } else if (rejection) {
         await finishEdgeDelivery(ctx, owner, fence, {
           code: rejection,
-          reason: "The daemon could not deliver this message",
+          reason:
+            outcome === "stale"
+              ? "stale-turn"
+              : "The daemon could not deliver this message",
           evidence,
         });
       } else if (evidence !== undefined) {

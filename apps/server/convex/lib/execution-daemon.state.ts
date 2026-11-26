@@ -213,7 +213,9 @@ export async function claimExecutionStartInDb(
         attempt.execution_epoch !== binding.epoch ||
         attempt.configuration_revision !== binding.configuration_revision ||
         attempt.runtime_id !== binding.runtime_id ||
-        attempt.conversation_sequence !== head.next_nonterminal_sequence ||
+        (attempt.conversation_sequence !== head.next_nonterminal_sequence &&
+          (message.delivery_intent !== "steer" ||
+            attempt.conversation_sequence < head.next_nonterminal_sequence)) ||
         attempt.state !== head.active_delivery_state ||
         message.active_delivery_attempt_id !== attempt._id ||
         message.conversation_id !== attempt.conversation_id ||
