@@ -60,6 +60,24 @@ export function attemptMatchesFence(
   );
 }
 
+export const deliveryRejectionCodes = {
+  rejected: "EDGE_DELIVERY_REJECTED",
+  finalFailure: "EDGE_DELIVERY_FAILED_FINAL",
+} as const;
+
+export function matchesRetryableDeliveryReplay(
+  attempt: Doc<"delivery_attempts"> | null,
+  fence: PermitFence,
+  userId: Id<"users">,
+): attempt is Doc<"delivery_attempts"> {
+  return (
+    attempt?.state === "failed-before-effect" &&
+    attempt.failure_code !== deliveryRejectionCodes.rejected &&
+    attempt.failure_code !== deliveryRejectionCodes.finalFailure &&
+    attemptMatchesFence(attempt, fence, userId)
+  );
+}
+
 type DbCtx = Pick<MutationCtx, "db">;
 
 export async function requeueDeliveryBeforeEffect(

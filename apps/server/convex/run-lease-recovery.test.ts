@@ -1,4 +1,5 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test";
+import { parsePermitsNextResponse } from "@codecast/edge-contract";
 import {
   boot,
   leaseMs,
@@ -12,10 +13,12 @@ import {
   claimExecutionStartInDb,
   completeDeliveryInDb,
   EXECUTION_PROTOCOL_CAPABILITIES,
+  failDeliveryBeforeEffectInDb,
   publishReadyBindingInDb,
   publishRuntimeDispositionInDb,
   recordExecutionSuccessorIntentInDb,
   rejectHeadDeliveryInDb,
+  releaseClaimBeforeEffectInDb,
   requestExecutionSuccessorInDb,
   startDeliveryInDb,
 } from "./executionBindings";
@@ -515,3 +518,103 @@ test("head rejection refuses a presented token when the binding is missing", asy
     ),
   ).rejects.toThrow("STALE_RUN_LEASE");
 });
+
+for (const outcome of ["rejected", "failed"] as const) {
+  for (const replay of ["release", "fail"] as const) {
+    test(`a terminal ${outcome} delivery refuses a retryable ${replay} replay`, async () => {
+      setSystemTime(new Date(start));
+      const f = await setupRunLease();
+      const grant = await f.claim("terminal");
+      if (grant.status !== "granted") throw new Error("Expected a grant");
+      const request = {
+        v: 1,
+        session: grant.session,
+        run: grant.run,
+        fencing_token: grant.fencing_token,
+      };
+      const flag = "CODECAST_EDGE_DELIVERY_V1";
+      const previous = process.env[flag];
+      process.env[flag] = "1";
+      const post = (verb: string, body: unknown) =>
+        f.t.fetch(`/edge/v1/${verb}`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${f.bearer}` },
+          body: JSON.stringify(body),
+        });
+      let attemptId: string;
+      try {
+        const next = await post("permits.next", request);
+        const permit = parsePermitsNextResponse(await next.json());
+        if (!permit.ok || permit.value.status !== "permit")
+          throw new Error("Expected a permit");
+        const { attempt_id, delivery_id, seq, intent, sender } = permit.value;
+        attemptId = attempt_id;
+        const fields = {
+          ...request,
+          attempt_id,
+          delivery_id,
+          seq,
+          intent,
+          sender,
+        };
+        if (outcome === "failed")
+          expect(
+            await (await post("delivery.start", fields)).json(),
+          ).toMatchObject({ status: "started" });
+        expect(
+          await (
+            await post("delivery.settle", {
+              ...fields,
+              ...(outcome === "failed"
+                ? { outcome, retryable: false }
+                : { outcome }),
+            })
+          ).json(),
+        ).toEqual({ v: 1, status: "recorded" });
+      } finally {
+        if (previous === undefined) delete process.env[flag];
+        else process.env[flag] = previous;
+      }
+      const snapshot = () =>
+        f.t.run(async ({ db }) => ({
+          attempt: await db.query("delivery_attempts").unique(),
+          message: await db.get(f.message),
+          head: await db.get(f.head),
+        }));
+      const before = await snapshot();
+      if (!before.attempt || String(before.attempt._id) !== attemptId)
+        throw new Error("Expected the settled attempt");
+      expect(before.message?.delivery_status).toBe("rejected");
+      const fence = {
+        conversationId: f.conversation,
+        messageId: f.message,
+        deliveryId: before.attempt.delivery_id,
+        conversationSequence: before.attempt.conversation_sequence,
+        attemptId: before.attempt._id,
+        executionEpoch: grant.run,
+        configurationRevision: 1,
+        ownerDeviceId: machine,
+        daemonBootId: boot,
+        runtimeId: "runtime",
+        fencingToken: grant.fencing_token,
+        now: Date.now(),
+      };
+      await expect(
+        f.t.run((ctx) =>
+          replay === "release"
+            ? releaseClaimBeforeEffectInDb(ctx, f.owner, {
+                ...fence,
+                reason: "no effect",
+                evidence: "no write",
+              })
+            : failDeliveryBeforeEffectInDb(ctx, f.owner, {
+                ...fence,
+                failureCode: "NO_EFFECT",
+                failureMessage: "no write",
+              }),
+        ),
+      ).rejects.toThrow("DELIVERY_PERMIT_FENCE_MISMATCH");
+      expect(await snapshot()).toEqual(before);
+    });
+  }
+}

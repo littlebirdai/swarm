@@ -25,6 +25,7 @@ import {
   attemptMatchesFence,
   blockDeliveryAsAmbiguous,
   claimedPermitWire,
+  matchesRetryableDeliveryReplay,
   requeueDeliveryBeforeEffect,
   startedPermitWire,
   type PermitFence,
@@ -2237,10 +2238,7 @@ export async function releaseClaimBeforeEffectInDb(
   requireNonEmpty(fence.evidence, "evidence");
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
-  if (
-    existingAttempt?.state === "failed-before-effect" &&
-    attemptMatchesFence(existingAttempt, fence, userId)
-  ) {
+  if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
   const { head, message, attempt } = await verifyAttemptFence(
@@ -2375,10 +2373,7 @@ export async function failDeliveryBeforeEffectInDb(
 ): Promise<{ retryable: true; deliveryId: string }> {
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
-  if (
-    existingAttempt?.state === "failed-before-effect" &&
-    attemptMatchesFence(existingAttempt, fence, userId)
-  ) {
+  if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
   const { head, message, attempt } = await verifyAttemptFence(
