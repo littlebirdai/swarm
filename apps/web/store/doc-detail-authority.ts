@@ -10,10 +10,9 @@ import {
 } from "./doc-detail-cache";
 import {
   deleteInvalidatedDocDetails,
-  lastPersisted,
-} from "./persistence/collection-writer";
-import { COLLECTION_TABLES } from "./persistence/db";
-import { persistenceOwned } from "./persistence/ownership";
+  persistedDocDetailWorkspace,
+  readCachedDocDetails,
+} from "./doc-detail-disk";
 
 type CachedDetail = { _id: string; workspace?: string; updated_at?: number };
 
@@ -46,17 +45,21 @@ export async function persistDetailInvalidation(
   ids: readonly string[],
   current: () => boolean,
 ): Promise<string[]> {
-  if (!current() || !persistenceOwned()) return [];
+  if (!current()) return [];
   const targets = ids.filter((id) => !pendingCreate(id));
   if (!targets.length) return [];
+  const docs = useInboxStore.getState().docs;
   const revision = hideInvalidatedDetails(targets);
-  return deleteInvalidatedDocDetails(
-    targets,
-    (id) =>
+  return deleteInvalidatedDocDetails(targets, (id) => {
+    const state = useInboxStore.getState();
+    return (
       current() &&
       !pendingCreate(id) &&
-      detailInvalidationRevision(id) === revision,
-  );
+      detailInvalidationRevision(id) === revision &&
+      state.docs[id] === docs[id] &&
+      state.docDetails[id] === undefined
+    );
+  });
 }
 
 export async function collectCompleteDocCrawlAbsences(
@@ -65,9 +68,7 @@ export async function collectCompleteDocCrawlAbsences(
   position: ReturnType<typeof detailReadPosition>,
 ): Promise<void> {
   const state = useInboxStore.getState();
-  const disk = persistenceOwned()
-    ? await COLLECTION_TABLES.docDetails.toArray()
-    : [];
+  const disk = await readCachedDocDetails();
   const cached = new Map<string, CachedDetail>();
   for (const row of disk) cached.set(row._id, row);
   for (const row of Object.values(state.docDetails)) cached.set(row._id, row);
@@ -85,7 +86,7 @@ export async function collectCompleteDocCrawlAbsences(
 export function persistedDetailScope(id: string): string | undefined {
   return (
     useInboxStore.getState().docDetails[id]?.workspace ??
-    lastPersisted.get("docDetails")?.get(id)?.workspace
+    persistedDocDetailWorkspace(id)
   );
 }
 
@@ -155,9 +156,8 @@ export async function verifyDetailInvalidation(
     ids.map(async (id) => {
       const row = await reader.detail(id);
       const invalid =
-        evidence.cause === "archive"
-          ? row !== null && row.archived_at !== undefined
-          : row === null;
+        row === null ||
+        (evidence.cause === "archive" && row.archived_at !== undefined);
       return invalid && detailReadIsCurrent(id, read) ? id : null;
     }),
   );
