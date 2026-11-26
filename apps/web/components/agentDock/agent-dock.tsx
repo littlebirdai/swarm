@@ -70,7 +70,7 @@ import {
   onAgentDockSummon,
   type AgentDockEdge,
 } from "../../lib/desktopAgentDock";
-import { PermissionStack } from "../PermissionCard";
+import { PermissionStack } from "../permission-card";
 import { useConversationMessages } from "../../hooks/use-conversation-messages";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { KeyCap } from "../KeyboardShortcutsHelp";

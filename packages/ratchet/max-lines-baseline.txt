@@ -537,7 +537,7 @@ apps/web/components/company/companyModel.ts 950
 apps/web/components/consequential/ledgers.ts 1400
 apps/web/components/conversation/__tests__/modernConversation.mount.test.tsx 1250
 apps/web/components/conversation/blocks/castBlocks.tsx 2000
-apps/web/components/conversation/blocks/interactiveBlocks.tsx 1300
+apps/web/components/conversation/blocks/interactive-blocks.tsx 1300
 apps/web/components/conversation/blocks/systemBlocks.tsx 3150
 apps/web/components/conversation/blocks/toolBlocks.tsx 2750
 apps/web/components/conversation/blocks/turnBlocks.tsx 2900

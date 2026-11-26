@@ -90,7 +90,7 @@ import {
 } from "lucide-react";
 import { simulatorPanePath } from "../../../lib/simulatorPane";
 import { tabNavigate } from "../../../src/compat/tabRouting";
-import { ImageBlock } from "./interactiveBlocks";
+import { ImageBlock } from "./interactive-blocks";
 import { PathText, RowIcon } from "./ModernRow";
 import { modernToolHead } from "../../../lib/modernRow";
 import { useIsModernStyle } from "../../../hooks/useVisualStyle";

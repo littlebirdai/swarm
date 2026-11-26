@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, expect, test } from "bun:test";
 import { replaceGlobals } from "../../test-helpers/globals";
-import { permissionRuleLabels } from "../PermissionCard";
+import { permissionRuleLabels } from "../permission-card";
 import { oldestBlocked } from "../../lib/decisionQueue";
 
 const RULE = {
@@ -119,7 +119,7 @@ async function dom() {
 test("Deny opens a reason field; the reason goes with the denial", async () => {
   const { React, q, press, render, type, submit, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     const calls: Array<[string, string | undefined]> = [];
     const pending = [
       {
@@ -157,7 +157,7 @@ test("Deny opens a reason field; the reason goes with the denial", async () => {
 test("Always allow names the suggested rule and answers with it", async () => {
   const { React, q, render, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     const calls: string[] = [];
     const pending = [
       {
@@ -207,7 +207,7 @@ test("Always allow names the suggested rule and answers with it", async () => {
 test("Always allow names codecast's own rules, one chip each, and nothing for a call it cannot keep", async () => {
   const { React, render, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     const pending = [
       {
         _id: "p1",
@@ -261,7 +261,7 @@ test("Always allow names codecast's own rules, one chip each, and nothing for a 
 test("the card names who is asking: a subagent, and Claude Code's safety check", async () => {
   const { React, q, render, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     const view = (pending: any[]) =>
       React.createElement(PermissionStackView, {
         pending,
@@ -326,7 +326,7 @@ test("the card names who is asking: a subagent, and Claude Code's safety check",
 test("a subagent's tag opens that subagent's own conversation", async () => {
   const { React, q, render, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     const { MemoryRouter } = await import("react-router");
     await render(
       React.createElement(
@@ -362,7 +362,7 @@ test("a subagent's tag opens that subagent's own conversation", async () => {
 test("the card says what the call is for and what its rm would delete", async () => {
   const { React, q, render, done } = await dom();
   try {
-    const { PermissionStackView } = await import("../PermissionCard");
+    const { PermissionStackView } = await import("../permission-card");
     await render(
       React.createElement(PermissionStackView, {
         pending: [

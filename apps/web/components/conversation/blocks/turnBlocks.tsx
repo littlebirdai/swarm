@@ -153,7 +153,7 @@ import {
   MonitorBlock,
   PlanModeBlock,
   ThinkingBlock,
-} from "./interactiveBlocks";
+} from "./interactive-blocks";
 import { useImageSrc } from "../../../hooks/useImageSrc";
 import { FooterIconButton, FullscreenIcon, UserIcon } from "./shared";
 import { ModernReceiptWords } from "./ModernReceipt";

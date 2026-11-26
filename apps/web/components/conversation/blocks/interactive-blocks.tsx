@@ -45,7 +45,7 @@ import { useIsModernStyle } from "../../../hooks/useVisualStyle";
 import { ModernImage } from "./ModernImage";
 import { ModernMonitorRow, ModernThinking } from "./ModernEventRows";
 import { ModernPlanMode } from "./ModernPlanMode";
-import { ModernAskUserQuestion } from "./ModernAskUserQuestion";
+import { ModernAskUserQuestion } from "./modern-ask-user-question";
 import {
   forgetModernAskSent,
   markModernAskSent,

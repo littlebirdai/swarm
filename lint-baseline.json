@@ -15025,7 +15025,7 @@
     "react/purity": 2,
     "swarm/no-comments": 23
   },
-  "apps/web/components/PermissionCard.tsx": {
+  "apps/web/components/permission-card.tsx": {
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 35
   },
@@ -17062,7 +17062,7 @@
   "apps/web/components/conversation/blocks/GitOutcomeRow.tsx": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/conversation/blocks/ModernAskUserQuestion.tsx": {
+  "apps/web/components/conversation/blocks/modern-ask-user-question.tsx": {
     "swarm/no-comments": 10
   },
   "apps/web/components/conversation/blocks/ModernEventRows.tsx": {
@@ -17115,7 +17115,7 @@
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 9
   },
-  "apps/web/components/conversation/blocks/interactiveBlocks.tsx": {
+  "apps/web/components/conversation/blocks/interactive-blocks.tsx": {
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 76
   },

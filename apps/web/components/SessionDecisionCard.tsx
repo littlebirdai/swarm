@@ -4,7 +4,7 @@ import { approvalButtonLabel } from "@codecast/hosted-assistant/assistant";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useDecisionAnswer } from "../hooks/useDecisionAnswer";
 import { useDecisionDraftText } from "../hooks/useDecisionDraft";
-import { PermissionStack } from "./PermissionCard";
+import { PermissionStack } from "./permission-card";
 import { useInboxStore, getProjectName } from "../store/inboxStore";
 import { type DecisionStepper } from "../hooks/useDecisionQueue";
 import { useDecisionCardKeys } from "./decisionCardKeys";

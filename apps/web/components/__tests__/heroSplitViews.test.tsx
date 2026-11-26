@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ConvexProvider } from "convex/react";
 import { heroConvexStub } from "../../app/(marketing)/heroFly/convexStub";
-import { PermissionStack, PermissionStackView } from "../PermissionCard";
+import { PermissionStack, PermissionStackView } from "../permission-card";
 import { AgentStatusPill } from "../conversation/ConversationHeaderBar";
 import { agentStatusPillSpec } from "../conversation/agentStatusPill";
 import {

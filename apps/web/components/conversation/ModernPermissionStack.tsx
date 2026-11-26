@@ -9,7 +9,7 @@ import {
   PermissionSourceTag,
   ToolName,
   type PermissionViewItem,
-} from "../PermissionCard";
+} from "../permission-card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ModernAskCard } from "./ModernAsk";

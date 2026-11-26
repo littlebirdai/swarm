@@ -12,7 +12,7 @@ import {
   buildFreeTextPayload,
 } from "../lib/pollPayload";
 import { sendToSession } from "../lib/sendToSession";
-import { PERMISSION_SKIP_TOOLS } from "../components/PermissionCard";
+import { PERMISSION_SKIP_TOOLS } from "../components/permission-card";
 import type { QueueItem } from "../lib/decisionQueue";
 import { useApproveGate } from "../lib/passkeyPresence";
 
