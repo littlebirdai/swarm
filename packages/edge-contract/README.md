@@ -216,7 +216,8 @@ A tool result wraps inline JSON in `{ "inline": … }` or uses
 `{ "blob_id": "…" }` for a blob reference. Inline JSON can contain its own
 `blob_id` field. User events can include references in `attachments`.
 A delivery permit can carry text and blob parts in order. Each blob part
-supplies the content type.
+supplies the content type. A start response can repeat the permit's input
+parts in its optional `input` field.
 
 ### Read a delivery blob
 

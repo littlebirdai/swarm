@@ -70,6 +70,7 @@ const startedAttempt = responseObject({
   v: readV1,
   status: oneOf("started", "already_started"),
   ...responseDelivery,
+  input: optional(array(inputPart)),
 });
 const deliveryStartResponse = response(
   tagged("status", {

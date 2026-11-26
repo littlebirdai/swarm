@@ -1,12 +1,13 @@
 import {
+  EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION as v1,
   type DeliverySettleResponse,
   type DeliveryStartResponse,
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
 import { ConvexError, v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   assertReadyFence,
   claimNextDeliveryInDb,
@@ -19,12 +20,17 @@ import {
   startDeliveryInDb,
   verifyAttemptFence,
 } from "./executionBindings";
-import { internalMutation } from "./functions";
+import { internalMutation, internalQuery } from "./functions";
+import { isConversationSafetyBlocked } from "./conversationSafety";
 import {
   attemptMatchesFence,
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun } from "./lib/edge/runLease";
+import {
+  inspectPermitImage,
+  permitImageIds,
+} from "./lib/edge/blob-policy.rules";
 
 const runFence = {
   v: v.literal(v1),
@@ -79,7 +85,7 @@ async function withFence<T>(
   }
 }
 
-async function runContext(ctx: MutationCtx, args: RunFence) {
+async function runContext(ctx: Pick<QueryCtx, "db">, args: RunFence) {
   const owned = await ownedRun(ctx, {
     bearer: args.bearer,
     conversation_id: args.session,
@@ -116,9 +122,37 @@ function deliveryFields(
   };
 }
 
-function requireTextDelivery(message: Doc<"pending_messages">) {
-  if (message.image_storage_id || message.image_storage_ids?.length)
-    throw new ConvexError("edge-delivery-unsupported");
+async function deliveryInput(
+  ctx: MutationCtx,
+  message: Doc<"pending_messages">,
+  requireValidAttachments: boolean,
+) {
+  const ids = permitImageIds(message);
+  const images = [];
+  for (const blob_id of ids) {
+    const image = await inspectPermitImage(ctx, blob_id);
+    if (requireValidAttachments && image.status === "too_large")
+      return { reason: "An image exceeds the 8 MiB delivery limit." };
+    if (requireValidAttachments && image.status === "invalid")
+      return { reason: "An image has an unsupported content type." };
+    if (image.status === "ready")
+      images.push({
+        type: "blob" as const,
+        blob_id,
+        content_type: image.contentType,
+      });
+  }
+  const hasText =
+    message.content.replace(/\[image(?:\s+\d+)?\]/gi, "").trim().length > 0;
+  if (requireValidAttachments && ids.size && !images.length && !hasText)
+    return {
+      reason: "The attached images are missing and the message has no text.",
+    };
+  const text =
+    !ids.size || hasText
+      ? [{ type: "text" as const, text: message.content }]
+      : [];
+  return { input: [...text, ...images], hasAttachments: ids.size > 0 };
 }
 
 async function deliveryContext(
@@ -181,25 +215,33 @@ export const next = internalMutation({
               attempt.state !== "ambiguous")))
       )
         throw new ConvexError("edge-delivery-unavailable");
+      const fence = {
+        ...run.fence,
+        attemptId: attempt._id,
+        messageId: attempt.message_id,
+        deliveryId: attempt.delivery_id,
+        conversationSequence: attempt.conversation_sequence,
+      };
       if (result.state !== "claimed") {
-        await verifyAttemptFence(
-          ctx,
-          run.owner,
-          {
-            ...run.fence,
-            attemptId: attempt._id,
-            messageId: attempt.message_id,
-            deliveryId: attempt.delivery_id,
-            conversationSequence: attempt.conversation_sequence,
-          },
-          [attempt.state],
-        );
+        await verifyAttemptFence(ctx, run.owner, fence, [attempt.state]);
       }
       const message = await ctx.db.get(attempt.message_id);
       if (!message) throw new Error("Delivery message is missing");
       if (message.delivery_status !== attempt.state)
         throw new Error("Delivery message and attempt state differ");
-      requireTextDelivery(message);
+      const prepared = await deliveryInput(
+        ctx,
+        message,
+        attempt.state === "claimed",
+      );
+      if (prepared.reason !== undefined) {
+        await finishEdgeDelivery(ctx, run.owner, fence, {
+          code: rejectedCode,
+          reason: prepared.reason,
+          attachment: true,
+        });
+        return { v: v1, status: "empty" };
+      }
       return {
         v: v1,
         status: "permit",
@@ -208,7 +250,7 @@ export const next = internalMutation({
         fencing_token: args.fencing_token,
         ...deliveryFields(attempt, message),
         state: attempt.state === "claimed" ? "new" : "started",
-        input: [{ type: "text", text: message.content }],
+        input: prepared.input,
       };
     }),
 });
@@ -220,8 +262,26 @@ export const start = internalMutation({
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return rejected;
       const { owner, fence, attempt, fields, message } = delivery;
+      if (
+        message.delivery_status === "rejected" &&
+        attempt.failure_code === rejectedCode &&
+        attempt.failure_message
+      )
+        return { ...rejected, reason: attempt.failure_message };
+      const prepared = await deliveryInput(
+        ctx,
+        message,
+        attempt.state === "claimed",
+      );
+      if (prepared.reason !== undefined) {
+        await finishEdgeDelivery(ctx, owner, fence, {
+          code: rejectedCode,
+          reason: prepared.reason,
+          attachment: true,
+        });
+        return { ...rejected, reason: prepared.reason };
+      }
       await startDeliveryInDb(ctx, owner, fence);
-      requireTextDelivery(message);
       return {
         ...fields,
         v: v1,
@@ -229,7 +289,49 @@ export const start = internalMutation({
         session: fence.conversationId,
         run: fence.executionEpoch,
         fencing_token: args.fencing_token,
+        ...(prepared.hasAttachments ? { input: prepared.input } : {}),
       };
+    }),
+});
+
+type PermitImage = { storageId: Id<"_storage">; contentType: string };
+
+export const getBlob = internalQuery({
+  args: { ...runFence, attempt_id: v.string(), blob_id: v.string() },
+  handler: (ctx, args): Promise<PermitImage | null> =>
+    withFence<PermitImage | null>(null, async () => {
+      const run = await runContext(ctx, args);
+      if (!run || run.head.active_delivery_attempt_id !== args.attempt_id)
+        return null;
+      const attempt = await ctx.db.get(run.head.active_delivery_attempt_id);
+      if (!attempt) return null;
+      const { message, head } = await verifyAttemptFence(
+        ctx,
+        run.owner,
+        {
+          ...run.fence,
+          attemptId: attempt._id,
+          messageId: attempt.message_id,
+          deliveryId: attempt.delivery_id,
+          conversationSequence: attempt.conversation_sequence,
+        },
+        ["claimed", "delivery-started", "ambiguous"],
+      );
+      const storageId = ctx.db.system.normalizeId("_storage", args.blob_id);
+      if (
+        !storageId ||
+        !permitImageIds(message).has(storageId) ||
+        head.active_delivery_state !== attempt.state ||
+        message.delivery_status !== attempt.state
+      )
+        return null;
+      const image = await inspectPermitImage(ctx, storageId);
+      if (image.status === "missing") return null;
+      if (image.status === "too_large")
+        throw new ConvexError(EDGE_ERROR_CODES.TOO_LARGE);
+      if (image.status === "invalid")
+        throw new ConvexError(EDGE_ERROR_CODES.INVALID);
+      return { storageId, contentType: image.contentType };
     }),
 });
 
@@ -237,19 +339,31 @@ async function finishEdgeDelivery(
   ctx: MutationCtx,
   owner: Doc<"users">["_id"],
   fence: PermitFence & { now: number },
-  rejection?: { code: string; reason: string; evidence?: string },
+  rejection?: {
+    code: string;
+    reason: string;
+    evidence?: string;
+    attachment?: true;
+  },
 ) {
   const states = !rejection
     ? ["delivery-started"]
-    : rejection.evidence === undefined
-      ? ["claimed", "delivery-started"]
-      : ["delivery-started", "ambiguous"];
-  const { head, message, attempt } = await verifyAttemptFence(
+    : rejection.attachment
+      ? ["claimed"]
+      : rejection.evidence === undefined
+        ? ["claimed", "delivery-started"]
+        : ["delivery-started", "ambiguous"];
+  const { conversation, head, message, attempt } = await verifyAttemptFence(
     ctx,
     owner,
     fence,
     states,
   );
+  if (rejection?.attachment && isConversationSafetyBlocked(conversation))
+    throw new ExecutionAuthorityError(
+      "CONVERSATION_SAFETY_BLOCKED",
+      "Delivery is held for safety review",
+    );
   if (
     head.active_delivery_state !== attempt.state ||
     message.delivery_status !== attempt.state
@@ -285,7 +399,6 @@ export const settle = internalMutation({
     withFence<DeliverySettleResponse>(stale, async () => {
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return stale;
-      requireTextDelivery(delivery.message);
       const { owner, fence, attempt } = delivery;
       const { outcome, resolution_evidence: evidence } = args;
       const applied = outcome === "applied" || outcome === "duplicate";
