@@ -1,4 +1,5 @@
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 
 type DbCtx = { db: any };
 
@@ -195,12 +196,17 @@ export async function reviveConversationOnDelivery(
 ): Promise<boolean> {
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) return false;
-  const revive: Record<string, unknown> = {};
+  const revive: Partial<
+    Pick<
+      Doc<"conversations">,
+      "inbox_killed_at" | "inbox_dismissed_at" | "status"
+    >
+  > = {};
   if (conversation.inbox_killed_at) revive.inbox_killed_at = undefined;
   if (conversation.inbox_dismissed_at) revive.inbox_dismissed_at = undefined;
   if (conversation.status === "completed") revive.status = "active";
   if (Object.keys(revive).length === 0) return false;
-  await ctx.db.patch(conversationId, revive);
+  await patchConversationLifecycle(ctx, conversationId, revive);
   return true;
 }
 

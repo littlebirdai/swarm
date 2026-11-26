@@ -1,3 +1,4 @@
+import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { v, type ObjectType, type Validator } from "convex/values";
 import { predictionPatch } from "./predictions";
 import { paginationOptsValidator } from "convex/server";
@@ -5692,7 +5693,7 @@ export async function spawnSessionForTask(
     task.team_id,
   );
 
-  const conversationId = await ctx.db.insert("conversations", {
+  const conversationId = await insertConversationWithStatus(ctx, {
     user_id: userId,
     agent_type,
     session_id: sessionId,
