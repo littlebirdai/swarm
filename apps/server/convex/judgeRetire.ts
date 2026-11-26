@@ -97,7 +97,7 @@ export const settleRun = internalMutation({
     )
       .filter(
         (r: Doc<"judge_runs">) =>
-          r.judge === args.judge && r.status === "ok" && r.at < args.before,
+          r.judge === args.judge && r.status === "ok" && r.at <= args.before,
       )
       .sort((a: Doc<"judge_runs">, b: Doc<"judge_runs">) => a.at - b.at);
     const runs = all.filter((r) => r.signal_ids?.length || r.held_ids?.length);

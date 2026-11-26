@@ -2,6 +2,7 @@
 // embedding stubbed at fetch. Two dots in the name keep it out of the Convex
 // bundle (testModules.testkit.ts).
 import { convexTest } from "convex-test";
+import { patchEnv } from "@codecast/test-helpers/patchEnv";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { hashToken } from "./apiTokens";
@@ -24,45 +25,52 @@ export function vec(
 }
 
 export function stubs() {
-  const realFetch = globalThis.fetch;
-  const keys = {
-    a: process.env.ANTHROPIC_API_KEY,
-    o: process.env.OPENAI_API_KEY,
-  };
   // embedFail: how many embedding calls fail next (grouping could not compare a finding).
-  const state = {
+  const freshState = () => ({
     judge: '{"deviations": []}',
     vectors: [] as number[][],
     model: [] as any[],
     embeds: [] as string[],
     embedFail: 0,
-  };
+  });
+  let state = freshState();
+  let restoreGlobals: (() => void) | undefined;
   return {
-    state,
+    get state() {
+      return state;
+    },
     install() {
-      process.env.ANTHROPIC_API_KEY = "test-key";
-      process.env.OPENAI_API_KEY = "test-key";
+      const testState = (state = freshState());
+      const realFetch = globalThis.fetch;
+      const restoreEnv = patchEnv({
+        ANTHROPIC_API_KEY: "test-key",
+        OPENAI_API_KEY: "test-key",
+      });
+      restoreGlobals = () => {
+        globalThis.fetch = realFetch;
+        restoreEnv();
+      };
       globalThis.fetch = (async (url: unknown, init: { body: string }) => {
         const body = JSON.parse(init.body);
         if (String(url).includes("api.openai.com")) {
-          if (state.embedFail > 0 && state.embedFail--)
+          if (testState.embedFail > 0 && testState.embedFail--)
             return new Response("overloaded", { status: 529 });
-          state.embeds.push(body.input);
+          testState.embeds.push(body.input);
           return new Response(
             JSON.stringify({
-              data: [{ embedding: state.vectors.shift() ?? vec(0) }],
+              data: [{ embedding: testState.vectors.shift() ?? vec(0) }],
               usage: { total_tokens: 20 },
             }),
           );
         }
-        state.model.push(body);
+        testState.model.push(body);
         const isAttach = String(body.system ?? "").includes("list of causes");
         return new Response(
           JSON.stringify({
             content: [
               {
                 type: "text",
-                text: isAttach ? '{"answer":"none"}' : state.judge,
+                text: isAttach ? '{"answer":"none"}' : testState.judge,
               },
             ],
             stop_reason: "end_turn",
@@ -72,14 +80,8 @@ export function stubs() {
       }) as unknown as typeof fetch;
     },
     restore() {
-      globalThis.fetch = realFetch;
-      for (const [k, env] of [
-        ["a", "ANTHROPIC_API_KEY"],
-        ["o", "OPENAI_API_KEY"],
-      ] as const) {
-        if (keys[k] === undefined) delete process.env[env];
-        else process.env[env] = keys[k];
-      }
+      restoreGlobals?.();
+      restoreGlobals = undefined;
     },
   };
 }

@@ -4,7 +4,15 @@
 // moment back, the judge runs inside the team's budget, a live judge's
 // findings file and group into problems by what happened. The model and the
 // embedding are stubbed at fetch.
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  onTestFinished,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { api, internal } from "./_generated/api";
 import { JUDGE, T0, TOKEN, setup, stubs, vec } from "./moments.testkit";
 
@@ -608,6 +616,8 @@ describe("moments", () => {
   }, 120_000);
 
   test("a finding only a resample made waits: it files once 2 of the last 3 reads of the same messages make it, or at once when its line is the re-read's scope", async () => {
+    onTestFinished(() => setSystemTime());
+    setSystemTime(T0);
     const { t, scope, post, due, claim, complete } = await setup();
     await t.mutation(api.moments.publish, {
       ...scope,
