@@ -1,4 +1,5 @@
-import type { Id } from "../_generated/dataModel";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 type Reader = Pick<QueryCtx, "db">;
@@ -12,12 +13,25 @@ export function heartbeatRow(ctx: Reader, id: Id<"managed_sessions">) {
     .first();
 }
 
-function resolveHeartbeat(
+export function resolveHeartbeat(
   session: ManagedHeartbeat,
   beat: number | undefined,
 ): number {
   // A rollback can advance the legacy timestamp without updating the side row.
   return Math.max(beat ?? 0, session.last_heartbeat ?? 0);
+}
+
+export function inboxHeartbeatOf(
+  session: Pick<
+    Doc<"managed_sessions">,
+    "liveness_lease" | "last_heartbeat"
+  > | null,
+): number {
+  if (!session) return 0;
+  return Math.max(
+    session.last_heartbeat,
+    (session.liveness_lease?.end ?? 0) - HEARTBEAT_ALIVE_MS,
+  );
 }
 
 export async function heartbeatOf(
@@ -34,30 +48,6 @@ export function heartbeatsFor(
   sessions: ManagedHeartbeat[],
 ): Promise<number[]> {
   return Promise.all(sessions.map((session) => heartbeatOf(ctx, session)));
-}
-
-// A whole-user projection already reads the user's full registry. Fetch its
-// matching side rows in one indexed read to stay within the inbox call budget.
-export async function heartbeatsForUser(
-  ctx: Reader,
-  userId: Id<"users">,
-  sessions: ManagedHeartbeat[],
-  since?: number,
-): Promise<number[]> {
-  if (sessions.length === 0) return [];
-  const rows = await ctx.db
-    .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) => {
-      const range = q.eq("user_id", userId);
-      return since === undefined ? range : range.gt("heartbeat_at", since);
-    })
-    .collect();
-  const beats = new Map(
-    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
-  );
-  return sessions.map((session) =>
-    resolveHeartbeat(session, beats.get(session._id)),
-  );
 }
 
 export async function transferManagedSession(

@@ -1,9 +1,5 @@
 import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
-import {
-  heartbeatOf,
-  heartbeatsFor,
-  heartbeatsForUser,
-} from "./lib/sessionHeartbeat";
+import { heartbeatsFor, inboxHeartbeatOf } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
 import { sanitizeConvexObjectKeys } from "./lib/convexFieldNames";
@@ -10173,7 +10169,6 @@ async function buildUserSessionMaps(
   ctx: any,
   userId: Id<"users">,
   now: number,
-  heartbeatSince?: number,
 ): Promise<InboxSessionMaps> {
   const managedSessions = await ctx.db
     .query("managed_sessions")
@@ -10181,7 +10176,7 @@ async function buildUserSessionMaps(
     .collect();
   return sessionMapsFromManagedRows(
     managedSessions,
-    await heartbeatsForUser(ctx, userId, managedSessions, heartbeatSince),
+    managedSessions.map(inboxHeartbeatOf),
     now,
   );
 }
@@ -10257,7 +10252,7 @@ export async function buildNamedSessionMaps(
   return {
     maps: sessionMapsFromManagedRows(
       own,
-      await heartbeatsFor(ctx, own),
+      own.map(inboxHeartbeatOf),
       now,
       user?.daemon_last_seen,
     ),
@@ -10371,10 +10366,8 @@ export function sessionMapsFromManagedRows(
   };
 }
 
-// Empty maps for the liveness-excluded path: computeInboxSessions({includeLiveness:false})
-// skips the managed_sessions read entirely (that read is what makes the inbox query
-// re-run on every heartbeat). The per-row liveness then computes from nothing and is
-// stripped below — the live values ride the separate `sessionsLiveness` overlay instead.
+// Empty maps for computeInboxSessions({includeLiveness:false}): this path skips
+// the managed-session read and strips the facts owned by sessionsLiveness.
 const EMPTY_INBOX_MAPS: InboxSessionMaps = {
   agentStatusMap: new Map(),
   agentStatusUpdatedAtMap: new Map(),
@@ -10412,15 +10405,12 @@ async function mergeForeignConversationLiveness(
         .first(),
     ),
   );
-  const beats = await Promise.all(
-    managedRows.map((row: any) => heartbeatOf(ctx, row)),
-  );
   for (let i = 0; i < convs.length; i++) {
     const conv = convs[i];
     const cid = conv._id.toString();
     const managed = managedRows[i];
     if (!managed) continue;
-    noteHeartbeat(maps, cid, beats[i], now);
+    noteHeartbeat(maps, cid, inboxHeartbeatOf(managed), now);
     if (managed.tmux_session)
       maps.tmuxSessionMap.set(cid, managed.tmux_session);
     if (managed.backend === "sdk") maps.sdkBackendConvIds.add(cid);
@@ -10855,6 +10845,7 @@ async function enrichInboxSessionRow(
       maps.settleFactsMap.get(conv._id.toString())?.turnCompletedAt ?? null,
     hibernated_at: maps.hibernatedAtMap.get(conv._id.toString()) ?? null,
     last_heartbeat: maps.lastHeartbeatMap.get(conv._id.toString()) ?? null,
+    liveness_lease_end: inboxLeaseEnd(maps, conv._id.toString()),
     last_role_is_user: activity.lastRoleIsUser,
     auq_open: awaitingInput,
     daemon_alive_until: daemonAliveUntil(
@@ -11129,6 +11120,7 @@ async function buildSubagentChildRow(
       maps.settleFactsMap.get(child._id.toString())?.turnCompletedAt ?? null,
     hibernated_at: maps.hibernatedAtMap.get(child._id.toString()) ?? null,
     last_heartbeat: maps.lastHeartbeatMap.get(child._id.toString()) ?? null,
+    liveness_lease_end: inboxLeaseEnd(maps, child._id.toString()),
     is_connected: !!childDaemon,
     has_pending: !!child.has_pending_messages,
     is_deferred: false,
@@ -11241,7 +11233,6 @@ export async function scanInboxConversations(
   now: number,
   opts: {
     includeLiveness: boolean;
-    heartbeatSince?: number;
     extraConvIds?: string[];
     teamScope?: Id<"teams">;
     // Also read the user's recently updated SUBAGENT rows (one indexed range,
@@ -11792,7 +11783,7 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else {
-    maps = await buildUserSessionMaps(ctx, userId, now, opts.heartbeatSince);
+    maps = await buildUserSessionMaps(ctx, userId, now);
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;
@@ -11940,11 +11931,8 @@ export async function computeInboxSessions(
   truncated: InboxTruncation[];
   hot_ids?: Set<string>;
 }> {
-  // Liveness (agent_status/is_idle/...) is heartbeat-derived and is the reason this
-  // query re-runs ~every second. The live web subscription opts OUT (includeLiveness:
-  // false) and gets those fields from the lightweight `sessionsLiveness` overlay; all
-  // other callers (inboxForCLI, listInboxSessionsPaginated) default to true and are
-  // unchanged. Default MUST stay true — inboxForCLI classifies work-state from it.
+  // The CLI uses liveness to classify work-state. The web base subscription
+  // opts out and gets those facts through the sessionsLiveness overlay.
   const includeLiveness = opts.includeLiveness !== false;
   // The AUQ probe (one last-message read per non-idle row) exists to compute
   // awaiting_input / is_idle — fields stripInboxLiveness nulls when liveness is
@@ -11961,7 +11949,6 @@ export async function computeInboxSessions(
     !includeLiveness && opts.fastFieldsInOverlay === true;
   const scan = await scanInboxConversations(ctx, userId, now, {
     includeLiveness,
-    heartbeatSince: opts.projection ? now - USER_DAEMON_ALIVE_MS : undefined,
     extraConvIds: opts.extraConvIds,
     teamScope: opts.teamScope,
     subagentWindow: fastFieldsInOverlay,
@@ -12427,6 +12414,7 @@ type LivenessFields = {
   turn_completed_at: number | null;
   hibernated_at?: number | null;
   last_heartbeat: number | null;
+  liveness_lease_end: number | null;
   last_role_is_user: boolean;
   auq_open: boolean;
   daemon_alive_until: number | null;
@@ -12897,6 +12885,7 @@ export function ownAsk(
 export const PLACEMENT_LIVENESS_FIELDS = [
   "agent_status", "updated_at", "is_idle", "awaiting_input", "is_unresponsive", "agent_status_boundary",
   "open_tasks", "open_tasks_at", "producing_until", "last_heartbeat",
+  "liveness_lease_end",
 ] as const satisfies ReadonlyArray<keyof LivenessFields>;
 
 export function placeConversationRow(
@@ -12923,6 +12912,7 @@ export function placeConversationRow(
             agent_status: lv.agent_status ?? null,
             updated_at: lv.updated_at ?? conv.updated_at,
             last_heartbeat: lv.last_heartbeat ?? null,
+            liveness_lease_end: lv.liveness_lease_end ?? null,
             open_tasks: lv.open_tasks ?? null,
             open_tasks_at: lv.open_tasks_at ?? null,
           },
@@ -12936,6 +12926,7 @@ export function placeConversationRow(
       open_tasks_at: lv.open_tasks_at ?? null,
       // The open-task vouch holds only while the row's own heartbeat lives.
       last_heartbeat: lv.last_heartbeat ?? null,
+      liveness_lease_end: lv.liveness_lease_end ?? null,
       producing_until: lv.producing_until ?? null,
       last_message_preview: lastUserMessage ?? null,
       last_user_message: null,
@@ -12964,13 +12955,20 @@ type LivenessRowReads = {
 // status): the row's own heartbeat window, or the user's most recent daemon
 // vouching for a recently active conversation. Pure in the maps, so the same
 // value ships at every execution over the same data.
+function inboxLeaseEnd(
+  maps: Pick<InboxSessionMaps, "lastHeartbeatMap">,
+  cid: string,
+): number | null {
+  const heartbeat = maps.lastHeartbeatMap.get(cid);
+  return heartbeat === undefined ? null : heartbeat + HEARTBEAT_ALIVE_MS;
+}
+
 function daemonAliveUntil(
   maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "latestHeartbeat">,
   cid: string,
   updatedAt: number,
 ): number | null {
-  const hb = maps.lastHeartbeatMap.get(cid);
-  const own = hb !== undefined ? hb + HEARTBEAT_ALIVE_MS : null;
+  const own = inboxLeaseEnd(maps, cid);
   const user =
     maps.latestHeartbeat !== undefined
       ? Math.min(
@@ -13040,6 +13038,7 @@ function deriveLivenessAt(
     agent_status: maps.agentStatusMap.get(cid) ?? null,
     agent_status_updated_at: maps.agentStatusUpdatedAtMap.get(cid) ?? null,
     last_heartbeat: maps.lastHeartbeatMap.get(cid) ?? null,
+    liveness_lease_end: inboxLeaseEnd(maps, cid),
     daemon_alive_until: daemonAliveUntil(maps, cid, conv.updated_at),
     producing_until: producingUntil,
     last_role_is_user: lastRoleIsUserOf(
@@ -13081,6 +13080,7 @@ function deriveLivenessAt(
     turn_completed_at: settle?.turnCompletedAt ?? null,
     hibernated_at: maps.hibernatedAtMap.get(cid) ?? null,
     last_heartbeat: facts.last_heartbeat,
+    liveness_lease_end: facts.liveness_lease_end,
     last_role_is_user: facts.last_role_is_user,
     auq_open: facts.auq_open,
     daemon_alive_until: facts.daemon_alive_until,
@@ -13547,12 +13547,9 @@ export async function computeSessionsLiveness(
 }
 
 // Heartbeat-derived liveness for the user's inbox sessions, keyed by conversation id —
-// the small, high-churn overlay that pairs with listInboxSessions({include_liveness:
-// false}). This is the only inbox query that re-runs on every heartbeat, so it computes
-// ONLY the liveness fields plus the projection stamps (computeSessionsLiveness) instead
-// of the full inbox enrichment — the values are still identical to the bundled path
-// because both derive them the same way. Ships a tiny map the client merges via
-// syncOverlay, plus the projection envelope (sync-convergence C1).
+// the overlay that pairs with listInboxSessions({include_liveness:false}).
+// It reads status and lease snapshots and ships the facts and projection stamps
+// the client merges through syncOverlay.
 export const sessionsLiveness = query({
   args: {
     show_all: v.optional(v.boolean()),

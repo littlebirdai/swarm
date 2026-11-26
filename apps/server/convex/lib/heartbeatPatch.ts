@@ -10,9 +10,14 @@ export function statusWriteIsStale(
   session: StatusStamps,
   status: string,
   clientTs?: number,
+  heartbeatWriteAt?: number,
 ): boolean {
-  const previous =
+  const legacy =
     session.agent_status_write_at ?? session.agent_status_updated_at;
+  const previous =
+    heartbeatWriteAt === undefined
+      ? legacy
+      : Math.max(legacy ?? heartbeatWriteAt, heartbeatWriteAt);
   return (
     clientTs !== undefined &&
     previous !== undefined &&

@@ -33,6 +33,7 @@ export const INBOX_FACT_FIELDS = [
   "turn_completed_at",
   "hibernated_at",
   "last_heartbeat",
+  "liveness_lease_end",
   "last_role_is_user",
   "auq_open",
   "daemon_alive_until",

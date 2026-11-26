@@ -2,16 +2,19 @@
 import {
   ACTIVE_AGENT_STATUSES,
   HEARTBEAT_REFRESH_MS,
+  HEARTBEAT_ALIVE_MS,
+  HEARTBEAT_FLUSH_INTERVAL_MS,
   type AgentStatus,
 } from "@codecast/sessions/agentStatus";
 
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import type { ThreadStateStatus } from "@codecast/sessions/threadState";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { statusWriteIsStale, type StatusStamps } from "./heartbeatPatch";
-import { heartbeatRow } from "./sessionHeartbeat";
+import { heartbeatRow, resolveHeartbeat } from "./sessionHeartbeat";
 
 // Shared by heartbeat + heartbeatBatch: compute one session's heartbeat patch.
 // The heartbeat carries the daemon's current
@@ -23,8 +26,6 @@ import { heartbeatRow } from "./sessionHeartbeat";
 // detection depends on).
 // Refresh last_heartbeat at most this often (HEARTBEAT_REFRESH_MS, owned by
 // @codecast/sessions/agentStatus because the liveness window is derived from it).
-// The legacy write invalidates projections that read the registry, so preserve
-// the refresh throttle during expand.
 // The throttle means the stamp advances on the first flush PAST it, not on the
 // flush cadence: 60s apart in steady state and 85s behind a late flush, which
 // is why HEARTBEAT_ALIVE_MS is derived from this number rather than guessed
@@ -83,13 +84,57 @@ export async function applyHeartbeat(
   clientTs: number | undefined,
   now: number,
 ) {
-  const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
-  // Expand keeps the original throttle and counts. Seed a missing side row
-  // even when this beat falls within the legacy timestamp's refresh interval.
-  // oxfmt-ignore
-  await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
-  if (patch) await ctx.db.patch(session._id, patch);
+  const row = await heartbeatRow(ctx, session._id);
+  const lastHeartbeat = resolveHeartbeat(session, row?.heartbeat_at);
+  const patch = buildHeartbeatPatch(
+    {
+      ...session,
+      agent_status_write_at: heartbeatOrderingStamp(session, row),
+      last_heartbeat: lastHeartbeat,
+    },
+    agentStatus,
+    clientTs,
+    now,
+  );
+  const at = patch?.last_heartbeat ?? lastHeartbeat;
+  await persistSessionHeartbeat(
+    ctx,
+    session._id,
+    session.user_id,
+    row,
+    at,
+    patch?.agent_status_write_at,
+  );
+  const status = patch?.agent_status;
+  const lease =
+    !session.liveness_lease || session.liveness_lease.expired
+      ? await startInboxLease(ctx, session._id, at, now)
+      : undefined;
+  if (status || lease) {
+    await ctx.db.patch(session._id, {
+      ...(status && {
+        agent_status: status,
+        last_heartbeat: at,
+        agent_status_updated_at: patch?.agent_status_updated_at,
+        agent_status_boundary: undefined,
+      }),
+      ...(lease && { liveness_lease: lease, last_heartbeat: at }),
+    });
+  }
   return patch;
+}
+
+function heartbeatOrderingStamp(
+  session: Doc<"managed_sessions">,
+  heartbeat: Doc<"session_heartbeats"> | null,
+) {
+  const side = heartbeat?.agent_status_write_at;
+  return side === undefined
+    ? session.agent_status_write_at
+    : Math.max(
+        side,
+        session.agent_status_write_at ?? session.agent_status_updated_at ?? 0,
+      );
 }
 
 export async function writeSessionHeartbeat(
@@ -99,15 +144,82 @@ export async function writeSessionHeartbeat(
   at: number,
 ) {
   const row = await heartbeatRow(ctx, id);
+  await persistSessionHeartbeat(ctx, id, userId, row, at);
+}
+
+async function persistSessionHeartbeat(
+  ctx: Pick<MutationCtx, "db">,
+  id: Id<"managed_sessions">,
+  userId: Id<"users">,
+  row: Doc<"session_heartbeats"> | null,
+  at: number,
+  writeAt?: number,
+) {
   if (!row) {
     await ctx.db.insert("session_heartbeats", {
       managed_session_id: id,
       user_id: userId,
       heartbeat_at: at,
+      ...(writeAt !== undefined && { agent_status_write_at: writeAt }),
     });
-  } else if (row.heartbeat_at !== at) {
-    await ctx.db.patch(row._id, { heartbeat_at: at });
+  } else {
+    const advance =
+      writeAt !== undefined && writeAt > (row.agent_status_write_at ?? 0);
+    if (row.heartbeat_at !== at || advance) {
+      await ctx.db.patch(row._id, {
+        ...(row.heartbeat_at !== at && { heartbeat_at: at }),
+        ...(advance && { agent_status_write_at: writeAt }),
+      });
+    }
   }
+}
+
+export async function startInboxLease(
+  ctx: Pick<MutationCtx, "scheduler">,
+  id: Id<"managed_sessions">,
+  heartbeat: number,
+  now: number,
+): Promise<Doc<"managed_sessions">["liveness_lease"]> {
+  const end = heartbeat + HEARTBEAT_ALIVE_MS;
+  if (end <= now) return undefined;
+  await ctx.scheduler.runAfter(
+    Math.max(1, end - HEARTBEAT_FLUSH_INTERVAL_MS - now),
+    internal.managedSessions.checkInboxLivenessLease,
+    { id, end },
+  );
+  return { end, expired: false };
+}
+
+export async function checkInboxLease(
+  ctx: MutationCtx,
+  id: Id<"managed_sessions">,
+  end: number,
+): Promise<void> {
+  const session = await ctx.db.get(id);
+  if (session?.liveness_lease?.end !== end || session.liveness_lease.expired)
+    return;
+  const row = await heartbeatRow(ctx, id);
+  const latest = resolveHeartbeat(session, row?.heartbeat_at);
+  const now = Date.now();
+  if (latest + HEARTBEAT_ALIVE_MS > end) {
+    const lease = await startInboxLease(ctx, id, latest, now);
+    if (lease) {
+      await ctx.db.patch(id, { liveness_lease: lease, last_heartbeat: latest });
+      return;
+    }
+  }
+  if (now < end) {
+    await ctx.scheduler.runAfter(
+      end - now,
+      internal.managedSessions.checkInboxLivenessLease,
+      { id, end },
+    );
+    return;
+  }
+  await ctx.db.patch(id, {
+    last_heartbeat: latest,
+    liveness_lease: { end: latest + HEARTBEAT_ALIVE_MS, expired: true },
+  });
 }
 
 export type AgentStatusWrite = {
@@ -127,9 +239,19 @@ export async function writeAgentStatus(
   session: Doc<"managed_sessions">,
   args: AgentStatusWrite,
 ) {
+  const row = await heartbeatRow(ctx, session._id);
+  if (
+    statusWriteIsStale(
+      session,
+      args.agent_status,
+      args.client_ts,
+      row?.agent_status_write_at,
+    )
+  )
+    return null;
+  const now = Date.now();
   const patch: Record<string, any> = {
     agent_status: args.agent_status,
-    agent_status_write_at: args.client_ts ?? Date.now(),
     agent_status_boundary: args.session_boundary === true ? true : undefined,
   };
   if (args.turn_completed_at !== undefined) {
@@ -152,10 +274,21 @@ export async function writeAgentStatus(
     patch.agent_status_updated_at = args.client_ts ?? Date.now();
   }
 
-  if (ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
-    const at = Date.now();
+  const active = ACTIVE_AGENT_STATUSES.has(args.agent_status);
+  const at = active ? now : resolveHeartbeat(session, row?.heartbeat_at);
+  await persistSessionHeartbeat(
+    ctx,
+    session._id,
+    session.user_id,
+    row,
+    at,
+    args.client_ts ?? now,
+  );
+  if (active) {
     patch.last_heartbeat = at;
-    await writeSessionHeartbeat(ctx, session._id, session.user_id, at);
+    if (!session.liveness_lease || session.liveness_lease.expired) {
+      patch.liveness_lease = await startInboxLease(ctx, session._id, at, now);
+    }
   }
 
   if (Object.keys(patch).length > 0) {

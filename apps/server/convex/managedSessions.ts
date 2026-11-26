@@ -2,12 +2,13 @@ import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import { heartbeatOf, managedHeartbeatPage } from "./lib/sessionHeartbeat";
 import {
   applyHeartbeat,
+  checkInboxLease,
+  startInboxLease,
   ensureHostedManagedSession,
   writeAgentStatus,
   type AgentStatusWrite,
   writeSessionHeartbeat,
 } from "./lib/sessionStatusWriter";
-import { statusWriteIsStale } from "./lib/heartbeatPatch";
 import {
   mutation,
   query,
@@ -148,7 +149,7 @@ const backendPatch = (a: { tmux_session?: string; backend?: "sdk" }) =>
 // Factored out of the mutation so tests can drive it with an explicit userId
 // (same pattern as performReparentSessionToDevice).
 export async function performRegisterManagedSession(
-  ctx: { db: any },
+  ctx: Pick<MutationCtx, "scheduler"> & { db: any },
   authUserId: Id<"users">,
   args: {
     session_id: string;
@@ -242,8 +243,10 @@ export async function performRegisterManagedSession(
     if (existing.user_id.toString() !== authUserId.toString()) {
       await ctx.db.delete(existing._id);
     } else {
+      const lease = await startInboxLease(ctx, existing._id, now, now);
       await ctx.db.patch(existing._id, {
         pid: args.pid,
+        liveness_lease: lease,
         last_heartbeat: now,
         ...backendPatch(args),
         ...(args.tmux_session !== undefined
@@ -307,6 +310,9 @@ export async function performRegisterManagedSession(
   });
 
   await writeSessionHeartbeat(ctx, id, authUserId, now);
+  await ctx.db.patch(id, {
+    liveness_lease: await startInboxLease(ctx, id, now, now),
+  });
 
   // Claim ownership: stamp this device as the conversation's owner. Also clear
   // any stale "no local checkout" banner — a fresh local process disproves it
@@ -492,6 +498,11 @@ export const updateManagedSessionId = mutation({
   },
 });
 
+export const checkInboxLivenessLease = internalMutation({
+  args: { id: v.id("managed_sessions"), end: v.number() },
+  handler: async (ctx, { id, end }) => checkInboxLease(ctx, id, end),
+});
+
 // Derived from the single source of truth in @codecast/sessions/agentStatus so the
 // CLI daemon, the browser store, and this validator can never drift. Accepts
 // exactly AGENT_STATUSES — same set as before, just no longer hand-maintained.
@@ -579,15 +590,6 @@ export const heartbeat = mutation({
 
 // Batched liveness heartbeat for many sessions in ONE transaction.
 //
-// Per-session heartbeats are individually cheap, but each is a separate
-// transaction, and EVERY commit that touches a managed_sessions row invalidates
-// the queries that .collect() them (listInboxSessions, plans, tasks, …). With a
-// large fleet that's ~N invalidations every 30s → the app's most expensive
-// query recomputes dozens of times/sec for no visible change. Folding all of a
-// daemon's heartbeats into one transaction collapses those N invalidations into
-// 1: the inbox recomputes once per flush instead of once per session. The daemon
-// caps batch size so a write conflict only retries a bounded slice, not the
-// whole fleet. (No dismissed-read here — the daemon ignores the response.)
 export const heartbeatBatch = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -987,9 +989,6 @@ export const updateAgentStatus = mutation({
       return { applied: false, reason: "not_owner" };
     if (!(await canExecuteConversation(ctx, authUserId, args.conversation_id)))
       return { applied: false, reason: "not_owner" };
-    if (statusWriteIsStale(session, args.agent_status, args.client_ts))
-      return { applied: false, reason: "stale_status" };
-
     return await applyAgentStatus(ctx, session, args);
   },
 });
@@ -1037,6 +1036,7 @@ async function applyAgentStatus(
   args: AgentStatusWrite,
 ) {
   const patch = await writeAgentStatus(ctx, session, args);
+  if (!patch) return { applied: false, reason: "stale_status" };
 
   // A turn just ended. A session in a huddle (fed its live transcript)
   // answers in the room: its reply is mirrored into the huddle chat, and

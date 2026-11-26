@@ -1008,7 +1008,6 @@ export type CloudContextTooLarge = {
   cap_bytes: number;
   files: Array<{ path: string; bytes: number }>;
 };
-
 export type InboxSession = {
   _id: string;
   session_id: string;
@@ -1118,6 +1117,7 @@ export type InboxSession = {
   turn_completed_at?: number | null;
   hibernated_at?: number | null;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   last_role_is_user?: boolean | null;
   auq_open?: boolean | null;
   daemon_alive_until?: number | null;
@@ -3971,7 +3971,6 @@ export function sortSessions(
 // Stable empty set so callers that omit pendingSendIds don't allocate and
 // don't churn memoized identities.
 const EMPTY_PENDING_SEND_IDS: ReadonlySet<string> = new Set<string>();
-
 // The daemon definitively reports the agent as running. Used both to
 // short-circuit idle detection and to decide when a "pending working" send has
 // been confirmed (status flipped active) vs is still in-flight.
@@ -3980,6 +3979,7 @@ export type AgentStatusFacts = Pick<
   | "agent_status"
   | "updated_at"
   | "last_heartbeat"
+  | "liveness_lease_end"
   | "open_tasks"
   | "open_tasks_at"
 >;
@@ -4757,7 +4757,6 @@ export type PlaceInboxState = {
 // does not gate on it: a row's live fields re-derive from its replicated
 // facts at any instant (deriveLiveAt), payload or no payload.
 export const INBOX_PAYLOAD_FRESH_MS = 90_000;
-
 // InboxSession → the shared ProjectableInboxRow, with the live fields
 // (agent_status, is_idle, is_unresponsive, awaiting_input) taken from `live`:
 // the shared deriveLiveAt over the row's replicated facts at the caller's
@@ -4796,6 +4795,7 @@ function projectableRowOf(
     turn_completed_at: s.turn_completed_at ?? null,
     started_at: s.started_at ?? null,
     last_heartbeat: s.last_heartbeat ?? null,
+    liveness_lease_end: s.liveness_lease_end ?? null,
     last_role_is_user: s.last_role_is_user ?? null,
     auq_open: s.auq_open ?? null,
     daemon_alive_until: s.daemon_alive_until ?? null,
