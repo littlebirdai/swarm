@@ -388,6 +388,7 @@ type RoleHandoff = {
   jobId: Id<"_scheduled_functions">;
   runner: Id<"users">;
   claimed: boolean;
+  started: boolean;
 };
 
 function readRoleHandoff(row: Doc<"system_config">): RoleHandoff {
@@ -417,12 +418,16 @@ async function handRoleTriggersForSeat(
     const state = readRoleHandoff(handoff);
     if (state.runner === seat.user_id) {
       const job = await db.system.get(state.jobId);
-      if (job?.state.kind === "pending" || job?.state.kind === "inProgress") {
+      if (
+        (claimed || state.started === false) &&
+        (job?.state.kind === "pending" || job?.state.kind === "inProgress")
+      ) {
         if (claimed && !state.claimed) {
           await writeRoleHandoff(ctx, handoff._id, { ...state, claimed });
         }
         return 0;
       }
+      claimed ||= state.claimed;
     }
     await ctx.db.delete(handoff._id);
   }
@@ -453,6 +458,7 @@ async function handRoleTriggersForSeat(
         jobId,
         runner: seat.user_id,
         claimed,
+        started: false,
       });
       return 0;
     }
@@ -579,7 +585,11 @@ export const continueRoleTriggerHandoff = internalMutation({
         },
       );
       if (handoff && state) {
-        await writeRoleHandoff(ctx, handoff._id, { ...state, jobId });
+        await writeRoleHandoff(ctx, handoff._id, {
+          ...state,
+          jobId,
+          started: true,
+        });
       }
     } else if (handoff) {
       await ctx.db.delete(handoff._id);

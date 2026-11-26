@@ -282,6 +282,40 @@ test("the original continuation stops when a third runner takes the seat", async
   });
 });
 
+test.each(["seat a role", "adopt a trigger"] as const)(
+  "an explicit handoff revisits page one when it must %s",
+  async (change) => {
+    const t = serverTest({});
+    const { seat, runner, oldRunner, role, offSeat, moved } = await seedSeat(
+      t,
+      500,
+    );
+    await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+    await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+    expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+    jest.runOnlyPendingTimers();
+    await t.finishInProgressScheduledFunctions();
+    await t.run(async (ctx) => {
+      const task = (await ctx.db.get(offSeat))!;
+      expect(task.user_id).toBe(oldRunner);
+      expect((await ctx.db.get(moved[0]))?.user_id).toBe(runner);
+      if (change === "seat a role") {
+        const otherRole = (await ctx.db.get(task.role_id!))!;
+        await ctx.db.patch(otherRole.anchor_id!, { conversation_id: seat });
+      } else {
+        await ctx.db.patch(offSeat, { role_id: role });
+      }
+      await handRoleTriggersToRunner(ctx, seat);
+    });
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    expect((await t.run(({ db }) => db.get(offSeat)))?.user_id).toBe(runner);
+    expect((await t.run(({ db }) => db.get(moved.at(-1)!)))?.user_id).toBe(
+      runner,
+    );
+    expect(await scheduledJobs(t, continuation)).toHaveLength(6);
+  },
+);
+
 test.each(["moved", "unseated"])(
   "a continuation skips its role after the anchor is %s",
   async (change) => {
@@ -351,6 +385,28 @@ test("a claim of the last stale trigger leaves projection repair on the queued c
   expect(await claim(last)).toBeNull();
   expect((await t.run(({ db }) => db.get(last)))?.user_id).toBe(runner);
   expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "standing",
+  );
+});
+
+test("an explicit restart carries projection repair from a claim on the old chain", async () => {
+  const t = serverTest({});
+  const { seat, runner, oldRunner, moved, role } = await seedSeat(t, 150);
+  const last = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [last]);
+  await t.run(async ({ db }) => {
+    for (const id of moved.slice(0, -1))
+      await db.patch(id, { user_id: runner });
+  });
+  expect(await claim(last)).toBeNull();
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  await t.run(async (ctx) => {
+    await ctx.db.patch(seat, { armed_trigger_kind: "none" });
+    await handRoleTriggersToRunner(ctx, seat);
+  });
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
   expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
     "standing",
