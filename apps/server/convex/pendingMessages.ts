@@ -101,7 +101,7 @@ import {
   pendingQueueRelinkBudget,
   pendingQueueRelinkOf,
   relinkPendingQueue,
-} from "./lib/pending-queue-relink";
+} from "./lib/pending-queue-relink.state";
 import type { MutationCtx } from "./_generated/server";
 import { sessionRunnerOf, sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";

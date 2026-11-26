@@ -5,7 +5,7 @@ import {
   type DbCtx,
 } from "./execution-binding.state";
 import { isTerminalDeliveryState } from "./executionQueue";
-import { pendingQueueRelinkOf } from "./pending-queue-relink";
+import { pendingQueueRelinkOf } from "./pending-queue-relink.state";
 
 function sameOptionalIds(
   left: unknown[] | undefined,

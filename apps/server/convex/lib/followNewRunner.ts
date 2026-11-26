@@ -1,6 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { pendingQueueRelinkBudget } from "./pending-queue-relink";
+import { pendingQueueRelinkBudget } from "./pending-queue-relink.state";
 import { rehomeUndeliveredMessages } from "../pendingMessages";
 import { handRoleTriggersToRunner } from "./agentTaskRows";
 

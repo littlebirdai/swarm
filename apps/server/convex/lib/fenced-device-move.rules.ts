@@ -4,7 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { checkConversationAccess } from "../privacy";
 
-import { pendingQueueRelinkBudget } from "./pending-queue-relink";
+import { pendingQueueRelinkBudget } from "./pending-queue-relink.state";
 import { followNewRunner } from "./followNewRunner";
 import { transferManagedSession } from "./sessionHeartbeat";
 

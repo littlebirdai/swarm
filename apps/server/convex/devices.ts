@@ -9,7 +9,7 @@ import {
 import {
   claimQueueRelinkContinuation,
   claimQueueRelinkRecovery,
-} from "./lib/pending-queue-relink";
+} from "./lib/pending-queue-relink.state";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
 import {
