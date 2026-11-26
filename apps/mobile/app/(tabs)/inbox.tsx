@@ -34,7 +34,7 @@ import {
   InboxRowEnvProvider,
   sessionTitle,
   projectColor,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 import {
   useInboxStore,
   type InboxSession,

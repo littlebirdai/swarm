@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { InboxSession } from "../store/inboxStore";
 import { useCoarseNow } from "./useCoarseNow";
-import { useLiveWatchRows } from "./useLiveWatchRows";
+import { useLiveWatchRows } from "./use-live-watch-rows";
 import {
   partitionTriggerInbox,
   type TaskRow,

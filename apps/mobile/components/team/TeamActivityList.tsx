@@ -15,7 +15,7 @@ import {
   InboxRowEnvProvider,
   SessionItem,
   type SessionData,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 import { SessionListSkeleton } from "@/components/SkeletonLoader";
 import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 

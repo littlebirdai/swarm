@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import {
   TaskSessionRow,
   type TaskLinkedSession,
-} from "../tasks/TaskSessionList";
+} from "../tasks/task-session-list";
 import { SessionInlineThread } from "../conversation/SessionInlineThread";
 import { useSessionOnScreen } from "../../lib/workUnit";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

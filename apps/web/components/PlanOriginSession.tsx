@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import {
   TaskSessionRow,
   type TaskLinkedSession,
-} from "./tasks/TaskSessionList";
+} from "./tasks/task-session-list";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 import { useOpenLinkedSession } from "../hooks/useOpenLinkedSession";
 import { useInboxStore } from "../store/inboxStore";

@@ -3,7 +3,7 @@
 // sessions a project or goal holds, as rows the session list draws.
 import type FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Palette } from "@/constants/Theme";
-import type { SessionData } from "@/components/SessionItem";
+import type { SessionData } from "@/components/session-item";
 import type { OrgSession } from "@codecast/web/components/org/orgTypes";
 import {
   INITIATIVE_HEALTH_LABEL,

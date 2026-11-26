@@ -4,7 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { codeFont } from "@/constants/fonts";
 import type { PlanItem as PlanItemType } from "@codecast/web/store/inboxStore";
-import { formatRelativeTime } from "./SessionItem";
+import { formatRelativeTime } from "./session-item";
 
 type PlanStatus = "draft" | "active" | "paused" | "done" | "abandoned";
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];

@@ -32,7 +32,7 @@ import { useRepoObject } from "@codecast/web/hooks/useRepoObject";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
 import { CollapsibleBody } from "@/components/CollapsibleBody";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import {
   taskGraphView,
   type BlockerRow,

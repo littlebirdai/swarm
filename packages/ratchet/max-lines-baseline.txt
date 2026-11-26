@@ -213,7 +213,7 @@ apps/mobile/app/task/[id].tsx 1050
 apps/mobile/app/trigger/[id].tsx 850
 apps/mobile/components/AssignmentChip.tsx 850
 apps/mobile/components/MarkdownRenderer.tsx 1600
-apps/mobile/components/SessionItem.tsx 1000
+apps/mobile/components/session-item.tsx 1000
 apps/mobile/components/chat/MessageRow.tsx 900
 apps/mobile/components/search/SearchResults.tsx 850
 apps/mobile/components/session/FlowCard.tsx 1100

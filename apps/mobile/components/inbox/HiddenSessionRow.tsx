@@ -10,7 +10,7 @@ import {
   formatRelativeTime,
   projectName,
   styles as sessionStyles,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 
 // Stashed/Closed bucket row — the web SessionCard's hidden variants. Tap opens
 // the session; explicit buttons restore (both) and kill (stashed only — a

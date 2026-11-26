@@ -109,7 +109,7 @@ describe("sessionRowPropsEqual", () => {
 describe("session rows hold still", () => {
   it("no row component pulses", () => {
     const src = readFileSync(
-      join(import.meta.dir, "../components/SessionItem.tsx"),
+      join(import.meta.dir, "../components/session-item.tsx"),
       "utf8",
     );
     const pulse = src.indexOf("export function PulsingDot");

@@ -136,7 +136,7 @@ import {
   isTaskOverdue,
   taskStateLabel,
 } from "./triggerCadence";
-import { useLiveWatchRows } from "../hooks/useLiveWatchRows";
+import { useLiveWatchRows } from "../hooks/use-live-watch-rows";
 import { useOpenWatchMessage } from "../hooks/useOpenWatchMessage";
 import {
   partitionTriggerInbox,

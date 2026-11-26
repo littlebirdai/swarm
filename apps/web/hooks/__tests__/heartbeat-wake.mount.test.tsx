@@ -3,7 +3,7 @@ import { Profiler, act } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import { useConversationMessages } from "../use-conversation-messages";
-import { CardNode } from "../../components/sessionMap/MapCard";
+import { CardNode } from "../../components/sessionMap/map-card";
 import { mountWeb } from "../../test-helpers/mountWeb";
 
 const id = "local-heartbeat-wake";

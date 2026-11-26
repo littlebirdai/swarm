@@ -1,6 +1,6 @@
 import type { InboxSession } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { useLiveWatchRows } from "../../hooks/useLiveWatchRows";
+import { useLiveWatchRows } from "../../hooks/use-live-watch-rows";
 import { threadStateView } from "../../lib/threadState";
 import { WAKE_BADGE } from "../../lib/triggerBadges";
 import type { TriggerRow } from "../triggerTasks";

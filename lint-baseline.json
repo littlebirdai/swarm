@@ -6919,7 +6919,7 @@
   "apps/mobile/components/SelectTextSheet.tsx": {
     "swarm/no-comments": 5
   },
-  "apps/mobile/components/SessionItem.tsx": {
+  "apps/mobile/components/session-item.tsx": {
     "react/purity": 2,
     "react/refs": 18,
     "swarm/no-comments": 96
@@ -20456,7 +20456,7 @@
   "apps/web/components/secrets/vaultModel.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/components/sessionMap/MapCard.tsx": {
+  "apps/web/components/sessionMap/map-card.tsx": {
     "react/immutability": 1,
     "swarm/no-comments": 16,
     "swarm/no-native-title-with-aria-label": 1
@@ -21003,7 +21003,7 @@
   "apps/web/components/tasks/TaskSessionBadge.tsx": {
     "swarm/no-comments": 2
   },
-  "apps/web/components/tasks/TaskSessionList.tsx": {
+  "apps/web/components/tasks/task-session-list.tsx": {
     "swarm/no-comments": 9
   },
   "apps/web/components/tasks/TaskStatusPicker.tsx": {
@@ -22262,7 +22262,7 @@
   "apps/web/hooks/useLiveSessionMeta.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/hooks/useLiveWatchRows.ts": {
+  "apps/web/hooks/use-live-watch-rows.ts": {
     "swarm/no-comments": 4
   },
   "apps/web/hooks/useLocalDeviceId.ts": {

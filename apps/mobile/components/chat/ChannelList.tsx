@@ -11,7 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import { MemberSkeleton } from "@/components/SkeletonLoader";
 import { channelDisplayName } from "@codecast/web/lib/chatViews";
 import { MIRROR_STATE_LABEL } from "@codecast/convex/convex/lib/slackMirror";

@@ -77,7 +77,7 @@ import {
 import { AssigneeFace } from "../../../components/identity/AssigneeFace";
 import { useOrgRoles } from "../../../hooks/useOrgRoles";
 import { useSyncOrgTreeFeeder } from "../../../hooks/useSyncOrgTree";
-import { TaskSessionList } from "../../../components/tasks/TaskSessionList";
+import { TaskSessionList } from "../../../components/tasks/task-session-list";
 import {
   PropertyDropdown,
   TaskStatusPicker,

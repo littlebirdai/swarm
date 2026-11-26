@@ -36,7 +36,7 @@ import {
   InboxRowEnvProvider,
   SessionItem,
   type SessionData,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 import { showActionSheet, type SheetItem } from "@/lib/popups";
 import { copyToClipboard } from "@/lib/clipboard";
 import { shareLink } from "@/lib/shareLink";

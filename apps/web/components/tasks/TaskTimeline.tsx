@@ -39,7 +39,7 @@ import {
   UserBadge,
   type TaskCommentRow,
 } from "./TaskCommentStream";
-import type { TaskLinkedSession } from "./TaskSessionList";
+import type { TaskLinkedSession } from "./task-session-list";
 import { EntityIdPill } from "../EntityIdPill";
 import { findStoredWaitTime, formatWaitTime } from "@codecast/tasks/graph";
 import {
