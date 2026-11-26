@@ -2428,6 +2428,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   ) => {
     const quoteClientIds =
       Array.isArray(quoteIds) && quoteIds.length ? quoteIds : undefined;
+    const observed_turn = receiptLocalResult<{
+      observed_turn?: { id: string; run: number; start_event_seq: number };
+    }>(result)?.observed_turn;
     if (hasReceiptCommandId(result)) {
       const commandId = receiptCommandId("sendMessage", result);
       return await ctx.runMutation!(api.pendingMessages.sendMessageV2, {
@@ -2440,6 +2443,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
           : {}),
         ...(quoteClientIds ? { quote_client_ids: quoteClientIds } : {}),
         ...(typeof typed === "string" ? { typed } : {}),
+        ...(observed_turn && { observed_turn }),
       });
     }
     const conversation = await ctx.db.get(convId as Id<"conversations">);
@@ -2466,6 +2470,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       client_id: clientId,
       human: true,
       ...composerChannel(typed),
+      ...(observed_turn && { observed_turn }),
     });
     if (stampQuotes)
       await stampQuotesSent(

@@ -16264,11 +16264,14 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (target && hasThreadState(target))
         Object.assign(target, answeredThreadStateFields());
     }
-    // No other local mutation: durability for the visible message comes from
-    // the persisted pendingMessages map. The middleware dispatches the args to
-    // the server and queues them in the outbox.
+    const turn = this.fencedPromptAddresses[_convId];
+    if (
+      _typed !== undefined &&
+      turn?.observed_turn &&
+      turn.lease_expires_at > Date.now()
+    )
+      return { observed_turn: { ...turn.observed_turn } };
   }),
-
   // A real id sends now. A stub waits for its create (awaitConvexId heals a
   // stranded one), because the server cannot address a stub id. A create that
   // is still on its way (parked, or fenced by a binding rewire) leaves the
@@ -16300,9 +16303,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
         },
       );
   },
-
   resumeSession: (convId: string) => get().convCommand(convId, "resumeSession"),
-
   // The press time rides along so the daemon can tell an Escape aimed at the
   // previous turn from one for the turn a queued message started after it.
   // The request id binds the press to a sessionCommands row, which the
@@ -16321,7 +16322,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
       pressed_at: Date.now(),
       request_id: crypto.randomUUID(),
     }),
-
   // Generic local-first session daemon-command. Routes any api.conversations.*
   // command (kill/restart/repair/reconfigure/rewind/fork/sendKeys/sendEscape)
   // through the single dispatch pipeline instead of a direct useMutation. The

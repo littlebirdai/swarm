@@ -55,6 +55,7 @@
     "components/browser/__tests__/nativeBackendGuard.test.tsx",
     "components/calls/__tests__/callSessionChips.test.tsx",
     "components/chat/ChatAttachments.markup.test.tsx",
+    "components/__tests__/composer-observed-turn.mount.test.tsx",
     "components/chat/ChatComposer.slack.mount.test.tsx",
     "components/company/CompanyDocument.mount.test.tsx",
     "components/consequential/__tests__/sites.mount.test.tsx",
