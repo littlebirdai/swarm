@@ -11,6 +11,7 @@ import { getUserOrToken, requireUser } from "./lib/auth";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import { canTeamMemberAccess, isTeamMember, teamReadLevel } from "./privacy";
 import { resolveReachableRunnerDevice } from "./devices";
+import { deleteTerminalTypingGrant } from "./lib/claims";
 import { terminalPublisher } from "./lib/terminalPublisher";
 import {
   deleteTerminalShare,
@@ -615,7 +616,12 @@ export const purgeTeamRows = internalMutation({
         await ctx.db.patch(block._id, { team_id: movedTo._id });
       else await ctx.db.delete(block._id);
     }
-    if (shares.length === 20 || blocks.length === 100)
+    const grants = await ctx.db
+      .query("terminal_typing_grants")
+      .withIndex("by_team", (q) => q.eq("team_id", args.team_id))
+      .take(100);
+    for (const grant of grants) await deleteTerminalTypingGrant(ctx.db, grant);
+    if (shares.length === 20 || blocks.length === 100 || grants.length === 100)
       await ctx.scheduler.runAfter(
         0,
         internal.terminalWatch.purgeTeamRows,

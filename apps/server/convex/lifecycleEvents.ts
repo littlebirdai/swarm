@@ -15,6 +15,7 @@
 // `cron:<name>`). A write with no cause keeps the top of its stack instead,
 // which names the writing function.
 
+import { closeTerminalPane, terminalTypingEnabled } from "./lib/claims";
 import { deleteSessionHeartbeat } from "./lib/sessionHeartbeat";
 
 const LIFECYCLE_FIELDS = [
@@ -102,6 +103,8 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
         const pre = await db.get(id);
         const res = await db.patch(id, fields);
         const changes = conversationChanges(pre, fields, false);
+        if (fields.inbox_killed_at && terminalTypingEnabled())
+          await closeTerminalPane(db, id);
         if (Object.keys(changes).length)
           await record({
             conversation_id: String(id),
@@ -136,6 +139,12 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
       const pre = await db.get(id);
       const res = await db.replace(id, doc);
       const changes = conversationChanges(pre, doc ?? {}, true);
+      if (
+        doc?.inbox_killed_at &&
+        changes.inbox_killed_at &&
+        terminalTypingEnabled()
+      )
+        await closeTerminalPane(db, id);
       if (Object.keys(changes).length)
         await record({
           conversation_id: String(id),
@@ -151,7 +160,11 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
       if (!conversation && !managed) return db.delete(id);
       const pre = await db.get(id);
       const res = await db.delete(id);
-      if (managed) await deleteSessionHeartbeat({ db }, id);
+      if (managed) {
+        await deleteSessionHeartbeat({ db }, id);
+        if (pre?.conversation_id && terminalTypingEnabled())
+          await closeTerminalPane(db, pre.conversation_id, id);
+      }
       if (conversation) {
         await record({
           conversation_id: String(id),

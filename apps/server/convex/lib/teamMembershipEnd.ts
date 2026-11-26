@@ -11,6 +11,7 @@ import { withdrawMember } from "./changesDirty";
 import { purgeChatMembership } from "../chat";
 import { removeFromTeamHosts } from "../teamHosts";
 import { deleteTerminalShare, deleteTerminalViewer } from "./terminalWatchRows";
+import { deleteTerminalTypingGrant } from "./claims";
 import { scheduleSeatSync } from "./teamSeats";
 
 // An owner row on a session another account runs steers that account's
@@ -113,6 +114,16 @@ export async function endMembership(
         before: { role: rows[0].role, visibility: rows[0].visibility },
       },
     });
+  }
+  for (const [index, field] of [
+    ["by_owner", "owner_id"],
+    ["by_user", "user_id"],
+  ] as const) {
+    const grants = await ctx.db
+      .query("terminal_typing_grants")
+      .withIndex(index, (q: any) => q.eq(field, userId).eq("team_id", teamId))
+      .collect();
+    for (const grant of grants) await deleteTerminalTypingGrant(ctx.db, grant);
   }
   const terminalShares = await ctx.db
     .query("terminal_watch_shares")

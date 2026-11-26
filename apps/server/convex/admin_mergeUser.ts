@@ -11,7 +11,7 @@ import {
   isConversationComment,
 } from "./lib/conversationCommentRows";
 import { moveBookmarkPrincipalWithRevision } from "./bookmarkViewWrites";
-import { clearTerminalClaim, findClaim } from "./lib/claims";
+import { clearTerminalClaim, deleteTerminalTypingGrant } from "./lib/claims";
 
 // (table, field, indexName | null) — when indexName is present, use the
 // indexed query; otherwise fall back to a small filter scan. All app tables
@@ -35,6 +35,8 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "edge_prompt_answers", field: "owner_user_id", index: "by_owner" },
     { table: "terminal_typing_grants", field: "owner_id", index: "by_owner" },
     { table: "terminal_typing_grants", field: "user_id", index: "by_user" },
+    { table: "claims", field: "holder", index: "by_holder" },
+    { table: "claims", field: "request_holder", index: "by_request_holder" },
     { table: "run_event_cursors", field: "owner_user_id", index: "by_owner" },
     {
       table: "run_turn_projections",
@@ -257,17 +259,14 @@ export const mergeDuplicateUser = internalMutation({
       if (!args.dry_run) {
         for (const row of rows) {
           if (table === "terminal_typing_grants") {
-            const lease = await findClaim(ctx.db, {
-              kind: "terminal",
-              id: row.conversation_id,
-            });
-            if (
-              lease &&
-              lease.holder === row.user_id &&
-              lease.terminal?.device === row.device
-            )
-              await clearTerminalClaim(ctx, lease);
-            await ctx.db.delete(row._id);
+            await deleteTerminalTypingGrant(ctx.db, row);
+          } else if (table === "claims") {
+            if (field === "holder") await clearTerminalClaim(ctx, row);
+            else
+              await ctx.db.patch(row._id, {
+                request_id: undefined,
+                request_holder: undefined,
+              });
           } else if (table === "bookmarks" && field === "user_id") {
             await moveBookmarkPrincipalWithRevision(ctx, row, args.to_user_id);
           } else if (

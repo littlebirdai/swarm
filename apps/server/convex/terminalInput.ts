@@ -11,11 +11,13 @@ import { getUserOrToken, requireUser } from "./lib/auth";
 import {
   claim,
   clearTerminalClaim,
+  closeTerminalPane,
   findClaim,
   nextTerminalControl,
   release as releaseClaim,
   renew as renewClaim,
   revoke as revokeClaim,
+  terminalPaneIsLive,
   terminalTypingEnabled,
   type TerminalAccess,
   withHeldClaim,
@@ -28,6 +30,8 @@ type TerminalState = NonNullable<Doc<"claims">["terminal"]>;
 type Grant = Doc<"terminal_typing_grants">;
 type PaneArgs = { conversation_id: Id<"conversations">; pane_instance: number };
 type LeaseArgs = PaneArgs & { token: number };
+
+const PANE_LIVENESS_MS = 30_000;
 
 const stale = { status: "stale" } as const;
 const disabled = { status: "disabled" } as const;
@@ -115,7 +119,8 @@ async function reportedPane(ctx: ReadCtx, args: PaneArgs) {
   const terminal = row?.terminal;
   return pane &&
     row &&
-    terminal?.open &&
+    terminal &&
+    terminalPaneIsLive(terminal) &&
     row.pane_instance === args.pane_instance &&
     matchesBinding(terminal, pane)
     ? { pane, row, terminal }
@@ -139,7 +144,12 @@ async function typingAccess(
 ): Promise<TerminalAccess | null> {
   const { conversation, device, session, target } = pane;
   if (device.user_id === user) return {};
-  if (!conversation.team_id || !terminal.watch_pane_instance) return null;
+  if (
+    !conversation.team_id ||
+    conversation.team_visibility === "private" ||
+    !terminal.watch_pane_instance
+  )
+    return null;
   const grant = await grantFor(ctx, conversation._id, user);
   if (
     !grant ||
@@ -225,6 +235,7 @@ export const setTypingGrant = mutation({
       !pane ||
       pane.device.user_id !== owner ||
       !conversation.team_id ||
+      conversation.team_visibility === "private" ||
       !(await isTeamMember(ctx, owner, conversation.team_id)) ||
       !(await canTeamMemberAccess(ctx, args.user_id, conversation))
     )
@@ -265,24 +276,32 @@ export const status = query({
     const user = await getUserOrToken(ctx);
     if (!user) return null;
     const row = await findClaim(ctx.db, resource(args.conversation_id));
-    if (row?.pane_instance === undefined || !row.terminal?.open) return null;
+    if (
+      row?.pane_instance === undefined ||
+      !row.terminal ||
+      !terminalPaneIsLive(row.terminal)
+    )
+      return null;
     const pane = await currentPane(ctx, args.conversation_id);
     if (!pane || !matchesBinding(row.terminal, pane)) return null;
     const access = await typingAccess(ctx, pane, row.terminal, user);
     if (!access) return null;
-    const remainingMs = Math.max(0, row.lease_until - Date.now());
-    const token =
-      row.holder === user && remainingMs > 0 && sameAccess(access, row.terminal)
-        ? row.token
-        : null;
+    const remaining = row.lease_until - Date.now();
+    const busy =
+      !!row.holder &&
+      remaining > 0 &&
+      (row.holder === user
+        ? sameAccess(access, row.terminal)
+        : await canUseLease(ctx, pane, row.terminal, row.holder));
+    const token = busy && row.holder === user ? row.token : null;
     return {
       pane_instance: row.pane_instance,
       current_token: row.token,
       token,
       ready:
         token !== null && row.terminal.ack_sequence === row.terminal.sequence,
-      busy: !!row.holder && remainingMs > 0,
-      remainingMs,
+      busy,
+      remainingMs: busy ? remaining : 0,
     };
   },
 });
@@ -486,29 +505,29 @@ export const cliReportPane = mutation({
       status: "ok" as const,
       last_pane_instance: args.pane_instance,
     };
-    if (args.pane_instance === last && old) {
-      if (ended && old.open && row) {
-        await ctx.db.patch(row._id, {
-          holder: undefined,
-          lease_until: 0,
-          terminal: {
-            ...nextTerminalControl(old),
-            open: false,
-            ended_at: row.holder ? Date.now() : old.ended_at,
-          },
-        });
+    const now = Date.now();
+    const live_until = now + PANE_LIVENESS_MS;
+    if (args.pane_instance === last && row && old) {
+      if (ended) {
+        await closeTerminalPane(ctx.db, args.conversation_id, pane.session._id);
+        return ok;
       }
       if (
-        !ended &&
+        old.watch_pane_instance &&
         args.watch_pane_instance &&
-        args.watch_pane_instance !== old.watch_pane_instance &&
-        row
-      ) {
-        if (old.watch_pane_instance) return stale;
-        await ctx.db.patch(row._id, {
-          terminal: { ...old, watch_pane_instance: args.watch_pane_instance },
-        });
-      }
+        args.watch_pane_instance !== old.watch_pane_instance
+      )
+        return stale;
+      const expired = !!row.holder && !terminalPaneIsLive(old, now);
+      await ctx.db.patch(row._id, {
+        ...(expired && { holder: undefined, lease_until: 0 }),
+        terminal: {
+          ...(expired ? { ...nextTerminalControl(old), ended_at: now } : old),
+          watch_pane_instance:
+            old.watch_pane_instance ?? args.watch_pane_instance,
+          live_until,
+        },
+      });
       return ok;
     }
 
@@ -523,6 +542,7 @@ export const cliReportPane = mutation({
         agent_started_at: pane.agent_started_at,
         watch_pane_instance: args.watch_pane_instance,
         open: true,
+        live_until,
         sequence: (old?.sequence ?? 0) + 1,
       },
     };
@@ -556,15 +576,18 @@ export const cliPoll = mutation({
       !matchesBinding(row.terminal, pane)
     )
       return stale;
+    const now = Date.now();
+    const live_until = now + PANE_LIVENESS_MS;
     let terminal = row.terminal;
     let token = row.holder ? row.token : null;
     if (
       row.holder &&
-      (row.lease_until <= Date.now() ||
+      (row.lease_until <= now ||
+        !terminalPaneIsLive(terminal, now) ||
         !(await canUseLease(ctx, pane, terminal, row.holder)))
     ) {
       await clearTerminalClaim(ctx, row);
-      terminal = nextTerminalControl(terminal);
+      terminal = { ...nextTerminalControl(terminal), ended_at: now };
       token = null;
     }
     const control = {
@@ -583,10 +606,15 @@ export const cliPoll = mutation({
       token !== null && ack_sequence === control.sequence
         ? terminal.pending_input
         : undefined;
-    if (ack_sequence !== terminal.ack_sequence || data) {
+    if (
+      ack_sequence !== terminal.ack_sequence ||
+      data ||
+      terminal.live_until !== live_until
+    ) {
       await ctx.db.patch(row._id, {
         terminal: {
           ...terminal,
+          live_until,
           ack_sequence,
           pending_input: data ? undefined : terminal.pending_input,
         },

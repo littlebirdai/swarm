@@ -1,5 +1,9 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { DatabaseReader, MutationCtx } from "../_generated/server";
+import type {
+  DatabaseReader,
+  DatabaseWriter,
+  MutationCtx,
+} from "../_generated/server";
 
 type ClaimKey = { kind: "steer" | "terminal"; id: Id<"conversations"> };
 type SteerResource = { kind: "steer"; id: Id<"conversations"> };
@@ -60,8 +64,11 @@ export async function usesFencedTerminal(
     !!device &&
     !!(await ctx.db
       .query("claims")
-      .withIndex("by_terminal_device", (q) =>
-        q.eq("terminal.device", device._id),
+      .withIndex("by_live_terminal_device", (q) =>
+        q
+          .eq("terminal.device", device._id)
+          .eq("terminal.open", true)
+          .gt("terminal.live_until", Date.now()),
       )
       .first())
   );
@@ -105,10 +112,18 @@ export function nextTerminalControl(terminal: TerminalState): TerminalState {
     ack_sequence: undefined,
     pending_input: undefined,
     viewer: undefined,
+    grant: undefined,
   };
 }
 
-export function clearTerminalClaim(ctx: MutationCtx, row: Doc<"claims">) {
+export function terminalPaneIsLive(terminal: TerminalState, now = Date.now()) {
+  return terminal.open && (terminal.live_until ?? 0) > now;
+}
+
+export function clearTerminalClaim(
+  ctx: Pick<MutationCtx, "db">,
+  row: Doc<"claims">,
+) {
   return ctx.db.patch(row._id, {
     holder: undefined,
     lease_until: 0,
@@ -116,6 +131,39 @@ export function clearTerminalClaim(ctx: MutationCtx, row: Doc<"claims">) {
       terminal: { ...nextTerminalControl(row.terminal), ended_at: Date.now() },
     }),
   });
+}
+
+export async function closeTerminalPane(
+  db: DatabaseWriter,
+  id: Id<"conversations">,
+  session?: Id<"managed_sessions">,
+) {
+  const row = await findClaim(db, { kind: "terminal", id });
+  if (!row?.terminal?.open || (session && row.terminal.session !== session))
+    return;
+  await db.patch(row._id, {
+    holder: undefined,
+    lease_until: 0,
+    terminal: {
+      ...nextTerminalControl(row.terminal),
+      open: false,
+      live_until: undefined,
+      ended_at: row.holder ? Date.now() : row.terminal.ended_at,
+    },
+  });
+}
+
+export async function deleteTerminalTypingGrant(
+  db: DatabaseWriter,
+  grant: Doc<"terminal_typing_grants">,
+) {
+  const row = await findClaim(db, {
+    kind: "terminal",
+    id: grant.conversation_id,
+  });
+  if (row?.holder === grant.user_id && row.terminal?.grant === grant._id)
+    await clearTerminalClaim({ db }, row);
+  await db.delete(grant._id);
 }
 
 function isValidPaneInstance(instance: number): boolean {
@@ -179,6 +227,7 @@ export async function claim(
         terminal: {
           ...nextTerminalControl(row.terminal),
           open: false,
+          live_until: undefined,
           ended_at: now,
         },
       }),

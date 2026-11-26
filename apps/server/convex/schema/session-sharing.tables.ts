@@ -22,6 +22,7 @@ export const sessionSharingTables = {
         viewer: v.optional(v.id("terminal_watch_viewers")),
         grant: v.optional(v.id("terminal_typing_grants")),
         open: v.boolean(),
+        live_until: v.optional(v.number()),
         sequence: v.number(),
         ack_sequence: v.optional(v.number()),
         pending_input: v.optional(v.string()),
@@ -33,7 +34,11 @@ export const sessionSharingTables = {
     .index("by_conversation_kind", ["conversation_id", "kind"])
     .index("by_holder", ["holder"])
     .index("by_request_holder", ["request_holder"])
-    .index("by_terminal_device", ["terminal.device"]),
+    .index("by_live_terminal_device", [
+      "terminal.device",
+      "terminal.open",
+      "terminal.live_until",
+    ]),
 
   terminal_typing_grants: defineTable({
     conversation_id: v.id("conversations"),
@@ -45,8 +50,8 @@ export const sessionSharingTables = {
     granted_at: v.number(),
   })
     .index("by_conversation_user", ["conversation_id", "user_id"])
-    .index("by_owner", ["owner_id"])
-    .index("by_user", ["user_id"])
+    .index("by_owner", ["owner_id", "team_id"])
+    .index("by_user", ["user_id", "team_id"])
     .index("by_team", ["team_id"]),
 
   share_redemptions: defineTable({
