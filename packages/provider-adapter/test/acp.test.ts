@@ -1,3 +1,4 @@
+import { originalKill } from "./provider-fixture";
 import { expect } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,7 +21,6 @@ import {
   fixture,
   installAcpFixtureHooks,
   interrupt,
-  originalKill,
   processStopped,
   recorded,
   scope,

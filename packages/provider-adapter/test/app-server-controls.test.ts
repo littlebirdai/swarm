@@ -1,3 +1,5 @@
+import { readEvent, requireOpened } from "./provider-fixture";
+import { appServerCase } from "./app-server-fixture";
 import { expect } from "bun:test";
 import { parseCanonicalEvent } from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
@@ -16,7 +18,6 @@ import {
   fixture,
   installAppServerFixtureHooks,
   interrupt,
-  requireOpened,
   steer,
   threadId,
   turn,
@@ -25,58 +26,52 @@ import {
 installAppServerFixtureHooks();
 
 for (const method of ["turn/start", "turn/steer", "turn/interrupt"]) {
-  it.effect(
+  appServerCase(
     `${method} settles with 35 unread notifications in wire order`,
-    () =>
-      Effect.promise(async () => {
-        const fake = fixture({
-          FIXTURE_BURST_METHOD: method,
-          FIXTURE_REPLY_ONLY: "1",
+    async (session) => {
+      const next = readEvent(session);
+      if (method !== "turn/start") {
+        expect(await session.steer(steer)).toEqual(bestEffort);
+        expect(await next()).toMatchObject({
+          kind: "turn.started",
+          turn,
         });
-        const { session } = requireOpened(await fake.client.start(fake.spec));
-        const events = session.events[Symbol.asyncIterator]();
-        try {
-          if (method !== "turn/start") {
-            expect(await session.steer(steer)).toEqual(bestEffort);
-            expect((await events.next()).value).toMatchObject({
-              kind: "turn.started",
-              turn,
+      }
+      const pending =
+        method === "turn/interrupt"
+          ? session.interrupt(interrupt)
+          : session.steer({
+              ...steer,
+              expected: {
+                ...steer.expected,
+                turn: method === "turn/start" ? null : turn,
+              },
             });
-          }
-          const pending =
-            method === "turn/interrupt"
-              ? session.interrupt(interrupt)
-              : session.steer({
-                  ...steer,
-                  expected: {
-                    ...steer.expected,
-                    turn: method === "turn/start" ? null : turn,
-                  },
-                });
-          let settled = false;
-          void pending.then(() => {
-            settled = true;
-          });
-          expect(await waitFor(() => settled, 1500, 5)).toBe(true);
-          expect(await pending).toEqual(
-            method === "turn/interrupt" ? { status: "applied" } : bestEffort,
-          );
-          for (let index = 0; index < 35; index++) {
-            expect((await events.next()).value).toMatchObject({
-              kind: "context",
-              turn: method === "turn/start" ? null : turn,
-              body: { data: { name: String(index) } },
-            });
-          }
-          if (method === "turn/start")
-            expect((await events.next()).value).toMatchObject({
-              kind: "turn.started",
-              turn,
-            });
-        } finally {
-          await session.close();
-        }
-      }),
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      expect(await waitFor(() => settled, 1500, 5)).toBe(true);
+      expect(await pending).toEqual(
+        method === "turn/interrupt" ? { status: "applied" } : bestEffort,
+      );
+      for (let index = 0; index < 35; index++) {
+        expect(await next()).toMatchObject({
+          kind: "context",
+          turn: method === "turn/start" ? null : turn,
+          body: { data: { name: String(index) } },
+        });
+      }
+      if (method === "turn/start")
+        expect(await next()).toMatchObject({
+          kind: "turn.started",
+          turn,
+        });
+    },
+    {
+      FIXTURE_BURST_METHOD: method,
+      FIXTURE_REPLY_ONLY: "1",
+    },
   );
 }
 
@@ -165,203 +160,165 @@ it.effect(
     }),
 );
 
-it.effect(
+appServerCase(
   "an approval refuses option IDs and invalid canonical settlements",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      try {
-        await session.steer(steer);
-        await fake.wrote({ frame: approval() });
-        for (const request of [
-          { ...answer, answer: { behavior: "allow", option_id: "accept" } },
-          { ...answer, answer: { behavior: "allow", option_id: "" } },
-          { ...answer, by: { ...answer.by, id: "" } },
-        ]) {
-          expect(await session.answer(request)).toMatchObject({
-            status: "refused",
-            code: "invalid-answer",
-          });
-        }
-        expect(await session.answer(answer)).toEqual(answerOutcome);
-        for (const kind of [
-          "turn.started",
-          "prompt.opened",
-          "prompt.settled",
-        ] as const) {
-          const item = (await events.next()).value;
-          expect(item?.kind).toBe(kind);
-          expect(parseCanonicalEvent(item).ok).toBe(true);
-        }
-      } finally {
-        await session.close();
-      }
-    }),
-);
-
-it.effect(
-  "a failed notification with no error message still ends the turn",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      try {
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        expect((await events.next()).value).toMatchObject({
-          kind: "turn.started",
-          turn,
-        });
-        await fake.wrote({
-          frame: {
-            method: "turn/completed",
-            params: {
-              threadId,
-              turn: { id: turn, status: "failed", error: {} },
-            },
-          },
-        });
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        expect((await events.next()).value).toMatchObject({
-          kind: "error",
-          turn,
-          body: { message: "Codex turn failed" },
-        });
-        expect((await events.next()).value).toMatchObject({
-          kind: "turn.ended",
-          turn,
-          body: { reason: "failed" },
-        });
-      } finally {
-        await session.close();
-      }
-    }),
-);
-
-it.effect(
-  "a terminal start reply starts and ends one turn and permits the next idle steer",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture({
-        FIXTURE_REPLY_ONLY: "1",
-        FIXTURE_TERMINAL_START: "1",
+  async (session, fake) => {
+    const events = session.events[Symbol.asyncIterator]();
+    await session.steer(steer);
+    await fake.wrote({ frame: approval() });
+    for (const request of [
+      { ...answer, answer: { behavior: "allow", option_id: "accept" } },
+      { ...answer, answer: { behavior: "allow", option_id: "" } },
+      { ...answer, by: { ...answer.by, id: "" } },
+    ]) {
+      expect(await session.answer(request)).toMatchObject({
+        status: "refused",
+        code: "invalid-answer",
       });
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      try {
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        for (const id of [turn, "actual-turn-2"]) {
-          expect((await events.next()).value).toMatchObject({
-            kind: "turn.started",
-            turn: id,
-          });
-          expect((await events.next()).value).toMatchObject({
-            kind: "turn.ended",
-            turn: id,
-            body: { reason: "completed" },
-          });
-        }
-      } finally {
-        await session.close();
-      }
-    }),
-);
-
-it.effect(
-  "a null approval uses offered cancel when decline is unavailable",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      try {
-        await session.steer(steer);
-        const frame = approval();
-        await fake.wrote({
-          frame: {
-            ...frame,
-            params: {
-              ...frame.params,
-              availableDecisions: ["accept", "cancel"],
-            },
-          },
-        });
-        expect(await session.answer({ ...answer, answer: null })).toEqual(
-          answerOutcome,
-        );
-        expect(
-          await waitFor(
-            () => fake.observed().some(({ action }) => action === "answer"),
-            1500,
-            5,
-          ),
-        ).toBe(true);
-        expect(fake.observed().at(-1)?.message.result).toEqual({
-          decision: "cancel",
-        });
-      } finally {
-        await session.close();
-      }
-    }),
-);
-
-it.effect(
-  "an echoed user item carries the matched delivery ID and authors",
-  () =>
-    Effect.promise(async () => {
-      const fake = fixture();
-      const { session } = requireOpened(await fake.client.start(fake.spec));
-      const events = session.events[Symbol.asyncIterator]();
-      try {
-        expect(await session.steer(steer)).toEqual(bestEffort);
-        await fake.wrote({ frame: echo("test message") });
-        expect((await events.next()).value).toMatchObject({
-          kind: "turn.started",
-          turn,
-        });
-        expect((await events.next()).value).toMatchObject({
-          kind: "message.user",
-          turn,
-          body: { delivery_id: steer.delivery_id, authors: steer.authors },
-        });
-      } finally {
-        await session.close();
-      }
-    }),
-);
-
-it.effect("overflowing stdout read-ahead reports a bounded failure", () =>
-  Effect.promise(async () => {
-    const fake = fixture({
-      FIXTURE_BURST_METHOD: "turn/start",
-      FIXTURE_BURST_COUNT: "128",
-      FIXTURE_REPLY_ONLY: "1",
-    });
-    const { session } = requireOpened(await fake.client.start(fake.spec));
-    try {
-      expect(await session.steer(steer)).toMatchObject({
-        status: "in-doubt",
-        reason: "unknown",
-        code: "output-overflow",
-      });
-      const events = session.events[Symbol.asyncIterator]();
-      for (let index = 0; index < 32; index++) {
-        expect((await events.next()).value).toMatchObject({
-          kind: "context",
-          body: { data: { name: String(index) } },
-        });
-      }
-      await expect(
-        (async () => {
-          while (!(await events.next()).done) {}
-        })(),
-      ).rejects.toThrow("stdout read-ahead limit");
-    } finally {
-      await session.close();
     }
-  }),
+    expect(await session.answer(answer)).toEqual(answerOutcome);
+    for (const kind of [
+      "turn.started",
+      "prompt.opened",
+      "prompt.settled",
+    ] as const) {
+      const item = (await events.next()).value;
+      expect(item?.kind).toBe(kind);
+      expect(parseCanonicalEvent(item).ok).toBe(true);
+    }
+  },
+);
+
+appServerCase(
+  "a failed notification with no error message still ends the turn",
+  async (session, fake) => {
+    const next = readEvent(session);
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+      turn,
+    });
+    await fake.wrote({
+      frame: {
+        method: "turn/completed",
+        params: {
+          threadId,
+          turn: { id: turn, status: "failed", error: {} },
+        },
+      },
+    });
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    expect(await next()).toMatchObject({
+      kind: "error",
+      turn,
+      body: { message: "Codex turn failed" },
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.ended",
+      turn,
+      body: { reason: "failed" },
+    });
+  },
+);
+
+appServerCase(
+  "a terminal start reply starts and ends one turn and permits the next idle steer",
+  async (session) => {
+    const next = readEvent(session);
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    for (const id of [turn, "actual-turn-2"]) {
+      expect(await next()).toMatchObject({
+        kind: "turn.started",
+        turn: id,
+      });
+      expect(await next()).toMatchObject({
+        kind: "turn.ended",
+        turn: id,
+        body: { reason: "completed" },
+      });
+    }
+  },
+  {
+    FIXTURE_REPLY_ONLY: "1",
+    FIXTURE_TERMINAL_START: "1",
+  },
+);
+
+appServerCase(
+  "a null approval uses offered cancel when decline is unavailable",
+  async (session, fake) => {
+    await session.steer(steer);
+    const frame = approval();
+    await fake.wrote({
+      frame: {
+        ...frame,
+        params: {
+          ...frame.params,
+          availableDecisions: ["accept", "cancel"],
+        },
+      },
+    });
+    expect(await session.answer({ ...answer, answer: null })).toEqual(
+      answerOutcome,
+    );
+    expect(
+      await waitFor(
+        () => fake.observed().some(({ action }) => action === "answer"),
+        1500,
+        5,
+      ),
+    ).toBe(true);
+    expect(fake.observed().at(-1)?.message.result).toEqual({
+      decision: "cancel",
+    });
+  },
+);
+
+appServerCase(
+  "an echoed user item carries the matched delivery ID and authors",
+  async (session, fake) => {
+    const next = readEvent(session);
+    expect(await session.steer(steer)).toEqual(bestEffort);
+    await fake.wrote({ frame: echo("test message") });
+    expect(await next()).toMatchObject({
+      kind: "turn.started",
+      turn,
+    });
+    expect(await next()).toMatchObject({
+      kind: "message.user",
+      turn,
+      body: { delivery_id: steer.delivery_id, authors: steer.authors },
+    });
+  },
+);
+
+appServerCase(
+  "overflowing stdout read-ahead reports a bounded failure",
+  async (session) => {
+    expect(await session.steer(steer)).toMatchObject({
+      status: "in-doubt",
+      reason: "unknown",
+      code: "output-overflow",
+    });
+    const events = session.events[Symbol.asyncIterator]();
+    for (let index = 0; index < 32; index++) {
+      expect((await events.next()).value).toMatchObject({
+        kind: "context",
+        body: { data: { name: String(index) } },
+      });
+    }
+    await expect(
+      (async () => {
+        while (!(await events.next()).done) {}
+      })(),
+    ).rejects.toThrow("stdout read-ahead limit");
+  },
+  {
+    FIXTURE_BURST_METHOD: "turn/start",
+    FIXTURE_BURST_COUNT: "128",
+    FIXTURE_REPLY_ONLY: "1",
+  },
 );
 
 it.effect("forgotten turn RPC IDs retain only a bounded recent history", () =>

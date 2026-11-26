@@ -2,7 +2,8 @@
 
 Use `@codecast/provider-adapter` for the Promise API or
 `@codecast/provider-adapter/effect` in an Effect service. The registry
-supports Grok 1.0.13 over ACP and Codex 0.153.4 over app-server on POSIX.
+supports Grok 1.0.13 over ACP, Codex 0.153.4 over app-server, and
+Claude Code 2.1.319 over stream-json on POSIX.
 
 The machine service emits `session.started` and passes the last durable
 sequence as `afterSeq`. The adapter starts its events after that sequence.
@@ -26,61 +27,72 @@ and deny can also select valid provider IDs beyond the display limits.
 
 ## Codex app-server
 
-The adapter starts one process per owned thread. It checks the version
-reported by `initialize`, sends `initialized`, and opens or resumes the
-thread. Supply thread settings in `StartSpec.options`, including the model,
-sandbox mode, approval policy, and provider config. New turns restate the
-sandbox policy returned by the server when it supplies one. The adapter
-does not infer a broader policy for a resumed thread.
+The adapter checks the version with `initialize`, sends `initialized`,
+then starts or resumes one thread per process. Set model, sandbox, approval,
+and provider config in `StartSpec.options`. New turns restate the sandbox
+supplied by the server. Resume uses the server's policy.
 
-The app-server acknowledges a mid-turn steer for an expected turn ID and
-acknowledges an interrupt by RPC. Acknowledging an interrupt does not end
-the canonical turn. `turn/completed` or process exit ends it. A successful
-steer is still `in-doubt`. `turn/start` returns a turn, and `turn/steer`
-returns a turn ID. Neither result identifies an inbox delivery. The
-[recorded user item](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
-has a null `clientId`. A resumed thread restores its checkpoint and can
-identify a live turn, but this adapter advertises no receipts or recovery
-by delivery ID.
+RPCs acknowledge steer and interrupt against the expected turn. Only
+`turn/completed` or exit ends the turn. A steer remains `in-doubt`.
+The [recorded user item](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
+has a null `clientId`. Resume can identify a live turn and supplies no
+durable delivery receipts. Controls settle while the consumer waits.
+The reader stages 64 frames or 32 MiB. Overflow fails the stream and
+reports pending controls as `in-doubt`.
 
-Control RPCs can settle while the event consumer is paused. The stdio
-reader stages up to 64 frames and 32 MiB ahead of event projection.
-Events from replies still follow earlier notifications. Exceeding the
-read-ahead limit fails the stream and reports outstanding controls as
-`in-doubt`.
-
-Use semantic allow or deny for command, file change, and permission
-approvals. Permission grants apply to the current turn. For a question,
-return `{ "answers": { "<question-id>": { "answers": ["…"] } } }`. A context
-event linked to the prompt carries the questions and their choices.
-The provider receives secret answers, and the canonical settlement masks
-them. A provider-resolved request is retired locally. The contract's
-`prompt.settled` event requires a real answer and actor, so a server
-resolution or turn teardown cannot publish an actorless settlement.
+Semantic allow or deny answers command, file change, and permission
+prompts. Grants apply to the current turn. Questions and choices appear
+in linked context. Send `{ "answers": { "<id>": { "answers": ["…"] } } }`.
+The canonical settlement masks secret answers. A server cancellation or
+turn end retires the prompt locally. Only a user's answer emits a settlement.
 
 Compared with the [legacy client](../../apps/cli/src/codexAppServer.ts):
 
-- Kept stdio initialization, thread start and resume, server-reported
-  sandbox restatement, local image input, turn and item notifications,
-  tool output, thread name and status updates, and command, file, and
-  permission approvals.
-- Changed process ownership from a shared restarting client to one
-  scoped process group per thread. Provider turn IDs fence all controls.
-  Assistant deltas carry offsets. Completed items emit canonical
-  messages and tool events. Output deltas, reasoning, plan, and image
-  metadata use context events. Diagnostic text is redacted. Questions
-  accept explicit answers and permission grants use turn scope. The machine
-  service owns `session.started`, and the adapter retains the provider's
-  `thread/started` notice as raw data.
-- The scoped adapter leaves account refresh, restart and quarantine
-  policy, automatic turn recovery, thread forks, worktree configuration,
-  hook suppression, and policy persistence to the caller. Per-turn model
-  or sandbox overrides and explicit policy invalidation are outside
-  the adapter's control interface. The legacy transcript grouping, inline
-  image extraction, error banners, dynamic tool requests, and legacy
-  approval RPCs also stay in the old path.
-- Raw tokens, account notices, diffs, and item metadata remain available
-  for replay. The canonical contract has no dedicated reasoning, plan,
-  image-result, or multi-question events. The assistant-message body
-  carries text and an ID, so commentary phase and per-message model
-  metadata stay in the raw record where the provider supplies them.
+- Kept initialization, start and resume, sandbox restatement, local images,
+  turn and item notifications, tool output, thread status and name, and
+  command, file, and permission approvals.
+- The adapter owns one process group per thread and fences controls by
+  turn ID. It emits offset-based deltas, canonical messages, tool events,
+  and context for output deltas, reasoning, plans, and images. It redacts
+  diagnostics. The machine service emits `session.started`.
+- The legacy client retains account refresh, restart, quarantine, turn
+  recovery, forks, worktrees, hook suppression, policy persistence and
+  invalidation, per-turn overrides, transcript grouping, image extraction,
+  error banners, dynamic tool requests, and legacy approval RPCs.
+- The raw record retains tokens, account notices, diffs, item metadata,
+  the `thread/started` notice, commentary phase, and per-message model.
+
+## Claude SDK stream-json
+
+The adapter starts one Claude Code 2.1.319 process on POSIX and checks its
+version at initialize. Start generates a session UUID. Resume passes the
+saved UUID to `--resume`. Claude loads the conversation on first input.
+Set `model`, `permissionMode`, `systemPrompt`, or `appendSystemPrompt` in
+`StartSpec.options`. Permission modes are `default`, `acceptEdits`, `plan`,
+and `dontAsk`. `ProviderAdapterOptions.command` supplies the executable
+prefix. The adapter appends the protocol flags and enables persistence.
+
+The [current CLI session](../../apps/cli/src/claudeSdk/session.ts) and the
+adapter use the same checkpoint, text and image input, mid-turn `next`
+priority, tool prompts, and `/clear` reset. Claude reports the new checkpoint
+without a process restart. The adapter uses local turn IDs and canonical
+events. Result and lifecycle UUIDs attribute input to a delivery.
+Writes remain `in-doubt`. Resume recovers no durable delivery receipts.
+Recent repeated IDs in the same process are suppressed.
+
+Interrupt returns on its acknowledgement. Queued input can survive it.
+Result, idle, or exit ends a turn. Idle without a result emits `no-result`.
+Initialize and interrupt replies time out after 30 seconds. Controls
+settle while the shared bounded stdout reader waits for event space.
+
+Permission answers use exactly one offered `option_id` or a semantic
+`behavior` of `allow` or `deny`. For a single-choice question, use its
+displayed `option_id`. Linked context lists IDs and choices for other
+questions. Answer with `{ "answers": { "<id>": { "answers": ["…"] } } }`
+and include one entry per question. A null answer dismisses a question.
+A successful prompt write emits a local settlement and returns `in-doubt`.
+
+The current CLI path retains the reconnectable host, account selection,
+launchd, daemon hooks, transcript files, automatic restart, permission
+rule persistence, plan-mode restoration, and live model or mode changes.
+The adapter keeps other protocol frames in the raw record.

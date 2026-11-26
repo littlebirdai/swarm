@@ -33,6 +33,7 @@ export type RpcId = number | string;
 interface DialectProcess {
   name: string;
   command: readonly [string, ...string[]];
+  framing?: "stream-json";
 }
 
 export const ownProviderProcess = Effect.fn("provider.own-process")(function* (
@@ -231,7 +232,11 @@ export function spawnProvider(
               planned.success
                 .map(
                   (message) =>
-                    JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n",
+                    JSON.stringify(
+                      dialect.framing === "stream-json"
+                        ? message
+                        : { jsonrpc: "2.0", ...message },
+                    ) + "\n",
                 )
                 .join(""),
             );
@@ -304,6 +309,15 @@ export function spawnProvider(
   const request = Effect.fn("provider.request")(function* (
     method: string,
     params: object,
+    encode: (id: number, method: string, params: object) => object = (
+      id,
+      method,
+      params,
+    ) => ({
+      id,
+      method,
+      params,
+    }),
   ) {
     const response = yield* Deferred.make<unknown, AdapterError>();
     const id = ++nextId;
@@ -314,7 +328,7 @@ export function spawnProvider(
           const planned = beforeWrite?.();
           if (planned?._tag === "Failure") return Result.fail(planned.failure);
           pending.set(id, { method, response });
-          return Result.succeed([{ id, method, params }]);
+          return Result.succeed([encode(id, method, params)]);
         });
       },
       awaitResponse: Deferred.await(response),
@@ -327,7 +341,7 @@ export function spawnProvider(
   const settle = Effect.fn("provider.settle")(function* (
     id: RpcId,
     result: unknown,
-    error?: { code: number; message: string },
+    error?: AdapterError | { code: number; message: string },
   ) {
     const deferred =
       typeof id === "number" ? pending.get(id)?.response : undefined;
@@ -336,7 +350,9 @@ export function spawnProvider(
     yield* error
       ? Deferred.fail(
           deferred,
-          processError("rpc-rejected", withoutSecrets(error.message)),
+          error instanceof AdapterError
+            ? error
+            : processError("rpc-rejected", withoutSecrets(error.message)),
         )
       : Deferred.succeed(deferred, result);
     return true;
@@ -350,23 +366,21 @@ export function spawnProvider(
     pending.clear();
   });
 
-  let released: Promise<CloseOutcome> | undefined;
-  function release(): Promise<CloseOutcome> {
+  const releaseResult = Promise.withResolvers<CloseOutcome>();
+  let releasing = false;
+  async function release() {
+    if (releasing) return releaseResult.promise;
+    releasing = true;
     closing = true;
-    return (released ??= (async () => {
-      const outcome = stopGroup(child.pid);
-      await Promise.allSettled([stdout.cancel(), stderr.cancel()]);
-      const endInput = Promise.resolve()
-        .then(() => child.stdin.end())
-        .catch(() => {});
-      if (outcome.status === "failed") {
-        child.unref();
-      } else {
-        await child.exited;
-        await endInput;
-      }
-      return outcome;
-    })());
+    const outcome = stopGroup(child.pid);
+    await Promise.allSettled([stdout.cancel(), stderr.cancel()]);
+    const endInput = Promise.resolve()
+      .then(() => child.stdin.end())
+      .catch(() => {});
+    if (outcome.status === "failed") child.unref();
+    else await Promise.allSettled([child.exited, endInput]);
+    releaseResult.resolve(outcome);
+    return outcome;
   }
 
   return {
@@ -382,6 +396,8 @@ export function spawnProvider(
       typeof id === "number" ? pending.get(id)?.method : undefined,
     failPending,
     release,
+    releaseOutcome: () => releaseResult.promise,
+    terminate: () => stopGroup(child.pid),
     exit,
   };
 }

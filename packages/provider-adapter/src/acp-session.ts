@@ -1,4 +1,3 @@
-import type { CanonicalEvent } from "@codecast/edge-contract";
 import type {
   AnswerRequest,
   ControlOutcome,
@@ -9,10 +8,8 @@ import type {
   SteerRequest,
 } from "@codecast/provider-contract";
 import { withoutSecrets } from "@codecast/secrets/secretShapes";
-import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
@@ -22,8 +19,10 @@ import {
   makeProviderEvents,
   pendingPromptLimit,
   type Emit,
+  type DurablePayload,
 } from "./provider-events";
-import { permissionChoice, permissionDisplay, promptBlocks } from "./acp-input";
+import { permissionChoice, permissionDisplay } from "./acp-input";
+import { promptBlocks } from "./provider-input";
 import {
   processError,
   rawFrames,
@@ -52,12 +51,7 @@ import {
   type RawProviderFrame,
 } from "./options";
 
-type DurablePayload = {
-  [Kind in CanonicalEvent["kind"]]: Pick<
-    Extract<CanonicalEvent, { kind: Kind }>,
-    "kind" | "body"
-  >;
-}[CanonicalEvent["kind"]];
+import { closeProvider, providerEnvelope } from "./provider-session";
 
 interface Turn {
   readonly id: string;
@@ -84,7 +78,10 @@ export const openAcp = Effect.fn("acp.open")(function* (
 
   const events = yield* makeProviderEvents("ACP");
   const replies = yield* bestEffortReplies(transport, scope);
-  const clock = yield* Clock.Clock;
+  const envelope = yield* providerEnvelope(spec);
+  const close = yield* closeProvider(scope, transport, () => {
+    sessionClosed = true;
+  });
   const emit = events.emit;
   let checkpoint = "checkpoint" in spec ? spec.checkpoint : undefined;
   let seq = spec.afterSeq;
@@ -109,14 +106,10 @@ export const openAcp = Effect.fn("acp.open")(function* (
     turnId = turn?.id ?? null,
   ) {
     emit({
+      ...envelope(),
       ...payload,
-      v: 1,
-      source: "provider",
-      session: spec.session,
-      run: spec.run,
       turn: turnId,
       seq: ++seq,
-      at: clock.currentTimeMillisUnsafe(),
     });
   }
 
@@ -165,11 +158,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     if (active.assistantText.length + text.length > maxMessageLength)
       flushAssistant(emit, active);
     emit({
-      v: 1,
-      source: "provider",
-      session: spec.session,
-      run: spec.run,
-      at: clock.currentTimeMillisUnsafe(),
+      ...envelope(),
       turn: active.id,
       kind: "message.delta",
       body: {
@@ -506,8 +495,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     ),
   );
   if (established._tag === "Failure") {
-    yield* Effect.exit(Scope.close(scope, Exit.void));
-    const cleanup = yield* Effect.promise(transport.release);
+    const cleanup = yield* close;
     if (cleanup.status === "failed")
       return yield* processError(
         "cleanup-uncertain",
@@ -550,7 +538,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     if (preflight) return preflight;
     const blocks = yield* Effect.result(
       Effect.tryPromise({
-        try: (signal) => promptBlocks(request.input, signal),
+        try: (signal) => promptBlocks(request.input, signal, "ACP"),
         catch: (error) => processError("input", String(error), error),
       }),
     );
@@ -726,18 +714,6 @@ export const openAcp = Effect.fn("acp.open")(function* (
       ]);
     });
   });
-
-  const close = yield* Effect.cached(
-    Effect.uninterruptible(
-      Effect.sync(() => {
-        sessionClosed = true;
-        transport.fence();
-      }).pipe(
-        Effect.andThen(Effect.exit(Scope.close(scope, Exit.void))),
-        Effect.andThen(Effect.promise(transport.release)),
-      ),
-    ),
-  );
 
   return {
     mode: "own" as const,
