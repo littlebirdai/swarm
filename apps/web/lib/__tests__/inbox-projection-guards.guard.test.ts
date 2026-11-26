@@ -100,7 +100,7 @@ describe("the chokepoint is the only counting reader of the synced view keys", (
         "components/GlobalSessionPanel.tsx",
         "chokepoint memo dep + the scope toggle write",
       ],
-      ["components/FleetBoard.tsx", "chokepoint memo dep"],
+      ["components/fleet-board.tsx", "chokepoint memo dep"],
       [
         "lib/instantSessionSearch.ts",
         "chokepoint memo dep: scope only re-runs the memo, the rows come from instantSessionRows",

@@ -30,7 +30,7 @@ import { resolveImageThumbs } from "@codecast/web/lib/uiPrefDefaults";
 import { useAckAssignment } from "@codecast/web/hooks/useAckAssignment";
 import { threadStateView } from "@codecast/web/lib/threadState";
 import { gestureHandler } from "@/lib/gestureHandler";
-import { sessionRowPropsEqual } from "@/lib/sessionRowEqual";
+import { sessionRowPropsEqual } from "@/lib/session-row-equal";
 import * as Haptics from "expo-haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Feather from "@expo/vector-icons/Feather";

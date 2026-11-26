@@ -692,7 +692,7 @@
       },
       {
         "name": "FleetBoard",
-        "file": "packages/web/components/FleetBoard.tsx",
+        "file": "packages/web/components/fleet-board.tsx",
         "role": "[Inbox] Board view of the whole fleet by state. FILM: MEDIUM.",
         "props": "view-level props",
         "deps": "12 store reads and 1 shortcut registration.",

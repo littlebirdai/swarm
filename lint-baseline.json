@@ -7547,10 +7547,10 @@
   "apps/mobile/lib/scrollProgress.ts": {
     "swarm/no-comments": 7
   },
-  "apps/mobile/lib/sessionRowEqual.test.ts": {
+  "apps/mobile/lib/session-row-equal.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/mobile/lib/sessionRowEqual.ts": {
+  "apps/mobile/lib/session-row-equal.ts": {
     "swarm/no-comments": 5
   },
   "apps/mobile/lib/sessionVerbs.test.ts": {
@@ -9643,11 +9643,11 @@
   "apps/server/convex/images.ts": {
     "swarm/no-comments": 25
   },
+  "apps/server/convex/inbox-compat.test.ts": {
+    "swarm/no-comments": 46
+  },
   "apps/server/convex/inboxAdoption.test.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/server/convex/inboxCompat.test.ts": {
-    "swarm/no-comments": 46
   },
   "apps/server/convex/inboxFilters.test.ts": {
     "swarm/no-comments": 195
@@ -14755,10 +14755,6 @@
   "apps/web/components/FindBar.tsx": {
     "swarm/ime-safe-key-handlers": 2
   },
-  "apps/web/components/FleetBoard.tsx": {
-    "swarm/ime-safe-key-handlers": 1,
-    "swarm/no-comments": 87
-  },
   "apps/web/components/ForeignWorkspaceNotice.tsx": {
     "swarm/no-comments": 4
   },
@@ -16937,9 +16933,6 @@
   "apps/web/components/conversation/ConversationTaskProgress.tsx": {
     "swarm/no-comments": 7
   },
-  "apps/web/components/conversation/DormantWakeChip.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/components/conversation/FolderSyncControl.mount.test.tsx": {
     "swarm/no-comments": 7
   },
@@ -17163,6 +17156,9 @@
   },
   "apps/web/components/conversation/classify.ts": {
     "swarm/no-comments": 154
+  },
+  "apps/web/components/conversation/dormant-wake-chip.tsx": {
+    "swarm/no-comments": 6
   },
   "apps/web/components/conversation/hostedNoticeWords.test.ts": {
     "swarm/no-comments": 1
@@ -17834,6 +17830,10 @@
   },
   "apps/web/components/feed/activityFeedFormat.ts": {
     "swarm/no-comments": 11
+  },
+  "apps/web/components/fleet-board.tsx": {
+    "swarm/ime-safe-key-handlers": 1,
+    "swarm/no-comments": 87
   },
   "apps/web/components/fleet/ModernFleetBoard.tsx": {
     "swarm/ime-safe-key-handlers": 1,

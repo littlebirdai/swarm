@@ -120,7 +120,7 @@ const { useInboxStore } = await import("../../store/inboxStore");
 await hydration;
 hydrationSpy.mockRestore();
 const { ThemeContext } = await import("../ThemeProvider");
-const { FleetBoard } = await import("../FleetBoard");
+const { FleetBoard } = await import("../fleet-board");
 const { overlayConversationId } = await import("../../store/workspace");
 const { MemoryRouter } = await import("react-router");
 

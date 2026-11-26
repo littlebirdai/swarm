@@ -39,7 +39,7 @@ import {
   viewerCommandsSession,
 } from "../../store/inboxStore";
 import { freshHomeLaunchPending } from "../../store/viewNav";
-import { FleetBoard, InboxHomeToggle } from "../../components/FleetBoard";
+import { FleetBoard, InboxHomeToggle } from "../../components/fleet-board";
 import { ConversationSharePopover } from "../../components/ConversationSharePopover";
 import {
   SessionErrorBanner,

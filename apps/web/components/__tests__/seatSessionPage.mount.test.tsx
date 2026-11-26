@@ -46,13 +46,13 @@ mock.module("../DashboardLayout", () => ({
   DashboardLayout: DashboardLayoutStandIn,
 }));
 afterAll(() => mock.module("../DashboardLayout", () => realDashboard));
-const realFleet = { ...(await import("../FleetBoard")) };
-mock.module("../FleetBoard", () => ({
+const realFleet = { ...(await import("../fleet-board")) };
+mock.module("../fleet-board", () => ({
   ...realFleet,
   FleetBoard: () => <div data-fleet />,
   InboxHomeToggle: () => null,
 }));
-afterAll(() => mock.module("../FleetBoard", () => realFleet));
+afterAll(() => mock.module("../fleet-board", () => realFleet));
 const realActivity = { ...(await import("../ActivityFeed")) };
 mock.module("../ActivityFeed", () => ({
   ...realActivity,

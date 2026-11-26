@@ -75,7 +75,7 @@ mock.module("../../ConversationUnavailable", () => ({
 mock.module("../../ConversationPlaceholder", () => ({
   ConversationPlaceholder: ({ id }: any) => <div data-placeholder={id} />,
 }));
-mock.module("../../FleetBoard", () => ({
+mock.module("../../fleet-board", () => ({
   FleetBoard: () => <div data-home />,
   InboxHomeToggle: () => null,
 }));

@@ -3,7 +3,10 @@ import { LIVE_INBOX_LEASE_END } from "@codecast/inbox/inboxProjection";
 import { liveFactsOf } from "@codecast/web/lib/liveness";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sessionRowPropsEqual, sessionRowRenderEqual } from "./sessionRowEqual";
+import {
+  sessionRowPropsEqual,
+  sessionRowRenderEqual,
+} from "./session-row-equal";
 
 const NOW = 1_800_000_000_000;
 const row = (over: Record<string, unknown> = {}) => ({

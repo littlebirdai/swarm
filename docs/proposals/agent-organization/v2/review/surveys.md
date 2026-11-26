@@ -30,4 +30,4 @@ Two read only surveys of the codebase were run before the chapters were finalise
 - Access: `workspaceKey` (`lib/access.ts:241`), `computeWorkspaceKey` (`:261`), stamp evaluators (`:78`, `:100`). `team_memberships.role` is member or admin only.
 - Usage: only `messages.usage` (`schema.ts:992`) and a laptop local account store behind `runUsageCommand` (`index.ts:4503`). No per session token or dollar rollup.
 - Session insights at `schema.ts:2277`: headline, what changed, outcome type, blockers, next action; `tasks.context` (`tasks.ts:1915`) folds a linked session's insight into the task.
-- Web: `app/orchestration/` with `components/OrchestrationDashboard.tsx` and `FleetBoard.tsx` are the closest existing multi agent views; `DashboardLayout.tsx:203` with `HostFeeders` at `:237`.
+- Web: `app/orchestration/` with `components/OrchestrationDashboard.tsx` and `fleet-board.tsx` are the closest existing multi agent views; `DashboardLayout.tsx:203` with `HostFeeders` at `:237`.
