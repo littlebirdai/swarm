@@ -39,6 +39,8 @@ const AFTER_CONVERSATIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["directory_team_mappings", "by_user_id", "user_id"],
   ["client_state", "by_user_id", "user_id"],
   ["run_leases", "by_owner", "owner_user_id"],
+  ["run_event_cursors", "by_owner", "owner_user_id"],
+  ["run_turn_projections", "by_owner", "owner_user_id"],
   ["authAccounts", "userIdAndProvider", "userId"],
 ];
 

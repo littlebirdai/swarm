@@ -8,6 +8,7 @@ import { settleTaskWaits } from "../taskWaits";
 // object, and an anchor is a role seat (seated sessions refuse deletion).
 export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
   [
+    ["run_leases", "by_conversation_claim"],
     ["messages", "by_conversation_id"],
     ["message_thinking", "by_conversation_message"],
     ["message_tool_inputs", "by_conversation_message"],
@@ -42,7 +43,8 @@ export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
     ["call_session_links", "by_conversation"],
     ["external_events", "by_conversation_created"],
     ["delivery_attempts", "by_conversation_sequence"],
-    ["run_leases", "by_conversation_claim"],
+    ["run_event_cursors", "by_conversation_run"],
+    ["run_turn_projections", "by_conversation_run"],
     ["execution_bindings", "by_conversation_epoch"],
     ["conversation_execution_heads", "by_conversation"],
     ["managed_sessions", "by_conversation_id"],

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
 import {
@@ -37,6 +37,16 @@ const OTHER_USER = "users_2" as Id<"users">;
 const CONVERSATION = "conversations_1" as Id<"conversations">;
 const OTHER_CONVERSATION = "conversations_2" as Id<"conversations">;
 
+const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
+const initialEdgeFlag = process.env[edgeFlag];
+beforeEach(() => {
+  process.env[edgeFlag] = "1";
+});
+afterEach(() => {
+  if (initialEdgeFlag === undefined) delete process.env[edgeFlag];
+  else process.env[edgeFlag] = initialEdgeFlag;
+});
+
 function tables(options?: { legacyMessages?: any[] }) {
   return {
     users: [
@@ -58,6 +68,8 @@ function tables(options?: { legacyMessages?: any[] }) {
     execution_bindings: [],
     execution_daemon_boots: [],
     delivery_attempts: [],
+    run_event_cursors: [],
+    run_turn_projections: [],
   };
 }
 
@@ -1266,6 +1278,12 @@ describe("conversation-global ordered delivery", () => {
       reason: "drained for successor",
       now: 39,
     });
+    const cursor = db._tables.run_event_cursors.find(
+      (row: any) => row.run === 1,
+    );
+    expect(cursor).toMatchObject({ last_event_seq: 0 });
+    expect(db._tables.run_event_cursors).toHaveLength(1);
+    await db.patch(cursor!._id, { last_event_seq: 19 });
     const activation = await activateExecutionSuccessorInDb(ctx, USER, {
       conversationId: CONVERSATION,
       expectedCurrentEpoch: 1,
@@ -1282,6 +1300,14 @@ describe("conversation-global ordered delivery", () => {
       now: 40,
     });
     expect(activation.activated).toBe(true);
+    expect(db._tables.run_event_cursors).toMatchObject([
+      { run: 1, last_event_seq: 19 },
+      { run: 2, last_event_seq: 19 },
+    ]);
+    expect(db._tables.run_turn_projections).toMatchObject([
+      { run: 1 },
+      { run: 2, status: "active", open_turn: null, received_at: 40 },
+    ]);
     expect(
       (db._tables.conversation_execution_heads[0] as any)
         .next_nonterminal_sequence,

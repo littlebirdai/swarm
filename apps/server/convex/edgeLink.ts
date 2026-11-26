@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { internalMutation, internalQuery } from "./functions";
-import { bumpWindow } from "./ipRateLimit";
+import { bumpWindow, takeFromWindow } from "./ipRateLimit";
 
 export const isDeviceBearer = internalQuery({
   args: { bearer: v.string() },
@@ -41,5 +41,28 @@ export const admit = internalMutation({
         retryAfterMs: result.retry_after_ms ?? windowMs,
       } as const;
     return { status: "ok" } as const;
+  },
+});
+
+export const admitEvents = internalMutation({
+  args: { bearer: v.string(), batches: v.number() },
+  handler: async (ctx, { bearer, batches }) => {
+    const auth = await verifyDeviceApiToken(ctx, bearer);
+    if (!auth) return { status: "unauthorized" } as const;
+    const windowMs = 60_000;
+    const budget = await takeFromWindow(
+      ctx.db,
+      `edge/v1/events:${auth.userId}:${auth.deviceId}`,
+      240,
+      windowMs,
+      batches,
+      true,
+    );
+    return budget.granted === batches
+      ? ({ status: "ok" } as const)
+      : ({
+          status: "rate_limited",
+          retryAfterMs: budget.retry_after_ms ?? windowMs,
+        } as const);
   },
 });

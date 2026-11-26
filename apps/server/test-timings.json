@@ -262,7 +262,7 @@
     "convex/emails/templates.test.ts": 32,
     "convex/envCases.test.ts": 53,
     "convex/envs.test.ts": 59,
-    "convex/executionBindings.test.ts": 50,
+    "convex/execution-bindings.test.ts": 50,
     "convex/expectations.test.ts": 103,
     "convex/externalEvents.ingest.test.ts": 32,
     "convex/externalEvents.repositoryCase.test.ts": 31,

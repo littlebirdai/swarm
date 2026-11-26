@@ -164,6 +164,14 @@ function plans() {
   // transcript again (lib/deletedSessions).
   const conversation = {
     children: conversationRows.filter((node) => node.table !== "claims"),
+    beforeChildren: async (ctx: MutationCtx, row: Doc<"conversations">) => {
+      const head = await ctx.db
+        .query("conversation_execution_heads")
+        .withIndex("by_conversation", (q) => q.eq("conversation_id", row._id))
+        .unique();
+      if (head?.current_epoch !== undefined)
+        await ctx.db.patch(head._id, { current_epoch: undefined });
+    },
     before: async (
       ctx: MutationCtx,
       row: Doc<"conversations">,

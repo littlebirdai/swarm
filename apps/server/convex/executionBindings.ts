@@ -7,6 +7,11 @@
  * permit transitions below can authorize an external runtime side effect.
  */
 import { mutation, query } from "./functions";
+import { seedEventRun, clearEventTurn } from "./lib/edge/runEvents";
+import {
+  isTerminalDeliveryState,
+  orderedNonterminalMessages,
+} from "./lib/executionQueue";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import {
@@ -86,14 +91,6 @@ type SuccessorIntentRequest = {
   model?: string;
   effort?: string;
 };
-
-const TERMINAL_DELIVERY_STATES = new Set([
-  "delivered",
-  "rejected",
-  "cancelled-by-supersession",
-  "correlated-delivered",
-  "abandoned-ambiguous",
-]);
 
 export class ExecutionAuthorityError extends Error {
   constructor(
@@ -279,7 +276,7 @@ async function insertRequestedBinding(
   epoch: number,
   input: TargetInput,
   now: number,
-): Promise<any> {
+): Promise<Id<"execution_bindings">> {
   validateTargetInput(input);
   if (
     strictConversationAgent(conversation.agent_type) !== input.requestedAgent
@@ -334,25 +331,6 @@ function bindingTargetMatches(binding: any, input: TargetInput): boolean {
   );
 }
 
-function isTerminalDeliveryState(state: unknown): boolean {
-  return typeof state === "string" && TERMINAL_DELIVERY_STATES.has(state);
-}
-
-function isEffectivelyTerminalDelivery(message: any, head?: any): boolean {
-  if (isTerminalDeliveryState(message.delivery_status)) return true;
-  if (
-    head?.pending_policy === "cancel-unstarted" &&
-    Number.isSafeInteger(head.cancelled_through_sequence) &&
-    message.execution_epoch === head.current_epoch &&
-    message.conversation_sequence <= head.cancelled_through_sequence &&
-    message.delivery_status !== "delivery-started" &&
-    message.delivery_status !== "ambiguous"
-  ) {
-    return true;
-  }
-  return false;
-}
-
 async function fencedMessages(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
@@ -366,23 +344,6 @@ async function fencedMessages(
   return messages.filter(
     (message: any) => message.delivery_protocol_version !== undefined,
   );
-}
-
-function orderedNonterminalMessages(
-  messages: readonly any[],
-  head?: any,
-): any[] {
-  return messages
-    .filter(
-      (message) =>
-        Number.isSafeInteger(message.conversation_sequence) &&
-        !isEffectivelyTerminalDelivery(message, head),
-    )
-    .sort(
-      (left, right) =>
-        left.conversation_sequence - right.conversation_sequence ||
-        String(left._id).localeCompare(String(right._id)),
-    );
 }
 
 async function advanceNonterminalHead(
@@ -661,7 +622,14 @@ export async function initializeFencedExecutionInDb(
     created_at: args.now,
     updated_at: args.now,
   });
-  await insertRequestedBinding(ctx, conversation, 1, args.target, args.now);
+  const binding = await insertRequestedBinding(
+    ctx,
+    conversation,
+    1,
+    args.target,
+    args.now,
+  );
+  await seedEventRun(ctx, binding, conversation, 1, args.now);
   await ctx.db.patch(args.conversationId, {
     owner_device_id: args.target.ownerDeviceId,
     execution_protocol_state: "fenced" as const,
@@ -795,7 +763,14 @@ export async function activateAfterLegacyQuiescenceInDb(
     sequence += 1;
   }
 
-  await insertRequestedBinding(ctx, conversation, 1, args.target, args.now);
+  const binding = await insertRequestedBinding(
+    ctx,
+    conversation,
+    1,
+    args.target,
+    args.now,
+  );
+  await seedEventRun(ctx, binding, conversation, 1, args.now);
   await ctx.db.patch(head._id, {
     protocol_state: "fenced" as const,
     current_epoch: 1,
@@ -1490,6 +1465,7 @@ export async function claimExecutionStartInDb(
           });
         }
       }
+      await clearEventTurn(ctx, binding, args.now, true);
       await ctx.db.patch(binding._id, {
         daemon_boot_id: args.daemonBootId,
         updated_at: args.now,
@@ -3095,6 +3071,13 @@ export async function activateExecutionSuccessorInDb(
     );
   }
 
+  await seedEventRun(
+    ctx,
+    successor._id,
+    conversation,
+    successor.epoch,
+    args.now,
+  );
   await ctx.db.patch(head._id, {
     current_epoch: args.successorEpoch,
     admission_epoch: args.successorEpoch,

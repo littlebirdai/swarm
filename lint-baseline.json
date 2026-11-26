@@ -9388,7 +9388,7 @@
   "apps/server/convex/envs.ts": {
     "swarm/no-comments": 40
   },
-  "apps/server/convex/executionBindings.test.ts": {
+  "apps/server/convex/execution-bindings.test.ts": {
     "swarm/no-comments": 24
   },
   "apps/server/convex/executionBindings.ts": {

@@ -2,6 +2,7 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import {
+  appendClaimedEvents,
   claimRunLease,
   releaseRunLease,
   renewRunLease,
@@ -24,6 +25,11 @@ export const renew = internalMutation({ args: fence, handler: renewRunLease });
 export const release = internalMutation({
   args: fence,
   handler: releaseRunLease,
+});
+
+export const append = internalMutation({
+  args: { ...fence, events_json: v.string() },
+  handler: appendClaimedEvents,
 });
 
 export const prune = internalMutation({

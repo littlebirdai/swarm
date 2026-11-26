@@ -1,6 +1,8 @@
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import { sessionMachine, type SessionState } from "./session-machine";
 
+export const TURN_PROJECTION_VERSION = 1;
+
 export type TurnProjection = Readonly<
   Pick<SessionState, "session" | "run" | "status" | "eventSeq" | "turnIds"> & {
     openTurn: {

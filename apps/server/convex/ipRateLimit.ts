@@ -48,6 +48,7 @@ export async function takeFromWindow(
   max: number,
   windowMs: number,
   n: number,
+  requireFullGrant = false,
 ): Promise<{ granted: number; retry_after_ms?: number }> {
   if (n <= 0) return { granted: 0 };
   const now = Date.now();
@@ -59,6 +60,8 @@ export async function takeFromWindow(
   // New key, or the previous window fully elapsed → start a fresh window.
   if (!existing || now - existing.window_start >= windowMs) {
     const granted = Math.min(n, max);
+    if (requireFullGrant && granted < n)
+      return { granted: 0, retry_after_ms: windowMs };
     if (existing) {
       await db.patch(existing._id, { count: granted, window_start: now });
     } else {
@@ -72,6 +75,11 @@ export async function takeFromWindow(
   }
 
   const granted = Math.max(0, Math.min(n, max - existing.count));
+  if (requireFullGrant && granted < n)
+    return {
+      granted: 0,
+      retry_after_ms: windowMs - (now - existing.window_start),
+    };
   if (granted)
     await db.patch(existing._id, { count: existing.count + granted });
   return granted < n

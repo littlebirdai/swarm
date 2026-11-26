@@ -426,6 +426,36 @@ export const sessionDeliveryTables = {
     updated_at: v.number(),
   }).index("by_conversation_epoch", ["conversation_id", "epoch"]),
 
+  run_event_cursors: defineTable({
+    conversation_id: v.id("conversations"),
+    owner_user_id: v.id("users"),
+    binding_id: v.id("execution_bindings"),
+    run: v.number(),
+    last_event_seq: v.number(),
+  })
+    .index("by_conversation_run", ["conversation_id", "run"])
+    .index("by_owner", ["owner_user_id"]),
+
+  run_turn_projections: defineTable({
+    conversation_id: v.id("conversations"),
+    owner_user_id: v.id("users"),
+    binding_id: v.id("execution_bindings"),
+    run: v.number(),
+    status: v.union(v.literal("active"), v.literal("completed")),
+    projection_version: v.optional(v.number()),
+    turn_ids: v.array(v.string()),
+    open_turn: v.union(
+      v.null(),
+      v.object({
+        id: v.string(),
+        prompt_ids: v.array(v.string()),
+      }),
+    ),
+    received_at: v.number(),
+  })
+    .index("by_conversation_run", ["conversation_id", "run"])
+    .index("by_owner", ["owner_user_id"]),
+
   run_leases: defineTable({
     conversation_id: v.id("conversations"),
     owner_user_id: v.id("users"),

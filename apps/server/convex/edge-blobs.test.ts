@@ -711,3 +711,72 @@ test("an unexpected post-read query failure returns a redacted retryable 503", a
     retry_after_ms: 1_000,
   });
 });
+
+test("edge work refuses a run when the conversation owner device is unset", async () => {
+  const f = await fixture();
+  const { fence, request, body } = await f.authorize();
+  await f.t.run(({ db }) =>
+    db.patch(f.conversation, { owner_device_id: undefined }),
+  );
+  for (const verb of ["renew", "permits.next", "release"])
+    expect(await (await f.post(verb, fence)).json()).toMatchObject({
+      status: "stale",
+    });
+  expect(await (await f.post("delivery.start", request)).json()).toMatchObject({
+    status: "rejected",
+    reason: "stale",
+  });
+  expect(
+    await (
+      await f.post("delivery.settle", { ...request, outcome: "rejected" })
+    ).json(),
+  ).toMatchObject({ status: "stale" });
+  const append = await f.post("events.append", {
+    v: 1,
+    batches: [
+      {
+        session: fence.session,
+        run: fence.run,
+        fencing_token: fence.fencing_token,
+        events: [
+          {
+            v: 1,
+            session: fence.session,
+            run: fence.run,
+            at: start,
+            seq: 1,
+            turn: "turn",
+            source: "provider",
+            kind: "turn.started",
+            body: {},
+          },
+        ],
+      },
+    ],
+  });
+  expect(await append.json()).toMatchObject({ results: [{ status: "stale" }] });
+  await expectMissing(await f.post("blobs.get", body));
+});
+
+test.each(["claimed", "started"] as const)(
+  "the old device cannot read a blob from a %s attempt after the conversation leaves it",
+  async (state) => {
+    const f = await fixture();
+    const { request, body } = await f.authorize();
+    expect((await f.post("blobs.get", body)).status).toBe(200);
+    if (state === "started")
+      expect(
+        await (await f.post("delivery.start", request)).json(),
+      ).toMatchObject({ status: "started" });
+    await f.t.run(({ db }) =>
+      db.patch(f.conversation, { owner_device_id: "destination" }),
+    );
+    await expectMissing(await f.post("blobs.get", body));
+    if (state === "started")
+      expect(
+        await (
+          await f.post("delivery.settle", { ...request, outcome: "applied" })
+        ).json(),
+      ).toMatchObject({ status: "recorded" });
+  },
+);

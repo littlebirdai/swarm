@@ -27,7 +27,7 @@ import {
   deliveryRejectionCodes,
   type PermitFence,
 } from "./lib/delivery-slot.state";
-import { ownedRun } from "./lib/edge/runLease";
+import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
 import {
   inspectPermitImage,
   permitImageIds,
@@ -86,8 +86,12 @@ async function withFence<T>(
   }
 }
 
-async function runContext(ctx: Pick<QueryCtx, "db">, args: RunFence) {
-  const owned = await ownedRun(ctx, {
+async function runContext(
+  ctx: Pick<QueryCtx, "db">,
+  args: RunFence,
+  loadRun = ownedRun,
+) {
+  const owned = await loadRun(ctx, {
     bearer: args.bearer,
     conversation_id: args.session,
   });
@@ -105,7 +109,10 @@ async function runContext(ctx: Pick<QueryCtx, "db">, args: RunFence) {
     now: Date.now(),
   };
   await assertReadyFence(ctx, head, binding, fence);
-  return { head, fence, owner: binding.owner_user_id };
+  const moved =
+    !!owned.conversationDeviceId &&
+    owned.conversationDeviceId !== binding.owner_device_id;
+  return { head, fence, owner: binding.owner_user_id, moved };
 }
 
 function deliveryFields(
@@ -165,13 +172,22 @@ async function deliveryContext(
     intent: string;
     sender: { kind: string; id: string };
   },
+  settling = false,
 ) {
-  const run = await runContext(ctx, args);
+  const run = await runContext(
+    ctx,
+    args,
+    settling ? runForDeliverySettlement : ownedRun,
+  );
   if (!run) return null;
   const attemptId = ctx.db.normalizeId("delivery_attempts", args.attempt_id);
   if (!attemptId) return null;
   const attempt = await ctx.db.get(attemptId);
-  if (!attempt || attempt.conversation_id !== run.fence.conversationId)
+  if (
+    !attempt ||
+    attempt.conversation_id !== run.fence.conversationId ||
+    (run.moved && attempt.delivery_started_at === undefined)
+  )
     return null;
   const fence = {
     ...run.fence,
@@ -398,7 +414,7 @@ export const settle = internalMutation({
   },
   handler: (ctx, args): Promise<DeliverySettleResponse> =>
     withFence<DeliverySettleResponse>(stale, async () => {
-      const delivery = await deliveryContext(ctx, args);
+      const delivery = await deliveryContext(ctx, args, true);
       if (!delivery) return stale;
       const { owner, fence, attempt } = delivery;
       const { outcome, resolution_evidence: evidence } = args;
