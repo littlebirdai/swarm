@@ -162,7 +162,7 @@ apps/cli/src/taskScheduler.ts 1100
 apps/cli/src/test-helpers/messagingHarness.ts 1150
 apps/cli/src/tmux.ts 950
 apps/cli/src/transcriptDirWatcher.test.ts 850
-apps/cli/src/turnClaims.test.ts 900
+apps/cli/src/turn-claims.test.ts 900
 apps/cli/src/vault/vaultServer.test.ts 850
 apps/cli/src/wipSnapshot.test.ts 1100
 apps/cli/src/wipSnapshot.ts 900
