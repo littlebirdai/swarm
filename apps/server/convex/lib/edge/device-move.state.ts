@@ -9,7 +9,8 @@ import {
 import { resolveSessionLaunchDevice } from "../../sessionLaunch";
 import { loadRunLeaseClaim } from "./runLease";
 
-const SETTLEMENT_WINDOW_MS = 10_000;
+const LEGACY_SETTLEMENT_WINDOW_MS = 10_000;
+const MAX_SETTLEMENT_WINDOW_MS = 30_000;
 export const DEVICE_MOVE_FENCE = "EXECUTION_DEVICE_MOVE_IN_PROGRESS";
 const FORCED_MOVE_FLAG = "CODECAST_FORCED_DEVICE_MOVE_V1";
 type Head = Doc<"conversation_execution_heads">;
@@ -373,6 +374,21 @@ export async function recordDeviceMove(
       ? lease
       : null;
   const started = head.active_delivery_state === "delivery-started";
+  let settlementDeadline = now;
+  if (started && forcedBy === undefined) {
+    if (!forcedDeviceMoveEnabled()) {
+      settlementDeadline = now + LEGACY_SETTLEMENT_WINDOW_MS;
+    } else if (
+      sourceLease &&
+      sourceLease.released_at === undefined &&
+      sourceLease.expires_at > now
+    ) {
+      settlementDeadline = Math.min(
+        sourceLease.expires_at,
+        now + MAX_SETTLEMENT_WINDOW_MS,
+      );
+    }
+  }
   const moveId = crypto.randomUUID();
   const move: Move = {
     move_id: moveId,
@@ -386,8 +402,7 @@ export async function recordDeviceMove(
     ...(forcedBy !== undefined && {
       forced: { by_user_id: forcedBy, at: now },
     }),
-    settlement_deadline:
-      started && forcedBy === undefined ? now + SETTLEMENT_WINDOW_MS : now,
+    settlement_deadline: settlementDeadline,
   };
   await ctx.db.patch(head._id, { device_move: move, updated_at: now });
   if (head.active_delivery_state === "claimed") {

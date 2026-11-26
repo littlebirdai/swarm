@@ -15,6 +15,7 @@ import {
   activeMoveAttempt,
   DEVICE_MOVE_FENCE,
   expireMoveSettlement,
+  forcedDeviceMoveEnabled,
   registeredBoot,
   requireForcedDeviceMoveEnabled,
 } from "./device-move.state";
@@ -303,7 +304,13 @@ export async function confirmMoveSourceStopped(
   await ctx.db.patch(lease._id, { released_at: now });
   await clearEventTurn(ctx, source, now, true);
   await ctx.db.patch(head._id, {
-    device_move: { ...move, source_stopped_at: now },
+    device_move: {
+      ...move,
+      source_stopped_at: now,
+      ...(forcedDeviceMoveEnabled() && {
+        settlement_deadline: Math.min(move.settlement_deadline, now),
+      }),
+    },
     updated_at: now,
   });
   await expireMoveSettlement(ctx, head._id, source.epoch, now);
@@ -336,7 +343,13 @@ export async function confirmMoveSourceBoot(
   if (lease && lease.released_at === undefined)
     await ctx.db.patch(lease._id, { released_at: now });
   await ctx.db.patch(head._id, {
-    device_move: { ...move, source_replacement_boot_id: args.daemon_boot_id },
+    device_move: {
+      ...move,
+      source_replacement_boot_id: args.daemon_boot_id,
+      ...(forcedDeviceMoveEnabled() && {
+        settlement_deadline: Math.min(move.settlement_deadline, now),
+      }),
+    },
     updated_at: now,
   });
   await expireMoveSettlement(ctx, head._id, source.epoch, now);
