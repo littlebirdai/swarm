@@ -130,8 +130,14 @@ export function conversationSessionsBeatingSince(
 ) {
   return ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_heartbeat", (q) =>
-      q.eq("conversation_id", conversationId).gt("last_heartbeat", since),
+    .withIndex("by_conversation_id", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .filter((q) =>
+      q.or(
+        q.gt(q.field("last_heartbeat"), since),
+        q.eq(q.field("liveness_lease.expired"), false),
+      ),
     );
 }
 

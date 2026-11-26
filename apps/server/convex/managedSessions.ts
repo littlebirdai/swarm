@@ -243,10 +243,13 @@ export async function performRegisterManagedSession(
     if (existing.user_id.toString() !== authUserId.toString()) {
       await ctx.db.delete(existing._id);
     } else {
-      const lease = await startInboxLease(ctx, existing._id, now, now);
+      const lease =
+        !existing.liveness_lease || existing.liveness_lease.expired
+          ? await startInboxLease(ctx, existing._id, now, now)
+          : undefined;
       await ctx.db.patch(existing._id, {
         pid: args.pid,
-        liveness_lease: lease,
+        ...(lease && { liveness_lease: lease }),
         last_heartbeat: now,
         ...backendPatch(args),
         ...(args.tmux_session !== undefined

@@ -1540,6 +1540,8 @@ function rowHeartbeatEnd(
   );
 }
 
+export const LIVE_INBOX_LEASE_END = Number.MAX_SAFE_INTEGER;
+
 export function rowHeartbeatAliveAt(
   row: Pick<LiveFactsRow, "last_heartbeat" | "liveness_lease_end">,
   t: number,
@@ -1661,7 +1663,7 @@ export function rowLiveDeadlines(row: LiveFactsRow): Array<number | null> {
       : null,
     // A bare dormant claim outliving its trust (placeProjectableRow).
     u + DORMANT_CLAIM_TTL_MS,
-  ];
+  ].map((deadline) => (deadline === LIVE_INBOX_LEASE_END ? null : deadline));
 }
 
 // The machine-delivered-last-turn rule behind every structural park: an armed

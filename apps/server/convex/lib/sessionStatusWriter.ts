@@ -3,7 +3,6 @@ import {
   ACTIVE_AGENT_STATUSES,
   HEARTBEAT_REFRESH_MS,
   HEARTBEAT_ALIVE_MS,
-  HEARTBEAT_FLUSH_INTERVAL_MS,
   type AgentStatus,
 } from "@codecast/sessions/agentStatus";
 
@@ -183,7 +182,7 @@ export async function startInboxLease(
   const end = heartbeat + HEARTBEAT_ALIVE_MS;
   if (end <= now) return undefined;
   await ctx.scheduler.runAfter(
-    Math.max(1, end - HEARTBEAT_FLUSH_INTERVAL_MS - now),
+    end - now,
     internal.managedSessions.checkInboxLivenessLease,
     { id, end },
   );
@@ -201,16 +200,10 @@ export async function checkInboxLease(
   const row = await heartbeatRow(ctx, id);
   const latest = resolveHeartbeat(session, row?.heartbeat_at);
   const now = Date.now();
-  if (latest + HEARTBEAT_ALIVE_MS > end) {
-    const lease = await startInboxLease(ctx, id, latest, now);
-    if (lease) {
-      await ctx.db.patch(id, { liveness_lease: lease, last_heartbeat: latest });
-      return;
-    }
-  }
-  if (now < end) {
+  const remaining = latest + HEARTBEAT_ALIVE_MS - now;
+  if (remaining > 0) {
     await ctx.scheduler.runAfter(
-      end - now,
+      remaining,
       internal.managedSessions.checkInboxLivenessLease,
       { id, end },
     );

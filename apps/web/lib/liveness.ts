@@ -22,6 +22,7 @@ export function liveFactsOf(s: {
   agent_status?: string | null;
   agent_status_updated_at?: number | null;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   daemon_alive_until?: number | null;
   producing_until?: number | null;
   child_asking_until?: number | null;
@@ -44,6 +45,7 @@ export function liveFactsOf(s: {
     agent_status: s.agent_status ?? null,
     agent_status_updated_at: s.agent_status_updated_at ?? null,
     last_heartbeat: s.last_heartbeat ?? null,
+    liveness_lease_end: s.liveness_lease_end ?? null,
     daemon_alive_until: s.daemon_alive_until ?? null,
     producing_until: s.producing_until ?? null,
     child_asking_until: s.child_asking_until ?? null,
@@ -66,6 +68,7 @@ export function agentStatusAt(
     agent_status?: string | null;
     updated_at?: number;
     last_heartbeat?: number | null;
+    liveness_lease_end?: number | null;
     open_tasks?: unknown[] | null;
     open_tasks_at?: number | null;
   },
@@ -76,6 +79,7 @@ export function agentStatusAt(
       agent_status: s.agent_status ?? null,
       updated_at: s.updated_at ?? 0,
       last_heartbeat: s.last_heartbeat ?? null,
+      liveness_lease_end: s.liveness_lease_end ?? null,
       open_tasks: s.open_tasks ?? null,
       open_tasks_at: s.open_tasks_at ?? null,
     },

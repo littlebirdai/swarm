@@ -92,6 +92,7 @@ import {
   deriveLiveAt,
   trustedStatusAt,
   rowLiveDeadlines,
+  LIVE_INBOX_LEASE_END,
   childAskingAt,
   rowLastTurnAllowsPark,
   INBOX_PROJECTION_VERSION,
@@ -10107,6 +10108,8 @@ type InboxSessionMaps = {
   // read: newest heartbeat per conversation, and newest across the user's rows.
   lastHeartbeatMap: Map<string, number>;
   latestHeartbeat: number | undefined;
+  liveLeaseIds: Set<string>;
+  hasLiveDaemonLease: boolean;
 };
 
 // A daemon whose newest heartbeat is inside this window is "alive" for the
@@ -10115,27 +10118,22 @@ const USER_DAEMON_ALIVE_MS = 6 * 60 * 1000;
 // …and only rows updated inside this window ride that fallback.
 const CONV_DAEMON_ALIVE_MS = 10 * 60 * 1000;
 
-function heartbeatAliveAt(
-  maps: Pick<InboxSessionMaps, "lastHeartbeatMap">,
-  cid: string,
-  now: number,
-): boolean {
-  const hb = maps.lastHeartbeatMap.get(cid);
-  return hb !== undefined && now - hb < HEARTBEAT_ALIVE_MS;
-}
-
 function userDaemonAliveAt(
-  maps: Pick<InboxSessionMaps, "latestHeartbeat">,
+  maps: Pick<InboxSessionMaps, "latestHeartbeat" | "hasLiveDaemonLease">,
   now: number,
 ): boolean {
   return (
-    maps.latestHeartbeat !== undefined &&
-    now - maps.latestHeartbeat < USER_DAEMON_ALIVE_MS
+    maps.hasLiveDaemonLease ||
+    (maps.latestHeartbeat !== undefined &&
+      now - maps.latestHeartbeat < USER_DAEMON_ALIVE_MS)
   );
 }
 
 function noteHeartbeat(
-  maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveConvIds">,
+  maps: Pick<
+    InboxSessionMaps,
+    "lastHeartbeatMap" | "liveConvIds" | "liveLeaseIds"
+  >,
   cid: string,
   lastHeartbeat: number | undefined,
   now: number,
@@ -10144,7 +10142,7 @@ function noteHeartbeat(
   const prev = maps.lastHeartbeatMap.get(cid);
   if (prev === undefined || lastHeartbeat > prev)
     maps.lastHeartbeatMap.set(cid, lastHeartbeat);
-  if (heartbeatAliveAt(maps, cid, now)) maps.liveConvIds.add(cid);
+  if (isLiveAt(maps, cid, now)) maps.liveConvIds.add(cid);
 }
 
 // Whether the daemon's open-task report vouches for a "waiting" on this
@@ -10152,7 +10150,7 @@ function noteHeartbeat(
 // trustedAgentStatus arg.
 function verifiedWaitingFor(
   maps: Pick<InboxSessionMaps, "openTasksMap" | "liveConvIds"> &
-    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
   cid: string,
   now: number,
 ): boolean {
@@ -10272,9 +10270,13 @@ export function sessionMapsFromManagedRows(
 ): InboxSessionMaps {
   const liveConvIds = new Set<string>();
   const lastHeartbeatMap = new Map<string, number>();
+  const liveLeaseIds = new Set<string>();
+  let hasLiveDaemonLease = false;
   let latestHeartbeat: number | undefined;
   for (const [i, s] of managedSessions.entries()) {
     const beat = beats[i];
+    const live = s.liveness_lease?.expired === false;
+    if (live && isDaemonManagedRow(s)) hasLiveDaemonLease = true;
     // Only a daemon's heartbeat vouches for the user's other sessions; a
     // hosted row's heartbeat is a running turn and stays on its own row.
     if (
@@ -10283,13 +10285,15 @@ export function sessionMapsFromManagedRows(
     ) {
       latestHeartbeat = beat;
     }
-    if (s.conversation_id)
+    if (s.conversation_id) {
+      if (live) liveLeaseIds.add(s.conversation_id.toString());
       noteHeartbeat(
-        { lastHeartbeatMap, liveConvIds },
+        { lastHeartbeatMap, liveConvIds, liveLeaseIds },
         s.conversation_id.toString(),
         beat,
         now,
       );
+    }
   }
 
   const agentStatusMap = new Map<string, any>();
@@ -10347,7 +10351,10 @@ export function sessionMapsFromManagedRows(
   // Flooring keeps the deadline honest: at most a minute early.
   if (latestHeartbeat !== undefined)
     latestHeartbeat = Math.floor(latestHeartbeat / 60_000) * 60_000;
-  const userDaemonAlive = userDaemonAliveAt({ latestHeartbeat }, now);
+  const userDaemonAlive = userDaemonAliveAt(
+    { latestHeartbeat, hasLiveDaemonLease },
+    now,
+  );
 
   return {
     agentStatusMap,
@@ -10363,6 +10370,8 @@ export function sessionMapsFromManagedRows(
     userDaemonAlive,
     lastHeartbeatMap,
     latestHeartbeat,
+    liveLeaseIds,
+    hasLiveDaemonLease,
   };
 }
 
@@ -10382,6 +10391,8 @@ const EMPTY_INBOX_MAPS: InboxSessionMaps = {
   userDaemonAlive: false,
   lastHeartbeatMap: new Map(),
   latestHeartbeat: undefined,
+  liveLeaseIds: new Set(),
+  hasLiveDaemonLease: false,
 };
 
 // Liveness for second-party-owned rows: their managed_sessions belong to the
@@ -10410,6 +10421,7 @@ async function mergeForeignConversationLiveness(
     const cid = conv._id.toString();
     const managed = managedRows[i];
     if (!managed) continue;
+    if (managed.liveness_lease?.expired === false) maps.liveLeaseIds.add(cid);
     noteHeartbeat(maps, cid, inboxHeartbeatOf(managed), now);
     if (managed.tmux_session)
       maps.tmuxSessionMap.set(cid, managed.tmux_session);
@@ -12485,17 +12497,15 @@ const FOREIGN_SCAN_BUDGET = 40;
 // hand-built maps in tests supply.
 function isLiveAt(
   maps: Pick<InboxSessionMaps, "liveConvIds"> &
-    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
   cid: string,
   now: number,
 ): boolean {
-  if (maps.lastHeartbeatMap?.has(cid))
-    return heartbeatAliveAt(
-      maps as Pick<InboxSessionMaps, "lastHeartbeatMap">,
-      cid,
-      now,
-    );
-  return maps.liveConvIds.has(cid);
+  if (maps.liveLeaseIds?.has(cid)) return true;
+  const heartbeat = maps.lastHeartbeatMap?.get(cid);
+  return heartbeat === undefined
+    ? maps.liveConvIds.has(cid)
+    : now - heartbeat < HEARTBEAT_ALIVE_MS;
 }
 
 // Is this child still producing for its parent at instant `now`? Pure over the
@@ -12503,7 +12513,7 @@ function isLiveAt(
 function childIsProducing(
   c: any,
   maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> &
-    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
   now: number,
 ): boolean {
   const cid = c._id.toString();
@@ -12582,7 +12592,7 @@ export function hasLiveNestedChild(
 export function deriveProducingParents(
   pool: any[],
   maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> &
-    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
   now: number,
 ): Set<string> {
   const parents = new Set<string>();
@@ -12724,7 +12734,7 @@ export async function buildAskingParents(
     InboxSessionMaps,
     "liveConvIds" | "agentStatusMap" | "openTasksMap"
   > &
-    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
   now: number,
   alreadyAsking?: ReadonlySet<string>,
   // Whether a child is still in the pool at instant t (default: always). A
@@ -12844,7 +12854,7 @@ export async function buildAskingParents(
     if (!asking.has(pid)) return null;
     // oxfmt-ignore
     const deadlines = (childrenByParent.get(pid) ?? []).flatMap((c) =>
-      rowLiveDeadlines({ updated_at: c.updated_at, last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null }));
+      rowLiveDeadlines({ updated_at: c.updated_at, liveness_lease_end: inboxLeaseEnd(maps, c._id.toString()) }));
     const ahead = [
       ...new Set(deadlines.filter((d): d is number => d != null && d > now)),
     ].sort((a, b) => a - b);
@@ -12950,27 +12960,35 @@ type LivenessRowReads = {
   auqOpen: boolean;
 };
 
+function inboxLeaseEnd(
+  maps: Partial<Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveLeaseIds">>,
+  cid: string,
+): number | null {
+  if (maps.liveLeaseIds?.has(cid)) return LIVE_INBOX_LEASE_END;
+  const heartbeat = maps.lastHeartbeatMap?.get(cid);
+  return heartbeat === undefined ? null : heartbeat + HEARTBEAT_ALIVE_MS;
+}
+
 // The instant after which the daemon behind this row no longer counts as
 // alive, before the stopped override (deriveLiveAt applies that from the
 // status): the row's own heartbeat window, or the user's most recent daemon
 // vouching for a recently active conversation. Pure in the maps, so the same
 // value ships at every execution over the same data.
-function inboxLeaseEnd(
-  maps: Pick<InboxSessionMaps, "lastHeartbeatMap">,
-  cid: string,
-): number | null {
-  const heartbeat = maps.lastHeartbeatMap.get(cid);
-  return heartbeat === undefined ? null : heartbeat + HEARTBEAT_ALIVE_MS;
-}
-
 function daemonAliveUntil(
-  maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "latestHeartbeat">,
+  maps: Pick<
+    InboxSessionMaps,
+    | "lastHeartbeatMap"
+    | "latestHeartbeat"
+    | "liveLeaseIds"
+    | "hasLiveDaemonLease"
+  >,
   cid: string,
   updatedAt: number,
 ): number | null {
   const own = inboxLeaseEnd(maps, cid);
-  const user =
-    maps.latestHeartbeat !== undefined
+  const user = maps.hasLiveDaemonLease
+    ? updatedAt + CONV_DAEMON_ALIVE_MS
+    : maps.latestHeartbeat !== undefined
       ? Math.min(
           maps.latestHeartbeat + USER_DAEMON_ALIVE_MS,
           updatedAt + CONV_DAEMON_ALIVE_MS,
@@ -12996,12 +13014,11 @@ function producingUntilOf(
     children.some((c: any) => childIsProducing(c, maps, t));
   let until: number | null = null;
   for (const c of children) {
-    const chb = maps.lastHeartbeatMap.get(c._id.toString());
     const candidates = [
       c.updated_at + SUBAGENT_PRODUCING_GRACE_MS,
       c.updated_at + STATUS_TRUST_TTL_MS,
       c.updated_at + HEARTBEAT_ALIVE_MS,
-      chb !== undefined ? chb + HEARTBEAT_ALIVE_MS : null,
+      inboxLeaseEnd(maps, c._id.toString()),
     ];
     for (const d of candidates) {
       if (d == null || (until != null && d <= until)) continue;

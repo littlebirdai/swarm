@@ -6,6 +6,7 @@ import { agentStatusAt } from "@codecast/web/lib/liveness";
 // trusted status at this instant, is compared on its own below.
 const LIVENESS_ONLY_ROW_FIELDS = new Set([
   "last_heartbeat",
+  "liveness_lease_end",
   "daemon_alive_until",
   "producing_until",
   "context_tokens",

@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
   rowHeartbeatAliveAt,
+  LIVE_INBOX_LEASE_END,
   deriveLiveAt,
 } from "@codecast/inbox/inboxProjection";
 import {
   HEARTBEAT_ALIVE_MS,
   HEARTBEAT_FLUSH_INTERVAL_MS,
 } from "@codecast/sessions/agentStatus";
+import { conversationSessionsBeatingSince } from "./lib/sessionHeartbeat";
 import { api } from "./_generated/api";
 import {
   asUser,
@@ -234,8 +236,8 @@ test("an active heartbeat keeps an older park from changing inbox status", async
   });
 });
 
-test("a legacy row gains a lease, renews off the heartbeat path, and expires at the old timeout", async () => {
-  const { viewer, t, working } = await seed(0, false);
+test("renewals leave the inbox read sets untouched and expire after the last beat", async () => {
+  const { viewer, t, working, team } = await seed(0, false);
   const latest = async () => {
     const result = await viewer.query(api.conversations.sessionsLiveness, {});
     if (!("liveness" in result)) throw new Error("Expected whole liveness");
@@ -261,40 +263,69 @@ test("a legacy row gains a lease, renews off the heartbeat path, and expires at 
   expect((await latest()).last_heartbeat).toBe(now);
   await heartbeat();
   const first = await latest();
-  expect(first.liveness_lease_end).toBe(now + HEARTBEAT_ALIVE_MS);
+  expect(first.liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
   expect((await scheduledJobs(t)).map((job) => job.name)).toEqual([
     "managedSessions:checkInboxLivenessLease",
   ]);
+  const reads = [
+    await recordDocuments(() =>
+      viewer.query(api.conversations.sessionsLiveness, {}),
+    ),
+    await recordDocuments(() =>
+      viewer.query(api.conversations.teamSessionsLiveness, {
+        activeTeamId: team,
+      }),
+    ),
+    await recordDocuments(() =>
+      viewer.query(api.conversations.listInboxSessions, {}),
+    ),
+    await recordDocuments(() =>
+      viewer.query(api.conversations.inboxForCLI, { api_token: token }),
+    ),
+  ];
 
-  const refreshAt = now + 2 * HEARTBEAT_FLUSH_INTERVAL_MS;
+  const refreshAt = now + HEARTBEAT_ALIVE_MS - HEARTBEAT_FLUSH_INTERVAL_MS / 2;
   await advance(refreshAt - now);
   await heartbeat();
-  expect(await latest()).toMatchObject({
-    liveness_lease_end: first.liveness_lease_end,
-    last_heartbeat: first.last_heartbeat,
+  const firstCheckAt = now + HEARTBEAT_ALIVE_MS;
+  const renewal = await recordDocuments(() =>
+    advance(firstCheckAt - refreshAt),
+  );
+  for (const query of reads) {
+    expect([...renewal.writes].filter((id) => query.reads.has(id))).toEqual([]);
+  }
+  expect(renewal.writes.has(working.managed)).toBe(false);
+  expect(
+    (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease,
+  ).toEqual({
+    end: firstCheckAt,
+    expired: false,
   });
 
-  const checkAt = now + HEARTBEAT_ALIVE_MS - HEARTBEAT_FLUSH_INTERVAL_MS;
-  await advance(checkAt - refreshAt);
-  const refreshed = await latest();
-  const deadline = refreshAt + HEARTBEAT_ALIVE_MS;
-  expect(refreshed.liveness_lease_end).toBe(deadline);
-  expect(refreshed.last_heartbeat).toBe(refreshAt);
+  const stillLive = await latest();
+  expect(stillLive.liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
+  expect(stillLive.last_heartbeat).toBe(now);
+  expect(deriveLiveAt(stillLive, firstCheckAt).daemon_alive).toBe(true);
+  const legacyClient = { ...stillLive, liveness_lease_end: undefined };
+  expect(rowHeartbeatAliveAt(legacyClient, firstCheckAt)).toBe(false);
+  expect(
+    await t.run(({ db }) =>
+      conversationSessionsBeatingSince(
+        { db },
+        working.conversation,
+        firstCheckAt - HEARTBEAT_ALIVE_MS,
+      ).collect(),
+    ),
+  ).toMatchObject([{ _id: working.managed }]);
 
-  const legacyClient = { ...refreshed, liveness_lease_end: undefined };
-  expect(
-    rowHeartbeatAliveAt({ ...refreshed, last_heartbeat: now }, deadline - 1),
-  ).toBe(true);
-  expect(
-    rowHeartbeatAliveAt({ ...legacyClient, last_heartbeat: now }, deadline - 1),
-  ).toBe(false);
-  for (const row of [refreshed, legacyClient]) {
-    expect(rowHeartbeatAliveAt(row, deadline - 1)).toBe(true);
-    expect(rowHeartbeatAliveAt(row, deadline)).toBe(false);
-    expect(deriveLiveAt(row, deadline - 1).daemon_alive).toBe(true);
-    expect(deriveLiveAt(row, deadline).daemon_alive).toBe(false);
-  }
-  await advance(deadline - checkAt);
+  const deadline = refreshAt + HEARTBEAT_ALIVE_MS;
+  await advance(deadline - firstCheckAt - 1);
+  expect(rowHeartbeatAliveAt(await latest(), deadline - 1)).toBe(true);
+  await advance(1);
+  const expired = await latest();
+  expect(expired.liveness_lease_end).toBe(deadline);
+  expect(rowHeartbeatAliveAt(expired, deadline)).toBe(false);
+  expect(deriveLiveAt(expired, deadline).daemon_alive).toBe(false);
   expect(
     (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease,
   ).toEqual({
@@ -302,7 +333,5 @@ test("a legacy row gains a lease, renews off the heartbeat path, and expires at 
     expired: true,
   });
   await heartbeat();
-  expect((await latest()).liveness_lease_end).toBe(
-    deadline + HEARTBEAT_ALIVE_MS,
-  );
+  expect((await latest()).liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
 });

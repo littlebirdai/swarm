@@ -23,6 +23,7 @@ import { WakeWhen } from "../inbox/DormantWakeRows";
 const LIVENESS_FIELDS = new Set([
   "updated_at",
   "last_heartbeat",
+  "liveness_lease_end",
   "last_metrics_at",
   "last_active_at",
   "last_message_at",

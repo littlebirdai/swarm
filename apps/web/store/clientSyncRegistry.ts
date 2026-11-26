@@ -195,6 +195,7 @@ export const CLIENT_SYNC_REGISTRY = {
         "daemon_alive_until",
         "producing_until",
         "last_heartbeat",
+        "liveness_lease_end",
         "last_turn_origin",
       ],
     },
