@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { personEnv } from "./sessionIdentity.js";
 
 const processEntry = path.join(import.meta.dir, "main.ts");
 const scratch: string[] = [];
@@ -25,7 +26,14 @@ function runCli(
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [processEntry, ...args], {
-      env: { ...process.env, HOME: home, NO_COLOR: "1", ...env },
+      env: {
+        ...personEnv(process.env),
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+        CODECAST_NO_AUTOSTART: "1",
+        NO_COLOR: "1",
+        ...env,
+      },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -53,6 +61,155 @@ function config(home: string): Record<string, unknown> {
 afterEach(() => {
   for (const h of scratch.splice(0))
     fs.rmSync(h, { recursive: true, force: true });
+});
+
+const agentEnv = { CLAUDE_CODE_SESSION_ID: "auto-bind-test-session" };
+
+function bindingFixture(authToken?: string, bindError?: string) {
+  const home = scratchHome();
+  const requests: { method: string; path: string; body: unknown }[] = [];
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const requestPath = new URL(request.url).pathname;
+      requests.push({
+        method: request.method,
+        path: requestPath,
+        body: await request.json().catch(() => null),
+      });
+      if (requestPath === "/cli/work/update" && bindError)
+        return Response.json({ error: bindError }, { status: 401 });
+      return Response.json({});
+    },
+  });
+  fs.writeFileSync(
+    path.join(home, ".codecast", "config.json"),
+    JSON.stringify({ convex_url: server.url.origin, auth_token: authToken }),
+  );
+  return { home, requests, server };
+}
+
+describe("agent startup binding", () => {
+  test.each([{ CODECAST_TASK_ID: "ct-1" }, { CODECAST_PLAN_ID: "pl-1" }])(
+    "an unauthenticated agent with %j can change local config",
+    async (binding) => {
+      const f = bindingFixture();
+      try {
+        const result = await runCli(
+          f.home,
+          ["config", "cloud_mirror_enabled", "false"],
+          { ...agentEnv, ...binding },
+        );
+        expect(result.code).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(config(f.home).cloud_mirror_enabled).toBe(false);
+        expect(f.requests).toEqual([]);
+        expect(
+          fs
+            .readdirSync(path.join(f.home, ".codecast"))
+            .filter((name) => name.startsWith("plan-log-none-")),
+        ).toEqual([]);
+      } finally {
+        f.server.stop(true);
+      }
+    },
+  );
+
+  test("an authenticated agent still binds its task and plan", async () => {
+    const authToken = "local-binding-fixture";
+    const f = bindingFixture(authToken);
+    try {
+      const result = await runCli(
+        f.home,
+        ["config", "cloud_mirror_enabled", "false"],
+        { ...agentEnv, CODECAST_TASK_ID: "ct-1", CODECAST_PLAN_ID: "pl-1" },
+      );
+      expect(result.code).toBe(0);
+      expect(
+        f.requests.filter(
+          ({ path }) =>
+            path === "/cli/work/update" || path === "/cli/plans/bind",
+        ),
+      ).toEqual([
+        {
+          method: "POST",
+          path: "/cli/work/update",
+          body: {
+            api_token: authToken,
+            short_id: "ct-1",
+            status: "in_progress",
+            conversation_id: agentEnv.CLAUDE_CODE_SESSION_ID,
+          },
+        },
+        {
+          method: "POST",
+          path: "/cli/plans/bind",
+          body: {
+            api_token: authToken,
+            short_id: "pl-1",
+            conversation_id: agentEnv.CLAUDE_CODE_SESSION_ID,
+          },
+        },
+      ]);
+      expect(f.requests).toContainEqual({
+        method: "POST",
+        path: "/cli/plans/log/unread",
+        body: {
+          api_token: authToken,
+          session_id: agentEnv.CLAUDE_CODE_SESSION_ID,
+        },
+      });
+    } finally {
+      f.server.stop(true);
+    }
+  });
+
+  test("a stored token rejected by the bind still reports the server error", async () => {
+    const authToken = "local-rejected-binding-fixture";
+    const bindError = "The stored token was revoked";
+    const f = bindingFixture(authToken, bindError);
+    try {
+      const result = await runCli(
+        f.home,
+        ["config", "cloud_mirror_enabled", "false"],
+        { ...agentEnv, CODECAST_TASK_ID: "ct-1" },
+      );
+      expect(result.code).toBe(1);
+      expect(result.stderr.trim()).toBe(`Error: ${bindError}`);
+      expect(
+        f.requests.filter(({ path }) => path === "/cli/work/update"),
+      ).toEqual([
+        {
+          method: "POST",
+          path: "/cli/work/update",
+          body: {
+            api_token: authToken,
+            short_id: "ct-1",
+            status: "in_progress",
+            conversation_id: agentEnv.CLAUDE_CODE_SESSION_ID,
+          },
+        },
+      ]);
+    } finally {
+      f.server.stop(true);
+    }
+  });
+
+  test("an unauthenticated agent still gets the auth error from task ls", async () => {
+    const f = bindingFixture();
+    try {
+      const result = await runCli(f.home, ["task", "ls"], {
+        ...agentEnv,
+        CODECAST_TASK_ID: "ct-1",
+      });
+      expect(result.code).toBe(1);
+      expect(result.stderr.trim()).toBe("Not authenticated. Run: cast auth");
+      expect(f.requests).toEqual([]);
+    } finally {
+      f.server.stop(true);
+    }
+  });
 });
 
 describe("cast config — the home mirror keys", () => {
