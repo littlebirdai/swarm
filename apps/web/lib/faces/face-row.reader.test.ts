@@ -75,42 +75,19 @@ describe("the shared reader", () => {
       asr: "live",
       error: null,
     } as const;
-    const a = faceRowInputSig(st, idle, null, [], NOW);
+    const a = faceRowInputSig(st, idle, null);
     expect(
-      faceRowInputSig(
-        st,
-        { ...idle, asr: "unavailable", error: "x" },
-        null,
-        [],
-        NOW + 1_000,
-      ),
+      faceRowInputSig(st, { ...idle, asr: "unavailable", error: "x" }, null),
     ).toBe(a);
     expect(
-      faceRowInputSig(
-        st,
-        { ...idle, liveRoom: burstRoom(DM_ANN) },
-        null,
-        [],
-        NOW,
-      ),
+      faceRowInputSig(st, { ...idle, liveRoom: burstRoom(DM_ANN) }, null),
     ).not.toBe(a);
     expect(
-      faceRowInputSig(
-        st,
-        idle,
-        { roomKey: DM_ANN, text: "Ann joined", at: NOW },
-        [],
-        NOW,
-      ),
-    ).not.toBe(a);
-    expect(
-      faceRowInputSig(
-        st,
-        idle,
-        null,
-        [{ identity: ANN, isLocal: false, kind: "camera" }],
-        NOW,
-      ),
+      faceRowInputSig(st, idle, {
+        roomKey: DM_ANN,
+        text: "Ann joined",
+        at: NOW,
+      }),
     ).not.toBe(a);
   });
 });

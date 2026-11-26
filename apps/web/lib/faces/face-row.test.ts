@@ -1240,7 +1240,7 @@ describe("a guest in my call", () => {
     expect(row.entries.some((e) => e.id === GUEST)).toBe(false);
   });
 
-  test("a guest arriving or renaming moves the input signature", () => {
+  test("a guest arriving, renaming or getting a join time moves the input signature", () => {
     const idle = {
       sending: null,
       incoming: null,
@@ -1250,15 +1250,20 @@ describe("a guest in my call", () => {
       asr: "live",
       error: null,
     } as any;
-    const st = (guests: { identity: string; name: string }[]) =>
+    const st = (
+      guests: { identity: string; name: string; joined_at?: number }[],
+    ) =>
       ({
         ...useInboxStore.getState(),
         liveRooms: [{ room_key: ROOM, members: [seat(ME)], guests }],
       }) as any;
-    const sig = (guests: { identity: string; name: string }[]) =>
-      (faceRowInputSig as any)(st(guests), idle, null, [], NOW);
+    const sig = (guests: Parameters<typeof st>[0]) =>
+      faceRowInputSig(st(guests), idle, null);
     expect(sig([{ identity: GUEST, name: "Ada" }])).not.toBe(sig([]));
     expect(sig([{ identity: GUEST, name: "Ada L" }])).not.toBe(
+      sig([{ identity: GUEST, name: "Ada" }]),
+    );
+    expect(sig([{ identity: GUEST, name: "Ada", joined_at: NOW }])).not.toBe(
       sig([{ identity: GUEST, name: "Ada" }]),
     );
   });
