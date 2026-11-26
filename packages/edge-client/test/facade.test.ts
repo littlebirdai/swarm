@@ -286,6 +286,7 @@ test("every Promise method reports its caller file and line on failure", async (
     reply({ v: 1, status: "stale" }, 409),
     reply({ v: 1 }),
     reply({ v: 1, status: "stale" }, 409),
+    reply({ v: 1 }),
   );
   const client = createEdgeClient({ transport });
   const fence = { ...releaseFixture.request, v: 1 as const };
@@ -297,6 +298,7 @@ test("every Promise method reports its caller file and line on failure", async (
       await client.renew(fence),
       await client.release(fence),
       await client.withClaim(claimRequest, async () => "unexpected work"),
+      await client.deliverNext(fence),
     ];
     for (const result of results) {
       expect(result.ok).toBe(false);

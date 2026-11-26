@@ -1,4 +1,8 @@
 import { expect } from "bun:test";
+import {
+  STEER_BATON_CAPABILITY,
+  TAKEOVER_FENCE_CAPABILITY,
+} from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
 import { findDefect } from "effect/Cause";
 import { Clock } from "effect/Clock";
@@ -63,7 +67,14 @@ it.effect(
             ...helloFixture.response,
             status: "ok",
           });
-          expect(calls[0]?.request).toEqual(helloRequest);
+          expect(calls[0]?.request).toEqual({
+            ...helloRequest,
+            capabilities: helloRequest.capabilities.filter(
+              (capability) =>
+                capability !== STEER_BATON_CAPABILITY &&
+                capability !== TAKEOVER_FENCE_CAPABILITY,
+            ),
+          });
           expect(
             yield* Effect.flip(
               client.hello({ ...helloRequest, versions: [1, 2] }),

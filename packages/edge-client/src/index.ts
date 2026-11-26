@@ -18,6 +18,13 @@ export type {
   ClaimLoss,
   EdgeClient,
   EdgeClientOptions,
+  EdgeDeliveryStep,
+  EdgeSteerHandover,
+  EdgeSteerJournal,
+  EdgeSteerOutcome,
+  EdgeSteerPermit,
+  EdgeSteerRecovery,
+  EdgeSteeringHost,
   EdgeFailure,
   EdgeOperation,
   EdgeRequests,
@@ -100,6 +107,8 @@ ${caller}`,
   return {
     hello: (request, signal) =>
       run("hello", (client) => client.hello(request), signal),
+    deliverNext: (request, signal) =>
+      run("permits.next", (client) => client.deliverNext(request), signal),
     heartbeat: (request, signal) =>
       run("heartbeat", (client) => client.heartbeat(request), signal),
     claim: (request, signal) =>

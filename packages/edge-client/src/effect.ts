@@ -1,5 +1,8 @@
 import {
   EDGE_PROTOCOL_VERSION,
+  EXPECTED_CAPABILITY,
+  STEER_BATON_CAPABILITY,
+  TAKEOVER_FENCE_CAPABILITY,
   parseClaimResponse,
   parseHeartbeatResponse,
   parseHelloResponse,
@@ -10,6 +13,7 @@ import { Service } from "effect/Context";
 import * as Effect from "effect/Effect";
 import { effect } from "effect/Layer";
 import { ClaimLost, EdgeVersionRejected } from "./failures";
+import { makeDelivery } from "./delivery";
 import { makeClaimHolder } from "./lease";
 import { makeRequest } from "./request";
 import type { EdgeClientOptions, EdgeRequests } from "./types";
@@ -37,13 +41,28 @@ export class EdgeClient extends Service<
 
 function makeService(options: EdgeClientOptions) {
   const send = makeRequest(options);
+  let policy: readonly string[] = [];
+  let helloGeneration = 0;
+  const deliverNext = makeDelivery(send, options.steering, () => policy);
   const hello = Effect.fn("edgeClient.hello")(function* (
     request: EdgeRequests["hello"],
   ) {
+    const generation = ++helloGeneration;
+    policy = [];
     const versions = [...request.versions];
+    const capabilities = request.capabilities.filter(
+      (capability) =>
+        capability !== STEER_BATON_CAPABILITY &&
+        capability !== TAKEOVER_FENCE_CAPABILITY,
+    );
+    if (options.steering) {
+      if (!capabilities.includes(EXPECTED_CAPABILITY))
+        capabilities.push(EXPECTED_CAPABILITY);
+      capabilities.push(STEER_BATON_CAPABILITY, TAKEOVER_FENCE_CAPABILITY);
+    }
     const { value } = yield* send(
       "hello",
-      { ...request, versions },
+      { ...request, versions, capabilities },
       parseHelloResponse,
     );
     if (value.status !== "ok") {
@@ -63,6 +82,10 @@ function makeService(options: EdgeClientOptions) {
         supportedVersions: [value.version],
       });
     }
+    if (generation === helloGeneration)
+      policy = value.policy.capabilities.filter((capability) =>
+        capabilities.includes(capability),
+      );
     return value;
   });
   const heartbeat = Effect.fn("edgeClient.heartbeat")(
@@ -100,6 +123,7 @@ function makeService(options: EdgeClientOptions) {
   );
   return {
     hello,
+    deliverNext,
     heartbeat,
     claim: (request: EdgeRequests["claim"]) =>
       Effect.map(claim(request), ({ value }) => value),
