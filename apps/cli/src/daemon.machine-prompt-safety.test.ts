@@ -100,6 +100,8 @@ import { planHandoffTarget } from "./planHandoff";
 import { waitForHandHost } from "./handHostGrace";
 import { materializeFileTags } from "@codecast/daemon/fileAttachment";
 import { createHibernationHarness } from "./test-helpers/hibernationHarness";
+import { isAuthoritativeRefusal } from "./codex-app-server.js";
+import { assertCodexDeliveryDedup } from "./test-helpers/codex-delivery-dedup.js";
 
 // The fixture lifts delivery code out of daemon.ts by name; the pane classifiers
 // it calls live in tmuxPaneState.ts, so both files are read as one source.
@@ -167,6 +169,7 @@ function fixture(transport = "tmux", cached = true) {
     exec: async (_args: string[]) => {},
     prepare: async (): Promise<unknown> => null,
     markWrite: undefined as undefined | ((id: string) => Promise<unknown>),
+    turnStart: undefined as undefined | (() => Promise<unknown>),
   };
   const timers: Array<{ fn: () => unknown; ms: number; cancelled: boolean }> =
     [];
@@ -484,7 +487,11 @@ function fixture(transport = "tmux", cached = true) {
     ownedByAnotherDevice: () => false,
     isRemoteDevice: () => false,
     codexAppServerInstance: undefined,
-    readyCodexAppServer: async () => null,
+    readyCodexAppServer: async () =>
+      hooks.turnStart ? { turnStart: hooks.turnStart } : null,
+    appServerConversations: new Map<string, string>(),
+    deliverCodexPromptAnswer: async () => "none",
+    isAuthoritativeRefusal,
     buildReverseConversationCache: () => (cached ? { conv: "sid" } : {}),
     findSessionFile: () => ({ agentType: "claude" }),
     startedSessionTmux: new Map([
@@ -511,7 +518,12 @@ function fixture(transport = "tmux", cached = true) {
             tmuxTarget: null,
             proc: { pid: 4242, tty: "ttys-test", termProgram: transport },
           },
-    markInjectedBestEffort: (_sync: unknown, id: string) => {
+    markInjectedBestEffort: (
+      _sync: unknown,
+      id: string,
+      _timeout?: number,
+      options?: { pasteVerified?: boolean },
+    ) => {
       const write = hooks.markWrite?.(id);
       if (write) injectedMarkWrites.set(id, write);
       statuses.push({ messageId: id, status: "injected" });
@@ -519,7 +531,7 @@ function fixture(transport = "tmux", cached = true) {
         ts: clock.now,
         conversationId: "conv",
         confirmed: false,
-        pasted: false,
+        pasted: options?.pasteVerified === true,
       });
     },
     clearUnresolvablePane: () => {},
@@ -2162,6 +2174,15 @@ describe("machine prompt delivery safety", () => {
 
   describe("delivery budget and write cap", () => {
     const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    test.each(["during the scan", "after the delivery watchdog expires"])(
+      "an in-doubt Codex delivery preserves dedup %s",
+      (timing) =>
+        assertCodexDeliveryDedup(
+          fixture(),
+          timing === "after the delivery watchdog expires",
+        ),
+    );
 
     test("a timed-out attempt keeps its slot until it settles, so a retry never writes over it", async () => {
       // A 157 KB prompt typed for 7 minutes was timed out at 3 and retried
