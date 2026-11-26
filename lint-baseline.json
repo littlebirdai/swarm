@@ -2784,7 +2784,7 @@
   "apps/cli/src/execution/externalEffectsBoundary.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/cli/src/execution/localJournal.ts": {
+  "apps/cli/src/execution/local-journal.ts": {
     "swarm/no-comments": 6
   },
   "apps/cli/src/execution/runtimeRail.test.ts": {

@@ -112,7 +112,7 @@ The inbox for this binding waits for the delivery bridge.
 Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
 Use one event writer. Save the checkpoint and last durable sequence. Renew
 the lease and prove cleanup before release or rollback.
-[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49), [journal](../../apps/cli/src/execution/localJournal.ts#L326), [terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85), [edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
+[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49), [journal](../../apps/cli/src/execution/local-journal.ts#L326), [terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85), [edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
 
 ### Pilot bridges
 

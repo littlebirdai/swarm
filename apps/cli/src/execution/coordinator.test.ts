@@ -19,7 +19,7 @@ import {
   EXECUTION_JOURNAL_SCHEMA_VERSION,
   InMemoryExecutionOperationJournal,
   type ExecutionJournalRecord,
-} from "./localJournal.js";
+} from "./local-journal.js";
 import type {
   DriverDeliveryResult,
   EnsureBindingRequest,

@@ -20,8 +20,8 @@ import type {
   ExecutionJournalPhase,
   ExecutionJournalRecord,
   ExecutionOperationJournal,
-} from "./localJournal.js";
-import { EXECUTION_JOURNAL_SCHEMA_VERSION } from "./localJournal.js";
+} from "./local-journal.js";
+import { EXECUTION_JOURNAL_SCHEMA_VERSION } from "./local-journal.js";
 import type {
   ActiveDeliverySnapshot,
   DeliverFencedRequest,

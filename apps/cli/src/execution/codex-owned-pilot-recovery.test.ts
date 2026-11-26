@@ -15,7 +15,7 @@ import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
-import { InMemoryExecutionOperationJournal } from "./localJournal.js";
+import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 import { DaemonExecutionRuntime } from "./runtime-rail.js";
 import type { RuntimeStartRequest } from "./types.js";
 

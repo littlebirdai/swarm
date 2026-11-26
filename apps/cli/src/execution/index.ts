@@ -2,7 +2,7 @@ export * from "./types.js";
 export * from "./controlPlane.js";
 export * from "./convexControlPlane.js";
 export * from "./driver.js";
-export * from "./localJournal.js";
+export * from "./local-journal.js";
 export * from "./coordinator.js";
 export * from "./runtime-rail.js";
 export * from "./drivers/managedTmux.js";

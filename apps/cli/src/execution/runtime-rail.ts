@@ -18,7 +18,7 @@ import { RuntimeDriverRegistry, type RuntimeDriver } from "./driver.js";
 import {
   FileExecutionOperationJournal,
   type ExecutionOperationJournal,
-} from "./localJournal.js";
+} from "./local-journal.js";
 import type { EnsureBindingRequest } from "./types.js";
 import {
   materializeFileTags,

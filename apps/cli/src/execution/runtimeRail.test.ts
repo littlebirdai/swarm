@@ -7,7 +7,7 @@ import {
 } from "@codecast/agent-clients/executionBinding";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
-import { InMemoryExecutionOperationJournal } from "./localJournal.js";
+import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 import {
   DaemonExecutionRuntime,
   assertLegacyDeliveryEnvelope,
