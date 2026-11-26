@@ -6,11 +6,18 @@ import {
   spyOn,
   test,
 } from "bun:test";
-import { asUser, serverTest } from "../test-helpers/database.testkit";
+import {
+  asUser,
+  serverTest,
+  type ServerTest,
+} from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { api } from "./_generated/api";
+import { getFunctionName, type FunctionReference } from "convex/server";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { hashToken } from "./apiTokens";
+import type { ActionCtx } from "./_generated/server";
+import { cliRead, redactionValues } from "./secrets";
 
 const at = 1_790_000_000_000;
 const token = "a".repeat(64);
@@ -68,25 +75,120 @@ async function seed() {
   };
   const askFirst = () =>
     viewer.mutation(api.secrets.setAskFirst, { ref: name, ask_first: true });
-  const receipts = () =>
+  const events = () =>
     t.run(async ({ db }) => {
-      const events = await db
+      return db
         .query("secret_events")
         .withIndex("by_secret_at", (q) => q.eq("secret_id", id))
         .collect();
-      return events.filter((event) => event.kind === "redaction_sync");
     });
+  const receipts = async () =>
+    (await events()).filter((event) => event.kind === "redaction_sync");
   return {
     t,
     owner,
     id,
+    shortId: made.short_id,
     firstVersion: made.value_updated_at,
     feed,
     rotate,
     askFirst,
+    events,
+    remove: () => viewer.mutation(api.secrets.remove, { ref: name }),
     receipts,
   };
 }
+
+async function interleaveBeforeMutation<T>(
+  t: ServerTest,
+  target: FunctionReference<"mutation", "internal">,
+  interleave: () => Promise<void>,
+  run: (ctx: ActionCtx) => Promise<T>,
+): Promise<T> {
+  const targetName = getFunctionName(target);
+  let intercepted = false;
+  const result = await t.action((ctx) =>
+    run({
+      ...ctx,
+      runMutation: async (ref, ...args) => {
+        if (!intercepted && getFunctionName(ref) === targetName) {
+          intercepted = true;
+          await interleave();
+        }
+        return ctx.runMutation(ref, ...args);
+      },
+    }),
+  );
+  expect(intercepted).toBe(true);
+  return result;
+}
+
+test("a CLI read audits its snapshot even if the secret rotates before the audit", async () => {
+  const { t, events, firstVersion, rotate, askFirst, feed } = await seed();
+  const read = await interleaveBeforeMutation(
+    t,
+    internal.secrets.recordReads,
+    async () => {
+      setSystemTime(new Date(at + 1_000));
+      await rotate();
+    },
+    (ctx) =>
+      cliRead._handler(ctx, {
+        api_token: token,
+        refs: [name],
+        purpose: "get",
+      }),
+  );
+  expect(read).toMatchObject({
+    secrets: [{ value_updated_at: firstVersion, payload: { value: original } }],
+  });
+  await askFirst();
+  expect(await feed()).toMatchObject({ values: [{ name, value: original }] });
+  expect(
+    (await events())
+      .filter((event) => event.kind === "read")
+      .map((event) => event.value_version),
+  ).toEqual([firstVersion]);
+});
+
+test("a feed audits its snapshot when the secret is deleted before the receipt", async () => {
+  const { t, owner, id, shortId, remove, receipts, firstVersion } =
+    await seed();
+  const response = await interleaveBeforeMutation(
+    t,
+    internal.secrets.recordRedactionSync,
+    async () => {
+      expect(await remove()).toMatchObject({ removed: true });
+    },
+    (ctx) => redactionValues._handler(ctx, { api_token: token }),
+  );
+  expect(response).toMatchObject({ values: [{ name, value: original }] });
+  expect(await t.run(({ db }) => db.get(id))).toBeNull();
+  expect(await receipts()).toEqual([
+    expect.objectContaining({
+      actor_user_id: owner,
+      workspace: `user:${owner}`,
+      secret_short_id: shortId,
+      secret_name: name,
+      value_version: firstVersion,
+    }),
+  ]);
+});
+
+test("opening a kept value does not audit an unreadable current value", async () => {
+  const { t, id, feed, rotate, receipts, firstVersion } = await seed();
+  await feed();
+  await rotate();
+  await t.run(async ({ db }) => {
+    const current = await db.get(id);
+    if (!current?.value_id) throw new Error("Expected the current ciphertext");
+    await db.delete(current.value_id);
+  });
+  expect(await feed()).toMatchObject({ values: [{ name, value: original }] });
+  expect((await receipts()).map((event) => event.value_version)).toEqual([
+    firstVersion,
+  ]);
+});
 
 test("concurrent feeds audit a value once if it rotates before the receipt is written", async () => {
   const { feed, rotate, receipts, firstVersion } = await seed();
