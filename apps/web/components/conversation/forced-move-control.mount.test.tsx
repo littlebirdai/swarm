@@ -169,10 +169,7 @@ test("deliberate confirm dispatches the selected move once and paints the reques
   await act(async () => {
     ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
       {
-        _id: ui.conversationId,
-        epoch: 7,
-        sourceLabel: "Laptop",
-        offlineAfter: 0,
+        ...moveOptions(ui.conversationId),
         requestedDestination: "Team Mac",
         destinations: [],
       },
