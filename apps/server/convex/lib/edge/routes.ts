@@ -1,6 +1,7 @@
 import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION,
+  RELAY_SESSION_LIVENESS_CAPABILITY,
   negotiateEdgeVersion,
   parseBlobsGetRequest,
   parseClaimRequest,
@@ -121,7 +122,7 @@ function workAction<T>(
     | EventsAppendResponse
   >,
   options?: {
-    operation?: "renew" | "blob";
+    operation?: "renew" | "blob" | "relay_grant";
     batches?: (body: T) => number;
     enabled?: () => boolean;
   },
@@ -240,7 +241,9 @@ export function registerEdgeRoutes(http: HttpRouter) {
           ...policy,
           capabilities: [
             ...policy.capabilities,
-            ...(machineRelayGrantConfig() ? ["relay_session_liveness"] : []),
+            ...(machineRelayGrantConfig()
+              ? [RELAY_SESSION_LIVENESS_CAPABILITY]
+              : []),
           ].filter((capability) => body.capabilities.includes(capability)),
         },
       };
@@ -289,13 +292,12 @@ export function registerEdgeRoutes(http: HttpRouter) {
     method: "POST",
     handler: workAction(
       parseRelayGrantRequest,
-      (ctx, bearer, { session, run, fencing_token }) =>
+      (ctx, bearer, { sessions }) =>
         ctx.runMutation(internal.relayGrants.mintMachineLiveness, {
           bearer,
-          conversation_id: session,
-          run,
-          fencing_token,
+          sessions,
         }),
+      { operation: "relay_grant" },
     ),
   });
   http.route({

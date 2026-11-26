@@ -7,7 +7,10 @@ import {
   RELAY_MAX_GRANTS_PER_TOKEN,
   type RelayGrantClaims,
 } from "@codecast/relay-contract";
-import { EDGE_PROTOCOL_VERSION } from "@codecast/edge-contract";
+import {
+  EDGE_PROTOCOL_VERSION,
+  isRelayGrantUrl,
+} from "@codecast/edge-contract";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation } from "./functions";
@@ -146,10 +149,15 @@ function relayGrantConfig() {
 }
 
 export function machineRelayGrantConfig() {
-  return process.env.CODECAST_EDGE_V1 === "1" &&
-    process.env.CODECAST_EDGE_DELIVERY_V1 === "1"
-    ? relayGrantConfig()
-    : null;
+  if (
+    process.env.CODECAST_EDGE_V1 !== "1" ||
+    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
+    process.env.CODECAST_EDGE_RELAY_LIVENESS_V1 !== "1"
+  )
+    return null;
+  const config = relayGrantConfig();
+  const url = process.env.RELAY_PUBLIC_URL;
+  return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
 }
 
 async function signRelayGrant(
@@ -178,19 +186,47 @@ async function signRelayGrant(
 export const mintMachineLiveness = internalMutation({
   args: {
     bearer: v.string(),
-    conversation_id: v.string(),
-    run: v.number(),
-    fencing_token: v.string(),
+    sessions: v.array(
+      v.object({
+        session: v.string(),
+        run: v.number(),
+        fencing_token: v.string(),
+      }),
+    ),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { bearer, sessions }) => {
     const v = EDGE_PROTOCOL_VERSION;
     const config = machineRelayGrantConfig();
     if (!config) return { v, status: "unavailable" } as const;
+    if (
+      !sessions.length ||
+      sessions.length > RELAY_MAX_GRANTS_PER_TOKEN ||
+      new Set(sessions.map(({ session }) => session)).size !== sessions.length
+    )
+      return { v, status: "stale" } as const;
+
     const now = Date.now();
-    const claim = await currentClaim(ctx, args, now);
-    if (!claim) return { v, status: "stale" } as const;
-    const { binding, lease } = claim;
-    const expires = Math.min(now + TTL_MS, lease.expires_at);
+    const grants: RelayGrantClaims["grants"] = [];
+    let owner: Awaited<ReturnType<typeof currentClaim>> = null;
+    let expires = now + TTL_MS;
+    for (const { session, run, fencing_token } of sessions) {
+      const claim = await currentClaim(
+        ctx,
+        { bearer, conversation_id: session, run, fencing_token },
+        now,
+      );
+      if (!claim) return { v, status: "stale" } as const;
+      owner ??= claim;
+      expires = Math.min(expires, claim.lease.expires_at);
+      grants.push({
+        kind: "session",
+        id: claim.binding.conversation_id,
+        run,
+        publish: ["session_liveness"],
+      });
+    }
+    if (!owner) return { v, status: "stale" } as const;
+    const { binding } = owner;
     try {
       const issuance = await checkRateLimit(
         ctx,
@@ -204,19 +240,13 @@ export const mintMachineLiveness = internalMutation({
       return {
         v,
         status: "ok",
+        url: config.url,
         token: await signRelayGrant(config, {
           subject: { kind: "machine", id: binding.owner_device_id },
           issued_at_ms: issuance.issuedAtMs,
           grant_seq: issuance.sequence,
           expires_at_ms: expires,
-          grants: [
-            {
-              kind: "session",
-              id: binding.conversation_id,
-              run: args.run,
-              publish: ["session_liveness"],
-            },
-          ],
+          grants,
         }),
         ttl_ms: expires - issuance.issuedAtMs,
       } as const;

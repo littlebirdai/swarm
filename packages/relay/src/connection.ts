@@ -311,7 +311,13 @@ export function openConnection(
     subject = claims.subject;
     state = applied.state;
     for (const capability of capabilities)
-      if (frame.capabilities.includes(capability)) enabled.add(capability);
+      if (
+        frame.capabilities.includes(capability) &&
+        (subject.kind === "user" ||
+          capability === "session_liveness" ||
+          capability === "machine_liveness")
+      )
+        enabled.add(capability);
     setDeadline(nextGrantDeadline());
     yield* control({
       type: "hello",
@@ -455,9 +461,7 @@ export function openConnection(
       const grant = permission?.grant;
       if (
         signal.type === "session_liveness" &&
-        grant?.kind === "session" &&
-        grant.run !== undefined &&
-        grant.run !== signal.run
+        (grant?.kind !== "session" || grant.run !== signal.run)
       )
         return 0;
       return grant?.expires_at_ms ?? 0;

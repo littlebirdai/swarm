@@ -42,7 +42,7 @@ test("grant claims accept publish rights tied to their subject and hub", () => {
     ...claims,
     subject: machine,
     grants: [
-      { ...session, publish: ["session_liveness"] },
+      { ...session, run: 3, publish: ["session_liveness"] },
       { ...machine, publish: ["machine_liveness"] },
       { ...machine, id: "other-machine", publish: [] },
     ],
@@ -53,6 +53,34 @@ test("grant claims accept publish rights tied to their subject and hub", () => {
       value,
     });
   }
+});
+
+test("only machine session liveness grants carry a run epoch", () => {
+  const publish = ["session_liveness"];
+  for (const [subject, grant] of [
+    [machine, { ...session, publish }],
+    [machine, { ...session, run: 0, publish }],
+    [machine, { ...session, run: 3, publish: [] }],
+    [user, { ...session, run: 3, publish: ["presence"] }],
+  ] as const) {
+    expect(
+      parseRelayGrantClaims(
+        JSON.stringify({ ...claims, subject, grants: [grant] }),
+      ),
+    ).toEqual({
+      ok: false,
+      error: { code: "invalid_field", path: "$.grants[0].run" },
+    });
+  }
+  expect(
+    parseRelayGrantClaims(
+      JSON.stringify({
+        ...claims,
+        subject: machine,
+        grants: [{ ...session, publish: [] }],
+      }),
+    ).ok,
+  ).toBe(true);
 });
 
 test("grant claims reject publish rights outside the subject's role and scope", () => {

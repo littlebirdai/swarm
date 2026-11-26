@@ -111,8 +111,13 @@ it.effect(
               { ...machine, publish: ["machine_liveness"] },
             ],
           }),
-          capabilities.filter((kind) => kind !== "presence"),
+          capabilities,
         );
+        expect(owner.events[0]).toMatchObject({
+          type: "hello",
+          status: "ok",
+          capabilities: ["session_liveness", "machine_liveness"],
+        });
         const watcher = yield* peer(
           relay,
           claims({
@@ -159,6 +164,47 @@ it.effect(
         const watcherCount = watcher.events.length;
         yield* quietUser.send(active);
         expect(watcher.events).toHaveLength(watcherCount);
+      }),
+    ),
+);
+
+it.effect(
+  "drops a queued liveness signal when its source grant changes run",
+  () =>
+    harness(
+      Effect.gen(function* () {
+        const relay = yield* Relay;
+        const grant = (run: number, grant_seq: number) =>
+          claims({
+            subject: machine,
+            grant_seq,
+            grants: [{ ...session, run, publish: ["session_liveness"] }],
+          });
+        const source = yield* peer(relay, grant(4, 1));
+        const watcher = yield* peer(relay);
+        yield* source.subscribe();
+        watcher.socket.pauseOnNextSend = true;
+        yield* watcher.subscribe();
+        const signal = {
+          type: "session_liveness",
+          v: 1,
+          hub: session,
+          run: 4,
+        } as const;
+        yield* source.send(signal);
+        expect(watcher.events).toHaveLength(2);
+        yield* source.refresh(grant(5, 2));
+        expect(source.events.at(-1)).toMatchObject({
+          type: "grant_result",
+          status: "applied",
+        });
+        yield* watcher.connection.writable;
+        expect(watcher.events).toHaveLength(2);
+        yield* source.send({ ...signal, run: 5 });
+        expect(watcher.events.at(-1)).toMatchObject({
+          type: "session_liveness",
+          run: 5,
+        });
       }),
     ),
 );

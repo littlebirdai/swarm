@@ -111,8 +111,8 @@ export const parseRelayGrantClaims = parser((value, path) => {
     }
     if (
       grant.kind === "session" &&
-      grant.run !== undefined &&
-      (subject.kind !== "machine" || !grant.publish.includes(sessionLiveness))
+      (grant.run !== undefined) !==
+        (subject.kind === "machine" && grant.publish.includes(sessionLiveness))
     )
       throw new RelayParseError("invalid_field", `${grantPath}.run`);
     const publish = new Set<string>();

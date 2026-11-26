@@ -34,6 +34,9 @@ The verified token payload has these claims:
 A hub is `{ kind: "session" | "machine", id }`. A user can publish `presence`,
 `draft_cursor`, `reading_cursor`, and `baton_heartbeat` to granted session hubs.
 A machine can publish `session_liveness` to session hubs for runs it owns.
+Its grant for that session must carry the positive run epoch in `run`.
+The relay drops a signal if its run differs from the current grant, including
+when a grant update changes the run before the relay sends a queued signal.
 It can publish `machine_liveness` to its own machine hub. The kernel is
 responsible for the scope of read access and the ownership of runs. The
 parser refuses duplicate hub keys and duplicate publish rights.
@@ -81,6 +84,14 @@ reason `expired` before any close. The relay closes the socket when the
 last grant expires or after it acknowledges release of the last grant.
 The client can refresh before expiry or reconnect with a new token.
 
+Two accounts on one device share the relay's default limit of eight
+connections per machine subject.
+
+Deploy the relay that understands run grants before enabling Edge issuance.
+The kernel advertises machine session liveness only when
+`CODECAST_EDGE_RELAY_LIVENESS_V1=1` and its signing and public relay URL
+configuration are valid. The flag is off by default.
+
 ## Versions and parsers
 
 `connect` and `hello` use a version-independent envelope. The relay selects the
@@ -88,6 +99,8 @@ highest shared version and returns the enabled capabilities that the client
 offered. V1 signal capability names match the six signal types. An unknown
 offered name grants no capability. The client checks the selected version
 and capabilities before it sends a versioned frame.
+
+Machine connections can negotiate `session_liveness` and `machine_liveness`.
 
 Relays support wire versions N and N−1 when both exist. Today only v1 exists.
 `negotiateRelayVersion` returns the highest shared positive safe integer,

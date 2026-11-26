@@ -1,5 +1,8 @@
+import { RELAY_MAX_GRANTS_PER_TOKEN } from "@codecast/relay-contract";
 import {
+  array,
   count,
+  EdgeParseError,
   nonEmptyString,
   optional,
   object,
@@ -8,6 +11,7 @@ import {
   responseObject,
   positiveInteger,
   tagged,
+  type Reader,
 } from "./parse";
 import { readV1 } from "./version";
 import { response } from "./response";
@@ -71,12 +75,64 @@ export const parseRenewResponse = parser(renewResponse);
 export const parseReleaseRequest = parser(releaseRequest);
 export const parseReleaseResponse = parser(releaseResponse);
 
+const readRelayGrantSessions = array(object(fence));
+const relayGrantRequest = object({
+  v: readV1,
+  sessions(value, path) {
+    if (
+      Array.isArray(value) &&
+      (value.length === 0 || value.length > RELAY_MAX_GRANTS_PER_TOKEN)
+    ) {
+      throw new EdgeParseError(
+        "invalid_value",
+        path,
+        "invalid relay grant count",
+      );
+    }
+    const sessions = readRelayGrantSessions(value, path);
+    if (
+      new Set(sessions.map(({ session }) => session)).size !== sessions.length
+    ) {
+      throw new EdgeParseError("invalid_value", path, "duplicate session");
+    }
+    return sessions;
+  },
+});
+
+export function isRelayGrantUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "wss:" &&
+      url.pathname === "/relay" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
+const relayGrantUrl: Reader<string> = (value, path) => {
+  const url = nonEmptyString(value, path);
+  if (!isRelayGrantUrl(url))
+    throw new EdgeParseError(
+      "invalid_value",
+      path,
+      "expected a secure relay URL",
+    );
+  return url;
+};
+
 const relayGrantResponse = response(
   tagged("status", {
     ok: responseObject({
       v: readV1,
       status: oneOf("ok"),
       token: nonEmptyString,
+      url: relayGrantUrl,
       ttl_ms: positiveInteger,
     }),
     stale: responseObject({ v: readV1, status: oneOf("stale") }),
@@ -85,5 +141,8 @@ const relayGrantResponse = response(
   }),
 );
 
-export const parseRelayGrantRequest = parseRenewRequest;
+export type RelayGrantRequest = ReturnType<typeof relayGrantRequest>;
+export type RelayGrantResponse = ReturnType<typeof relayGrantResponse>;
+
+export const parseRelayGrantRequest = parser(relayGrantRequest);
 export const parseRelayGrantResponse = parser(relayGrantResponse);
