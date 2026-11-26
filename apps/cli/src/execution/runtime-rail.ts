@@ -18,13 +18,17 @@ import { RuntimeDriverRegistry, type RuntimeDriver } from "./driver.js";
 import {
   FileExecutionOperationJournal,
   type ExecutionOperationJournal,
-} from "./localJournal.js";
+} from "./local-journal.js";
 import type { EnsureBindingRequest } from "./types.js";
 import {
   materializeFileTags,
   type AttachedFileRef,
 } from "@codecast/daemon/fileAttachment";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
+import {
+  ownsCodexCheckpoint,
+  type CodexOwnedPilot,
+} from "./codex-owned-pilot.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
 export const FENCED_EXECUTION_FEATURE_FLAG =
@@ -275,6 +279,7 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
 export interface DaemonExecutionRuntimeOptions {
   transport: ExecutionConvexTransport;
   ownerDeviceId: string;
+  codexOwnedPilot?: CodexOwnedPilot;
   drivers: RuntimeDriverRegistry | readonly RuntimeDriver[];
   journal?: ExecutionOperationJournal;
   journalDirectory?: string;
@@ -291,15 +296,21 @@ export class DaemonExecutionRuntime {
   readonly coordinator: ExecutionCoordinator;
   readonly drivers: RuntimeDriverRegistry;
   private readonly ownerDeviceId: string;
+  private readonly codexOwnedPilot?: CodexOwnedPilot;
   private readonly resolveImage?: DaemonExecutionRuntimeOptions["resolveImage"];
   private readonly resolveFile?: DaemonExecutionRuntimeOptions["resolveFile"];
   private readonly onLog: (message: string) => void;
   private unsubscribe?: () => void;
   private workChain: Promise<void> = Promise.resolve();
+  private pilotPoll?: ReturnType<typeof setTimeout>;
+  private pollingPilot?: ReadyBinding;
+  private pilotSendNew = true;
+  private pilotAwaitingSuccessor = false;
 
   constructor(options: DaemonExecutionRuntimeOptions) {
     this.daemonBootId = options.daemonBootId ?? randomUUID();
     this.ownerDeviceId = options.ownerDeviceId;
+    this.codexOwnedPilot = options.codexOwnedPilot;
     this.resolveImage = options.resolveImage;
     this.resolveFile = options.resolveFile;
     this.onLog = options.onLog ?? (() => {});
@@ -314,6 +325,7 @@ export class DaemonExecutionRuntime {
         options.journalDirectory ??
           path.join(defaultConfigDir(), "execution-journal"),
       );
+    this.codexOwnedPilot?.useReceiptJournal(journal.deliveryReceipts);
     this.coordinator = new ExecutionCoordinator({
       controlPlane: this.controlPlane,
       drivers: this.drivers,
@@ -356,15 +368,34 @@ export class DaemonExecutionRuntime {
     );
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.unsubscribe?.();
     this.unsubscribe = undefined;
+    clearTimeout(this.pilotPoll);
+    this.pollingPilot = undefined;
+    await this.codexOwnedPilot
+      ?.close()
+      .catch((error) => this.onLog(String(error)));
   }
 
   processWorkUpdate(value: unknown): Promise<void> {
     const work = parseWork(value);
     const next = this.workChain.then(async () => {
-      for (const item of work) await this.processItem(item);
+      for (const item of work) {
+        try {
+          await this.processItem(item);
+        } catch (error) {
+          const isPilotWork =
+            this.codexOwnedPilot?.selects(item.conversationId) ||
+            item.bindings.some(
+              ({ binding }) => binding && ownsCodexCheckpoint(binding.handle),
+            );
+          if (!isPilotWork) throw error;
+          this.onLog(
+            `[owned-codex] work failed for ${item.conversationId}: ${String(error)}`,
+          );
+        }
+      }
     });
     this.workChain = next.catch(() => {});
     return next;
@@ -439,15 +470,45 @@ export class DaemonExecutionRuntime {
     }
 
     const current = ready.get(item.currentEpoch);
+    const currentOwned =
+      current?.binding.actualAgent === "codex" &&
+      current.binding.transport === "app-server" &&
+      ownsCodexCheckpoint(current.binding.handle);
     const pendingEpoch =
       item.pendingEpoch ?? item.pendingIntent?.request.target.epoch;
     const successor =
       pendingEpoch === undefined ? undefined : ready.get(pendingEpoch);
     const policy = item.pendingPolicy ?? item.pendingIntent?.policy;
 
+    if (
+      current?.state === "ready" &&
+      currentOwned &&
+      this.codexOwnedPilot?.owns(current.binding)
+    ) {
+      this.pilotAwaitingSuccessor = Boolean(successor && policy);
+      this.pilotSendNew =
+        !this.pilotAwaitingSuccessor || policy === "drain-current";
+      await this.codexOwnedPilot.activate(current.binding, current.request);
+      if (!this.pollingPilot) {
+        this.pollingPilot = current.binding;
+        this.schedulePilotPoll(current.binding, current.request);
+      }
+      const idle = await this.codexOwnedPilot.drain(
+        current.binding,
+        this.coordinator,
+        (text) => this.prepareText(text),
+        this.pilotSendNew,
+      );
+      if (!this.pilotAwaitingSuccessor || !idle) return;
+    }
+
     if (current && successor && policy) {
+      if (currentOwned) {
+        clearTimeout(this.pilotPoll);
+        this.pollingPilot = undefined;
+      }
       if (current.state === "ready") {
-        if (policy === "drain-current")
+        if (policy === "drain-current" && !currentOwned)
           await this.drain(current.binding, current.request);
         const driver = this.drivers.resolve(
           current.binding.actualAgent,
@@ -477,8 +538,48 @@ export class DaemonExecutionRuntime {
       }
       return;
     }
-    if (current?.state === "ready")
-      await this.drain(current.binding, current.request);
+    if (current?.state !== "ready") return;
+    if (currentOwned) return;
+    await this.drain(current.binding, current.request);
+  }
+
+  private schedulePilotPoll(
+    binding: ReadyBinding,
+    request: EnsureBindingRequest,
+  ): void {
+    if (this.pollingPilot !== binding) return;
+    this.pilotPoll = setTimeout(() => {
+      const next = this.workChain.then(async () => {
+        if (this.pollingPilot !== binding) return;
+        await this.codexOwnedPilot?.activate(binding, request);
+        const idle = await this.codexOwnedPilot?.drain(
+          binding,
+          this.coordinator,
+          (text) => this.prepareText(text),
+          this.pilotSendNew,
+        );
+        if (idle && this.pilotAwaitingSuccessor) {
+          const work = parseWork(
+            await this.controlPlane.listExecutionWork(this.handshake()),
+          );
+          const item = work.find(
+            ({ conversationId }) => conversationId === binding.conversationId,
+          );
+          if (item) await this.processItem(item);
+        }
+      });
+      this.workChain = next.catch((error) => {
+        this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
+      });
+      void this.workChain.then(() => this.schedulePilotPoll(binding, request));
+    }, 2_000);
+    this.pilotPoll.unref();
+  }
+
+  private async prepareText(text: string): Promise<string> {
+    return this.resolveFile
+      ? materializeFileTags(text, this.resolveFile)
+      : text;
   }
 
   private async drain(
@@ -490,10 +591,7 @@ export class DaemonExecutionRuntime {
       if (!("permit" in claim)) return;
       const input: Array<Delivery["input"][number]> = [];
       try {
-        const resolveFile = this.resolveFile;
-        const text = resolveFile
-          ? await materializeFileTags(claim.delivery.content, resolveFile)
-          : claim.delivery.content;
+        const text = await this.prepareText(claim.delivery.content);
         input.push({ type: "text", text });
         for (const storageId of claim.delivery.imageStorageIds) {
           if (!this.resolveImage)

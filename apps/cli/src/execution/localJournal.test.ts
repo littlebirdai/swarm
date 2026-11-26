@@ -11,7 +11,7 @@ import {
   ExecutionJournalCorruptError,
   FileExecutionOperationJournal,
   type ExecutionJournalRecord,
-} from "./localJournal.js";
+} from "./local-journal.js";
 
 let directory: string;
 

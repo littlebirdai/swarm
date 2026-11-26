@@ -1185,6 +1185,7 @@ import {
   ManagedTmuxRuntimeDriver,
   RuntimeDriverRegistry,
   assertLegacyDeliveryEnvelope,
+  createCodexOwnedPilot,
   fencedExecutionEnabled,
   getProcessExecutionRuntime,
   type FencedTmuxTags,
@@ -43809,14 +43810,30 @@ async function main(): Promise<void> {
       `[codex-app-server] failed to start: ${err?.message ?? err} -- codex features disabled`,
     );
   }
-
-  // Fenced execution is an explicit local rollout only. There is no remote
-  // command/UI switch that can activate it; without the exact environment bit
-  // the legacy daemon remains byte-for-byte responsible for execution.
+  const codexOwnedPilot = fencedExecutionEnabled()
+    ? createCodexOwnedPilot({
+        siteUrl: convexUrl.replace(".cloud", ".site"),
+        bearer: config.auth_token,
+        command: () => [launchBinary("codex"), "app-server"],
+        permissions: () => resolveCodexPermissionDefaults(activeConfig),
+        instructions: buildCodexStableContext.bind(null, activeConfig),
+        display: {
+          syncService,
+          retryQueue,
+          conversationCache,
+          mapCodexAppServerThreadStatusToAgentStatus,
+          sendAgentStatus,
+          trackTmuxSpawns,
+          syncMessagesBatch,
+        },
+        log,
+      })
+    : undefined;
   const fencedRuntime = fencedExecutionEnabled()
     ? getProcessExecutionRuntime({
         transport: syncService,
         ownerDeviceId: deviceId(),
+        codexOwnedPilot,
         journalDirectory: path.join(CONFIG_DIR, "execution-journal"),
         drivers: (() => {
           const registry = new RuntimeDriverRegistry();
@@ -43937,49 +43954,33 @@ async function main(): Promise<void> {
             }),
           );
           if (codexAppServerInstance) {
-            registry.register(
-              new CodexAppServerRuntimeDriver({
-                defaultPermissions: () =>
-                  resolveCodexPermissionDefaults(activeConfig),
-                io: {
-                  client: codexAppServerInstance,
-                  registerThread({
-                    conversationId,
-                    threadId,
-                    cwd,
-                    approvalPolicy,
-                    sandbox,
-                  }) {
-                    registerAppServerConversation(conversationId, threadId, {
-                      cwd,
-                      approvalPolicy,
-                      sandbox,
-                      persist: true,
-                    });
-                  },
-                  async inspectThread(threadId) {
-                    if (!codexAppServerInstance?.running) return "unknown";
-                    return appServerThreads.has(threadId) ? "alive" : "unknown";
-                  },
-                  async stopThread(threadId) {
-                    const entry = appServerThreads.get(threadId);
-                    if (!entry) return;
-                    await teardownConversationBackendsLive(
-                      entry.conversationId,
-                      { interruptActiveTurn: true },
-                    );
-                  },
-                  async quarantineThread(threadId) {
-                    const entry = appServerThreads.get(threadId);
-                    if (!entry) return;
-                    await teardownConversationBackendsLive(
-                      entry.conversationId,
-                      { interruptActiveTurn: true },
-                    );
-                  },
+            const stopThread = async (threadId: string) => {
+              const entry = appServerThreads.get(threadId);
+              if (entry)
+                await teardownConversationBackendsLive(entry.conversationId, {
+                  interruptActiveTurn: true,
+                });
+            };
+            const legacy = new CodexAppServerRuntimeDriver({
+              defaultPermissions: () =>
+                resolveCodexPermissionDefaults(activeConfig),
+              io: {
+                client: codexAppServerInstance,
+                registerThread({ conversationId, threadId, ...params }) {
+                  registerAppServerConversation(conversationId, threadId, {
+                    ...params,
+                    persist: true,
+                  });
                 },
-              }),
-            );
+                async inspectThread(threadId) {
+                  if (!codexAppServerInstance?.running) return "unknown";
+                  return appServerThreads.has(threadId) ? "alive" : "unknown";
+                },
+                stopThread,
+                quarantineThread: stopThread,
+              },
+            });
+            registry.register(codexOwnedPilot?.register(legacy) ?? legacy);
           }
           return registry;
         })(),
@@ -43999,7 +44000,6 @@ async function main(): Promise<void> {
       "[fenced-execution] disabled (set CODECAST_FENCED_EXECUTION_V1=1 for local rollout)",
     );
   }
-
   // The JSONL-dir CLI watchers (codex, gemini, pi, grok, muse) and OpenCode's
   // store register through registerTranscriptDirWatcher. Claude's sessionWatcher
   // and Cursor's SQLite watcher are different kinds and register on their own
@@ -45257,7 +45257,7 @@ async function main(): Promise<void> {
     if (unsubscribe) {
       unsubscribe();
     }
-    fencedRuntime?.stop();
+    await fencedRuntime?.stop();
 
     if (permissionUnsubscribe) {
       permissionUnsubscribe();
