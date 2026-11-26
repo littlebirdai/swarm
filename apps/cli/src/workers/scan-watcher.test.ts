@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -26,11 +26,16 @@ const write = (base: string, rel: string) => {
   fs.writeFileSync(p, "{}\n");
   return p;
 };
+const workerClock = {
+  wall: Date.now.bind(Date),
+  mono: performance.now.bind(performance),
+};
 const start = (enabled: boolean) =>
   configureDaemonWorkers(
     enabled,
     {},
     {
+      clock: workerClock,
       invocation: {
         command: process.execPath,
         args: [path.resolve(import.meta.dir, "../main.ts"), "_worker", "scan"],
@@ -227,7 +232,6 @@ test.skipIf(process.platform !== "darwin")(
   "native idle cadence stays serial; rejected events cannot accelerate it; stop removes all work",
   async () => {
     const rescanIntervalMs = 180;
-    const minimumRescanGapMs = rescanIntervalMs - 15;
     for (const enabled of [false, true]) {
       const base = root();
       write(base, "hash/chats/a.json");
@@ -246,56 +250,128 @@ test.skipIf(process.platform !== "darwin")(
         debounceMs: 10,
       });
       watchers.push(w);
-      const internals = w as any,
-        walk = internals.walkTree.bind(w);
-      let active = 0,
-        maxActive = 0;
-      const starts: number[] = [],
-        ends: number[] = [];
-      internals.walkTree = async (...args: any[]) => {
-        starts.push(performance.now());
+      const internals = w as any;
+      const onNativeEvent = internals.onNativeEvent.bind(w);
+      internals.onNativeEvent = () => {};
+      const walk = internals.walkTree.bind(w);
+      const runRescan = internals.runRescan.bind(w);
+      const requestRescan = internals.requestRescan.bind(w);
+      let schedulingRescan = false;
+      internals.requestRescan = (...args: unknown[]) => {
+        schedulingRescan = true;
+        try {
+          return requestRescan(...args);
+        } finally {
+          schedulingRescan = false;
+        }
+      };
+      const rescans: Promise<void>[] = [];
+      let walkStarted = Promise.withResolvers<void>();
+      let releaseWalk = Promise.withResolvers<void>();
+      let active = 0;
+      let maxActive = 0;
+      const starts: number[] = [];
+      const ends: number[] = [];
+      internals.walkTree = async (...args: [number, boolean]) => {
+        starts.push(Date.now());
         active++;
         maxActive = Math.max(active, maxActive);
         try {
-          await pause(35);
+          if (args[1]) {
+            walkStarted.resolve();
+            await releaseWalk.promise;
+          }
           await walk(...args);
         } finally {
           active--;
-          ends.push(performance.now());
+          ends.push(Date.now());
         }
       };
-      w.start();
-      await w.whenPrimed();
-      for (let i = 0; i < 40; i++) {
-        fs.appendFileSync(path.join(base, "hash/checkpoints/a.json"), "x");
-        internals.onNativeEvent("hash/checkpoints/a.json");
-        await pause(20);
+      internals.runRescan = () => {
+        const rescan = runRescan();
+        rescans.push(rescan);
+        return rescan;
+      };
+
+      let now = Date.now();
+      let timerId = 0;
+      const timers = new Map<number, { at: number; run: () => void }>();
+      const time = spyOn(Date, "now").mockImplementation(() => now);
+      const realSet = globalThis.setTimeout;
+      const realClear = globalThis.clearTimeout;
+      const schedule = spyOn(globalThis, "setTimeout").mockImplementation(((
+        run: (...args: unknown[]) => void,
+        ms = 0,
+        ...args: unknown[]
+      ) => {
+        if (!schedulingRescan) return realSet(run, ms, ...args);
+        const id = --timerId;
+        timers.set(id, { at: now + ms, run: () => run(...args) });
+        return id;
+      }) as typeof setTimeout);
+      const cancel = spyOn(globalThis, "clearTimeout").mockImplementation(((
+        id: ReturnType<typeof setTimeout> | number | undefined,
+      ) => {
+        if (typeof id !== "number" || !timers.delete(id)) realClear(id);
+      }) as typeof clearTimeout);
+      const advance = (ms: number) => {
+        const target = now + ms;
+        for (;;) {
+          const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+          if (!next || next[1].at > target) break;
+          now = next[1].at;
+          timers.delete(next[0]);
+          next[1].run();
+        }
+        now = target;
+      };
+      try {
+        w.start();
+        await w.whenPrimed();
+        for (let i = 0; i < 4; i++) {
+          for (let burst = 0; burst < 9; burst++) {
+            onNativeEvent("hash/checkpoints/a.json");
+            advance(18);
+          }
+          onNativeEvent("hash/checkpoints/a.json");
+          advance(17);
+          expect(rescans).toHaveLength(i);
+          expect(internals.probeTimers.size).toBe(0);
+          advance(1);
+          expect(rescans).toHaveLength(i + 1);
+          await walkStarted.promise;
+          expect(starts[i + 1] - ends[i]).toBe(rescanIntervalMs);
+
+          internals.requestRescan(true);
+          advance(2 * rescanIntervalMs);
+          await Promise.resolve();
+          expect(rescans).toHaveLength(i + 1);
+          expect(active).toBe(1);
+          releaseWalk.resolve();
+          await rescans[i];
+          walkStarted = Promise.withResolvers<void>();
+          releaseWalk = Promise.withResolvers<void>();
+        }
+        expect(maxActive).toBe(1);
+        expect(internals.rescanTimer).not.toBeNull();
+        const beforeStop = rescans.length;
+        w.stop();
+        expect(internals.rescanTimer).toBeNull();
+        expect(timers.size).toBe(0);
+        expect(internals.probeTimers.size).toBe(0);
+        advance(2 * rescanIntervalMs);
+        expect(rescans).toHaveLength(beforeStop);
+        expect(starts).toHaveLength(5);
+        expect(active).toBe(0);
+      } finally {
+        w.stop();
+        releaseWalk.resolve();
+        cancel.mockRestore();
+        schedule.mockRestore();
+        time.mockRestore();
+        await Promise.allSettled(rescans);
+        closeDaemonWorkers();
       }
-      expect(starts.length).toBeGreaterThanOrEqual(3);
-      expect(maxActive).toBe(1);
-      expect(internals.probeTimers.size).toBe(0);
-      const completedRescanMs = ends
-        .slice(1, starts.length - 1)
-        .reduce((total, end, i) => total + (end - starts[i + 1]), 0);
-      const elapsedFromPrimeMs = performance.now() - ends[0];
-      expect(starts.length).toBeLessThanOrEqual(
-        1 +
-          Math.floor(
-            (elapsedFromPrimeMs - completedRescanMs) / minimumRescanGapMs,
-          ),
-      );
-      for (let i = 1; i < starts.length; i++)
-        expect(starts[i] - ends[i - 1]).toBeGreaterThanOrEqual(
-          minimumRescanGapMs,
-        );
-      w.stop();
-      const count = starts.length;
-      await pause(280);
-      expect(starts.length).toBe(count);
-      expect(internals.rescanTimer).toBeNull();
-      expect(internals.probeTimers.size).toBe(0);
-      expect(active).toBe(0);
-      closeDaemonWorkers();
     }
   },
   10000,
