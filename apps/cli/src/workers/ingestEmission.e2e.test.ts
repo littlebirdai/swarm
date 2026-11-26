@@ -27,7 +27,7 @@ for (const scenario of [
           const mutation = mutant
             ? mutantCopy(
                 home.root,
-                path.join(import.meta.dir, "ingestJobs.ts"),
+                path.join(import.meta.dir, "ingest-jobs.ts"),
                 "result.receiptSignatures.push(ingestReceiptSignature(message, source));",
                 "result.receiptSignatures.push(createHash('sha256').update(JSON.stringify(message)).digest('hex'));",
                 "ingestJobs-generated-clock.ts",

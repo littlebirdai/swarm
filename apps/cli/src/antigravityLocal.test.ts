@@ -9,7 +9,7 @@ import {
   ensureAntigravityFolderTrusted,
   upsertAntigravityTrustedWorkspace,
 } from "./antigravityLocal.js";
-import { readIngestJob, ingestIdentity } from "./workers/ingestJobs.js";
+import { readIngestJob, ingestIdentity } from "./workers/ingest-jobs.js";
 import { validateIngestResult } from "./workers/ingestValidation.js";
 import { readAntigravitySummary } from "./workers/ingestDatabase.js";
 import {

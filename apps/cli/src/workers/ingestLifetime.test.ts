@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { WorkerHost } from "./host.js";
-import { ingestIdentity } from "./ingestJobs.js";
+import { ingestIdentity } from "./ingest-jobs.js";
 const main = path.resolve(import.meta.dir, "../main.ts");
 const alive = (pid: number) => {
   try {

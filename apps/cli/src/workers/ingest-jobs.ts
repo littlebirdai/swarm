@@ -125,7 +125,8 @@ export function sameIngestWal(
   a: IngestIdentity | null,
   b: IngestIdentity | null,
 ): boolean {
-  return a === null || b === null ? a === b : sameIngestSnapshot(a, b);
+  if (a === null || b === null) return a === b;
+  return sameIngestFile(a, b) && a.size === b.size && a.mtimeMs === b.mtimeMs;
 }
 async function readPart(
   file: string,

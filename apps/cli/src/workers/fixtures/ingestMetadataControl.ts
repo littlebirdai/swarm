@@ -35,7 +35,7 @@ save("fixture-process-" + process.pid, {
   mode,
   source: source(import.meta.path),
 });
-const producerPath = path.join(workerDir, "ingestJobs.ts");
+const producerPath = path.join(workerDir, "ingest-jobs.ts");
 const producerPreimage = fs.readFileSync(producerPath, "utf8");
 let loadedProducer = producerPath;
 if (mode === "old-tail") {

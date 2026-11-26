@@ -12,7 +12,7 @@ import {
   sameIngestSnapshot,
   ingestWalIdentity,
   sameIngestWal,
-} from "./ingestJobs.js";
+} from "./ingest-jobs.js";
 import {
   validIngestPage,
   type IngestJob,

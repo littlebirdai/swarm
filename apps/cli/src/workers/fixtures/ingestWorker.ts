@@ -9,7 +9,7 @@ fs.writeFileSync(
 );
 const sources = [
   "../runtime.ts",
-  "../ingestJobs.ts",
+  "../ingest-jobs.ts",
   "../ingestDatabase.ts",
   "../../parser.ts",
   "../../cursorChatParser.ts",

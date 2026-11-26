@@ -1,5 +1,5 @@
 import { WorkerHost } from "../host.js";
-import { ingestIdentity } from "../ingestJobs.js";
+import { ingestIdentity } from "../ingest-jobs.js";
 import fs from "node:fs";
 const [main, file] = process.argv.slice(2);
 const host = new WorkerHost("ingest", {

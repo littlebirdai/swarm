@@ -19,7 +19,7 @@ for (const enabled of [false, true])
       try {
         const mutation = mutantCopy(
           home.root,
-          path.join(import.meta.dir, "ingestJobs.ts"),
+          path.join(import.meta.dir, "ingest-jobs.ts"),
           "const native = nativeIds.every",
           "const native = false && nativeIds.every",
           "ingestJobs-physical.ts",

@@ -5203,6 +5203,9 @@
   "apps/cli/src/workers/ingest-client.ts": {
     "swarm/no-comments": 25
   },
+  "apps/cli/src/workers/ingest-jobs.ts": {
+    "swarm/no-comments": 13
+  },
   "apps/cli/src/workers/ingest.e2e.test.ts": {
     "swarm/no-comments": 2
   },
@@ -5217,9 +5220,6 @@
   },
   "apps/cli/src/workers/ingestDeadline.ts": {
     "swarm/no-comments": 9
-  },
-  "apps/cli/src/workers/ingestJobs.ts": {
-    "swarm/no-comments": 13
   },
   "apps/cli/src/workers/ingestMetadata.ts": {
     "swarm/no-comments": 67
