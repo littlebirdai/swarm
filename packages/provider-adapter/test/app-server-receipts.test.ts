@@ -102,7 +102,17 @@ function receipts(events: readonly ProviderEvent[]) {
 it.effect("an accepted provider item commits before emitting one receipt", () =>
   Effect.gen(function* () {
     const fake = fixture({ FIXTURE_HOLD_START: "1" });
-    const provider = yield* adapter(fake);
+    const journal = journalAt(fake.directory);
+    const recording = yield* Deferred.make<void>();
+    const allowCommit = yield* Deferred.make<void>();
+    const provider = yield* adapter(fake, {
+      ...journal,
+      async record(session, checkpoint, receipt, signal) {
+        await Effect.runPromise(Deferred.succeed(recording, undefined));
+        await Effect.runPromise(Deferred.await(allowCommit), { signal });
+        await journal.record(session, checkpoint, receipt, signal);
+      },
+    });
     expect(provider.provider.capabilities).toContain("receipts");
     const { session } = requireOpened(yield* provider.own(fake.spec));
     const announced = yield* Deferred.make<void>();
@@ -132,11 +142,18 @@ it.effect("an accepted provider item commits before emitting one receipt", () =>
         },
       }),
     );
-    yield* userItem(fake, "accepted-item", clientId);
+    const accepting = yield* Effect.forkChild(
+      userItem(fake, "accepted-item", clientId),
+    );
+    yield* Deferred.await(recording);
+    yield* Effect.yieldNow;
+    expect(yield* Deferred.isDone(announced)).toBe(false);
+    yield* Deferred.succeed(allowCommit, undefined);
+    yield* Fiber.join(accepting);
     yield* Deferred.await(announced);
     expect(
       yield* Effect.promise((signal) =>
-        journalAt(fake.directory).read(fake.spec.session, threadId, signal),
+        journal.read(fake.spec.session, threadId, signal),
       ),
     ).toEqual([
       {
@@ -158,6 +175,41 @@ it.effect("an accepted provider item commits before emitting one receipt", () =>
     yield* Effect.promise(fake.contract.processExit);
     expect(receipts(yield* Fiber.join(events))).toEqual([receipt]);
     expect(fake.observed()).toHaveLength(1);
+  }),
+);
+
+it.effect("a failed journal write leaves steer in doubt with no receipt", () =>
+  Effect.gen(function* () {
+    const fake = fixture();
+    const journal = journalAt(fake.directory);
+    const writeAttempted = yield* Deferred.make<void>();
+    const provider = yield* adapter(fake, {
+      ...journal,
+      async record() {
+        await Effect.runPromise(Deferred.succeed(writeAttempted, undefined));
+        throw new Error("Receipt journal unavailable");
+      },
+    });
+    const { session } = requireOpened(yield* provider.own(fake.spec));
+    const events = yield* Effect.forkChild(Stream.runCollect(session.events));
+    expect(yield* session.steer(steer)).toMatchObject({ status: "in-doubt" });
+    yield* userItem(
+      fake,
+      "accepted-item",
+      fake.observed()[0]?.message.params?.clientUserMessageId,
+    );
+    yield* Deferred.await(writeAttempted);
+    expect(
+      yield* session.steer({ ...steer, expected: { ...steer.expected, turn } }),
+    ).toMatchObject({ status: "in-doubt" });
+    expect(fake.observed()).toHaveLength(1);
+    yield* Effect.promise(fake.contract.processExit);
+    expect(receipts(yield* Fiber.join(events))).toEqual([]);
+    expect(
+      yield* Effect.promise((signal) =>
+        journal.read(fake.spec.session, threadId, signal),
+      ),
+    ).toEqual([]);
   }),
 );
 
@@ -258,12 +310,45 @@ it.effect(
           expected: { ...steer.expected, run: 2 },
         }),
       ).toEqual({ status: "duplicate", receipt });
+      expect(fresh.observed()).toHaveLength(0);
+
+      yield* Effect.promise(() =>
+        fresh.wrote({
+          frame: {
+            method: "thread/status/changed",
+            params: { threadId, status: { type: "idle" } },
+          },
+        }),
+      );
+      const nextDelivery = { delivery_id: "post-resume-delivery" };
+      expect(
+        yield* resumed.steer({
+          ...steer,
+          ...nextDelivery,
+          expected: { ...steer.expected, run: 2 },
+        }),
+      ).toMatchObject({ status: "in-doubt" });
+      yield* userItem(
+        fresh,
+        "post-resume-item",
+        fresh.observed()[0]?.message.params?.clientUserMessageId,
+      );
       yield* Effect.promise(fresh.contract.processExit);
-      const replay = (yield* Fiber.join(recoveredEvents)).filter(
+      const eventsAfterResume = yield* Fiber.join(recoveredEvents);
+      const emitted = eventsAfterResume.filter(
         (event) => event.kind === "receipt",
       );
-      expect(replay).toMatchObject([{ run: 2, seq: 31, body: receipt }]);
-      expect(fresh.observed()).toHaveLength(0);
+      expect(emitted).toMatchObject([
+        { run: 2, seq: 31, body: receipt },
+        { run: 2, turn, body: nextDelivery },
+      ]);
+      expect(eventsAfterResume).toContainEqual(
+        expect.objectContaining({
+          kind: "context",
+          body: { data: { status: { type: "idle" } } },
+        }),
+      );
+      expect(fresh.observed()).toHaveLength(1);
     }),
 );
 
