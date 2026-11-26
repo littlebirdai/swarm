@@ -13,7 +13,7 @@ import type { SyncService } from "../syncService.js";
 import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
-import { CodexAppServerRuntimeDriver } from "./drivers/codexAppServer.js";
+import { CodexAppServerRuntimeDriver } from "./drivers/codex-app-server.js";
 import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 import { DaemonExecutionRuntime } from "./runtime-rail.js";
 
