@@ -9,6 +9,7 @@ import { verifyApiToken } from "./apiTokens";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
 import {
+  answerablePromptAddresses,
   fencedPromptAnswersEnabled,
   finishPromptAnswer,
   nextPromptAnswer,
@@ -215,6 +216,14 @@ export const getPromptAddress = query({
   handler: async (ctx, target) => {
     const userId = await getAuthUserId(ctx);
     return userId ? promptAddress(ctx, target, userId) : null;
+  },
+});
+
+export const listAnswerablePromptAddresses = query({
+  args: { conversation_id: v.id("conversations") },
+  handler: async (ctx, { conversation_id }) => {
+    const actor = await getAuthUserId(ctx);
+    return actor ? answerablePromptAddresses(ctx, conversation_id, actor) : [];
   },
 });
 

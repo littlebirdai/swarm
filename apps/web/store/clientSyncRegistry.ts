@@ -6,14 +6,14 @@ import { LIVE_SYNC_COLLECTIONS } from "./clientSyncRegistry.live";
 import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
-import { DATA_SCOPE } from "./clientSyncRegistry.scope";
+import { DATA_SCOPE } from "./client-sync-registry.scope";
 import { thinPullRequestRow, thinTaskRow } from "../lib/detailRows";
 export {
   DATA_SCOPE,
   EPHEMERAL_SLOT_SCOPE,
   SCOPED_READ_KEYS,
   type DataScope,
-} from "./clientSyncRegistry.scope";
+} from "./client-sync-registry.scope";
 
 export type PersistenceKind = "collection" | "meta";
 export type DispatchTableKind = "collection" | "singleton";
@@ -1760,6 +1760,10 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { kind: "list" },
     feeds: ["managedSessions.getAggregateMetrics"],
   },
+  fencedPromptAddresses: {
+    sync: { isDelta: true, deepFields: ["questions"] },
+    feeds: ["permissions.listAnswerablePromptAddresses"],
+  },
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
   // syncs with pruneAbsentScope for it (a resolved permission leaves the
@@ -2455,7 +2459,7 @@ export const WEB_COLLECTION_INDEXES: Record<string, string> = {
 };
 
 /** Collections whose rows enumerate only through useWorkspaceCollection:
- *  every collection DATA_SCOPE (clientSyncRegistry.scope.ts) classes "workspace". */
+ *  every collection DATA_SCOPE (client-sync-registry.scope.ts) classes "workspace". */
 export type WorkspaceScopedStoreKey = {
   [
     K in ClientSyncCollectionStoreKey
@@ -2759,6 +2763,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   sessionCommands: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
+  fencedPromptAddresses: "local",
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",

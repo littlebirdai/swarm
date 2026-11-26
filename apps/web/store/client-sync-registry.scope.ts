@@ -189,6 +189,7 @@ export const DATA_SCOPE = {
   moveRehearsals: "viewer",
   sessionMetricsAggregate: "viewer",
   pendingPermissions: "entity",
+  fencedPromptAddresses: "entity",
   permissionRules: "viewer",
   guestSuggestions: "entity",
   pendingMessageStatus: "entity",

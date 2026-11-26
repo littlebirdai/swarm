@@ -192,7 +192,7 @@ describe("workspace enumeration chokepoint", () => {
   }, 120_000); // IO-bound source walk; the box is often under heavy test load
 });
 
-// SCOPED SLOTS AND TEAM COLLECTIONS (clientSyncRegistry.scope.ts DATA_SCOPE).
+// SCOPED SLOTS AND TEAM COLLECTIONS (client-sync-registry.scope.ts DATA_SCOPE).
 //
 // A key classed "workspace" or "team" holds one workspace's or one team's
 // data in a cache that spans them all. Three shapes of read bypass the check
