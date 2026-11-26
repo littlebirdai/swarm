@@ -24,7 +24,7 @@
 //
 // It loads every core for minutes, so it runs only when asked for
 // (CODECAST_PASTE_E2E=1), and it also skips without tmux or a claude binary,
-// like the other real-client suites (daemon.inject-double-paste.test.ts).
+// like the other real-client suites (daemon.inject-double-paste.e2e.test.ts).
 import { killIsolatedTmuxServer } from "./test-helpers/isolatedTmuxServer.js";
 import { afterAll, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";

@@ -482,7 +482,7 @@ describe("matrices", () => {
       ],
       [
         "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
-        "bash ../../scripts/ci/retry-tests.sh bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000",
+        "bash ../../scripts/ci/retry-tests.sh bun test src/daemon.inject-clear.e2e.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.e2e.test.ts src/daemon.inject-double-paste.e2e.test.ts --timeout=240000",
       ],
     ],
   };

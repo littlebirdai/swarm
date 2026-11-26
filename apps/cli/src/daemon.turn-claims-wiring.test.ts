@@ -1,6 +1,6 @@
 // The daemon's own turn-claim wiring (makeTurnClaimRecovery and the pane time
 // rule), lifted out of daemon.ts and driven with the real ledger and pass, as
-// daemon.heartbeat-health.test.ts does for the heartbeat. What it proves: a live
+// daemon.heartbeat-health.e2e.test.ts does for the heartbeat. What it proves: a live
 // pane is never resumed and costs no server lookup; a pane that died with the
 // machine is resumed once, through the shared revive queue; a process the table
 // still finds (a cc-resume-* copy) is never resumed beside; a message already

@@ -6,7 +6,7 @@
 // escape may now type a stray backslash.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { tmuxLiteralArg } from "../src/tmuxPaste.js";
+import { tmuxLiteralArg } from "./tmuxPaste.js";
 
 const hasTmux = spawnSync("tmux", ["-V"]).status === 0;
 const socket = `cc-learning-${process.pid}`;
