@@ -38,8 +38,9 @@ The table gives the closest `@codecast/session-contract` fact for each writer. A
 | [Status writer]           | `insertConversationWithStatus`              | Conversation status                                    | Web and CLI spawn mutations call `spawnSessionCore` in `spawn.ts`.                                                                                               | Initial state.                                                                                                              |
 | `tasks.ts`                | `spawnSessionForTask`                       | Conversation status                                    | Task execution starts a session.                                                                                                                                 | Initial state.                                                                                                              |
 | `users.ts`                | `startSession`                              | Conversation status                                    | The user mutation starts a session.                                                                                                                              | Initial state.                                                                                                              |
-| `workflow_runs.ts`        | `create`, `createRunCore`                   | Conversation status                                    | Workflow creation starts its primary session.                                                                                                                    | Initial state.                                                                                                              |
-| `workflow_runs.ts`        | `updateProgress`                            | Conversation status                                    | A worker reports workflow completion or failure.                                                                                                                 | Gap when the workflow result supplies no provider or runtime evidence.                                                      |
+| [Status writer]           | `insertConversationWithStatus`              | Conversation status and stash fields                   | `create` and `createRunCore` in `workflow_runs.ts` create an active log. Task runs start with a hidden stash.                                                    | Initial state. The stash fields are projection inputs.                                                                      |
+| [Status writer]           | `patchConversationLifecycle`                | Conversation status                                    | `updateProgress` in `workflow_runs.ts` completes the conversation when it posts a final progress message.                                                        | Gap when the workflow result supplies no provider or runtime evidence.                                                      |
+| [Status writer]           | `patchConversationLifecycle`                | Stash stamp and stash-hidden flag                      | `hideTaskRunLogs` in `workflow_runs.ts` stashes eligible logs from older task runs.                                                                              | Gap. The stash fields are projection inputs.                                                                                |
 | `sessionGoals.ts`         | `takeDownGoalPin`                           | Thread pin                                             | A goal action clears its pin.                                                                                                                                    | Gap. The thread pin is a projection input.                                                                                  |
 | `pendingMessages.ts`      | `enqueuePendingMessage`                     | Conversation status and thread pin                     | User input or a scheduler wake reopens a session. Human input can clear its pin.                                                                                 | `inbox.submitted` records input. Gap for a reopen without proof and for the pin clear.                                      |
 | `pendingMessageWrites.ts` | `reviveConversationOnDelivery`              | Conversation status                                    | Legacy and fenced delivery callers reopen the recipient.                                                                                                         | `run.successorAuthorized` with proof of predecessor disposition. Gap when delivery alone reopens the session.               |
@@ -107,8 +108,6 @@ The shared writer stores the status and inbox fields for starts, forks, daemon r
 
 `createConversation` still creates the active row from transcript ingest and can complete the parent on plan handoff. The trace harness rejects the existing `users.first_session_synced_at` write during this path because the schema has no such field.
 
-Workflow log writes remain in `workflow_runs.ts`. `create` and `createRunCore` create active logs and stash logs for task runs. `updateProgress` completes the log when the workflow ends. `hideTaskRunLogs` stashes old logs for task runs.
-
 These paths still write inbox stamps directly.
 
 - `inboxFilters.ts` uses `restoreToInbox` to clear stash and dismissal on a hidden session with no kill stamp.
@@ -132,6 +131,16 @@ The replay sends a provider end event when the fixture has one. For each reopen 
 | Copy a shared transcript                                    | Completed     | Active          | A transcript copy starts completed even though it has no execution end event.             |
 
 Close, stash, restore, and a blocked pin can change inbox placement while status stays the same. The trace checks the stored placement. The reducer accepts placement as a projection input.
+
+## Workflow log replay gaps
+
+The replay covers workflow starts from the web and CLI, progress reports, and the stash backfill. The workflow run keeps its own status on `workflow_runs`.
+
+| Event                                                          | Legacy conversation write                                                                                | Contract result                                                                          |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| A task run starts or the stash backfill finds an old task log  | The log has a stash timestamp and a stash-hidden flag.                                                   | The session stays active. Workflow ownership and the stash fields are projection inputs. |
+| A completed or failed report includes a progress message       | The log or the existing host session becomes completed in the same patch that updates its message count. | The session stays active without a provider end event or verified runtime exit.          |
+| A completed report names the start node or omits node progress | The workflow run completes without a conversation patch.                                                 | The session stays active. Workflow completion alone supplies no session end fact.        |
 
 ## Pending-message healers
 

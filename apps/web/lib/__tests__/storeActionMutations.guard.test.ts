@@ -63,10 +63,19 @@ function dispatchHandlers(): Map<string, string> {
 const WRITE_HELPER = /\b(?:await|return)\s+([a-z]\w*)\(\s*ctx\b/g;
 const NOT_A_WRITE =
   /^(require|get|is|assert|load|resolve|find|can|check|ensure|read|lookup|list|fetch|verify|authorize)/;
+const SHARED_STATUS_WRITERS = new Set(
+  [
+    ...readFileSync(
+      join(CONVEX, "lib", "sessionStatusWriter.ts"),
+      "utf8",
+    ).matchAll(/^export (?:async )?function (\w+)/gm),
+  ].map((m) => m[1]!),
+);
 const writeHelpersOf = (body: string) =>
   [...body.matchAll(WRITE_HELPER)]
     .map((m) => m[1]!)
-    .filter((name) => !NOT_A_WRITE.test(name));
+    .filter((name) => !NOT_A_WRITE.test(name))
+    .filter((name) => !SHARED_STATUS_WRITERS.has(name));
 
 /** Each public mutation's handler body in the Convex tree, by its api path. */
 function publicMutations(): Map<string, string> {
