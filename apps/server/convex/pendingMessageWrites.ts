@@ -1,6 +1,9 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import type { SendAdmission } from "./lib/pending-message-enqueue.rules";
-import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
+import {
+  patchConversationLifecycle,
+  writePendingStatus,
+} from "./lib/sessionStatusWriter";
 
 type DbCtx = { db: any };
 
@@ -258,6 +261,7 @@ export async function releaseQueuedRows(
     )
     .collect();
   const queued = held.filter((r) => r.queued);
-  for (const row of queued) await ctx.db.patch(row._id, { status: "pending" });
+  for (const row of queued)
+    await writePendingStatus(ctx, row._id, { status: "pending" });
   return queued.length;
 }

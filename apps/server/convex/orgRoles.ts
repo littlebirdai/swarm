@@ -1,6 +1,7 @@
 import { internalMutation, mutation, query } from "./functions";
 import { roleRunner } from "./lib/seatPlace";
 import { armedTriggerKindFor } from "./dormancy";
+import { writePendingStatus } from "./lib/sessionStatusWriter";
 import { internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
@@ -1323,13 +1324,12 @@ async function performRetireRoleCore(
         q.eq("conversation_id", standing._id).eq("status", "held"),
       )
       .collect();
-    for (const p of held)
-      await ctx.db.patch(
-        p._id,
-        keepStanding
-          ? { status: "pending" }
-          : { status: "cancelled", cancelled_at: now },
-      );
+    for (const p of held) {
+      const patch = keepStanding
+        ? { status: "pending" as const }
+        : { status: "cancelled" as const, cancelled_at: now };
+      await writePendingStatus(ctx, p._id, patch);
+    }
   }
   const pendingTriggerCancellation = stopped === null;
   const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
