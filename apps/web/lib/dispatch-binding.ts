@@ -1,3 +1,4 @@
+import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
 // The store's server dispatch binding and its failure handler, outside React.
 //
 // useEnsureDispatch wires these into the live store through a Convex
@@ -148,6 +149,11 @@ export function makeDispatchBinding(
       return res;
     };
     for (;;) {
+      if (
+        action === "beginSavedReadingAnchor" &&
+        !isReadingAnchorClaimActive(args?.[1])
+      )
+        return null;
       if (outbox && outbox.accountId !== outboxAccountId())
         throw new StaleDispatchBindingError();
       const request: DispatchCallArgs = { action, args, patches, result };
@@ -208,7 +214,12 @@ const CALLER_REPORTED_ACTIONS = new Set([
 // composer's batch is the person's state and works the same without them, so
 // a refusal (a backend from before quoteDrafts, a conversation since lost) is
 // news to nobody: no toast, no failure mark, no error report.
-const QUIET_ACTIONS = new Set(["saveQuoteDrafts", "removeQuoteDrafts"]);
+const QUIET_ACTIONS = new Set([
+  "saveQuoteDrafts",
+  "removeQuoteDrafts",
+  "beginSavedReadingAnchor",
+  "saveSavedReadingAnchor",
+]);
 
 // chat.markRead's refusal of a marker that was deleted or sits in another
 // room, from servers deployed before markRead stopped refusing it.

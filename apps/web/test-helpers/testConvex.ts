@@ -200,6 +200,9 @@ export function testConvex() {
     mutations,
     actions,
     writeRequests,
+    ping() {
+      socket?.reply({ type: "Ping" });
+    },
     set<Ref extends FunctionReference<"query">>(
       ref: Ref,
       reply: QueryReply<NoInfer<Ref>>,

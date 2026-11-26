@@ -14,6 +14,10 @@ import { checkConversationAccess } from "./privacy";
 import { notFound } from "./lib/auth";
 import { afterRoleDocWrite } from "./orgRoles";
 import { canSendProductMessage } from "./pendingMessages";
+import {
+  readAnchorsEnabled,
+  saveLegacyReadAnchor,
+} from "./lib/conversationReadAnchors";
 
 const MAX_DELTA_FETCH = 100;
 const MAX_SNAPSHOT_FETCH = 10;
@@ -802,7 +806,10 @@ export const removePresence = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     const existing = await myPresenceRow(ctx, userId, args.doc_id);
-    if (existing) await ctx.db.delete(existing._id);
+    if (!existing) return;
+    if (readAnchorsEnabled() && args.doc_id.startsWith("compose:"))
+      await saveLegacyReadAnchor(ctx, existing);
+    await ctx.db.delete(existing._id);
   },
 });
 

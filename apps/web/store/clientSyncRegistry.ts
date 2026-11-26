@@ -857,6 +857,10 @@ export const CLIENT_SYNC_REGISTRY = {
     localFirst: true,
   },
   ...CHAT_SYNC_COLLECTIONS,
+  sessionReadAnchors: {
+    sync: { isDelta: true },
+    feeds: ["conversationReadAnchors.get"],
+  },
   // Per-session read marks (sessionReads.listMine): where the viewer's
   // attention stopped in each conversation. Unread is DERIVED from the mark
   // against the session's own updated_at (shared isSessionUnread), never
@@ -2667,6 +2671,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   chatAuthors: "shared",
   // The viewer's read marks are the same in every window of theirs, and the
   // ack that clears a card must clear it everywhere at once.
+  sessionReadAnchors: "local",
   sessionReads: "shared",
   chatRail: "shared",
   threadInbox: "shared",

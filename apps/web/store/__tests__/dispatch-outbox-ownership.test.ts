@@ -295,3 +295,24 @@ test("old-server detection ignores nested validation errors and re-probes", asyn
     true,
   ]);
 });
+
+test("reading visits and checkpoints stay out of the durable outbox", async () => {
+  const base = {
+    accountId: TEST_PRINCIPAL,
+    args: [],
+    patches: null,
+    result: null,
+    ts: Date.now(),
+  };
+  await enqueueDispatch({
+    ...base,
+    id: "reading-visit",
+    action: "beginSavedReadingAnchor",
+  });
+  await enqueueDispatch({
+    ...base,
+    id: "reading-checkpoint",
+    action: "saveSavedReadingAnchor",
+  });
+  expect(await loadOutbox()).toEqual([]);
+});

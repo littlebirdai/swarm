@@ -37,6 +37,7 @@ export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
     ["collab_grants", "by_conversation"],
     ["share_redemptions", "by_conversation_user"],
     ["conversation_read_grants", "by_conversation_user"],
+    ["conversation_read_anchors", "by_conversation"],
     ["entity_conversations", "by_conversation"],
     ["commits", "by_conversation_id"],
     ["pull_request_sessions", "by_conversation"],

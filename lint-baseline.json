@@ -16911,9 +16911,9 @@
   "apps/web/components/conversation-view.tsx": {
     "react-hooks/exhaustive-deps": 17,
     "swarm/ime-safe-key-handlers": 4,
-    "swarm/no-comments": 1036,
+    "swarm/no-comments": 1023,
     "swarm/no-native-title-with-aria-label": 6,
-    "swarm/no-raw-resize-observer": 4
+    "swarm/no-raw-resize-observer": 3
   },
   "apps/web/components/conversation/AskSessionPanel.tsx": {
     "swarm/ime-safe-key-handlers": 3,
@@ -17171,6 +17171,10 @@
   },
   "apps/web/components/conversation/pendingSend.ts": {
     "swarm/no-comments": 20
+  },
+  "apps/web/components/conversation/reading-viewport.ts": {
+    "swarm/no-comments": 9,
+    "swarm/no-raw-resize-observer": 1
   },
   "apps/web/components/conversation/scrollProgressSignal.ts": {
     "swarm/no-comments": 6

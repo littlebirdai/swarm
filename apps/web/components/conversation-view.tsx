@@ -336,9 +336,17 @@ import { CollabRequestBanner, OwnerComposerPresence } from "./collab-composer";
 import { GhostDrafts } from "./conversation/GhostDrafts";
 import { SharedQueue } from "./conversation/SharedQueue";
 import { ReaderFaces, ReadingMarks } from "./conversation/ReadingMarks";
-import { composerPresenceEnabled, hasCoPresent } from "../lib/composerPresence";
+import { composerPresenceEnabled } from "../lib/composerPresence";
 import { ConversationViewers } from "./presence/ViewerFaces";
-import { anchorFromRects } from "../lib/follow";
+import {
+  mountedTranscriptRow,
+  observeComposerBand,
+  publishReadingPosition,
+  readingRowForMessage,
+  restoreReadingPosition,
+  watchReadingScroll,
+  transcriptViewportRects,
+} from "./conversation/reading-viewport";
 import {
   normalizeCastCategory,
   buildBrowserRowMap,
@@ -366,6 +374,7 @@ import {
   isParkedDispatchError,
 } from "../store/mutativeMiddleware";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useSavedReadingAnchor } from "../hooks/use-saved-reading-anchor";
 import { useForkNavigationStore } from "../store/forkNavigationStore";
 import {
   buildCompositeTimeline,
@@ -3617,38 +3626,47 @@ const ConversationViewInner = function ConversationView(
     if (!el) return;
     return setupDesktopDrag(el);
   }, [deskClass]);
-
-  useMountEffect(() => {
-    // The floating scroll buttons sit just above everything below the feed —
-    // composer, pinned state panel, a docked decision card — so measure that
-    // whole band (pane bottom minus feed bottom), not the composer alone.
-    // The feed is the flex-1 column child, so any change in the band resizes
-    // it; observing feed + pane catches every case.
-    const feed = containerRef.current;
-    const pane = feed?.closest("main");
-    if (!feed || !pane) return;
-    const measure = () =>
-      setMessageInputHeight(
-        Math.max(
-          0,
-          Math.round(
-            pane.getBoundingClientRect().bottom -
-              feed.getBoundingClientRect().bottom,
-          ),
-        ),
-      );
-    // Measured in the observer's first callback (after layout, before paint);
-    // a read on mount laid out the conversation the mount had just changed.
-    if (typeof ResizeObserver === "undefined") {
-      measure();
-      return;
-    }
-    const ro = new ResizeObserver(measure);
-    ro.observe(feed);
-    ro.observe(pane);
-    return () => ro.disconnect();
+  useMountEffect(() =>
+    observeComposerBand(containerRef.current, setMessageInputHeight),
+  );
+  const observeSavedReading = useSavedReadingAnchor({
+    enabled: import.meta.env.VITE_SESSION_READ_ANCHORS === "1",
+    conversationId:
+      conversation?._id && isConvexId(conversation._id)
+        ? (conversation._id as Id<"conversations">)
+        : null,
+    userId: currentUser?._id,
+    loadingWindow: isLoadingOlder,
+    restore(anchor, requestedWindow, expired, windowLoaded) {
+      if (
+        userScrolledRef.current ||
+        targetMessageId ||
+        highlightQuery ||
+        window.location.hash ||
+        branchAnchorRef.current?.targetId === conversation?._id?.toString()
+      )
+        return "fallback";
+      const result = expired
+        ? "fallback"
+        : restoreReadingPosition(anchor, requestedWindow, {
+            container: containerRef.current,
+            timeline,
+            virtualizer,
+            jumpToTimestamp: onJumpToTimestamp,
+            windowLoaded,
+            resolveMessage: (id) =>
+              readingRowForMessage(
+                id,
+                feedDensity,
+                { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf },
+                expandedGroups,
+              ),
+            takePosition: () => setUserScrolled(true),
+          });
+      if (requestedWindow && result === "fallback") onJumpToEnd?.();
+      return result;
+    },
   });
-
   useWatchEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -3660,6 +3678,7 @@ const ConversationViewInner = function ConversationView(
       return;
     }
     let ticking = false;
+    let anchorScroll = false;
     const check = () => {
       ticking = false;
       if ((window as any).__STICKY_DEBUG) {
@@ -3680,49 +3699,22 @@ const ConversationViewInner = function ConversationView(
       const scrollTop = el.scrollTop;
       const containerRect = el.getBoundingClientRect();
       const virtualItems = virtualizer.getVirtualItems();
-      // The virtualizer holds each mounted row by key; a selector walk over the
-      // feed per row per frame cost more than the boxes themselves.
-      const rowEl = (v: { key: string | number | bigint; index: number }) => {
-        const node = virtualizer.elementsCache.get(v.key) as
-          | HTMLElement
-          | undefined;
-        return node?.isConnected && node.dataset.index === String(v.index)
-          ? node
-          : null;
-      };
-      const rects = [];
-      for (const v of virtualItems) {
-        const domEl = rowEl(v);
-        if (!domEl) continue;
-        const r = domEl.getBoundingClientRect();
-        rects.push({ index: v.index, top: r.top, bottom: r.bottom });
-      }
+      const rects = transcriptViewportRects(virtualizer, virtualItems);
       const { topVisibleIndex, visible } = topVisibleIndexFromRects(
         rects,
         containerRect.top,
         containerRect.bottom,
       );
-      // Follow mode, and anyone else in this session's composer (reading
-      // marks): its place in the transcript rides the same measurement the
-      // sticky prompt takes. Read off the store without subscribing; a window
-      // nobody follows and nobody shares writes nothing here.
-      {
-        const st = useInboxStore.getState();
-        if (
-          conversation?._id &&
-          (st.followedBy.length > 0 || hasCoPresent(String(conversation._id)))
-        ) {
-          const a = anchorFromRects(
-            rects,
-            topVisibleIndex,
-            containerRect.top,
-            timelineMessageIds,
-          );
-          st.setViewAnchor(
-            a ? { conversationId: String(conversation._id), ...a } : null,
-          );
-        }
-      }
+      publishReadingPosition(
+        conversation?._id,
+        observeSavedReading,
+        anchorScroll,
+        rects,
+        topVisibleIndex,
+        containerRect.top,
+        timelineMessageIds,
+      );
+      anchorScroll = false;
       // A prompt the window does not hold wins over the one it resolved when
       // it is later and still above the top visible row (pickStickyFallback).
       const topTs =
@@ -3802,7 +3794,7 @@ const ConversationViewInner = function ConversationView(
           const nextTlIdx = stickyUserMsgIndices[nextArrayIdx];
           const nextVItem = virtualItems.find((v) => v.index === nextTlIdx);
           if (nextVItem) {
-            const nextDom = rowEl(nextVItem);
+            const nextDom = mountedTranscriptRow(virtualizer, nextVItem);
             const nextTop = nextDom
               ? nextDom.getBoundingClientRect().top - containerRect.top
               : nextVItem.start - scrollTop;
@@ -3886,9 +3878,16 @@ const ConversationViewInner = function ConversationView(
       }
     };
     schedule();
-    el.addEventListener("scroll", schedule, { passive: true });
+    const stopReadingScroll = watchReadingScroll(
+      el,
+      (readerMoved) => {
+        anchorScroll ||= readerMoved;
+        schedule();
+      },
+      !!observeSavedReading,
+    );
     return () => {
-      el.removeEventListener("scroll", schedule);
+      stopReadingScroll();
       cancelAnimationFrame(frame);
     };
   }, [
@@ -3903,6 +3902,7 @@ const ConversationViewInner = function ConversationView(
     loadedMessageIds,
     headerHeight,
     stickyDisabled,
+    observeSavedReading,
   ]);
 
   const scrollToMessageById = useCallback(

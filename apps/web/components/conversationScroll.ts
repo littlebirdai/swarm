@@ -325,6 +325,7 @@ export function settleTimelineItemAtOffset(
   opts?: {
     initialDelayMs?: number;
     watchMs?: number;
+    offsetFraction?: number;
     onSettled?: () => void;
     // Identity of the target row (its data-vkey — the stable message key).
     // The index is a snapshot of ONE timeline: a same-session jump starts on
@@ -383,12 +384,17 @@ export function settleTimelineItemAtOffset(
     lastTop >= 0 &&
     container.scrollTop !== lastTop &&
     container.scrollHeight === lastHeight;
+  const offsetFor = (el: DOMRect) =>
+    opts?.offsetFraction === undefined
+      ? offsetPx
+      : offsetPx - (opts.offsetFraction * el.height) / cssZoomOf(container);
   const scrollElToOffset = (el: Element) => {
     const elRect = el.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     // Rect deltas are screen px; scrollTop is layout px — divide by CSS zoom.
     container.scrollTop +=
-      (elRect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
+      (elRect.top - containerRect.top) / cssZoomOf(container) -
+      offsetFor(elRect);
     remember();
   };
   const watchMs = opts?.watchMs ?? 2500;
@@ -424,7 +430,8 @@ export function settleTimelineItemAtOffset(
         const rect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const off =
-          (rect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
+          (rect.top - containerRect.top) / cssZoomOf(container) -
+          offsetFor(rect);
         if (Math.abs(off) > 2) scrollElToOffset(el);
         else remember();
         // Remembered before onSettled runs: a host that scrolls from inside

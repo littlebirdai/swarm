@@ -41,6 +41,7 @@ import {
   resolveCore as resolveDecisionThreadCore,
 } from "./decisionThread";
 import { sendLineChatCore } from "./lineChat";
+import { beginReadAnchor, saveReadAnchor } from "./lib/conversationReadAnchors";
 import { askCore as askSideQuestionCore } from "./sideAnswers";
 import {
   clearHoldCore,
@@ -453,14 +454,12 @@ const PATCH_ONLY_ACTIONS = new Set([
   "wsShow",
   "wsToggle",
 ]);
-
 export function isDispatchAction(action: string): boolean {
   return (
     Object.prototype.hasOwnProperty.call(SIDE_EFFECTS, action) ||
     PATCH_ONLY_ACTIONS.has(action)
   );
 }
-
 /**
  * A doc id as a client sent it: the doc's own id, or the placeholder a new board, sheet or dashboard was
  * opened under before the create answered (docs.client_key). The outbox sends a window's writes in order, so
@@ -474,7 +473,6 @@ async function docFor(ctx: any, docId: string): Promise<any | null> {
     .withIndex("by_client_key", (q: any) => q.eq("client_key", docId))
     .first();
 }
-
 export const dispatch = mutation({
   args: {
     action: v.string(),
@@ -510,7 +508,6 @@ export const dispatch = mutation({
       ? SIDE_EFFECTS[action]
       : undefined;
     if (!isDispatchAction(action)) throw new Error("Unknown dispatch action");
-
     return dispatchWithOutboxReceipt(
       ctx,
       userId,
@@ -536,7 +533,6 @@ export const dispatch = mutation({
             presence: answerPresence(action, actionArgs),
           });
         }
-
         return sideEffect?.(ctx, userId, actionArgs, result);
       },
     );
@@ -555,7 +551,6 @@ type HandlerFn = (
   args: any,
   result?: any,
 ) => Promise<any>;
-
 // The hide-transition decision + side effects live in cleanup.ts
 // (classifyHideTransition / applyHideTransition), shared with the CLI
 // visibility mutation. Re-exported here for the existing tests.
@@ -976,8 +971,13 @@ export async function applyPatches(
     );
   }
 }
-
 const SIDE_EFFECTS: Record<string, HandlerFn> = {
+  beginSavedReadingAnchor: async (ctx, userId, args) => {
+    return beginReadAnchor(ctx, userId, args?.[0], args?.[1]);
+  },
+  saveSavedReadingAnchor: async (ctx, userId, args) => {
+    return saveReadAnchor(ctx, userId, args?.[0]);
+  },
   // Decisions (docs/architecture/decisions-as-documents.md D2 / D5). The web
   // patches sessionDecisions and decisionStacks on the draft first; these are
   // the server writes the optimistic rows reconcile against.
