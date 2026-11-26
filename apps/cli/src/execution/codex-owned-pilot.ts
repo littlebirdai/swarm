@@ -431,8 +431,7 @@ export class CodexOwnedPilot {
       afterSeq: Math.max(previous, 1),
       options: await this.settings(request, checkpoint),
       checkpoint: checkpoint.threadId,
-      inDoubtDeliveryIds:
-        pending?.state === "started" ? [pending.delivery_id] : [],
+      inDoubtDeliveryIds: pending ? [pending.delivery_id] : [],
     });
     if (previous === 0) {
       await this.append(claim, {

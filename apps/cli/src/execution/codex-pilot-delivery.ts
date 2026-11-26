@@ -210,14 +210,15 @@ export class CodexPilotDelivery {
               permit.attempt_id !== held.attemptId ||
               permit.state === "new"
             ) {
-              this.appendedReceipts.delete(held.deliveryId);
-              if (permit?.delivery_id !== held.deliveryId)
+              if (permit?.delivery_id !== held.deliveryId) {
+                this.appendedReceipts.delete(held.deliveryId);
                 await this.forgetReceipt(
                   claim.session,
                   session.getCheckpoint(),
                   held.deliveryId,
                   signal,
                 );
+              }
               await this.clearImages(held.attemptId);
               return "released";
             }
@@ -236,6 +237,7 @@ export class CodexPilotDelivery {
       const turn = permit.intent === "queue" ? null : permit.expected?.turn;
       if (
         permit.state === "new" &&
+        !this.appendedReceipts.has(permit.delivery_id) &&
         (turn === undefined || turn !== this.activeTurn)
       )
         return false;
@@ -304,6 +306,9 @@ export class CodexPilotDelivery {
         },
       };
 
+    if (this.appendedReceipts.has(permit.delivery_id))
+      return { state: "delivered", externalDeliveryId: permit.delivery_id };
+
     const input: Array<SteerRequest["input"][number]> = [];
     let images: string | undefined;
     try {
@@ -364,7 +369,11 @@ export class CodexPilotDelivery {
       authors: [permit.sender],
       input,
     });
-    if (this.appendedReceipts.has(permit.delivery_id))
+    if (
+      this.appendedReceipts.has(permit.delivery_id) ||
+      (result.status === "duplicate" &&
+        result.receipt.delivery_id === permit.delivery_id)
+    )
       return { state: "delivered", externalDeliveryId: permit.delivery_id };
     if (
       result.status === "stale" ||

@@ -359,6 +359,90 @@ test("the pilot replays its journal receipt on restart and never resends the sta
   }
 });
 
+test.each(["live", "restarted"] as const)(
+  "a %s pilot settles a replacement attempt from the same delivery receipt",
+  async (mode) => {
+    const f = fixture("pilot", true, "receipt");
+    const work = item(f.pilotRequest);
+    try {
+      await f.runtime.processWorkUpdate([work]);
+      f.enqueue(1);
+      await f.runtime.processWorkUpdate([work]);
+      await until(() => f.settlements.length === 1, "server records ambiguity");
+      await reportReceipt(f, 1);
+      expect(f.runtime.coordinator.getActiveDelivery("pilot")?.state).toBe(
+        "ambiguous",
+      );
+      f.queue[0] = {
+        ...f.queue[0]!,
+        attempt_id: "replacement-attempt",
+        state: "new",
+      };
+
+      let runtime = f.runtime;
+      let currentWork = work;
+      if (mode === "restarted") {
+        const { restarted, work: resumed } = await f.restart();
+        runtime = restarted;
+        currentWork = resumed;
+        await until(
+          () => f.events.filter(({ kind }) => kind === "receipt").length === 2,
+          "restart replays the receipt for the new permit",
+        );
+      }
+      await runtime.processWorkUpdate([currentWork]);
+
+      expect(
+        f.settlements.filter(({ outcome }) => outcome === "applied"),
+      ).toMatchObject([
+        {
+          delivery_id: "delivery-1",
+          attempt_id: "replacement-attempt",
+          resolution_evidence: expect.stringContaining("provider-item-1"),
+        },
+      ]);
+      expect(turnStarts(f)).toHaveLength(1);
+      expect(runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
+    } finally {
+      await f.dispose();
+    }
+  },
+);
+
+test("a duplicate steer result settles from its journal receipt without a receipt event", async () => {
+  const f = fixture("pilot", true, "receipt");
+  const work = [item(f.pilotRequest)];
+  try {
+    await f.runtime.processWorkUpdate(work);
+    const { deliveryReceipts } = new FileExecutionOperationJournal(
+      f.journalDirectory,
+    );
+    await deliveryReceipts.record(
+      "pilot",
+      f.deliveryThread,
+      {
+        delivery_id: "delivery-1",
+        provider_item_id: "prior-item",
+        turn: "prior-turn",
+      },
+      new AbortController().signal,
+    );
+    f.enqueue(1);
+    await f.runtime.processWorkUpdate(work);
+    expect(f.settlements).toMatchObject([
+      {
+        outcome: "applied",
+        resolution_evidence: expect.stringContaining("prior-item"),
+      },
+    ]);
+    expect(f.events.filter(({ kind }) => kind === "receipt")).toHaveLength(0);
+    expect(turnStarts(f)).toHaveLength(0);
+    expect(f.runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
+  } finally {
+    await f.dispose();
+  }
+});
+
 test("a restart without a receipt holds the started attempt without resending", async () => {
   const f = fixture("pilot", true, "receipt");
   try {
