@@ -1,5 +1,6 @@
 import { internalMutation, mutation, query } from "./functions";
 import { roleRunner } from "./lib/seatPlace";
+import { armedTriggerKindFor } from "./dormancy";
 import { internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
@@ -14,7 +15,17 @@ import {
   insertTask,
   refreshArmedTriggerKind,
 } from "./agentTasks";
-import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
+import {
+  RETIRED_TRIGGER_HOME,
+  type TaskCtx,
+  cancelRetirementPage,
+  readSweep,
+  shouldCancelForRetirement,
+  triggerPage,
+  writeArmedTriggerKind,
+  writeSweep,
+  handRoleTriggersToRunner,
+} from "./lib/agentTaskRows";
 import { HEAD_OF_PEOPLE_JOB } from "@codecast/org/headOfPeoplePrompt";
 import { defaultAvatarFor, isAvatarKey } from "@codecast/org/orgAvatars";
 import {
@@ -51,7 +62,7 @@ import { roleIdentity } from "@codecast/org/orgIdentity";
 import { cleanCharacterName } from "@codecast/org/sessionCharacter";
 import { v } from "convex/values";
 import { requireWorkspaceFeature } from "./lib/teamFeatureGuard";
-import { Id } from "./_generated/dataModel";
+import { Id, type Doc } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { nextShortId } from "./counters";
 import {
@@ -168,6 +179,9 @@ import {
   labelsOf,
   noteOrgChange,
   noteRoleChange,
+  openBatchId,
+  openOrgBatch,
+  orgBatchHead,
   recordSubject,
   roleSubject,
   whereOfRecord,
@@ -1161,12 +1175,6 @@ export type UnseatChoice = "keep" | "retire";
 const RETIRE_FALLBACK_NOTE =
   "The role that looked after this area was retired. This role looks after it now.";
 
-// `fall_back: false` is the reset's (S27): the area goes to no other role, so
-// every session returns to its owner.
-// `handoff` (org-staffing.md S32): "wait" (default) begins the knowledge
-// handoff to the roles that inherit the area and retires when it completes
-// or its deadline passes; "skip" retires now; "done" is the handoff's own
-// call once it has completed.
 type RetireArgs = {
   role_id: string;
   standing_session?: UnseatChoice;
@@ -1182,6 +1190,17 @@ export async function performRetireRole(
   return withOrgChange(ctx, userId, { kind: "retire" }, () =>
     performRetireRoleCore(ctx, userId, args),
   );
+}
+
+function retiredSeat(seat: Doc<"conversations">, kept: boolean) {
+  return {
+    conversation_id: String(seat._id),
+    short_id: seat.short_id ?? String(seat._id).slice(0, 7),
+    ...(seat.seat_previous?.title
+      ? { previous_title: seat.seat_previous.title }
+      : {}),
+    kept,
+  };
 }
 
 async function performRetireRoleCore(
@@ -1201,10 +1220,6 @@ async function performRetireRoleCore(
       standing_session: "kept",
     };
   const now = Date.now();
-  // A retire waits for the knowledge handoff (S32) when the area moves to
-  // another live role: the heirs get the lines now, the outgoing role gets a
-  // trigger to hand over the rest, and the seat comes down when that lands
-  // or the deadline passes (orgHandoff.closeHandoff calls back with "done").
   if ((args.handoff ?? "wait") === "wait" && args.fall_back !== false) {
     if (role.handing_over?.retire)
       return {
@@ -1262,15 +1277,9 @@ async function performRetireRoleCore(
   }
   if (role.handing_over)
     await ctx.db.patch(role._id, { handing_over: undefined });
-  // Unseating the head of people (org-staffing.md S16) keeps the workspace's
-  // standing agent by default: the person is never left without the
-  // assistant they had. Any other seat goes down with its role unless asked
-  // to stay.
   const keepStanding =
     (args.standing_session ??
       (isHeadOfPeopleRole(role) ? "keep" : "retire")) === "keep";
-  // Live hands hear it first (before org_role_id is cleared, or handsOf finds
-  // nothing): stop at a safe point; the session now reports to its owner.
   const interrupted = await interruptHands(
     ctx,
     role,
@@ -1278,30 +1287,8 @@ async function performRetireRoleCore(
     "role-retired",
     `Your role ${role.name} (@${role.handle}) was retired. Stop at a safe point, pin your state with cast state, and end your turn. This session now reports to the role that looks after its area, or to its owner.`,
   );
-  // The standing session goes down with the seat: its routines are cancelled
-  // (or they would fire into a dead role and spend the host's account), its
-  // held and pending turns dropped, its anchor decommissioned (kill command,
-  // status completed, bot off the team roster).
-  // Kept (S16), the thread is the assistant the person had before the hire:
-  // only the seat's own routine goes, every trigger they armed on it stays,
-  // and a held note is delivered as written.
-  let cancelledTriggers = 0;
   const standing = await standingConversationOf(ctx, role);
-  // What the org log needs to put this back (org-staffing.md S21), read
-  // before the writes below change it: the routines that are live on the
-  // seat, and the open tasks the role holds.
-  const liveRoutines: any[] = standing
-    ? (
-        await ctx.db
-          .query("agent_tasks")
-          .withIndex("by_originating_conversation", (q: any) =>
-            q.eq("originating_conversation_id", standing._id),
-          )
-          .collect()
-      ).filter(
-        (t: any) => !["cancelled", "completed", "failed"].includes(t.status),
-      )
-    : [];
+  let stopped: Awaited<ReturnType<typeof cancelTasksOriginatingFrom>> = [];
   const heldTasks: any[] = (
     await ctx.db
       .query("tasks")
@@ -1311,15 +1298,24 @@ async function performRetireRoleCore(
       .collect()
   ).filter((t: any) => t.status !== "done" && t.status !== "dropped");
   if (standing) {
-    cancelledTriggers += await cancelTasksOriginatingFrom(
+    stopped = await cancelTasksOriginatingFrom(
       ctx,
       standing._id,
-      now,
-      keepStanding
-        ? (t) =>
-            t.title === roleRoutineFor(role).title ||
-            String(t.role_id ?? "") === String(role._id)
-        : undefined,
+      {
+        role: role._id,
+        by: userId,
+        keepTitle: keepStanding ? roleRoutineFor(role).title : undefined,
+      },
+      async (sweepId) => {
+        const head = orgBatchHead(ctx);
+        const priorId = openBatchId(ctx);
+        const prior = priorId && (await ctx.db.get(priorId));
+        const key =
+          prior?.key ?? head?.key ?? `role-trigger-cancellation:${sweepId}`;
+        if (prior && !prior.key) await ctx.db.patch(prior._id, { key });
+        openOrgBatch(ctx, { door: "settings", gesture: "save", ...head, key });
+        return key;
+      },
     );
     const held: any[] = await ctx.db
       .query("pending_messages")
@@ -1335,11 +1331,9 @@ async function performRetireRoleCore(
           : { status: "cancelled", cancelled_at: now },
       );
   }
+  const pendingTriggerCancellation = stopped === null;
   const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
   if (keepStanding) {
-    // The session runs on as a plain standing agent: the anchors row drops
-    // the role pointer and answers as the workspace anchor again, the bot
-    // is an anchor again, and the thread takes its old title back.
     if (anchor && anchor.status !== "decommissioned") {
       await ctx.db.patch(anchor._id, {
         org_role_id: undefined,
@@ -1362,12 +1356,12 @@ async function performRetireRoleCore(
       });
     }
   } else {
-    if (anchor && anchor.status !== "decommissioned")
+    if (
+      !pendingTriggerCancellation &&
+      anchor &&
+      anchor.status !== "decommissioned"
+    )
       await decommissionAnchorRow(ctx, anchor);
-    // The seat's markers come off the session here, the one site that knows the
-    // row was a role's seat (a plain workspace anchor keeps anchor_id so its
-    // history still renders under the bot). Without this an adopted session
-    // stays "another role's standing session" forever (org-staffing.md S6).
     if (standing)
       await ctx.db.patch(standing._id, {
         standing_role_id: undefined,
@@ -1380,8 +1374,6 @@ async function performRetireRoleCore(
     .query("conversations")
     .withIndex("by_org_role", (q: any) => q.eq("org_role_id", role._id))
     .collect();
-  // An open decision follows its session (S28): the retired role leaves the
-  // route, and the card goes to the people who now answer for the session.
   for (const conv of filed) {
     await ctx.db.patch(conv._id, {
       org_role_id: undefined,
@@ -1389,10 +1381,6 @@ async function performRetireRoleCore(
     });
     await reroutePendingDecisionsForConversation(ctx, conv._id, now);
   }
-  // Child roles re-home to the retired role's own parent, the way its sessions
-  // fall back to their owners: the tree hides retired roles, so a child left
-  // pointing here would draw with no parent. No cycle is possible: the parent
-  // was already above this role.
   const children = (await rolesInBoundary(ctx, role)).filter(
     (r) =>
       r.reports_to?.kind === "role" &&
@@ -1409,15 +1397,9 @@ async function performRetireRoleCore(
       userId,
     );
   }
-  // Its open tasks go the same way, up to whoever it reported to
-  // (org-roles-run-work.md R5): the work is the company's, not the seat's.
   const tasksHanded = await handOpenTasksUpChain(ctx, role, userId);
   await ctx.db.patch(role._id, { status: "retired", updated_at: now });
   const retired = await ctx.db.get(role._id);
-  // The area falls back (org-staffing.md S26): a released session whose work
-  // another live role now owns by the one rule goes to it, the head of people
-  // for what no narrower role covers, the way a lead's gain took it; the rest
-  // stay with their owners.
   const remaining =
     args.fall_back === false ? [] : await rolesInBoundary(ctx, role);
   let pool: Array<{ raw: any }> = (
@@ -1435,10 +1417,6 @@ async function performRetireRoleCore(
     });
     pool = pool.filter((e) => !owned.includes(e));
   }
-  const stopped: any[] = [];
-  for (const t of liveRoutines)
-    if ((await ctx.db.get(t._id))?.status === "cancelled")
-      stopped.push({ agent_task_id: String(t._id), title: t.title });
   const handed: any[] = [];
   for (const t of heldTasks) {
     const to = (await ctx.db.get(t._id))?.assignee;
@@ -1453,19 +1431,10 @@ async function performRetireRoleCore(
   await noteRoleChange(ctx, userId, "retire", role, retired, {
     label_ids: handed.map((t) => t.to),
     effects: {
-      ...(standing
-        ? {
-            seat: {
-              conversation_id: String(standing._id),
-              short_id: standing.short_id ?? String(standing._id).slice(0, 7),
-              kept: keepStanding,
-              ...(standing.seat_previous?.title
-                ? { previous_title: standing.seat_previous.title }
-                : {}),
-            },
-          }
+      ...(standing && (keepStanding || !pendingTriggerCancellation)
+        ? { seat: retiredSeat(standing, keepStanding) }
         : {}),
-      ...(stopped.length ? { routines_stopped: stopped } : {}),
+      ...(stopped?.length ? { routines_stopped: stopped } : {}),
       ...(handed.length ? { tasks_handed: handed } : {}),
       ...(children.length
         ? {
@@ -1497,10 +1466,87 @@ async function performRetireRoleCore(
     rehomed: children.length,
     tasks_handed: tasksHanded,
     interrupted,
-    cancelled_triggers: cancelledTriggers,
+    cancelled_triggers: stopped?.length ?? 0,
+    ...(pendingTriggerCancellation
+      ? { pending_trigger_cancellation: true }
+      : {}),
     standing_session: standing ? (keepStanding ? "kept" : "retired") : "none",
   };
 }
+
+export const continueRoleTriggerCancellation = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
+    sweepId: v.id("system_config"),
+    cursor: v.union(v.null(), v.string()),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const { conversationId, sweepId } = args;
+    const sweep = await ctx.db.get(sweepId);
+    if (!sweep) return;
+    const state = readSweep(sweep);
+    if (!("role" in state) || state.cursor !== args.cursor) return;
+    const { by, batchKey } = state;
+    const role = await ctx.db.get(state.role);
+    if (role?.status !== "retired") {
+      await ctx.db.delete(sweep._id);
+      return;
+    }
+    const page = await triggerPage(ctx.db, conversationId, args.cursor);
+    const cancelling = page.page.filter((task) =>
+      shouldCancelForRetirement(task, state, sweep._creationTime),
+    );
+    const cancelledIds = new Set(cancelling.map((task) => task._id));
+    const pageKind = armedTriggerKindFor(
+      page.page.filter((task) => !cancelledIds.has(task._id)),
+    );
+    const kind =
+      state.kind === "standing" || pageKind === "none" ? state.kind : pageKind;
+    const seat = page.isDone ? await ctx.db.get(conversationId) : null;
+    const anchor =
+      page.isDone && state.keepTitle === undefined && role.anchor_id
+        ? await ctx.db.get(role.anchor_id)
+        : null;
+    const decommission =
+      anchor?.conversation_id === conversationId &&
+      anchor.status !== "decommissioned" &&
+      (!seat?.standing_role_id || seat.standing_role_id === state.role) &&
+      (!anchor.org_role_id || anchor.org_role_id === state.role);
+    if (cancelling.length || decommission) {
+      openOrgBatch(ctx, { door: "settings", gesture: "save", key: batchKey });
+      await withOrgChange(ctx, by, { kind: "retire" }, async () => {
+        const stopped = await cancelRetirementPage(ctx, cancelling);
+        if (decommission) {
+          (ctx as TaskCtx)[RETIRED_TRIGGER_HOME] = conversationId;
+          await decommissionAnchorRow(ctx, anchor);
+        }
+        await noteRoleChange(ctx, by, "retire", role, role, {
+          effects: {
+            routines_stopped: stopped,
+            ...(decommission && seat ? { seat: retiredSeat(seat, false) } : {}),
+          },
+        });
+      });
+    }
+    if (page.isDone) {
+      await writeArmedTriggerKind(ctx, seat, kind);
+      await ctx.db.delete(sweep._id);
+      return;
+    }
+    const cursor = page.continueCursor;
+    await ctx.scheduler.runAfter(
+      0,
+      internal.orgRoles.continueRoleTriggerCancellation,
+      { ...args, cursor },
+    );
+    await writeSweep(ctx, sweep._id, {
+      ...state,
+      cursor,
+      kind,
+      seenThrough: page.page.at(-1)?._creationTime ?? state.seenThrough,
+    });
+  },
+});
 
 // A reset clears the org (org-staffing.md S27): every role is retired with
 // its standing session and its triggers, the sessions under it return to
