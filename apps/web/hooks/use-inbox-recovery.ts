@@ -193,7 +193,7 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
 
   useWatchEffect(() => {
     if (args === "skip") return;
-    const controller = startInboxRecovery(
+    const controller = startInboxRecovery<typeof reference>(
       convex,
       reference,
       args,
