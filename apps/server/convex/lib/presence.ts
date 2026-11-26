@@ -2,7 +2,7 @@
 // person's own browser could otherwise press for them needs a grant a passkey
 // assertion earned (passkeys.ts presenceFinish), for that action on that
 // target, unexpired and unused, spent with the secret handed to the caller
-// that began it. A leaf, so secrets.ts and secret-approvals.ts gate without
+// that began it. A leaf, so secrets.ts and secretApprovals.ts gate without
 // importing the passkeys module graph.
 
 import {

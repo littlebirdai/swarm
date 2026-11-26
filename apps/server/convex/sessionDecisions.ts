@@ -93,7 +93,7 @@ import {
   pendingApproval,
   secretApprovalRefusal,
   settleSecretApproval,
-} from "./lib/secret-approvals";
+} from "./lib/secretApprovals";
 import {
   applyCommandRunReport,
   commandRunRefusal,

@@ -397,7 +397,7 @@ naming a conversation the caller does not own, is refused, so a token cannot
 borrow another session's approval.
 
 `sessionDecisions.settleResolution` calls `settleSecretApproval`
-(`convex/lib/secret-approvals.ts`). The approver is the account that runs the
+(`convex/lib/secretApprovals.ts`). The approver is the account that runs the
 session or one of its owners (a session a bot account runs is answered by the
 person who owns it); a teammate who only views it is refused. A signed-in
 person's Approve marks the row approved for the rest of that conversation; Deny or dismiss marks it denied

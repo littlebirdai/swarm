@@ -48,7 +48,7 @@ import {
   bumpRedaction,
   recordSecretEvent,
   redactionCounter,
-} from "./lib/secret-approvals";
+} from "./lib/secretApprovals";
 import { consumePresence } from "./lib/presence";
 import { displayName } from "./lib/displayNames";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";

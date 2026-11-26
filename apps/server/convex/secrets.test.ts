@@ -858,7 +858,7 @@ test("only the asking session's owner approves an Ask first read; a teammate vie
   ).rejects.toThrow(/Only the person whose session asked/);
   // The settle hook holds too, for a path that reaches it without the refusal.
   await t.run(async (ctx: any) => {
-    const { settleSecretApproval } = await import("./lib/secret-approvals");
+    const { settleSecretApproval } = await import("./lib/secretApprovals");
     const row = await ctx.db.get(decisionId);
     await settleSecretApproval(
       ctx,
