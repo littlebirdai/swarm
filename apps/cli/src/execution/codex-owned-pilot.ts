@@ -14,10 +14,12 @@ import {
   type EdgeJson,
   type EdgeParseResult,
 } from "@codecast/edge-contract";
-import type { ProviderAdapterClient } from "@codecast/provider-adapter";
+import type {
+  ProviderAdapterClient,
+  ProviderOwnedSession,
+} from "@codecast/provider-adapter";
 import type {
   DeliveryReceiptJournal,
-  OwnedSession,
   ResumeSpec,
   StartSpec,
 } from "@codecast/provider-contract";
@@ -143,8 +145,9 @@ export class CodexOwnedPilot {
   );
   private deliveryReady = false;
   private adapter?: ProviderAdapterClient;
-  private session?: OwnedSession;
-  private opening?: Promise<OwnedSession>;
+  private session?: ProviderOwnedSession;
+  private opening?: Promise<ProviderOwnedSession>;
+  private eventWriter?: Promise<void>;
   private claim?: ClaimGrant;
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
@@ -240,13 +243,13 @@ export class CodexOwnedPilot {
     });
   }
 
-  private open(spec: StartSpec | ResumeSpec): Promise<OwnedSession> {
+  private open(spec: StartSpec | ResumeSpec): Promise<ProviderOwnedSession> {
     return (this.opening = this.openProvider(spec));
   }
 
   private async openProvider(
     spec: StartSpec | ResumeSpec,
-  ): Promise<OwnedSession> {
+  ): Promise<ProviderOwnedSession> {
     const { createProviderAdapter } =
       await import("@codecast/provider-adapter");
     this.controller.signal.throwIfAborted();
@@ -453,20 +456,32 @@ export class CodexOwnedPilot {
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
       });
     }
-    this.deliveryReady = true;
-    void this.writeEvents(
-      claim,
-      this.session,
-      binding,
-      request.configuration.model,
-    )
-      .then(() => this.close())
+    const session = this.session;
+    const recovery =
+      previous > 0 && this.options.bearer && session.getPendingPrompts
+        ? this.promptCards.recover(
+            claim.session,
+            this.options.bearer,
+            this.options.display.syncService,
+            session.getPendingPrompts,
+            this.controller.signal,
+          )
+        : Promise.resolve();
+    this.eventWriter = recovery
+      .then(() =>
+        this.writeEvents(claim, session, binding, request.configuration.model),
+      )
       .catch((error) => {
         this.options.log(
           `[owned-codex] event writer stopped: ${String(error)}`,
         );
-        void this.close().catch(() => {});
       });
+    void this.eventWriter.then(() => {
+      void this.close().catch(() => {});
+    });
+    await recovery;
+    this.controller.signal.throwIfAborted();
+    this.deliveryReady = true;
   }
 
   async drain(
@@ -497,7 +512,7 @@ export class CodexOwnedPilot {
 
   private async writeEvents(
     claim: ClaimGrant,
-    session: OwnedSession,
+    session: ProviderOwnedSession,
     binding: ReadyBinding,
     model: string | undefined,
   ): Promise<void> {
@@ -637,6 +652,18 @@ export class CodexOwnedPilot {
       (await this.opening?.catch(() => undefined)) ?? this.session;
     if (session && (await session.close()).status !== "closed")
       throw new Error("Owned Codex cleanup could not be confirmed");
+    await this.eventWriter;
+    await this.promptCards
+      .closeAll(
+        this.conversationId,
+        Date.now(),
+        this.options.display.syncService,
+      )
+      .catch((error) =>
+        this.options.log(
+          `[owned-codex] prompt card cleanup failed: ${String(error)}`,
+        ),
+      );
     await this.adapter?.dispose();
     await this.delivery.clearImages();
     if (this.claim && session) {

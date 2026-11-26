@@ -418,9 +418,23 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       case "item/fileChange/outputDelta":
         turn?.items.outputDelta(event.params.itemId, event.params.delta);
         break;
-      case "serverRequest/resolved":
-        prompts.delete(promptId(event.params.requestId));
+      case "serverRequest/resolved": {
+        const prompt_id = promptId(event.params.requestId);
+        const prompt = prompts.get(prompt_id);
+        if (prompt && prompts.delete(prompt_id))
+          durable(
+            {
+              kind: "prompt.settled",
+              body: {
+                prompt_id,
+                by: { kind: "agent", id: "codex" },
+                answer: null,
+              },
+            },
+            prompt.turn,
+          );
         break;
+      }
     }
   });
 
@@ -663,6 +677,8 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     getCheckpoint: () => threadId,
     getUnknownPayloadCount,
     recoveredReceipts: receipts.recovered,
+    getPendingPrompts: () =>
+      [...prompts].map(([id, { turn }]) => ({ id, turn })),
     events: events.events,
     unsubscribe: events.unsubscribe,
     steer,

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { ClaimGrant } from "@codecast/edge-client";
 import { createProviderAdapter } from "@codecast/provider-adapter";
 import type { CanonicalEvent } from "@codecast/edge-contract";
+import { waitFor } from "@codecast/test-helpers/waitFor";
 import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
 import {
   question,
@@ -52,6 +53,29 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
     async cancelPermissionRequest(id) {
       closedPermissions.push(id);
       return true;
+    },
+    getClient() {
+      const page = [
+        ...permissions.map((request) => ({
+          kind: "permission",
+          id: request.fenced_prompt_id,
+          turn: request.fenced_prompt_turn_id,
+          rowId: `row-${request.fenced_prompt_id}`,
+        })),
+        ...messages.flatMap((message) =>
+          (message.toolCalls ?? []).map((call) => ({
+            kind: "question",
+            id: call.id,
+            turn: (call.input as { fencedTurnId: string }).fencedTurnId,
+            messageUuid: message.messageUuid,
+          })),
+        ),
+      ];
+      return strictStub<ReturnType<SyncService["getClient"]>>("stored cards", {
+        async query() {
+          return { page, isDone: true, continueCursor: "" } as never;
+        },
+      });
     },
   });
   let writer: Promise<void> | undefined;
@@ -162,6 +186,16 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
     });
     expect(messages).toHaveLength(1);
     expect(blocked).toHaveLength(2);
+    expect(session.getPendingPrompts).toBeDefined();
+    await new CodexPilotPromptCards().recover(
+      claim.session,
+      "fixture-bearer",
+      sync,
+      session.getPendingPrompts!,
+      new AbortController().signal,
+    );
+    expect(messages).toHaveLength(1);
+    expect(closedPermissions).toEqual([]);
 
     await session.answer({
       expected: address("ask"),
@@ -203,59 +237,187 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
   }
 });
 
-test("the owned runtime publishes the question and closes it when the turn ends", async () => {
-  const f = fixture();
-  const turnId = f.appServer.turn(3);
-  const threadId = f.appServer.thread;
-  try {
-    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
-    await until(
-      () => f.events.some((event) => event.kind === "turn.started"),
-      "resumed turn",
-    );
-    f.appServer.send({
-      frames: [
-        {
-          id: "open",
-          method: "item/tool/requestUserInput",
-          params: {
-            threadId,
-            turnId,
-            itemId: "ask-item",
-            questions: [question],
+test.each(["turn ends", "provider resolves its request"])(
+  "the owned runtime closes a published question when the %s",
+  async (ending) => {
+    const f = fixture();
+    const turnId = f.appServer.turn(3);
+    const threadId = f.appServer.thread;
+    try {
+      await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+      await until(
+        () => f.events.some((event) => event.kind === "turn.started"),
+        "resumed turn",
+      );
+      f.appServer.send({
+        frames: [
+          {
+            id: "open",
+            method: "item/tool/requestUserInput",
+            params: {
+              threadId,
+              turnId,
+              itemId: "ask-item",
+              questions: [question],
+            },
           },
-        },
-      ],
-    });
-    await until(
-      () => f.promptMessages.length === 1,
-      "owned runtime writes the card",
-    );
-    expect(f.promptMessages[0]?.toolCalls?.[0]?.id).toBe(
-      "1:app-server:string:open",
-    );
-    f.appServer.send({
-      frames: [
+        ],
+      });
+      await until(
+        () => f.promptMessages.length === 1,
+        "owned runtime writes the card",
+      );
+      expect(f.promptMessages[0]?.toolCalls?.[0]?.id).toBe(
+        "1:app-server:string:open",
+      );
+      f.appServer.send({
+        frames: [
+          ending === "turn ends"
+            ? {
+                method: "turn/completed",
+                params: {
+                  threadId,
+                  turn: { id: turnId, items: [], status: "completed" },
+                },
+              }
+            : {
+                method: "serverRequest/resolved",
+                params: { threadId, requestId: "open" },
+              },
+        ],
+      });
+      await until(
+        () => f.promptMessages.length === 2,
+        "owned runtime closes the card",
+      );
+      expect(f.promptMessages[1]?.toolResults).toEqual([
         {
-          method: "turn/completed",
-          params: {
-            threadId,
-            turn: { id: turnId, items: [], status: "completed" },
-          },
+          toolUseId: "1:app-server:string:open",
+          content: "Codex question cancelled",
         },
-      ],
-    });
-    await until(
-      () => f.promptMessages.length === 2,
-      "owned runtime closes the card",
-    );
-    expect(f.promptMessages[1]?.toolResults).toEqual([
-      {
-        toolUseId: "1:app-server:string:open",
-        content: "Codex question cancelled",
-      },
-    ]);
-  } finally {
-    await f.dispose();
-  }
-});
+      ]);
+    } finally {
+      await f.dispose();
+    }
+  },
+);
+
+test.each(["lease loss", "close", "restart", "sync error"] as const)(
+  "the owned runtime closes stranded prompt cards on %s",
+  async (scenario) => {
+    const f = fixture();
+    const write = Promise.withResolvers<void>();
+    const renew = Promise.withResolvers<void>();
+    const turnId = f.appServer.turn(3);
+    const threadId = f.appServer.thread;
+    try {
+      if (scenario === "lease loss") f.rejectRenewalAfter(renew.promise);
+      await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+      await until(
+        () => f.events.some(({ kind }) => kind === "turn.started"),
+        "resumed turn",
+      );
+      f.appServer.send({
+        frames: ["one", "two"].flatMap((id) => [
+          {
+            id: `approve-${id}`,
+            method: "item/commandExecution/requestApproval",
+            params: {
+              threadId,
+              turnId,
+              itemId: `command-${id}`,
+              command: "pwd",
+            },
+          },
+          {
+            id: `ask-${id}`,
+            method: "item/tool/requestUserInput",
+            params: {
+              threadId,
+              turnId,
+              itemId: `ask-item-${id}`,
+              questions: [question],
+            },
+          },
+        ]),
+      });
+      await until(
+        () => f.promptPermissions.size === 2 && f.promptMessages.length === 2,
+        "publish every open card",
+      );
+
+      if (scenario === "close") {
+        f.pauseQuestionWrite(write.promise);
+        f.appServer.send({
+          frames: [
+            {
+              id: "ask-late",
+              method: "item/tool/requestUserInput",
+              params: {
+                threadId,
+                turnId,
+                itemId: "ask-item-late",
+                questions: [question],
+              },
+            },
+          ],
+        });
+        await until(
+          () => f.promptMessages.length === 3,
+          "question publication starts",
+        );
+        const closing = f.pilot.close();
+        expect(
+          await waitFor(() => f.actions.includes("edge:release"), 300, 5),
+        ).toBe(false);
+        write.resolve();
+        await closing;
+      } else if (scenario === "lease loss") {
+        renew.resolve();
+        await until(
+          () => f.actions.includes("edge:release"),
+          "lease is released after stale renewal",
+        );
+      } else if (scenario === "restart") {
+        f.rejectPromptCleanup(true);
+        await f.restart(undefined, () => {
+          expect(f.promptPermissions.size).toBe(2);
+          expect(f.promptMessages).toHaveLength(2);
+          f.rejectPromptCleanup(false);
+        });
+      } else {
+        f.rejectPromptCleanup(true);
+        await f.pilot.close();
+        expect(f.actions).toContain("edge:release");
+        expect(
+          f.logs.some((message) =>
+            message.includes("prompt card cleanup failed"),
+          ),
+        ).toBe(true);
+        return;
+      }
+
+      const questionIds =
+        scenario === "close" ? ["one", "two", "late"] : ["one", "two"];
+      expect(f.promptPermissions.size).toBe(0);
+      expect(f.cancelledPermissions.sort()).toEqual([
+        "row-1:app-server:string:approve-one",
+        "row-1:app-server:string:approve-two",
+      ]);
+      expect(
+        f.promptMessages
+          .flatMap(({ toolResults }) => toolResults ?? [])
+          .sort((a, b) => a.toolUseId.localeCompare(b.toolUseId)),
+      ).toEqual(
+        questionIds.sort().map((id) => ({
+          toolUseId: `1:app-server:string:ask-${id}`,
+          content: "Codex question cancelled",
+        })),
+      );
+    } finally {
+      write.resolve();
+      renew.resolve();
+      await f.dispose();
+    }
+  },
+);

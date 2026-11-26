@@ -1,6 +1,7 @@
 import type { ClaimGrant } from "@codecast/edge-client";
 import type { CanonicalEvent, EdgeJson } from "@codecast/edge-contract";
 import type { RawProviderFrame } from "@codecast/provider-adapter";
+import { makeFunctionReference } from "convex/server";
 import type { OwnedSession } from "@codecast/provider-contract";
 import { redactSecrets } from "../redact.js";
 import type { SyncService } from "../syncService.js";
@@ -18,10 +19,20 @@ type QuestionCard = {
   kind: "question";
   turn: string;
   messageUuid: string;
+  published?: true;
   questions?: Question[];
 };
 type OpenCard = PermissionCard | QuestionCard;
-type Settled = Extract<CanonicalEvent, { kind: "prompt.settled" }>;
+type StoredCard = OpenCard & { id: string };
+const listOwnedPromptCards = makeFunctionReference<
+  "query",
+  {
+    conversation_id: string;
+    api_token: string;
+    paginationOpts: { cursor: string | null; numItems: number };
+  },
+  { page: StoredCard[]; continueCursor: string; isDone: boolean }
+>("permissions:listOwnedPromptCards");
 
 function object(value: unknown): Record<string, unknown> | undefined {
   if (value && typeof value === "object" && !Array.isArray(value))
@@ -94,6 +105,58 @@ export class CodexPilotPromptCards {
     string,
     { method: string; preview: string }
   >();
+
+  async recover(
+    conversationId: string,
+    bearer: string,
+    syncService: SyncService,
+    pendingPrompts: () => readonly { id: string; turn: string }[],
+    signal: AbortSignal,
+  ): Promise<void> {
+    let cursor: string | null = null;
+    for (;;) {
+      signal.throwIfAborted();
+      const page = await syncService.getClient().query(listOwnedPromptCards, {
+        conversation_id: conversationId,
+        api_token: bearer,
+        paginationOpts: { cursor, numItems: 64 },
+      });
+      const pending = new Map(
+        pendingPrompts().map(({ id, turn }) => [id, turn]),
+      );
+      const at = Date.now();
+      for (const { id, ...card } of page.page) {
+        const published: OpenCard =
+          card.kind === "question" ? { ...card, published: true } : card;
+        if (pending.get(id) === card.turn) this.open.set(id, published);
+        else
+          await this.close(
+            id,
+            published,
+            conversationId,
+            at,
+            syncService,
+            null,
+          );
+      }
+      if (page.isDone) return;
+      cursor = page.continueCursor;
+    }
+  }
+
+  async closeAll(
+    conversationId: string,
+    at: number,
+    syncService: SyncService,
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      Array.from(this.open, ([id, card]) =>
+        this.close(id, card, conversationId, at, syncService, null),
+      ),
+    );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
+  }
 
   retain(frame: RawProviderFrame): void {
     if (frame.disposition !== "decoded" || frame.base64Fragment) return;
@@ -171,71 +234,81 @@ export class CodexPilotPromptCards {
         });
         return;
       }
-      await syncService.addMessages({
-        conversationId,
-        messages: [
-          {
-            messageUuid: card.messageUuid,
-            role: "assistant",
-            content: "",
-            timestamp: at,
-            toolCalls: [
-              {
-                id: data.prompt_id,
-                name: "AskUserQuestion",
-                input: { questions, fencedTurnId: turn },
-              },
-            ],
-          },
-        ],
-      });
+      if (!card.published)
+        await syncService.addMessages({
+          conversationId,
+          messages: [
+            {
+              messageUuid: card.messageUuid,
+              role: "assistant",
+              content: "",
+              timestamp: at,
+              toolCalls: [
+                {
+                  id: data.prompt_id,
+                  name: "AskUserQuestion",
+                  input: { questions, fencedTurnId: turn },
+                },
+              ],
+            },
+          ],
+        });
+      card.published = true;
       card.questions = questions;
       onBlocked();
       return;
     }
 
     if (event.kind === "prompt.settled") {
-      await this.close(
-        event.body.prompt_id,
-        event,
-        syncService,
-        event.body.answer,
-      );
-    } else if (event.kind === "turn.ended" || event.kind === "session.ended") {
+      const { prompt_id, answer } = event.body;
+      const card = this.open.get(prompt_id);
+      if (card)
+        await this.close(
+          prompt_id,
+          card,
+          conversationId,
+          at,
+          syncService,
+          answer,
+        );
+    } else if (event.kind === "session.ended") {
+      await this.closeAll(conversationId, at, syncService);
+    } else if (event.kind === "turn.ended") {
       for (const [id, card] of this.open)
-        if (event.kind === "session.ended" || card.turn === turn)
-          await this.close(id, event, syncService, null);
+        if (card.turn === turn)
+          await this.close(id, card, conversationId, at, syncService, null);
     }
   }
 
   private async close(
     id: string,
-    event:
-      | Settled
-      | Extract<CanonicalEvent, { kind: "turn.ended" | "session.ended" }>,
+    card: OpenCard,
+    conversationId: string,
+    at: number,
     syncService: SyncService,
     answer: EdgeJson,
   ): Promise<void> {
-    const card = this.open.get(id);
-    if (!card) return;
     if (card.kind === "permission") {
       await syncService.cancelPermissionRequest(card.rowId);
-    } else if (card.questions) {
+    } else if (card.published) {
       await syncService.addMessages({
-        conversationId: event.session,
+        conversationId,
         messages: [
           {
             messageUuid: `${card.messageUuid}-closed`,
             role: "human",
             content: "",
-            timestamp: event.at,
+            timestamp: at,
             toolResults: [
-              { toolUseId: id, content: resolution(card.questions, answer) },
+              {
+                toolUseId: id,
+                content: resolution(card.questions ?? [], answer),
+              },
             ],
           },
         ],
       });
     }
-    this.open.delete(id);
+    if (this.open.get(id) === card) this.open.delete(id);
   }
 }

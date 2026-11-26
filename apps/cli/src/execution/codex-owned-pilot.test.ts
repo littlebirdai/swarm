@@ -145,6 +145,16 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     display: {
       ...options.display,
       syncService: strictStub<SyncService>("syncService", {
+        getClient() {
+          return strictStub<ReturnType<SyncService["getClient"]>>(
+            "prompt query",
+            {
+              async query() {
+                return { page: [], isDone: true, continueCursor: "" } as never;
+              },
+            },
+          );
+        },
         async updateTitle(conversation, title) {
           titles.push([conversation, title, savedEvents.at(-1)?.kind]);
         },

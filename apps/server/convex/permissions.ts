@@ -4,6 +4,7 @@ import { settlePermissionProposals, viewerSeesDetail } from "./teamSuggestions";
 import { redactSecrets } from "./redact";
 import { mutation, query, internalMutation } from "./functions";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
@@ -509,6 +510,101 @@ export const cancelPendingPermissions = mutation({
       cancelled++;
     }
     return cancelled;
+  },
+});
+
+export const listOwnedPromptCards = query({
+  args: {
+    conversation_id: v.id("conversations"),
+    paginationOpts: paginationOptsValidator,
+    api_token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const owner = await getAuthenticatedUserId(ctx, args.api_token);
+    const conversation = await ctx.db.get(args.conversation_id);
+    if (
+      !owner ||
+      conversation?.user_id !== owner ||
+      conversation.execution_protocol_state !== "fenced"
+    )
+      throw new Error("Fenced prompt cards are unavailable");
+
+    const permissions =
+      args.paginationOpts.cursor === null
+        ? await ctx.db
+            .query("pending_permissions")
+            .withIndex("by_conversation_status", (q) =>
+              q.eq("conversation_id", conversation._id).eq("status", "pending"),
+            )
+            .collect()
+        : [];
+    const questions = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_uuid", (q) =>
+        q
+          .eq("conversation_id", conversation._id)
+          .gte("message_uuid", "owned-prompt:")
+          .lt("message_uuid", "owned-prompt;"),
+      )
+      .paginate({
+        cursor: args.paginationOpts.cursor,
+        numItems: Math.min(args.paginationOpts.numItems, 64),
+      });
+    const page = permissions.flatMap((row) =>
+      row.fenced_prompt_id && row.fenced_prompt_turn_id
+        ? [
+            {
+              kind: "permission" as const,
+              id: row.fenced_prompt_id,
+              turn: row.fenced_prompt_turn_id,
+              rowId: row._id,
+            },
+          ]
+        : [],
+    );
+    const openQuestions = await Promise.all(
+      questions.page.map(async (row) => {
+        if (row.role !== "assistant") return null;
+        const call = row.tool_calls?.find(
+          ({ name }) => name === "AskUserQuestion",
+        );
+        if (!call || !row.message_uuid) return null;
+        let input: { fencedTurnId?: unknown } | null;
+        try {
+          input = JSON.parse(call.input);
+        } catch {
+          return null;
+        }
+        if (typeof input?.fencedTurnId !== "string") return null;
+        const run = call.id.split(":", 1)[0];
+        if (
+          row.message_uuid !==
+          `owned-prompt:${run}:${input.fencedTurnId}:${call.id}`
+        )
+          return null;
+        const closed = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_uuid", (q) =>
+            q
+              .eq("conversation_id", conversation._id)
+              .eq("message_uuid", `${row.message_uuid}-closed`),
+          )
+          .first();
+        return closed
+          ? null
+          : {
+              kind: "question" as const,
+              id: call.id,
+              turn: input.fencedTurnId,
+              messageUuid: row.message_uuid,
+            };
+      }),
+    );
+    return {
+      page: [...page, ...openQuestions.filter((row) => row !== null)],
+      isDone: questions.isDone,
+      continueCursor: questions.continueCursor,
+    };
   },
 });
 
