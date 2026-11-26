@@ -73,18 +73,22 @@ export function ModernAskUserQuestion({
   const address = fencedTurnId
     ? findFencedPromptAddress(rows, tool.id, fencedTurnId, "question")
     : undefined;
+  const inputQuestions = parsedInput.questions ?? [];
+  const addressQuestions = address?.questions ?? [];
   const secret =
-    parsedInput.questions?.some(({ isSecret }) => isSecret) ||
-    address?.questions.some(({ is_secret }) => is_secret);
+    inputQuestions.some(({ isSecret }) => isSecret) ||
+    addressQuestions.some(({ is_secret }) => is_secret);
   const ownsQuestions =
-    address?.questions.length === parsedInput.questions?.length &&
-    parsedInput.questions?.every(
-      ({ id }) =>
-        id && address?.questions.some((question) => question.id === id),
+    addressQuestions.length === inputQuestions.length &&
+    inputQuestions.every(
+      ({ id }) => id && addressQuestions.some((question) => question.id === id),
     );
-  const submitted = address?.submitted === true;
+  const pendingAnswer = address?.submitted;
+  const acceptedAnswer = address?.accepted;
+  const submitted = pendingAnswer === true || acceptedAnswer === true;
+  const answerSummary = address?.answerSummary;
   const awaitingAddress = Boolean(fencedTurnId && !address);
-  const questions = (parsedInput.questions ?? []).map((q) => ({
+  const questions = inputQuestions.map((q) => ({
     ...q,
     multiSelect: q.multiSelect ?? q.multi_select,
   }));
@@ -155,7 +159,7 @@ export function ModernAskUserQuestion({
             answers[q.question] ??
             (fencedTurnId
               ? submitted && q.id
-                ? address?.answerSummary?.[q.id]
+                ? answerSummary?.[q.id]
                 : undefined
               : selections[i]?.map((s) => s.label).join(", "));
           return (

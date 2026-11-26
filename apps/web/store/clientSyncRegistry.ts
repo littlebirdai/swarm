@@ -1755,7 +1755,12 @@ export const CLIENT_SYNC_REGISTRY = {
   },
   fencedPromptAddresses: {
     localFirst: true,
-    sync: { isDelta: true, deepFields: ["questions"] },
+    unprotectedFields: ["answerSummary"],
+    sync: {
+      isDelta: true,
+      deepFields: ["questions"],
+      preserveFields: ["accepted", "feedAbsent", "answerSummary"],
+    },
     feeds: ["permissions.listAnswerablePromptAddresses"],
   },
   // Pending tool-permission requests, per conversation. Each conversation's

@@ -8,6 +8,7 @@ import { PermissionStack } from "./permission-card";
 import { useInboxStore, getProjectName } from "../store/inboxStore";
 import { type DecisionStepper } from "../hooks/useDecisionQueue";
 import { useDecisionCardKeys } from "./decisionCardKeys";
+import { Button } from "./ui/button";
 import {
   queueTier,
   messagesSinceAsk,
@@ -167,6 +168,7 @@ export function SessionDecisionCard({
     isPermissionCard,
     isInfraDialog,
     isFencedQuestion,
+    canAnswerFreeText,
     answer: answerItem,
     gated,
     answerFreeText: answerItemFreeText,
@@ -363,11 +365,11 @@ export function SessionDecisionCard({
   );
   const answerFreeText = useCallback(
     (text: string) => {
-      if (!text.trim() || isFencedQuestion) return;
+      if (!text.trim() || !canAnswerFreeText) return;
       answerItemFreeText(text);
       onDone();
     },
-    [answerItemFreeText, isFencedQuestion, onDone],
+    [answerItemFreeText, canAnswerFreeText, onDone],
   );
   const dismiss = useCallback(() => {
     dismissItem();
@@ -394,6 +396,14 @@ export function SessionDecisionCard({
     foldedByScroll.current = false;
     setSize("line");
   }, []);
+  const revealFencedQuestion = () => {
+    if (!scrollToMessage) return openSession();
+    shrink();
+    const ask = messages?.find((message) =>
+      message.tool_calls?.some((tool) => tool.id === poll?.toolUseId),
+    );
+    if (ask) scrollToMessage(ask._id);
+  };
   // Scrolling away from the question is asking what led to it: the thread
   // opens at the ask, not at its tail.
   const shrinkByScroll = useCallback(() => {
@@ -425,7 +435,7 @@ export function SessionDecisionCard({
   // Answering in the person's own words: the text goes to the agent as the answer and the question closes.
   // "Discuss with …" on this card opens the same box, since talking it over with the session is that answer.
   const ownWords =
-    !isInfraDialog && !richControls && !isPermissionCard && !isFencedQuestion;
+    !isInfraDialog && !richControls && !isPermissionCard && canAnswerFreeText;
   const openOwnWords = useCallback(() => {
     setOtherOpen(true);
     setTimeout(() => otherRef.current?.focus(), 0);
@@ -544,6 +554,8 @@ export function SessionDecisionCard({
     stepper,
     isPermissionCard,
     isInfraDialog,
+    isFencedQuestion,
+    canAnswerFreeText,
     richControls,
     shrink,
     grow,
@@ -904,8 +916,7 @@ export function SessionDecisionCard({
         {showUnreadable && (
           <div className="text-sm text-sol-text-dim">
             This session is waiting on you, but its question is only visible in
-            its terminal so far. Open the session to read it, or type an answer
-            below.
+            its terminal so far. Open the session to read it.
           </div>
         )}
       </div>
@@ -949,6 +960,11 @@ export function SessionDecisionCard({
           This is a usage prompt from the agent's harness, not a decision — open
           the session to handle it.
         </div>
+      )}
+      {isFencedQuestion && (
+        <Button variant="primary" onClick={revealFencedQuestion}>
+          Answer in conversation
+        </Button>
       )}
       {richControls && decisionRow && (
         <DecisionAnswerControls
@@ -1011,7 +1027,7 @@ export function SessionDecisionCard({
         run={decisionRow?.status === "pending" ? decisionRow.run : undefined}
         className="mt-3"
       />
-      {otherOpen && !isFencedQuestion && (
+      {otherOpen && canAnswerFreeText && (
         <div className="mt-3">
           <textarea
             ref={otherRef}

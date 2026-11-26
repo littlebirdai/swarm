@@ -2,16 +2,42 @@ import type { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { cascadeFromAnswer } from "@codecast/policy/permissionRules";
 import type { InboxStoreState } from "./inboxStore";
-import { action } from "./mutativeMiddleware";
+import { action, sync } from "./mutativeMiddleware";
 
 type AnswerArgs = FunctionArgs<typeof api.permissions.answerPrompt>;
 
 export type FencedPromptAddress = FunctionReturnType<
   typeof api.permissions.listAnswerablePromptAddresses
->[number] & { submitted?: true; answerSummary?: Record<string, string> };
+>[number] & {
+  submitted?: true;
+  accepted?: true;
+  feedAbsent?: true;
+  answerSummary?: Record<string, string>;
+};
 
 export interface FencedPromptAnswerActions {
   answerFencedPrompt: (rowId: string, args: AnswerArgs) => void;
+  acceptFencedPromptAnswer: (rowId: string) => void;
+  refuseFencedPromptAnswer: (rowId: string) => void;
+  reconcileFencedPromptAddresses: (
+    conversationId: string,
+    ids: ReadonlySet<string>,
+  ) => void;
+}
+
+type PromptDraft = Pick<InboxStoreState, "pending"> & {
+  fencedPromptAddresses: Record<string, FencedPromptAddress>;
+};
+
+function clearAddressLocks(draft: PromptDraft, rowId: string) {
+  delete draft.pending[`fencedPromptAddresses:${rowId}:submitted`];
+  delete draft.pending[`fencedPromptAddresses:${rowId}:answerSummary`];
+}
+
+function retireAddress(draft: PromptDraft, row: FencedPromptAddress) {
+  clearAddressLocks(draft, row._id);
+  if (!row.accepted || row.kind === "permission")
+    delete draft.fencedPromptAddresses[row._id];
 }
 
 type PermissionDraft = Pick<
@@ -27,7 +53,7 @@ export const promptAnswerActions: FencedPromptAnswerActions &
     { answer }: AnswerArgs,
   ) {
     const row = this.fencedPromptAddresses[rowId];
-    if (!row) return;
+    if (!row || row.feedAbsent) return;
     row.submitted = true;
     if (answer !== null && typeof answer === "object" && "answers" in answer)
       row.answerSummary = Object.fromEntries(
@@ -36,6 +62,37 @@ export const promptAnswerActions: FencedPromptAnswerActions &
           response.answers.join(", "),
         ]),
       );
+  }),
+  acceptFencedPromptAnswer: sync(function (this: PromptDraft, rowId: string) {
+    const row = this.fencedPromptAddresses[rowId];
+    clearAddressLocks(this, rowId);
+    if (!row?.submitted || row.accepted) return;
+    row.accepted = true;
+    delete row.submitted;
+    if (row.feedAbsent) retireAddress(this, row);
+  }),
+  refuseFencedPromptAnswer: sync(function (this: PromptDraft, rowId: string) {
+    const row = this.fencedPromptAddresses[rowId];
+    if (!row || row.accepted) return;
+    delete row.answerSummary;
+    if (row.feedAbsent) retireAddress(this, row);
+  }),
+  reconcileFencedPromptAddresses: sync(function (
+    this: PromptDraft,
+    conversationId: string,
+    ids: ReadonlySet<string>,
+  ) {
+    for (const row of Object.values(this.fencedPromptAddresses)) {
+      if (row.conversation_id !== conversationId) continue;
+      if (ids.has(row._id)) {
+        if (!row.accepted) delete row.feedAbsent;
+      } else if (row.submitted || row.accepted) {
+        row.feedAbsent = true;
+        if (row.accepted) retireAddress(this, row);
+      } else {
+        retireAddress(this, row);
+      }
+    }
   }),
   resolvePermission: action(function (
     this: PermissionDraft,
@@ -78,7 +135,12 @@ export function findFencedPromptAddress(
       row.prompt_id === promptId &&
       (turnId === undefined || row.turn_id === turnId),
   );
-  return matches.length === 1 ? matches[0] : undefined;
+  const live = matches.filter((row) => !row.feedAbsent);
+  return live.length === 1
+    ? live[0]
+    : live.length === 0 && matches.length === 1
+      ? matches[0]
+      : undefined;
 }
 
 export function submitFencedPromptAnswer(
@@ -90,7 +152,8 @@ export function submitFencedPromptAnswer(
 ): boolean {
   const { _id, conversation_id, run, lease_id, turn_id, prompt_id } = address;
   const current = store.fencedPromptAddresses[_id];
-  if (!current || current.submitted) return false;
+  if (!current || current.submitted || current.accepted || current.feedAbsent)
+    return false;
   store.answerFencedPrompt(_id, {
     conversation_id,
     run,

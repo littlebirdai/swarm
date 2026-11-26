@@ -8,11 +8,16 @@ import { expectToast } from "../../../test-helpers/expectToast";
 import type { FencedPromptAddress } from "../../../store/fenced-prompt-answer";
 import { DispatchFailureToast } from "../../dispatch-failure-toast";
 import { PermissionCard } from "../../permission-card";
+import { SessionDecisionCard } from "../../SessionDecisionCard";
+import { AgentDock } from "../../agentDock/agent-dock";
+import { ModernPermissionStack } from "../ModernPermissionStack";
 import { TeamProposalContext } from "../../../hooks/useTeamProposals";
 import { AskUserQuestionBlock } from "../blocks/interactive-blocks";
 import { ModernAskUserQuestion } from "../blocks/modern-ask-user-question";
 import { AssistantBlock } from "../blocks/turnBlocks";
 import { useDecisionAnswer } from "../../../hooks/useDecisionAnswer";
+import type { QueueItem } from "../../../lib/decisionQueue";
+import { pending } from "../../../test-helpers/testConvex";
 
 const conversationId = "a".repeat(32) as Id<"conversations">;
 const leaseId = "b".repeat(32) as Id<"run_leases">;
@@ -23,6 +28,15 @@ const permissionPromptId = "1:app-server:string:approval";
 const refusal =
   "The prompt has closed or you no longer have permission to answer it.";
 const query = api.permissions.listAnswerablePromptAddresses;
+const askItem: QueueItem = {
+  key: "ask",
+  source: "ask",
+  conversationId,
+  question: "",
+  options: [],
+  blocking: true,
+  createdAt: 1,
+};
 
 function address(
   prompt_id = promptId,
@@ -306,64 +320,169 @@ test("the transcript passes the conversation for a fenced question without an ap
   }
 });
 
-test("decision surfaces cannot send a legacy choice or free-text answer to a fenced question", async () => {
-  function Probe() {
-    const decision = useDecisionAnswer({
-      key: "ask",
-      source: "ask",
-      conversationId,
-      question: "",
-      options: [],
-      blocking: true,
-      createdAt: 1,
+test.each(["transcript", "prompt feed", "both loading"] as const)(
+  "decision answers cannot use the legacy send with %s",
+  async (source) => {
+    function Probe() {
+      const decision = useDecisionAnswer(askItem);
+      return (
+        <>
+          <output data-option-count={decision.options.length}>
+            {decision.question}
+          </output>
+          <button onClick={() => void decision.answer(0)}>Choose</button>
+          <button onClick={() => decision.answerFreeText("Custom text")}>
+            Type answer
+          </button>
+        </>
+      );
+    }
+    const web = await mountWeb(<Probe />, {
+      authenticated: true,
+      dispatch: true,
+      setup(backend, store) {
+        backend.set(
+          query,
+          source === "both loading"
+            ? pending
+            : source === "prompt feed"
+              ? [address()]
+              : [],
+        );
+        if (source === "transcript")
+          store.setMessages(conversationId, [
+            {
+              _id: "assistant",
+              role: "assistant",
+              timestamp: 1,
+              tool_calls: [
+                {
+                  id: promptId,
+                  name: "AskUserQuestion",
+                  input: JSON.stringify({
+                    fencedTurnId: "turn",
+                    questions: [
+                      { question: "Output?", options: [{ label: "Short" }] },
+                    ],
+                  }),
+                },
+              ],
+            },
+          ]);
+        backend.mutation(api.dispatch.dispatch, null);
+      },
     });
-    return (
-      <>
-        <output data-option-count={decision.options.length}>
-          {decision.question}
-        </output>
-        <button onClick={() => void decision.answer(0)}>Choose</button>
-        <button onClick={() => decision.answerFreeText("Custom text")}>
-          Type answer
-        </button>
-      </>
+    try {
+      const output = web.container.querySelector("output");
+      expect(output?.textContent).toBe(
+        source === "transcript" ? "Output?" : "",
+      );
+      await act(async () => {
+        button(web.container, "Choose").click();
+        button(web.container, "Type answer").click();
+      });
+      expect(web.backend.mutations).toEqual([]);
+      expect(output?.dataset.optionCount).toBe("0");
+    } finally {
+      await web.close();
+    }
+  },
+);
+
+test("the decision sheet reveals the conversation underneath a fenced question", async () => {
+  const web = await mountWeb(
+    <div>
+      <div data-transcript />
+      <SessionDecisionCard
+        item={askItem}
+        stepper={{
+          position: 1,
+          total: 1,
+          onDone() {},
+          onSkip() {},
+          item: askItem,
+        }}
+        scrollToMessage={() => {}}
+      />
+    </div>,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend) {
+        backend.set(query, [address()]);
+      },
+    },
+  );
+  try {
+    const transcript =
+      web.container.querySelector<HTMLElement>("[data-transcript]")!;
+    expect(transcript.inert).toBe(true);
+    const shortcut = new web.dom.window.KeyboardEvent("keydown", {
+      key: "t",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      web.dom.window.document.activeElement?.dispatchEvent(shortcut);
+    });
+    expect(shortcut.defaultPrevented).toBe(false);
+    expect(web.container.querySelector("textarea")).toBeNull();
+    await act(async () =>
+      button(web.container, "Answer in conversation").click(),
     );
+    expect(transcript.inert).toBe(false);
+    expect(web.backend.mutations).toEqual([]);
+  } finally {
+    await web.close();
   }
-  const web = await mountWeb(<Probe />, {
+});
+
+test("the agent dock opens the conversation for a fenced question before messages arrive", async () => {
+  const opened: string[] = [];
+  const web = await mountWeb(<AgentDock />, {
     authenticated: true,
     dispatch: true,
     setup(backend, store) {
-      store.setMessages(conversationId, [
+      Object.defineProperty(window, "__CODECAST_ELECTRON__", {
+        configurable: true,
+        value: {
+          call: async (method: string, arg: string) => {
+            if (method === "agentDock.open") opened.push(arg);
+            return null;
+          },
+        },
+      });
+      store.syncTable("sessions", [
         {
-          _id: "assistant",
-          role: "assistant",
-          timestamp: 1,
-          tool_calls: [
-            {
-              id: promptId,
-              name: "AskUserQuestion",
-              input: JSON.stringify({
-                fencedTurnId: "turn",
-                questions: [
-                  { question: "Output?", options: [{ label: "Short" }] },
-                ],
-              }),
-            },
-          ],
+          _id: conversationId,
+          session_id: conversationId,
+          title: "Fenced agent",
+          agent_type: "codex",
+          awaiting_input: true,
+          status: "active",
+          updated_at: Date.now(),
         },
       ]);
-      backend.mutation(api.dispatch.dispatch, null);
+      backend.set(query, [address()]);
+      backend.set(api.conversations.listMessages, pending);
+      backend.set(api.conversations.listMessagesTail, pending);
+      backend.set(api.conversations.getConversationWithMeta, pending);
+      backend.set(api.conversations.getTranscriptWatermark, pending);
+      backend.set(api.conversations.getUserMessages, pending);
     },
   });
   try {
-    const output = web.container.querySelector("output");
-    expect(output?.textContent).toBe("Output?");
-    await act(async () => {
-      button(web.container, "Choose").click();
-      button(web.container, "Type answer").click();
-    });
+    const pill = web.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="1 waiting on you"]',
+    )!;
+    expect(pill).not.toBeNull();
+    await act(async () => pill.click());
+    expect(web.container.querySelector("textarea")).toBeNull();
+    await act(async () =>
+      button(web.container, "Answer in conversation").click(),
+    );
+    expect(opened).toEqual([`/conversation/${conversationId}`]);
     expect(web.backend.mutations).toEqual([]);
-    expect(output?.dataset.optionCount).toBe("0");
   } finally {
     await web.close();
   }
@@ -422,12 +541,95 @@ test("an old question keeps the message path and a secret question offers no inp
   }
 });
 
-test("typed text uses the provider question id through the same dispatch", async () => {
-  const row = address();
+test.each([false, true])(
+  "a typed answer stays answered and clears its locks (feed first: %s)",
+  async (feedFirst) => {
+    const row = address();
+    const gate = Promise.withResolvers<null>();
+    const web = await mountWeb(
+      <Question
+        legacySend={() => {
+          throw new Error("legacy send");
+        }}
+      />,
+      {
+        authenticated: true,
+        dispatch: true,
+        setup(backend) {
+          backend.set(query, [row]);
+          backend.mutation(api.dispatch.dispatch, () => gate.promise);
+        },
+      },
+    );
+    try {
+      const input = web.container.querySelector("input")!;
+      const setValue = Object.getOwnPropertyDescriptor(
+        web.dom.window.HTMLInputElement.prototype,
+        "value",
+      )!.set!;
+      await act(async () => {
+        setValue.call(input, "Custom output");
+        input.dispatchEvent(
+          new web.dom.window.Event("input", { bubbles: true }),
+        );
+      });
+      expect(button(web.container, "Send").disabled).toBe(false);
+      await act(async () => button(web.container, "Send").click());
+      expect(web.backend.mutations[0]?.args).toMatchObject({
+        action: "answerFencedPrompt",
+        args: [
+          row._id,
+          {
+            prompt_id: promptId,
+            answer: {
+              answers: { [questionId]: { answers: ["Custom output"] } },
+            },
+          },
+        ],
+      });
+      const promptLocks = () =>
+        Object.keys(web.store.getState().pending).filter((key) =>
+          key.startsWith("fencedPromptAddresses:"),
+        );
+      expect(promptLocks()).toEqual([
+        `fencedPromptAddresses:${row._id}:submitted`,
+      ]);
+      if (feedFirst) {
+        await act(async () => web.backend.set(query, []));
+        expect(
+          web.container.querySelector("[data-cc-ask-settled]")?.textContent,
+        ).toContain("Custom output");
+      }
+      await act(async () => gate.resolve(null));
+      expect(promptLocks()).toEqual([]);
+      if (!feedFirst) await act(async () => web.backend.set(query, []));
+      expect(promptLocks()).toEqual([]);
+      expect(
+        web.container.querySelector("[data-cc-ask-settled]")?.textContent,
+      ).toContain("Answered");
+      expect(
+        web.container.querySelector("[data-cc-ask-settled]")?.textContent,
+      ).toContain("Custom output");
+    } finally {
+      gate.resolve(null);
+      await web.close();
+    }
+  },
+);
+
+test("a fenced denial sends immediately without asking for a discarded reason", async () => {
+  const row = address(permissionPromptId, "permission");
   const web = await mountWeb(
-    <Question
-      legacySend={() => {
-        throw new Error("legacy send");
+    <PermissionCard
+      permission={{
+        _id: permissionId,
+        conversation_id: conversationId,
+        fenced_prompt_id: permissionPromptId,
+        fenced_prompt_turn_id: "turn",
+        status: "pending",
+        created_at: 1,
+        tool_name: "Read",
+        arguments_preview: "notes.txt",
       }}
     />,
     {
@@ -440,27 +642,51 @@ test("typed text uses the provider question id through the same dispatch", async
     },
   );
   try {
-    const input = web.container.querySelector("input")!;
-    const setValue = Object.getOwnPropertyDescriptor(
-      web.dom.window.HTMLInputElement.prototype,
-      "value",
-    )!.set!;
-    await act(async () => {
-      setValue.call(input, "Custom output");
-      input.dispatchEvent(new web.dom.window.Event("input", { bubbles: true }));
-    });
-    expect(button(web.container, "Send").disabled).toBe(false);
-    await act(async () => button(web.container, "Send").click());
+    await act(async () => button(web.container, "Deny").click());
+    expect(
+      web.container.querySelector('[aria-label="Reason for denying"]'),
+    ).toBeNull();
     expect(web.backend.mutations[0]?.args).toMatchObject({
       action: "answerFencedPrompt",
       args: [
         row._id,
-        {
-          prompt_id: promptId,
-          answer: { answers: { [questionId]: { answers: ["Custom output"] } } },
-        },
+        { prompt_id: permissionPromptId, answer: { behavior: "deny" } },
       ],
     });
+  } finally {
+    await web.close();
+  }
+});
+
+test("the modern multiple-permission view disables actions for the inflight row", async () => {
+  const denied: string[] = [];
+  const web = await mountWeb(
+    <ModernPermissionStack
+      pending={[
+        { _id: "blocked", status: "pending", tool_name: "Read" },
+        {
+          _id: "available",
+          status: "pending",
+          tool_name: "Read",
+          fenced_prompt_id: permissionPromptId,
+        },
+      ]}
+      inflight={new Set(["blocked"])}
+      onApprove={() => {}}
+      onDeny={(id) => denied.push(id)}
+      onApproveAll={() => {}}
+      onDenyAll={() => {}}
+    />,
+  );
+  try {
+    const [blocked, available] = web.container.querySelectorAll("li");
+    expect(button(blocked as HTMLElement, "Approve").disabled).toBe(true);
+    expect(button(blocked as HTMLElement, "Deny").disabled).toBe(true);
+    await act(async () => button(available as HTMLElement, "Deny").click());
+    expect(denied).toEqual(["available"]);
+    expect(
+      web.container.querySelector('[aria-label="Reason for denying"]'),
+    ).toBeNull();
   } finally {
     await web.close();
   }

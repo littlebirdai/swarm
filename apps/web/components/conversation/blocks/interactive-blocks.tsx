@@ -514,12 +514,17 @@ type AskUserQuestionInput = {
   deniesAt?: number;
 };
 
+function parseAskUserQuestionInput(input: string): AskUserQuestionInput {
+  try {
+    return JSON.parse(input) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export function AskUserQuestionBlock(props: AskUserQuestionProps) {
   const proposals = useTeamProposalRole();
-  let parsedInput: AskUserQuestionInput = {};
-  try {
-    parsedInput = JSON.parse(props.tool.input) ?? {};
-  } catch {}
+  const parsedInput = parseAskUserQuestionInput(props.tool.input);
   if (parsedInput.fencedTurnId)
     return (
       <AskUserQuestionInner

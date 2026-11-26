@@ -147,7 +147,7 @@ export function ModernPermissionStack<PId extends string>({
       >
         <PermissionContext permission={p} />
         <Preview text={p.arguments_preview} />
-        {denying === p._id ? (
+        {denying === p._id && !p.fenced_prompt_id && !busy ? (
           <DenyWithReason
             onDeny={(message) => onDeny(p._id, message)}
             onCancel={() => setDenying(null)}
@@ -185,7 +185,9 @@ export function ModernPermissionStack<PId extends string>({
               size="md"
               variant="outline"
               disabled={busy}
-              onClick={() => setDenying(p._id)}
+              onClick={() =>
+                p.fenced_prompt_id ? onDeny(p._id) : setDenying(p._id)
+              }
             >
               Deny
             </Button>
@@ -233,6 +235,7 @@ export function ModernPermissionStack<PId extends string>({
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={inflight.has(p._id)}
                 onClick={() => onApprove(p._id)}
               >
                 Approve
@@ -241,18 +244,25 @@ export function ModernPermissionStack<PId extends string>({
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={() => setDenying(denying === p._id ? null : p._id)}
+                disabled={inflight.has(p._id)}
+                onClick={() =>
+                  p.fenced_prompt_id
+                    ? onDeny(p._id)
+                    : setDenying(denying === p._id ? null : p._id)
+                }
               >
                 Deny
               </Button>
             </div>
             {openId === p._id && <Preview text={p.arguments_preview} />}
-            {denying === p._id && (
-              <DenyWithReason
-                onDeny={(message) => onDeny(p._id, message)}
-                onCancel={() => setDenying(null)}
-              />
-            )}
+            {denying === p._id &&
+              !p.fenced_prompt_id &&
+              !inflight.has(p._id) && (
+                <DenyWithReason
+                  onDeny={(message) => onDeny(p._id, message)}
+                  onCancel={() => setDenying(null)}
+                />
+              )}
           </li>
         ))}
       </ul>

@@ -616,18 +616,28 @@ function DockCard({
       ) : (
         <div className="px-3 pb-3 pt-1.5">
           {entry.kind === "ask" ? (
-            !decision.isPermissionCard &&
-            !decision.isFencedQuestion && (
-              <DockInput
-                placeholder="Type your answer…"
-                onSend={(text) =>
-                  hold({
-                    label: "Answer sent",
-                    tone: "ok",
-                    commit: () => decision.answerFreeText(text),
-                  })
-                }
-              />
+            decision.isFencedQuestion ? (
+              <button
+                type="button"
+                onClick={() => agentDockOpen(`/conversation/${entry.id}`)}
+                className="w-full rounded-xl bg-sol-blue px-3 py-2 text-sm font-medium text-white"
+              >
+                Answer in conversation
+              </button>
+            ) : (
+              !decision.isPermissionCard &&
+              decision.canAnswerFreeText && (
+                <DockInput
+                  placeholder="Type your answer…"
+                  onSend={(text) =>
+                    hold({
+                      label: "Answer sent",
+                      tone: "ok",
+                      commit: () => decision.answerFreeText(text),
+                    })
+                  }
+                />
+              )
             )
           ) : (
             <DockInput

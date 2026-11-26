@@ -25,6 +25,8 @@ export type DecisionCardKeys = {
   blocking?: boolean;
   isPermissionCard: boolean;
   isInfraDialog: boolean;
+  isFencedQuestion: boolean;
+  canAnswerFreeText: boolean;
   richControls: boolean;
   shrink: () => void;
   grow: () => void;
@@ -54,6 +56,8 @@ export function useDecisionCardKeys(k: DecisionCardKeys): void {
     blocking,
     isPermissionCard,
     isInfraDialog,
+    isFencedQuestion,
+    canAnswerFreeText,
     richControls,
     shrink,
     grow,
@@ -87,6 +91,11 @@ export function useDecisionCardKeys(k: DecisionCardKeys): void {
         sheet: full ? "full" : "peek",
       });
       if (!action) return;
+      if (
+        (isFencedQuestion || !canAnswerFreeText) &&
+        (action.kind === "open-free-text" || action.kind === "commit-free-text")
+      )
+        return;
       // Outside the queue, a folded card must not claim the thread's keys:
       // j/k/digits belong to the conversation until the card owns the pane.
       // Only a blocking ask comes back on a key: an advisory one never
@@ -188,6 +197,8 @@ export function useDecisionCardKeys(k: DecisionCardKeys): void {
     stepper,
     isPermissionCard,
     isInfraDialog,
+    isFencedQuestion,
+    canAnswerFreeText,
     richControls,
     shrink,
     grow,

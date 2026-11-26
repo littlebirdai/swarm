@@ -87,6 +87,7 @@ type Permission = {
 /** The fields the view renders. A real row satisfies it, and so does a fixture with a plain string id. */
 export type PermissionViewItem<PId extends string = string> = {
   _id: PId;
+  fenced_prompt_id?: string;
   tool_name: string;
   arguments_preview?: string;
   status: Permission["status"];
@@ -321,6 +322,7 @@ export function PermissionRow({
   isExpanded,
   onToggleExpand,
   showToolName,
+  inflight = false,
 }: {
   permission: PermissionViewItem;
   onApprove: () => void;
@@ -329,6 +331,7 @@ export function PermissionRow({
   isExpanded: boolean;
   onToggleExpand: () => void;
   showToolName: boolean;
+  inflight?: boolean;
 }) {
   const [denying, setDenying] = useState(false);
   if (permission.status !== "pending") return null;
@@ -358,6 +361,7 @@ export function PermissionRow({
         {!preview && <span className="flex-1" />}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
+            disabled={inflight}
             onClick={onApprove}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
@@ -370,7 +374,10 @@ export function PermissionRow({
           />
           {!denying && (
             <button
-              onClick={() => setDenying(true)}
+              disabled={inflight}
+              onClick={() =>
+                permission.fenced_prompt_id ? onDeny() : setDenying(true)
+              }
               className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-red/30 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors"
             >
               Deny
@@ -379,7 +386,7 @@ export function PermissionRow({
         </div>
       </div>
       <PermissionContext permission={permission} />
-      {denying && (
+      {denying && !permission.fenced_prompt_id && !inflight && (
         <DenyReason onDeny={onDeny} onCancel={() => setDenying(false)} />
       )}
       {preview && isExpanded && (
@@ -422,11 +429,11 @@ export function PermissionStack({
           "permission",
         )
       : undefined;
-  const settled = permissions.filter(
-    (permission) =>
-      permission.fenced_prompt_id &&
-      (addressFor(permission)?.submitted || (ready && !addressFor(permission))),
-  );
+  const settled = permissions.filter((permission) => {
+    if (!permission.fenced_prompt_id) return false;
+    const address = addressFor(permission);
+    return address ? address.submitted || address.accepted : ready;
+  });
   const pending = permissions.filter(
     (permission) =>
       permission.status === "pending" && !settled.includes(permission),
@@ -649,7 +656,9 @@ export function PermissionStackView<PId extends string>({
             />
             {!denying && (
               <button
-                onClick={() => setDenying(true)}
+                onClick={() =>
+                  p.fenced_prompt_id ? onDeny(p._id) : setDenying(true)
+                }
                 disabled={inflight.has(p._id)}
                 className={DENY_CLASS}
               >
@@ -670,7 +679,7 @@ export function PermissionStackView<PId extends string>({
             </span>
           </div>
         )}
-        {denying && (
+        {denying && !p.fenced_prompt_id && !inflight.has(p._id) && (
           <DenyReason
             onDeny={(message) => onDeny(p._id, message)}
             onCancel={() => setDenying(false)}
@@ -755,6 +764,7 @@ export function PermissionStackView<PId extends string>({
               setExpandedId(expandedId === p._id ? null : p._id)
             }
             showToolName={!allSameTool}
+            inflight={inflight.has(p._id)}
           />
         ))}
       </div>

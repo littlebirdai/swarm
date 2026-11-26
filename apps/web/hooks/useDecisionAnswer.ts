@@ -15,11 +15,17 @@ import { sendToSession } from "../lib/sendToSession";
 import { PERMISSION_SKIP_TOOLS } from "../components/permission-card";
 import type { QueueItem } from "../lib/decisionQueue";
 import { useApproveGate } from "../lib/passkeyPresence";
+import { useFencedPromptAddresses } from "./use-sync-fenced-prompt-addresses";
 
 function hasFencedQuestion(conversationId: string) {
-  return !!openQuestionFromMessages(
-    useInboxStore.getState().messages[conversationId],
-  )?.fencedTurnId;
+  const state = useInboxStore.getState();
+  return (
+    !!openQuestionFromMessages(state.messages[conversationId])?.fencedTurnId ||
+    Object.values(state.fencedPromptAddresses).some(
+      (row) =>
+        row.conversation_id === conversationId && row.kind === "question",
+    )
+  );
 }
 
 // What a queue item asks and the three gestures that settle it: answer an
@@ -48,6 +54,8 @@ export function useDecisionAnswer(item: QueueItem | null) {
   const messages = useInboxStore((s) =>
     conversationId ? s.messages[conversationId] : undefined,
   );
+  const { rows: promptAddresses, ready: promptFeedReady } =
+    useFencedPromptAddresses(item?.conversationId, item?.source === "ask");
 
   const permissionsRaw = usePendingPermissions(
     item?.source === "permission" ? conversationId : null,
@@ -66,7 +74,15 @@ export function useDecisionAnswer(item: QueueItem | null) {
     () => (needsMessages ? openQuestionFromMessages(messages as any[]) : null),
     [needsMessages, messages],
   );
-  const isFencedQuestion = item?.source !== "decide" && !!poll?.fencedTurnId;
+  const isFencedQuestion =
+    item?.source === "ask" &&
+    (!!poll?.fencedTurnId ||
+      promptAddresses.some((row) => row.kind === "question"));
+  const canAnswerFreeText =
+    item?.source === "decide" ||
+    (item?.source === "ask" &&
+      !isFencedQuestion &&
+      (!!poll || (promptFeedReady && messages !== undefined)));
   const recentText = useMemo(
     () => (needsMessages ? lastAssistantText(messages as any[]) : undefined),
     [needsMessages, messages],
@@ -125,14 +141,14 @@ export function useDecisionAnswer(item: QueueItem | null) {
       if (!item || !trimmed) return;
       if (item.source === "decide" && item.decisionId) {
         answerDecision(item.decisionId, { text: trimmed });
-      } else if (!isFencedQuestion && !hasFencedQuestion(item.conversationId)) {
+      } else if (canAnswerFreeText && !hasFencedQuestion(item.conversationId)) {
         // No parsed poll needed: the free-text payload is the decline-then-type
         // form, which the daemon can drive at any AskUserQuestion menu — this is
         // how a buffered question (present in no transcript yet) gets answered.
         sendToSession(item.conversationId, buildFreeTextPayload(trimmed));
       }
     },
-    [item, isFencedQuestion, answerDecision],
+    [item, canAnswerFreeText, answerDecision],
   );
 
   // "I am not going to answer this." A `cast decide` row resolves as dismissed
@@ -157,6 +173,7 @@ export function useDecisionAnswer(item: QueueItem | null) {
     isPermissionCard,
     isInfraDialog,
     isFencedQuestion,
+    canAnswerFreeText,
     answer,
     gated,
     answerFreeText,
