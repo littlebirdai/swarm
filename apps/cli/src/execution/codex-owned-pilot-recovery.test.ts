@@ -9,6 +9,9 @@ import {
   type StartedDeliveryPermit,
 } from "@codecast/agent-clients/executionBinding";
 import { fake } from "../../../../tests/codex-driver-parity/peers.js";
+import type { RetryQueue } from "../retryQueue.js";
+import type { SyncService } from "../syncService.js";
+import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
@@ -157,6 +160,15 @@ function fixture(selected = "pilot") {
         approvalPolicy: "on-request",
       }),
       instructions: async () => undefined,
+      display: {
+        syncService: strictStub<SyncService>("syncService"),
+        retryQueue: strictStub<RetryQueue>("retryQueue"),
+        conversationCache: {},
+        mapCodexAppServerThreadStatusToAgentStatus: () => null,
+        sendAgentStatus: () => {},
+        trackTmuxSpawns: async () => {},
+        syncMessagesBatch: async () => {},
+      },
       log: (message) => logs.push(message),
     },
     {

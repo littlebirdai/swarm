@@ -8,6 +8,9 @@ import {
 } from "@codecast/agent-clients/executionBinding";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
+import type { RetryQueue } from "../retryQueue.js";
+import type { SyncService } from "../syncService.js";
+import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import { CodexAppServerRuntimeDriver } from "./drivers/codexAppServer.js";
@@ -23,7 +26,16 @@ const options = {
   bearer: "fixture-bearer",
   permissions: () =>
     ({ sandbox: "read-only", approvalPolicy: "on-request" }) as const,
-  instructions: async () => "Keep the checkout read-only.",
+  instructions: async () => ({ text: "Keep the checkout read-only." }),
+  display: {
+    syncService: strictStub<SyncService>("syncService"),
+    retryQueue: strictStub<RetryQueue>("retryQueue"),
+    conversationCache: {},
+    mapCodexAppServerThreadStatusToAgentStatus: () => "working" as const,
+    sendAgentStatus: () => {},
+    trackTmuxSpawns: async () => {},
+    syncMessagesBatch: async () => {},
+  },
   log: () => {},
 };
 
@@ -120,8 +132,33 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
       { preconnect: fetch.preconnect },
     ),
   );
+  const statuses: Array<{
+    conversation: string;
+    thread: string;
+    event: string | undefined;
+  }> = [];
+  const titles: Array<[string, string, string | undefined]> = [];
   const pilotOptions = {
     ...options,
+    display: {
+      ...options.display,
+      syncService: strictStub<SyncService>("syncService", {
+        async updateTitle(conversation, title) {
+          titles.push([conversation, title, savedEvents.at(-1)?.kind]);
+        },
+      }),
+      sendAgentStatus(
+        _service: SyncService,
+        conversation: string,
+        thread: string,
+      ) {
+        statuses.push({
+          conversation,
+          thread,
+          event: savedEvents.at(-1)?.kind,
+        });
+      },
+    },
     command: () => [appServer.executable] as const,
   };
   const first = createCodexOwnedPilot(pilotOptions, flag)!;
@@ -249,7 +286,7 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     const restarted = run("boot-2", resumed);
     await restarted.runtime.processWorkUpdate(restarted.work);
     await until(
-      () => savedEvents.length === 2,
+      () => statuses.length === 1,
       "resumed turn reaches the event writer",
     );
     expect(
@@ -266,6 +303,25 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     expect(savedEvents.map(({ kind, seq }) => [kind, seq])).toEqual([
       ["session.started", 1],
       ["turn.started", 2],
+    ]);
+    appServer.send({
+      frames: [
+        {
+          method: "thread/name/updated",
+          params: { threadId: appServer.thread, threadName: "Resumed title" },
+        },
+      ],
+    });
+    await until(() => titles.length === 1, "resumed title reaches the daemon");
+    expect(titles).toEqual([
+      [flag.CODECAST_CODEX_OWNED_PILOT_SESSION, "Resumed title", "context"],
+    ]);
+    expect(statuses).toEqual([
+      {
+        conversation: flag.CODECAST_CODEX_OWNED_PILOT_SESSION,
+        thread: appServer.thread,
+        event: "turn.started",
+      },
     ]);
   } finally {
     await Promise.allSettled([first.close(), resumed.close()]);
