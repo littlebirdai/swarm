@@ -31,10 +31,22 @@ export interface DeliveryReceiptJournal {
     checkpoint: string,
     signal: AbortSignal,
   ): Promise<readonly DeliveryReceiptRecord[]>;
+  find(
+    session: SessionScope["session"],
+    checkpoint: string,
+    deliveryId: string,
+    signal: AbortSignal,
+  ): Promise<DeliveryReceiptRecord | undefined>;
   record(
     session: SessionScope["session"],
     checkpoint: string,
     receipt: DeliveryReceiptRecord,
+    signal: AbortSignal,
+  ): Promise<void>;
+  forget(
+    session: SessionScope["session"],
+    checkpoint: string,
+    deliveryId: string,
     signal: AbortSignal,
   ): Promise<void>;
 }
