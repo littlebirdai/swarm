@@ -113,15 +113,7 @@ export function expireOmittedInboxLeases(
       Object.hasOwn(liveness, id)
     )
       continue;
-    const foreign = isForeign(base, viewerId);
-    const inScope =
-      scope === "mine"
-        ? !foreign
-        : scope === "team" &&
-          foreign &&
-          typeof teamId === "string" &&
-          base.team_id === teamId;
-    if (!inScope) continue;
+    if (!ownsOmittedRow(base)) continue;
 
     const heartbeatEnd =
       base.last_heartbeat == null
@@ -139,24 +131,47 @@ export function expireOmittedInboxLeases(
     sessions[id].daemon_alive_until = leaseEnd ?? heartbeatEnd;
   }
 
+  function ownsOmittedRow(row: InboxSession): boolean {
+    const foreign = isForeign(row, viewerId);
+    return scope === "mine"
+      ? !foreign || (row.team_id == null && row.user_id === viewerId)
+      : scope === "team" &&
+          foreign &&
+          typeof teamId === "string" &&
+          row.team_id === teamId;
+  }
+
   function couldBeTruncated(row: InboxSession): boolean {
-    const workingRow = workingSetRowOf(row);
-    const windows = inWorkingSet(workingRow, epoch);
-    if (windows.some((window) => truncated.has(window))) return true;
+    if (windowCouldHold(row)) return true;
+    const parentId = row.is_subagent && row.parent_conversation_id;
+    if (!parentId || row.message_count <= 0) return false;
+    const parent = baseSessions[parentId];
     if (
+      parent &&
+      !Object.hasOwn(liveness, parentId) &&
+      ownsOmittedRow(parent) &&
+      windowCouldHold(parent)
+    )
+      return true;
+    const workingRow = workingSetRowOf(row);
+    return (
       scope === "mine" &&
       truncated.has("subagents") &&
-      row.is_subagent === true &&
-      row.message_count > 0 &&
-      row.parent_conversation_id &&
       row.updated_at >= epoch - WORKING_SET_RECENCY_MS &&
       (workingRow.status === "active" || workingRow.status === "completed") &&
       !workingRow.inbox_pinned_at &&
       !row.inbox_dismissed_at &&
       !row.inbox_stashed_at &&
       !row.inbox_snoozed_until
-    )
-      return true;
+    );
+  }
+
+  function windowCouldHold(row: InboxSession): boolean {
+    if (isSessionKilled(row) || row.status === "archived") return false;
+    const workingRow = workingSetRowOf(row);
+    const windows = inWorkingSet(workingRow, epoch);
+    if (scope === "mine")
+      return windows.some((window) => truncated.has(window));
     if (
       scope !== "team" ||
       (!truncated.has("members") && !truncated.has("member_rows"))

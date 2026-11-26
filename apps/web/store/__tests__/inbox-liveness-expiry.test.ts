@@ -110,6 +110,7 @@ const omissionCases: {
   name: string;
   truncated: InboxTruncation[];
   fields?: Partial<InboxSession>;
+  parent?: Partial<InboxSession>;
   grace?: boolean;
   team?: boolean;
 }[] = [
@@ -150,6 +151,31 @@ const omissionCases: {
     grace: true,
   },
   { name: "no truncation", truncated: [] },
+  {
+    name: "personal cap on a team snapshot",
+    truncated: ["recent"],
+    team: true,
+  },
+  {
+    name: "a parent beyond the personal pinned cap",
+    truncated: ["pinned"],
+    fields: { is_subagent: true, parent_conversation_id: second },
+    parent: { inbox_pinned_at: heartbeat },
+    grace: true,
+  },
+  {
+    name: "a parent beyond the team member cap",
+    truncated: ["members"],
+    fields: { is_subagent: true, parent_conversation_id: second },
+    parent: {},
+    team: true,
+    grace: true,
+  },
+  {
+    name: "a personal session reassigned away",
+    truncated: [],
+    fields: { owner_user_id: teammate },
+  },
   { name: "unrelated window", truncated: ["pinned"] },
   {
     name: "out of the recent window",
@@ -168,7 +194,7 @@ const omissionCases: {
   },
 ];
 
-for (const { name, truncated, fields, grace, team } of omissionCases) {
+for (const { name, truncated, fields, parent, grace, team } of omissionCases) {
   test(`an omitted cached lease gets the right deadline for ${name}`, () => {
     const original = useInboxStore.getState();
     const row = cachedRow(first, {
@@ -178,24 +204,34 @@ for (const { name, truncated, fields, grace, team } of omissionCases) {
       updated_at: epoch - 10,
       ...fields,
     });
+    const scopeKey = team ? "team:t1" : "mine";
+    const snapshot = {
+      liveness: { [included]: live },
+      projection: {
+        scope: team ? "team" : "mine",
+        user_id: mine,
+        team_id: team ? "t1" : null,
+        epoch,
+        truncated,
+      },
+    };
     try {
       useInboxStore.setState({
-        sessions: { [first]: row },
+        sessions: {
+          [first]: row,
+          ...(parent && {
+            [second]: cachedRow(second, {
+              user_id: row.user_id,
+              team_id: row.team_id,
+              updated_at: epoch - 20,
+              ...parent,
+            }),
+          }),
+        },
         sessionsProjection: {},
         pending: {},
       });
-      useInboxStore
-        .getState()
-        .applyInboxLivenessPayload(team ? "team:t1" : "mine", {
-          liveness: { [included]: live },
-          projection: {
-            scope: team ? "team" : "mine",
-            user_id: mine,
-            team_id: team ? "t1" : null,
-            epoch,
-            truncated,
-          },
-        });
+      useInboxStore.getState().applyInboxLivenessPayload(scopeKey, snapshot);
       const next = useInboxStore.getState().sessions[first];
       const lastHeartbeat = row.last_heartbeat ?? null;
       const expectedEnd =
@@ -208,6 +244,11 @@ for (const { name, truncated, fields, grace, team } of omissionCases) {
       };
       expect(rowHeartbeatAliveAt(facts, expectedEnd - 1)).toBe(true);
       expect(rowHeartbeatAliveAt(facts, expectedEnd)).toBe(false);
+      useInboxStore.getState().applyInboxLivenessPayload(scopeKey, {
+        ...snapshot,
+        projection: { ...snapshot.projection, epoch: epoch + 60_000 },
+      });
+      expect(useInboxStore.getState().sessions[first]).toBe(next);
     } finally {
       useInboxStore.setState(original, true);
     }
