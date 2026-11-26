@@ -13,10 +13,12 @@ import {
   test,
 } from "bun:test";
 import { convexTest } from "convex-test";
+import { isolateScheduledFunctions } from "../test-helpers/scheduled-functions.testkit";
 import schema from "./schema";
 import { internal } from "./_generated/api";
 
 setDefaultTimeout(60_000);
+const trackBackend = isolateScheduledFunctions();
 afterEach(() => setSystemTime());
 
 const modules = {
@@ -36,7 +38,7 @@ const HEAD = "a".repeat(40);
 const MAIN = "b".repeat(40);
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = trackBackend(convexTest(schema, modules));
   const ids = await t.run(async (ctx) => {
     const team = await ctx.db.insert("teams", {
       name: "Acme",

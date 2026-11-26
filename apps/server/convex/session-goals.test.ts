@@ -12,6 +12,7 @@ import {
   test,
 } from "bun:test";
 import { convexTest } from "convex-test";
+import { isolateScheduledFunctions } from "../test-helpers/scheduled-functions.testkit";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -24,6 +25,7 @@ import {
 } from "@codecast/messages/sessionGoal";
 
 setDefaultTimeout(60_000);
+const trackBackend = isolateScheduledFunctions();
 
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
@@ -67,7 +69,7 @@ afterEach(() => {
 });
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = trackBackend(convexTest(schema, modules));
   const ids = await t.run(async (ctx) => {
     const user = await ctx.db.insert("users", { name: "Ada" } as any);
     const stranger = await ctx.db.insert("users", { name: "Eve" } as any);
