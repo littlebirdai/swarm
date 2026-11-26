@@ -1,9 +1,10 @@
 import { expect } from "bun:test";
-import { once } from "node:events";
+import { on, once } from "node:events";
 import { it } from "@codecast/effect-kit/effect/testing";
 import {
   parseRelayServerFrame,
   RELAY_MAX_FRAME_BYTES,
+  type RelayHubGrant,
   type RelayServerFrame,
 } from "@codecast/relay-contract";
 import * as Effect from "effect/Effect";
@@ -23,6 +24,7 @@ const config = readConfig({
 });
 const hub = { kind: "session", id: "s".repeat(128) } as const;
 const subscribe = JSON.stringify({ type: "subscribe", v: 1, hub });
+type SessionPublish = Extract<RelayHubGrant, { kind: "session" }>["publish"];
 
 function open(url: URL) {
   return Effect.acquireRelease(
@@ -35,35 +37,40 @@ function open(url: URL) {
   ).pipe(Effect.tap((ws) => Effect.promise(() => once(ws, "open"))));
 }
 
+function decode(data: unknown) {
+  const parsed = parseRelayServerFrame(String(data));
+  if (!parsed.ok) throw new Error("Invalid relay frame");
+  return parsed.value;
+}
+
 function receive(ws: WebSocket) {
-  return Effect.promise(async () => {
-    const [data] = await once(ws, "message");
-    const parsed = parseRelayServerFrame(String(data));
-    if (!parsed.ok) throw new Error("Invalid relay frame");
-    return parsed.value;
+  return Effect.promise(async () => decode((await once(ws, "message"))[0]));
+}
+
+function grant(id: string, grantSeq: number, publish: SessionPublish) {
+  const now = Date.now();
+  return mintTestToken(key, {
+    v: 1,
+    audience: config.audience,
+    subject: { kind: "user", id },
+    issued_at_ms: now,
+    grant_seq: grantSeq,
+    expires_at_ms: now + 30_000,
+    grants: [{ ...hub, publish }],
   });
 }
 
 const authenticate = Effect.fn("authenticate")(function* (
   ws: WebSocket,
   id: string,
+  publish: SessionPublish = ["reading_cursor"],
 ) {
-  const now = Date.now();
-  const token = mintTestToken(key, {
-    v: 1,
-    audience: config.audience,
-    subject: { kind: "user", id },
-    issued_at_ms: now,
-    grant_seq: 1,
-    expires_at_ms: now + 30_000,
-    grants: [{ ...hub, publish: ["reading_cursor"] }],
-  });
   ws.send(
     JSON.stringify({
       type: "connect",
       versions: [1],
-      capabilities: ["reading_cursor"],
-      token,
+      capabilities: publish,
+      token: grant(id, 1, publish),
     }),
   );
   expect(yield* receive(ws)).toMatchObject({ type: "hello", status: "ok" });
@@ -73,6 +80,56 @@ const authenticate = Effect.fn("authenticate")(function* (
     status: "subscribed",
   });
 });
+
+it.effect("a grant result reaches its own socket before its departure", () =>
+  Effect.gen(function* () {
+    const relay = yield* Effect.acquireRelease(
+      Effect.sync(() => startRelayServer(config)),
+      (server) => Effect.promise(server.stop),
+    );
+    const client = yield* open(relay.url);
+    yield* authenticate(client, "publisher", ["presence"]);
+    client.send(
+      JSON.stringify({
+        type: "presence",
+        v: 1,
+        hub,
+        state: "active",
+        in_draft: true,
+      }),
+    );
+    const active = yield* receive(client);
+    if (active.type !== "presence" || active.state !== "active")
+      throw new Error("Expected the publisher's active presence");
+
+    const frames = on(client, "message");
+    try {
+      client.send(
+        JSON.stringify({
+          type: "grant_update",
+          v: 1,
+          request_id: "read-only",
+          token: grant("publisher", 2, []),
+        }),
+      );
+      const ordered = yield* Effect.promise(async () => [
+        decode((await frames.next()).value[0]),
+        decode((await frames.next()).value[0]),
+      ]);
+      expect(ordered).toMatchObject([
+        { type: "grant_result", request_id: "read-only", status: "applied" },
+        {
+          type: "presence",
+          state: "left",
+          hub,
+          connection_id: active.connection_id,
+        },
+      ]);
+    } finally {
+      yield* Effect.promise(async () => frames.return?.());
+    }
+  }),
+);
 
 it.effect(
   "waits through partial Bun drains and reports outstanding bytes even after a positive send",

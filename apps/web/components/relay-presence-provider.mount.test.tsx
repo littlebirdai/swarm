@@ -11,6 +11,7 @@ import { ConvexProviderWithAuth, useConvex } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import {
   act,
+  StrictMode,
   useContext,
   useLayoutEffect,
   useState,
@@ -297,6 +298,44 @@ test("two readers share one grant and socket, and both see arrival, departure, a
     expect(socket.closed).toBe(true);
   } finally {
     clock.mockRestore();
+  }
+});
+
+test("the aborted StrictMode mount leaves no visibility listener or socket", async () => {
+  const ui = await mountRelay(<></>);
+  const mounted: boolean[] = [];
+  function MountProbe() {
+    useWatchEffect(() => {
+      mounted.push(true);
+      return () => {
+        mounted.push(false);
+      };
+    }, []);
+    return null;
+  }
+  const add = spyOn(document, "addEventListener");
+  const remove = spyOn(document, "removeEventListener");
+  try {
+    await ui.rerender(
+      <StrictMode>
+        <MountProbe />
+        {view(true)}
+      </StrictMode>,
+    );
+    expect(mounted).toEqual([true, false, true]);
+    expect(sockets).toHaveLength(1);
+    await ui.rerender(null);
+    expect(sockets[0]?.closed).toBe(true);
+    const listeners = add.mock.calls.filter(
+      ([type]) => type === "visibilitychange",
+    );
+    expect(listeners).toHaveLength(1);
+    expect(
+      remove.mock.calls.filter(([type]) => type === "visibilitychange"),
+    ).toEqual(listeners);
+  } finally {
+    remove.mockRestore();
+    add.mockRestore();
   }
 });
 

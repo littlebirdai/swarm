@@ -187,6 +187,73 @@ it.effect(
 );
 
 it.effect(
+  "a shorter refresh expires on the new deadline without another message",
+  () =>
+    harness(
+      Effect.gen(function* () {
+        yield* TestClock.setTime(1000);
+        const a = yield* peer(yield* Relay, claims({ expires_at_ms: 1100 }));
+        yield* a.subscribe();
+        yield* TestClock.adjust(1);
+        yield* a.refresh(
+          claims({ issued_at_ms: 1001, grant_seq: 2, expires_at_ms: 1010 }),
+          "shorter",
+        );
+        const renewed = {
+          type: "grant_result",
+          v: 1,
+          request_id: "shorter",
+          status: "applied",
+          ttl_ms: 9,
+        } as const;
+        yield* TestClock.adjust(8);
+        expect(a.events.at(-1)).toEqual(renewed);
+        yield* TestClock.adjust(1);
+        expect(a.events.slice(2)).toEqual([
+          renewed,
+          {
+            type: "subscription",
+            v: 1,
+            hub: session,
+            status: "unsubscribed",
+            reason: "expired",
+          },
+          { type: "closed", code: 1008 },
+        ]);
+      }),
+    ),
+);
+
+it.effect(
+  "a refusal that throws during open leaves other connections and the next open usable",
+  () =>
+    harness(
+      Effect.gen(function* () {
+        const relay = yield* Relay;
+        const existing = yield* peer(relay);
+        yield* existing.subscribe();
+        const pending = new FakeSocket();
+        const connection = yield* relay.open(pending);
+        if (!connection) throw new Error("Expected the pre-auth slot");
+        const refused = new FakeSocket();
+        refused.send = () => {
+          throw new Error("refusal send defect");
+        };
+        expect(yield* relay.open(refused)).toBeNull();
+        expect(refused.events).toEqual([{ type: "closed", code: 1006 }]);
+        expect(pending.events).toEqual([]);
+        yield* connection.disconnected;
+        const next = yield* peer(relay);
+        yield* next.subscribe();
+        expect(next.events[0]).toMatchObject({ type: "hello", status: "ok" });
+        yield* existing.send(active);
+        expect(next.events.at(-1)).toMatchObject(active);
+      }),
+      { maxPreAuthConnections: 1 },
+    ),
+);
+
+it.effect(
   "closes when an accepted renewal outlives its queued success reply",
   () =>
     harness(
