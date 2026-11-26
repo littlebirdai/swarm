@@ -1761,13 +1761,6 @@ export const CLIENT_SYNC_REGISTRY = {
     feeds: ["managedSessions.getAggregateMetrics"],
   },
   fencedPromptAddresses: {
-    persistence: {
-      kind: "collection",
-      key: "fencedPromptAddresses",
-      perWindow: true,
-    },
-    hydration: { phase: "deferred" },
-    indexes: "_id, conversation_id",
     sync: { isDelta: true, deepFields: ["questions"] },
     feeds: ["permissions.listAnswerablePromptAddresses"],
   },
