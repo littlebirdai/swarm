@@ -759,7 +759,7 @@ test("edge work refuses a run when the conversation owner device is unset", asyn
 });
 
 test.each(["claimed", "started"] as const)(
-  "the old device cannot read a blob from a %s attempt after a move",
+  "the old device cannot read a blob from a %s attempt after the conversation leaves it",
   async (state) => {
     const f = await fixture();
     const { request, body } = await f.authorize();
@@ -768,12 +768,9 @@ test.each(["claimed", "started"] as const)(
       expect(
         await (await f.post("delivery.start", request)).json(),
       ).toMatchObject({ status: "started" });
-    await asUser(f.t, f.owner).mutation(api.devices.moveSessionToDevice, {
-      conversation_id: f.conversation,
-      owner_device_id: "destination",
-      project_path: "/fixture",
-      resume: false,
-    });
+    await f.t.run(({ db }) =>
+      db.patch(f.conversation, { owner_device_id: "destination" }),
+    );
     await expectMissing(await f.post("blobs.get", body));
     if (state === "started")
       expect(

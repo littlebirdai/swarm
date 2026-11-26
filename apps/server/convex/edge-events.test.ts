@@ -29,6 +29,7 @@ import { seedEventRun } from "./lib/edge/runEvents";
 import { isFreshTurnProjection } from "./lib/edge/runLease";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
+const fencedMoveRefused = "cannot move to another device or account";
 const previous = process.env[flag];
 
 beforeEach(() => {
@@ -101,7 +102,20 @@ async function fixture() {
       binding: await db.get(setup.binding),
       lease: await db.query("run_leases").first(),
     }));
-  return { ...setup, post, grant, event, batch, append, rows };
+  const reassignOwnerDevice = (device: string) =>
+    setup.t.run(({ db }) =>
+      db.patch(setup.conversation, { owner_device_id: device }),
+    );
+  return {
+    ...setup,
+    post,
+    grant,
+    event,
+    batch,
+    append,
+    rows,
+    reassignOwnerDevice,
+  };
 }
 
 test("HTTP batches close gaps, skip duplicated content and preserve request order", async () => {
@@ -457,7 +471,7 @@ test("the first team purge page fences HTTP uploads while the conversation remai
 });
 
 test.each(["move", "reparent", "ownership claim"] as const)(
-  "%s fences new work while preserving the started settlement",
+  "a refused %s leaves the run in place, and a device that loses the conversation is fenced while its started settlement is kept",
   async (kind) => {
     const f = await fixture();
     const { fencing_token } = await f.grant();
@@ -486,25 +500,33 @@ test.each(["move", "reparent", "ownership claim"] as const)(
     );
     const owner = asUser(f.t, f.owner);
     if (kind === "move")
-      await owner.mutation(api.devices.moveSessionToDevice, {
-        conversation_id: f.conversation,
-        owner_device_id: destination,
-        project_path: "/fixture",
-        resume: false,
-      });
+      await expect(
+        owner.mutation(api.devices.moveSessionToDevice, {
+          conversation_id: f.conversation,
+          owner_device_id: destination,
+          project_path: "/fixture",
+          resume: false,
+        }),
+      ).rejects.toThrow(fencedMoveRefused);
     else if (kind === "reparent")
-      await owner.mutation(api.devices.reparentSessionToDevice, {
-        session_id: f.conversation,
-        device_id: destination,
-        remote_url: "https://example.com/repo.git",
-      });
+      await expect(
+        owner.mutation(api.devices.reparentSessionToDevice, {
+          session_id: f.conversation,
+          device_id: destination,
+          remote_url: "https://example.com/repo.git",
+        }),
+      ).rejects.toThrow(fencedMoveRefused);
     else
       expect(
         await owner.mutation(api.devices.claimConversationForStart, {
           conversation_id: f.conversation,
           device_id: destination,
         }),
-      ).toMatchObject({ won: true });
+      ).toMatchObject({ won: false });
+    expect(
+      (await f.t.run(({ db }) => db.get(f.conversation)))?.owner_device_id,
+    ).not.toBe(destination);
+    await f.reassignOwnerDevice(destination);
     const moved = await f.t.run(async ({ db }) => ({
       conversation: await db.get(f.conversation),
       head: await db.get(f.head),
@@ -561,7 +583,7 @@ test.each(["move", "reparent", "ownership claim"] as const)(
   },
 );
 
-test("a device move cannot authorize settlement of an unstarted permit", async () => {
+test("a device that loses the conversation cannot settle an unstarted permit", async () => {
   const f = await fixture();
   const { fencing_token } = await f.grant();
   const {
@@ -578,10 +600,7 @@ test("a device move cannot authorize settlement of an unstarted permit", async (
     })
   ).json();
   expect(status).toBe("permit");
-  await asUser(f.t, f.owner).mutation(api.devices.claimConversation, {
-    conversation_id: f.conversation,
-    device_id: "destination",
-  });
+  await f.reassignOwnerDevice("destination");
   expect(
     await (
       await f.post("delivery.settle", { ...permit, outcome: "rejected" })
@@ -705,7 +724,7 @@ test("the first claim after flag enablement seeds an existing run", async () => 
   ).toMatchObject([{ status: "appended", through_seq: 1 }]);
 });
 
-test("Convex records a started outcome after a same-account device move", async () => {
+test("Convex records a started outcome after the conversation leaves the device", async () => {
   const f = await fixture();
   const { fencing_token } = await f.grant();
   const { permit } = await f.deliver(fencing_token);
@@ -717,10 +736,7 @@ test("Convex records a started outcome after a same-account device move", async 
     now: start,
   };
   await f.t.run((ctx) => startDeliveryInDb(ctx, f.owner, fence));
-  await asUser(f.t, f.owner).mutation(api.devices.claimConversation, {
-    conversation_id: f.conversation,
-    device_id: "destination",
-  });
+  await f.reassignOwnerDevice("destination");
   expect(
     await f.t.run((ctx) => completeDeliveryInDb(ctx, f.owner, fence)),
   ).toEqual({ accepted: true });

@@ -31,8 +31,9 @@ and active lease. It checks the lease token and the boot on the lease
 against that row. The request carries neither the machine nor the
 boot. The mutation checks the fence before it reads the cursor.
 
-If the conversation moves to a different device, the old device loses
-access to new work. It can still settle an attempt that it started if
+The server refuses to move a fenced conversation to a different device
+(see [fenced device moves](fenced-device-move.md)). If the conversation
+gets a different owner device, the old device loses access to new work. It can still settle an attempt that it started if
 the account, run, lease, and attempt fences still match. It can also
 release its own lease. The server requires an assigned device.
 
