@@ -10537,7 +10537,7 @@
   "apps/server/convex/lib/seatPlace.ts": {
     "swarm/no-comments": 10
   },
-  "apps/server/convex/lib/secretApprovals.ts": {
+  "apps/server/convex/lib/secret-approvals.ts": {
     "swarm/no-comments": 12
   },
   "apps/server/convex/lib/sendOutcome.ts": {
@@ -11617,7 +11617,7 @@
   "apps/server/convex/prShepherd.lifecycle.e2e.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/server/convex/prShepherd.mergeStateBatch.test.ts": {
+  "apps/server/convex/pr-shepherd.merge-state-batch.test.ts": {
     "swarm/no-comments": 8
   },
   "apps/server/convex/prShepherd.test.ts": {
@@ -21609,7 +21609,7 @@
   "apps/web/hooks/__tests__/useDebounce.mount.test.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/hooks/__tests__/useFaceRow.mount.test.tsx": {
+  "apps/web/hooks/__tests__/use-face-row.mount.test.tsx": {
     "swarm/no-comments": 5
   },
   "apps/web/hooks/__tests__/useFollowSurface.mount.test.tsx": {

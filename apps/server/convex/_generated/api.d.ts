@@ -489,7 +489,7 @@ import type * as lib_screenRecordingSent from "../lib/screenRecordingSent.js";
 import type * as lib_searchSelf from "../lib/searchSelf.js";
 import type * as lib_seatKill from "../lib/seatKill.js";
 import type * as lib_seatPlace from "../lib/seatPlace.js";
-import type * as lib_secretApprovals from "../lib/secretApprovals.js";
+import type * as lib_secret_approvals from "../lib/secret-approvals.js";
 import type * as lib_sendOutcome from "../lib/sendOutcome.js";
 import type * as lib_sentryHttp from "../lib/sentryHttp.js";
 import type * as lib_sessionAccount from "../lib/sessionAccount.js";
@@ -1346,7 +1346,7 @@ declare const fullApi: ApiFromModules<{
   "lib/searchSelf": typeof lib_searchSelf;
   "lib/seatKill": typeof lib_seatKill;
   "lib/seatPlace": typeof lib_seatPlace;
-  "lib/secretApprovals": typeof lib_secretApprovals;
+  "lib/secret-approvals": typeof lib_secret_approvals;
   "lib/sendOutcome": typeof lib_sendOutcome;
   "lib/sentryHttp": typeof lib_sentryHttp;
   "lib/sessionAccount": typeof lib_sessionAccount;

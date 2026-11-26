@@ -46,7 +46,7 @@ import {
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { consumePresence, grantChallengeId, grantString } from "./lib/presence";
-import { pendingApproval } from "./lib/secretApprovals";
+import { pendingApproval } from "./lib/secret-approvals";
 import { runPresenceLabel } from "./lib/commandRuns";
 import { heldKeysFor } from "./lib/accessKeys";
 import { sha256Hex } from "./lib/hash";
