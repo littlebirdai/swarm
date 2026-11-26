@@ -1,6 +1,15 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test";
-import { setupRunLease, start } from "../test-helpers/run-lease.testkit";
-import { api } from "./_generated/api";
+import {
+  boot,
+  machine,
+  setupRunLease,
+  start,
+} from "../test-helpers/run-lease.testkit";
+import {
+  observed,
+  steerDeliveryFixture,
+} from "../test-helpers/steer-delivery.testkit";
+import { api, internal } from "./_generated/api";
 
 const flag = "SWARM_TURN_BATON";
 const originalFlag = process.env[flag];
@@ -95,3 +104,78 @@ test.each([false, true])(
     expect(await rows()).toEqual(snapshot);
   },
 );
+
+test("a leased ambiguous steer can be resent only with its run fence", async () => {
+  process.env[flag] = "1";
+  setSystemTime(new Date(start));
+  const f = await steerDeliveryFixture();
+  await f.send("ambiguous-steer", observed);
+  const edge = { ...f.fence, v: 1 as const, bearer: f.bearer };
+  const selected = await f.t.mutation(internal.edgeDelivery.next, edge);
+  if (selected.status !== "permit") throw new Error("Expected steer permit");
+  const { delivery_id, attempt_id, seq, intent, sender } = selected;
+  expect(intent).toBe("steer");
+  const attempt = { delivery_id, attempt_id, seq, intent, sender };
+  expect(
+    await f.t.mutation(internal.edgeDelivery.start, { ...edge, ...attempt }),
+  ).toMatchObject({ status: "started" });
+  expect(
+    await f.t.mutation(internal.edgeDelivery.settle, {
+      ...edge,
+      ...attempt,
+      outcome: "in_doubt",
+    }),
+  ).toMatchObject({ status: "recorded" });
+  const before = await f.rows();
+  const message = before.messages.find(
+    (row) => row.delivery_id === delivery_id,
+  );
+  if (!message) throw new Error("Expected steer message");
+  const request = {
+    permit: {
+      conversation_id: f.conversation,
+      message_id: message._id,
+      delivery_id,
+      attempt_id,
+      conversation_sequence: String(seq),
+      execution_epoch: 1,
+      configuration_revision: 1,
+      owner_device_id: machine,
+      daemon_boot_id: boot,
+      runtime_id: "runtime",
+    },
+    api_token: f.bearer,
+    new_client_id: "leased-resend",
+    resolution_evidence: "Owner accepted resend risk",
+  };
+  const resend = api.executionBindings.abandonAmbiguousAndResend;
+  await expect(f.t.mutation(resend, request)).rejects.toThrow(
+    "STALE_RUN_LEASE",
+  );
+  await expect(
+    f.t.mutation(resend, { ...request, fencing_token: "wrong-lease" }),
+  ).rejects.toThrow("STALE_RUN_LEASE");
+  expect(await f.rows()).toEqual(before);
+
+  const authorized = { ...request, fencing_token: edge.fencing_token };
+  const result = await f.t.mutation(resend, authorized);
+  expect(result).toMatchObject({
+    originalDeliveryId: delivery_id,
+    deliveryId: "leased-resend",
+    conversationSequence: "3",
+  });
+  const after = await f.rows();
+  expect(
+    after.messages.find((row) => row._id === message._id)?.delivery_status,
+  ).toBe("abandoned-ambiguous");
+  expect(
+    after.messages.find((row) => row._id === result.messageId),
+  ).toMatchObject({
+    delivery_status: "pending",
+    delivery_intent: "queue",
+    resend_of_delivery_id: delivery_id,
+  });
+  expect(after.head?.active_delivery_attempt_id).toBeUndefined();
+  expect(await f.t.mutation(resend, authorized)).toEqual(result);
+  expect(await f.rows()).toEqual(after);
+});

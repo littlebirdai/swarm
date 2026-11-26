@@ -6,6 +6,7 @@ import {
   steerDeliveryFixture as fixture,
 } from "../test-helpers/steer-delivery.testkit";
 import { api, internal } from "./_generated/api";
+import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 
 const flag = "SWARM_TURN_BATON";
 const previous = process.env[flag];
@@ -152,50 +153,101 @@ test("fenced queue rows cannot be merged or reordered", async () => {
   expect(await f.rows()).toEqual(before);
 });
 
-test("idle selection merges legacy and explicit queue heads after a full steer sweep", async () => {
-  const f = await fixture();
-  await f.send("stale-steer", observed);
-  await f.send("explicit-queue", undefined);
-  await f.turn(null);
-  await f.t.run(async ({ db }) => {
-    const conversations = await db
-      .query("pending_messages")
-      .withIndex("by_conversation_sequence", (q) =>
-        q.eq("conversation_id", f.conversation),
-      )
-      .collect();
-    const [, steer, queue] = conversations;
-    if (!steer || !queue)
-      throw new Error("Expected a steer and an explicit queue");
-    const { _id, _creationTime, ...source } = steer;
-    await db.patch(f.message, { conversation_sequence: 66 });
-    await db.patch(queue._id, { conversation_sequence: 67 });
-    await db.patch(steer._id, { conversation_sequence: 1 });
-    for (let sequence = 2; sequence <= 65; sequence++) {
-      const id = `stale-${sequence}`;
-      await db.insert("pending_messages", {
-        ...source,
-        client_id: id,
-        delivery_id: id,
-        conversation_sequence: sequence,
-      });
-    }
-    await db.patch(f.head, { next_conversation_sequence: 68 });
-  });
-  const wire = await f.t.mutation(internal.edgeDelivery.next, {
-    ...f.fence,
-    v: 1,
-    bearer: f.bearer,
-  });
-  expect(wire).toMatchObject({
-    status: "permit",
-    intent: "queue",
-    seq: 66,
-    delivery_id: "delivery",
-  });
-  const rows = await f.rows();
-  expect(
-    rows.messages.filter((row) => row.delivery_status === "rejected"),
-  ).toHaveLength(64);
-  expect(rows.head?.next_nonterminal_sequence).toBe(65);
-});
+test.each(["queue selection", "boot transfer"] as const)(
+  "idle delivery keeps the legacy queue slot behind 65 stale steers during %s",
+  async (mode) => {
+    const f = await fixture();
+    await f.send("stale-steer", observed);
+    await f.send("explicit-queue", undefined);
+    await f.turn(null);
+    await f.t.run(async ({ db }) => {
+      const conversations = await db
+        .query("pending_messages")
+        .withIndex("by_conversation_sequence", (q) =>
+          q.eq("conversation_id", f.conversation),
+        )
+        .collect();
+      const [, steer, queue] = conversations;
+      if (!steer || !queue)
+        throw new Error("Expected a steer and an explicit queue");
+      const { _id, _creationTime, ...source } = steer;
+      await db.patch(f.message, { conversation_sequence: 66 });
+      await db.patch(queue._id, { conversation_sequence: 67 });
+      await db.patch(steer._id, { conversation_sequence: 1 });
+      for (let sequence = 2; sequence <= 65; sequence++) {
+        const id = `stale-${sequence}`;
+        await db.insert("pending_messages", {
+          ...source,
+          client_id: id,
+          delivery_id: id,
+          conversation_sequence: sequence,
+        });
+      }
+      await db.patch(f.head, { next_conversation_sequence: 68 });
+    });
+    const wire = await f.t.mutation(internal.edgeDelivery.next, {
+      ...f.fence,
+      v: 1,
+      bearer: f.bearer,
+    });
+    expect(wire).toMatchObject({
+      status: "permit",
+      intent: "queue",
+      seq: 66,
+      delivery_id: "delivery",
+    });
+    const rows = await f.rows();
+    expect(
+      rows.messages.filter((row) => row.delivery_status === "rejected"),
+    ).toHaveLength(64);
+    expect(rows.head?.next_nonterminal_sequence).toBe(65);
+
+    if (mode === "queue selection") return;
+    if (wire.status !== "permit") throw new Error("Expected queue permit");
+    const { delivery_id, attempt_id, seq, intent, sender } = wire;
+    const request = { delivery_id, attempt_id, seq, intent, sender };
+    expect(
+      await f.t.mutation(internal.edgeDelivery.start, {
+        ...f.fence,
+        v: 1,
+        bearer: f.bearer,
+        ...request,
+      }),
+    ).toMatchObject({ status: "started" });
+    const replacement = {
+      owner_device_id: machine,
+      daemon_boot_id: "replacement",
+      api_token: f.bearer,
+    };
+    await f.t.mutation(
+      api.executionBindings.registerExecutionDaemonBoot,
+      replacement,
+    );
+    expect(
+      await f.t.mutation(api.executionBindings.claimExecutionStart, {
+        ...replacement,
+        conversation_id: f.conversation,
+        epoch: 1,
+        configuration_revision: 1,
+        protocol_version: 1,
+        required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        proposed_operation_id: "operation",
+      }),
+    ).toMatchObject({ state: "ready" });
+
+    const recovered = await f.rows();
+    expect(recovered.head).toMatchObject({
+      next_nonterminal_sequence: 65,
+      active_delivery_attempt_id: attempt_id,
+      active_delivery_state: "ambiguous",
+    });
+    expect(recovered.attempts).toMatchObject([
+      {
+        _id: attempt_id,
+        daemon_boot_id: "replacement",
+        state: "ambiguous",
+      },
+    ]);
+    expect(recovered.messages[64]?.delivery_status).toBe("pending");
+  },
+);

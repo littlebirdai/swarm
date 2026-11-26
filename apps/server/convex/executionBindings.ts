@@ -2044,6 +2044,7 @@ export const resolveAmbiguousDelivery = mutation({
 export const abandonAmbiguousAndResend = mutation({
   args: {
     permit: permitValidator,
+    fencing_token: v.optional(v.string()),
     new_client_id: v.string(),
     resolution_evidence: v.string(),
     api_token: v.string(),
@@ -2058,6 +2059,7 @@ export const abandonAmbiguousAndResend = mutation({
       ),
       {
         ...permitFromWire(args.permit),
+        fencingToken: args.fencing_token,
         newClientId: args.new_client_id,
         resolutionEvidence: args.resolution_evidence,
         now: Date.now(),
