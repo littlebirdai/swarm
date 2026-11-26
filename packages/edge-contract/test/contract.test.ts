@@ -649,6 +649,7 @@ describe("permits and claims", () => {
       [deliverySettle.request, edge.parseDeliverySettleRequest],
       [renew.request, edge.parseRenewRequest],
       [release.request, edge.parseReleaseRequest],
+      [takeoverAck.request, edge.parseTakeoverAckRequest],
     ] as const;
     for (const [request, parse] of cases) {
       const { fencing_token: _token, ...withoutToken } = request;

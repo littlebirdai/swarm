@@ -91,6 +91,19 @@ test("turn start preserves a person or agent starter and accepts older events", 
       "invalid_value",
       `$.body.starter.${field}`,
     );
+  expectParseError(
+    edge.parseCanonicalEvent({
+      ...start,
+      body: { starter: { kind: "person", id: "sender-1", extra: 1 } },
+    }),
+    "unknown_field",
+    "$.body.starter.extra",
+  );
+  expectParseError(
+    edge.parseCanonicalEvent({ ...start, body: { starter: null } }),
+    "invalid_type",
+    "$.body.starter",
+  );
 });
 
 test("takeover acknowledgment identifies the exact fence and accepts duplicate and stale outcomes", () => {

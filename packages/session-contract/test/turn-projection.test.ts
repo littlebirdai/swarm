@@ -4,6 +4,8 @@ import { testFaker } from "@codecast/test-helpers/faker";
 import { sessionMachine } from "@codecast/session-contract";
 import {
   projectTurn,
+  TURN_PROJECTION_VERSION,
+  TURN_STARTER_PROJECTION_VERSION,
   type TurnProjection,
 } from "@codecast/session-contract/turn-projection";
 import { ready, scope, request } from "./fixtures";
@@ -209,6 +211,11 @@ test("settles concurrent prompts by ID and stays blocked until the last settleme
     id: "A",
     promptIds: [],
   });
+});
+
+test("rows without a starter keep version 1 and rows with a starter use version 2", () => {
+  expect(TURN_PROJECTION_VERSION).toBe(1);
+  expect(TURN_STARTER_PROJECTION_VERSION).toBe(2);
 });
 
 test("the accepted turn starter survives a persisted projection and clears with the turn", () => {
