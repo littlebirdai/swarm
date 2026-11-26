@@ -255,7 +255,7 @@ export function ProjectSwitcher({
   );
   const liveId = useInboxStore((s) => s.resolveLiveSessionId(conversation._id));
   const pickedDeviceId = isConvexId(liveId)
-    ? storeSession?.owner_device_id
+    ? (storeSession?.owner_device_id ?? storeSession?.target_device_id)
     : storeSession?.target_device_id;
   const isolatedToggle = useInboxStore((s) => s.isolatedWorktreeMode);
   // The composer's new project switch (NewSessionProjectToggle) words the question.

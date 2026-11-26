@@ -2,7 +2,7 @@ import {
   insertConversationWithStatus,
   patchConversationLifecycle,
 } from "./lib/sessionStatusWriter";
-import { internalMutation, mutation } from "./functions";
+import { internalMutation, mutation, type MutationCtx } from "./functions";
 import { requestDeployCore } from "./deploys";
 import { requestTargetDeployCore } from "./deployTargetRequest";
 import { noteWriteCause } from "./lifecycleEvents";
@@ -127,7 +127,11 @@ import {
 } from "./cleanup";
 import { closeSetsAsideOnServer } from "./lib/closeAside";
 import { isClosePatch } from "@codecast/inbox/closedSession";
-import { stampBrowserPaneOfferHandled, writeShareLink } from "./conversations";
+import {
+  reconfigureSessionCore,
+  stampBrowserPaneOfferHandled,
+  writeShareLink,
+} from "./conversations";
 import {
   performCancelPeerTransfer,
   performDismissPeerTransfer,
@@ -6098,13 +6102,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     [convId, command, extraArgs]: [string, string, Record<string, any>?],
   ) => {
     const fn = (SESSION_COMMANDS as Record<string, any>)[command];
-    if (!fn) throw new Error(`convCommand: unknown command ${command}`);
-    let result;
+    if (!fn && command !== "reconfigureSession")
+      throw new Error(`convCommand: unknown command ${command}`);
     try {
-      result = await (ctx as any).runMutation(fn, {
-        conversation_id: convId,
-        ...(extraArgs || {}),
-      });
+      const args = {
+        conversation_id: convId as Id<"conversations">,
+        ...extraArgs,
+      };
+      if (command !== "reconfigureSession")
+        return await ctx.runMutation(fn, args);
+      const result = await reconfigureSessionCore(ctx as MutationCtx, args);
+      if (result?.reconfigured === false) throw new ConvexError(result.reason);
+      return result ?? null;
     } catch (e: any) {
       if (e instanceof ConvexError) throw e;
       // Re-throw with routing context: the bare "Not authorized" from the
@@ -6113,9 +6122,6 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         `convCommand ${command} conv=${convId} user=${userId}: ${e?.message ?? e}`,
       );
     }
-    if (command === "reconfigureSession" && result?.reconfigured === false)
-      throw new ConvexError(result.reason);
-    return result;
   },
 };
 
@@ -6123,7 +6129,6 @@ const SESSION_COMMANDS = {
   killSession: api.conversations.killSession,
   restartSession: api.conversations.restartSession,
   repairSession: api.conversations.repairSession,
-  reconfigureSession: api.conversations.reconfigureSession,
   switchSessionAgent: api.conversations.switchSessionAgent,
   rewindSession: api.conversations.rewindSession,
   forkFromMessage: api.conversations.forkFromMessage,

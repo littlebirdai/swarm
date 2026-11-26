@@ -589,3 +589,67 @@ test("a repeated capture-length read schedules its read only once", async () => 
   expect(await actor.mutation(api.dispatch.dispatch, request)).toEqual(first);
   expect(await jobs()).toEqual(scheduled);
 });
+
+test("reconfigure dispatch returns the durable receipt for its conversation update", async () => {
+  const { t, actor, owner, outbox, conversation } = await setup();
+  await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "reconfigure dispatch");
+    await fixtures.device(owner, {
+      device_id: "laptop",
+      last_seen: Date.now(),
+    });
+    await fixtures.device(owner, {
+      device_id: "studio",
+      last_seen: Date.now(),
+    });
+    await db.patch(conversation, {
+      owner_device_id: "laptop",
+      project_path: "/old",
+    });
+  });
+
+  const args = [
+    conversation,
+    "reconfigureSession",
+    { target_device_id: "studio", project_path: "/new" },
+  ];
+  await expect(
+    actor.mutation(api.dispatch.dispatch, {
+      action: "convCommand",
+      args: [conversation, args[1], { project_path: 42 }],
+      ack_positions: true,
+      outbox,
+    }),
+  ).rejects.toThrow(/ArgumentValidationError|Validator error/);
+  const response = await actor.mutation(api.dispatch.dispatch, {
+    action: "convCommand",
+    args,
+    ack_positions: true,
+    outbox,
+  });
+  expect(response.result).toBeNull();
+  expect(response.__syncAckV1).toEqual([]);
+  expect(await t.run(({ db }) => db.get(conversation))).toMatchObject({
+    owner_device_id: "studio",
+    project_path: "/new",
+    git_root: "/new",
+  });
+  const receipt = response.__syncAckV2.find(
+    (row: { entity_type: string; entity_id: string }) =>
+      row.entity_type === "conversations" && row.entity_id === conversation,
+  );
+  expect(receipt).toBeDefined();
+  await t.mutation(internal.syncOutbox.drain, { id: receipt.id });
+  expect(
+    await actor.query(api.syncOutbox.getReceipts, {
+      receipts: [{ id: receipt.id, revision: receipt.revision }],
+    }),
+  ).toEqual([
+    {
+      id: receipt.id,
+      revision: receipt.revision,
+      scope_key: `user:${owner}`,
+      position: expect.any(Number),
+    },
+  ]);
+});
