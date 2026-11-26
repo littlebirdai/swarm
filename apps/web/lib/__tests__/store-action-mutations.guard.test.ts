@@ -163,6 +163,9 @@ describe("surfaces write through the store action that owns the write", () => {
       "moveSessionToDevice",
     );
     expect(owned.get("edgeRunLease.forceMove")).toContain("forceSessionMove");
+    expect(owned.get("permissions.answerPrompt")).toContain(
+      "answerFencedPrompt",
+    );
     expect(owned.size).toBeGreaterThan(30);
   });
 

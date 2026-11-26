@@ -659,6 +659,7 @@ import {
 import { createOpsSlice, type OpsSliceActions } from "./opsSlice";
 import {
   promptAnswerActions,
+  pruneSettledFencedPermissionAddresses,
   type FencedPromptAnswerActions,
 } from "./fenced-prompt-answer";
 import {
@@ -10949,6 +10950,7 @@ const STORE_SYNC_OPTS: Record<string, SyncOpts> = {
   // thread never prunes another's; altKey "client_id" rekeys an optimistic stub
   // onto its real server row (the stub carries client_id === its own stub id).
   comments: { isDelta: true, altKey: "client_id" },
+  pendingPermissions: { transform: pruneSettledFencedPermissionAddresses },
   // Team chat. Same delta rule as everything above — syncing one channel's page
   // never prunes another's, and a thread's replies survive a channel sync. See
   // store/chatSlice.ts for why these collections carry no pending protection.

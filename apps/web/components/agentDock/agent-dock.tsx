@@ -617,13 +617,14 @@ function DockCard({
         <div className="px-3 pb-3 pt-1.5">
           {entry.kind === "ask" ? (
             decision.isFencedQuestion ? (
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => agentDockOpen(`/conversation/${entry.id}`)}
-                className="w-full rounded-xl bg-sol-blue px-3 py-2 text-sm font-medium text-white"
+                className="w-full rounded-xl"
               >
                 Answer in conversation
-              </button>
+              </Button>
             ) : (
               !decision.isPermissionCard &&
               decision.canAnswerFreeText && (

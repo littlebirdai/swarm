@@ -502,7 +502,10 @@ export function PermissionStack({
     <>
       {settled.length > 0 && (
         <div role="status" className="px-2 py-1 text-meta text-sol-text-muted">
-          {settled.some((permission) => addressFor(permission)?.submitted)
+          {settled.some((permission) => {
+            const address = addressFor(permission);
+            return address?.submitted || address?.accepted;
+          })
             ? "Permission decision sent"
             : "Permission request closed"}
         </div>
@@ -557,6 +560,7 @@ export function PermissionStackView<PId extends string>({
   const modern = useIsModernStyle();
 
   if (pending.length === 0) return null;
+  const allInFlight = pending.every(({ _id }) => inflight.has(_id));
   // Modern: the loud ask card with 32px answers (CONV-20); the keys and the writes stay PermissionStack's.
   if (modern)
     return (
@@ -707,6 +711,7 @@ export function PermissionStackView<PId extends string>({
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
           <button
             onClick={onApproveAll}
+            disabled={allInFlight}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
             Approve all
@@ -725,6 +730,7 @@ export function PermissionStackView<PId extends string>({
           {allowAllReview}
           <button
             onClick={onDenyAll}
+            disabled={allInFlight}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-border/40 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors"
           >
             Deny all

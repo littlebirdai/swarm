@@ -25,7 +25,7 @@ export interface FencedPromptAnswerActions {
   ) => void;
 }
 
-type PromptDraft = Pick<InboxStoreState, "pending"> & {
+type PromptDraft = Pick<InboxStoreState, "pending" | "pendingPermissions"> & {
   fencedPromptAddresses: Record<string, FencedPromptAddress>;
 };
 
@@ -36,8 +36,25 @@ function clearAddressLocks(draft: PromptDraft, rowId: string) {
 
 function retireAddress(draft: PromptDraft, row: FencedPromptAddress) {
   clearAddressLocks(draft, row._id);
-  if (!row.accepted || row.kind === "permission")
-    delete draft.fencedPromptAddresses[row._id];
+  if (row.accepted && row.kind === "question") return;
+  if (
+    row.accepted &&
+    Object.values(draft.pendingPermissions).some(
+      (permission) =>
+        permission.status === "pending" &&
+        permission.conversation_id === row.conversation_id &&
+        permission.fenced_prompt_id === row.prompt_id &&
+        permission.fenced_prompt_turn_id === row.turn_id,
+    )
+  )
+    return;
+  delete draft.fencedPromptAddresses[row._id];
+}
+
+export function pruneSettledFencedPermissionAddresses(draft: PromptDraft) {
+  for (const row of Object.values(draft.fencedPromptAddresses))
+    if (row.kind === "permission" && row.accepted && row.feedAbsent)
+      retireAddress(draft, row);
 }
 
 type PermissionDraft = Pick<

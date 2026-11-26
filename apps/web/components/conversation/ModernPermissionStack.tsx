@@ -199,6 +199,7 @@ export function ModernPermissionStack<PId extends string>({
   }
 
   const sameTool = pending.every((p) => p.tool_name === pending[0].tool_name);
+  const allInFlight = pending.every(({ _id }) => inflight.has(_id));
   return (
     <ModernAskCard
       kicker={
@@ -272,11 +273,18 @@ export function ModernPermissionStack<PId extends string>({
           size="md"
           variant="primary"
           onClick={onApproveAll}
+          disabled={allInFlight}
         >
           Approve all
         </Button>
         {allowAll}
-        <Button type="button" size="md" variant="outline" onClick={onDenyAll}>
+        <Button
+          type="button"
+          size="md"
+          variant="outline"
+          onClick={onDenyAll}
+          disabled={allInFlight}
+        >
           Deny all
         </Button>
       </div>
