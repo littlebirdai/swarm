@@ -77,6 +77,12 @@ export type SendAdmission =
     };
 
 const queue = { delivery_intent: "queue" } as const;
+const staleTurn = () =>
+  new ConvexError({
+    code: "STALE_TURN",
+    message:
+      "The observed turn could not be verified. Send as queue to deliver after the current turn.",
+  });
 
 export async function admitFencedHumanSend(
   ctx: Pick<MutationCtx, "db">,
@@ -91,8 +97,10 @@ export async function admitFencedHumanSend(
       q.eq("conversation_id", conversationId),
     )
     .unique();
-  const run = head?.admission_epoch ?? head?.current_epoch;
-  if (run === undefined) return;
+  const admissionRun = head?.admission_epoch ?? head?.current_epoch;
+  const run = observed ? head?.current_epoch : admissionRun;
+  if (observed && observed.run !== run) throw staleTurn();
+  if (!head || run === undefined) return;
   const binding = await ctx.db
     .query("execution_bindings")
     .withIndex("by_conversation_epoch", (q) =>
@@ -122,7 +130,7 @@ export async function admitFencedHumanSend(
   const now = Date.now();
   const turn = projection?.open_turn;
   if (
-    run !== head?.current_epoch ||
+    admissionRun !== run ||
     binding.state !== "ready" ||
     projection?.status !== "active" ||
     projection.binding_id !== binding._id ||
@@ -131,16 +139,11 @@ export async function admitFencedHumanSend(
     lease.boot !== binding.daemon_boot_id ||
     lease.released_at !== undefined ||
     lease.expires_at <= now ||
-    observed.run !== run ||
     !turn?.starter ||
     observed.id !== turn.id ||
     observed.start_event_seq !== turn.start_event_seq
   )
-    throw new ConvexError({
-      code: "STALE_TURN",
-      message:
-        "The observed turn could not be verified. Send as queue to deliver after the current turn.",
-    });
+    throw staleTurn();
 
   const resource = { id: conversationId, kind: "steer" } as const;
   const current = await findClaim(ctx.db, resource);

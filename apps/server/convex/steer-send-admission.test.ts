@@ -172,6 +172,46 @@ test("the same turn id on another start event rejects without allocating a seque
   expect(await f.snapshot()).toEqual(before);
 });
 
+test.each(["requested", "ready"] as const)(
+  "a %s successor without baton capability cannot receive an observed steer",
+  async (state) => {
+    const f = await setup();
+    await f.t.run(async ({ db }) => {
+      const { _id, _creationTime, ...binding } = (await db.get(f.binding))!;
+      await db.insert("execution_bindings", {
+        ...binding,
+        epoch: 2,
+        state,
+        capabilities:
+          state === "ready" ? binding.required_capabilities : undefined,
+        claim_id: undefined,
+      });
+      await db.patch(f.head, { admission_epoch: 2, pending_epoch: 2 });
+    });
+    const before = await f.snapshot();
+    for (const observed_turn of [
+      turn,
+      { ...turn, id: "bogus", run: 99 },
+      { ...turn, run: 2 },
+    ]) {
+      await expect(f.send("successor", { observed_turn })).rejects.toThrow(
+        "STALE_TURN",
+      );
+    }
+    if (state === "ready") {
+      await f.t.run(({ db }) =>
+        db.patch(f.head, { current_epoch: 2, pending_epoch: undefined }),
+      );
+      await expect(f.send("old-epoch")).rejects.toThrow("STALE_TURN");
+    }
+    expect(await f.snapshot()).toEqual(before);
+    await f.send("queue-after-move", { observed_turn: null });
+    expect((await f.snapshot()).messages).toMatchObject([
+      { execution_epoch: 2, client_id: "queue-after-move" },
+    ]);
+  },
+);
+
 test("an expired run lease refuses a steer while leaving the receipt and inbox untouched", async () => {
   const f = await setup();
   const before = await f.snapshot();
