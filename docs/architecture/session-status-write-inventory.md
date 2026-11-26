@@ -44,7 +44,7 @@ The table gives the closest `@codecast/session-contract` fact for each writer. A
 | `sessionGoals.ts`         | `takeDownGoalPin`                           | Thread pin                                             | A goal action clears its pin.                                                                                                                                    | Gap. The thread pin is a projection input.                                                                                  |
 | `pendingMessages.ts`      | `enqueuePendingMessage`                     | Conversation status and thread pin                     | User input or a scheduler wake reopens a session. Human input can clear its pin.                                                                                 | `inbox.submitted` records input. Gap for a reopen without proof and for the pin clear.                                      |
 | `pendingMessageWrites.ts` | `reviveConversationOnDelivery`              | Conversation status                                    | Legacy and fenced delivery callers reopen the recipient.                                                                                                         | `run.successorAuthorized` with proof of predecessor disposition. Gap when delivery alone reopens the session.               |
-| `executionBindings.ts`    | `abandonAmbiguousAndResendInDb`             | Conversation status                                    | A person abandons an ambiguous delivery and sends it again.                                                                                                      | `inbox.abandoned` records the resend. Gap when the resend alone reopens the session.                                        |
+| [Status writer]           | `patchConversationLifecycle`                | Conversation status                                    | `abandonAmbiguousAndResendInDb` in `executionBindings.ts` reopens the session after inserting the replacement delivery.                                          | `inbox.abandoned` records the resend. Gap when the resend alone reopens the session.                                        |
 
 Dispatch can also send the thread pin through `favoriteViewWrites.ts` and `patchConversationThroughFavoriteView`.
 
@@ -117,7 +117,7 @@ These paths still write inbox stamps directly.
 - In `conversations.ts`, `createConversation` can stash an ingested fork through `daemonForkFields` and dismiss a plan-handoff parent. `dismissFromInbox` dismisses a row on request. `drainStaleDismiss` and `healHistoricalUpdatedAt` dismiss old rows. `linkSessions` and `adminLinkChildrenBySessionId` dismiss linked children. `adminUnlinkSession` clears that dismissal.
 - `lib/orgSessionFiling.ts` uses `applyFileSession` to dismiss a session filed as done.
 - `migrations.ts` uses `clearCopiedChildStashStamps` and `clearCopiedStashPage` to clear legacy stash stamps and flags copied to children. `debugTmp.ts` uses `unnestSelfParented` to clear dismissal on self-linked rows.
-- Delivery paths in `pendingMessages.ts`, `pendingMessageWrites.ts`, and `executionBindings.ts` clear inbox stamps when they reopen a session.
+- Delivery paths in `pendingMessages.ts` and `pendingMessageWrites.ts` clear inbox stamps when they reopen a session.
 
 ## Conversation replay gaps
 

@@ -27,6 +27,7 @@ import {
   type ReadyBindingFence,
 } from "./lib/delivery-slot.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import {
   EXECUTION_PROTOCOL_VERSION,
   EXECUTION_PROTOCOL_CAPABILITIES,
@@ -1045,7 +1046,7 @@ export async function abandonAmbiguousAndResendInDb(
   });
   // The same stash rule as the send it resends (enqueuePendingMessage): a hidden stash survives a machine wake and a quiet handover.
   const machineWake = message.origin === "scheduler";
-  await ctx.db.patch(fence.conversationId, {
+  await patchConversationLifecycle(ctx, fence.conversationId, {
     updated_at: fence.now,
     has_pending_messages: true,
     ...(conversation.status === "completed"
