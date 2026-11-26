@@ -1,5 +1,8 @@
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { TURN_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
+import {
+  TURN_PROJECTION_VERSION,
+  TURN_STARTER_PROJECTION_VERSION,
+} from "@codecast/session-contract/turn-projection";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import {
   activateEventRun,
@@ -71,7 +74,8 @@ export function isFreshTurnProjection(
     remainingLease(binding, lease, now) > 0 &&
     projection?.binding_id === binding._id &&
     projection.run === binding.epoch &&
-    projection.projection_version === TURN_PROJECTION_VERSION &&
+    (projection.projection_version === TURN_PROJECTION_VERSION ||
+      projection.projection_version === TURN_STARTER_PROJECTION_VERSION) &&
     projection.status === "active"
   );
 }
