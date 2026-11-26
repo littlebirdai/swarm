@@ -18,6 +18,7 @@
 # spawn that it is in force.
 [test]
 preload = [
+  "./src/test-helpers/agent-test-env.ts",
   "./src/test-helpers/spawnTrace.ts",
   "./src/test-helpers/isolatedTmuxServer.ts",
   "./src/test-helpers/sandboxHarnessLedger.ts",
