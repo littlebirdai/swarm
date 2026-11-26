@@ -1,99 +1,88 @@
 # Liveness on the relay
 
-Convex owns session liveness. The relay carries short-lived observations of contact with a machine. Clients can display fresh contact as soon as the relay delivers it. The Convex lease remains the record of whether the session is live or disconnected.
+Convex owns session status and the liveness lease. The relay carries short-lived observations of machine contact. A fresh observation can add a recent-contact indicator to a live row. The durable lease determines whether the row is live or disconnected.
 
-## Current code
+## Server lease
 
-| Part                                                                         | Current behavior                                                                                                                                                                                    |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Relay contract](../../packages/relay-contract/src/frames.ts)                | `presence` reports a person in a session. `session_liveness` reports machine contact for one run. `machine_liveness` reports contact for one machine.                                               |
-| [Relay service](../../apps/relay/README.md)                                  | The service accepts WebSockets at `/relay`. It verifies signed grants. It holds hub and connection state in memory.                                                                                 |
-| [Relay fan-out](../../packages/relay/src/connection.ts)                      | The relay checks the hub grant before it sends a signal. It stamps the signal with a connection ID and sequence number. A session liveness signal carries the identity of the machine that sent it. |
-| [Relay client](../../packages/relay-client/src/observations.ts)              | The client ignores an older sequence number on the same connection, hub, and signal type. It removes observations at expiry or when the connection closes.                                          |
-| [Web presence client](../../apps/web/components/relay-presence-provider.tsx) | The provider uses `VITE_RELAY_PRESENCE=1` and `VITE_RELAY_URL`. It pauses when the page is hidden or offline. It scopes the socket to the signed-in account.                                        |
-| [Convex grants](../../apps/server/convex/relayGrants.ts)                     | `relayGrants.mint` issues user grants for session hubs. It gives those users permission to publish `presence`. Grants last up to 60 seconds.                                                        |
+With `INBOX_LIVENESS_LEASES=1`, routine heartbeats update `session_heartbeats`. This table also holds the write fence that rejects delayed status writes. The single status writer updates `managed_sessions` on a lease transition or an actual status change.
 
-The relay uses a default signal lifetime of 15 seconds. The source and recipient grant deadlines can shorten that lifetime. The relay does not replay old signals to a new subscription. A reconnect needs a fresh observation. [Relay signal rules](../../packages/relay/src/signals.ts) · [Relay expiry tests](../../packages/relay/test/relay.test.ts).
+A scheduled check reads the latest heartbeat. If it is fresh, the check schedules the next check without a write to the inbox read set. If it is stale, the writer records expiry at 120 seconds after the last heartbeat. Scheduler delay can delay delivery of the transition. Each activation gets a new generation so a check from an earlier activation cannot renew it.
 
-The wire contract defines machine liveness signals. The current grant endpoint and web provider do not supply a machine publisher for inbox liveness. Edge `hello` negotiates a version and capabilities independently of the relay handshake. LIVE must connect these parts and check the current run before the client uses a signal. [Grant authorization](../../packages/relay-contract/src/authorization.ts) · [Edge routes](../../apps/server/convex/lib/edge/routes.ts).
+The inbox sends `LIVE_INBOX_LEASE_END` (`Number.MAX_SAFE_INTEGER`) in `liveness_lease_end` for a live lease. For an expired lease, it sends the expiry time. Clients fall back to `last_heartbeat` if the lease field is absent. The inbox gains independence from routine heartbeat writes. A separate [bounded liveness scan](https://github.com/littlebirdai/swarm/pull/129) exceeded its read budget, so it is outside this change.
 
-### Lease branch
+## Recovery before flag enablement
 
-The lease branch replaces the proposed BOUND dependency for this work. [PR #129](https://github.com/littlebirdai/swarm/pull/129) closed after the read budget proved too high. The lease branch keeps the inbox independent of routine heartbeat writes when its flag is on. It makes no claim about the cost of the full inbox scan. [Lease branch read-set test](https://github.com/littlebirdai/swarm/blob/e22b60774e8dd7e6c9270d3a6351939d61dd5999/apps/server/convex/inbox-heartbeat-read-set.test.ts).
+The personal and team inbox hooks use `useRecoveryPoll` with `INBOX_RECOVERY_STALE_MS` set to 15 seconds. A quiet subscription can pass that threshold while it is healthy. The polls then cause fresh list or liveness reads. These reads include `querySplitWhole` calls. [Personal inbox hook](../../apps/web/hooks/useSyncInboxSessions.ts) · [Team inbox hook](../../apps/web/hooks/useSyncTeamInboxSessions.ts) · [Recovery controller](../../apps/web/hooks/useRecoveryPoll.ts).
 
-With the flag on, the status writer stores routine heartbeat timestamps and the status write fence in `session_heartbeats`. It writes live or expired transitions to `managed_sessions`.
+Replace the time-since-last-payload test with recovery on disconnect, resume, or error. Wait until Convex is reachable. Delay the read by a random 0–15 seconds to spread requests when many clients recover together. Share a cap of one recovery read per 15 seconds per sync host across personal and team views. Combine triggers and cancel queued reads when the active scope changes. A quiet healthy subscription needs zero recovery reads.
 
-A scheduled check reads the heartbeat row. If the heartbeat is still fresh, the check schedules another check without a write to the inbox read set. Otherwise, the check records expiry at 120 seconds after the last stored heartbeat. Scheduler delay can delay that record. [Status writer on the lease branch](https://github.com/littlebirdai/swarm/blob/e22b60774e8dd7e6c9270d3a6351939d61dd5999/apps/server/convex/lib/sessionStatusWriter.ts).
+At cold boot, detect a cached live marker directly in `liveness_lease_end`. The marker has no usable clock deadline. A cache timestamp tells when the facts were current but cannot validate the marker now. Validate it once on boot through the same rate limit. Apply the check to both personal and team inbox rows. Resume and Convex reconnect must also validate the affected scopes.
 
-A live lease sends the stable `LIVE_INBOX_LEASE_END` marker in `liveness_lease_end`. An expired lease sends its expiry time. Clients can use `last_heartbeat` when the lease field is absent. [Shared projection on the lease branch](https://github.com/littlebirdai/swarm/blob/e22b60774e8dd7e6c9270d3a6351939d61dd5999/packages/inbox/src/inboxProjection.ts).
+Show **Unknown** if the only evidence of liveness is a cached marker or facts from an earlier run. Keep **Unknown** until the read succeeds. Keep an explicit stop visible.
 
-## Proposed data paths
+The current personal hold probes `sessionsLiveness`. Use the team liveness query until both scopes can use the new authorized inbox facts snapshot. After the overlay drops lease and status reads, use that snapshot for the probe and apply it through the durable feed. Release the hold only after fresh facts for the affected scope arrive. [Personal inbox hold and probe](../../apps/web/hooks/useSyncInboxSessions.ts).
 
-| Writer               | What it writes                                                                                            | When                                                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Machine              | A heartbeat to Convex. It also publishes `session_liveness` for the granted session and run on the relay. | Keep the Convex heartbeat path. Send a fresh relay observation after subscribe or reconnect. Renew the observation before its lifetime ends.                        |
-| Convex kernel        | The machine relay grant and its scope.                                                                    | Issue a short-lived grant after Edge `hello` confirms support. Check the machine and its current run when the kernel issues or renews the grant.                    |
-| Convex status writer | The heartbeat fence, lease transitions, and real status changes.                                          | Update the side row on a heartbeat. Publish the durable lease or status fact only when it changes. Check expiry against the last stored heartbeat.                  |
-| Relay                | In-memory copies of live signals for delivery to current subscribers.                                     | Validate the grant and fan out each accepted signal. Remove expired signals.                                                                                        |
-| Viewer               | A temporary observation for the display of recent contact.                                                | Accept a fresh signal only for a known session, current run, and expected machine. Remove the observation when the run changes or the relay client emits a removal. |
+## Machine contact
 
-The current grant names permissions for a hub. The signal carries the run number. Limit the proposed machine grant to the authorized hubs and signals. Check the run number again at the client.
+The Edge handshake negotiates relay support. Issue a signed grant only to the machine with the current fenced run. The run comes from `conversation_execution_heads.current_epoch`. The server uses `ownedRun()` to check ownership and the ready binding, then checks the run lease and its fence. An unfenced or hosted session uses Convex lease and status only. [Edge routes](../../apps/server/convex/lib/edge/routes.ts) · [Run ownership and lease](../../apps/server/convex/lib/edge/runLease.ts).
 
-A session liveness signal gives evidence of contact for the run that it names. Person presence reports a person. Baton heartbeats report contact from the baton holder. Relay signals have no effect on claims, delivery, status transitions, or the Convex lease.
+Limit each machine grant to `session_liveness` for its authorized session and run. Cap the grant lifetime at the run lease deadline.
 
-Use the relay lifetime in the received frame to expire a display observation. Do not copy the Convex heartbeat interval to the relay publisher. The 30-second flush in the plan exceeds the relay’s default signal lifetime. Measure the proposed relay interval and the number of subscribed hubs before rollout. [Heartbeat constants](../../packages/sessions/src/agentStatus.ts) · [Relay defaults](../../apps/relay/src/config.ts).
+Return the public relay WebSocket URL with the grant from server deployment configuration. Advertise support only when the server has a valid `wss:` URL and can sign a grant. The machine uses that URL to connect to `/relay`. Deploy the relay parser before machines use run-scoped grants. [Relay service](../../apps/relay/README.md) · [Grant contract](../../packages/relay-contract/src/authorization.ts).
 
-## Client rules
+The machine publisher uses an Effect runtime in `packages/edge-client`. Its relay handshake offers only `capabilities: ["session_liveness"]`, which excludes fan-out of viewer presence, cursors, and baton signals. Publish after the relay accepts the hub subscription and publish again after reconnect.
 
-The lease branch stores the lease on a managed session. The proposed snapshot and log must associate each lease with its current run. Clear the previous observation when that run changes.
+The current `@codecast/relay-client` offers a fixed capability list. It lacks a readiness hook and a queue for `session_liveness` before the subscription is ready. Add capability selection and readiness if the publisher reuses that client. `machine_liveness` is deferred. [Relay client](../../packages/relay-client/src/index.ts) · [Relay fan-out](../../packages/relay/src/connection.ts).
 
-| Convex lease                | Relay observation                     | What the client displays                                                                                        |
-| --------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Live for the current run    | Fresh and valid for the same run      | Live, with recent contact as soon as the signal arrives.                                                        |
-| Live for the current run    | Absent, expired, or relay unavailable | Live from Convex. Clear the recent-contact indication.                                                          |
-| Expired for the current run | Any                                   | Disconnected once the client clock reaches the recorded expiry time. A late signal cannot restore a live lease. |
-| Unknown for the current run | Any                                   | No confirmed liveness. Read the authorized lease facts before the client shows a verdict.                       |
+The relay stores signals in memory. A new subscriber needs a fresh signal. The default lifetime is 15 seconds, and grant deadlines can shorten it. Publish often enough to refresh the signal before it expires. `HEARTBEAT_FLUSH_INTERVAL_MS` is 30 seconds, so the Convex heartbeat cannot provide that cadence. [Relay defaults](../../apps/relay/src/config.ts) · [Heartbeat constants](../../packages/sessions/src/agentStatus.ts).
 
-Use the shared projection to derive status and placement from the lease and the other durable facts. An explicit stop still takes precedence. Relay loss does not make a session disconnected. A new client with a cached live marker needs a fresh lease read after reconnect or resume. [Shared live derivation](../../packages/inbox/src/inboxProjection.ts) · [Liveness hold in current code](../../apps/web/hooks/livenessHold.ts).
+The web presence provider mounts in every window. Run inbox-wide subscriptions on the sync host only. Start with up to 64 visible, eligible session hubs and leave room for ordinary presence.
 
-If the durable subscription also needs recovery, start one scoped Convex read after a random delay from 0 to 15 seconds. During the outage, use at most one such read per 15 seconds per sync host. Stop the poll when the durable subscription can supply current facts. These intervals come from the plan. The current relay provider does not implement this Convex poll. [Current inbox recovery](../../apps/web/hooks/useSyncInboxSessions.ts).
+The relay permits 256 hubs per connection, 16 grants per token, and by default 8 connections per subject. The viewer grant endpoint permits 120 mints per minute. Batch grants, budget refresh and reconnect requests with ordinary presence, and keep the combined load well below those limits. [Provider mount](../../apps/web/src/providers.tsx) · [Grant limits](../../packages/relay-contract/src/authorization.ts) · [Viewer grant rate](../../apps/server/convex/relayGrants.ts) · [Connection limits](../../apps/relay/src/config.ts).
 
-## Move the inbox off heartbeat reads
+The viewer accepts an observation only for the current run and expected machine. It removes the observation on a run change, signal expiry, or socket close. While the durable lease is live, show **Live** whether the relay is up or down. Show **Disconnected** at the durable expiry time. A relay observation cannot revive an expired lease or change status or placement. [Observation lifetime](../../packages/relay-client/src/observations.ts) · [Shared inbox projection](../../packages/inbox/src/inboxProjection.ts).
 
-Use one authorized snapshot for the sessions that the client holds. After that snapshot, use the authorized change log for lease and status transitions. Add these facts to the log before the client relies on them. Use the relay subscription for display observations.
+## Inbox contract and field ownership
 
-Cover the other registry facts before you remove the registry reads from the overlay. Examples include the change time of a status, turn completion, and open tasks. Keep the current child rollups and fast fields until their replacement supplies the same facts. Use a bounded batch of authorized session IDs in each recovery read.
+Add the current run epoch to the inbox row, snapshot, log payload, and overlay contract. Associate each fenced lease with that epoch. Use the same transaction that changes run ownership to invalidate the prior lease and publish the new epoch. A delayed heartbeat or expiry check for the old epoch cannot change the new lease. Clear the old relay observation at the same boundary. The new run starts with unknown liveness until the writer accepts its first valid heartbeat.
 
-Keep the inbox query for membership, order, and other row facts during this change. Remove the overlay’s lease and status reads after the new feed supplies equivalent facts. The base list and the liveness overlay use separate subscriptions today. The later INBOX change replaces the base subscription with a snapshot and the change log. [Inbox subscriptions](../../apps/web/hooks/useSyncInboxSessions.ts) · [Sync convergence](./sync-convergence.md).
+`managed_sessions` has no access key and does not publish to `sync_actions`. The status writer publishes lease and status transitions as facts on the linked `conversations` entity, in the same transaction as the durable write. Personal delivery uses the owner and explicit session owners' user scopes.
 
-Keep `INBOX_LIVENESS_LEASES` off by default. With the flag off, Convex keeps the legacy heartbeat writes for old web tabs and phone builds. Updated clients can read the lease field or fall back to `last_heartbeat`. Turn the flag on only when no client older than the lease-aware change is in use. If an older client needs access again, turn the server flag off.
+Today, conversation changes do not fan out to team scopes. Add team inbox delivery only for facts that all readers of that scope can see under the conversation visibility rules. Use authorized user scopes where access differs by viewer. Apply the same visibility and redaction rules to the snapshot and log.
 
-Use a separate flag for relay display. [Flag and compatibility tests on the lease branch](https://github.com/littlebirdai/swarm/blob/e22b60774e8dd7e6c9270d3a6351939d61dd5999/apps/server/convex/inbox-heartbeat-read-set.test.ts).
+Publish removals when a viewer loses access. Team routing alone does not grant access. [Conversation scope and range rules](../../apps/server/convex/syncLog.ts) · [Sync log access rules](./sync-log-cargo.md).
 
-## Measure the change
+Use a bounded snapshot of authorized session IDs. Apply log changes after its read position. The personal and team overlays own the fields listed in `INBOX_FACT_FIELDS` today. During comparison, read the new feed into a temporary copy for comparison only. Keep one writer per field in the session store.
 
-Use the stage-0 [socket and server baseline](./sync-measurements.md#socket-baseline). Record the same active sessions, batch size, sync hosts, scopes, and duration before and after the change. Include a personal view and a team view. Use a window with heartbeats and no status changes to isolate the cost.
+At cutover, establish the new snapshot position, move the relevant fields to the durable feed, and make the overlay appliers leave those fields alone. Keep child rollups and other overlay fields until their replacements supply equivalent facts. [Inbox field ownership](../../packages/inbox/src/inboxFields.ts).
 
-- Count Convex executions of `listInboxSessions`, `listTeamInboxSessions`, `sessionsLiveness`, and `teamSessionsLiveness` per routine heartbeat batch. Count any other subscribed inbox queries that the probe finds. Report explicit CLI reads separately.
-- Divide Convex inbox payload bytes by the number of routine heartbeat batches. Use `scripts/perf/ws-bytes.mjs` for bytes and Convex usage for executions. A query can execute without a new payload.
-- Report relay payload bytes that clients receive over the same interval. Report the number of observations. Also report the sum of Convex inbox bytes and relay bytes per heartbeat batch.
-- Record lease transition, grant refresh, and outage recovery costs in separate samples. Include server time, database reads, and IndexedDB writes.
+Keep `InboxProjection.set_digest` and `useInboxDigestCompare` on the same facts and projection time. Move the server digest to the durable facts snapshot or its companion response when the overlay drops lease and status reads. Pair the digest with the snapshot position.
 
-The acceptance limit is zero inbox query executions and zero Convex inbox payload bytes caused by routine heartbeats or renewals with the lease flag on. Compare the combined payload cost against stage 0 before the relay display flag goes on. The in-process read-set test proves disjoint reads and writes. It does not measure live socket bytes. The save-to-screen probe measures write-to-store latency separately. [Stage-0 probe](../../apps/web/scripts/sync-probe.ts).
+The comparer waits for that position, then uses the server's projection time. Point mismatch recovery to the authorized snapshot. Relay observations stay outside the digest. Keep the base list for membership and order until the later inbox snapshot and log change. [Digest comparison](../../apps/web/hooks/useInboxDigestCompare.ts) · [Sync convergence](./sync-convergence.md).
 
-## Proof before rollout
+## Measurement and rollout
 
-- Keep the [lease read-set tests](https://github.com/littlebirdai/swarm/blob/e22b60774e8dd7e6c9270d3a6351939d61dd5999/apps/server/convex/inbox-heartbeat-read-set.test.ts). They cover both flag modes, a late heartbeat, the expiry transition, and the stale status fence.
-- Extend the [relay clock tests](../../packages/relay/test/relay.test.ts). Use `TestClock` to check grant expiry, stale signals, bounded queues, and relay restart. Confirm that the relay drops signals that lack the required hub grant.
-- Extend the [relay client tests](../../packages/relay-client/test/client-recovery.test.ts) and [presence mount tests](../../apps/web/components/relay-presence-provider.mount.test.tsx). Cover a late join, a prior-run signal, a socket failure, and a fresh signal after reconnect.
-- Run the same heartbeat trace with the relay up and down. Both traces must write the same Convex status and lease facts. Check that a relay signal cannot revive an expired lease.
-- Compare the old and new inbox projection for the same snapshot, status changes, and expiry. Check personal, team, and named reads. Keep the [inbox projection tests](../../apps/server/convex/conversations.projection.test.ts).
-- Use a fake clock and random source for the outage poll. Prove the delay and rate cap. Capture the stage-0 comparison with the relay on and off.
+Use the [socket and server baseline](./sync-measurements.md#socket-baseline). Match active sessions, batch size, sync hosts, scopes, and duration before and after the change. Include personal and team views. Count routine heartbeat batches in a window without status transitions.
 
-## PR order
+| Measure per routine heartbeat batch | Method                                                                                                                                                                | Acceptance with lease writes enabled                                                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inbox query executions              | Use Convex usage for the personal and team list and liveness queries. Report explicit CLI reads separately.                                                           | Zero executions caused by routine heartbeats or renewals. Quiet healthy subscriptions cause zero recovery reads.                                       |
+| Inbox payload bytes                 | Use `scripts/perf/ws-bytes.mjs` for Convex. Extend `scripts/perf/ws-frame-meter.mjs` or pair it with a relay meter. The current frame meter ignores `/relay` sockets. | Zero Convex inbox bytes due to routine heartbeats or renewals. Compare combined Convex and relay bytes with the baseline before relay display rollout. |
+| Client IndexedDB writes             | Count committed inbox row puts and deletes at `writePatchesToIDB` in the collection writer. Let the write queue drain before the count ends.                          | Zero inbox cache writes due to routine heartbeats or renewals.                                                                                         |
 
-1. Merge the lease branch with its flag off. Keep the legacy timestamp for clients in use. Use this branch as the base for LIVE in place of BOUND.
-2. Add the Edge capability and machine grants on top of RELAY and HELLO. Prove that the owner and run checks work before the machine can publish a signal.
-3. Publish durable status and lease changes through the status writer and the authorized log. Add the scoped snapshot and recovery read. This part follows STATUS.
-4. Connect the display to the relay behind its own flag. Compare the feed with the inbox overlay. Remove the overlay’s lease and status reads after the comparison passes.
-5. Compare runs with stage 0. Enable each flag only after its own rollout checks pass. Do the INBOX snapshot and log change after LIVE.
+Report relay observations and bytes separately as well as in the combined count. Sample lease transitions, grant refresh, and recovery separately. Record server time, database reads, and IndexedDB writes for those samples.
+
+The read-set test proves that routine writes miss inbox documents. Use the socket meter for payload bytes. The save-to-screen probe measures a docs mutation. Use a session status mutation for a session latency probe. [IndexedDB write hook](../../apps/web/store/persistence/collection-writer.ts) · [Save-to-screen probe](../../apps/web/scripts/sync-probe.ts).
+
+Keep `INBOX_LIVENESS_LEASES` off by default. With the flag off, Convex keeps the heartbeat timestamps that old web and mobile clients require. Old daemons use the same heartbeat requests with the flag on. Enable it only after recovery passes and client version data shows that all active web and mobile clients understand leases. Turn it off if an older client must connect again. Use a separate flag for relay display.
+
+## Tests and PR order
+
+1. Ship the server lease and lease-aware readers with the flag off. Keep tests for both flag modes, expiry after the last beat, the stale status fence, and disjoint inbox reads and writes.
+2. Remove periodic polls for quiet subscriptions in both scopes. Check that a healthy subscription causes zero recovery reads. Use a fake clock and random source to check the delay and rate cap. Test cached boot, resume, reconnect, and failed reads in both scopes. Verify the lease flag against the socket baseline before enablement.
+3. Add the Edge capability and machine grants. Test wrong owners, unfenced and hosted sessions, stale epochs and fences, and grant expiry. Check that the relay drops signals outside the grant.
+4. Add the inbox epoch contract, authorized snapshot, and log delivery through the single status writer. Compare personal and team access, placements, digests, and leases across run changes. Switch the field owners and probe together after the feeds agree.
+5. Add the machine publisher and viewer display behind the relay flag. Use relay client tests for late join, socket failure, and reconnect. Put the prior-run rejection test in the viewer liveness mount, where the viewer knows the current run. Compare the Convex writes with the relay up and down. Confirm that relay contact cannot revive an expired lease. Measure bytes and writes before enablement.
+6. Replace the base inbox subscription with its snapshot and log after relay liveness works.
+
+Use the [relay clock tests](../../packages/relay/test/relay.test.ts), [relay client recovery tests](../../packages/relay-client/test/client-recovery.test.ts), and [inbox projection tests](../../apps/server/convex/conversations.projection.test.ts).
