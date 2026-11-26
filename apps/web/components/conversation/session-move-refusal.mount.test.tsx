@@ -100,6 +100,9 @@ test.each(["machine pick", "cloud toggle"] as const)(
       await act(async () => button(ui.container, "run in the cloud").click());
     }
     expect(
+      ui.container.querySelector('button[title^="Runs on Laptop."]'),
+    ).not.toBeNull();
+    expect(
       notices.events().map(({ event, kind, title }) => ({
         event,
         kind,
@@ -114,3 +117,52 @@ test.each(["machine pick", "cloud toggle"] as const)(
     ]);
   },
 );
+
+test("a machine pick stays with its conversation when the switcher is reused", async () => {
+  const rows = Array.from({ length: 2 }, () =>
+    builders.conversation.build({
+      owner_device_id: laptop.device_id,
+      project_path: path,
+      git_root: path,
+    }),
+  );
+  const switcher = (row: (typeof rows)[number]) => (
+    <ProjectSwitcher conversation={{ ...row, messages: [] }} />
+  );
+  const ui = await mountWeb(switcher(rows[0]), {
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable(
+        "sessions",
+        rows.map((row) =>
+          builders.session.build({
+            _id: row._id,
+            owner_device_id: laptop.device_id,
+            project_path: path,
+            git_root: path,
+          }),
+        ),
+      );
+      store.setMachineRoster([laptop, studio, cloud]);
+      backend.set(api.devices.listDevices, pending);
+      backend.set(api.users.getRecentProjectPaths, []);
+      backend.set(api.teamHosts.list, []);
+      backend.mutation(api.dispatch.dispatch, () => null);
+    },
+  });
+
+  const machine = (label: string) =>
+    ui.container.querySelector<HTMLButtonElement>(
+      `button[title^="Runs on ${label}."]`,
+    );
+  await act(async () => machine("Laptop")!.click());
+  await act(async () => button(ui.container, "Studio").click());
+  expect(machine("Studio")).not.toBeNull();
+
+  await ui.rerender(switcher(rows[1]));
+  expect(machine("Laptop")).not.toBeNull();
+  expect(machine("Studio")).toBeNull();
+
+  await ui.rerender(switcher(rows[0]));
+  expect(machine("Studio")).not.toBeNull();
+});

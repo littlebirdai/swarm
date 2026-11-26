@@ -21,6 +21,7 @@ import {
   isPermanentDispatchError as isPermanentDispatchErrorImpl,
   isParkedDispatchError as isParkedDispatchErrorImpl,
   DispatchNotWiredError as DispatchNotWiredErrorImpl,
+  type DispatchFn,
   type GroupPatchesContext,
   type MiddlewareOptions,
   type OutboxEntry,
@@ -30,6 +31,7 @@ import {
   type ViewGuardChange,
   type UndoConfig,
 } from "@platform/engine";
+import { withSessionReconfigureAcknowledgement } from "./session-reconfigure";
 import { noteFreshDoc } from "../lib/docSyncCache";
 import { routerNavigate } from "../lib/tabRoutes";
 import type { Patch } from "mutative";
@@ -97,10 +99,14 @@ export type DurableCreateContinuation =
 
 const SINGLETON_KEY = "_";
 
-// Everything the engine derives from the registry (dispatch table maps, the
-// protected-collection check) comes from the same CLIENT_SYNC_REGISTRY the
-// rest of the store wires from.
-const REGISTRY_MAPS = deriveRegistryMaps(CLIENT_SYNC_REGISTRY as any);
+const ACTION_REGISTRY = {
+  ...CLIENT_SYNC_REGISTRY,
+  sessionReconfigures: {
+    localFirst: true,
+    sync: { kind: "singleton" as const },
+  },
+};
+const REGISTRY_MAPS = deriveRegistryMaps(ACTION_REGISTRY as any);
 
 const GROUP_CTX: GroupPatchesContext = {
   tableMap: REGISTRY_MAPS.dispatchTableMap,
@@ -623,7 +629,7 @@ const UNDO_CONFIG: UndoConfig = {
 const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   dbName: "codecast",
   dbVersion: 0,
-  registry: CLIENT_SYNC_REGISTRY as any,
+  registry: ACTION_REGISTRY as any,
   syncRegistry: {},
   mustDeliverActions: MUST_DELIVER_ACTIONS,
   mustDeliverExtra: isForkCreateEntry,
@@ -653,8 +659,8 @@ export function mutativeMiddleware(
       registryMaps: REGISTRY_MAPS,
     },
   );
-  return (set: any, get: any, api: any) =>
-    middleware(
+  return (set: any, get: any, api: any) => {
+    const wrapped = middleware(
       (next: any, replace?: boolean) => {
         const previous = get();
         const value = typeof next === "function" ? next(previous) : next;
@@ -682,4 +688,15 @@ export function mutativeMiddleware(
       get,
       api,
     );
+    const setDispatch = wrapped._setDispatch;
+    wrapped._setDispatch = (
+      dispatch: DispatchFn | null,
+      options?: { owner?: object },
+    ) =>
+      setDispatch(
+        dispatch && withSessionReconfigureAcknowledgement(dispatch, get),
+        options,
+      );
+    return wrapped;
+  };
 }

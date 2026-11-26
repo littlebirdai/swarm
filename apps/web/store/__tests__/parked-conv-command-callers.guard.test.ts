@@ -34,9 +34,8 @@ describe("parked convCommand caller policy", () => {
       source("../../components/GlobalSessionPanel.tsx"),
     ]);
 
-    // Only a parked failure skips putting the old path back.
     expect(conversationView).toMatch(
-      /if \(isParkedDispatchError\(err\)\) return;\n(?:\s*\/\/[^\n]*\n)*\s*if \(prevPath\)/,
+      /if \(!isParkedDispatchError\(err\)\)\s*toastWriteError\(err, "Failed to switch project"\);/,
     );
     // The sessions page kills through the shared gesture (the store's kill
     // action and its undo), never a convCommand of its own.
