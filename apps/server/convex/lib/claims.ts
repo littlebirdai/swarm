@@ -57,7 +57,7 @@ type ClaimResult =
   | { status: "stale_request" | "pane_changed"; currentToken: number }
   | { status: "busy"; remainingMs: number };
 
-function findClaim(db: DatabaseReader, resource: ClaimKey) {
+export function findClaim(db: DatabaseReader, resource: ClaimKey) {
   return db
     .query("claims")
     .withIndex("by_conversation_kind", (q) =>
@@ -78,7 +78,7 @@ export async function readClaimToken(
 }
 
 export async function claim(
-  ctx: MutationCtx,
+  ctx: Pick<MutationCtx, "db">,
   input: CallerAuthorizedClaim,
 ): Promise<ClaimResult> {
   const row = await findClaim(ctx.db, input);

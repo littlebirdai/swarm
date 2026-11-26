@@ -1,4 +1,5 @@
 import type { Doc, Id } from "./_generated/dataModel";
+import type { SendAdmission } from "./lib/pending-message-enqueue";
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 
 type DbCtx = { db: any };
@@ -8,6 +9,7 @@ export type PendingMessageDeliveryAllocation = {
   deliveryId: string;
   conversationSequence: number;
   executionEpoch: number;
+  admission?: SendAdmission;
 };
 
 export type PendingMessageInsertFields = {
@@ -163,6 +165,7 @@ async function insertPendingMessageRow(
           conversation_sequence: delivery.conversationSequence,
           execution_epoch: delivery.executionEpoch,
           delivery_status: "pending" as const,
+          ...delivery.admission,
         }
       : {}),
     ...(resendOfDeliveryId !== undefined
