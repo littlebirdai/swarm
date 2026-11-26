@@ -233,14 +233,13 @@ export class CodexPilotDelivery {
         if (!released) return false;
       }
       if (!permit) return true;
-      if (!sendNew && permit.state === "new") return true;
       const turn = permit.intent === "queue" ? null : permit.expected?.turn;
       if (
         permit.state === "new" &&
-        !this.appendedReceipts.has(permit.delivery_id) &&
-        (turn === undefined || turn !== this.activeTurn)
+        (!sendNew || turn === undefined || turn !== this.activeTurn) &&
+        !(await this.hasReceipt(session, permit, signal))
       )
-        return false;
+        return !sendNew;
       const identity = permitIdentity(permit);
       const outcome = await coordinator.runDeliveryOperation({
         identity: {
@@ -277,6 +276,23 @@ export class CodexPilotDelivery {
     return false;
   }
 
+  private async hasReceipt(
+    session: OwnedSession,
+    permit: PilotPermit,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    if (this.appendedReceipts.has(permit.delivery_id)) return true;
+    const record = await this.receiptJournal?.find(
+      permit.session,
+      session.getCheckpoint(),
+      permit.delivery_id,
+      signal,
+    );
+    if (record && record.delivery_id !== permit.delivery_id)
+      throw new Error("Owned Codex receipt does not match the delivery");
+    return record !== undefined;
+  }
+
   private async sendDelivery(
     session: OwnedSession,
     permit: PilotPermit,
@@ -306,7 +322,7 @@ export class CodexPilotDelivery {
         },
       };
 
-    if (this.appendedReceipts.has(permit.delivery_id))
+    if (await this.hasReceipt(session, permit, signal))
       return { state: "delivered", externalDeliveryId: permit.delivery_id };
 
     const input: Array<SteerRequest["input"][number]> = [];
@@ -423,6 +439,8 @@ export class CodexPilotDelivery {
       );
       if (!record)
         throw new Error("Owned Codex receipt is absent from the journal");
+      if (record.delivery_id !== permit.delivery_id)
+        throw new Error("Owned Codex receipt does not match the delivery");
       request = {
         ...base,
         outcome: "applied",

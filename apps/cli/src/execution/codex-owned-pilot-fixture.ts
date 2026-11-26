@@ -141,6 +141,9 @@ export function fixture(
     directory,
   ] as const;
   let commandIndex = 0;
+  let resumedTurn: string | undefined;
+  let receiptReplay: Promise<void> | undefined;
+  let refuseBlobs = false;
   async function sendFrame(command: object) {
     const name = String(++commandIndex).padStart(6, "0");
     const barrier = `barrier:${name}`;
@@ -165,7 +168,9 @@ export function fixture(
           JSON.parse(line);
         return message;
       })
-      .filter(({ method }) => method === "turn/start");
+      .filter(
+        ({ method }) => method === "turn/start" || method === "turn/steer",
+      );
   }
   const actions: string[] = [];
   const logs: string[] = [];
@@ -212,7 +217,16 @@ export function fixture(
       {
         siteUrl: "https://pilot.invalid",
         bearer: "fixture-bearer",
-        command: () => (useReceiptPeer ? peerCommand : [appServer.executable]),
+        command: () =>
+          !useReceiptPeer
+            ? [appServer.executable]
+            : resumedTurn
+              ? [
+                  peerCommand[0],
+                  `FIXTURE_RESUME_TURN_ID=${resumedTurn}`,
+                  ...peerCommand.slice(1),
+                ]
+              : peerCommand,
         permissions: () => ({
           sandbox: "read-only",
           approvalPolicy: "on-request",
@@ -372,6 +386,7 @@ export function fixture(
           );
         }
         if (operation === "blobs.get") {
+          if (refuseBlobs) return new Response(null, { status: 404 });
           expect(body.fencing_token).toBe(lease);
           expect(body.attempt_id).toBe(queue[0]?.attempt_id);
           expect(body.blob_id).toBe("image");
@@ -401,6 +416,8 @@ export function fixture(
         }
         if (operation === "events.append") {
           const [batch] = body.batches;
+          if (lease === "renewed-lease" && batch.events[0].kind === "receipt")
+            await receiptReplay;
           expect(batch.fencing_token).toBe(lease);
           expect(batch.events[0].seq).toBe(lastSeq + 1);
           events.push(...batch.events);
@@ -475,8 +492,15 @@ export function fixture(
     rejectSettlements(value: boolean) {
       refuseSettlement = value;
     },
-    async restart() {
+    rejectBlobs() {
+      refuseBlobs = true;
+    },
+    pauseReceiptReplay(gate: Promise<void>) {
+      receiptReplay = gate;
+    },
+    async restart(activeTurn?: string) {
       await runtime.stop();
+      resumedTurn = activeTurn;
       const row = ledger.get("pilot:1")!;
       row[0] = { ...row[0], daemonBootId: "restarted-boot" };
       row[1] = { ...row[1]!, daemonBootId: row[0].daemonBootId };

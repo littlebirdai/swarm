@@ -80,6 +80,29 @@ function journalAt(directory: string): DeliveryReceiptJournal {
   };
 }
 
+it.effect("a lookup for another delivery's receipt fails before sending", () =>
+  Effect.gen(function* () {
+    const fake = fixture();
+    const provider = yield* adapter(fake, {
+      ...journalAt(fake.directory),
+      async find() {
+        return {
+          delivery_id: "different-delivery",
+          provider_item_id: "item",
+          turn,
+        };
+      },
+    });
+    const { session } = requireOpened(yield* provider.own(fake.spec));
+    expect(yield* session.steer(steer)).toMatchObject({
+      status: "in-doubt",
+      code: "receipt-mismatch",
+    });
+    expect(fake.observed()).toHaveLength(0);
+    yield* session.close;
+  }),
+);
+
 it.effect("an evicted receipt still deduplicates from the journal", () =>
   Effect.gen(function* () {
     const fake = fixture();

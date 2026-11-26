@@ -67,6 +67,11 @@ export const appServerReceipts = Effect.fn("app-server.receipts")(function* (
         ),
     });
     if (stored) {
+      if (stored.delivery_id !== deliveryId)
+        return yield* processError(
+          "receipt-mismatch",
+          "Stored receipt does not match the delivery",
+        );
       const receipt = { delivery_id: stored.delivery_id };
       remember(receipt);
       return receipt;

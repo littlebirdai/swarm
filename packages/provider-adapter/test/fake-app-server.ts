@@ -71,8 +71,13 @@ inbox.on("line", (line) => {
       writeFileSync(join(directory, "initialized"), "");
       return;
     case "thread/start":
-    case "thread/resume":
+    case "thread/resume": {
+      const resumeTurn =
+        method === "thread/resume"
+          ? process.env.FIXTURE_RESUME_TURN_ID
+          : undefined;
       if (method === "thread/resume") threadId = params.threadId;
+      if (resumeTurn) turnId = resumeTurn;
       writeFileSync(join(directory, "thread-request"), JSON.stringify(message));
       send({
         id,
@@ -81,13 +86,20 @@ inbox.on("line", (line) => {
             id: process.env.FIXTURE_WRONG_CHECKPOINT
               ? "wrong-thread"
               : threadId,
-            status: { type: process.env.FIXTURE_ACTIVE ? "active" : "idle" },
-            turns: [{ id: "historical-turn", status: "completed" }],
+            status: {
+              type:
+                resumeTurn || process.env.FIXTURE_ACTIVE ? "active" : "idle",
+            },
+            turns: [
+              { id: "historical-turn", status: "completed" },
+              ...(resumeTurn ? [{ id: resumeTurn, status: "inProgress" }] : []),
+            ],
           },
           sandbox: { type: "readOnly", networkAccess: false },
         },
       });
       return;
+    }
     case "turn/start": {
       record("steer", message);
       if (process.env.FIXTURE_START_ERROR) {
