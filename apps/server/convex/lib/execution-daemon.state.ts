@@ -1,4 +1,8 @@
 import {
+  authorizeMoveBinding,
+  type MoveBindingCredential,
+} from "./edge/device-move-transition.state";
+import {
   type DbCtx,
   requireOwnedConversation,
   executionHead,
@@ -72,7 +76,7 @@ export async function registerExecutionDaemonBootInDb(
 export async function claimExecutionStartInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: {
+  args: MoveBindingCredential & {
     conversationId: Id<"conversations">;
     epoch: number;
     ownerDeviceId: string;
@@ -91,12 +95,12 @@ export async function claimExecutionStartInDb(
   requireNonEmpty(args.ownerDeviceId, "ownerDeviceId");
   requireNonEmpty(args.daemonBootId, "daemonBootId");
   requireNonEmpty(args.proposedOperationId, "proposedOperationId");
-  const conversation = await requireOwnedConversation(
-    ctx,
-    args.conversationId,
-    userId,
-  );
-  const head = await executionHead(ctx, args.conversationId, "work");
+  const head = await executionHead(ctx, args.conversationId);
+  const move =
+    head && (await authorizeMoveBinding(ctx, head, userId, args, true));
+  const conversation =
+    move?.conversation ??
+    (await requireOwnedConversation(ctx, args.conversationId, userId));
   if (
     !head ||
     head.protocol_state !== "fenced" ||
@@ -119,7 +123,9 @@ export async function claimExecutionStartInDb(
       },
     };
   }
-  const binding = await executionBinding(ctx, args.conversationId, args.epoch);
+  const binding =
+    move?.binding ??
+    (await executionBinding(ctx, args.conversationId, args.epoch));
   if (!binding) {
     return {
       state: "rejected" as const,
@@ -130,7 +136,7 @@ export async function claimExecutionStartInDb(
     };
   }
   if (
-    conversation.owner_device_id !== args.ownerDeviceId ||
+    (!move && conversation.owner_device_id !== args.ownerDeviceId) ||
     binding.owner_device_id !== args.ownerDeviceId ||
     binding.configuration_revision !== args.configurationRevision ||
     binding.protocol_version !== args.protocolVersion ||
@@ -340,7 +346,7 @@ export async function claimExecutionStartInDb(
 export async function publishReadyBindingInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: {
+  args: MoveBindingCredential & {
     conversationId: Id<"conversations">;
     epoch: number;
     requestedAgent: AgentClientId;
@@ -357,7 +363,6 @@ export async function publishReadyBindingInDb(
     now: number;
   },
 ): Promise<{ accepted: boolean; binding?: any; reason?: string }> {
-  await requireOwnedConversation(ctx, args.conversationId, userId);
   requireSafePositive(args.epoch, "epoch");
   requireSafePositive(
     args.appliedConfigurationRevision,
@@ -379,8 +384,13 @@ export async function publishReadyBindingInDb(
       "actual agent must equal requested agent exactly",
     );
   }
-  const head = await executionHead(ctx, args.conversationId, "work");
-  const binding = await executionBinding(ctx, args.conversationId, args.epoch);
+  const head = await executionHead(ctx, args.conversationId);
+  const move =
+    head && (await authorizeMoveBinding(ctx, head, userId, args, false));
+  if (!move) await requireOwnedConversation(ctx, args.conversationId, userId);
+  const binding =
+    move?.binding ??
+    (await executionBinding(ctx, args.conversationId, args.epoch));
   if (
     !head ||
     !binding ||
@@ -447,7 +457,7 @@ export async function publishReadyBindingInDb(
 export async function publishStartOutcomeInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: {
+  args: MoveBindingCredential & {
     conversationId: Id<"conversations">;
     epoch: number;
     ownerDeviceId: string;
@@ -462,9 +472,13 @@ export async function publishStartOutcomeInDb(
     now: number;
   },
 ): Promise<{ accepted: boolean }> {
-  await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId, "work");
-  const binding = await executionBinding(ctx, args.conversationId, args.epoch);
+  const head = await executionHead(ctx, args.conversationId);
+  const move =
+    head && (await authorizeMoveBinding(ctx, head, userId, args, false));
+  if (!move) await requireOwnedConversation(ctx, args.conversationId, userId);
+  const binding =
+    move?.binding ??
+    (await executionBinding(ctx, args.conversationId, args.epoch));
   if (
     !head ||
     !binding ||
@@ -508,7 +522,7 @@ export async function publishStartOutcomeInDb(
 export async function disposePreReadyBindingInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: {
+  args: MoveBindingCredential & {
     conversationId: Id<"conversations">;
     epoch: number;
     expectedState:
@@ -527,9 +541,13 @@ export async function disposePreReadyBindingInDb(
   },
 ): Promise<{ state: "stopped" | "quarantined" | "start-ambiguous" }> {
   requireNonEmpty(args.evidence, "evidence");
-  await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId, "work");
-  const binding = await executionBinding(ctx, args.conversationId, args.epoch);
+  const head = await executionHead(ctx, args.conversationId);
+  const move =
+    head && (await authorizeMoveBinding(ctx, head, userId, args, false));
+  if (!move) await requireOwnedConversation(ctx, args.conversationId, userId);
+  const binding =
+    move?.binding ??
+    (await executionBinding(ctx, args.conversationId, args.epoch));
   if (
     !head ||
     !binding ||

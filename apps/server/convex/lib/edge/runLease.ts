@@ -18,7 +18,13 @@ const RUN_LEASE_VERSION = 1 as const;
 
 type Binding = Pick<
   Doc<"execution_bindings">,
-  "_id" | "claim_id" | "conversation_id" | "daemon_boot_id" | "epoch" | "state"
+  | "_id"
+  | "claim_id"
+  | "conversation_id"
+  | "daemon_boot_id"
+  | "epoch"
+  | "state"
+  | "requires_run_lease"
 >;
 type Address = { bearer: string; conversation_id: string };
 type Fence = Address & { run: number; fencing_token: string };
@@ -76,7 +82,12 @@ export async function assertActiveRunLease(
   now: number,
 ): Promise<void> {
   const claimId = binding?.state === "ready" ? binding.claim_id : undefined;
-  if (claimId === undefined && fencingToken === undefined) return;
+  if (
+    claimId === undefined &&
+    fencingToken === undefined &&
+    !binding?.requires_run_lease
+  )
+    return;
   const lease =
     binding && claimId !== undefined
       ? await loadRunLeaseClaim(ctx, binding.conversation_id, claimId)
@@ -165,6 +176,17 @@ export async function claimRunLease(
     return stale;
 
   const { binding, head } = owned;
+  if (binding.requires_run_lease) {
+    const registration = await ctx.db
+      .query("execution_daemon_boots")
+      .withIndex("by_user_device", (q) =>
+        q
+          .eq("user_id", binding.owner_user_id)
+          .eq("owner_device_id", binding.owner_device_id),
+      )
+      .unique();
+    if (registration && registration.daemon_boot_id !== args.boot) return stale;
+  }
   const now = Date.now();
   const requested = await loadRunLeaseClaim(
     ctx,

@@ -115,6 +115,7 @@ import {
   parseJointMessage,
 } from "@codecast/messages/jointMessage";
 import { quotesWaiting, stampQuotesSent } from "./quoteDrafts";
+import { pendingMessageMatchesProductIntent } from "./lib/pending-message-intent.rules";
 
 export {
   MESSAGES_VIEW_CONTRACT_ID,
@@ -138,42 +139,6 @@ export async function canSendProductMessage(
   return (
     access === "shared" &&
     (await hasGrantedSendAccess(ctx, conversation._id, userId))
-  );
-}
-
-function sameOptionalIds(
-  left: unknown[] | undefined,
-  right: unknown[] | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return left === right;
-  return (
-    left.length === right.length &&
-    left.every((value, index) => String(value) === String(right[index]))
-  );
-}
-
-/** Exact intent comparison before legacy client-id dedupe may be trusted. */
-export function pendingMessageMatchesProductIntent(
-  message: any,
-  conversation: any,
-  userId: Id<"users">,
-  intent: {
-    content: string;
-    imageStorageIds?: Id<"_storage">[];
-    clientId: string;
-  },
-): boolean {
-  return (
-    String(message.conversation_id) === String(conversation._id) &&
-    String(message.from_user_id) === String(userId) &&
-    String(message.owner_user_id) === String(conversation.user_id) &&
-    message.content === intent.content &&
-    message.client_id === intent.clientId &&
-    message.image_storage_id === undefined &&
-    sameOptionalIds(message.image_storage_ids, intent.imageStorageIds) &&
-    message.from_conversation_id === undefined &&
-    message.origin === undefined &&
-    message.resend_of_delivery_id === undefined
   );
 }
 
@@ -301,12 +266,11 @@ export async function patchPendingMessageStatus(
 
 // The owner of a pending message is whoever owns the target conversation — that's the daemon
 // responsible for delivering it. For a self-send owner == sender; for a team send they differ.
-// owner_user_id is denormalized onto the row (backfilled on legacy rows); fall back to the
-// conversation's user_id so an un-backfilled row still routes correctly.
 export function pendingMessageOwnerId(
   message: { owner_user_id?: Id<"users"> },
   runner: Id<"users">,
 ): Id<"users"> {
+  if (isFencedPendingMessage(message)) return runner;
   return message.owner_user_id ?? runner;
 }
 
@@ -1039,11 +1003,17 @@ export const sendMessageV2 = mutation({
         const existing = existingRows[0];
         if (
           existing &&
-          !pendingMessageMatchesProductIntent(existing, conversation, userId, {
-            content: args.content,
-            imageStorageIds,
-            clientId: args.client_id,
-          })
+          !(await pendingMessageMatchesProductIntent(
+            ctx,
+            existing,
+            conversation,
+            userId,
+            {
+              content: args.content,
+              imageStorageIds,
+              clientId: args.client_id,
+            },
+          ))
         ) {
           return {
             status: "rejected" as const,

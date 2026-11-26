@@ -8,6 +8,7 @@
 // so even a self-send (where from_conversation_id is null) still names its sender
 // via the `from` short_id — which is the join key we resolve back to a session.
 import { query } from "./functions";
+import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { resolveConversationRef } from "./conversations";
@@ -71,7 +72,7 @@ export const listSessionThreads = query({
     const me = await getAuthUserId(ctx as any);
     if (!me) return { links: [], nodes: [], generatedAt: Date.now() };
 
-    const limit = Math.min(Math.max(args.limit ?? 600, 1), 1500);
+    const limit = Math.floor(Math.min(Math.max(args.limit ?? 600, 1), 1500));
 
     // Two prefix scans (status left unbound → every status) unioned: rows I sent,
     // and rows owned by a session of mine. Self-sends land in both; dedupe by _id.
@@ -87,7 +88,7 @@ export const listSessionThreads = query({
     ]);
 
     const seen = new Set<string>();
-    const rows: any[] = [];
+    const rows: Doc<"pending_messages">[] = [];
     for (const r of [...bySender, ...byOwner]) {
       const key = r._id.toString();
       if (seen.has(key)) continue;
@@ -101,28 +102,14 @@ export const listSessionThreads = query({
     }
 
     rows.sort((a, b) => b.created_at - a.created_at);
-    const recent = rows.slice(0, limit);
-
-    // Resolve every session we'll reference, with the fewest reads: gather the
-    // explicit receiver / sender conversation ids, then resolve the remaining
-    // sender short_ids (self-sends carry no from_conversation_id) one lookup each.
-    const directIds = new Set<string>();
-    for (const r of recent) {
-      directIds.add(r.conversation_id.toString());
-      if (r.from_conversation_id)
-        directIds.add(r.from_conversation_id.toString());
+    const convCache = new Map<
+      Id<"conversations">,
+      Doc<"conversations"> | null
+    >();
+    async function resolveDirect(id: Id<"conversations">) {
+      if (!convCache.has(id)) convCache.set(id, await ctx.db.get(id));
+      return convCache.get(id);
     }
-
-    const convCache = new Map<string, any>();
-    await Promise.all(
-      [...directIds].map(async (id) => {
-        try {
-          convCache.set(id, await ctx.db.get(id as any));
-        } catch {
-          convCache.set(id, null);
-        }
-      }),
-    );
 
     // short_id → conversation, preferring a candidate owned by the message sender
     // (short_id is only a 7-char prefix and can collide across users).
@@ -189,16 +176,23 @@ export const listSessionThreads = query({
     }
 
     const links = [];
-    for (const r of recent) {
+    for (const r of rows) {
+      if (!(links.length < limit)) break;
+      const toConv = await resolveDirect(r.conversation_id);
+      if (
+        r.delivery_protocol_version !== undefined &&
+        r.from_user_id !== me &&
+        toConv?.user_id !== me
+      )
+        continue;
       const parsed = parseSessionThreadMessage(r.content);
-      const toConv = convCache.get(r.conversation_id.toString());
       const toId =
         addNode(toConv) ?? addGhost(r.conversation_id.toString().slice(0, 7));
 
       const fromUserId = r.from_user_id?.toString() ?? "";
       let fromId: string | null = null;
       if (r.from_conversation_id) {
-        fromId = addNode(convCache.get(r.from_conversation_id.toString()));
+        fromId = addNode(await resolveDirect(r.from_conversation_id));
       }
       if (!fromId && parsed?.from) {
         const senderConv = await resolveShort(parsed.from, fromUserId);

@@ -10,6 +10,7 @@ export type PendingMessageDeliveryAllocation = {
   conversationSequence: number;
   executionEpoch: number;
   admission?: SendAdmission;
+  moveOwnerUserId?: Id<"users">;
 };
 
 export type PendingMessageInsertFields = {
@@ -138,7 +139,7 @@ async function insertPendingMessageRow(
     conversation_id: fields.conversationId,
     kill_generation: conversation?.pending_kill_generation ?? 0,
     from_user_id: fields.fromUserId,
-    owner_user_id: fields.ownerUserId,
+    owner_user_id: delivery?.moveOwnerUserId ?? fields.ownerUserId,
     from_conversation_id: fields.fromConversationId,
     content: fields.content,
     image_storage_id: fields.imageStorageId,

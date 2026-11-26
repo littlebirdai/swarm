@@ -85,15 +85,20 @@ until the first two steps pass together.
    `publishStartFailedBeforeEffect`, `publishStartAmbiguous`, and
    `disposePreReadyBinding` against that row and move record.
 
-   For an offline source, require server proof that the host stopped or
-   that the runtime cannot act. Lease expiry alone gives no such proof.
-   If the server cannot prove quarantine, keep the move on hold.
+   The server can stage the successor and its queue before the source stops.
+   It holds destination startup and activation until an authenticated source
+   stop releases the exact recorded lease, or the source device confirms a
+   newly registered boot. An ordinary release or lease expiry keeps the move
+   on hold.
 
    Set `admission_epoch` to the successor for new messages during the move.
    Retarget the old `pending` rows in indexed batches of at most 100.
    Keep message IDs and sequence numbers. Pause admissions on abort.
    Retarget staged rows to the source before the server restores its
-   admission epoch. Require a new source lease after an abort.
+   admission epoch. Require a new source lease after an abort. Abort can
+   resume a source binding that has no confirmed stop, once the destination
+   has no live or uncertain runtime. A confirmed source stop requires a
+   separate recovery path before the source can run again.
 
    Activate only after the destination is ready and the old attempt has
    a terminal outcome. Transfer the head owner, conversation `user_id`,
@@ -108,6 +113,6 @@ until the first two steps pass together.
    cross-account readiness and cleanup, and a claim before or after start.
    Test each legacy writer with and without the execution protocol.
 
-Before you enable moves, choose the settlement window duration and the
-server evidence that proves quarantine. Define how to recover if the
-destination fails after preparation or after a partial retarget.
+Before you enable moves, choose the settlement window duration. Define how
+to recover a stopped source if the destination fails after preparation or
+after a partial retarget.

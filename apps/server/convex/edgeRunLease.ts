@@ -6,6 +6,14 @@ import {
   recordDeviceMove,
 } from "./lib/edge/device-move.state";
 import {
+  abortDeviceMove,
+  activateDeviceMove,
+  confirmMoveSourceBoot,
+  confirmMoveSourceStopped,
+  prepareDeviceMove,
+  retargetDeviceMove,
+} from "./lib/edge/device-move-transition.state";
+import {
   appendClaimedEvents,
   claimRunLease,
   releaseRunLease,
@@ -43,11 +51,11 @@ export const recordMove = internalMutation({
     destination_device_id: v.string(),
     destination_runner_id: v.id("users"),
   },
-  handler: async (ctx, args): Promise<void> => {
+  handler: async (ctx, args): Promise<string> => {
     const now = Date.now();
     const recorded = await recordDeviceMove(ctx, args, now);
-    if (!recorded || recorded.expiresAt === null) return;
-    const { headId, sourceEpoch, expiresAt } = recorded;
+    const { moveId, headId, sourceEpoch, expiresAt } = recorded;
+    if (expiresAt === null) return moveId;
     if (expiresAt <= now) {
       await expireMoveSettlement(ctx, headId, sourceEpoch, now);
     } else {
@@ -56,6 +64,7 @@ export const recordMove = internalMutation({
         source_epoch: sourceEpoch,
       });
     }
+    return moveId;
   },
 });
 
@@ -66,6 +75,52 @@ export const expireMove = internalMutation({
   },
   handler: (ctx, args) =>
     expireMoveSettlement(ctx, args.head_id, args.source_epoch, Date.now()),
+});
+
+const moveAddress = {
+  conversation_id: v.id("conversations"),
+  move_id: v.string(),
+  bearer: v.string(),
+};
+
+export const prepareMove = internalMutation({
+  args: { ...moveAddress, daemon_boot_id: v.string() },
+  handler: (ctx, args) => prepareDeviceMove(ctx, args, Date.now()),
+});
+
+export const confirmMoveSourceStop = internalMutation({
+  args: {
+    ...moveAddress,
+    daemon_boot_id: v.string(),
+    runtime_id: v.string(),
+    fencing_token: v.string(),
+  },
+  handler: (ctx, args) => confirmMoveSourceStopped(ctx, args, Date.now()),
+});
+
+export const confirmMoveSourceReplacementBoot = internalMutation({
+  args: { ...moveAddress, daemon_boot_id: v.string() },
+  handler: (ctx, args) => confirmMoveSourceBoot(ctx, args, Date.now()),
+});
+
+export const retargetMove = internalMutation({
+  args: moveAddress,
+  handler: (ctx, args) => retargetDeviceMove(ctx, args, Date.now()),
+});
+
+export const abortMove = internalMutation({
+  args: moveAddress,
+  handler: (ctx, args) => abortDeviceMove(ctx, args, Date.now()),
+});
+
+export const activateMove = internalMutation({
+  args: {
+    ...moveAddress,
+    daemon_boot_id: v.string(),
+    runtime_id: v.string(),
+    operation_id: v.string(),
+  },
+  handler: (ctx, args) => activateDeviceMove(ctx, args, Date.now()),
 });
 
 export const prune = internalMutation({
