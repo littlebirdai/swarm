@@ -22,7 +22,11 @@ import {
   setSessionOwnerRows,
   syncPrimaryOwnerCache,
 } from "./sessionOwners";
-import { patchTask, refreshArmedTriggerKind } from "./lib/agentTaskRows";
+import {
+  handRoleTriggersToRunner,
+  patchTask,
+  refreshArmedTriggerKind,
+} from "./lib/agentTaskRows";
 import { recalcPlanProgress } from "./tasks";
 import { setTaskStatus } from "./orgInit";
 import { outsideKeptArea, scopeIds } from "./lib/orgScope";
@@ -954,7 +958,10 @@ export async function performUndo(
       },
     );
   }
-  for (const home of triggerHomes) await refreshArmedTriggerKind(ctx, home);
+  for (const home of triggerHomes) {
+    await refreshArmedTriggerKind(ctx, home);
+    if (!redo) await handRoleTriggersToRunner(ctx, home);
+  }
   const batch = openBatchId(ctx)!;
   for (const id of new Set(plan.steps.map((s) => s.row.batch)))
     await ctx.db.patch(id, {

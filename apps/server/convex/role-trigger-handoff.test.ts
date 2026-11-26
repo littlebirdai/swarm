@@ -6,7 +6,7 @@ import {
   serverTest,
   type ServerTest,
 } from "../test-helpers/database.testkit";
-import { seedSeat } from "../test-helpers/role-trigger.testkit";
+import { seedSeat, undoRetirement } from "../test-helpers/role-trigger.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import type { FunctionArgs } from "convex/server";
 import { api, internal } from "./_generated/api";
@@ -614,22 +614,6 @@ test("the cancellation projection follows a kept trigger edited after its page",
   });
 });
 
-async function undoRetirement(
-  t: ServerTest,
-  owner: Id<"users">,
-  role: Id<"org_roles">,
-) {
-  const batch = await t.run(async ({ db }) => {
-    const change = await db
-      .query("org_changes")
-      .withIndex("by_subject", (q) => q.eq("subject.id", role))
-      .first();
-    return change!.batch;
-  });
-  await asUser(t, owner).mutation(api.orgChanges.undo, { batch });
-  expect((await t.run(({ db }) => db.get(role)))?.status).toBe("active");
-}
-
 test("retire after undo replaces the pending keep cancellation", async () => {
   const t = serverTest({});
   const { seat, role, oldRunner, moved, personal } = await seedSeat(t, 500);
@@ -757,5 +741,43 @@ test("two keep retirements on one seat both drain and repair its armed kind", as
     expect((await db.get(personal))?.status).toBe("scheduled");
     expect(await db.get(seat)).toMatchObject({ armed_trigger_kind: "once" });
     expect((await db.get(seat))?.inbox_killed_at).toBeUndefined();
+  });
+});
+
+test("undo before page one repairs the kind after a claim already moved the last trigger", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved } = await seedSeat(t, 150);
+  const due = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [due]);
+  await t.run(async ({ db }) => {
+    for (const id of moved.slice(0, -1))
+      await db.patch(id, { user_id: runner });
+    await db.patch(seat, { armed_trigger_kind: "none" });
+  });
+  expect(await claim(due)).toBeNull();
+  expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+  expect((await t.run(({ db }) => db.get(due)))?.user_id).toBe(runner);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "standing",
+  );
+});
+
+test("handoff ignores cancellation keys for other seats inside the index range", async () => {
+  const t = serverTest({});
+  const { seat, runner, moved } = await seedSeat(t, 1);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("system_config", {
+      key: `role-trigger-cancellation:${seat}0`,
+      value: "",
+      updated_at: 1,
+    });
+    await handRoleTriggersToRunner(ctx, seat);
+    expect((await ctx.db.get(moved[0]))?.user_id).toBe(runner);
   });
 });

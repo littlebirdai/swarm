@@ -1,5 +1,7 @@
-import type { Doc } from "../convex/_generated/dataModel";
-import type { ServerTest } from "./database.testkit";
+import { expect } from "bun:test";
+import { api } from "../convex/_generated/api";
+import type { Doc, Id } from "../convex/_generated/dataModel";
+import { asUser, type ServerTest } from "./database.testkit";
 import { fixtureRows } from "./rows.testkit";
 
 export async function seedSeat(
@@ -82,4 +84,20 @@ export async function seedSeat(
       otherSeat,
     };
   });
+}
+
+export async function undoRetirement(
+  t: ServerTest,
+  owner: Id<"users">,
+  role: Id<"org_roles">,
+) {
+  const batch = await t.run(async ({ db }) => {
+    const change = await db
+      .query("org_changes")
+      .withIndex("by_subject", (q) => q.eq("subject.id", role))
+      .first();
+    return change!.batch;
+  });
+  await asUser(t, owner).mutation(api.orgChanges.undo, { batch });
+  expect((await t.run(({ db }) => db.get(role)))?.status).toBe("active");
 }

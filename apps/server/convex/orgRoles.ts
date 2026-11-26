@@ -1489,7 +1489,7 @@ export const continueRoleTriggerCancellation = internalMutation({
     const role = await ctx.db.get(state.role);
     if (role?.status !== "retired") {
       await ctx.db.delete(sweep._id);
-      await handRoleTriggersToRunner(ctx, conversationId);
+      await handRoleTriggersToRunner(ctx, conversationId, true);
       return;
     }
     const page = await triggerPage(ctx.db, conversationId, args.cursor);

@@ -396,6 +396,7 @@ async function* activeCancellations(
     .query("system_config")
     .withIndex("by_key", (q) => q.gte("key", key).lt("key", `${key};`));
   for await (const row of rows) {
+    if (row.key !== key && !row.key.startsWith(`${key}:`)) continue;
     const state = readSweep(row);
     if (
       "role" in state &&
