@@ -76,7 +76,7 @@ import { useTheme } from "../ThemeProvider";
 import { Avatar } from "../tasks/TaskCommentStream";
 import { RoleFace } from "../org/RoleFace";
 import { ORG_STATE_META } from "../org/orgMeta";
-import { CardNode, useMapLevel, type CardData } from "./MapCard";
+import { CardNode, useMapLevel, type CardData } from "./map-card";
 import { MoveConfirm } from "../org/useOrgMoves";
 import type { OrgReparentRequest } from "../org/OrgGraph";
 import type { OrgTree } from "../org/orgTypes";

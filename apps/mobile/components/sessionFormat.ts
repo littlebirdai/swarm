@@ -1,5 +1,5 @@
 // Pure helpers for naming and colouring a session row, shared by the inbox,
-// search and the long-press sheet. SessionItem.tsx re-exports them.
+// search and the long-press sheet. session-item.tsx re-exports them.
 import { Theme } from "@/constants/Theme";
 import { agentStatusAt } from "@codecast/web/lib/liveness";
 import {
@@ -8,7 +8,7 @@ import {
 } from "@codecast/agent-clients/agentClients";
 import { MOBILE_AGENT_TINT } from "@codecast/render/mobileSessionStyle";
 import { conversationTitle } from "@codecast/web/components/simple/lane";
-import type { SessionData } from "@/components/SessionItem";
+import type { SessionData } from "@/components/session-item";
 
 export function formatRelativeTime(timestamp: number): string {
   const now = Date.now();

@@ -10,7 +10,7 @@ import { MarkdownContent } from "@/components/MarkdownRenderer";
 import { FadeGradient } from "@/components/CollapsibleBody";
 import { AgentLogoSvg } from "@/components/AgentLogo";
 import { ChatAvatar } from "@/components/chat/MessageRow";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import { MobileAgentSpeaker } from "@/components/identity";
 import type { IdentityRow } from "@codecast/web/lib/sessionIdentity";
 import { CHROME_FONT_CAP, themedStyles, useTheme } from "@/constants/Theme";

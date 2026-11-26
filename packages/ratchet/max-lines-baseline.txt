@@ -213,7 +213,7 @@ apps/mobile/app/task/[id].tsx 1050
 apps/mobile/app/trigger/[id].tsx 850
 apps/mobile/components/AssignmentChip.tsx 850
 apps/mobile/components/MarkdownRenderer.tsx 1600
-apps/mobile/components/SessionItem.tsx 1000
+apps/mobile/components/session-item.tsx 1000
 apps/mobile/components/chat/MessageRow.tsx 900
 apps/mobile/components/search/SearchResults.tsx 850
 apps/mobile/components/session/FlowCard.tsx 1100
@@ -711,7 +711,7 @@ apps/web/store/__tests__/capabilities.test.ts 1150
 apps/web/store/__tests__/chatSlice.test.ts 1550
 apps/web/store/__tests__/gestureBridge.test.ts 2350
 apps/web/store/__tests__/inboxDigestCompare.test.ts 1050
-apps/web/store/__tests__/inboxLifecycle.model.test.ts 850
+apps/web/store/__tests__/inbox-lifecycle.model.test.ts 850
 apps/web/store/__tests__/inboxSimHarness.ts 1350
 apps/web/store/__tests__/inbox-store.test.ts 6850
 apps/web/store/__tests__/orgSlice.intents.test.ts 1450
@@ -727,7 +727,7 @@ apps/web/store/chatSlice.ts 2050
 apps/web/store/clientSyncRegistry.ts 2900
 apps/web/store/idb-cache.native.ts 1200
 apps/web/store/inboxDigestCompare.ts 850
-apps/web/store/inboxStore.ts 22550
+apps/web/store/inboxStore.ts 22500
 apps/web/store/orgSlice.ts 2550
 apps/web/store/strandedStub.test.ts 1150
 apps/web/store/undo/policies/work.ts 1500
@@ -765,7 +765,7 @@ packages/goals/src/metricStanding.ts 1300
 packages/goals/test/initiativeRecord.test.ts 900
 packages/goals/test/metricStanding.test.ts 1100
 packages/inbox/src/inboxProjection.ts 1900
-packages/inbox/test/inboxProjection.test.ts 1700
+packages/inbox/test/inbox-projection.test.ts 1700
 packages/ingest/src/ingest.ts 1100
 packages/judges/test/judges.test.ts 1050
 packages/keyboard/src/shortcutCatalog.ts 1550

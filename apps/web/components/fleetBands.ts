@@ -1,4 +1,4 @@
-// Pure band logic for the fleet board (FleetBoard.tsx): which band a session
+// Pure band logic for the fleet board (fleet-board.tsx): which band a session
 // tile lands in, the one metadata line it shows, and the running progress cue.
 // Extracted so the classification stays unit-testable under `bun test` without
 // React/DOM, mirroring workingStatus.ts.

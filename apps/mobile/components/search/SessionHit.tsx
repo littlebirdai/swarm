@@ -21,7 +21,7 @@ import {
   formatRelativeTime,
   projectName,
   styles as sessionStyles,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 import { CHROME_FONT_CAP, themedStyles, useTheme } from "@/constants/Theme";
 import { HighlightText } from "./highlight";
 import { MessageSnippet, SpeakerLine } from "./MessageSnippet";

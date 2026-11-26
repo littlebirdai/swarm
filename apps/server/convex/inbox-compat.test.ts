@@ -247,6 +247,7 @@ describe("un-flagged listInboxSessions payload — golden shape", () => {
       "last_role_is_user",
       "last_turn_origin",
       "last_user_message",
+      "liveness_lease_end",
       "local_mirror",
       "loop_state",
       "merge_back",

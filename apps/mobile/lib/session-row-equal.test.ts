@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { LIVE_INBOX_LEASE_END } from "@codecast/inbox/inboxProjection";
+import { liveFactsOf } from "@codecast/web/lib/liveness";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sessionRowPropsEqual, sessionRowRenderEqual } from "./sessionRowEqual";
+import {
+  sessionRowPropsEqual,
+  sessionRowRenderEqual,
+} from "./session-row-equal";
 
 const NOW = 1_800_000_000_000;
 const row = (over: Record<string, unknown> = {}) => ({
@@ -41,6 +46,24 @@ describe("sessionRowRenderEqual", () => {
       updated_at: NOW - 3_600_000,
     });
     expect(sessionRowRenderEqual(stale, fresh, NOW)).toBe(false);
+  });
+
+  it("trusts the current lease and re-renders when it expires", () => {
+    const baseline = row({
+      last_heartbeat: NOW - 3_600_000,
+      updated_at: NOW - 3_600_000,
+      liveness_lease_end: LIVE_INBOX_LEASE_END,
+    });
+    const expired = { ...baseline, liveness_lease_end: NOW };
+    expect(liveFactsOf(baseline).liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
+    expect(sessionRowRenderEqual(baseline, expired, NOW)).toBe(false);
+    expect(
+      sessionRowRenderEqual(
+        baseline,
+        { ...baseline, liveness_lease_end: NOW + 10_000 },
+        NOW,
+      ),
+    ).toBe(true);
   });
 
   it("sees every drawn field", () => {
@@ -86,7 +109,7 @@ describe("sessionRowPropsEqual", () => {
 describe("session rows hold still", () => {
   it("no row component pulses", () => {
     const src = readFileSync(
-      join(import.meta.dir, "../components/SessionItem.tsx"),
+      join(import.meta.dir, "../components/session-item.tsx"),
       "utf8",
     );
     const pulse = src.indexOf("export function PulsingDot");

@@ -1,4 +1,5 @@
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import { api } from "./_generated/api";
 import {
   asUser,
@@ -6,6 +7,18 @@ import {
   serverTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
+
+let originalLeaseFlag: string | undefined;
+
+beforeEach(() => {
+  originalLeaseFlag = process.env.INBOX_LIVENESS_LEASES;
+  process.env.INBOX_LIVENESS_LEASES = "1";
+});
+
+afterEach(() => {
+  if (originalLeaseFlag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
+  else process.env.INBOX_LIVENESS_LEASES = originalLeaseFlag;
+});
 
 type Counts = readonly [
   documentsRead: number,
@@ -23,8 +36,8 @@ const cases = [
     sideRow: true,
     updated: 1,
     settles: false,
-    single: [5, 1326, 1, 326, 4],
-    batch: [4, 1079, 1, 326, 3],
+    single: [5, 1219, 1, 211, 4],
+    batch: [4, 972, 1, 211, 3],
   },
   {
     name: "settled",
@@ -33,8 +46,8 @@ const cases = [
     sideRow: true,
     updated: 0,
     settles: false,
-    single: [4, 997, 0, 0, 4],
-    batch: [3, 750, 0, 0, 3],
+    single: [4, 1036, 0, 0, 4],
+    batch: [3, 789, 0, 0, 3],
   },
   {
     name: "missing side row",
@@ -43,8 +56,8 @@ const cases = [
     sideRow: false,
     updated: 0,
     settles: false,
-    single: [3, 817, 1, 180, 4],
-    batch: [2, 570, 1, 180, 3],
+    single: [3, 856, 1, 180, 4],
+    batch: [2, 609, 1, 180, 3],
   },
   {
     name: "missing managed row",
@@ -63,8 +76,8 @@ const cases = [
     sideRow: true,
     updated: 1,
     settles: true,
-    single: [7, 1753, 2, 503, 7],
-    batch: [6, 1506, 2, 503, 6],
+    single: [7, 1831, 2, 573, 7],
+    batch: [6, 1584, 2, 573, 6],
   },
 ] as const satisfies ReadonlyArray<{
   name: string;
@@ -80,7 +93,7 @@ const cases = [
 for (const entry of ["single", "batch"] as const) {
   for (const scenario of cases) {
     const { name, before, after, sideRow, updated, settles } = scenario;
-    test(`${entry} heartbeat, ${name}, matches the legacy transaction trace`, async () => {
+    test(`${entry} heartbeat, ${name}, stays within the transaction budget`, async () => {
       const t = serverTest(true);
       const at = Date.now();
       const sessionId = "heartbeat-trace";
@@ -101,6 +114,10 @@ for (const entry of ["single", "batch"] as const) {
             agent_status: before,
             agent_status_updated_at: at - 1000,
             agent_status_write_at: at - 1000,
+            liveness_lease: {
+              end: at - 1000 + HEARTBEAT_ALIVE_MS,
+              expired: false,
+            },
           });
           if (sideRow)
             await ctx.db.insert("session_heartbeats", {

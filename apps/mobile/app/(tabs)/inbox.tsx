@@ -34,7 +34,7 @@ import {
   InboxRowEnvProvider,
   sessionTitle,
   projectColor,
-} from "@/components/SessionItem";
+} from "@/components/session-item";
 import {
   useInboxStore,
   type InboxSession,
@@ -223,7 +223,7 @@ export function InboxView({
   // load: splash stays up until this is true, and the list then paints from
   // disk even if the live subscription hasn't connected yet.
   const sessionsFirstLoad = useInboxStore((s) => s.liveLoading.sessions);
-  // Liveness held after a launch, a wake or a reconnect (web livenessHold.ts):
+  // Liveness held after a launch, a wake or a reconnect (web liveness-hold.ts):
   // rows show as they last were until a fresh read lands, and this dot says so.
   const catchingUp = useInboxStore((s) => s.livenessHeldAt != null);
   const hydrated = useInboxStore((s) => s.clientStateInitialized);

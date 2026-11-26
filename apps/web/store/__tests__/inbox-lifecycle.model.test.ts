@@ -1,5 +1,5 @@
 // The inbox lifecycle model next to the real code (fast-check). See
-// inboxLifecycle.model.ts for the model and its rules.
+// inbox-lifecycle.model.ts for the model and its rules.
 //
 // Each run starts one session mid-turn and applies a random sequence of
 // actions from every actor: the person (send, triage, open the transcript),
@@ -15,9 +15,9 @@
 //     equals the model's client section,
 //   - the whole-run properties hold (see `checkProperties`).
 //
-//   bun test store/__tests__/inboxLifecycle.model.test.ts
-//   INBOX_MODEL_RUNS=2000 bun test store/__tests__/inboxLifecycle.model.test.ts
-//   bun test --todo store/__tests__/inboxLifecycle.model.test.ts   # known findings (fail on main)
+//   bun test store/__tests__/inbox-lifecycle.model.test.ts
+//   INBOX_MODEL_RUNS=2000 bun test store/__tests__/inbox-lifecycle.model.test.ts
+//   bun test --todo store/__tests__/inbox-lifecycle.model.test.ts   # known findings (fail on main)
 import { afterAll, describe, expect, it, setSystemTime, test } from "bun:test";
 import fc from "fast-check";
 import {
@@ -38,7 +38,7 @@ import { PENDING_SEND_WORKING_TTL_MS } from "../inboxOverlays";
 import {
   startLivenessHold,
   type LivenessHoldIO,
-} from "../../hooks/livenessHold";
+} from "../../hooks/liveness-hold";
 import {
   COARSE_TICK_MS,
   T0,
@@ -58,7 +58,7 @@ import {
   type Pin,
   type Rest,
   type Section,
-} from "./inboxLifecycle.model";
+} from "./inbox-lifecycle.model";
 
 const ID = "jx70000000000000000000000000life";
 const RUNS = Number(process.env.INBOX_MODEL_RUNS ?? 150);
@@ -745,7 +745,7 @@ const replay =
 describe("inbox lifecycle: past bugs stay fixed", () => {
   // 2026-11-04: a window boots as sync host, holds its clock at its cached
   // heartbeat, and is demoted; the hold outlived the machine and froze the
-  // follower's placement (livenessHold.ts stop releases it).
+  // follower's placement (liveness-hold.ts stop releases it).
   it(
     "a demoted window drops its liveness hold",
     replay([

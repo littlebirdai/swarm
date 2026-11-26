@@ -25,7 +25,7 @@ The installed app must be a dev client build. It loads the served bundle as an u
 1. Export with the probe on (`EXPO_PUBLIC_PERF_PROBE=1 node_modules/.bin/expo export ...`) and serve it as above.
 2. `scripts/startup/taps.sh <udid> <label> <port> scripts/startup/taps-main.seq`. It prints each tap's numbers beside the process CPU spent until the next tap.
 
-A gesture-handler swipe claims its touch, so the root never sees it end: an inbox row's swipe-to-stash logs its line from `probeGesture()` when the slide finishes and the stash is dispatched (`components/SessionItem.tsx`), which is the window where the list re-renders.
+A gesture-handler swipe claims its touch, so the root never sees it end: an inbox row's swipe-to-stash logs its line from `probeGesture()` when the slide finishes and the stash is dispatched (`components/session-item.tsx`), which is the window where the list re-renders.
 
 For a heavy account, run Metro in store shots mode with `EXPO_PUBLIC_STORE_SHOTS=1 EXPO_PUBLIC_STORE_SHOTS_HEAVY=1500`: 1,500 sessions with 120 heartbeating, and the first heavy session (`codecast://session/jx7heavy000000000000000000000000`) holds a 600-row transcript for scroll runs (`lib/storeShots/heavy.ts`).
 

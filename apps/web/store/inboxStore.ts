@@ -174,6 +174,11 @@ import {
   applyShapeLocks,
   type PendingEntry,
 } from "./syncProtocol";
+import {
+  expireOmittedInboxLeases,
+  mergeOverlayFacts,
+  overlayRowUnchanged,
+} from "./inbox-overlay-facts";
 import { syncTransaction } from "./syncTransaction";
 import { installStoreListenerCensus } from "./storeListenerCensus";
 import {
@@ -1008,7 +1013,6 @@ export type CloudContextTooLarge = {
   cap_bytes: number;
   files: Array<{ path: string; bytes: number }>;
 };
-
 export type InboxSession = {
   _id: string;
   session_id: string;
@@ -1118,6 +1122,7 @@ export type InboxSession = {
   turn_completed_at?: number | null;
   hibernated_at?: number | null;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   last_role_is_user?: boolean | null;
   auq_open?: boolean | null;
   daemon_alive_until?: number | null;
@@ -3569,84 +3574,6 @@ export const SESSIONS_PRESERVE_FIELDS: readonly string[] = [
 export const SESSIONS_STRIP_FIELDS: readonly string[] = [
   ...INBOX_PROJECTION_FIELDS,
 ];
-const SESSIONS_STRIP_FIELD_SET: ReadonlySet<string> = new Set(
-  SESSIONS_STRIP_FIELDS,
-);
-const INBOX_FACT_FIELD_SET: ReadonlySet<string> = new Set(INBOX_FACT_FIELDS);
-
-// The one fact merge: an overlay row's FACTS onto a session row, field by
-// field (stamps never reach a row), leaving an unchanged row's identity alone.
-// An overlay row is the fact writer for its row, so every fact field it does
-// not carry reads as null — never "keep what was there": the server's trusted
-// status is undefined once the managed row is gone, the key is absent from
-// the payload, and a stale "stopped" would otherwise outlive it and file a
-// declared-done session under Needs You on this replica alone.
-function mergeOverlayFacts(
-  target: Record<string, unknown>,
-  incoming: Record<string, unknown>,
-  pending: Record<string, PendingEntry>,
-): Record<string, PendingEntry> {
-  const { fields: facts, pending: nextPending } = applySyncPatch(
-    "sessions",
-    String(target._id),
-    {
-      ...Object.fromEntries(
-        INBOX_FACT_FIELDS.map((key) => [key, incoming[key] ?? null]),
-      ),
-      ...incoming,
-    },
-    [],
-    pending,
-  );
-  // An equal structured fact keeps the row's own object: a decoded payload
-  // hands every one over fresh, and a new identity reads as a change to every
-  // reader that compares by reference (row memos, wake signatures).
-  for (const key of INBOX_FACT_FIELDS) {
-    const next = facts[key] === undefined ? null : facts[key];
-    if (!sameOverlayValue(target[key], next)) target[key] = next;
-  }
-  for (const key in facts) {
-    if (SESSIONS_STRIP_FIELD_SET.has(key) || INBOX_FACT_FIELD_SET.has(key))
-      continue;
-    if (!sameOverlayValue(target[key], facts[key])) target[key] = facts[key];
-  }
-  return nextPending;
-}
-
-// True when merging `incoming` onto `base` would change nothing. An overlay
-// payload carries the whole live set (~600 rows) on every push, and almost
-// every row repeats the last one. The merge reads and writes through mutative
-// draft proxies and looks each field up in the pending map: on a phone that
-// was a quarter of the JS thread's busy time after a signed in launch. This
-// check reads only plain objects, so an unchanged row never touches the draft.
-// Mirrors mergeOverlayFacts: an absent fact reads as null, stamps are skipped.
-function overlayRowUnchanged(
-  base: Record<string, unknown>,
-  incoming: Record<string, unknown>,
-): boolean {
-  for (const key of INBOX_FACT_FIELDS) {
-    if (!sameOverlayValue(base[key], incoming[key] ?? null)) return false;
-  }
-  for (const key in incoming) {
-    if (SESSIONS_STRIP_FIELD_SET.has(key) || INBOX_FACT_FIELD_SET.has(key))
-      continue;
-    if (!sameOverlayValue(base[key], incoming[key])) return false;
-  }
-  return true;
-}
-function sameOverlayValue(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  // The few structured facts (open_tasks, activity) arrive as fresh objects.
-  if (
-    a === null ||
-    b === null ||
-    typeof a !== "object" ||
-    typeof b !== "object"
-  )
-    return false;
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 // Session ids with a pending entry: a lock or an exclude may change what a
 // merge writes, so those rows always take the full merge.
 function sessionIdsWithPending(
@@ -3971,7 +3898,6 @@ export function sortSessions(
 // Stable empty set so callers that omit pendingSendIds don't allocate and
 // don't churn memoized identities.
 const EMPTY_PENDING_SEND_IDS: ReadonlySet<string> = new Set<string>();
-
 // The daemon definitively reports the agent as running. Used both to
 // short-circuit idle detection and to decide when a "pending working" send has
 // been confirmed (status flipped active) vs is still in-flight.
@@ -3980,6 +3906,7 @@ export type AgentStatusFacts = Pick<
   | "agent_status"
   | "updated_at"
   | "last_heartbeat"
+  | "liveness_lease_end"
   | "open_tasks"
   | "open_tasks_at"
 >;
@@ -4757,7 +4684,6 @@ export type PlaceInboxState = {
 // does not gate on it: a row's live fields re-derive from its replicated
 // facts at any instant (deriveLiveAt), payload or no payload.
 export const INBOX_PAYLOAD_FRESH_MS = 90_000;
-
 // InboxSession → the shared ProjectableInboxRow, with the live fields
 // (agent_status, is_idle, is_unresponsive, awaiting_input) taken from `live`:
 // the shared deriveLiveAt over the row's replicated facts at the caller's
@@ -4796,6 +4722,7 @@ function projectableRowOf(
     turn_completed_at: s.turn_completed_at ?? null,
     started_at: s.started_at ?? null,
     last_heartbeat: s.last_heartbeat ?? null,
+    liveness_lease_end: s.liveness_lease_end ?? null,
     last_role_is_user: s.last_role_is_user ?? null,
     auq_open: s.auq_open ?? null,
     daemon_alive_until: s.daemon_alive_until ?? null,
@@ -13161,9 +13088,9 @@ const inboxStoreConfig = (set: any, get: any) => ({
     const collection = this.sessions;
     // Plain views of the state as this action found it, for the unchanged-row
     // check: reading them creates no draft proxies.
-    const baseSessions = (
-      isDraft(collection) ? original(collection) : collection
-    ) as Record<string, Record<string, unknown> | undefined>;
+    const baseSessions = isDraft(collection)
+      ? (original(collection) ?? collection)
+      : collection;
     const lockedIds = sessionIdsWithPending(
       isDraft(this.pending) ? original(this.pending) : this.pending,
     );
@@ -13189,7 +13116,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (
         base &&
         !lockedIds.has(id) &&
-        overlayRowUnchanged(base, row as Record<string, unknown>)
+        overlayRowUnchanged(
+          base as Record<string, unknown>,
+          row as Record<string, unknown>,
+        )
       )
         continue;
       const target = collection[id] as Record<string, unknown> | undefined;
@@ -13208,6 +13138,14 @@ const inboxStoreConfig = (set: any, get: any) => ({
     _heldOverlayFacts[scopeKey] = held;
     const projection = payload?.projection;
     if (projection && typeof projection === "object") {
+      expireOmittedInboxLeases(
+        collection,
+        baseSessions,
+        liveness,
+        projection,
+        isForeignRow,
+        workingSetRowOf,
+      );
       this.sessionsProjection[scopeKey] = {
         v: typeof projection.v === "number" ? projection.v : 0,
         epoch: typeof projection.epoch === "number" ? projection.epoch : 0,

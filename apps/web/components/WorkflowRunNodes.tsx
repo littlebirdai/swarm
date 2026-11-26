@@ -36,7 +36,7 @@ import {
 import {
   TaskSessionRow,
   type TaskLinkedSession,
-} from "./tasks/TaskSessionList";
+} from "./tasks/task-session-list";
 import { RailProgress } from "./ContextRail";
 
 const TYPE_ICONS: Record<

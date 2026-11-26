@@ -24,6 +24,10 @@ export const managedSessionTables = {
     backend: v.optional(v.literal("sdk")),
     started_at: v.number(),
     last_heartbeat: v.number(),
+    liveness_lease: v.optional(
+      v.object({ end: v.number(), expired: v.boolean() }),
+    ),
+    liveness_lease_generation: v.optional(v.number()),
     agent_status: v.optional(agentStatusFieldValidator),
     agent_status_updated_at: v.optional(v.number()),
     agent_status_write_at: v.optional(v.number()),
@@ -102,6 +106,7 @@ export const managedSessionTables = {
     managed_session_id: v.id("managed_sessions"),
     user_id: v.id("users"),
     heartbeat_at: v.number(),
+    agent_status_write_at: v.optional(v.number()),
   })
     .index("by_managed_session", ["managed_session_id"])
     .index("by_user_heartbeat", ["user_id", "heartbeat_at"])

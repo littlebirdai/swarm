@@ -180,7 +180,7 @@ recognised rather than read.
 - The inbox row carries `character_avatar`, `character_name`,
   `standing_role_id`, `org_role_id` and, for a role's rows only, a `role`
   snapshot `{ _id, short_id, name, handle, avatar, status, tenure_kind }`; the projection guard
-  (`convex/inboxCompat.test.ts`) lists them.
+  (`convex/inbox-compat.test.ts`) lists them.
 - The name bank test: six names per face, all distinct, capitalised words.
 
 ## S7. On the phone

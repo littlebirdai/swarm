@@ -3,11 +3,7 @@ import { convexTest } from "convex-test";
 import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { allModules } from "../testModules.testkit";
-import {
-  heartbeatOf,
-  heartbeatsForUser,
-  managedSessionsBeatingSince,
-} from "./sessionHeartbeat";
+import { heartbeatOf, managedSessionsBeatingSince } from "./sessionHeartbeat";
 
 test("both daemon heartbeats maintain one side row per managed session with a legacy fallback", async () => {
   const t = convexTest(schema, allModules);
@@ -57,9 +53,6 @@ test("both daemon heartbeats maintain one side row per managed session with a le
     // Deliberately diverge the mirror so the tests catch readers bypassing the side table.
     const legacy = { ...sessions[0], last_heartbeat: 123 };
     expect(await heartbeatOf(ctx, legacy)).toBe(sessions[0].last_heartbeat);
-    expect(await heartbeatsForUser(ctx, user, [legacy])).toEqual([
-      sessions[0].last_heartbeat,
-    ]);
   });
 
   await asUser.mutation(api.managedSessions.unregisterManagedSession, {
@@ -72,7 +65,7 @@ test("both daemon heartbeats maintain one side row per managed session with a le
   ).toEqual([second]);
 });
 
-test("point, whole-user and recent reads use the newer timestamp during expand", async () => {
+test("point and recent reads use the newer timestamp during expand", async () => {
   const t = convexTest(schema, allModules);
   await t.run(async (ctx) => {
     const user = await ctx.db.insert("users", {});
@@ -100,9 +93,7 @@ test("point, whole-user and recent reads use the newer timestamp during expand",
     await seed("stale", 100, 100);
 
     expect(await heartbeatOf(ctx, legacyNewer)).toBe(300);
-    expect(
-      await heartbeatsForUser(ctx, user, [legacyNewer, sideNewer]),
-    ).toEqual([300, 200]);
+    expect(await heartbeatOf(ctx, sideNewer)).toBe(200);
     for (const owner of [user, undefined]) {
       expect(
         (await managedSessionsBeatingSince(ctx, 150, owner)).map(

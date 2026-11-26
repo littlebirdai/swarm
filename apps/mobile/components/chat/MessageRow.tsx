@@ -25,7 +25,7 @@ import {
   MessageLongPressContext,
   useMessageLongPress,
 } from "@/components/MessageLongPress";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import { openLink } from "@/lib/links";
 import { SlackLogo } from "@/components/SlackLogo";
 import {

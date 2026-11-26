@@ -1,4 +1,5 @@
-import type { Id } from "../_generated/dataModel";
+import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 type Reader = Pick<QueryCtx, "db">;
@@ -12,12 +13,71 @@ export function heartbeatRow(ctx: Reader, id: Id<"managed_sessions">) {
     .first();
 }
 
-function resolveHeartbeat(
+export function resolveHeartbeat(
   session: ManagedHeartbeat,
   beat: number | undefined,
 ): number {
   // A rollback can advance the legacy timestamp without updating the side row.
   return Math.max(beat ?? 0, session.last_heartbeat ?? 0);
+}
+
+export function inboxLeaseWritesEnabled(): boolean {
+  return process.env.INBOX_LIVENESS_LEASES === "1";
+}
+
+export function hasLiveInboxLease(
+  session: Pick<Doc<"managed_sessions">, "liveness_lease">,
+): boolean {
+  return inboxLeaseWritesEnabled() && session.liveness_lease?.expired === false;
+}
+
+function inboxHeartbeatOf(
+  ctx: Reader,
+  session: Doc<"managed_sessions"> | null,
+) {
+  if (!session) return 0;
+  if (!inboxLeaseWritesEnabled()) return heartbeatOf(ctx, session);
+  return Math.max(
+    session.last_heartbeat,
+    (session.liveness_lease?.end ?? 0) - HEARTBEAT_ALIVE_MS,
+  );
+}
+
+export function inboxHeartbeatsFor(
+  ctx: Reader,
+  sessions: Array<Doc<"managed_sessions"> | null>,
+) {
+  return Promise.all(sessions.map((row) => inboxHeartbeatOf(ctx, row)));
+}
+
+export async function inboxUserHeartbeatRows(
+  ctx: Reader,
+  userId: Id<"users">,
+  since?: number,
+) {
+  const sessions = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+    .collect();
+  if (inboxLeaseWritesEnabled())
+    return { sessions, beats: await inboxHeartbeatsFor(ctx, sessions) };
+  if (sessions.length === 0) return { sessions, beats: [] };
+  const rows = await ctx.db
+    .query("session_heartbeats")
+    .withIndex("by_user_heartbeat", (q) => {
+      const range = q.eq("user_id", userId);
+      return since === undefined ? range : range.gt("heartbeat_at", since);
+    })
+    .collect();
+  const beats = new Map(
+    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
+  );
+  return {
+    sessions,
+    beats: sessions.map((session) =>
+      resolveHeartbeat(session, beats.get(session._id)),
+    ),
+  };
 }
 
 export async function heartbeatOf(
@@ -34,30 +94,6 @@ export function heartbeatsFor(
   sessions: ManagedHeartbeat[],
 ): Promise<number[]> {
   return Promise.all(sessions.map((session) => heartbeatOf(ctx, session)));
-}
-
-// A whole-user projection already reads the user's full registry. Fetch its
-// matching side rows in one indexed read to stay within the inbox call budget.
-export async function heartbeatsForUser(
-  ctx: Reader,
-  userId: Id<"users">,
-  sessions: ManagedHeartbeat[],
-  since?: number,
-): Promise<number[]> {
-  if (sessions.length === 0) return [];
-  const rows = await ctx.db
-    .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) => {
-      const range = q.eq("user_id", userId);
-      return since === undefined ? range : range.gt("heartbeat_at", since);
-    })
-    .collect();
-  const beats = new Map(
-    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
-  );
-  return sessions.map((session) =>
-    resolveHeartbeat(session, beats.get(session._id)),
-  );
 }
 
 export async function transferManagedSession(
@@ -138,10 +174,22 @@ export function conversationSessionsBeatingSince(
   conversationId: Id<"conversations">,
   since: number,
 ) {
+  if (!inboxLeaseWritesEnabled())
+    return ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_heartbeat", (q) =>
+        q.eq("conversation_id", conversationId).gt("last_heartbeat", since),
+      );
   return ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_heartbeat", (q) =>
-      q.eq("conversation_id", conversationId).gt("last_heartbeat", since),
+    .withIndex("by_conversation_id", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .filter((q) =>
+      q.or(
+        q.gt(q.field("last_heartbeat"), since),
+        q.eq(q.field("liveness_lease.expired"), false),
+      ),
     );
 }
 

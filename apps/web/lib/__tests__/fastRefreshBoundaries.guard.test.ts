@@ -191,7 +191,7 @@ const ALLOWED = new Set<string>([
   "components/org/useOrgMoves.tsx",
   "components/org/useOrgPeopleView.tsx",
   "components/resources/ResourcePressureGauge.tsx",
-  "components/sessionMap/MapCard.tsx",
+  "components/sessionMap/map-card.tsx",
   "components/settings/AddCloudHost.tsx",
   "components/settings/CloudAutoscale.tsx",
   "components/sidebar/SidebarNav.tsx",

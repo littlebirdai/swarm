@@ -105,8 +105,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/inboxStore.ts:KEEP_VISIBLE_OVERLAYS": CONSTANT,
   "store/inboxStore.ts:IN_FLIGHT_OVERLAYS": CONSTANT,
   "store/inboxStore.ts:EMPTY_TEAM_INBOX_IDS": CONSTANT,
-  "store/inboxStore.ts:SESSIONS_STRIP_FIELD_SET": CONSTANT,
-  "store/inboxStore.ts:INBOX_FACT_FIELD_SET": CONSTANT,
+  "store/inbox-overlay-facts.ts:SESSIONS_STRIP_FIELD_SET": CONSTANT,
+  "store/inbox-overlay-facts.ts:INBOX_FACT_FIELD_SET": CONSTANT,
   "store/inboxStore.ts:SYNC_ACTIVITY_FIELDS": CONSTANT,
   "store/inboxStore.ts:EMPTY_PENDING_SEND_IDS": CONSTANT,
   "store/liveArtifactsSlice.ts:ROW_META": CONSTANT,
@@ -370,7 +370,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/useStorageImageUrl.ts:pendingIds": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:waiters": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:flushScheduled": IMAGE_URLS,
-  "hooks/use-conversation-messages.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
+  "hooks/conversation-wake-signature.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
   "hooks/use-conversation-messages.ts:navIndexRequested": {
     shared:
       "the conversations whose prompt index a mounted view already asked for; the sim mounts no React, so it stays empty",

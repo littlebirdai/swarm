@@ -34,7 +34,7 @@ import {
   rollupParentIdOf,
 } from "./inboxMembership";
 // Field ownership (design C1): which channel writes which row field.
-export * from "./inboxFields";
+export * from "./inbox-fields";
 // Membership identity (subagents, rollups, stacked asks).
 export * from "./inboxMembership";
 
@@ -79,6 +79,7 @@ export const INBOX_TRUNCATION_KINDS = [
   "adopted",
   "members",
   "member_rows",
+  "subagents",
   "foreign_scan",
 ] as const;
 
@@ -1383,6 +1384,7 @@ export interface ProjectableInboxRow extends WorkingSetRow {
   turn_completed_at?: number | null;
   hibernated_at?: number | null;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   last_role_is_user?: boolean | null;
   auq_open?: boolean | null;
   daemon_alive_until?: number | null;
@@ -1507,6 +1509,7 @@ export interface LiveFactsRow {
   agent_status?: string | null;
   agent_status_updated_at?: number | null;
   last_heartbeat?: number | null;
+  liveness_lease_end?: number | null;
   daemon_alive_until?: number | null;
   producing_until?: number | null;
   child_asking_until?: number | null;
@@ -1527,13 +1530,25 @@ export type LiveFacts = {
 };
 
 // The row's own heartbeat is inside the liveness window at instant `t`.
+function rowHeartbeatEnd(
+  row: Pick<LiveFactsRow, "last_heartbeat" | "liveness_lease_end">,
+) {
+  return (
+    row.liveness_lease_end ??
+    (row.last_heartbeat == null
+      ? null
+      : row.last_heartbeat + HEARTBEAT_ALIVE_MS)
+  );
+}
+
+export const LIVE_INBOX_LEASE_END = Number.MAX_SAFE_INTEGER;
+
 export function rowHeartbeatAliveAt(
-  row: { last_heartbeat?: number | null },
+  row: Pick<LiveFactsRow, "last_heartbeat" | "liveness_lease_end">,
   t: number,
 ): boolean {
-  return (
-    row.last_heartbeat != null && t - row.last_heartbeat < HEARTBEAT_ALIVE_MS
-  );
+  const end = rowHeartbeatEnd(row);
+  return end !== null && t < end;
 }
 
 // The status a row's facts are trusted to say at `t`: the trust rules over the
@@ -1548,6 +1563,7 @@ export function trustedStatusAt(
     | "agent_status"
     | "updated_at"
     | "last_heartbeat"
+    | "liveness_lease_end"
     | "open_tasks"
     | "open_tasks_at"
   >,
@@ -1638,7 +1654,7 @@ export function rowLiveDeadlines(row: LiveFactsRow): Array<number | null> {
     row.agent_status_updated_at != null
       ? row.agent_status_updated_at + AGENT_IDLE_GRACE_MS
       : null,
-    row.last_heartbeat != null ? row.last_heartbeat + HEARTBEAT_ALIVE_MS : null,
+    rowHeartbeatEnd(row),
     row.daemon_alive_until ?? null,
     row.producing_until ?? null,
     row.child_asking_until ?? null,
@@ -1648,7 +1664,7 @@ export function rowLiveDeadlines(row: LiveFactsRow): Array<number | null> {
       : null,
     // A bare dormant claim outliving its trust (placeProjectableRow).
     u + DORMANT_CLAIM_TTL_MS,
-  ];
+  ].map((deadline) => (deadline === LIVE_INBOX_LEASE_END ? null : deadline));
 }
 
 // The machine-delivered-last-turn rule behind every structural park: an armed

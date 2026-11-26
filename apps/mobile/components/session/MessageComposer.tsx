@@ -40,7 +40,7 @@ import { TYPE_SCALE } from "@codecast/render/typeScale";
 import { MOBILE_SESSION_STYLE as S } from "@codecast/render/mobileSessionStyle";
 import { mixColor } from "@/lib/solColor";
 import { GestureHandlerRootView, NativePressable } from "@/lib/gestureHandler";
-import { PulsingDot } from "@/components/SessionItem";
+import { PulsingDot } from "@/components/session-item";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   useInboxStore,

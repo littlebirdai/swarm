@@ -5,7 +5,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { codeFont } from "@/constants/fonts";
 import type { TaskItem as TaskItemType } from "@codecast/web/store/inboxStore";
-import { formatRelativeTime } from "./SessionItem";
+import { formatRelativeTime } from "./session-item";
 import { showActionSheet } from "@/lib/popups";
 
 type TaskStatus =

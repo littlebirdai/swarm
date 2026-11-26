@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  cachedFactsAsOf,
   LIVENESS_HIDDEN_SUSPEND_GAP_MS,
   LIVENESS_SUSPEND_GAP_MS,
   startLivenessHold,
   type LivenessHoldIO,
-} from "../livenessHold";
+} from "../liveness-hold";
 
 // The controller that decides when the device's liveness facts may be stale
 // (a launch from cache, a suspension, a dropped socket) and when a fresh read
@@ -82,6 +83,25 @@ function rig(
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe("liveness hold", () => {
+  for (const field of ["updated_at", "agent_status_updated_at"] as const) {
+    it(`uses cached ${field} after the heartbeat and ignores future stamps`, () => {
+      const settled = T0 - 10_000;
+      expect(
+        cachedFactsAsOf(
+          {
+            beating: { last_heartbeat: T0 - 600_000, [field]: settled },
+            future: {
+              last_heartbeat: T0 + 1,
+              updated_at: T0 + 2,
+              agent_status_updated_at: T0 + 3,
+            },
+          },
+          T0,
+        ),
+      ).toBe(settled);
+    });
+  }
+
   it("holds a launch from cache at its latest heartbeat until a fresh read lands", async () => {
     const r = rig({
       hydrated: false,

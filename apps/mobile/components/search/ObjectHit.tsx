@@ -18,7 +18,7 @@ import { STATUS_CONFIG, PRIORITY_CONFIG } from "@/components/TaskItem";
 import { PLAN_STATUS_CONFIG } from "@/components/PlanItem";
 import { DOC_TYPE_CONFIG } from "@/components/DocItem";
 import { ChatAvatar } from "@/components/chat/MessageRow";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import { CHROME_FONT_CAP, themedStyles, useTheme } from "@/constants/Theme";
 import { HighlightText } from "./highlight";
 

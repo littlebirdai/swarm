@@ -6919,11 +6919,6 @@
   "apps/mobile/components/SelectTextSheet.tsx": {
     "swarm/no-comments": 5
   },
-  "apps/mobile/components/SessionItem.tsx": {
-    "react/purity": 2,
-    "react/refs": 18,
-    "swarm/no-comments": 96
-  },
   "apps/mobile/components/SkeletonLoader.tsx": {
     "react/immutability": 1,
     "react/refs": 1,
@@ -7150,6 +7145,11 @@
   },
   "apps/mobile/components/search/highlight.tsx": {
     "swarm/no-comments": 10
+  },
+  "apps/mobile/components/session-item.tsx": {
+    "react/purity": 2,
+    "react/refs": 18,
+    "swarm/no-comments": 96
   },
   "apps/mobile/components/session/AuthorFace.tsx": {
     "swarm/no-comments": 2
@@ -7547,10 +7547,10 @@
   "apps/mobile/lib/scrollProgress.ts": {
     "swarm/no-comments": 7
   },
-  "apps/mobile/lib/sessionRowEqual.test.ts": {
+  "apps/mobile/lib/session-row-equal.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/mobile/lib/sessionRowEqual.ts": {
+  "apps/mobile/lib/session-row-equal.ts": {
     "swarm/no-comments": 5
   },
   "apps/mobile/lib/sessionVerbs.test.ts": {
@@ -8944,7 +8944,7 @@
   "apps/server/convex/conversations.hiddenLite.test.ts": {
     "swarm/no-comments": 11
   },
-  "apps/server/convex/conversations.inboxReadBudget.test.ts": {
+  "apps/server/convex/conversations.inbox-read-budget.test.ts": {
     "swarm/no-comments": 33
   },
   "apps/server/convex/conversations.listRecent.test.ts": {
@@ -9041,7 +9041,7 @@
     "swarm/no-comments": 8
   },
   "apps/server/convex/conversations.ts": {
-    "swarm/no-comments": 2720
+    "swarm/no-comments": 2693
   },
   "apps/server/convex/conversations.updateProjectPath.test.ts": {
     "swarm/no-comments": 8
@@ -9643,11 +9643,11 @@
   "apps/server/convex/images.ts": {
     "swarm/no-comments": 25
   },
+  "apps/server/convex/inbox-compat.test.ts": {
+    "swarm/no-comments": 46
+  },
   "apps/server/convex/inboxAdoption.test.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/server/convex/inboxCompat.test.ts": {
-    "swarm/no-comments": 46
   },
   "apps/server/convex/inboxFilters.test.ts": {
     "swarm/no-comments": 195
@@ -10561,6 +10561,9 @@
   "apps/server/convex/lib/sentryHttp.ts": {
     "swarm/no-comments": 8
   },
+  "apps/server/convex/lib/session-heartbeat.test.ts": {
+    "swarm/no-comments": 1
+  },
   "apps/server/convex/lib/sessionAccount.ts": {
     "swarm/no-comments": 6
   },
@@ -10582,11 +10585,8 @@
   "apps/server/convex/lib/sessionGoalTrigger.ts": {
     "swarm/no-comments": 7
   },
-  "apps/server/convex/lib/sessionHeartbeat.test.ts": {
-    "swarm/no-comments": 1
-  },
   "apps/server/convex/lib/sessionHeartbeat.ts": {
-    "swarm/no-comments": 9
+    "swarm/no-comments": 7
   },
   "apps/server/convex/lib/sessionIdentityFields.ts": {
     "swarm/no-comments": 1
@@ -10607,7 +10607,7 @@
     "swarm/no-comments": 15
   },
   "apps/server/convex/lib/sessionStatusWriter.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 26
   },
   "apps/server/convex/lib/sessionTell.ts": {
     "swarm/no-comments": 39
@@ -11015,7 +11015,7 @@
     "swarm/no-comments": 22
   },
   "apps/server/convex/managedSessions.ts": {
-    "swarm/no-comments": 198
+    "swarm/no-comments": 189
   },
   "apps/server/convex/managedSessionsList.ts": {
     "swarm/no-comments": 33
@@ -14755,10 +14755,6 @@
   "apps/web/components/FindBar.tsx": {
     "swarm/ime-safe-key-handlers": 2
   },
-  "apps/web/components/FleetBoard.tsx": {
-    "swarm/ime-safe-key-handlers": 1,
-    "swarm/no-comments": 87
-  },
   "apps/web/components/ForeignWorkspaceNotice.tsx": {
     "swarm/no-comments": 4
   },
@@ -16937,9 +16933,6 @@
   "apps/web/components/conversation/ConversationTaskProgress.tsx": {
     "swarm/no-comments": 7
   },
-  "apps/web/components/conversation/DormantWakeChip.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/components/conversation/FolderSyncControl.mount.test.tsx": {
     "swarm/no-comments": 7
   },
@@ -17163,6 +17156,9 @@
   },
   "apps/web/components/conversation/classify.ts": {
     "swarm/no-comments": 154
+  },
+  "apps/web/components/conversation/dormant-wake-chip.tsx": {
+    "swarm/no-comments": 6
   },
   "apps/web/components/conversation/hostedNoticeWords.test.ts": {
     "swarm/no-comments": 1
@@ -17834,6 +17830,10 @@
   },
   "apps/web/components/feed/activityFeedFormat.ts": {
     "swarm/no-comments": 11
+  },
+  "apps/web/components/fleet-board.tsx": {
+    "swarm/ime-safe-key-handlers": 1,
+    "swarm/no-comments": 87
   },
   "apps/web/components/fleet/ModernFleetBoard.tsx": {
     "swarm/ime-safe-key-handlers": 1,
@@ -20456,11 +20456,6 @@
   "apps/web/components/secrets/vaultModel.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/components/sessionMap/MapCard.tsx": {
-    "react/immutability": 1,
-    "swarm/no-comments": 16,
-    "swarm/no-native-title-with-aria-label": 1
-  },
   "apps/web/components/sessionMap/MapControls.tsx": {
     "swarm/no-comments": 6,
     "swarm/no-native-title-with-aria-label": 1
@@ -20469,6 +20464,11 @@
     "react-hooks/exhaustive-deps": 2,
     "swarm/ime-safe-key-handlers": 4,
     "swarm/no-comments": 40,
+    "swarm/no-native-title-with-aria-label": 1
+  },
+  "apps/web/components/sessionMap/map-card.tsx": {
+    "react/immutability": 1,
+    "swarm/no-comments": 16,
     "swarm/no-native-title-with-aria-label": 1
   },
   "apps/web/components/sessionMap/sessionMapModel.test.ts": {
@@ -21003,9 +21003,6 @@
   "apps/web/components/tasks/TaskSessionBadge.tsx": {
     "swarm/no-comments": 2
   },
-  "apps/web/components/tasks/TaskSessionList.tsx": {
-    "swarm/no-comments": 9
-  },
   "apps/web/components/tasks/TaskStatusPicker.tsx": {
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 6
@@ -21016,6 +21013,9 @@
   },
   "apps/web/components/tasks/impact.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/web/components/tasks/task-session-list.tsx": {
+    "swarm/no-comments": 9
   },
   "apps/web/components/tasks/taskActiveSession.ts": {
     "swarm/no-comments": 2
@@ -21537,7 +21537,7 @@
   "apps/web/hooks/__tests__/liveRunsCheck.test.ts": {
     "swarm/no-comments": 1
   },
-  "apps/web/hooks/__tests__/livenessHold.test.ts": {
+  "apps/web/hooks/__tests__/liveness-hold.test.ts": {
     "swarm/no-comments": 15
   },
   "apps/web/hooks/__tests__/matchScore.test.ts": {
@@ -21696,6 +21696,9 @@
   "apps/web/hooks/__tests__/useWorkspaceCollection.test.ts": {
     "swarm/no-comments": 11
   },
+  "apps/web/hooks/conversation-wake-signature.ts": {
+    "swarm/no-comments": 22
+  },
   "apps/web/hooks/conversationMessageMerge.ts": {
     "swarm/no-comments": 9
   },
@@ -21723,8 +21726,8 @@
   "apps/web/hooks/liveRoomRows.ts": {
     "swarm/no-comments": 27
   },
-  "apps/web/hooks/livenessHold.ts": {
-    "swarm/no-comments": 27
+  "apps/web/hooks/liveness-hold.ts": {
+    "swarm/no-comments": 25
   },
   "apps/web/hooks/machineMoveFold.test.ts": {
     "swarm/no-comments": 2
@@ -21754,8 +21757,11 @@
     "swarm/no-comments": 13
   },
   "apps/web/hooks/use-conversation-messages.ts": {
-    "swarm/no-comments": 282,
+    "swarm/no-comments": 260,
     "swarm/no-direct-use-effect": 13
+  },
+  "apps/web/hooks/use-live-watch-rows.ts": {
+    "swarm/no-comments": 4
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
     "swarm/no-comments": 209,
@@ -22261,9 +22267,6 @@
   },
   "apps/web/hooks/useLiveSessionMeta.ts": {
     "swarm/no-comments": 3
-  },
-  "apps/web/hooks/useLiveWatchRows.ts": {
-    "swarm/no-comments": 4
   },
   "apps/web/hooks/useLocalDeviceId.ts": {
     "react/immutability": 1,
@@ -27379,6 +27382,12 @@
   "apps/web/store/__tests__/inbox-hydration.test.ts": {
     "swarm/no-comments": 7
   },
+  "apps/web/store/__tests__/inbox-lifecycle.model.test.ts": {
+    "swarm/no-comments": 89
+  },
+  "apps/web/store/__tests__/inbox-lifecycle.model.ts": {
+    "swarm/no-comments": 96
+  },
   "apps/web/store/__tests__/inbox-store.test.ts": {
     "swarm/no-comments": 613
   },
@@ -27390,12 +27399,6 @@
   },
   "apps/web/store/__tests__/inboxDigestIdentity.test.ts": {
     "swarm/no-comments": 43
-  },
-  "apps/web/store/__tests__/inboxLifecycle.model.test.ts": {
-    "swarm/no-comments": 89
-  },
-  "apps/web/store/__tests__/inboxLifecycle.model.ts": {
-    "swarm/no-comments": 97
   },
   "apps/web/store/__tests__/inboxMultiWindowSim.test.ts": {
     "swarm/no-comments": 56
@@ -28061,6 +28064,9 @@
   "apps/web/store/inbox-hydration.ts": {
     "swarm/no-comments": 140
   },
+  "apps/web/store/inbox-overlay-facts.ts": {
+    "swarm/no-comments": 18
+  },
   "apps/web/store/inboxDigestCompare.ts": {
     "swarm/no-comments": 130
   },
@@ -28069,7 +28075,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5085
+    "swarm/no-comments": 5067
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -29265,7 +29271,7 @@
   "packages/inbox/src/idleDigest.ts": {
     "swarm/no-comments": 14
   },
-  "packages/inbox/src/inboxFields.ts": {
+  "packages/inbox/src/inbox-fields.ts": {
     "swarm/no-comments": 45
   },
   "packages/inbox/src/inboxMembership.ts": {
@@ -29283,6 +29289,9 @@
   "packages/inbox/test/idleDigest.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/inbox/test/inbox-projection.test.ts": {
+    "swarm/no-comments": 88
+  },
   "packages/inbox/test/inboxProjection.golden.test.ts": {
     "swarm/no-comments": 86
   },
@@ -29291,9 +29300,6 @@
   },
   "packages/inbox/test/inboxProjection.rows.test.ts": {
     "swarm/no-comments": 5
-  },
-  "packages/inbox/test/inboxProjection.test.ts": {
-    "swarm/no-comments": 88
   },
   "packages/inbox/test/inboxProjection.time.test.ts": {
     "swarm/no-comments": 26

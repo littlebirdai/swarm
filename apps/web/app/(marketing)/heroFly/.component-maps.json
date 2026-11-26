@@ -634,7 +634,7 @@
       },
       {
         "name": "Mobile SessionItem + Inbox tab (iOS app inbox)",
-        "file": "/Users/ashot/src/codecast/packages/mobile/components/SessionItem.tsx",
+        "file": "/Users/ashot/src/codecast/packages/mobile/components/session-item.tsx",
         "role": "The iOS inbox row, rendered by app/(tabs)/inbox.tsx (2095 lines; tabs are Inbox, Chat, Tasks, Notifications, Settings per app/(tabs)/_layout.tsx:123-175). Status colour logic is pure and exported: statusColor (:129-138: error red, unresponsive orange, pending accent, working/thinking greenBright #10b981, permission_blocked orange, idle/offline textMuted0), statusLabel (:140-150), cleanTitle, agentLabel, agentColor, projectColor, formatRelativeTime (:62-151).",
         "deps": "RN primitives, PanResponder swipe gestures, expo-haptics, @expo/vector-icons, and it READS the web store directly: useInboxStore from @codecast/web/store/inboxStore (:5), useAckAssignment and threadStateView from web (:6-7). Identity faces via @/components/identity.",
         "presentational": "no",
@@ -692,7 +692,7 @@
       },
       {
         "name": "FleetBoard",
-        "file": "packages/web/components/FleetBoard.tsx",
+        "file": "packages/web/components/fleet-board.tsx",
         "role": "[Inbox] Board view of the whole fleet by state. FILM: MEDIUM.",
         "props": "view-level props",
         "deps": "12 store reads and 1 shortcut registration.",
@@ -1454,7 +1454,7 @@
         "file": "packages/web/components/WorkflowRunNodes.tsx:143",
         "role": "A workflow run's steps as rows: status mark, type icon, label, activity line, duration/tokens/outcome, optional phase groups. Nodes with a session render as TaskSessionRow.",
         "props": "{ run: any; workflow?: any|null; className? }. The shape is read by lib/workflowRun.ts:52-107: run.node_statuses[{node_id,label,status,session?,session_id?,started_at,completed_at,outcome,tokens,activity,result_preview,phase}], run.status, run.current_node_id, run.phases[{title,detail}], workflow.nodes[{id,label,type}].",
-        "deps": "useCoarseNow (real clock). useOpenLinkedSession (hooks/useOpenLinkedSession.ts): router plus REAL store navigateToSession on click. StepRow is a Link to /conversation/<session_id> (:107,:133). Session rows use TaskSessionRow (components/tasks/TaskSessionList.tsx), which subscribes to useInboxStore(s => liveRowSig(s.sessions[snapshot._id])) (:112). A fixture _id is absent from the store so it falls back to the snapshot; that is a read only, but a fixture id that collided with a real one would show live data. Colours come from sol-* Tailwind classes.",
+        "deps": "useCoarseNow (real clock). useOpenLinkedSession (hooks/useOpenLinkedSession.ts): router plus REAL store navigateToSession on click. StepRow is a Link to /conversation/<session_id> (:107,:133). Session rows use TaskSessionRow (components/tasks/task-session-list.tsx), which subscribes to useInboxStore(s => liveRowSig(s.sessions[snapshot._id])) (:112). A fixture _id is absent from the store so it falls back to the snapshot; that is a read only, but a fixture id that collided with a real one would show live data. Colours come from sol-* Tailwind classes.",
         "presentational": "nearly",
         "howToRender": "<WorkflowRunNodes run={fixtureRun} workflow={fixtureWorkflow} />. Give fixture ids a non-Convex shape and block clicks. Leave node.session out to avoid TaskSessionRow if you want zero store reads; StepRow is then pure apart from the Link."
       },

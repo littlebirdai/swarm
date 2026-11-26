@@ -49,7 +49,7 @@ import {
   type Palette,
 } from "@/constants/Theme";
 import { solColor } from "@/lib/solColor";
-import { formatRelativeTime } from "@/components/SessionItem";
+import { formatRelativeTime } from "@/components/session-item";
 import Feather from "@expo/vector-icons/Feather";
 import { useDeployReach } from "@codecast/web/hooks/useDeployReach";
 import { useDeployTargets } from "@codecast/web/hooks/useSyncDeployTargets";

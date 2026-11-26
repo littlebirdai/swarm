@@ -5,7 +5,7 @@ import Feather from "@expo/vector-icons/Feather";
 import * as Haptics from "expo-haptics";
 import { Text, TextInput } from "@/components/Themed";
 import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
-import { projectColor } from "@/components/SessionItem";
+import { projectColor } from "@/components/session-item";
 import { labelHexColor } from "@/lib/labelColors";
 import { showActionSheet } from "@/lib/popups";
 import { setInboxDrawerOpen } from "@/lib/inboxDrawer";

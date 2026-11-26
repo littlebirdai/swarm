@@ -234,7 +234,7 @@ import {
 } from "./conversation/ConversationHeaderBar";
 import { HEADER_CHIP } from "../lib/headerChip";
 import { SessionStatusSlot } from "./conversation/SessionStatusSlot";
-import { DormantWakeChip } from "./conversation/DormantWakeChip";
+import { DormantWakeChip } from "./conversation/dormant-wake-chip";
 import { RewindStagedChip } from "./conversation/RewindToHere";
 import { sessionDisconnected } from "./conversation/agentStatusPill";
 import { useMutation, useConvex } from "convex/react";
