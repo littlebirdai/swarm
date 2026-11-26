@@ -17,6 +17,7 @@ export const EDGE_ERROR_CODES = {
   UNAUTHORIZED: "unauthorized",
   UNAVAILABLE: "unavailable",
   INVALID: "invalid",
+  NOT_FOUND: "not_found",
 } as const;
 
 const error = responseObject({

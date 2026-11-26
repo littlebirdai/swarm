@@ -8,6 +8,7 @@ import heartbeat from "./fixtures/heartbeat.json";
 import policyGet from "./fixtures/policy.get.json";
 import eventsAppend from "./fixtures/events.append.json";
 import blobsPut from "./fixtures/blobs.put.json";
+import blobsGet from "./fixtures/blobs.get.json";
 import delta from "./fixtures/message.delta.json";
 import permitsNext from "./fixtures/permits.next.json";
 import deliveryStart from "./fixtures/delivery.start.json";
@@ -129,6 +130,92 @@ for (const [verb, fixture, parseRequest, parseResponse] of verbs) {
     }
   });
 }
+
+describe("blobs.get", () => {
+  test("reads the golden request with the permit's fence and blob reference", () => {
+    expectParsed(edge.parseBlobsGetRequest(blobsGet.request), blobsGet.request);
+    const { v, session, run, fencing_token, attempt_id, input } =
+      permitsNext.response;
+    const part = input.find((item) => item.type === "blob");
+    if (!part?.blob_id) throw new Error("Expected a blob part");
+    expectParsed(
+      edge.parseBlobsGetRequest({
+        v,
+        session,
+        run,
+        fencing_token,
+        attempt_id,
+        blob_id: part.blob_id,
+      }),
+      blobsGet.request,
+    );
+  });
+
+  test("requires all request fields and rejects body identity and URL fields", () => {
+    for (const key of Object.keys(blobsGet.request)) {
+      const request: Record<string, unknown> = { ...blobsGet.request };
+      delete request[key];
+      expectParseError(
+        edge.parseBlobsGetRequest(request),
+        "missing_field",
+        `$.${key}`,
+      );
+    }
+    for (const key of ["machine", "boot", "device_id", "bearer", "url"]) {
+      expectParseError(
+        edge.parseBlobsGetRequest({
+          ...blobsGet.request,
+          [key]: "unexpected",
+        }),
+        "unknown_field",
+        `$.${key}`,
+      );
+    }
+    expectParseError(edge.parseBlobsGetRequest([]), "invalid_type", "$");
+  });
+
+  test("validates the version, epoch, and non-empty identifiers", () => {
+    for (const changes of [
+      { v: 2 },
+      { run: 0 },
+      { run: 1.5 },
+      { run: Number.MAX_SAFE_INTEGER + 1 },
+    ]) {
+      expectParseError(
+        edge.parseBlobsGetRequest({ ...blobsGet.request, ...changes }),
+        "invalid_value",
+        "v" in changes ? "$.v" : "$.run",
+      );
+    }
+    for (const key of ["session", "fencing_token", "attempt_id", "blob_id"]) {
+      expectParseError(
+        edge.parseBlobsGetRequest({ ...blobsGet.request, [key]: "" }),
+        "invalid_value",
+        `$.${key}`,
+      );
+      expectParseError(
+        edge.parseBlobsGetRequest({ ...blobsGet.request, [key]: 1 }),
+        "invalid_type",
+        `$.${key}`,
+      );
+    }
+  });
+
+  test("recognizes the typed missing blob error and rejects plain unknown-route text", () => {
+    expect(blobsGet.not_found.code).toBe(edge.EDGE_ERROR_CODES.NOT_FOUND);
+    expectParsed(
+      edge.parseEdgeErrorResponse(blobsGet.not_found),
+      blobsGet.not_found,
+    );
+    expectParseError(
+      edge.parseEdgeErrorResponse(
+        "No HttpAction routed for /edge/v1/blobs.get",
+      ),
+      "invalid_type",
+      "$",
+    );
+  });
+});
 
 describe("version negotiation", () => {
   test("selects the highest common version regardless of input order", () => {

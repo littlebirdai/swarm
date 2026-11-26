@@ -25,6 +25,13 @@ export const actorFields = {
 export const actor = object(actorFields);
 export const blobFields = { blob_id: nonEmptyString };
 
+const blobsGetRequest = object({
+  v: readV1,
+  ...fence,
+  attempt_id: nonEmptyString,
+  ...blobFields,
+});
+
 const delivery = {
   ...fence,
   delivery_id: nonEmptyString,
@@ -124,6 +131,7 @@ const deliverySettleResponse = response(
   }),
 );
 
+export type BlobsGetRequest = ReturnType<typeof blobsGetRequest>;
 export type PermitsNextRequest = ReturnType<typeof permitsNextRequest>;
 export type PermitsNextResponse = ReturnType<typeof permitsNextResponse>;
 export type DeliveryStartRequest = ReturnType<typeof deliveryStartRequest>;
@@ -132,6 +140,7 @@ export type DeliveryResolutionRequest = ReturnType<typeof resolution>;
 export type DeliverySettleRequest = ReturnType<typeof deliverySettleRequest>;
 export type DeliverySettleResponse = ReturnType<typeof deliverySettleResponse>;
 
+export const parseBlobsGetRequest = parser(blobsGetRequest);
 export const parsePermitsNextRequest = parser(permitsNextRequest);
 export const parsePermitsNextResponse = parser(permitsNextResponse);
 export const parseDeliveryStartRequest = parser(deliveryStartRequest);
