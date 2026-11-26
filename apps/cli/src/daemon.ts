@@ -43851,20 +43851,22 @@ async function main(): Promise<void> {
       `[codex-app-server] failed to start: ${err?.message ?? err} -- codex features disabled`,
     );
   }
-
   const codexOwnedPilot = fencedExecutionEnabled()
     ? createCodexOwnedPilot({
         siteUrl: convexUrl.replace(".cloud", ".site"),
         bearer: config.auth_token,
         command: () => [launchBinary("codex"), "app-server"],
         permissions: () => resolveCodexPermissionDefaults(activeConfig),
-        instructions: ({ target }) =>
-          buildCodexStableContext(
-            activeConfig,
-            target.projectPath,
-            {},
-            target.conversationId,
-          ).then((built) => built?.text),
+        instructions: buildCodexStableContext.bind(null, activeConfig),
+        display: {
+          syncService,
+          retryQueue,
+          conversationCache,
+          mapCodexAppServerThreadStatusToAgentStatus,
+          sendAgentStatus,
+          trackTmuxSpawns,
+          syncMessagesBatch,
+        },
         log,
       })
     : undefined;
@@ -44039,7 +44041,6 @@ async function main(): Promise<void> {
       "[fenced-execution] disabled (set CODECAST_FENCED_EXECUTION_V1=1 for local rollout)",
     );
   }
-
   // The JSONL-dir CLI watchers (codex, gemini, pi, grok, muse) and OpenCode's
   // store register through registerTranscriptDirWatcher. Claude's sessionWatcher
   // and Cursor's SQLite watcher are different kinds and register on their own

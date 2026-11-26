@@ -13,7 +13,15 @@ import {
 } from "@codecast/edge-contract";
 import type { ProviderAdapterClient } from "@codecast/provider-adapter";
 import type { OwnedSession, StartSpec } from "@codecast/provider-contract";
+import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { STABLE_ENV_MODE } from "@codecast/snippets/stableContext";
+import {
+  CodexPilotDisplay,
+  type CodexPilotDisplayEffect,
+} from "./codex-pilot-display.js";
+import type { ParsedMessage } from "../parser.js";
+import type { RetryQueue } from "../retryQueue.js";
+import type { SyncService } from "../syncService.js";
 import { agentSpawnPath } from "../agentSpawnPath.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
 import type { RuntimeDriver } from "./driver.js";
@@ -62,7 +70,40 @@ type PilotOptions = {
   bearer: string | undefined;
   command: () => readonly [string, ...string[]];
   permissions: () => Permissions;
-  instructions: (request: EnsureBindingRequest) => Promise<string | undefined>;
+  instructions: (
+    cwd: string,
+    prefs: Record<string, never>,
+    conversationId: string,
+  ) => Promise<{ text: string } | undefined>;
+  display: {
+    syncService: SyncService;
+    retryQueue: RetryQueue;
+    conversationCache: Record<string, string>;
+    mapCodexAppServerThreadStatusToAgentStatus: (
+      status: Extract<
+        CodexPilotDisplayEffect,
+        { type: "statusChanged" }
+      >["status"],
+    ) => AgentStatus | null;
+    sendAgentStatus: (
+      service: SyncService,
+      conversation: string,
+      thread: string,
+      status: AgentStatus,
+    ) => void;
+    trackTmuxSpawns: (
+      messages: ParsedMessage[],
+      conversation: string,
+      service: SyncService,
+      cache: Record<string, string>,
+    ) => Promise<void>;
+    syncMessagesBatch: (
+      messages: ParsedMessage[],
+      conversation: string,
+      service: SyncService,
+      retry: RetryQueue,
+    ) => Promise<unknown>;
+  };
   log: (message: string) => void;
 };
 
@@ -80,6 +121,7 @@ export function createCodexOwnedPilot(
 }
 
 export class CodexOwnedPilot {
+  private readonly display = new CodexPilotDisplay();
   private adapter?: ProviderAdapterClient;
   private session?: OwnedSession;
   private opening?: Promise<OwnedSession>;
@@ -152,7 +194,13 @@ export class CodexOwnedPilot {
     permissions: Permissions,
   ): Promise<EdgeJson> {
     const { sandbox, approvalPolicy } = permissions;
-    const developerInstructions = await this.options.instructions(request);
+    const developerInstructions = (
+      await this.options.instructions(
+        request.target.projectPath,
+        {},
+        request.target.conversationId,
+      )
+    )?.text;
     return withWorktreeConfig({
       cwd: request.target.projectPath,
       ...(request.configuration.model
@@ -183,7 +231,7 @@ export class CodexOwnedPilot {
       provider,
       command: this.options.command(),
       env: { ...process.env, PATH: agentSpawnPath(), [STABLE_ENV_MODE]: "off" },
-      retainRaw: () => {},
+      retainRaw: (frame) => this.display.retain(frame),
     });
     const result = checkpoint
       ? await this.adapter.resume(
@@ -351,7 +399,12 @@ export class CodexOwnedPilot {
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
       });
     }
-    void this.writeEvents(claim, this.session)
+    void this.writeEvents(
+      claim,
+      this.session,
+      binding,
+      request.configuration.model,
+    )
       .then(() => this.close())
       .catch((error) => {
         this.options.log(
@@ -364,9 +417,70 @@ export class CodexOwnedPilot {
   private async writeEvents(
     claim: ClaimGrant,
     session: OwnedSession,
+    binding: ReadyBinding,
+    model: string | undefined,
   ): Promise<void> {
+    const { syncService, retryQueue, conversationCache, ...display } =
+      this.options.display;
+    const { conversationId, runtimeId } = binding;
     for await (const event of session.events) {
-      if (event.kind !== "message.delta") await this.append(claim, event);
+      if (event.kind === "message.delta") continue;
+      await this.append(claim, event);
+      await this.display
+        .publish(
+          runtimeId,
+          event,
+          async (effect) => {
+            switch (effect.type) {
+              case "statusChanged": {
+                const status =
+                  display.mapCodexAppServerThreadStatusToAgentStatus(
+                    effect.status,
+                  );
+                if (status)
+                  display.sendAgentStatus(
+                    syncService,
+                    conversationId,
+                    runtimeId,
+                    status,
+                  );
+                break;
+              }
+              case "threadNameUpdated":
+                await syncService.updateTitle(conversationId, effect.name);
+                break;
+              case "itemStarted":
+                await display.trackTmuxSpawns(
+                  [effect.message],
+                  conversationId,
+                  syncService,
+                  conversationCache,
+                );
+                break;
+              case "error":
+                await syncService.setSessionError(
+                  conversationId,
+                  effect.message,
+                  { force: true },
+                );
+                break;
+              case "messages":
+                await display.syncMessagesBatch(
+                  effect.messages,
+                  conversationId,
+                  syncService,
+                  retryQueue,
+                );
+                break;
+            }
+          },
+          model,
+        )
+        .catch((error) =>
+          this.options.log(
+            `[owned-codex] display update failed: ${String(error)}`,
+          ),
+        );
     }
   }
 
