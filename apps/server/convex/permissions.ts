@@ -14,7 +14,7 @@ import {
   nextPromptAnswer,
   promptAddress,
   queuePromptAnswer,
-} from "./lib/edge/prompt-answers";
+} from "./lib/edge/prompt-answers.route";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import {
   boundedRuleRequest,

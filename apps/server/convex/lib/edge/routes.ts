@@ -27,7 +27,7 @@ import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
-import { fencedPromptAnswersEnabled } from "./prompt-answers";
+import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
 import type { AppendResult } from "./runEvents";
 
 const policy = {
