@@ -40203,11 +40203,6 @@ async function main(): Promise<void> {
     userId: config.user_id,
   });
   syncServiceRef = syncService;
-  const stopTerminalTyping = startDaemonTerminalTyping(
-    convexUrl,
-    config.auth_token,
-    observePaneInput,
-  );
   // Before any transcript is read: redactSecrets replaces this machine's real
   // secret values from here on (known-value-redaction.ts).
   startKnownValueRedaction({
@@ -40247,6 +40242,11 @@ async function main(): Promise<void> {
   // routes attached below need; /hook/status answers 503 until its handler
   // registers at the end of boot (setHookStatusSink).
   hookServer = startHookServer();
+  const stopTerminalTyping = startDaemonTerminalTyping(
+    convexUrl,
+    config.auth_token,
+    observePaneInput,
+  );
   // Every echo this daemon uploads names the delivery it settles. Nothing
   // above has awaited since syncService was built, so no upload precedes it.
   syncService.setDeliveryEchoes(deliveryEchoLedger());
