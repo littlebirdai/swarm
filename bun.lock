@@ -67,6 +67,8 @@
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/projects": "workspace:*",
+        "@codecast/provider-adapter": "workspace:*",
+        "@codecast/provider-contract": "workspace:*",
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",

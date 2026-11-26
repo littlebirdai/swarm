@@ -1,0 +1,275 @@
+import { expect, spyOn, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  FENCED_RUNTIME_CAPABILITIES,
+  type ReadyBinding,
+} from "@codecast/agent-clients/executionBinding";
+import type { CanonicalEvent } from "@codecast/edge-contract";
+import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
+import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
+import type { ExecutionConvexTransport } from "./convexControlPlane.js";
+import { CodexAppServerRuntimeDriver } from "./drivers/codexAppServer.js";
+import { InMemoryExecutionOperationJournal } from "./localJournal.js";
+import { DaemonExecutionRuntime } from "./runtime-rail.js";
+
+const flag = {
+  CODECAST_FENCED_EXECUTION_V1: "1",
+  CODECAST_CODEX_OWNED_PILOT_SESSION: "pilot-conversation",
+};
+const options = {
+  siteUrl: "https://pilot.invalid",
+  bearer: "fixture-bearer",
+  permissions: () =>
+    ({ sandbox: "read-only", approvalPolicy: "on-request" }) as const,
+  instructions: async () => "Keep the checkout read-only.",
+  log: () => {},
+};
+
+const legacy = new CodexAppServerRuntimeDriver({
+  io: {
+    client: {
+      async threadStart() {
+        throw new Error("Unexpected legacy start");
+      },
+      async turnStart() {
+        throw new Error("Unexpected legacy delivery");
+      },
+    },
+    async inspectThread() {
+      return "unknown";
+    },
+    async stopThread() {},
+    async quarantineThread() {},
+  },
+});
+
+test("the owned pilot requires both rollout flags and leaves the legacy driver selected otherwise", () => {
+  for (const env of [
+    {},
+    { CODECAST_FENCED_EXECUTION_V1: "1" },
+    { ...flag, CODECAST_FENCED_EXECUTION_V1: "0" },
+  ]) {
+    const pilot = createCodexOwnedPilot(
+      { ...options, command: () => ["unused"] },
+      env,
+    );
+    expect(pilot?.register(legacy) ?? legacy).toBe(legacy);
+  }
+});
+
+test("the enabled pilot starts an owned session and resumes its checkpoint with one start event", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "owned-codex-pilot-"));
+  const appServer = fake(directory, "pilot");
+  const savedEvents: CanonicalEvent[] = [];
+  let ready: ReadyBinding | undefined;
+  const renewals: string[] = [];
+  const releases: string[] = [];
+  const fetchEdge = spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init: Parameters<typeof fetch>[1],
+      ) => {
+        const operation = new URL(String(input)).pathname;
+        const body = JSON.parse(String(init?.body));
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer fixture-bearer",
+        );
+        if (operation.endsWith("/claim")) {
+          expect(ready).toBeDefined();
+          expect(body.boot).toBe(ready!.daemonBootId);
+          return Response.json({
+            v: 1,
+            status: "granted",
+            session: ready!.conversationId,
+            run: ready!.epoch,
+            fencing_token: `lease-${body.boot}`,
+            lease_ms: 120,
+            last_pane_instance: 0,
+            last_event_seq: savedEvents.length,
+          });
+        }
+        if (operation.endsWith("/events.append")) {
+          const [batch] = body.batches;
+          expect(batch.fencing_token).toBe(`lease-${ready!.daemonBootId}`);
+          expect(batch.events[0].seq).toBe(savedEvents.length + 1);
+          savedEvents.push(...batch.events);
+          return Response.json({
+            v: 1,
+            results: [
+              {
+                session: batch.session,
+                status: "appended",
+                through_seq: savedEvents.length,
+              },
+            ],
+          });
+        }
+        if (operation.endsWith("/renew")) {
+          renewals.push(body.fencing_token);
+          return Response.json({ v: 1, status: "renewed", lease_ms: 60_000 });
+        }
+        if (operation.endsWith("/release")) {
+          releases.push(body.fencing_token);
+          return Response.json({ v: 1, status: "released" });
+        }
+        throw new Error(`Unexpected edge operation ${operation}`);
+      },
+      { preconnect: fetch.preconnect },
+    ),
+  );
+  const pilotOptions = {
+    ...options,
+    command: () => [appServer.executable] as const,
+  };
+  const first = createCodexOwnedPilot(pilotOptions, flag)!;
+  const resumed = createCodexOwnedPilot(
+    {
+      ...pilotOptions,
+      permissions: () => ({
+        sandbox: "danger-full-access",
+        approvalPolicy: "never",
+      }),
+    },
+    flag,
+  )!;
+  const journal = new InMemoryExecutionOperationJournal();
+  function run(boot: string, pilot: typeof first) {
+    const request = {
+      target: {
+        conversationId: flag.CODECAST_CODEX_OWNED_PILOT_SESSION,
+        epoch: 1,
+        requestedAgent: "codex",
+        transport: "app-server",
+        projectPath: directory,
+      },
+      configuration: { revision: 1, model: "test-model" },
+      ownerDeviceId: "device-1",
+      daemonBootId: boot,
+      requiredCapabilities: [...FENCED_RUNTIME_CAPABILITIES],
+      protocolVersion: 1,
+      trigger: "recovery",
+    };
+    const transport: ExecutionConvexTransport = {
+      async executionControlQuery() {
+        throw new Error("Unexpected execution query");
+      },
+      async executionControlMutation(name, args) {
+        if (name === "claimExecutionStart") {
+          if (ready) {
+            ready = { ...ready, daemonBootId: boot };
+            return { state: "ready", binding: ready };
+          }
+          return {
+            state: "claimed",
+            operationId: args.proposed_operation_id,
+            recovery: { state: "fresh" },
+          };
+        }
+        if (name === "publishReadyBinding") {
+          ready = {
+            conversationId: request.target.conversationId,
+            epoch: 1,
+            requestedAgent: "codex",
+            actualAgent: "codex",
+            transport: "app-server",
+            handle: String(args.handle),
+            ownerDeviceId: "device-1",
+            daemonBootId: boot,
+            runtimeId: String(args.runtime_id),
+            operationId: String(args.operation_id),
+            appliedConfigurationRevision: 1,
+            protocolVersion: 1,
+            capabilities: [...FENCED_RUNTIME_CAPABILITIES],
+          };
+          return { accepted: true };
+        }
+        throw new Error(`Unexpected execution mutation ${name}`);
+      },
+    };
+    const runtime = new DaemonExecutionRuntime({
+      transport,
+      ownerDeviceId: "device-1",
+      daemonBootId: boot,
+      drivers: [pilot.register(legacy)],
+      codexOwnedPilot: pilot,
+      journal,
+    });
+    const work = [
+      {
+        conversationId: request.target.conversationId,
+        currentEpoch: 1,
+        bindings: [
+          {
+            state: ready ? "ready" : "requested",
+            daemonBootMatch: !ready,
+            request,
+            ...(ready ? { binding: ready } : {}),
+          },
+        ],
+      },
+    ];
+    return { runtime, work };
+  }
+  try {
+    const original = run("boot-1", first);
+    expect(original.runtime.drivers.resolve("codex", "app-server").id).toBe(
+      "codex-app-server-with-owned-pilot-v1",
+    );
+    await original.runtime.processWorkUpdate(original.work);
+    await original.runtime.processWorkUpdate(original.work);
+    expect(
+      appServer.wire().filter(({ method }) => method === "thread/start"),
+    ).toEqual([
+      expect.objectContaining({
+        params: expect.objectContaining({
+          cwd: directory,
+          model: "test-model",
+          sandbox: "read-only",
+          approvalPolicy: "on-request",
+          developerInstructions: "Keep the checkout read-only.",
+        }),
+      }),
+    ]);
+    expect(journal.get(ready!.conversationId, 1)?.binding?.handle).toBe(
+      ready!.handle,
+    );
+    expect(savedEvents.map(({ kind, seq }) => [kind, seq])).toEqual([
+      ["session.started", 1],
+    ]);
+    await until(
+      () => renewals.length === 1,
+      "active pilot renews its run lease",
+    );
+    expect(renewals).toEqual(["lease-boot-1"]);
+    await first.close();
+    expect(releases).toEqual(["lease-boot-1"]);
+    const restarted = run("boot-2", resumed);
+    await restarted.runtime.processWorkUpdate(restarted.work);
+    await until(
+      () => savedEvents.length === 2,
+      "resumed turn reaches the event writer",
+    );
+    expect(
+      appServer.wire().filter(({ method }) => method === "thread/resume"),
+    ).toEqual([
+      expect.objectContaining({
+        params: expect.objectContaining({
+          threadId: appServer.thread,
+          sandbox: "read-only",
+          approvalPolicy: "on-request",
+        }),
+      }),
+    ]);
+    expect(savedEvents.map(({ kind, seq }) => [kind, seq])).toEqual([
+      ["session.started", 1],
+      ["turn.started", 2],
+    ]);
+  } finally {
+    await Promise.allSettled([first.close(), resumed.close()]);
+    fetchEdge.mockRestore();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

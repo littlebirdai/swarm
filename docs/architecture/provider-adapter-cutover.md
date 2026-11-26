@@ -102,6 +102,11 @@ Start with one fresh managed Codex app-server session at the pinned version.
 Its fenced driver and journal already exist. Add a default-off pilot flag
 under `CODECAST_FENCED_EXECUTION_V1`. Persist the driver choice in the pilot
 binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
+Set `CODECAST_CODEX_OWNED_PILOT_SESSION` to the ID of one fresh managed
+conversation to select it for this pilot. The ready binding keeps the provider
+checkpoint and the launch policy. The event writer claims the run after the
+binding is ready and resumes at the last sequence confirmed by the server.
+The inbox for this binding waits for the delivery bridge.
 [Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtime-rail.ts#L275-L327)
 
 Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
@@ -117,6 +122,15 @@ the lease and prove cleanup before release or rollback.
 - **Events and display.** Map status and name context to `statusChanged` and `threadNameUpdated` effects. Restore `itemStarted` spawn tracking from tool starts. Map canonical errors to banners. Preserve inline image extraction, MCP tool names, and formatted file diffs. [Daemon hooks](../../apps/cli/src/daemon.ts#L43678-L43834), [spawn tracking](../../apps/cli/src/tmuxSpawns.ts#L122), [error banners](../../apps/cli/src/codexAppServer.ts#L1270-L1292), [tool display](../../apps/cli/src/codexAppServer.ts#L1435-L1560)
 - **Launch and policy.** Apply `withWorktreeConfig` and pass stable developer instructions. Set `STABLE_ENV_MODE` to off and use the agent spawn path. Preserve auth refresh, policy invalidation, and sandbox state across resume. [Worktree](../../apps/cli/src/worktreeEnv.ts#L144), [instructions](../../apps/cli/src/daemon.ts#L34348), [spawn](../../apps/cli/src/codexAppServer.ts#L976-L997), [auth refresh](../../apps/cli/src/codexAppServer.ts#L584-L648) and [policy on resume](../../apps/cli/src/codexAppServer.ts#L785-L938), [invalidation](../../apps/cli/src/codexAppServer.ts#L850-L867)
 - **Fork and Escape.** Keep fork on its existing route. Route Escape to the exact active turn and keep the press-time guard and queued-message release rules. [Fork](../../apps/cli/src/daemon-commands/resume-forks.ts#L181-L195), [Escape](../../apps/cli/src/daemon-commands/session-input.ts#L77-L186)
+
+A linked Codex user echo is insufficient for a delivery receipt. The adapter
+matches the echo by content against requests held in memory. It does not record
+a durable association between the delivery ID and the provider's accepted
+item, and it recovers no receipts after restart. The adapter needs to record that
+association durably, recover it after restart, and replay a receipt for the same
+delivery ID. Until then, a linked echo leaves the delivery in doubt.
+[Echo matching](../../packages/provider-adapter/src/app-server-items.ts#L66-L86)
+[Receipt recovery](../../packages/provider-adapter/src/app-server-session.ts#L593-L599)
 
 ## Compare both paths offline
 
