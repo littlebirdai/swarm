@@ -7,6 +7,7 @@ import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
 import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
+import { FENCED_PROMPT_SYNC_COLLECTIONS } from "./client-sync-registry.fenced-prompts";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
 import { thinPullRequestRow, thinTaskRow } from "../lib/detail-rows";
 export {
@@ -1753,22 +1754,7 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { kind: "list" },
     feeds: ["managedSessions.getAggregateMetrics"],
   },
-  fencedPromptAddresses: {
-    localFirst: true,
-    unprotectedFields: ["answerSummary"],
-    sync: {
-      isDelta: true,
-      deepFields: ["questions"],
-      preserveFields: ["accepted", "feedAbsent", "answerSummary"],
-    },
-    feeds: [
-      "permissions.listAnswerablePromptAddresses",
-      "permissions.getFencedPromptFeed",
-    ],
-  },
-  fencedObservedTurns: {
-    sync: { isDelta: true, deepFields: ["observed_turn"] },
-  },
+  ...FENCED_PROMPT_SYNC_COLLECTIONS,
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
   // syncs with pruneAbsentScope for it (a resolved permission leaves the

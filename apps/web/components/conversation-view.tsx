@@ -6775,7 +6775,6 @@ const ConversationViewInner = function ConversationView(
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the array
   }, [subagentMenuSig]);
-
   // The pinned thread state (`cast state`) is one node with two homes: under
   // the owner composer's status line when that composer is mounted, else in
   // the feed/composer seam (see the render below).
@@ -6820,6 +6819,7 @@ const ConversationViewInner = function ConversationView(
     conversation && selectComposerControl(composerControl, conversation._id)
       ? composerControl
       : undefined;
+  const feedObservedTurn = showMessageInput && !guest && effectiveIsOwner;
   const ownerComposerMounted = !!(
     showMessageInput &&
     conversation &&
@@ -6917,7 +6917,7 @@ const ConversationViewInner = function ConversationView(
                                   onDragLeave={handleDragLeave}
                                   onDrop={handleDrop}
                                 >
-                                  {showMessageInput && !guest && (
+                                  {feedObservedTurn && (
                                     <FencedObservedTurnFeeder
                                       conversationId={conversation?._id}
                                     />
