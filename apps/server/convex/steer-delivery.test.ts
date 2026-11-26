@@ -1,32 +1,21 @@
 import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
-import {
-  parseDeliverySettleResponse,
-  parseDeliveryStartResponse,
-  parsePermitsNextResponse,
-  STEER_BATON_CAPABILITY,
-} from "@codecast/edge-contract";
-import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import { asUser } from "../test-helpers/database.testkit";
-import { fixtureRows } from "../test-helpers/rows.testkit";
+import { boot, machine, start } from "../test-helpers/run-lease.testkit";
 import {
-  boot,
-  machine,
-  setupRunLease,
-  start,
-} from "../test-helpers/run-lease.testkit";
+  observed,
+  steerDeliveryFixture as fixture,
+} from "../test-helpers/steer-delivery.testkit";
 import { api, internal } from "./_generated/api";
 import {
   cancelFencedDeliveriesOnKill,
   claimNextDeliveryInDb,
   EXECUTION_PROTOCOL_CAPABILITIES,
 } from "./executionBindings";
-import type { Doc } from "./_generated/dataModel";
 
 const flag = "SWARM_TURN_BATON";
 const edge = "CODECAST_EDGE_DELIVERY_V1";
 const savedBaton = process.env[flag];
 const savedEdge = process.env[edge];
-const observed = { id: "turn", run: 1, start_event_seq: 7 };
 
 beforeEach(() => {
   process.env[flag] = "1";
@@ -41,114 +30,6 @@ afterEach(() => {
   else process.env[edge] = savedEdge;
   setSystemTime();
 });
-
-async function fixture() {
-  const f = await setupRunLease();
-  const grant = await f.claim("steer-run");
-  if (grant.status !== "granted") throw new Error("Expected run lease");
-  const fence = {
-    v: 1,
-    session: f.conversation,
-    run: 1,
-    fencing_token: grant.fencing_token,
-  };
-  const { other, projection } = await f.t.run(async ({ db }) => {
-    const other = await fixtureRows(db, "kernel other sender").user();
-    const binding = (await db.get(f.binding))!;
-    await db.patch(f.conversation, { owner_user_id: other });
-    await db.patch(f.binding, {
-      capabilities: [...binding.required_capabilities, STEER_BATON_CAPABILITY],
-    });
-    const row = await db.query("run_turn_projections").unique();
-    if (!row) throw new Error("Expected initial projection");
-    await db.patch(row._id, {
-      projection_version: TURN_STARTER_PROJECTION_VERSION,
-      turn_ids: [observed.id],
-      open_turn: {
-        id: observed.id,
-        start_event_seq: observed.start_event_seq,
-        starter: { kind: "person", id: f.owner },
-        prompt_ids: [],
-      },
-    });
-    return { other, projection: row._id };
-  });
-  const send = (
-    client_id: string,
-    turn: typeof observed | undefined,
-    sender = f.owner,
-  ) =>
-    asUser(f.t, sender).mutation(api.pendingMessages.sendMessageV2, {
-      conversation_id: f.conversation,
-      command_id: client_id,
-      client_id,
-      content: client_id,
-      ...(turn ? { observed_turn: turn } : {}),
-    });
-  const call = async (verb: string, input: object = {}) => {
-    const response = await f.t.fetch(`/edge/v1/${verb}`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${f.bearer}` },
-      body: JSON.stringify({ ...fence, ...input }),
-    });
-    expect(response.status).toBe(200);
-    return await response.json();
-  };
-  const next = async () => {
-    const parsed = parsePermitsNextResponse(await call("permits.next"));
-    if (!parsed.ok) throw parsed.error;
-    return parsed.value;
-  };
-  const permit = async () => {
-    const selected = await next();
-    if (selected.status !== "permit") throw new Error(JSON.stringify(selected));
-    const { delivery_id, attempt_id, seq, intent, sender } = selected;
-    return {
-      selected,
-      request: { delivery_id, attempt_id, seq, intent, sender },
-    };
-  };
-  const begin = async (input: object) => {
-    const parsed = parseDeliveryStartResponse(
-      await call("delivery.start", input),
-    );
-    if (!parsed.ok) throw parsed.error;
-    return parsed.value;
-  };
-  const settle = async (input: object, outcome: string, extra: object = {}) => {
-    const parsed = parseDeliverySettleResponse(
-      await call("delivery.settle", { ...input, outcome, ...extra }),
-    );
-    if (!parsed.ok) throw parsed.error;
-    return parsed.value;
-  };
-  const turn = (open_turn: Doc<"run_turn_projections">["open_turn"]) =>
-    f.t.run(({ db }) => db.patch(projection, { open_turn }));
-  const rows = () =>
-    f.t.run(async ({ db }) => ({
-      head: await db.get(f.head),
-      messages: await db
-        .query("pending_messages")
-        .withIndex("by_conversation_sequence", (q) =>
-          q.eq("conversation_id", f.conversation),
-        )
-        .collect(),
-      attempts: await db.query("delivery_attempts").collect(),
-    }));
-  return {
-    ...f,
-    fence,
-    next,
-    permit,
-    begin,
-    settle,
-    turn,
-    send,
-    rows,
-    projection,
-    other,
-  };
-}
 
 test("a holder passes two waiting queues in steer sequence order and settlement preserves the older gap", async () => {
   const f = await fixture();
@@ -753,4 +634,111 @@ test("flag-off replay retains the old queue permit and persisted slot", async ()
     status: "already_started",
   });
   expect(await f.rows()).toEqual(startedRows);
+});
+
+test("queue start releases the claim if a turn opens, then retries the same delivery after it ends", async () => {
+  const f = await fixture();
+  await f.turn(null);
+  const first = await f.permit();
+  await f.turn({
+    id: observed.id,
+    start_event_seq: observed.start_event_seq,
+    prompt_ids: [],
+  });
+  expect(await f.begin(first.request)).toEqual({
+    v: 1,
+    status: "rejected",
+    reason: "turn-open",
+  });
+  const deferred = await f.rows();
+  expect(deferred.head?.active_delivery_attempt_id).toBeUndefined();
+  expect(deferred.messages[0]).toMatchObject({
+    delivery_status: "pending",
+    delivery_id: first.request.delivery_id,
+    conversation_sequence: first.request.seq,
+  });
+  expect(deferred.attempts[0]).toMatchObject({
+    state: "failed-before-effect",
+    failure_message: "turn-open",
+  });
+  expect(await f.next()).toMatchObject({ status: "empty" });
+  await f.turn(null);
+  const second = await f.permit();
+  expect(second.request).toMatchObject({
+    delivery_id: first.request.delivery_id,
+    seq: first.request.seq,
+  });
+  expect(second.request.attempt_id).not.toBe(first.request.attempt_id);
+  expect(await f.begin(second.request)).toMatchObject({
+    status: "started",
+    intent: "queue",
+  });
+});
+
+test.each(["flag off", "capability dropped"] as const)(
+  "an unreserved steer becomes terminal when the baton is disabled (%s)",
+  async (mode) => {
+    const f = await fixture();
+    await f.send("old-steer", observed);
+    await f.send("next", undefined);
+    await f.t.run(async ({ db }) => {
+      await db.patch(f.message, {
+        status: "delivered",
+        delivery_status: "delivered",
+      });
+      await db.patch(f.head, { next_nonterminal_sequence: 2 });
+      if (mode === "capability dropped") {
+        const binding = (await db.get(f.binding))!;
+        await db.patch(f.binding, {
+          capabilities: binding.required_capabilities,
+        });
+      }
+    });
+    if (mode === "flag off") delete process.env[flag];
+    expect((await f.permit()).selected).toMatchObject({
+      intent: "queue",
+      delivery_id: "next",
+      seq: 3,
+    });
+    const state = await f.rows();
+    expect(state.messages[1]).toMatchObject({
+      delivery_status: "rejected",
+      status: "cancelled",
+      delivery_disposition_reason: "stale-turn",
+    });
+    expect(state.head?.next_nonterminal_sequence).toBe(3);
+    expect(state.attempts).toHaveLength(1);
+  },
+);
+
+test("rejection selects the oldest eligible steer behind a waiting queue", async () => {
+  const f = await fixture();
+  await f.send("eligible", observed);
+  await f.send("later", observed);
+  const own = await f.rows();
+  const reject = (row: (typeof own.messages)[number]) =>
+    f.t.mutation(api.executionBindings.rejectHeadDelivery, {
+      api_token: f.bearer,
+      fencing_token: f.fence.fencing_token,
+      conversation_id: f.conversation,
+      message_id: row._id,
+      delivery_id: row.delivery_id!,
+      conversation_sequence: String(row.conversation_sequence),
+      execution_epoch: 1,
+      reason: "unsupported input",
+    });
+  await expect(reject(own.messages[0]!)).rejects.toThrow(
+    "DELIVERY_SEQUENCE_HEAD_MISMATCH",
+  );
+  await expect(reject(own.messages[2]!)).rejects.toThrow(
+    "DELIVERY_SEQUENCE_HEAD_MISMATCH",
+  );
+  expect(await f.rows()).toEqual(own);
+  expect(await reject(own.messages[1]!)).toEqual({ rejected: true });
+  expect((await f.rows()).head?.next_nonterminal_sequence).toBe(1);
+  expect((await f.permit()).selected).toMatchObject({
+    delivery_id: "later",
+    intent: "steer",
+    seq: 3,
+  });
 });

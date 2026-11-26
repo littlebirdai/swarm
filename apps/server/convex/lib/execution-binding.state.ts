@@ -1,5 +1,5 @@
 import { requireNoDeviceMove } from "./edge/device-move.state";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   fail,
   type TargetInput,
@@ -141,16 +141,124 @@ export function bindingTargetMatches(
 export async function fencedMessages(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
+  fromSequence?: number,
 ): Promise<any[]> {
-  const messages = await ctx.db
-    .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) =>
-      q.eq("conversation_id", conversationId),
-    )
-    .collect();
+  const query = ctx.db.query("pending_messages");
+  const messages = await (
+    fromSequence === undefined
+      ? query.withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", conversationId),
+        )
+      : query.withIndex("by_conversation_sequence", (q: any) =>
+          q
+            .eq("conversation_id", conversationId)
+            .gte("conversation_sequence", fromSequence),
+        )
+  ).collect();
   return messages.filter(
     (message: any) => message.delivery_protocol_version !== undefined,
   );
+}
+
+export async function pendingRowsByStatus(
+  ctx: DbCtx,
+  conversationId: Id<"conversations">,
+  statuses: readonly Doc<"pending_messages">["status"][] = [
+    "pending",
+    "held",
+    "injected",
+    "failed",
+    "undeliverable",
+  ],
+): Promise<Doc<"pending_messages">[]> {
+  const rows = await Promise.all(
+    statuses.map((status) =>
+      ctx.db
+        .query("pending_messages")
+        .withIndex("by_conversation_status", (q: any) =>
+          q.eq("conversation_id", conversationId).eq("status", status),
+        )
+        .collect(),
+    ),
+  );
+  return rows.flat();
+}
+
+export async function cancelUnstartedOldEpoch(
+  ctx: DbCtx,
+  head: any,
+  currentEpoch: number,
+  now: number,
+): Promise<{ cancelled: number; remaining: number }> {
+  const MAX_CANCELLATIONS_PER_ACTIVATION = 128;
+  const messages = (
+    await pendingRowsByStatus(ctx, head.conversation_id)
+  ).filter(
+    (message) =>
+      message.delivery_protocol_version !== undefined &&
+      message.conversation_sequence !== undefined &&
+      message.execution_epoch === currentEpoch &&
+      message.conversation_sequence <= head.cancelled_through_sequence &&
+      !isTerminalDeliveryState(message.delivery_status),
+  );
+  const batch = messages
+    .sort(
+      (left, right) =>
+        left.conversation_sequence! - right.conversation_sequence!,
+    )
+    .slice(0, MAX_CANCELLATIONS_PER_ACTIVATION);
+  let cancelled = 0;
+  for (const message of batch) {
+    if (
+      message.delivery_status === "delivery-started" ||
+      message.delivery_status === "ambiguous"
+    ) {
+      fail(
+        "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
+        `message ${String(message._id)} has a started or ambiguous effect`,
+      );
+    }
+    if (message.delivery_status === "claimed") {
+      const attempt = message.active_delivery_attempt_id
+        ? await ctx.db.get(message.active_delivery_attempt_id)
+        : null;
+      if (!attempt || attempt.state !== "claimed") {
+        fail(
+          "DELIVERY_SLOT_INVARIANT",
+          "claimed message lacks its claimed attempt",
+        );
+      }
+      await ctx.db.patch(attempt._id, {
+        state: "cancelled-by-supersession" as const,
+        completed_at: now,
+      });
+    } else if (message.delivery_status !== "pending") {
+      fail(
+        "DELIVERY_SLOT_INVARIANT",
+        `cannot cancel old-epoch message in state ${String(message.delivery_status)}`,
+      );
+    }
+    await ctx.db.patch(message._id, {
+      delivery_status: "cancelled-by-supersession" as const,
+      active_delivery_attempt_id: undefined,
+      status: "cancelled" as const,
+    });
+    cancelled += 1;
+  }
+  if (
+    head.active_delivery_state === "claimed" &&
+    batch.some(
+      (row) =>
+        row.active_delivery_attempt_id === head.active_delivery_attempt_id,
+    )
+  ) {
+    await ctx.db.patch(head._id, {
+      active_delivery_attempt_id: undefined,
+      active_delivery_state: undefined,
+      updated_at: now,
+    });
+  }
+  return { cancelled, remaining: messages.length - batch.length };
 }
 
 export async function advanceNonterminalHead(
@@ -158,7 +266,11 @@ export async function advanceNonterminalHead(
   head: any,
   now: number,
 ): Promise<number> {
-  const messages = await fencedMessages(ctx, head.conversation_id);
+  const messages = await fencedMessages(
+    ctx,
+    head.conversation_id,
+    head.next_nonterminal_sequence,
+  );
   const first = orderedNonterminalMessages(messages, head)[0];
   const next = first?.conversation_sequence ?? head.next_conversation_sequence;
   await ctx.db.patch(head._id, {
@@ -172,21 +284,15 @@ export async function clearPendingFlagIfQuiet(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
 ): Promise<void> {
-  const messages = await ctx.db
-    .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) =>
-      q.eq("conversation_id", conversationId),
+  const messages = await pendingRowsByStatus(ctx, conversationId);
+  if (
+    !messages.some(
+      (message) =>
+        message.delivery_protocol_version === undefined ||
+        !isTerminalDeliveryState(message.delivery_status),
     )
-    .collect();
-  const hasNonterminal = messages.some((message: any) => {
-    if (message.delivery_protocol_version !== undefined) {
-      return !isTerminalDeliveryState(message.delivery_status);
-    }
-    return !["delivered", "cancelled"].includes(message.status);
-  });
-  if (!hasNonterminal) {
+  )
     await ctx.db.patch(conversationId, { has_pending_messages: false });
-  }
 }
 
 export function bindingEvidenceWire(binding: any): any {

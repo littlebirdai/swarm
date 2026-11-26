@@ -3,7 +3,6 @@ import {
   requireOwnedConversation,
   executionHead,
   executionBinding,
-  fencedMessages,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
 } from "./execution-binding.state";
@@ -15,7 +14,6 @@ import {
   attemptMatchesFence,
   startedPermitWire,
   matchesRetryableDeliveryReplay,
-  deliveryRejectionCodes,
   requeueDeliveryBeforeEffect,
   blockDeliveryAsAmbiguous,
 } from "./delivery-slot.state";
@@ -29,13 +27,11 @@ import type { Id } from "../_generated/dataModel";
 import { isConversationSafetyBlocked } from "../conversationSafety";
 import { findClaim } from "./claims";
 import {
-  allocateLegacyQueuedRows,
+  oldestEligibleDelivery,
   batonEnabled,
   readBatonTurn,
   steerRefusal,
-  sweepPendingSteers,
 } from "./execution-steer-admission.rules";
-import { orderedNonterminalMessages } from "./executionQueue";
 import { reviveConversationOnDelivery } from "../pendingMessageWrites";
 import {
   type FinalDeliveryReceipt,
@@ -134,64 +130,16 @@ export async function claimNextDeliveryInDb(
     };
   }
 
-  const enabled = batonEnabled(binding);
-  if (enabled && !args.fencingToken) return { state: "empty" as const };
-  if (enabled)
-    head.next_conversation_sequence = await allocateLegacyQueuedRows(
-      ctx,
-      head,
-      binding,
-      args.now,
-    );
-  const messages = orderedNonterminalMessages(
-    await fencedMessages(ctx, args.conversationId),
+  if (batonEnabled(binding) && !args.fencingToken)
+    return { state: "empty" as const };
+  const message = await oldestEligibleDelivery(
+    ctx,
+    conversation,
     head,
+    binding,
+    args.now,
   );
-  const admission = enabled
-    ? await sweepPendingSteers(
-        ctx,
-        conversation,
-        binding,
-        head,
-        messages,
-        args.now,
-      )
-    : undefined;
-  const oldest = admission ? admission.messages[0] : messages[0];
-  if (!oldest) {
-    if (
-      !admission?.changed &&
-      head.next_nonterminal_sequence !== head.next_conversation_sequence
-    ) {
-      await ctx.db.patch(head._id, {
-        next_nonterminal_sequence: head.next_conversation_sequence,
-        updated_at: args.now,
-      });
-    }
-    return { state: "empty" as const };
-  }
-  if (
-    !admission?.changed &&
-    oldest.conversation_sequence !== head.next_nonterminal_sequence
-  ) {
-    fail(
-      "DELIVERY_SEQUENCE_HEAD_MISMATCH",
-      `durable head ${head.next_nonterminal_sequence} differs from first nonterminal ${oldest.conversation_sequence}`,
-    );
-  }
-  const message =
-    admission && oldest.execution_epoch === head.current_epoch
-      ? admission.turn === undefined
-        ? undefined
-        : admission.messages.find(
-            (candidate) =>
-              candidate.execution_epoch === head.current_epoch &&
-              (candidate.delivery_intent === "steer") ===
-                (admission.turn !== null),
-          )
-      : oldest;
-  if (!message || (message.delivery_intent === "steer" && !admission))
-    return { state: "empty" as const };
+  if (!message) return { state: "empty" as const };
   if (
     args.expectedMessageId &&
     String(args.expectedMessageId) !== String(message._id)
@@ -274,7 +222,11 @@ export async function rejectHeadDeliveryInDb(
 ): Promise<{ rejected: true }> {
   const { conversationId, executionEpoch } = args;
   requireNonEmpty(args.reason, "reason");
-  await requireOwnedConversation(ctx, conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, conversationId, "work");
   if (!head || head.protocol_state !== "fenced")
     fail(
@@ -302,10 +254,15 @@ export async function rejectHeadDeliveryInDb(
     fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   const binding = await executionBinding(ctx, conversationId, executionEpoch);
   await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
-  const message = orderedNonterminalMessages(
-    await fencedMessages(ctx, conversationId),
+  if (batonEnabled(binding) && !args.fencingToken)
+    fail("DELIVERY_PERMIT_FENCE_MISMATCH", "the current run lease is required");
+  const message = await oldestEligibleDelivery(
+    ctx,
+    conversation,
     head,
-  )[0];
+    binding,
+    args.now,
+  );
   if (
     !message ||
     String(message._id) !== String(args.messageId) ||
@@ -407,13 +364,11 @@ export async function startDeliveryInDb(
       "conversation slot or message is not claimed",
     );
   }
+  const enabled = batonEnabled(binding);
+  const turn = enabled ? await readBatonTurn(ctx, binding) : undefined;
   if (message.delivery_intent === "steer") {
-    const turn =
-      batonEnabled(binding) && fence.fencingToken
-        ? await readBatonTurn(ctx, binding)
-        : undefined;
     const reason =
-      turn === undefined
+      turn === undefined || !fence.fencingToken
         ? "stale-turn"
         : await steerRefusal(
             ctx,
@@ -435,6 +390,13 @@ export async function startDeliveryInDb(
       });
       return { state: "stale-steer", reason };
     }
+  } else if (enabled && turn !== null) {
+    await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
+      failure_code: "TURN_OPEN",
+      failure_message: "turn-open",
+      completed_at: fence.now,
+    });
+    return { state: "queue-waiting", reason: "turn-open", retryable: true };
   }
   await ctx.db.patch(attempt._id, {
     state: "delivery-started" as const,

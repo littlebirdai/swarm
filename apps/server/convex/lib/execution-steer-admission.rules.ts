@@ -9,7 +9,12 @@ import { canSendProductMessage } from "../pendingMessages";
 import { findClaim } from "./claims";
 import { fail } from "./execution-binding.validators";
 import { byQueueOrder } from "./sessionQueue";
-import { clearPendingFlagIfQuiet } from "./execution-binding.state";
+import { orderedNonterminalMessages } from "./executionQueue";
+import {
+  clearPendingFlagIfQuiet,
+  fencedMessages,
+  pendingRowsByStatus,
+} from "./execution-binding.state";
 
 type Db = Pick<MutationCtx, "db">;
 type Turn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
@@ -59,19 +64,12 @@ export async function allocateLegacyQueuedRows(
   )
     return first;
   const rows = (
-    await ctx.db
-      .query("pending_messages")
-      .withIndex("by_conversation_sequence", (q) =>
-        q
-          .eq("conversation_id", head.conversation_id)
-          .eq("conversation_sequence", undefined),
-      )
-      .collect()
+    await pendingRowsByStatus(ctx, head.conversation_id, ["held", "pending"])
   )
     .filter(
       (row) =>
         row.queued &&
-        (row.status === "held" || row.status === "pending") &&
+        row.conversation_sequence === undefined &&
         row.delivery_protocol_version === undefined,
     )
     .sort(byQueueOrder);
@@ -156,20 +154,28 @@ export async function steerRefusal(
 export async function sweepPendingSteers(
   ctx: Db,
   conversation: Doc<"conversations">,
-  binding: Doc<"execution_bindings">,
+  binding: Doc<"execution_bindings"> | null,
   head: Doc<"conversation_execution_heads">,
   messages: Doc<"pending_messages">[],
   now: number,
 ) {
-  const turn = await readBatonTurn(ctx, binding);
-  if (turn === undefined) return { turn, messages, changed: false };
+  const enabled = batonEnabled(binding);
+  const turn = enabled && binding ? await readBatonTurn(ctx, binding) : null;
+  const run = head.current_epoch;
+  if (
+    turn === undefined ||
+    run === undefined ||
+    (!enabled && messages[0]?.delivery_intent !== "steer")
+  )
+    return { turn, messages, changed: false };
 
   const remaining: Doc<"pending_messages">[] = [];
   const resource = { id: conversation._id, kind: "steer" } as const;
   let claim: Doc<"claims"> | null | undefined;
   for (const message of messages) {
     if (
-      message.execution_epoch !== binding.epoch ||
+      message.execution_epoch !== run ||
+      (!enabled && remaining.length > 0) ||
       message.delivery_intent !== "steer" ||
       message.delivery_status !== "pending" ||
       message.active_delivery_attempt_id !== undefined
@@ -182,7 +188,7 @@ export async function sweepPendingSteers(
     const reason = await steerRefusal(
       ctx,
       conversation,
-      binding.epoch,
+      run,
       turn,
       claim,
       message,
@@ -205,7 +211,58 @@ export async function sweepPendingSteers(
         remaining[0]?.conversation_sequence ?? head.next_conversation_sequence,
       updated_at: now,
     });
-    await clearPendingFlagIfQuiet(ctx, conversation._id);
+    if (remaining.length === 0)
+      await clearPendingFlagIfQuiet(ctx, conversation._id);
   }
   return { turn, messages: remaining, changed };
+}
+
+export async function oldestEligibleDelivery(
+  ctx: Db,
+  conversation: Doc<"conversations">,
+  head: Doc<"conversation_execution_heads">,
+  binding: Doc<"execution_bindings"> | null,
+  now: number,
+) {
+  const enabled = batonEnabled(binding);
+  const nextSequence =
+    enabled && binding
+      ? await allocateLegacyQueuedRows(ctx, head, binding, now)
+      : head.next_conversation_sequence;
+  const messages = orderedNonterminalMessages(
+    await fencedMessages(ctx, conversation._id, head.next_nonterminal_sequence),
+    head,
+  );
+  const admission = await sweepPendingSteers(
+    ctx,
+    conversation,
+    binding,
+    { ...head, next_conversation_sequence: nextSequence },
+    messages,
+    now,
+  );
+  const oldest = admission.messages[0];
+  if (!oldest) {
+    if (!admission.changed && head.next_nonterminal_sequence !== nextSequence)
+      await ctx.db.patch(head._id, {
+        next_nonterminal_sequence: nextSequence,
+        updated_at: now,
+      });
+    return;
+  }
+  if (
+    !admission.changed &&
+    oldest.conversation_sequence !== head.next_nonterminal_sequence
+  )
+    fail(
+      "DELIVERY_SEQUENCE_HEAD_MISMATCH",
+      `durable head ${head.next_nonterminal_sequence} differs from first nonterminal ${oldest.conversation_sequence}`,
+    );
+  if (!enabled || oldest.execution_epoch !== head.current_epoch) return oldest;
+  if (admission.turn === undefined) return;
+  return admission.messages.find(
+    (candidate) =>
+      candidate.execution_epoch === head.current_epoch &&
+      (candidate.delivery_intent === "steer") === (admission.turn !== null),
+  );
 }

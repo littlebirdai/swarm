@@ -244,14 +244,19 @@ test("an expired run lease refuses a steer while leaving the receipt and inbox u
 test("an occupied delivery slot keeps an expired baton from changing hands", async () => {
   const f = await setup();
   await f.send("contest", { sender: f.other });
-  expect(await f.deliver("current-fence")).toMatchObject({ state: "claimed" });
+  await f.send("holder");
+  expect(await f.deliver("current-fence")).toMatchObject({
+    state: "claimed",
+    message: { client_id: "holder" },
+  });
   setSystemTime(new Date(start + 30_001));
   await f.send("waiting-sender", { sender: f.other });
   const state = await f.snapshot();
   expect(state.claim).toMatchObject({ holder: f.owner, token: 1 });
   expect(state.messages.map(recorded)).toEqual([
     ["contest", "queue", undefined, undefined, 2, "pending"],
-    ["waiting-sender", "queue", undefined, undefined, 3, "pending"],
+    ["holder", "steer", turn, 1, 3, "pending"],
+    ["waiting-sender", "queue", undefined, undefined, 4, "pending"],
   ]);
 });
 

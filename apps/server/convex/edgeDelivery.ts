@@ -321,7 +321,7 @@ export const start = internalMutation({
         return { ...rejected, reason: prepared.reason };
       }
       const started = await startDeliveryInDb(ctx, owner, fence);
-      if (started.state === "stale-steer")
+      if (started.state === "stale-steer" || started.state === "queue-waiting")
         return { ...rejected, reason: started.reason };
       return {
         ...fields,

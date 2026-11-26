@@ -72,6 +72,7 @@ import {
   bindingTargetMatches,
   insertRequestedBinding,
   fencedMessages,
+  cancelUnstartedOldEpoch,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
   executionRequestWire,
@@ -1157,7 +1158,11 @@ export async function publishRuntimeDispositionInDb(
       if (!args.fencingToken) return { accepted: false };
       await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
     }
-    const messages = await fencedMessages(ctx, args.conversationId);
+    const messages = await fencedMessages(
+      ctx,
+      args.conversationId,
+      head.next_nonterminal_sequence,
+    );
     const remaining = (
       enabled
         ? (
@@ -1191,78 +1196,6 @@ export async function publishRuntimeDispositionInDb(
     updated_at: args.now,
   });
   return { accepted: true };
-}
-
-async function cancelUnstartedOldEpoch(
-  ctx: DbCtx,
-  head: any,
-  currentEpoch: number,
-  now: number,
-): Promise<{ cancelled: number; remaining: number }> {
-  const MAX_CANCELLATIONS_PER_ACTIVATION = 128;
-  const messages = (await fencedMessages(ctx, head.conversation_id)).filter(
-    (message) =>
-      message.execution_epoch === currentEpoch &&
-      message.conversation_sequence <= head.cancelled_through_sequence &&
-      !isTerminalDeliveryState(message.delivery_status),
-  );
-  const batch = messages
-    .sort(
-      (left, right) => left.conversation_sequence - right.conversation_sequence,
-    )
-    .slice(0, MAX_CANCELLATIONS_PER_ACTIVATION);
-  let cancelled = 0;
-  for (const message of batch) {
-    if (
-      message.delivery_status === "delivery-started" ||
-      message.delivery_status === "ambiguous"
-    ) {
-      fail(
-        "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
-        `message ${String(message._id)} has a started or ambiguous effect`,
-      );
-    }
-    if (message.delivery_status === "claimed") {
-      const attempt = message.active_delivery_attempt_id
-        ? await ctx.db.get(message.active_delivery_attempt_id)
-        : null;
-      if (!attempt || attempt.state !== "claimed") {
-        fail(
-          "DELIVERY_SLOT_INVARIANT",
-          "claimed message lacks its claimed attempt",
-        );
-      }
-      await ctx.db.patch(attempt._id, {
-        state: "cancelled-by-supersession" as const,
-        completed_at: now,
-      });
-    } else if (message.delivery_status !== "pending") {
-      fail(
-        "DELIVERY_SLOT_INVARIANT",
-        `cannot cancel old-epoch message in state ${String(message.delivery_status)}`,
-      );
-    }
-    await ctx.db.patch(message._id, {
-      delivery_status: "cancelled-by-supersession" as const,
-      active_delivery_attempt_id: undefined,
-      status: "cancelled" as const,
-    });
-    cancelled += 1;
-  }
-  if (
-    head.active_delivery_state === "claimed" &&
-    batch.some(
-      (row) =>
-        row.active_delivery_attempt_id === head.active_delivery_attempt_id,
-    )
-  ) {
-    await ctx.db.patch(head._id, {
-      active_delivery_attempt_id: undefined,
-      active_delivery_state: undefined,
-      updated_at: now,
-    });
-  }
-  return { cancelled, remaining: messages.length - batch.length };
 }
 
 /**
@@ -1573,7 +1506,13 @@ export async function activateExecutionSuccessorInDb(
     );
   }
 
-  const remainingOld = (await fencedMessages(ctx, args.conversationId)).filter(
+  const remainingOld = (
+    await fencedMessages(
+      ctx,
+      args.conversationId,
+      head.next_nonterminal_sequence,
+    )
+  ).filter(
     (message) =>
       message.execution_epoch === args.expectedCurrentEpoch &&
       !isTerminalDeliveryState(message.delivery_status),
@@ -1999,6 +1938,7 @@ export const rejectHeadDelivery = mutation({
     execution_epoch: v.number(),
     reason: v.string(),
     api_token: v.string(),
+    fencing_token: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await rejectHeadDeliveryInDb(
@@ -2011,6 +1951,7 @@ export const rejectHeadDelivery = mutation({
         conversationSequence: sequenceFromWire(args.conversation_sequence),
         executionEpoch: args.execution_epoch,
         reason: args.reason,
+        fencingToken: args.fencing_token,
         now: Date.now(),
       },
     ),
