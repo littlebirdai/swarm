@@ -50,6 +50,7 @@ import {
   validateTargetInput,
   strictConversationAgent,
   type SuccessorIntentRequest,
+  sameSuccessorIntentRequest,
   wireIsolation,
   capabilitiesEqual,
   requireProtocolCapabilities,
@@ -535,20 +536,6 @@ export async function activateAfterLegacyQuiescenceInDb(
     owner_device_id: args.target.ownerDeviceId,
   });
   return { state: "fenced", epoch: 1, migratedMessages: legacyInFlight.length };
-}
-
-function sameSuccessorIntentRequest(
-  intent: any,
-  request: SuccessorIntentRequest,
-): boolean {
-  return (
-    intent.intent_id === request.intentId &&
-    intent.expected_current_epoch === request.expectedCurrentEpoch &&
-    intent.kind === request.kind &&
-    intent.policy === request.policy &&
-    intent.requested_model_option === request.model &&
-    intent.requested_effort_option === request.effort
-  );
 }
 
 function successorIntentMatchesTarget(
