@@ -1,6 +1,7 @@
 import type { EdgeJson } from "@codecast/edge-contract";
 import type { SteerRequest } from "@codecast/provider-contract";
 import type { Input, ThreadItem } from "./app-server-schema";
+import { deliveryClientId } from "./app-server-receipts";
 import type { DurablePayload } from "./provider-events";
 
 export function wireInput(input: SteerRequest["input"]) {
@@ -64,6 +65,8 @@ export function turnItems(
           .flatMap((part) => (part.type === "text" ? [part.text] : []))
           .join("\n");
         const match = [...userInputs].find(([, request]) => {
+          if (item.clientId)
+            return item.clientId === deliveryClientId(request.delivery_id);
           const input = wireInput(request.input);
           return (
             input.length === item.content.length &&

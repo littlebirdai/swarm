@@ -76,7 +76,7 @@ export function createProviderAdapter(
   }
 
   return {
-    provider: providerOffer(options.provider),
+    provider: providerOffer(options),
     observe: (spec, signal) =>
       run((adapter) => adapter.observe(spec, signal), signal),
     start: (spec, signal) =>

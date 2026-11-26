@@ -11,6 +11,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import { turnItems, wireInput } from "./app-server-items";
+import { appServerReceipts, deliveryClientId } from "./app-server-receipts";
 import {
   Initialize,
   InterruptReply,
@@ -49,6 +50,11 @@ const noReceipt = inDoubt(
   "no-receipt",
   "Codex app-server does not record delivery IDs",
 );
+const waitingReceipt = inDoubt(
+  "best-effort",
+  "no-receipt",
+  "Codex has not confirmed a journaled user item",
+);
 const rememberedTurns = 4_096;
 const rememberedRequests = 128;
 
@@ -67,6 +73,10 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         cause,
       ),
     ),
+  );
+  const receipts = yield* appServerReceipts(
+    spec,
+    settings.ephemeral ? undefined : options.receiptJournal,
   );
   const transport = yield* ownProviderProcess(
     options,
@@ -101,7 +111,13 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   );
   const prompts = new Map<string, ServerPrompt>();
   const completed = new Set<string>();
-  const sentTurns = new Map<number, "turn/start" | "turn/steer">();
+  const sentTurns = new Map<
+    number,
+    {
+      method: "turn/start" | "turn/steer";
+      deliveryId: string;
+    }
+  >();
   let checkpoint: string | undefined;
   let starting: { id: number; request: SteerRequest } | undefined;
   let active:
@@ -175,6 +191,10 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   }
 
   function installThread(thread: typeof ThreadReply.Type.thread) {
+    if (checkpoint === undefined) {
+      for (const receipt of receipts.replay)
+        durable({ kind: "receipt", body: receipt }, null);
+    }
     checkpoint = thread.id;
     for (const previous of thread.turns?.slice(-rememberedTurns) ?? []) {
       if (previous.status !== "inProgress") completed.add(previous.id);
@@ -247,7 +267,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     const pending = transport.pendingMethod(id);
     const remembered = typeof id === "number" ? sentTurns.get(id) : undefined;
     if (typeof id === "number") sentTurns.delete(id);
-    const method = pending ?? remembered;
+    const method = pending ?? remembered?.method;
     if (!method) return retain(line, "unknown");
     const schema: Schema.Codec<unknown> | undefined = Object.hasOwn(
       responseSchemas,
@@ -267,6 +287,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       if (error) {
         if (starting?.id === id) starting = undefined;
         active?.items.reject(id);
+        if (remembered) receipts.reject(remembered.deliveryId);
       } else if (method === "turn/start" && decoded._tag === "Success") {
         const { turn } = decoded.success as typeof TurnReply.Type;
         if (starting?.id === id) {
@@ -359,12 +380,37 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         finishTurn(event.params.turn);
         break;
       case "item/started":
-      case "item/completed":
+      case "item/completed": {
+        const item = event.params.item;
+        if (
+          event.method === "item/completed" &&
+          item.type === "userMessage" &&
+          turn &&
+          checkpoint
+        ) {
+          const acceptance = receipts.observe(
+            checkpoint,
+            turn.id,
+            item.id,
+            item.clientId,
+          );
+          if (acceptance)
+            projection.push(
+              acceptance.pipe(
+                Effect.flatMap((receipt) =>
+                  receipt
+                    ? canonical({ kind: "receipt", body: receipt }, turn.id)
+                    : Effect.void,
+                ),
+              ),
+            );
+        }
         turn?.items.project(
           event.params.item,
           event.method === "item/completed",
         );
         break;
+      }
       case "item/agentMessage/delta":
         turn?.items.assistantDelta(event.params.itemId, event.params.delta);
         break;
@@ -476,6 +522,8 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   ): Effect.fn.Return<DeliveryOutcome> {
     const preflight = checkTurn(request.expected, active?.id ?? null);
     if (preflight) return preflight;
+    const replay = receipts.retry(request.delivery_id);
+    if (replay) return replay;
     if (starting || unlocatedTurn)
       return inDoubt(
         "unknown",
@@ -487,11 +535,18 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     const input = wireInput(request.input);
     const turn = request.expected.turn;
     const method = turn ? "turn/steer" : "turn/start";
+    const params = {
+      threadId,
+      input,
+      ...(receipts.enabled
+        ? { clientUserMessageId: deliveryClientId(request.delivery_id) }
+        : {}),
+    };
     const rpc = yield* transport.request(
       method,
       turn
-        ? { threadId, expectedTurnId: turn, input }
-        : { threadId, input, ...(sandbox ? { sandboxPolicy: sandbox } : {}) },
+        ? { ...params, expectedTurnId: turn }
+        : { ...params, ...(sandbox ? { sandboxPolicy: sandbox } : {}) },
     );
     const result = yield* Effect.result(
       awaitReply<DeliveryOutcome>(
@@ -508,21 +563,26 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
                 "Codex has not identified the active turn",
               ),
             );
+          const replay = receipts.reserve(request.delivery_id);
+          if (replay) return Result.fail(replay);
           if (sentTurns.size >= rememberedRequests) {
             const oldest = sentTurns.keys().next().value;
             if (oldest !== undefined) sentTurns.delete(oldest);
           }
-          sentTurns.set(rpc.id, method);
+          sentTurns.set(rpc.id, { method, deliveryId: request.delivery_id });
           if (active) active.items.associate(rpc.id, request);
           else starting = { id: rpc.id, request };
           return Result.succeed(undefined);
         },
       ),
     );
+    const receipt = receipts.committed(request.delivery_id);
+    const accepted = receipt && ({ status: "accepted", receipt } as const);
     if (result._tag === "Failure")
       return result.failure instanceof AdapterError
-        ? failedAction(result.failure)
+        ? (accepted ?? failedAction(result.failure))
         : result.failure;
+    if (accepted) return accepted;
     if (turn) {
       const reply = yield* Effect.result(
         Schema.decodeUnknownEffect(SteerReply)(result.success),
@@ -544,7 +604,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
           "Codex did not identify the started turn",
         );
     }
-    return noReceipt;
+    return receipts.enabled ? waitingReceipt : noReceipt;
   });
 
   const interrupt = Effect.fn("app-server.interrupt")(function* (
@@ -594,7 +654,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     mode: "own" as const,
     getCheckpoint: () => threadId,
     getUnknownPayloadCount,
-    recoveredReceipts: [],
+    recoveredReceipts: receipts.recovered,
     events: events.events,
     unsubscribe: events.unsubscribe,
     steer,

@@ -1,4 +1,5 @@
 import type {
+  DeliveryReceiptJournal,
   InDoubt,
   ProviderIdentity,
   ProviderOffer,
@@ -18,6 +19,7 @@ export interface RawProviderFrame {
 export interface ProviderAdapterOptions {
   readonly provider: ProviderIdentity;
   readonly command?: readonly [string, ...string[]];
+  readonly receiptJournal?: DeliveryReceiptJournal;
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly retainRaw: (
     frame: RawProviderFrame,
@@ -26,7 +28,10 @@ export interface ProviderAdapterOptions {
   readonly onStderr?: (text: string) => void;
 }
 
-export function providerOffer(provider: ProviderIdentity): ProviderOffer {
+export function providerOffer({
+  provider,
+  receiptJournal,
+}: ProviderAdapterOptions): ProviderOffer {
   return {
     ...provider,
     capabilities:
@@ -36,7 +41,16 @@ export function providerOffer(provider: ProviderIdentity): ProviderOffer {
           ? ["own", "interrupt", "prompts", "resume"]
           : (provider.agent === "codex" && provider.version === "0.153.4") ||
               (provider.agent === "claude" && provider.version === "2.1.319")
-            ? ["own", "steer-mid-turn", "interrupt", "prompts", "resume"]
+            ? [
+                "own",
+                "steer-mid-turn",
+                "interrupt",
+                "prompts",
+                "resume",
+                ...(provider.agent === "codex" && receiptJournal
+                  ? ["receipts" as const]
+                  : []),
+              ]
             : [],
   };
 }
