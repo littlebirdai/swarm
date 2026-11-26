@@ -2054,6 +2054,7 @@ export const MessageInput = memo(function MessageInput({
         forkTail?: boolean,
         queue?: boolean,
         interrupt?: boolean,
+        observeTurn?: boolean,
       ) => Promise<unknown>)
     | null
   >(null);
@@ -2646,6 +2647,7 @@ export const MessageInput = memo(function MessageInput({
     forkTail = false,
     queue = false,
     interrupt = false,
+    observeTurn = false,
   ) => {
     e.preventDefault();
     if (!canEdit || allowanceOut || (interrupt && control?.isSubmitting()))
@@ -2664,6 +2666,7 @@ export const MessageInput = memo(function MessageInput({
           forkTail,
           queue,
           interrupt,
+          observeTurn,
         );
         if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
       })
@@ -2991,6 +2994,7 @@ export const MessageInput = memo(function MessageInput({
           clientId,
           quoteIds.length > 0 ? quoteIds : undefined,
           typedWords,
+          ...(observeTurn ? ([true] as const) : []),
         );
         onDidSend?.({
           conversationId: resolvedId,
@@ -3670,20 +3674,9 @@ export const MessageInput = memo(function MessageInput({
       toggleCompose();
       return;
     }
-    // Compose-popup intent: Enter fires-and-forgets, Cmd/Ctrl+Enter sends & opens.
-    // Only active when onSubmitWithIntent is provided (the new-session window);
-    // normal inputs fall through to the queue/send behavior below.
     if (onSubmitWithIntent && e.key === "Enter" && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       const navigate = e.metaKey || e.ctrlKey;
-      // Kick off the durable first-message send — the optimistic insert and the
-      // outbox enqueue run synchronously at the top of handleSubmit, so the send
-      // is already committed by the time this returns. DON'T await it: dismiss the
-      // popup on the same tick so it never lingers behind a slow create/send.
-      // A REFUSED commit (the row could not be saved) must not dismiss: the
-      // popup would close over an unsent message and its error toast, and the
-      // typed text would be gone with it. Keep the popup up so the toast is
-      // seen and Enter can be pressed again.
       void handleSubmit(e);
       if (submitRefusedRef.current) return;
       onSubmitWithIntent(navigate);
@@ -3751,7 +3744,13 @@ export const MessageInput = memo(function MessageInput({
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      handleSubmit(
+        e,
+        false,
+        false,
+        false,
+        !e.altKey && !e.metaKey && !e.ctrlKey,
+      );
     }
   };
 

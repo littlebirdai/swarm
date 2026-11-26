@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { FunctionArgs } from "convex/server";
@@ -9,6 +9,7 @@ import {
   owner,
 } from "../../test-helpers/composer-control-fixture";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
 
 const conversation = "t".repeat(32) as Id<"conversations">;
 const feed = api.permissions.listAnswerablePromptAddresses;
@@ -18,15 +19,21 @@ const row = {
   conversation_id: conversation,
   prompts: [],
   observed_turn: turn,
-  lease_expires_at: Number.MAX_SAFE_INTEGER,
+  lease_remaining_ms: 30_000,
 };
 const mountComposer = createComposerMount(mountWeb);
 
-function Surface() {
+function Surface({
+  feeding = true,
+  agentStatus = "working",
+}: {
+  feeding?: boolean;
+  agentStatus?: "working" | "idle";
+}) {
   return (
     <>
-      <FencedPromptAddressesFeeder conversationId={conversation} />
-      {owner(conversation, undefined, { agentStatus: "working" })}
+      {feeding && <FencedPromptAddressesFeeder conversationId={conversation} />}
+      {owner(conversation, undefined, { agentStatus })}
     </>
   );
 }
@@ -82,6 +89,88 @@ test.each([
     expect(call.result).toEqual(
       !metaKey && enabled ? { observed_turn: turn } : null,
     );
+  } finally {
+    await ui.close();
+  }
+});
+
+test.each([
+  "expired lease",
+  "remount without a push",
+  "ended turn",
+  "query error",
+] as const)("Enter sends ordinarily after %s", async (scenario) => {
+  let now = 200_000;
+  const clock = spyOn(performance, "now").mockImplementation(() => now);
+  const ui = await mountComposer(<Surface />, {
+    setup(backend) {
+      backend.set(feed, [row]);
+    },
+  });
+  try {
+    expect(
+      ui.store.getState().fencedPromptAddresses[conversation],
+    ).toMatchObject({
+      observed_turn: turn,
+      local_lease_deadline: now + row.lease_remaining_ms,
+    });
+    if (scenario === "expired lease") now += row.lease_remaining_ms;
+    else if (scenario === "remount without a push") {
+      await ui.rerender(<Surface feeding={false} />);
+      ui.backend.set(feed, pending);
+      await ui.rerender(<Surface />);
+    } else {
+      await act(async () =>
+        ui.backend.set(
+          feed,
+          scenario === "ended turn" ? [] : new Error("feed unavailable"),
+        ),
+      );
+    }
+    await ui.type("No active turn to steer");
+    await ui.press("Enter");
+    expect(
+      ui.backend.mutations
+        .filter((entry) => entry.name === "dispatch:dispatch")
+        .map((entry) => entry.args)
+        .filter((args: any) => args.action === "sendMessage"),
+    ).toEqual([expect.objectContaining({ result: null })]);
+  } finally {
+    clock.mockRestore();
+    await ui.close();
+  }
+});
+
+test("a queued draft drains without observing the active turn", async () => {
+  const ui = await mountComposer(<Surface />, {
+    setup(backend, store) {
+      backend.set(feed, [row]);
+      store.setQueuedMessagesFor(conversation, ["Queued before the switch"]);
+    },
+  });
+  try {
+    expect(
+      ui.store.getState().fencedPromptAddresses[conversation]?.observed_turn,
+    ).toEqual(turn);
+    await ui.rerender(<Surface agentStatus="idle" />);
+    expect(
+      ui.backend.mutations
+        .filter((entry) => entry.name === "dispatch:dispatch")
+        .map((entry) => entry.args)
+        .filter((args: any) => args.action === "sendMessage"),
+    ).toEqual([
+      expect.objectContaining({
+        args: [
+          conversation,
+          "Queued before the switch",
+          null,
+          expect.any(String),
+          null,
+          "Queued before the switch",
+        ],
+        result: null,
+      }),
+    ]);
   } finally {
     await ui.close();
   }

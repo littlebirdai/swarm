@@ -8450,6 +8450,7 @@ export interface InboxStoreState
     clientId?: string,
     quoteIds?: string[],
     typed?: string,
+    observeTurn?: boolean,
   ) => void;
   // sendMessage for a conversation that may still be a local stub (a session
   // started a moment ago): resolves the real id first, then sends under the
@@ -16232,6 +16233,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     _clientId?: string,
     _quoteIds?: string[],
     _typed?: string,
+    observeTurn?: boolean,
   ) {
     clearSessionSnoozeInDraft(this, _convId);
     notePendingMessageSendRequested(_clientId);
@@ -16266,9 +16268,9 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
     const turn = this.fencedPromptAddresses[_convId];
     if (
-      _typed !== undefined &&
+      observeTurn &&
       turn?.observed_turn &&
-      turn.lease_expires_at > Date.now()
+      turn.local_lease_deadline > performance.now()
     )
       return { observed_turn: { ...turn.observed_turn } };
   }),

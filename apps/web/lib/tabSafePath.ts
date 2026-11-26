@@ -71,5 +71,7 @@ function storable(v: unknown): unknown {
 
 /** An action's args as they may be stored and sent: a tab-path action's Evals addresses and titles in their storable form, any other action's args as they are. */
 export function storableActionArgs<T>(action: string, args: T): T {
+  if (action === "sendMessage" && Array.isArray(args) && args.length > 6)
+    return args.slice(0, 6) as T;
   return TAB_PATH_ACTIONS.has(action) ? (storable(args) as T) : args;
 }

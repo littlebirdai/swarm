@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
@@ -17,7 +17,7 @@ function row(conversation_id: Id<"conversations">, prompt_id: string): Row {
   return {
     _id: conversation_id,
     conversation_id,
-    lease_expires_at: 5000,
+    lease_remaining_ms: 5000,
     observed_turn: null,
     prompts: [
       {
@@ -34,8 +34,14 @@ function row(conversation_id: Id<"conversations">, prompt_id: string): Row {
   };
 }
 
-function Feed({ enabled }: { enabled: boolean }) {
-  useSyncFencedPromptAddresses(conversation, enabled);
+function Feed({
+  enabled,
+  id = conversation,
+}: {
+  enabled: boolean;
+  id?: typeof conversation;
+}) {
+  useSyncFencedPromptAddresses(id, enabled);
   const rows = useCollectionRows<Row>("fencedPromptAddresses");
   return (
     <output>
@@ -50,6 +56,7 @@ function Feed({ enabled }: { enabled: boolean }) {
 test("a conversation feed inserts and removes its addresses without dropping other conversations", async () => {
   const sibling = row(other, "sibling");
   const prompt = row(conversation, "ask");
+  const clock = spyOn(performance, "now").mockReturnValue(1000);
   const web = await mountWeb(<Feed enabled={false} />, {
     authenticated: true,
     setup(backend, store) {
@@ -70,9 +77,9 @@ test("a conversation feed inserts and removes its addresses without dropping oth
     expect(web.container.querySelector("output")?.textContent).toBe(
       "ask,sibling",
     );
-    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
-      prompt,
-    );
+    expect(
+      web.store.getState().fencedPromptAddresses[prompt._id],
+    ).toMatchObject({ prompts: prompt.prompts, local_lease_deadline: 6000 });
     const before = web.store.getState().fencedPromptAddresses[prompt._id];
     await act(async () => web.backend.set(feed, [structuredClone(prompt)]));
     expect(web.store.getState().fencedPromptAddresses[prompt._id]).toBe(before);
@@ -84,13 +91,36 @@ test("a conversation feed inserts and removes its addresses without dropping oth
       })),
     };
     await act(async () => web.backend.set(feed, [revised]));
-    expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(
-      revised,
-    );
+    expect(
+      web.store.getState().fencedPromptAddresses[prompt._id],
+    ).toMatchObject({ prompts: revised.prompts, local_lease_deadline: 6000 });
     await act(async () => web.backend.set(feed, []));
     expect(web.container.querySelector("output")?.textContent).toBe("sibling");
     expect(
       web.store.getState().fencedPromptAddresses[prompt._id],
+    ).toBeUndefined();
+  } finally {
+    clock.mockRestore();
+    await web.close();
+  }
+});
+
+test("changing conversation clears the old feed row", async () => {
+  const prompt = row(conversation, "ask");
+  const web = await mountWeb(<Feed enabled />, {
+    authenticated: true,
+    setup(backend) {
+      backend.set(feed, (args) =>
+        args.conversation_id === conversation ? [prompt] : [],
+      );
+    },
+  });
+  try {
+    expect(web.container.querySelector("output")?.textContent).toBe("ask");
+    await web.rerender(<Feed enabled id={other} />);
+    expect(web.container.querySelector("output")?.textContent).toBe("");
+    expect(
+      web.store.getState().fencedPromptAddresses[conversation],
     ).toBeUndefined();
   } finally {
     await web.close();

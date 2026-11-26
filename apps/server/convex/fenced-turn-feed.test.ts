@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
 import type { CanonicalEvent } from "@codecast/edge-contract";
+import {
+  TURN_PROJECTION_VERSION,
+  TURN_STARTER_PROJECTION_VERSION,
+} from "@codecast/session-contract/turn-projection";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
@@ -27,7 +31,7 @@ afterEach(() => {
   setSystemTime();
 });
 
-test("a fenced turn is visible to eligible senders without the owner's prompts", async () => {
+test("the owner receives a current steer observation and eligible collaborators see neither it nor the prompts", async () => {
   const f = await setupRunLease();
   const lease = await f.claim("turn-feed-lease");
   if (lease.status !== "granted") throw new Error("Expected run lease");
@@ -50,21 +54,19 @@ test("a fenced turn is visible to eligible senders without the owner's prompts",
       }),
     ).toMatchObject({ status: "appended" });
   };
-  const [sender, reader] = await f.t.run(async ({ db }) => {
+  const sender = await f.t.run(async ({ db }) => {
     const binding = await db.query("execution_bindings").unique();
     if (!binding) throw new Error("Expected binding");
     await db.patch(binding._id, { capabilities: ["steer-baton-v1"] });
     const rows = fixtureRows(db, "fenced turn feed");
     const sender = await rows.user();
-    const reader = await rows.user();
     await db.patch(f.conversation, { share_token: "turn-share" });
-    for (const user_id of [sender, reader])
-      await db.insert("share_redemptions", {
-        conversation_id: f.conversation,
-        user_id,
-        token: "turn-share",
-        created_at: start,
-      });
+    await db.insert("share_redemptions", {
+      conversation_id: f.conversation,
+      user_id: sender,
+      token: "turn-share",
+      created_at: start,
+    });
     await db.insert("collab_grants", {
       conversation_id: f.conversation,
       grantee_user_id: sender,
@@ -73,7 +75,7 @@ test("a fenced turn is visible to eligible senders without the owner's prompts",
       created_at: start,
       updated_at: start,
     });
-    return [sender, reader] as const;
+    return sender;
   });
   const args = { conversation_id: f.conversation };
   const feed = api.permissions.listAnswerablePromptAddresses;
@@ -105,16 +107,27 @@ test("a fenced turn is visible to eligible senders without the owner's prompts",
       prompts: [{ prompt_id: "next-prompt" }],
     },
   ]);
-  expect(await senderFeed()).toEqual([
-    {
-      _id: f.conversation,
-      conversation_id: f.conversation,
-      observed_turn,
-      lease_expires_at: start + leaseMs,
-      prompts: [],
-    },
+  expect(await senderFeed()).toEqual([]);
+  expect((await ownerFeed())[0]?.lease_remaining_ms).toBe(leaseMs);
+  setSystemTime(new Date(start + 5_000));
+  expect((await ownerFeed())[0]?.lease_remaining_ms).toBe(leaseMs - 5_000);
+  await f.t.run(async ({ db }) => {
+    const projection = await db.query("run_turn_projections").unique();
+    if (!projection) throw new Error("Expected turn projection");
+    await db.patch(projection._id, {
+      projection_version: TURN_PROJECTION_VERSION,
+    });
+  });
+  expect(await ownerFeed()).toMatchObject([
+    { observed_turn: null, prompts: [{ prompt_id: "next-prompt" }] },
   ]);
-  expect(await asUser(f.t, reader).query(feed, args)).toEqual([]);
+  await f.t.run(async ({ db }) => {
+    const projection = await db.query("run_turn_projections").unique();
+    if (!projection) throw new Error("Expected turn projection");
+    await db.patch(projection._id, {
+      projection_version: TURN_STARTER_PROJECTION_VERSION,
+    });
+  });
   await f.t.run(async ({ db }) => {
     const head = await db.query("conversation_execution_heads").unique();
     if (!head) throw new Error("Expected execution head");
@@ -132,7 +145,7 @@ test("a fenced turn is visible to eligible senders without the owner's prompts",
   await append([
     { ...base, seq: 3, kind: "turn.ended", body: { reason: "completed" } },
   ]);
-  expect(await senderFeed()).toEqual([]);
+  expect(await ownerFeed()).toEqual([]);
   await append([
     {
       ...base,
@@ -142,11 +155,11 @@ test("a fenced turn is visible to eligible senders without the owner's prompts",
       body: { starter: { kind: "person", id: sender } },
     },
   ]);
-  expect(await senderFeed()).toMatchObject([
+  expect(await ownerFeed()).toMatchObject([
     { observed_turn: { id: "new", run: 1, start_event_seq: 4 } },
   ]);
   setSystemTime(new Date(start + leaseMs));
   const nextLease = await f.claim("turn-feed-replacement");
   expect(nextLease.status).toBe("granted");
-  expect(await senderFeed()).toEqual([]);
+  expect(await ownerFeed()).toEqual([]);
 });

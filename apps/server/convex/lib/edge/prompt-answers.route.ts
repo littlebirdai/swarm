@@ -5,6 +5,7 @@ import {
   type CommandsNextResponse,
   type CommandsResultResponse,
 } from "@codecast/edge-contract";
+import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -94,15 +95,18 @@ async function openPromptTurn(
       )
       .unique(),
   ]);
+  const now = Date.now();
   if (
     !lease ||
-    !isFreshTurnProjection(binding, lease, projection, Date.now()) ||
+    !isFreshTurnProjection(binding, lease, projection, now) ||
     !projection?.open_turn
   )
     return null;
   return {
     binding,
     lease,
+    lease_remaining_ms: lease.expires_at - now,
+    projectionVersion: projection.projection_version,
     turn: projection.open_turn,
     admitting:
       head.admission_epoch === undefined || head.admission_epoch === run,
@@ -166,7 +170,14 @@ export async function answerablePromptAddresses(
   if (!mayAnswer && !maySteer) return [];
   const opened = await openPromptTurn(ctx, conversation);
   if (!opened) return [];
-  const { binding, lease, turn, admitting } = opened;
+  const {
+    binding,
+    lease,
+    turn,
+    admitting,
+    projectionVersion,
+    lease_remaining_ms,
+  } = opened;
   const conversation_id = conversation._id;
   const candidates = (mayAnswer ? (turn.prompt_details ?? []) : []).filter(
     ({ kind, prompt_id, questions }) =>
@@ -196,6 +207,7 @@ export async function answerablePromptAddresses(
   const observed_turn =
     maySteer &&
     admitting &&
+    projectionVersion === TURN_STARTER_PROJECTION_VERSION &&
     binding.capabilities?.includes(STEER_BATON_CAPABILITY) &&
     turn.starter &&
     turn.start_event_seq !== undefined
@@ -212,7 +224,7 @@ export async function answerablePromptAddresses(
       conversation_id,
       prompts,
       observed_turn: observed_turn ?? null,
-      lease_expires_at: lease.expires_at,
+      lease_remaining_ms,
     },
   ];
 }

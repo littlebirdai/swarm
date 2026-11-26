@@ -93,7 +93,7 @@ async function setup({
       content: id,
       ...(observed_turn ? { observed_turn } : {}),
     });
-  const dispatch = (action: string, id: string) =>
+  const dispatch = (action: string, id: string, observed_turn?: unknown) =>
     actor.mutation(api.dispatch.dispatch, {
       action,
       args:
@@ -101,7 +101,15 @@ async function setup({
           ? [f.conversation, id, id]
           : [f.conversation, id, null, id],
       ...(action === "sendMessage"
-        ? { result: { receiptActionVersion: 1, commandId: id } }
+        ? {
+            result: {
+              receiptActionVersion: 1,
+              commandId: id,
+              ...(observed_turn !== undefined && {
+                localResult: { observed_turn },
+              }),
+            },
+          }
         : {}),
     });
   const snapshot = () =>
@@ -280,6 +288,29 @@ test("store actions without an observation and explicit queue sends keep their a
     ["old-composer", "queue", undefined, undefined, 2, "pending"],
     ["cmd-enter", "queue", undefined, undefined, 3, "held"],
   ]);
+});
+
+test("dispatch records the observed steer through sendMessageV2", async () => {
+  const f = await setup({ starter: "agent" });
+  const receipt = await f.dispatch("sendMessage", "composer-enter", turn);
+  const state = await f.snapshot();
+  expect(state.messages.map(recorded)).toEqual([
+    ["composer-enter", "steer", turn, 1, 2, "pending"],
+  ]);
+  expect(state.receipts).toHaveLength(1);
+  expect(await f.dispatch("sendMessage", "composer-enter", turn)).toEqual(
+    receipt,
+  );
+  expect(await f.snapshot()).toEqual(state);
+});
+
+test("dispatch refuses an invalid observed turn before forwarding it", async () => {
+  const f = await setup();
+  const before = await f.snapshot();
+  await expect(
+    f.dispatch("sendMessage", "invalid-observation", { ...turn, extra: true }),
+  ).rejects.toThrow("ArgumentValidationError: invalid observed_turn");
+  expect(await f.snapshot()).toEqual(before);
 });
 
 test("an idle session queues without a claim when the sender saw no turn", async () => {
