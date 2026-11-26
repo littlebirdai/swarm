@@ -27509,7 +27509,7 @@
   "apps/web/store/__tests__/outboxTransientTimeout.test.ts": {
     "swarm/no-comments": 13
   },
-  "apps/web/store/__tests__/parkedConvCommandCallers.guard.test.ts": {
+  "apps/web/store/__tests__/parked-conv-command-callers.guard.test.ts": {
     "swarm/no-comments": 13
   },
   "apps/web/store/__tests__/pendingMessageJournal.test.ts": {

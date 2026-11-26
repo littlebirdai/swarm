@@ -1395,7 +1395,7 @@
     "store/__tests__/orgSliceFollow.test.ts": 251,
     "store/__tests__/outboxRetention.test.ts": 1031,
     "store/__tests__/outboxTransientTimeout.test.ts": 983,
-    "store/__tests__/parkedConvCommandCallers.guard.test.ts": 256,
+    "store/__tests__/parked-conv-command-callers.guard.test.ts": 256,
     "store/__tests__/pending-input-persistence.test.ts": 2345,
     "store/__tests__/pendingMessageJournal.test.ts": 256,
     "store/__tests__/pendingRedriveScheduling.test.ts": 286,
