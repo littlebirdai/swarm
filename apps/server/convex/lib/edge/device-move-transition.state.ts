@@ -15,6 +15,7 @@ import {
   activeMoveAttempt,
   DEVICE_MOVE_FENCE,
   expireMoveSettlement,
+  registeredBoot,
   requireForcedDeviceMoveEnabled,
 } from "./device-move.state";
 import { activateEventRun, clearEventTurn } from "./runEvents";
@@ -99,19 +100,6 @@ function assertDestination({ move, auth }: MoveContext) {
     throw new ConvexError(
       "The destination device and runner must authorize the move",
     );
-}
-
-export async function registeredBoot(
-  ctx: DbCtx,
-  runner: Id<"users">,
-  device: string,
-) {
-  return await ctx.db
-    .query("execution_daemon_boots")
-    .withIndex("by_user_device", (q) =>
-      q.eq("user_id", runner).eq("owner_device_id", device),
-    )
-    .unique();
 }
 
 export async function assertSourceEnded(

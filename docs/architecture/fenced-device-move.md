@@ -161,10 +161,11 @@ transferring ownership if more than 100 linked triggers, or more than
 
 After the driver fails, the session stays parked until its owner confirms a
 device choice. Choosing the same device resumes the failed step with a fresh
-retry budget. The request names the failed move and its revision so a replay
-cannot restart a later failure. Choosing a different device retires any
-prepared binding and restores its staged queue in bounded pages before
-preparing a fresh epoch. The source remains fenced throughout. The
+retry budget if its prepared binding can still run on the current boot.
+Otherwise, the driver retires that binding and restores its staged queue in
+bounded pages before preparing a fresh epoch. Choosing a different device
+uses the same retirement path. The request names the failed move and its
+revision so a replay cannot restart a later failure. The source remains fenced throughout. The
 abandoned runtime loses server authority, and its binding preserves any
 evidence of a local runtime.
 

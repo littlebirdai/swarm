@@ -50,11 +50,11 @@ async function fixture(register = true, crossAccount = true) {
     return runner;
   });
   const bearer = presentToken("move-driver-token", device);
-  const registerTarget = () =>
+  const registerTarget = (daemonBoot = targetBoot) =>
     f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
       api_token: bearer,
       owner_device_id: device,
-      daemon_boot_id: targetBoot,
+      daemon_boot_id: daemonBoot,
     });
   if (register) await registerTarget();
   const owner = asUser(f.t, f.owner);
@@ -114,10 +114,11 @@ async function fixture(register = true, crossAccount = true) {
     destination = device,
     token = bearer,
     epoch = 2,
+    daemonBoot = targetBoot,
   ) => {
     const auth = {
       owner_device_id: destination,
-      daemon_boot_id: targetBoot,
+      daemon_boot_id: daemonBoot,
       api_token: token,
       protocol_version: 1,
     };
@@ -654,6 +655,7 @@ test.each(["unprepared", "ready"] as const)(
       expect(await f.nextBinding()).toMatchObject({
         state: "quarantined",
         move_id: first,
+        abandoned_move: true,
       });
       await expect(
         f.t.mutation(internal.edgeRunLease.activateMove, {
@@ -711,3 +713,76 @@ test.each(["unprepared", "ready"] as const)(
       });
   },
 );
+
+test.each([
+  "boot change",
+  "stopped",
+  "quarantined",
+  "start-ambiguous",
+  "start-failed-before-effect",
+  "retryable start failure",
+] as const)("choosing the same device recovers after %s", async (failure) => {
+  const f = await fixture(true, false);
+  const first = await f.force();
+  await f.pulse();
+  const binding = await f.nextBinding();
+  if (!binding) throw new Error("Expected a prepared binding");
+  const currentBoot = failure === "boot change" ? "target-boot-2" : targetBoot;
+  const retryable = failure === "retryable start failure";
+  if (failure === "boot change") {
+    await f.announceReady();
+    await f.registerTarget(currentBoot);
+  } else {
+    await f.t.run(({ db }) =>
+      db.patch(binding._id, {
+        state: retryable ? "start-failed-before-effect" : failure,
+        failure_retryable:
+          failure === "start-failed-before-effect"
+            ? false
+            : retryable || undefined,
+      }),
+    );
+  }
+  await f.t.finishAllScheduledFunctions(() => jest.runOnlyPendingTimers());
+  const retry = (await f.next())[0]?.failedMove;
+  expect(retry?.move_id).toBe(first);
+  const replacement = await f.force(device, retry);
+  if (retryable) {
+    expect(replacement).toBe(first);
+    expect(await f.nextBinding()).toMatchObject({
+      failure_retryable: true,
+      move_id: first,
+    });
+    expect(await f.nextBinding(3)).toBeNull();
+    expect((await f.readHead())?.device_move?.driver?.step).toBe("activate");
+    return;
+  }
+  expect(replacement).not.toBe(first);
+  expect(await f.force(device, retry)).toBe(replacement);
+  expect(await f.nextBinding()).toMatchObject({
+    move_id: first,
+    abandoned_move: true,
+  });
+  expect(await f.readHead()).toMatchObject({
+    current_epoch: 1,
+    device_move: { driver: { step: "restore" } },
+  });
+  await f.pulse();
+  expect(await f.queue()).toMatchObject([
+    { _id: f.message, execution_epoch: 1, conversation_sequence: 1 },
+  ]);
+  await f.pulse(1);
+  expect(await f.nextBinding(3)).toMatchObject({
+    state: "requested",
+    daemon_boot_id: currentBoot,
+  });
+  await f.announceReady(device, f.targetToken, 3, currentBoot);
+  await f.t.finishAllScheduledFunctions(() => jest.runOnlyPendingTimers());
+  expect(await f.readHead()).toMatchObject({
+    current_epoch: 3,
+    last_device_move: { move_id: replacement, destination_device_id: device },
+  });
+  expect(await f.queue()).toMatchObject([
+    { _id: f.message, execution_epoch: 3, conversation_sequence: 1 },
+  ]);
+});

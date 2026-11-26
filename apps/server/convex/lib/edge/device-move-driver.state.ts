@@ -2,14 +2,13 @@ import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { forcedDeviceMoveEnabled } from "./device-move.state";
+import { forcedDeviceMoveEnabled, registeredBoot } from "./device-move.state";
 import {
   activateRecordedDeviceMove,
   assertSourceEnded,
   destinationBinding,
   loadRecordedDeviceMove,
   prepareRecordedDeviceMove,
-  registeredBoot,
   retargetRecordedDeviceMove,
   type RecordedMoveAddress,
 } from "./device-move-transition.state";

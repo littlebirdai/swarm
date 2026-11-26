@@ -118,6 +118,19 @@ export async function assertMoveSettlement(
   assertMoveSettlementStarted(head, attempt);
 }
 
+export async function registeredBoot(
+  ctx: Pick<QueryCtx, "db">,
+  runner: Id<"users">,
+  device: string,
+) {
+  return await ctx.db
+    .query("execution_daemon_boots")
+    .withIndex("by_user_device", (q) =>
+      q.eq("user_id", runner).eq("owner_device_id", device),
+    )
+    .unique();
+}
+
 export async function recordDeviceMove(
   ctx: Pick<MutationCtx, "db">,
   args: (
@@ -185,11 +198,62 @@ export async function recordDeviceMove(
     existing.driver.revision === retry.revision;
   if (head && existing) {
     const target = existing.replacement ?? existing;
-    if (
+    const sameTarget =
       existing.source_epoch === args.expected_source_epoch &&
       target.destination_device_id === args.destination_device_id &&
-      target.destination_runner_id === destinationRunnerId
-    ) {
+      target.destination_runner_id === destinationRunnerId;
+    const replacementDriver =
+      forcedBy !== undefined &&
+      existing.forced &&
+      existing.source_epoch === args.expected_source_epoch &&
+      existing.driver?.step === "failed" &&
+      resumeDriver &&
+      (existing.phase !== "aborting" || existing.replacement)
+        ? existing.driver
+        : undefined;
+    const abandonedMoveId =
+      replacementDriver && existing.phase
+        ? (existing.replacement?.abandoned_move_id ?? existing.move_id)
+        : undefined;
+    const prepared =
+      replacementDriver && existing.phase
+        ? await ctx.db
+            .query("execution_bindings")
+            .withIndex("by_conversation_epoch", (q) =>
+              q
+                .eq("conversation_id", args.conversation_id)
+                .eq("epoch", existing.next_epoch),
+            )
+            .unique()
+        : undefined;
+    if (
+      prepared !== undefined &&
+      (head.pending_epoch !== existing.next_epoch ||
+        !prepared ||
+        !abandonedMoveId ||
+        prepared.move_id !== abandonedMoveId ||
+        prepared.owner_device_id !== existing.destination_device_id ||
+        prepared.owner_user_id !== existing.destination_runner_id)
+    )
+      throw new ConvexError("The destination binding does not match the move");
+    const refreshPreparedBinding =
+      sameTarget &&
+      replacementDriver &&
+      existing.phase === "preparing" &&
+      prepared &&
+      ((prepared.state !== "requested" &&
+        prepared.state !== "starting" &&
+        prepared.state !== "ready" &&
+        (prepared.state !== "start-failed-before-effect" ||
+          prepared.failure_retryable !== true)) ||
+        (
+          await registeredBoot(
+            ctx,
+            prepared.owner_user_id,
+            prepared.owner_device_id,
+          )
+        )?.daemon_boot_id !== prepared.daemon_boot_id);
+    if (sameTarget && !refreshPreparedBinding) {
       const moveId = existing.move_id ?? crypto.randomUUID();
       if (
         forcedBy !== undefined &&
@@ -218,48 +282,20 @@ export async function recordDeviceMove(
         resumeDriver: force || resumeDriver,
       };
     }
-    if (
-      forcedBy !== undefined &&
-      existing.forced &&
-      existing.source_epoch === args.expected_source_epoch &&
-      existing.driver?.step === "failed" &&
-      resumeDriver &&
-      (existing.phase !== "aborting" || existing.replacement)
-    ) {
+    if (replacementDriver) {
       const moveId = crypto.randomUUID();
       const destination = {
         destination_device_id: args.destination_device_id,
         destination_runner_id: destinationRunnerId,
       };
-      const abandonedMoveId = existing.phase
-        ? (existing.replacement?.abandoned_move_id ?? existing.move_id)
-        : undefined;
-      if (existing.phase) {
-        const abandoned = await ctx.db
-          .query("execution_bindings")
-          .withIndex("by_conversation_epoch", (q) =>
-            q
-              .eq("conversation_id", args.conversation_id)
-              .eq("epoch", existing.next_epoch),
-          )
-          .unique();
-        if (
-          !Number.isSafeInteger(existing.next_epoch + 1) ||
-          head.pending_epoch !== existing.next_epoch ||
-          !abandoned ||
-          !abandonedMoveId ||
-          abandoned.move_id !== abandonedMoveId ||
-          abandoned.owner_device_id !== existing.destination_device_id ||
-          abandoned.owner_user_id !== existing.destination_runner_id
-        )
-          throw new ConvexError(
-            "The destination binding does not match the move",
-          );
-        await ctx.db.patch(abandoned._id, {
+      if (prepared) {
+        if (!Number.isSafeInteger(existing.next_epoch + 1))
+          throw new ConvexError("The next destination epoch is out of range");
+        await ctx.db.patch(prepared._id, {
           state:
-            abandoned.state === "requested" ||
-            abandoned.state === "start-failed-before-effect" ||
-            abandoned.state === "stopped"
+            prepared.state === "requested" ||
+            prepared.state === "start-failed-before-effect" ||
+            prepared.state === "stopped"
               ? "stopped"
               : "quarantined",
           abandoned_move: true,
@@ -281,7 +317,7 @@ export async function recordDeviceMove(
               }
             : destination),
           driver: {
-            revision: existing.driver.revision,
+            revision: replacementDriver.revision,
             step: "failed",
             retries: 0,
             moved: 0,
