@@ -19,16 +19,20 @@ execution row or the attempt fence. The first change leaves these
 mutations to the fenced execution protocol.
 [Execution authority](../../apps/server/convex/executionBindings.ts)
 
-| Writer                                                                   | Behavior for a conversation under the execution protocol                                                                                                                                               |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `moveSessionToDevice`, `reparentSessionToDevice`, `reassignToDevice`     | Refuse with a reason before the ownership or command writes.                                                                                                                                           |
-| `claimConversation`, `claimConversationForStart`, `setConversationOwner` | Refuse the legacy claim or set. The pre-start claim returns `won: false` and the reason.                                                                                                               |
-| `claimDeviceAccount`                                                     | Exclude fenced rows from the move scan. Move eligible legacy rows. On the last page, one separate lookup reports if fenced sessions remain. Add one to the skipped count when that lookup finds a row. |
-| `registerManagedSession`                                                 | Return `notOwner` and the reason for a different device. Other registrations can refresh the managed row and heartbeat. They do not write the conversation owner.                                      |
-| Cloud `placeConversation`, `claimSharedCheckout`, and `parkOnCloudHost`  | Refuse with a reason before placement, checkout, or spawn writes.                                                                                                                                      |
-| `reconfigureSession`                                                     | Refuse a cloud request or a target device change, even without a pending park. Return `reconfigured: false` with a reason. Dispatch shows the reason to the user.                                      |
-| Transcript ingest                                                        | Skip the device backfill. Keep the other ingest updates.                                                                                                                                               |
-| `mergeDuplicateUser`                                                     | Refuse the merge if the source owns an execution head. Check each runner row before the merge writes it. A dry run can still show the proposed changes.                                                |
+| Writer                                                                   | Behavior for a conversation under the execution protocol                                                                                                          |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `moveSessionToDevice`, `reparentSessionToDevice`, `reassignToDevice`     | Refuse with a reason before the ownership or command writes.                                                                                                      |
+| `claimConversation`, `claimConversationForStart`, `setConversationOwner` | Refuse the legacy claim or set. The pre-start claim returns `won: false` and the reason.                                                                          |
+| `claimDeviceAccount`                                                     | Scan bounded pages and move eligible legacy rows. Count each fenced row as skipped and report the refusal with the final count.                                   |
+| `registerManagedSession`                                                 | Return `notOwner` and the reason for a different device. Other registrations can refresh the managed row and heartbeat. They do not write the conversation owner. |
+| Cloud `placeConversation`, `claimSharedCheckout`, and `parkOnCloudHost`  | Refuse with a reason before placement, checkout, or spawn writes.                                                                                                 |
+| `reconfigureSession`                                                     | Refuse a cloud request or a target device change, even without a pending park. Return `reconfigured: false` with a reason. Dispatch shows the reason to the user. |
+| Transcript ingest                                                        | Skip the device backfill. Keep the other ingest updates.                                                                                                          |
+| `mergeDuplicateUser`                                                     | Refuse the merge if the source owns an execution head. Check each runner row before the merge writes it. A dry run can still show the proposed changes.           |
+
+A single session with a large linked pending-message queue can still exceed
+one transaction. Tests of the current transfer reached this limit at about
+16,000 small messages or 850 messages of 10 KB each.
 
 The legacy start and pending-message guards already refuse fenced work.
 `moveToRemote` refuses before it queues a transfer. Migration plans skip

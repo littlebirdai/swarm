@@ -1,12 +1,14 @@
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import {
+  clearClaimCheckpoint,
+  clearDeviceClaimCheckpoints,
   fencedMoveRefusal,
   scanDeviceRows,
 } from "./lib/fenced-device-move.rules";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
-import { mutation, query, internalQuery } from "./functions";
+import { mutation, query, internalQuery, internalMutation } from "./functions";
 import { selfUpdateBlocked } from "./lib/deviceUpdate";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -1340,18 +1342,21 @@ export async function performClaimDeviceAccount(
   }
   const mine = await ownDevice(ctx, callerId, args.deviceId);
   if (!mine || now - (mine.last_seen ?? 0) >= DEVICE_ONLINE_MS) {
+    if (mine) await clearClaimCheckpoint(ctx, mine._id, args.previousUserId);
     return {
       moved: 0,
       more: false,
       error: "this device is not online on the new account",
     };
   }
-  if (!(await shareATeam(ctx, callerId, args.previousUserId)))
+  if (!(await shareATeam(ctx, callerId, args.previousUserId))) {
+    await clearClaimCheckpoint(ctx, mine._id, args.previousUserId);
     return {
       moved: 0,
       more: false,
       error: "the two accounts do not share a team",
     };
+  }
   const previousDevice = await ctx.db
     .query("devices")
     .withIndex("by_user_device", (q: any) =>
@@ -1366,6 +1371,7 @@ export async function performClaimDeviceAccount(
     callerId,
     mine,
     { userId: args.previousUserId, lastSeen: previousDevice?.last_seen },
+    now,
   );
   for (const conv of rows) {
     await ctx.db.patch(conv._id, {
@@ -1628,6 +1634,7 @@ export async function performRemoveDevices(
     // A machine that lists itself again comes back private: a share was
     // consent for that machine as it was, not for whatever returns under its id.
     await performSetDeviceShares(ctx, userId, deviceId, []);
+    await clearDeviceClaimCheckpoints(ctx, device._id);
     await ctx.db.delete(device._id);
     await ctx.scheduler.runAfter(
       0,
@@ -1651,6 +1658,11 @@ export const removeDevices = mutation({
     if (!userId) throw new Error("Authentication required");
     return performRemoveDevices(ctx, userId, args.device_ids);
   },
+});
+
+export const purgeClaimCheckpoints = internalMutation({
+  args: { device: v.id("devices") },
+  handler: (ctx, { device }) => clearDeviceClaimCheckpoints(ctx, device),
 });
 
 /**
