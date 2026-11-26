@@ -12,6 +12,7 @@ import {
   claim,
   clearTerminalClaim,
   closeTerminalPane,
+  deleteTerminalTypingGrant,
   findClaim,
   nextTerminalControl,
   release as releaseClaim,
@@ -23,7 +24,7 @@ import {
   withHeldClaim,
 } from "./lib/claims";
 import { terminalPublisher } from "./lib/terminalPublisher";
-import { canTeamMemberAccess, isTeamMember } from "./privacy";
+import { canTeamMemberAccess } from "./privacy";
 
 type ReadCtx = Pick<QueryCtx, "db">;
 type TerminalState = NonNullable<Doc<"claims">["terminal"]>;
@@ -136,6 +137,13 @@ function grantFor(ctx: ReadCtx, id: Id<"conversations">, user: Id<"users">) {
     .unique();
 }
 
+function membershipFor(ctx: ReadCtx, user: Id<"users">, team: Id<"teams">) {
+  return ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_team", (q) => q.eq("user_id", user).eq("team_id", team))
+    .first();
+}
+
 async function typingAccess(
   ctx: ReadCtx,
   pane: Pane,
@@ -153,17 +161,22 @@ async function typingAccess(
   const grant = await grantFor(ctx, conversation._id, user);
   if (
     !grant ||
+    !grant.owner_membership ||
     grant.owner_id !== device.user_id ||
     grant.device !== device._id ||
     grant.team_id !== conversation.team_id
   )
     return null;
-  const membership = await ctx.db.get(grant.membership);
+  const [membership, ownerMembership] = await Promise.all([
+    ctx.db.get(grant.membership),
+    ctx.db.get(grant.owner_membership),
+  ]);
   if (
     membership?.user_id !== user ||
     membership.team_id !== grant.team_id ||
-    !(await canTeamMemberAccess(ctx, user, conversation)) ||
-    !(await isTeamMember(ctx, device.user_id, grant.team_id))
+    ownerMembership?.user_id !== device.user_id ||
+    ownerMembership.team_id !== grant.team_id ||
+    !(await canTeamMemberAccess(ctx, user, conversation))
   )
     return null;
   const share = await ctx.db
@@ -236,24 +249,22 @@ export const setTypingGrant = mutation({
       pane.device.user_id !== owner ||
       !conversation.team_id ||
       conversation.team_visibility === "private" ||
-      !(await isTeamMember(ctx, owner, conversation.team_id)) ||
       !(await canTeamMemberAccess(ctx, args.user_id, conversation))
     )
       return false;
     const teamId = conversation.team_id;
-    const membership = await ctx.db
-      .query("team_memberships")
-      .withIndex("by_user_team", (q) =>
-        q.eq("user_id", args.user_id).eq("team_id", teamId),
-      )
-      .first();
-    if (!membership) return false;
+    const [membership, ownerMembership] = await Promise.all([
+      membershipFor(ctx, args.user_id, teamId),
+      membershipFor(ctx, owner, teamId),
+    ]);
+    if (!membership || !ownerMembership) return false;
     const grant: Omit<Grant, "_id" | "_creationTime"> = {
       conversation_id: conversation._id,
       team_id: conversation.team_id,
       owner_id: owner,
       user_id: args.user_id,
       membership: membership._id,
+      owner_membership: ownerMembership._id,
       device: pane.device._id,
       granted_at: Date.now(),
     };
@@ -262,9 +273,12 @@ export const setTypingGrant = mutation({
       prior.owner_id !== grant.owner_id ||
       prior.device !== grant.device ||
       prior.membership !== grant.membership ||
+      prior.owner_membership !== grant.owner_membership ||
       prior.team_id !== grant.team_id
-    )
-      await ctx.db.replace(prior._id, grant);
+    ) {
+      await deleteTerminalTypingGrant(ctx.db, prior);
+      await ctx.db.insert("terminal_typing_grants", grant);
+    }
     return true;
   },
 });

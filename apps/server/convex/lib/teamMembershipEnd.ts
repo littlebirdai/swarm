@@ -2,6 +2,8 @@
 // end with it. teams.ts calls this from every path that removes someone.
 
 import type { Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { recordAuthorityEvent } from "./authorityEvents";
 import { isTeamMember } from "../privacy";
 import { isTeamMachineFor } from "../sessionLaunch";
@@ -90,10 +92,11 @@ async function releaseStrandedSessionOwnership(
 // team deletion and test cleanup, so none of them can diverge on what "gone"
 // means.
 export async function endMembership(
-  ctx: { db: any },
+  ctx: { db: any; scheduler?: MutationCtx["scheduler"] },
   userId: Id<"users">,
   teamId: Id<"teams">,
   actor: Id<"users"> = userId,
+  retireScope: "member" | "team" = "member",
 ): Promise<void> {
   const rows = await ctx.db
     .query("team_memberships")
@@ -115,16 +118,24 @@ export async function endMembership(
       },
     });
   }
-  for (const [index, field] of [
-    ["by_owner", "owner_id"],
-    ["by_user", "user_id"],
-  ] as const) {
-    const grants = await ctx.db
-      .query("terminal_typing_grants")
-      .withIndex(index, (q: any) => q.eq(field, userId).eq("team_id", teamId))
-      .collect();
-    for (const grant of grants) await deleteTerminalTypingGrant(ctx.db, grant);
-  }
+  if (retireScope === "member")
+    for (const [index, field] of [
+      ["by_owner", "owner_id"],
+      ["by_user", "user_id"],
+    ] as const) {
+      const grants = await ctx.db
+        .query("terminal_typing_grants")
+        .withIndex(index, (q: any) => q.eq(field, userId).eq("team_id", teamId))
+        .take(100);
+      for (const grant of grants)
+        await deleteTerminalTypingGrant(ctx.db, grant);
+      if (grants.length === 100)
+        await ctx.scheduler?.runAfter(
+          0,
+          internal.terminalWatch.purgeMemberTypingGrants,
+          { team_id: teamId, user_id: userId, role: field, cursor: null },
+        );
+    }
   const terminalShares = await ctx.db
     .query("terminal_watch_shares")
     .withIndex("by_owner_team", (q: any) =>

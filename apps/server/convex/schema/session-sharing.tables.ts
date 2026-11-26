@@ -46,6 +46,7 @@ export const sessionSharingTables = {
     owner_id: v.id("users"),
     user_id: v.id("users"),
     membership: v.id("team_memberships"),
+    owner_membership: v.optional(v.id("team_memberships")),
     device: v.id("devices"),
     granted_at: v.number(),
   })
