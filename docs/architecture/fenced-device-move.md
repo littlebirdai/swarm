@@ -66,9 +66,10 @@ until the first two steps pass together.
    started attempt with a live lease. If there is no live lease, it marks
    the attempt ambiguous in that transaction.
 
-   The source must present the recorded lease token to settle the recorded
-   attempt. After the window closes, the source cannot clear the slot.
-   Evidence review belongs to successor preparation. The window uses a
+   Only a started slot opens a settlement window. The source must present
+   the recorded lease token while both the attempt and slot are started.
+   Releasing the lease closes the window. An ambiguous slot stays held for
+   evidence review during successor preparation. The window uses a
    provisional server constant of 10 seconds.
 
 2. **Prepare and activate.** Authorize successor creation from the move

@@ -37,7 +37,8 @@ export async function assertMoveSettlement(
     move.source_lease_id && (await ctx.db.get(move.source_lease_id));
   if (
     attempt._id !== move.attempt_id ||
-    attempt.delivery_started_at === undefined ||
+    attempt.state !== "delivery-started" ||
+    head.active_delivery_state !== "delivery-started" ||
     fence.executionEpoch !== move.source_epoch ||
     fence.now >= move.settlement_deadline ||
     !lease ||
@@ -108,6 +109,7 @@ export async function recordDeviceMove(
     lease?.binding_id === binding._id && lease.boot === binding.daemon_boot_id
       ? lease
       : null;
+  const started = head.active_delivery_state === "delivery-started";
   const move: Move = {
     source_epoch: binding.epoch,
     source_lease_id: sourceLease?._id,
@@ -115,7 +117,7 @@ export async function recordDeviceMove(
     destination_device_id: args.destination_device_id,
     destination_runner_id: args.destination_runner_id,
     next_epoch: binding.epoch + 1,
-    settlement_deadline: now + SETTLEMENT_WINDOW_MS,
+    settlement_deadline: started ? now + SETTLEMENT_WINDOW_MS : now,
   };
   await ctx.db.patch(head._id, { device_move: move, updated_at: now });
   if (head.active_delivery_state === "claimed") {
@@ -132,8 +134,7 @@ export async function recordDeviceMove(
   return {
     headId: head._id,
     sourceEpoch: binding.epoch,
-    expiresAt:
-      head.active_delivery_state === "delivery-started" ? expiresAt : null,
+    expiresAt: started ? expiresAt : null,
   };
 }
 

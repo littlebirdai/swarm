@@ -11,7 +11,10 @@ import {
 import { api, internal } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 import type { Id } from "./_generated/dataModel";
-import { DEVICE_MOVE_FENCE } from "./lib/edge/device-move.state";
+import {
+  assertMoveSettlement,
+  DEVICE_MOVE_FENCE,
+} from "./lib/edge/device-move.state";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
 const previousFlag = process.env[flag];
@@ -65,6 +68,30 @@ async function fixture() {
         ? await db.get(attemptId as Id<"delivery_attempts">)
         : null,
     }));
+  const verifyMoveSettlement = (delivery: Awaited<ReturnType<typeof permit>>) =>
+    f.t.run(async (ctx) => {
+      const head = await ctx.db.get(f.head);
+      const attemptId = ctx.db.normalizeId(
+        "delivery_attempts",
+        delivery.attempt_id,
+      );
+      const attempt = attemptId && (await ctx.db.get(attemptId));
+      if (!head || !attempt) throw new Error("Expected a started attempt");
+      await assertMoveSettlement(ctx, head, attempt, {
+        conversationId: f.conversation,
+        executionEpoch: delivery.run,
+        configurationRevision: attempt.configuration_revision,
+        ownerDeviceId: attempt.owner_device_id,
+        daemonBootId: attempt.daemon_boot_id,
+        runtimeId: attempt.runtime_id,
+        attemptId: attempt._id,
+        messageId: f.message,
+        deliveryId: delivery.delivery_id,
+        conversationSequence: delivery.seq,
+        fencingToken: delivery.fencing_token,
+        now: Date.now(),
+      });
+    });
   const accountFence = {
     conversation_id: f.conversation,
     execution_epoch: 1,
@@ -80,6 +107,7 @@ async function fixture() {
     grant,
     permit,
     rows,
+    verifyMoveSettlement,
     accountFence,
     api_token: f.bearer,
   };
@@ -100,7 +128,7 @@ test("record preserves source and destination identity and clears an unstarted c
     destination_device_id: f.moveArgs.destination_device_id,
     destination_runner_id: f.moveArgs.destination_runner_id,
     next_epoch: 2,
-    settlement_deadline: start + windowMs,
+    settlement_deadline: start,
   });
   expect(after.head).toMatchObject({
     owner_user_id: f.owner,
@@ -430,6 +458,140 @@ test("a different current lease cannot settle the recorded attempt", async () =>
   expect((await f.rows(permit.attempt_id)).attempt?.state).toBe(
     "delivery-started",
   );
+});
+
+test.each(["before", "during"] as const)(
+  "source settlement leaves delivery evidence for an attempt that became ambiguous %s the move",
+  async (when) => {
+    const f = await fixture();
+    const permit = await f.permit(await f.grant());
+    await f.t.mutation(internal.edgeDelivery.start, permit);
+    if (when === "during") await f.record();
+    expect(
+      await f.t.mutation(internal.edgeDelivery.settle, {
+        ...permit,
+        outcome: "in_doubt",
+      }),
+    ).toEqual({ v: 1, status: "recorded" });
+    jest.setSystemTime(start + 1);
+    if (when === "before") await f.record();
+    const before = await f.rows(permit.attempt_id);
+    expect(before.head?.device_move?.settlement_deadline).toBe(
+      when === "before" ? start + 1 : start + windowMs,
+    );
+    expect(before.head?.active_delivery_state).toBe("ambiguous");
+    for (const outcome of ["failed", "applied", "rejected"] as const) {
+      expect(
+        await f.t.mutation(internal.edgeDelivery.settle, {
+          ...permit,
+          outcome,
+          resolution_evidence: "source report",
+        }),
+      ).toEqual(stale);
+    }
+    expect(await f.rows(permit.attempt_id)).toEqual(before);
+  },
+);
+
+test.each(["attempt", "slot", "recorded attempt"] as const)(
+  "the settlement rule refuses a mismatch in the %s",
+  async (field) => {
+    const f = await fixture();
+    const permit = await f.permit(await f.grant());
+    await f.t.mutation(internal.edgeDelivery.start, permit);
+    await f.record();
+    await f.verifyMoveSettlement(permit);
+    await f.t.run(async ({ db }) => {
+      const head = await db.get(f.head);
+      if (!head?.device_move || !head.active_delivery_attempt_id)
+        throw new Error("Expected a recorded attempt");
+      if (field === "attempt")
+        await db.patch(head.active_delivery_attempt_id, { state: "ambiguous" });
+      else if (field === "slot")
+        await db.patch(f.head, { active_delivery_state: "ambiguous" });
+      else
+        await db.patch(f.head, {
+          device_move: { ...head.device_move, attempt_id: undefined },
+        });
+    });
+    await expect(f.verifyMoveSettlement(permit)).rejects.toThrow(
+      DEVICE_MOVE_FENCE,
+    );
+  },
+);
+
+test("releasing the source lease closes settlement and permits immediate expiry", async () => {
+  const f = await fixture();
+  const permit = await f.permit(await f.grant());
+  await f.t.mutation(internal.edgeDelivery.start, permit);
+  await f.record();
+  jest.setSystemTime(start + 1);
+  expect(
+    await f.t.mutation(
+      internal.edgeRunLease.release,
+      f.requestFence(permit.fencing_token),
+    ),
+  ).toEqual({ v: 1, status: "released" });
+  const released = await f.rows(permit.attempt_id);
+  expect(released.lease?.released_at).toBe(start + 1);
+  expect(
+    await f.t.mutation(internal.edgeDelivery.settle, {
+      ...permit,
+      outcome: "applied",
+    }),
+  ).toEqual(stale);
+  expect(await f.claim("replacement")).toEqual(stale);
+  expect(await f.rows(permit.attempt_id)).toEqual(released);
+
+  await expect(f.verifyMoveSettlement(permit)).rejects.toThrow(
+    DEVICE_MOVE_FENCE,
+  );
+
+  await f.t.mutation(internal.edgeRunLease.expireMove, {
+    head_id: f.head,
+    source_epoch: 1,
+  });
+  expect(await f.rows(permit.attempt_id)).toMatchObject({
+    head: {
+      active_delivery_state: "ambiguous",
+      active_delivery_attempt_id: permit.attempt_id,
+    },
+    message: { delivery_status: "ambiguous" },
+    attempt: { state: "ambiguous", failure_code: "MOVE_SETTLEMENT_EXPIRED" },
+  });
+});
+
+test("expiry leaves a live window alone and applies only once after the deadline", async () => {
+  const f = await fixture();
+  const permit = await f.permit(await f.grant());
+  await f.t.mutation(internal.edgeDelivery.start, permit);
+  await f.record();
+  const expire = (source_epoch: number) =>
+    f.t.mutation(internal.edgeRunLease.expireMove, {
+      head_id: f.head,
+      source_epoch,
+    });
+  const before = await f.rows(permit.attempt_id);
+  jest.setSystemTime(start + windowMs - 1);
+  await expire(1);
+  expect(await f.rows(permit.attempt_id)).toEqual(before);
+
+  jest.setSystemTime(start + windowMs + 1);
+  await expire(2);
+  expect(await f.rows(permit.attempt_id)).toEqual(before);
+  await expire(1);
+  const expired = await f.rows(permit.attempt_id);
+  expect(expired).toMatchObject({
+    head: {
+      active_delivery_state: "ambiguous",
+      active_delivery_attempt_id: permit.attempt_id,
+    },
+    message: { delivery_status: "ambiguous" },
+    attempt: { state: "ambiguous", failure_code: "MOVE_SETTLEMENT_EXPIRED" },
+  });
+  jest.setSystemTime(start + windowMs + 2);
+  await expire(1);
+  expect(await f.rows(permit.attempt_id)).toEqual(expired);
 });
 
 test.each([
