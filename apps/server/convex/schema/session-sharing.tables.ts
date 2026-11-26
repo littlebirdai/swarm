@@ -334,6 +334,21 @@ export const sessionFrameTables = {
 };
 
 export const viewFollowTables = {
+  conversation_read_anchors: defineTable({
+    conversation_id: v.id("conversations"),
+    user_id: v.id("users"),
+    anchor: v.optional(
+      v.object({
+        message_id: v.id("messages"),
+        offset: v.number(),
+        changed_at: v.number(),
+      }),
+    ),
+    view_id: v.optional(v.string()),
+    sequence: v.optional(v.number()),
+  })
+    .index("by_conversation", ["conversation_id"])
+    .index("by_user", ["user_id", "conversation_id"]),
   // Who is typing where, right now. ONE row per (channel, user) — a person
   // types in one box at a time, so the row's thread_key just moves with them,
   // and the table stays bounded at members × channels rather than growing a

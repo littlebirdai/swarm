@@ -12,6 +12,7 @@ import {
 } from "./lib/conversationCommentRows";
 import { moveBookmarkPrincipalWithRevision } from "./bookmarkViewWrites";
 import { clearTerminalClaim, deleteTerminalTypingGrant } from "./lib/claims";
+import { mergeReadAnchor } from "./lib/conversationReadAnchors";
 
 // (table, field, indexName | null) — when indexName is present, use the
 // indexed query; otherwise fall back to a small filter scan. All app tables
@@ -119,6 +120,7 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "plans", field: "owner_id", index: null },
     { table: "projects", field: "owner_id", index: null },
     { table: "entity_conversations", field: "user_id", index: null },
+    { table: "conversation_read_anchors", field: "user_id", index: "by_user" },
   ];
 
 // Tables we deliberately skip because they have no user-keyed index and are
@@ -288,6 +290,8 @@ export const mergeDuplicateUser = internalMutation({
             );
           } else if (table === "local_view_heads") {
             await mergeLocalViewHead(ctx, row as any, args.to_user_id);
+          } else if (table === "conversation_read_anchors") {
+            await mergeReadAnchor(ctx, row, args.to_user_id);
           } else if (table === "rate_limits") {
             const matches = await ctx.db
               .query("rate_limits")

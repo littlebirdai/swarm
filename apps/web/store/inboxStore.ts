@@ -112,6 +112,7 @@ import {
   type DecisionThreadItem,
 } from "./decisionThreadTypes";
 import type { SideAnswerRow } from "@codecast/sessions/sessionAsk";
+import type { SavedReadingAnchor } from "../hooks/use-saved-reading-anchor";
 import { sideAnswerStub, sideAnswerStubId } from "./sideAnswerTypes";
 import { useSyncExternalStore, useRef } from "react";
 import {
@@ -9466,6 +9467,7 @@ export interface InboxStoreState
   /** The viewer's read marks, keyed by row id (sessionReads.listMine). Unread
    *  is derived from these against each session's updated_at, never stored. */
   sessionReads: Record<string, SessionReadItem>;
+  sessionReadAnchors: Record<string, SavedReadingAnchor>;
   /** "I am looking at this session now." Called only while the conversation is
    *  the active view AND the reader is present (useAckActiveConversation);
    *  `at` is the session's own updated_at so the optimistic mark is exactly
@@ -14888,6 +14890,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
 
   // -- Session unread --
   sessionReads: {},
+  sessionReadAnchors: {},
   // Plain, not an action: an action() always dispatches, and the ack fires on
   // every presence change and every re-render of the open session. The guard
   // here is what makes "the agent re-reported the same state" literally free —
