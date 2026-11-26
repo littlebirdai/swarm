@@ -409,7 +409,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
     path: "/edge/v1/delivery.settle",
     method: "POST",
     handler: workAction(parseDeliverySettleRequest, (ctx, bearer, body) => {
-      if (body.outcome === "stale")
+      if (body.outcome === "stale" && body.intent !== "steer")
         throw new ConvexError(EDGE_ERROR_CODES.INVALID);
       return ctx.runMutation(internal.edgeDelivery.settle, {
         ...body,

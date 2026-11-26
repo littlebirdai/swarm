@@ -165,6 +165,24 @@ export const sessionDeliveryTables = {
       "execution_epoch",
       "delivery_status",
     ])
+    .index("by_conversation_epoch_delivery_status_intent_sequence", [
+      "conversation_id",
+      "execution_epoch",
+      "delivery_status",
+      "delivery_intent",
+      "conversation_sequence",
+    ])
+    .index("by_conversation_delivery_status_sequence", [
+      "conversation_id",
+      "delivery_status",
+      "conversation_sequence",
+    ])
+    .index("by_conversation_status_protocol_queued", [
+      "conversation_id",
+      "status",
+      "delivery_protocol_version",
+      "queued",
+    ])
     .index("by_conversation_client_id", ["conversation_id", "client_id"])
     // `cast send --status`: one sender's sends into one target, newest first.
     .index("by_from_conversation", ["from_conversation_id", "conversation_id"]),

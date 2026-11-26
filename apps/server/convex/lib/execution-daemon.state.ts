@@ -27,6 +27,7 @@ import {
   blockDeliveryAsAmbiguous,
 } from "./delivery-slot.state";
 import { clearEventTurn } from "./edge/runEvents";
+import { canRecoverQueueAfterSteer } from "./execution-queue.reads";
 
 export async function registeredDaemonBoot(
   ctx: DbCtx,
@@ -213,7 +214,7 @@ export async function claimExecutionStartInDb(
         attempt.execution_epoch !== binding.epoch ||
         attempt.configuration_revision !== binding.configuration_revision ||
         attempt.runtime_id !== binding.runtime_id ||
-        attempt.conversation_sequence !== head.next_nonterminal_sequence ||
+        attempt.conversation_sequence < head.next_nonterminal_sequence ||
         attempt.state !== head.active_delivery_state ||
         message.active_delivery_attempt_id !== attempt._id ||
         message.conversation_id !== attempt.conversation_id ||
@@ -221,7 +222,15 @@ export async function claimExecutionStartInDb(
         message.client_id !== attempt.delivery_id ||
         message.conversation_sequence !== attempt.conversation_sequence ||
         message.execution_epoch !== attempt.execution_epoch ||
-        message.delivery_status !== attempt.state
+        message.delivery_status !== attempt.state ||
+        (attempt.conversation_sequence > head.next_nonterminal_sequence &&
+          message.delivery_intent !== "steer" &&
+          !(await canRecoverQueueAfterSteer(
+            ctx,
+            head,
+            binding.epoch,
+            attempt.conversation_sequence,
+          )))
       ) {
         fail(
           "DELIVERY_SLOT_INVARIANT",

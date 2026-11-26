@@ -9,6 +9,12 @@
 import { mutation, query } from "./functions";
 import { seedEventRun } from "./lib/edge/runEvents";
 import { isTerminalDeliveryState } from "./lib/executionQueue";
+import { hasNonterminalAtEpoch } from "./lib/execution-queue.reads";
+import {
+  allocateLegacyQueuedRows,
+  batonEnabled,
+  canStopAfterDrain,
+} from "./lib/execution-steer-admission.rules";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { AGENT_MODEL_CONFIG } from "@codecast/agent-clients/agentClients";
@@ -64,6 +70,7 @@ import {
   bindingTargetMatches,
   insertRequestedBinding,
   fencedMessages,
+  cancelUnstartedOldEpoch,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
   executionRequestWire,
@@ -132,7 +139,6 @@ export async function allocateFencedDeliveryMetadata(
 }> {
   const head = await executionHead(ctx, conversation._id);
   const marker = conversation.execution_protocol_state;
-
   if (!marker && !head) return null;
   if (!head || marker !== head.protocol_state) {
     fail(
@@ -166,7 +172,9 @@ export async function allocateFencedDeliveryMetadata(
       `admission epoch ${executionEpoch} has no binding`,
     );
   }
-  const conversationSequence = head.next_conversation_sequence;
+  const conversationSequence = batonEnabled(binding)
+    ? await allocateLegacyQueuedRows(ctx, head, binding, Date.now())
+    : head.next_conversation_sequence;
   requireSafePositive(conversationSequence, "nextConversationSequence");
   await ctx.db.patch(head._id, {
     next_conversation_sequence: conversationSequence + 1,
@@ -1053,6 +1061,8 @@ export async function abandonAmbiguousAndResendInDb(
     quiet: message.quiet,
     resendOfDeliveryId: fence.deliveryId,
   });
+  if (process.env.SWARM_TURN_BATON === "1")
+    await ctx.db.patch(messageId, { delivery_intent: "queue" });
   // The same stash rule as the send it resends (enqueuePendingMessage): a hidden stash survives a machine wake and a quiet handover.
   const machineWake = message.origin === "scheduler";
   await ctx.db.patch(fence.conversationId, {
@@ -1091,7 +1101,11 @@ export async function publishRuntimeDispositionInDb(
   },
 ): Promise<{ accepted: boolean }> {
   requireNonEmpty(args.reason, "reason");
-  await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId, "work");
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (
@@ -1135,20 +1149,17 @@ export async function publishRuntimeDispositionInDb(
   }
   if (
     head.current_epoch === args.epoch &&
-    head.pending_policy === "drain-current"
-  ) {
-    const remaining = (await fencedMessages(ctx, args.conversationId)).filter(
-      (message) =>
-        message.execution_epoch === args.epoch &&
-        !isTerminalDeliveryState(message.delivery_status),
-    );
-    if (remaining.length > 0) {
-      fail(
-        "EXECUTION_SUCCESSOR_WAITING_FOR_DRAIN",
-        "drain-current cannot stop its only ready runtime while old-epoch messages remain",
-      );
-    }
-  }
+    head.pending_policy === "drain-current" &&
+    !(await canStopAfterDrain(
+      ctx,
+      conversation,
+      head,
+      binding,
+      args.fencingToken,
+      args.now,
+    ))
+  )
+    return { accepted: false };
   await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   await ctx.db.patch(binding._id, {
     state: args.disposition,
@@ -1156,72 +1167,6 @@ export async function publishRuntimeDispositionInDb(
     updated_at: args.now,
   });
   return { accepted: true };
-}
-
-async function cancelUnstartedOldEpoch(
-  ctx: DbCtx,
-  head: any,
-  currentEpoch: number,
-  now: number,
-): Promise<{ cancelled: number; remaining: number }> {
-  const MAX_CANCELLATIONS_PER_ACTIVATION = 128;
-  const messages = (await fencedMessages(ctx, head.conversation_id)).filter(
-    (message) =>
-      message.execution_epoch === currentEpoch &&
-      message.conversation_sequence <= head.cancelled_through_sequence &&
-      !isTerminalDeliveryState(message.delivery_status),
-  );
-  const batch = messages
-    .sort(
-      (left, right) => left.conversation_sequence - right.conversation_sequence,
-    )
-    .slice(0, MAX_CANCELLATIONS_PER_ACTIVATION);
-  let cancelled = 0;
-  for (const message of batch) {
-    if (
-      message.delivery_status === "delivery-started" ||
-      message.delivery_status === "ambiguous"
-    ) {
-      fail(
-        "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
-        `message ${String(message._id)} has a started or ambiguous effect`,
-      );
-    }
-    if (message.delivery_status === "claimed") {
-      const attempt = message.active_delivery_attempt_id
-        ? await ctx.db.get(message.active_delivery_attempt_id)
-        : null;
-      if (!attempt || attempt.state !== "claimed") {
-        fail(
-          "DELIVERY_SLOT_INVARIANT",
-          "claimed message lacks its claimed attempt",
-        );
-      }
-      await ctx.db.patch(attempt._id, {
-        state: "cancelled-by-supersession" as const,
-        completed_at: now,
-      });
-    } else if (message.delivery_status !== "pending") {
-      fail(
-        "DELIVERY_SLOT_INVARIANT",
-        `cannot cancel old-epoch message in state ${String(message.delivery_status)}`,
-      );
-    }
-    await ctx.db.patch(message._id, {
-      delivery_status: "cancelled-by-supersession" as const,
-      active_delivery_attempt_id: undefined,
-      status: "cancelled" as const,
-    });
-    cancelled += 1;
-  }
-  if (head.active_delivery_state === "claimed") {
-    await ctx.db.patch(head._id, {
-      active_delivery_attempt_id: undefined,
-      active_delivery_state: undefined,
-      updated_at: now,
-    });
-  }
-  return { cancelled, remaining: messages.length - batch.length };
 }
 
 /**
@@ -1256,12 +1201,14 @@ export async function cancelFencedDeliveriesOnKill(
   // session into a transaction that throws (the documented anti-pattern behind
   // collectOldLegacyPendingMessages). Capped for the same reason — the caller
   // schedules a continuation for anything left over.
+  const baton = process.env.SWARM_TURN_BATON === "1";
   const messages: any[] = [];
   for (const status of [
     "pending",
     "injected",
     "failed",
     "undeliverable",
+    ...(baton ? ["held" as const] : []),
   ] as const) {
     if (messages.length >= limit) break;
     const query = ctx.db.query("pending_messages");
@@ -1330,6 +1277,7 @@ export async function cancelFencedDeliveriesOnKill(
       updated_at: now,
     });
   }
+  if (head && cancelled && baton) await advanceNonterminalHead(ctx, head, now);
   return { cancelled, inFlight };
 }
 
@@ -1529,17 +1477,17 @@ export async function activateExecutionSuccessorInDb(
     );
   }
 
-  const remainingOld = (await fencedMessages(ctx, args.conversationId)).filter(
-    (message) =>
-      message.execution_epoch === args.expectedCurrentEpoch &&
-      !isTerminalDeliveryState(message.delivery_status),
-  );
-  if (remainingOld.length > 0) {
+  if (
+    await hasNonterminalAtEpoch(
+      ctx,
+      args.conversationId,
+      args.expectedCurrentEpoch,
+    )
+  )
     fail(
       "EXECUTION_SUCCESSOR_WAITING_FOR_DRAIN",
-      `${remainingOld.length} old-epoch message(s) are still nonterminal`,
+      "old-epoch messages are still nonterminal",
     );
-  }
 
   await seedEventRun(
     ctx,
@@ -1955,6 +1903,7 @@ export const rejectHeadDelivery = mutation({
     execution_epoch: v.number(),
     reason: v.string(),
     api_token: v.string(),
+    fencing_token: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await rejectHeadDeliveryInDb(
@@ -1967,6 +1916,7 @@ export const rejectHeadDelivery = mutation({
         conversationSequence: sequenceFromWire(args.conversation_sequence),
         executionEpoch: args.execution_epoch,
         reason: args.reason,
+        fencingToken: args.fencing_token,
         now: Date.now(),
       },
     ),
@@ -2094,6 +2044,7 @@ export const resolveAmbiguousDelivery = mutation({
 export const abandonAmbiguousAndResend = mutation({
   args: {
     permit: permitValidator,
+    fencing_token: v.optional(v.string()),
     new_client_id: v.string(),
     resolution_evidence: v.string(),
     api_token: v.string(),
@@ -2108,6 +2059,7 @@ export const abandonAmbiguousAndResend = mutation({
       ),
       {
         ...permitFromWire(args.permit),
+        fencingToken: args.fencing_token,
         newClientId: args.new_client_id,
         resolutionEvidence: args.resolution_evidence,
         now: Date.now(),
@@ -2126,6 +2078,7 @@ export const publishRuntimeDisposition = mutation({
     disposition: v.union(v.literal("stopped"), v.literal("quarantined")),
     reason: v.string(),
     api_token: v.string(),
+    fencing_token: v.optional(v.string()),
   },
   handler: async (ctx, args) =>
     await publishRuntimeDispositionInDb(
@@ -2141,6 +2094,7 @@ export const publishRuntimeDisposition = mutation({
         disposition: args.disposition,
         reason: args.reason,
         now: Date.now(),
+        fencingToken: args.fencing_token,
       },
     ),
 });

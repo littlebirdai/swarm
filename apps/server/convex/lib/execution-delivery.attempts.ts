@@ -3,18 +3,17 @@ import {
   requireOwnedConversation,
   executionHead,
   executionBinding,
-  fencedMessages,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
 } from "./execution-binding.state";
 import {
+  deliveryRejectionCodes,
   type ReadyBindingFence,
   claimedPermitWire,
   type PermitFence,
   attemptMatchesFence,
   startedPermitWire,
   matchesRetryableDeliveryReplay,
-  deliveryRejectionCodes,
   requeueDeliveryBeforeEffect,
   blockDeliveryAsAmbiguous,
 } from "./delivery-slot.state";
@@ -26,7 +25,13 @@ import {
 import { assertActiveRunLease } from "./edge/runLease";
 import type { Id } from "../_generated/dataModel";
 import { isConversationSafetyBlocked } from "../conversationSafety";
-import { orderedNonterminalMessages } from "./executionQueue";
+import { findClaim } from "./claims";
+import {
+  oldestEligibleDelivery,
+  batonEnabled,
+  readBatonTurn,
+  steerRefusal,
+} from "./execution-steer-admission.rules";
 import { reviveConversationOnDelivery } from "../pendingMessageWrites";
 import {
   type FinalDeliveryReceipt,
@@ -125,26 +130,16 @@ export async function claimNextDeliveryInDb(
     };
   }
 
-  const messages = orderedNonterminalMessages(
-    await fencedMessages(ctx, args.conversationId),
-    head,
-  );
-  const message = messages[0];
-  if (!message) {
-    if (head.next_nonterminal_sequence !== head.next_conversation_sequence) {
-      await ctx.db.patch(head._id, {
-        next_nonterminal_sequence: head.next_conversation_sequence,
-        updated_at: args.now,
-      });
-    }
+  if (batonEnabled(binding) && !args.fencingToken)
     return { state: "empty" as const };
-  }
-  if (message.conversation_sequence !== head.next_nonterminal_sequence) {
-    fail(
-      "DELIVERY_SEQUENCE_HEAD_MISMATCH",
-      `durable head ${head.next_nonterminal_sequence} differs from first nonterminal ${message.conversation_sequence}`,
-    );
-  }
+  const message = await oldestEligibleDelivery(
+    ctx,
+    conversation,
+    head,
+    binding,
+    args.now,
+  );
+  if (!message) return { state: "empty" as const };
   if (
     args.expectedMessageId &&
     String(args.expectedMessageId) !== String(message._id)
@@ -227,7 +222,11 @@ export async function rejectHeadDeliveryInDb(
 ): Promise<{ rejected: true }> {
   const { conversationId, executionEpoch } = args;
   requireNonEmpty(args.reason, "reason");
-  await requireOwnedConversation(ctx, conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, conversationId, "work");
   if (!head || head.protocol_state !== "fenced")
     fail(
@@ -255,10 +254,15 @@ export async function rejectHeadDeliveryInDb(
     fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   const binding = await executionBinding(ctx, conversationId, executionEpoch);
   await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
-  const message = orderedNonterminalMessages(
-    await fencedMessages(ctx, conversationId),
+  if (batonEnabled(binding) && !args.fencingToken)
+    fail("DELIVERY_PERMIT_FENCE_MISMATCH", "the current run lease is required");
+  const message = await oldestEligibleDelivery(
+    ctx,
+    conversation,
     head,
-  )[0];
+    binding,
+    args.now,
+  );
   if (
     !message ||
     String(message._id) !== String(args.messageId) ||
@@ -337,12 +341,11 @@ export async function startDeliveryInDb(
   userId: Id<"users">,
   fence: PermitFence & { now: number },
 ): Promise<any> {
-  const { conversation, head, message, attempt } = await verifyAttemptFence(
-    ctx,
-    userId,
-    fence,
-    ["claimed", "delivery-started"],
-  );
+  const { conversation, head, binding, message, attempt } =
+    await verifyAttemptFence(ctx, userId, fence, [
+      "claimed",
+      "delivery-started",
+    ]);
   if (isConversationSafetyBlocked(conversation))
     fail("CONVERSATION_SAFETY_BLOCKED", "Delivery is held for safety review");
   if (
@@ -360,6 +363,40 @@ export async function startDeliveryInDb(
       "DELIVERY_ATTEMPT_STATE_MISMATCH",
       "conversation slot or message is not claimed",
     );
+  }
+  const enabled = batonEnabled(binding);
+  const turn = enabled ? await readBatonTurn(ctx, binding) : undefined;
+  if (message.delivery_intent === "steer") {
+    const reason =
+      turn === undefined || !fence.fencingToken
+        ? "stale-turn"
+        : await steerRefusal(
+            ctx,
+            conversation,
+            binding.epoch,
+            turn,
+            turn
+              ? await findClaim(ctx.db, { id: conversation._id, kind: "steer" })
+              : null,
+            message,
+            fence.now,
+          );
+    if (reason) {
+      await finishTerminalDelivery(ctx, head, message, attempt, {
+        attemptState: "failed-before-effect",
+        messageState: "rejected",
+        rejection: { code: deliveryRejectionCodes.rejected, reason },
+        now: fence.now,
+      });
+      return { state: "stale-steer", reason };
+    }
+  } else if (enabled && turn !== null) {
+    await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
+      failure_code: "TURN_OPEN",
+      failure_message: "turn-open",
+      completed_at: fence.now,
+    });
+    return { state: "queue-waiting", reason: "turn-open", retryable: true };
   }
   await ctx.db.patch(attempt._id, {
     state: "delivery-started" as const,
@@ -658,6 +695,11 @@ export async function resolveAmbiguousDeliveryInDb(
     );
   }
   if (fence.resolution === "proven-no-effect") {
+    if (attempt.state === "ambiguous" && message.delivery_intent === "steer")
+      fail(
+        "DELIVERY_ATTEMPT_STATE_MISMATCH",
+        "An ambiguous steer requires an explicit resend",
+      );
     await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
       resolution_evidence: fence.resolutionEvidence,
       completed_at: fence.now,
