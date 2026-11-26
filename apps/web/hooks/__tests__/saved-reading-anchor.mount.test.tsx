@@ -401,7 +401,9 @@ test("ConversationView enables a bounded restore only under the reading anchor f
             api.accountSwitch.listAccountProfiles,
           ])
             backend.set(query, pending);
-          backend.mutation(api.users.requestTerminalEndpoints, null);
+          backend.mutation(api.users.requestTerminalEndpoints, {
+            commands: [],
+          });
 
           backend.set(anchors.get, checkpoint);
           backend.mutation(api.dispatch.dispatch, ({ action }) =>
