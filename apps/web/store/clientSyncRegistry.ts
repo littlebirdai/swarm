@@ -1754,6 +1754,7 @@ export const CLIENT_SYNC_REGISTRY = {
     feeds: ["managedSessions.getAggregateMetrics"],
   },
   fencedPromptAddresses: {
+    localFirst: true,
     sync: { isDelta: true, deepFields: ["questions"] },
     feeds: ["permissions.listAnswerablePromptAddresses"],
   },

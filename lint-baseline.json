@@ -15025,10 +15025,6 @@
     "react/purity": 2,
     "swarm/no-comments": 23
   },
-  "apps/web/components/permission-card.tsx": {
-    "swarm/ime-safe-key-handlers": 1,
-    "swarm/no-comments": 35
-  },
   "apps/web/components/PhoneGlyphs.tsx": {
     "swarm/no-comments": 8
   },
@@ -17062,9 +17058,6 @@
   "apps/web/components/conversation/blocks/GitOutcomeRow.tsx": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/conversation/blocks/modern-ask-user-question.tsx": {
-    "swarm/no-comments": 10
-  },
   "apps/web/components/conversation/blocks/ModernEventRows.tsx": {
     "swarm/no-comments": 9
   },
@@ -17118,6 +17111,9 @@
   "apps/web/components/conversation/blocks/interactive-blocks.tsx": {
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 76
+  },
+  "apps/web/components/conversation/blocks/modern-ask-user-question.tsx": {
+    "swarm/no-comments": 10
   },
   "apps/web/components/conversation/blocks/narrativeViews.tsx": {
     "react-hooks/exhaustive-deps": 1,
@@ -20098,6 +20094,10 @@
   },
   "apps/web/components/people/usePulseFrom.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/web/components/permission-card.tsx": {
+    "swarm/ime-safe-key-handlers": 1,
+    "swarm/no-comments": 31
   },
   "apps/web/components/permissions/ComputerPermissionRows.tsx": {
     "swarm/no-comments": 19
@@ -28034,6 +28034,9 @@
   },
   "apps/web/store/expectationsSlice.ts": {
     "swarm/no-comments": 24
+  },
+  "apps/web/store/fenced-prompt-answer.ts": {
+    "swarm/no-comments": 9
   },
   "apps/web/store/firstRunState.ts": {
     "swarm/no-comments": 6

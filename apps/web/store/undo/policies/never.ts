@@ -161,6 +161,7 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   startShip: never(
     "send: Ship starts a session that commits, pushes and opens a pull request; stopping it is the way back",
   ),
+  answerFencedPrompt: never("send: the agent can act on a queued answer"),
   resolvePermission: never(
     "send: the agent acts on an approved or denied tool call the moment it lands",
   ),

@@ -372,10 +372,7 @@ import type {
 } from "@codecast/agent-clients/subagentFleet";
 import type { LocalMirror } from "@codecast/cloud-hosts/localMirror";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
-import {
-  cascadeFromAnswer,
-  permissionRuleKey,
-} from "@codecast/policy/permissionRules";
+import { permissionRuleKey } from "@codecast/policy/permissionRules";
 import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/line/changeCard";
 import { escalationTargetIds } from "@codecast/decisions/decisionEscalation";
@@ -660,6 +657,10 @@ import {
   type ExpectationsSliceActions,
 } from "./expectationsSlice";
 import { createOpsSlice, type OpsSliceActions } from "./opsSlice";
+import {
+  promptAnswerActions,
+  type FencedPromptAnswerActions,
+} from "./fenced-prompt-answer";
 import {
   createLiveArtifactsSlice,
   type LiveArtifactsSliceActions,
@@ -7856,6 +7857,7 @@ export interface InboxStoreState
     ExpectationsSliceActions,
     OpsSliceActions,
     ReturnType<typeof createReadingAnchorsSlice>,
+    FencedPromptAnswerActions,
     LiveArtifactsSliceActions,
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
@@ -15798,6 +15800,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
     });
   }),
 
+  ...promptAnswerActions,
+
   // `guestSuggestions` is localFirst, so removing the row plants an exclude
   // that holds over pushes racing the write. The side effects run
   // guestSuggestions.sendGuestSuggestionFor / dismissGuestSuggestionFor.
@@ -15969,43 +15973,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
         message_id: messageId,
         created_at: Date.now(),
       });
-  }),
-
-  // `pendingPermissions` is localFirst, so removing the row plants an exclude
-  // that holds over pushes racing the write and is released if the server
-  // refuses it. Resolving the conversation's last pending request unblocks
-  // the session, so its question is marked resolved in the same commit. The
-  // resolvePermission side effect runs permissions.updatePermissionStatus.
-  // A denial with a reason settles the session's other cards, the same rule
-  // the server applies (cascadeFromAnswer), so they leave on the press. What
-  // an "always" approves depends on every saved rule, denies included, which
-  // only the server holds: those cards leave with its next snapshot.
-  resolvePermission: action(function (
-    this: Draft,
-    permissionId: string,
-    status: "approved" | "denied",
-    opts?: { message?: string; remember?: boolean },
-  ) {
-    const row = this.pendingPermissions[permissionId] as any;
-    if (!row) return;
-    const pending = Object.values(this.pendingPermissions).filter(
-      (p: any) => p?.status === "pending",
-    ) as any[];
-    const cascade = cascadeFromAnswer(row, { status, ...opts }, pending, []);
-    delete this.pendingPermissions[permissionId];
-    for (const id of [...cascade.approve, ...cascade.deny])
-      delete this.pendingPermissions[id];
-    const convId = row.conversation_id as string | undefined;
-    if (!convId) return;
-    const stillPending = Object.values(this.pendingPermissions).some(
-      (p: any) => p?.conversation_id === convId && p.status === "pending",
-    );
-    if (!stillPending) {
-      this.questionResolutions[convId] = {
-        at: Date.now(),
-        message_count: this.sessions[convId]?.message_count ?? 0,
-      };
-    }
   }),
 
   // `workflowRuns` is localFirst: the run reads as running from the press,

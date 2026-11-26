@@ -493,11 +493,15 @@ function PollCheckIcon({ className }: { className?: string }) {
 
 type AskUserQuestionProps = {
   tool: ToolCall;
+  conversationId?: string;
   result?: ToolResult;
   onSendMessage?: (content: string) => void;
 };
 type AskUserQuestionInput = {
+  fencedTurnId?: string;
   questions?: Array<{
+    id?: string;
+    isSecret?: boolean;
     question: string;
     header?: string;
     detail?: string;
@@ -512,6 +516,13 @@ type AskUserQuestionInput = {
 
 export function AskUserQuestionBlock(props: AskUserQuestionProps) {
   const proposals = useTeamProposalRole();
+  if (/^\d+:app-server:(?:string|number):/.test(props.tool.id))
+    return (
+      <AskUserQuestionInner
+        {...props}
+        conversationId={props.conversationId ?? proposals?.conversationId}
+      />
+    );
   if (proposals?.role === "teammate" && !props.onSendMessage && !props.result)
     return <TeammateAskUserQuestion {...props} />;
   if (proposals?.role === "owner" && props.onSendMessage && !props.result)
@@ -628,6 +639,7 @@ function TimedAskUserQuestion({
 
 function AskUserQuestionCard({
   tool,
+  conversationId,
   result,
   onSendMessage,
   parsedInput,
@@ -645,10 +657,11 @@ function AskUserQuestionCard({
   const [otherOpen, setOtherOpen] = useState<Record<number, boolean>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
   const modern = useIsModernStyle();
-  if (modern)
+  if (modern || parsedInput.fencedTurnId)
     return (
       <ModernAskUserQuestion
         tool={tool}
+        conversationId={conversationId}
         result={result}
         onSendMessage={onSendMessage}
         parsedInput={parsedInput}
