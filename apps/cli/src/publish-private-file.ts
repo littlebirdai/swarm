@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+import { isPidAlive } from "./workspace/chrome.js";
 
 const LINK_UNAVAILABLE = new Set([
   "EPERM",
@@ -10,15 +11,18 @@ const LINK_UNAVAILABLE = new Set([
   "EXDEV",
   "EMLINK",
 ]);
-const PUBLICATION_WAIT_MS = 100;
+const PUBLICATION_WAIT_MS = 250;
 const PUBLICATION_POLL_MS = 5;
+const PARTIAL_PUBLICATION_GRACE_MS = 2_000;
+const LOCK_OWNER = /^(\d+)\.[0-9a-f-]{36}$/;
 const STALE_TEMP_MS = 60_000;
 const publicationWait = new Int32Array(new SharedArrayBuffer(4));
 
 export function publishPrivateFile(
   file: string,
   data: Uint8Array | string,
-): "published" | "link-exists" | "exclusive-create-exists" {
+  isIncomplete?: (target: string) => boolean,
+): boolean {
   let target = file;
   for (let hops = 0; ; hops++) {
     if (hops === 40) throw new Error(`Too many symlink hops for ${file}`);
@@ -45,39 +49,31 @@ export function publishPrivateFile(
       fs.closeSync(fd);
     }
 
-    let publication: ReturnType<typeof publishPrivateFile> = "published";
+    const lock = join(directory, `${tempPrefix}lock`);
+    const owner = acquirePublicationLock(lock);
+    if (!owner) return false;
     try {
-      fs.linkSync(temp, target);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code && LINK_UNAVAILABLE.has(code)) {
-        let destination: number | undefined;
-        try {
-          destination = fs.openSync(target, "wx", 0o600);
-        } catch (openError) {
-          if ((openError as NodeJS.ErrnoException).code !== "EEXIST")
-            throw openError;
-          publication = "exclusive-create-exists";
-        }
-        if (destination !== undefined) {
-          try {
-            writeAndSyncPrivateFile(destination, data);
-          } catch (writeError) {
-            try {
-              const created = fs.fstatSync(destination, { bigint: true });
-              const current = fs.lstatSync(target, { bigint: true });
-              if (created.dev === current.dev && created.ino === current.ino)
-                fs.unlinkSync(target);
-            } catch {}
-            throw writeError;
-          } finally {
-            fs.closeSync(destination);
-          }
-        }
-      } else {
-        if (code !== "EEXIST") throw err;
-        publication = "link-exists";
+      try {
+        fs.linkSync(temp, target);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "EEXIST" && !(code && LINK_UNAVAILABLE.has(code)))
+          throw error;
+        const current = fs.lstatSync(target, { throwIfNoEntry: false });
+        if (
+          current
+            ? !current.isFile() ||
+              (code !== "EEXIST" &&
+                Date.now() - current.mtimeMs < PARTIAL_PUBLICATION_GRACE_MS) ||
+              !isIncomplete?.(target)
+            : code === "EEXIST"
+        )
+          return false;
+        fs.renameSync(temp, target);
       }
+    } finally {
+      fs.rmSync(owner, { force: true });
+      removeEmptyLock(lock);
     }
     try {
       const dirFd = fs.openSync(directory, "r");
@@ -101,11 +97,69 @@ export function publishPrivateFile(
         } catch {}
       }
     } catch {}
-    return publication;
+    return true;
   } finally {
     try {
       fs.unlinkSync(temp);
     } catch {}
+  }
+}
+
+function acquirePublicationLock(lock: string): string | undefined {
+  const deadline = performance.now() + PUBLICATION_WAIT_MS;
+  const owner = join(lock, `${process.pid}.${randomUUID()}`);
+  for (;;) {
+    try {
+      fs.mkdirSync(lock, { mode: 0o700 });
+      try {
+        fs.closeSync(fs.openSync(owner, "wx", 0o600));
+        if (fs.readdirSync(lock).length === 1) return owner;
+        fs.rmSync(owner, { force: true });
+        removeEmptyLock(lock);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const current = fs.lstatSync(lock, { throwIfNoEntry: false });
+      if (current) {
+        if (!current.isDirectory()) return;
+        try {
+          const owners = fs.readdirSync(lock);
+          let abandoned =
+            owners.length === 0 &&
+            Date.now() - current.mtimeMs >= PARTIAL_PUBLICATION_GRACE_MS;
+          for (const entry of owners) {
+            const match = LOCK_OWNER.exec(entry);
+            if (match?.[1] && !isPidAlive(Number(match[1]))) {
+              fs.rmSync(join(lock, entry), { force: true });
+              abandoned = true;
+            }
+          }
+          if (abandoned) removeEmptyLock(lock);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+      }
+    }
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) return;
+    Atomics.wait(
+      publicationWait,
+      0,
+      0,
+      Math.min(PUBLICATION_POLL_MS, remaining),
+    );
+  }
+}
+
+function removeEmptyLock(lock: string): void {
+  try {
+    fs.rmdirSync(lock);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ENOTEMPTY" && code !== "EEXIST" && code !== "ENOENT")
+      throw error;
   }
 }
 

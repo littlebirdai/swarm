@@ -61,11 +61,20 @@ describe("machineKey hardware binding", () => {
     }
   });
 
-  it.each(["hard-link publish", "exclusive-create fallback"])(
-    "decrypts tokens from four concurrent first runs with %s",
-    async (publication) => {
+  it.each([
+    ["hard-link publish", false, false],
+    ["rename fallback", true, false],
+    ["hard-link repair", false, true],
+    ["rename fallback repair", true, true],
+  ])(
+    "decrypts tokens from four concurrent starts with %s",
+    async (_publication, fallback, short) => {
       const dir = tmpDir();
       const keyFile = path.join(dir, ".machine_key");
+      if (short) {
+        fs.writeFileSync(keyFile, "short", { mode: 0o600 });
+        fs.utimesSync(keyFile, 1, 1);
+      }
       const script = `
       import { spyOn } from "bun:test";
       import * as fs from "node:fs";
@@ -80,13 +89,18 @@ describe("machineKey hardware binding", () => {
       const read = fs.readFileSync;
       const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
         if (args[0] !== process.env.TEST_KEY_FILE) return read(...args);
-        try {
-          return read(...args);
-        } catch (err) {
-          if (err.code !== "ENOENT") throw err;
+        function arrive() {
           intercept.mockRestore();
           fs.writeSync(1, "R");
           if (fs.readSync(0, Buffer.alloc(1)) !== 1) throw new Error("Missing start signal");
+        }
+        try {
+          const key = read(...args);
+          if (key.length < ${MACHINE_KEY_LEN}) arrive();
+          return key;
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+          arrive();
           throw err;
         }
       });
@@ -100,8 +114,7 @@ describe("machineKey hardware binding", () => {
             ...process.env,
             TEST_KEY_DIR: dir,
             TEST_KEY_FILE: keyFile,
-            TEST_NO_HARD_LINKS:
-              publication === "exclusive-create fallback" ? "1" : "0",
+            TEST_NO_HARD_LINKS: fallback ? "1" : "0",
           },
           stdin: "pipe",
           stdout: "pipe",
@@ -259,6 +272,97 @@ describe("machineKey hardware binding", () => {
     }
   });
 
+  it("does not replace a short file created after an empty first read", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const link = fs.linkSync;
+    const intercept = spyOn(fs, "linkSync").mockImplementation((from, to) => {
+      fs.writeFileSync(keyFile, "short", { flag: "wx", mode: 0o600 });
+      link(from, to);
+    });
+    try {
+      expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(
+        "Machine key publication is incomplete",
+      );
+      expect(fs.readFileSync(keyFile, "utf8")).toBe("short");
+      expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["", "short"])(
+    "recovers a stale incomplete fallback key containing %j",
+    (contents) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const link = spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), {
+          code: "ENOTSUP",
+        });
+      });
+      try {
+        fs.writeFileSync(keyFile, contents, { mode: 0o600 });
+        fs.utimesSync(keyFile, 1, 1);
+        const key = resolveMachineKey(dir, HW_NONE).secret;
+        expect(key).toHaveLength(MACHINE_KEY_LEN);
+        expect(fs.readFileSync(keyFile).equals(key)).toBe(true);
+        expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+      } finally {
+        link.mockRestore();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(["live", "dead", "unmarked"] as const)(
+    "preserves or reclaims a lock with a %s owner",
+    async (owner) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const lock = path.join(dir, "..machine_key.lock");
+      const link = spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), {
+          code: "ENOTSUP",
+        });
+      });
+      try {
+        let pid = process.pid;
+        if (owner === "dead") {
+          const child = Bun.spawn([process.execPath, "-e", ""], {
+            stdio: ["ignore", "ignore", "ignore"],
+          });
+          pid = child.pid;
+          await child.exited;
+        }
+        fs.mkdirSync(lock, { mode: 0o700 });
+        const marker = path.join(lock, `${pid}.${crypto.randomUUID()}`);
+        if (owner !== "unmarked")
+          fs.writeFileSync(marker, "", { flag: "wx", mode: 0o600 });
+        fs.utimesSync(lock, 1, 1);
+        fs.writeFileSync(keyFile, "", { mode: 0o600 });
+        fs.utimesSync(keyFile, 1, 1);
+
+        if (owner === "live") {
+          expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(
+            "Machine key publication is incomplete",
+          );
+          expect(fs.statSync(keyFile).size).toBe(0);
+          expect(fs.existsSync(marker)).toBe(true);
+        } else {
+          const key = resolveMachineKey(dir, HW_NONE).secret;
+          expect(key).toHaveLength(MACHINE_KEY_LEN);
+          expect(fs.readFileSync(keyFile).equals(key)).toBe(true);
+          expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+        }
+      } finally {
+        link.mockRestore();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("propagates unrelated link errors and removes the temp file", () => {
     const dir = tmpDir();
     const failure = Object.assign(new Error("Link I/O failed"), {
@@ -378,51 +482,35 @@ describe("machineKey hardware binding", () => {
     }
   });
 
-  it.each(["write", "fsync", "fsync after replacement"])(
-    "cleans up only the fallback writer's file when %s fails",
+  it.each(["write", "fsync", "rename"])(
+    "keeps the previous key and removes temporary files when fallback %s fails",
     (failure) => {
       const dir = tmpDir();
       const keyFile = path.join(dir, ".machine_key");
-      const competing = path.join(dir, "competing-key");
-      const winner = Buffer.alloc(MACHINE_KEY_LEN, 7);
       const error = new Error("fallback write failed");
+      fs.writeFileSync(keyFile, "short", { mode: 0o600 });
+      fs.utimesSync(keyFile, 1, 1);
       const link = spyOn(fs, "linkSync").mockImplementation(() => {
         throw Object.assign(new Error("Hard links unavailable"), {
           code: "ENOTSUP",
         });
       });
-      const sync = fs.fsyncSync;
-      const syncIntercept = spyOn(fs, "fsyncSync").mockImplementation((fd) => {
-        if (failure !== "write" && fs.existsSync(keyFile)) {
-          if (failure === "fsync after replacement")
-            fs.renameSync(competing, keyFile);
-          throw error;
-        }
-        sync(fd);
+      const intercept = spyOn(
+        fs,
+        failure === "write"
+          ? "writeFileSync"
+          : failure === "fsync"
+            ? "fsyncSync"
+            : "renameSync",
+      ).mockImplementation(() => {
+        throw error;
       });
-      const write = fs.writeFileSync;
-      const writeIntercept = spyOn(fs, "writeFileSync").mockImplementation(
-        (file, data, options) => {
-          if (
-            failure === "write" &&
-            typeof file === "number" &&
-            fs.existsSync(keyFile)
-          )
-            throw error;
-          write(file, data, options);
-        },
-      );
       try {
-        if (failure === "fsync after replacement")
-          fs.writeFileSync(competing, winner);
         expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(error);
-        if (failure === "fsync after replacement") {
-          expect(fs.readFileSync(keyFile)).toEqual(winner);
-          expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
-        } else expect(fs.readdirSync(dir)).toEqual([]);
+        expect(fs.readFileSync(keyFile, "utf8")).toBe("short");
+        expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
       } finally {
-        writeIntercept.mockRestore();
-        syncIntercept.mockRestore();
+        intercept.mockRestore();
         link.mockRestore();
         fs.rmSync(dir, { recursive: true, force: true });
       }

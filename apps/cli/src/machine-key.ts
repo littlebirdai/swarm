@@ -88,22 +88,13 @@ export function resolveMachineKey(
 
   let key = readMachineKey(keyFile);
   if (!key) {
-    const wasShort = key === null;
-    const candidate = crypto.randomBytes(MACHINE_KEY_LEN);
-    const publication = publishPrivateFile(keyFile, candidate);
-    if (publication === "published") {
-      key = candidate;
-    } else {
-      key = readPublishedFile(() => readMachineKey(keyFile) ?? null);
-      if (!key) {
-        key = readMachineKey(keyFile);
-        if (key === null && wasShort && publication === "link-exists") {
-          writeSecretFile(keyFile, candidate);
-          key = fs.readFileSync(keyFile);
-        }
-        if (!key) throw new Error("Machine key publication is incomplete");
-      }
-    }
+    publishPrivateFile(
+      keyFile,
+      crypto.randomBytes(MACHINE_KEY_LEN),
+      key === null ? (target) => readMachineKey(target) === null : undefined,
+    );
+    key = readPublishedFile(() => readMachineKey(keyFile) ?? null);
+    if (!key) throw new Error("Machine key publication is incomplete");
     recorded = "";
   }
 

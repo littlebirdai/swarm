@@ -18,6 +18,7 @@ test.each([
   ["returns a stable ID when binding publication fails", "write-denied"],
   ["does not wait for a directory at the binding path", "directory"],
   ["does not wait for an unreadable binding file", "read-denied"],
+  ["keeps the fallback ID temporary when reading the key fails", "key-failed"],
 ])("%s", (_name, scenario) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-device-"));
   const bindingFile = path.join(dir, ".device_binding.json");
@@ -30,9 +31,10 @@ test.each([
 
     const [bindingFile, bindingJson, scenario] = process.argv.slice(1);
     spyOn(machineKey, "hardwareId").mockReturnValue(JSON.parse(bindingJson).hw);
-    spyOn(machineKey, "getMachineKey").mockImplementation(() => {
-      throw new Error("Could not read machine key");
-    });
+    const key = { secret: Buffer.alloc(32, 42), previousSecret: null, rotated: false };
+    const getKey = spyOn(machineKey, "getMachineKey").mockReturnValue(key);
+    if (scenario === "key-failed")
+      getKey.mockImplementationOnce(() => { throw new Error("Could not read machine key"); });
     if (["exclusive-create", "exclusive-race", "incomplete"].includes(scenario)) {
       spyOn(fs, "linkSync").mockImplementation(() => {
         throw Object.assign(new Error("Hard links unavailable"), { code: "ENOTSUP" });
@@ -60,7 +62,10 @@ test.each([
       });
     }
     if (scenario === "symlink") fs.symlinkSync("identity/device.json", bindingFile, "file");
-    if (scenario === "incomplete") fs.writeFileSync(bindingFile, "{", { mode: 0o600 });
+    if (scenario === "incomplete") {
+      fs.writeFileSync(bindingFile, "{", { mode: 0o600 });
+      fs.utimesSync(bindingFile, 1, 1);
+    }
     if (scenario.endsWith("-race")) {
       const partial = scenario === "exclusive-race";
       const stat = fs.statSync;
@@ -88,6 +93,8 @@ test.each([
       }
     }
     console.log(deviceId());
+    if (scenario === "key-failed" && fs.existsSync(bindingFile))
+      throw new Error("Fallback ID was written to disk");
     console.log(deviceId());
     console.log(waits);
   `;
@@ -111,6 +118,15 @@ test.each([
     expect(child.exitCode).toBe(0);
     const [id, cachedId, waits] = child.stdout.toString().trim().split("\n");
     expect(id).toMatch(/^[0-9a-f]{16}$/);
+    if (scenario === "key-failed") {
+      expect(cachedId).toMatch(/^[0-9a-f]{16}$/);
+      expect(cachedId).not.toBe(id);
+      expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual({
+        hw: binding.hw,
+        id: cachedId,
+      });
+      return;
+    }
     expect(cachedId).toBe(id);
     if (scenario === "directory" || scenario === "read-denied") {
       expect(waits).toBe("0");
