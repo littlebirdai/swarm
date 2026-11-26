@@ -100,6 +100,17 @@ export const sessionDeliveryTables = {
     // enqueue transaction; clients never mint ordering or delivery authority.
     delivery_protocol_version: v.optional(v.number()),
     delivery_id: v.optional(v.string()),
+    delivery_intent: v.optional(
+      v.union(v.literal("steer"), v.literal("queue")),
+    ),
+    delivery_observed_turn: v.optional(
+      v.object({
+        id: v.string(),
+        run: v.number(),
+        start_event_seq: v.number(),
+      }),
+    ),
+    delivery_baton_token: v.optional(v.union(v.number(), v.null())),
     conversation_sequence: v.optional(v.number()),
     execution_epoch: v.optional(v.number()),
     delivery_status: v.optional(
@@ -414,6 +425,7 @@ export const sessionDeliveryTables = {
     capabilities: v.optional(
       v.array(
         v.union(
+          v.literal("steer-baton-v1"),
           v.literal("single-flight-binding"),
           v.literal("delivery-permit-v1"),
           v.literal("strict-agent-routing"),
@@ -460,6 +472,14 @@ export const sessionDeliveryTables = {
       v.object({
         id: v.string(),
         prompt_ids: v.array(v.string()),
+        starter: v.optional(
+          v.object({
+            id: v.string(),
+            kind: v.union(v.literal("person"), v.literal("agent")),
+          }),
+        ),
+        start_event_seq: v.optional(v.number()),
+        baton_converted: v.optional(v.boolean()),
       }),
     ),
     received_at: v.number(),

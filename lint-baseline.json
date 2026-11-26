@@ -10348,6 +10348,9 @@
   "apps/server/convex/lib/peerLinkRows.ts": {
     "swarm/no-comments": 1
   },
+  "apps/server/convex/lib/pending-message-enqueue.rules.ts": {
+    "swarm/no-comments": 36
+  },
   "apps/server/convex/lib/pendingJob.ts": {
     "swarm/no-comments": 1
   },
@@ -11555,7 +11558,7 @@
     "swarm/no-comments": 86
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 621
+    "swarm/no-comments": 585
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6

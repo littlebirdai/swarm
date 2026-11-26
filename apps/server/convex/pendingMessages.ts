@@ -45,6 +45,11 @@ import {
   listSessionOwnerIds,
   syncPrimaryOwnerCache,
 } from "./sessionOwners";
+import {
+  admitFencedHumanSend,
+  observedTurnValidator,
+  type PendingMessageEnqueueFields,
+} from "./lib/pending-message-enqueue.rules";
 import { requireUser } from "./lib/auth";
 import { runLocalCommand } from "./localFirstCommands";
 import {
@@ -552,58 +557,7 @@ export async function enqueuePendingMessage(
   },
   conversation: any,
   fromUserId: Id<"users">,
-  fields: {
-    content: string;
-    image_storage_id?: Id<"_storage">;
-    image_storage_ids?: Id<"_storage">[];
-    client_id?: string;
-    // The sender's own conversation, so the cron can notify the sending session if this message
-    // can't be delivered. Only meaningful for cross-user (team) sends; omitted for self-sends.
-    from_conversation_id?: Id<"conversations">;
-    // "scheduler" = machine-initiated (the daemon's task scheduler firing a
-    // `cast trigger` injection). Every human send — web composer, cast send,
-    // team send — leaves this unset.
-    origin?: "scheduler";
-    // A PERSON wrote this to the session: the web/mobile composer, the receipt
-    // path, a doc review, a link collaborator's composer, `cast send` from a
-    // plain terminal. Positive and caller-declared, so a path nobody marked
-    // keeps today's behaviour. A session relaying to another session and a
-    // trigger firing are not people, and neither are the machine notices
-    // (account-switch "continue", undeliverable receipts, model/effort slash
-    // commands) that leave `origin` unset.
-    human?: boolean;
-    // Sent from a signed-in person's web or phone composer, never through an
-    // API token (schema pending_messages.channel). Set only through
-    // composerChannel, when the composer's own submit hands over its words;
-    // every other producer leaves it unset, which reads as a program
-    // (lib/messageProvenance.ts).
-    channel?: "composer";
-    // With channel: what the person typed in the box (composerChannel).
-    typed_text?: string;
-    // A note the session reads on its NEXT turn, never a turn of its own: the
-    // row is parked as "held" (the daemon and the retry cron read "pending"
-    // only) and nothing about the conversation moves, so a session whose
-    // prompt cache is gone is not woken, resurfaced or resurrected to read one
-    // sentence. The next ordinary message into the session releases it, and
-    // it delivers first because it is older.
-    defer?: boolean;
-    // A note for the session's own record, never a turn of its own, on ANY
-    // session: parked as "held" like `defer`. For a line the session itself
-    // caused, such as a role's own escalation divider, so the role is not
-    // woken to read what it just wrote.
-    hold?: boolean;
-    // The composer's "Queue for later": held for the end of the agent's
-    // turn in the session's shared queue (schema pending_messages.queued).
-    queue?: boolean;
-    // Work a session hands another out of sight: a flow run's brief to the
-    // session it runs for (flows.md FL4). A hidden stash and a snooze survive
-    // it, as they survive a trigger's wake; everything else wakes as for any send.
-    quiet?: boolean;
-    // Why a hosted conversation wakes for this row, when the caller knows
-    // better than the origin says (an answered approval). Ignored for every
-    // other conversation.
-    wake_cause?: WakeCause;
-  },
+  fields: PendingMessageEnqueueFields,
 ): Promise<Id<"pending_messages">> {
   // Every producer reaches this point, not only the ones that check
   // canSendProductMessage (session-to-session sends, role messages), so the
@@ -699,30 +653,40 @@ export async function enqueuePendingMessage(
     fields.content,
   );
 
-  if (fields.queue) {
-    return await insertEnqueuedPendingMessage(ctx, {
-      conversationId: conversation._id,
-      fromUserId,
-      ownerUserId: conversation.user_id,
-      content: fields.content,
-      clientId: fields.client_id,
-      human: fields.human,
-      channel: fields.channel,
-      typedText: fields.typed_text,
-      createdAt: Date.now(),
-      queued: true,
-    });
-  }
-
   // A run's own log has no agent: a turn there would only start a fresh one
   // that asks what it is for (jx73gnf, 2026-10-23). Whatever is sent stays on
   // its record and wakes nothing. The run's gates are answered by their own
   // mutation (respondToGate), never through here.
-  if (
-    fields.hold ||
-    (fields.defer && !conversation.standing_role_id) ||
-    isWorkflowRunLog(conversation)
-  ) {
+  const held =
+    !fields.queue &&
+    (fields.hold ||
+      (fields.defer && !conversation.standing_role_id) ||
+      isWorkflowRunLog(conversation));
+  const admission =
+    !held &&
+    process.env.SWARM_TURN_BATON === "1" &&
+    conversation.execution_protocol_state === "fenced" &&
+    fields.human &&
+    fields.client_id &&
+    !fields.origin &&
+    !fields.from_conversation_id
+      ? await admitFencedHumanSend(
+          ctx,
+          conversation._id,
+          fromUserId,
+          fields.client_id,
+          fields.queue ? undefined : fields.observed_turn,
+        )
+      : undefined;
+  if (fields.queue || held) {
+    const fenced =
+      fields.queue && admission
+        ? await allocateFencedDeliveryMetadata(
+            ctx,
+            conversation,
+            fields.client_id,
+          )
+        : null;
     return await insertEnqueuedPendingMessage(ctx, {
       conversationId: conversation._id,
       fromUserId,
@@ -733,7 +697,9 @@ export async function enqueuePendingMessage(
       channel: fields.channel,
       typedText: fields.typed_text,
       createdAt: Date.now(),
-      held: true,
+      queued: fields.queue,
+      held,
+      delivery: fenced ? { ...fenced, admission } : undefined,
     });
   }
 
@@ -770,7 +736,7 @@ export async function enqueuePendingMessage(
     typedText: fields.typed_text,
     createdAt: Date.now(),
     quiet: fields.quiet,
-    delivery: fenced ?? undefined,
+    delivery: fenced ? { ...fenced, admission } : undefined,
   });
 
   // Deferred notes ride this turn (see `defer`). Rows queued for the end of
@@ -996,6 +962,7 @@ export const sendMessageV2 = mutation({
     content: v.string(),
     image_storage_ids: v.optional(v.array(v.id("_storage"))),
     client_id: v.string(),
+    observed_turn: v.optional(observedTurnValidator),
     // The composer quotes this message carries (quoteDrafts.ts): stamped sent
     // here, in the transaction that queues it.
     quote_client_ids: v.optional(v.array(v.string())),
@@ -1026,6 +993,7 @@ export const sendMessageV2 = mutation({
           // Only when present, so a send without quotes keeps the fingerprint
           // every earlier receipt was written with.
           ...(quoteClientIds ? { quoteClientIds } : {}),
+          ...(args.observed_turn ? { observedTurn: args.observed_turn } : {}),
         },
       },
       async () => {
@@ -1118,6 +1086,7 @@ export const sendMessageV2 = mutation({
             image_storage_ids: imageStorageIds,
             client_id: args.client_id,
             human: true,
+            observed_turn: args.observed_turn,
             ...composerChannel(args.typed),
           });
         }
