@@ -178,7 +178,7 @@ apps/cli/src/workflow/flowChange.e2e.test.ts 1250
 apps/cli/src/workflow/flowChange.ts 950
 apps/cli/src/workflow/mergeStation.ts 900
 apps/cli/src/workflow/parser.ts 1000
-apps/cli/src/workflow/runResume.e2e.test.ts 1350
+apps/cli/src/workflow/run-resume.e2e.test.ts 1350
 apps/cli/src/workflow/runner.test.ts 2350
 apps/cli/src/workflow/runner.ts 4300
 apps/cli/src/workflow/subjectStation.e2e.test.ts 1100

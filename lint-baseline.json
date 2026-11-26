@@ -3921,6 +3921,9 @@
     "swarm/no-comments": 45,
     "swarm/no-raw-child-process": 1
   },
+  "apps/cli/src/process-table.e2e.test.ts": {
+    "swarm/no-comments": 33
+  },
   "apps/cli/src/processCwdCache.test.ts": {
     "swarm/no-comments": 1
   },
@@ -3941,9 +3944,6 @@
   },
   "apps/cli/src/processLineage.ts": {
     "swarm/no-comments": 36
-  },
-  "apps/cli/src/processTable.e2e.test.ts": {
-    "swarm/no-comments": 33
   },
   "apps/cli/src/processTable.kill.test.ts": {
     "swarm/no-comments": 23
@@ -4743,7 +4743,7 @@
   "apps/cli/src/tempFiles.ts": {
     "swarm/no-comments": 14
   },
-  "apps/cli/src/terminal/controlClient.e2e.test.ts": {
+  "apps/cli/src/terminal/control-client.e2e.test.ts": {
     "swarm/no-comments": 27
   },
   "apps/cli/src/terminal/controlClient.ts": {
@@ -4767,8 +4767,11 @@
   "apps/cli/src/terminal/paneStream.ts": {
     "swarm/no-comments": 108
   },
-  "apps/cli/src/terminal/terminalColors.e2e.test.ts": {
+  "apps/cli/src/terminal/terminal-colors.e2e.test.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/cli/src/terminal/terminal-server.e2e.test.ts": {
+    "swarm/no-comments": 8
   },
   "apps/cli/src/terminal/terminalHub.e2e.test.ts": {
     "swarm/no-comments": 36
@@ -4778,9 +4781,6 @@
   },
   "apps/cli/src/terminal/terminalHub.ts": {
     "swarm/no-comments": 99
-  },
-  "apps/cli/src/terminal/terminalServer.e2e.test.ts": {
-    "swarm/no-comments": 8
   },
   "apps/cli/src/terminal/terminalServer.ts": {
     "swarm/no-comments": 76
@@ -5560,6 +5560,9 @@
   "apps/cli/src/workflow/reviewNote.ts": {
     "swarm/no-comments": 7
   },
+  "apps/cli/src/workflow/run-resume.e2e.test.ts": {
+    "swarm/no-comments": 45
+  },
   "apps/cli/src/workflow/run-worktree.test.ts": {
     "swarm/no-comments": 11
   },
@@ -5575,9 +5578,6 @@
   },
   "apps/cli/src/workflow/runFailure.ts": {
     "swarm/no-comments": 10
-  },
-  "apps/cli/src/workflow/runResume.e2e.test.ts": {
-    "swarm/no-comments": 45
   },
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
