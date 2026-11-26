@@ -24,6 +24,11 @@ type QuestionCard = {
 };
 type OpenCard = PermissionCard | QuestionCard;
 type StoredCard = OpenCard & { id: string };
+type StoredCardPage = {
+  page: StoredCard[];
+  continueCursor: string;
+  isDone: boolean;
+};
 const listOwnedPromptCards = makeFunctionReference<
   "query",
   {
@@ -31,7 +36,7 @@ const listOwnedPromptCards = makeFunctionReference<
     api_token: string;
     paginationOpts: { cursor: string | null; numItems: number };
   },
-  { page: StoredCard[]; continueCursor: string; isDone: boolean }
+  StoredCardPage
 >("permissions:listOwnedPromptCards");
 
 function object(value: unknown): Record<string, unknown> | undefined {
@@ -116,11 +121,13 @@ export class CodexPilotPromptCards {
     let cursor: string | null = null;
     for (;;) {
       signal.throwIfAborted();
-      const page = await syncService.getClient().query(listOwnedPromptCards, {
-        conversation_id: conversationId,
-        api_token: bearer,
-        paginationOpts: { cursor, numItems: 64 },
-      });
+      const page: StoredCardPage = await syncService
+        .getClient()
+        .query(listOwnedPromptCards, {
+          conversation_id: conversationId,
+          api_token: bearer,
+          paginationOpts: { cursor, numItems: 64 },
+        });
       const pending = new Map(
         pendingPrompts().map(({ id, turn }) => [id, turn]),
       );
