@@ -36,12 +36,12 @@ export function fencedPromptAnswersEnabled() {
 
 type PromptTarget = Omit<PromptPosition, "lease_id">;
 
-async function openPrompt(
+async function openPromptTurn(
   ctx: Reader,
-  position: PromptTarget & { lease_id?: Id<"run_leases"> },
+  conversation_id: Id<"conversations">,
   owner: Id<"users">,
+  expected?: { run: number; lease_id?: Id<"run_leases"> },
 ) {
-  const { conversation_id, run, lease_id, turn_id, prompt_id } = position;
   const conversation = await ctx.db.get(conversation_id);
   if (
     conversation?.user_id !== owner ||
@@ -59,9 +59,11 @@ async function openPrompt(
   if (
     head?.owner_user_id !== owner ||
     head.protocol_state !== "fenced" ||
-    head.current_epoch !== run
+    head.current_epoch === undefined ||
+    (expected && head.current_epoch !== expected.run)
   )
     return null;
+  const run = head.current_epoch;
   const binding = await ctx.db
     .query("execution_bindings")
     .withIndex("by_conversation_epoch", (q) =>
@@ -77,8 +79,8 @@ async function openPrompt(
     return null;
   const claimId = binding.claim_id;
   const [lease, projection] = await Promise.all([
-    lease_id
-      ? ctx.db.get(lease_id)
+    expected?.lease_id
+      ? ctx.db.get(expected.lease_id)
       : ctx.db
           .query("run_leases")
           .withIndex("by_conversation_claim", (q) =>
@@ -95,11 +97,27 @@ async function openPrompt(
   if (
     !lease ||
     !isFreshTurnProjection(binding, lease, projection, Date.now()) ||
-    projection?.open_turn?.id !== turn_id ||
-    !projection.open_turn.prompt_ids.includes(prompt_id)
+    !projection?.open_turn
   )
     return null;
-  return { binding, lease };
+  return { binding, lease, turn: projection.open_turn };
+}
+
+async function openPrompt(
+  ctx: Reader,
+  position: PromptTarget & { lease_id?: Id<"run_leases"> },
+  owner: Id<"users">,
+) {
+  const opened = await openPromptTurn(
+    ctx,
+    position.conversation_id,
+    owner,
+    position,
+  );
+  return opened?.turn.id === position.turn_id &&
+    opened.turn.prompt_ids.includes(position.prompt_id)
+    ? opened
+    : null;
 }
 
 function recordedAnswer(
@@ -132,6 +150,42 @@ export async function promptAddress(
   if (!opened) return null;
   const position = { ...target, lease_id: opened.lease._id };
   return (await recordedAnswer(ctx, position, actor)) ? null : position;
+}
+
+export async function answerablePromptAddresses(
+  ctx: Reader,
+  conversation_id: Id<"conversations">,
+  actor: Id<"users">,
+) {
+  if (!fencedPromptAnswersEnabled()) return [];
+  const opened = await openPromptTurn(ctx, conversation_id, actor);
+  if (!opened) return [];
+  const { binding, lease, turn } = opened;
+  const candidates = (turn.prompt_details ?? []).filter(
+    ({ kind, prompt_id, questions }) =>
+      turn.prompt_ids.includes(prompt_id) &&
+      (kind === "permission" || questions !== undefined),
+  );
+  const addresses = await Promise.all(
+    candidates.map(async (prompt) => {
+      const position = {
+        conversation_id,
+        run: binding.epoch,
+        lease_id: lease._id,
+        turn_id: turn.id,
+        prompt_id: prompt.prompt_id,
+      };
+      if (await recordedAnswer(ctx, position, actor)) return null;
+      return {
+        ...position,
+        _id: JSON.stringify([lease._id, turn.id, prompt.prompt_id]),
+        kind: prompt.kind,
+        ...(prompt.tool_call_id ? { tool_call_id: prompt.tool_call_id } : {}),
+        questions: prompt.questions ?? [],
+      };
+    }),
+  );
+  return addresses.filter((address) => address !== null);
 }
 
 function command(

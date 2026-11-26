@@ -1,11 +1,14 @@
 import type {
   CanonicalEvent,
+  EdgeJson,
   EventsAppendResponse,
 } from "@codecast/edge-contract";
 import {
   projectTurn,
   TURN_PROJECTION_VERSION,
+  type TurnProjection,
 } from "@codecast/session-contract/turn-projection";
+import { convexToJson } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 
@@ -115,6 +118,103 @@ export async function clearEventTurn(
     });
 }
 
+type OpenTurn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
+type PromptDetails = NonNullable<OpenTurn["prompt_details"]>[number];
+
+function questionDetails(value: EdgeJson): PromptDetails["questions"] {
+  if (!Array.isArray(value) || value.length === 0) return;
+  const questions: NonNullable<PromptDetails["questions"]> = [];
+  const ids = new Set<string>();
+  for (const question of value) {
+    if (
+      !question ||
+      typeof question !== "object" ||
+      Array.isArray(question) ||
+      typeof question.id !== "string" ||
+      !question.id.trim() ||
+      typeof question.is_secret !== "boolean" ||
+      ids.has(question.id)
+    )
+      return;
+    ids.add(question.id);
+    questions.push({ id: question.id, is_secret: question.is_secret });
+  }
+  if (new TextEncoder().encode(JSON.stringify(questions)).length <= 16_384)
+    return questions;
+}
+
+function projectPromptTurn(
+  initial: TurnProjection,
+  previousDetails: readonly PromptDetails[],
+  events: readonly CanonicalEvent[],
+) {
+  let state = initial;
+  const details = new Map(
+    previousDetails.map((prompt) => [prompt.prompt_id, prompt]),
+  );
+  for (const event of events) {
+    const before = state.openTurn;
+    switch (event.kind) {
+      case "context": {
+        const { data } = event.body;
+        if (
+          !before ||
+          before.id !== event.turn ||
+          !data ||
+          typeof data !== "object" ||
+          Array.isArray(data) ||
+          typeof data.prompt_id !== "string"
+        )
+          break;
+        const prompt = details.get(data.prompt_id);
+        if (prompt?.kind !== "question" || prompt.questions) break;
+        const questions = questionDetails(data.questions);
+        if (questions) details.set(prompt.prompt_id, { ...prompt, questions });
+        break;
+      }
+      case "session.started":
+      case "session.ended":
+      case "turn.started":
+      case "turn.ended":
+      case "prompt.opened":
+      case "prompt.settled": {
+        state = projectTurn(state, [event]);
+        const after = state.openTurn;
+        if (before?.id !== after?.id) details.clear();
+        if (event.kind === "prompt.opened") {
+          const { prompt_id, kind, tool_call_id } = event.body;
+          if (
+            (kind === "question" || kind === "permission") &&
+            !before?.promptIds.includes(prompt_id) &&
+            after?.promptIds.includes(prompt_id)
+          )
+            details.set(prompt_id, {
+              prompt_id,
+              kind,
+              ...(tool_call_id ? { tool_call_id } : {}),
+            });
+        } else if (
+          event.kind === "prompt.settled" &&
+          !after?.promptIds.includes(event.body.prompt_id)
+        ) {
+          details.delete(event.body.prompt_id);
+        }
+        break;
+      }
+    }
+  }
+  const promptDetails = [...details.values()];
+  return {
+    status: state.status,
+    turn_ids: [...state.turnIds],
+    open_turn: state.openTurn && {
+      id: state.openTurn.id,
+      prompt_ids: [...state.openTurn.promptIds],
+      ...(promptDetails.length ? { prompt_details: promptDetails } : {}),
+    },
+  };
+}
+
 export async function appendRunEvents(
   ctx: Db,
   binding: Doc<"execution_bindings">,
@@ -137,7 +237,7 @@ export async function appendRunEvents(
       turn_ids: row?.turn_ids ?? [],
       open_turn: row?.open_turn ?? null,
     } as const;
-    const state = projectTurn(
+    const after = projectPromptTurn(
       {
         session,
         run: binding.epoch,
@@ -149,16 +249,9 @@ export async function appendRunEvents(
           promptIds: before.open_turn.prompt_ids,
         },
       },
+      before.open_turn?.prompt_details ?? [],
       suffix,
     );
-    const after = {
-      status: state.status,
-      turn_ids: [...state.turnIds],
-      open_turn: state.openTurn && {
-        id: state.openTurn.id,
-        prompt_ids: [...state.openTurn.promptIds],
-      },
-    };
     if (!row) {
       await ctx.db.insert("run_turn_projections", {
         ...runFields(binding),
@@ -166,7 +259,10 @@ export async function appendRunEvents(
         projection_version: TURN_PROJECTION_VERSION,
         received_at: now,
       });
-    } else if (JSON.stringify(before) !== JSON.stringify(after)) {
+    } else if (
+      JSON.stringify(convexToJson(before)) !==
+      JSON.stringify(convexToJson(after))
+    ) {
       await ctx.db.patch(row._id, { ...after, received_at: now });
     }
   }

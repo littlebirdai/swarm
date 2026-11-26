@@ -346,3 +346,290 @@ test("account deletion removes orphan prompt answers by owner", async () => {
   expect(await f.rows()).toEqual([]);
   expect(await f.t.run(({ db }) => db.get(f.owner))).toBeNull();
 });
+
+test("the answerable feed publishes only the owner's exact prompt addresses and question metadata", async () => {
+  const f = await fixture();
+  const feed = api.permissions.listAnswerablePromptAddresses;
+  expect(
+    await f.browser.query(feed, { conversation_id: f.conversation }),
+  ).toEqual([]);
+  const questions = [
+    { id: "choice", is_secret: false, question: "Choose an option" },
+    {
+      id: "hidden",
+      is_secret: true,
+      question: "Provide a secret",
+      header: "Secret",
+    },
+  ];
+  await f.append([
+    {
+      ...f.base,
+      seq: 3,
+      turn: "wrong-turn",
+      kind: "context",
+      body: { data: { prompt_id: f.target.prompt_id, questions } },
+    },
+    {
+      ...f.base,
+      seq: 4,
+      kind: "context",
+      body: {
+        data: {
+          prompt_id: f.target.prompt_id,
+          questions: [{ id: "missing-secret-marker" }],
+        },
+      },
+    },
+  ]);
+  expect(
+    await f.browser.query(feed, { conversation_id: f.conversation }),
+  ).toEqual([]);
+  await f.append([
+    {
+      ...f.base,
+      seq: 5,
+      kind: "context",
+      body: { data: { prompt_id: f.target.prompt_id, questions } },
+    },
+    {
+      ...f.base,
+      seq: 6,
+      kind: "prompt.opened",
+      body: {
+        prompt_id: "approval",
+        kind: "permission",
+        tool_call_id: "tool-approval",
+      },
+    },
+  ]);
+  const result = await f.browser.query(feed, {
+    conversation_id: f.conversation,
+  });
+  expect(result).toEqual([
+    {
+      ...f.address,
+      _id: JSON.stringify([
+        f.address.lease_id,
+        f.target.turn_id,
+        f.target.prompt_id,
+      ]),
+      kind: "question",
+      questions: [
+        { id: "choice", is_secret: false },
+        { id: "hidden", is_secret: true },
+      ],
+    },
+    {
+      ...f.address,
+      _id: JSON.stringify([f.address.lease_id, f.target.turn_id, "approval"]),
+      prompt_id: "approval",
+      kind: "permission",
+      tool_call_id: "tool-approval",
+      questions: [],
+    },
+  ]);
+  const rows = await f.t.run(({ db }) =>
+    db.query("run_turn_projections").collect(),
+  );
+  expect(rows[0]?.open_turn?.prompt_details).toEqual([
+    {
+      prompt_id: f.target.prompt_id,
+      kind: "question",
+      questions: [
+        { id: "choice", is_secret: false },
+        { id: "hidden", is_secret: true },
+      ],
+    },
+    {
+      prompt_id: "approval",
+      kind: "permission",
+      tool_call_id: "tool-approval",
+    },
+  ]);
+  const [outsider, other] = await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "prompt address access");
+    return [
+      await rows.user(),
+      await rows.conversation(f.owner, {
+        execution_protocol_state: "fenced",
+        owner_device_id: machine,
+      }),
+    ] as const;
+  });
+  expect(
+    await asUser(f.t, outsider).query(feed, {
+      conversation_id: f.conversation,
+    }),
+  ).toEqual([]);
+  expect(await f.t.query(feed, { conversation_id: f.conversation })).toEqual(
+    [],
+  );
+  expect(await f.browser.query(feed, { conversation_id: other })).toEqual([]);
+
+  await f.answer({ answers: { choice: { answers: ["Option"] } } });
+  expect(
+    (await f.browser.query(feed, { conversation_id: f.conversation })).map(
+      ({ prompt_id }) => prompt_id,
+    ),
+  ).toEqual(["approval"]);
+  process.env[flag] = "0";
+  expect(
+    await f.browser.query(feed, { conversation_id: f.conversation }),
+  ).toEqual([]);
+});
+
+test("settlement, turn end, and lease release remove durable prompt details", async () => {
+  const f = await fixture("permission");
+  const feed = () =>
+    f.browser.query(api.permissions.listAnswerablePromptAddresses, {
+      conversation_id: f.conversation,
+    });
+  const openTurn = async () =>
+    (await f.t.run(({ db }) => db.query("run_turn_projections").unique()))
+      ?.open_turn;
+  await f.append([
+    {
+      ...f.base,
+      seq: 3,
+      kind: "prompt.opened",
+      body: { prompt_id: "next", kind: "permission" },
+    },
+  ]);
+  expect((await feed()).map(({ prompt_id }) => prompt_id)).toEqual([
+    f.target.prompt_id,
+    "next",
+  ]);
+  await f.append([
+    {
+      ...f.base,
+      seq: 4,
+      kind: "prompt.settled",
+      body: {
+        prompt_id: f.target.prompt_id,
+        by: { kind: "person", id: f.owner },
+        answer: { behavior: "deny" },
+      },
+    },
+  ]);
+  expect((await feed()).map(({ prompt_id }) => prompt_id)).toEqual(["next"]);
+  expect((await openTurn())?.prompt_details).toEqual([
+    { prompt_id: "next", kind: "permission" },
+  ]);
+
+  await f.append([
+    { ...f.base, seq: 5, kind: "turn.ended", body: { reason: "done" } },
+  ]);
+  expect(await feed()).toEqual([]);
+  expect(await openTurn()).toBeNull();
+
+  const newTurn = { ...f.base, turn: "another-turn" };
+  await f.append([
+    { ...newTurn, seq: 6, kind: "turn.started", body: {} },
+    {
+      ...newTurn,
+      seq: 7,
+      kind: "prompt.opened",
+      body: { prompt_id: "next", kind: "question" },
+    },
+    {
+      ...newTurn,
+      seq: 8,
+      kind: "context",
+      body: {
+        data: {
+          prompt_id: "next",
+          questions: [{ id: "once", is_secret: true }],
+        },
+      },
+    },
+  ]);
+  expect(await feed()).toHaveLength(1);
+  expect(
+    await f.t.mutation(
+      internal.edgeRunLease.release,
+      f.requestFence(f.lease.fencing_token),
+    ),
+  ).toMatchObject({ status: "released" });
+  expect(await feed()).toEqual([]);
+  expect(await openTurn()).toBeNull();
+
+  const replacement = await f.claim("replacement");
+  if (replacement.status !== "granted")
+    throw new Error("Expected replacement lease");
+  await f.append(
+    [
+      { ...newTurn, seq: 9, kind: "turn.started", body: {} },
+      {
+        ...newTurn,
+        seq: 10,
+        kind: "prompt.opened",
+        body: { prompt_id: "next", kind: "question" },
+      },
+    ],
+    replacement.fencing_token,
+  );
+  expect(await feed()).toEqual([]);
+  expect((await openTurn())?.prompt_details).toEqual([
+    { prompt_id: "next", kind: "question" },
+  ]);
+});
+
+test("a replacement lease starts without question metadata from the expired lease", async () => {
+  const f = await fixture();
+  const context: Omit<Extract<CanonicalEvent, { kind: "context" }>, "seq"> = {
+    ...f.base,
+    kind: "context",
+    body: {
+      data: {
+        prompt_id: f.target.prompt_id,
+        questions: [{ id: "expired-secret", is_secret: true }],
+      },
+    },
+  };
+  await f.append([{ ...context, seq: 3 }]);
+  const feed = () =>
+    f.browser.query(api.permissions.listAnswerablePromptAddresses, {
+      conversation_id: f.conversation,
+    });
+  expect(await feed()).toHaveLength(1);
+  setSystemTime(new Date(start + leaseMs));
+  expect(await feed()).toEqual([]);
+  const newLease = await f.claim("replacement-after-expiry");
+  if (newLease.status !== "granted") throw new Error("Expected a fresh lease");
+  expect(
+    await f.t.run(
+      async ({ db }) =>
+        (await db.query("run_turn_projections").unique())?.open_turn,
+    ),
+  ).toBeNull();
+  await f.append(
+    [
+      { ...f.base, seq: 4, kind: "turn.started", body: {} },
+      {
+        ...f.base,
+        seq: 5,
+        kind: "prompt.opened",
+        body: { prompt_id: f.target.prompt_id, kind: "question" },
+      },
+      {
+        ...f.base,
+        seq: 6,
+        kind: "context",
+        body: {
+          data: {
+            prompt_id: f.target.prompt_id,
+            questions: [{ id: "replacement", is_secret: false }],
+          },
+        },
+      },
+    ],
+    newLease.fencing_token,
+  );
+  const addresses = await feed();
+  expect(addresses).toHaveLength(1);
+  expect(addresses[0]?.lease_id).not.toBe(f.address.lease_id);
+  expect(addresses[0]?.questions).toEqual([
+    { id: "replacement", is_secret: false },
+  ]);
+});

@@ -265,8 +265,9 @@ export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
   const current = await currentClaim(ctx, args, now, runForDeliverySettlement);
   if (!current) return stale;
-  const { lease } = current;
+  const { binding, lease } = current;
   await ctx.db.patch(lease._id, { released_at: now });
+  await clearEventTurn(ctx, binding, now);
   return { v: RUN_LEASE_VERSION, status: "released" } as const;
 }
 
