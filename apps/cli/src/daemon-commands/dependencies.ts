@@ -16,7 +16,7 @@ import {
   CodexAppServer,
   type ApprovalPolicy,
   type SandboxMode,
-} from "../codexAppServer.js";
+} from "../codex-app-server.js";
 import { type WorktreeResult } from "../worktreeLegacy.js";
 import { SyncService } from "../syncService.js";
 import { type InputIntent } from "../keystrokeInference.js";

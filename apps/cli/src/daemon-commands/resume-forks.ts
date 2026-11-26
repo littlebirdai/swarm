@@ -2,7 +2,7 @@ import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { CODEX_EFFORT_LEVELS } from "@codecast/agent-clients/modelOptions";
 import * as fs from "fs";
 import { randomUUID } from "node:crypto";
-import { threadForkTimeoutMsForBytes } from "../codexAppServer.js";
+import { threadForkTimeoutMsForBytes } from "../codex-app-server.js";
 import { setPosition } from "../positionTracker.js";
 import {
   fetchExport,

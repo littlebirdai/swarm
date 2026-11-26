@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
-import { CodexAppServer } from "./codexAppServer.js";
+import { CodexAppServer } from "./codex-app-server.js";
 import {
   codexResumeParams,
   recoverCodexTurn,

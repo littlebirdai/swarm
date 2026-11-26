@@ -29,7 +29,7 @@
  */
 import { randomUUID } from "crypto";
 import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
-import { threadItemToMessage, type ThreadItem } from "../codexAppServer.js";
+import { threadItemToMessage, type ThreadItem } from "../codex-app-server.js";
 import { shellEscapeForSh } from "../supervision.js";
 import { CloudApiError, KeyedCloudApi, verifyCloudKey } from "./http.js";
 import { collectPages, secondsToMs } from "./poll.js";

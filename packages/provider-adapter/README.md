@@ -46,7 +46,7 @@ in linked context. Send `{ "answers": { "<id>": { "answers": ["…"] } } }`.
 The canonical settlement masks secret answers. A server cancellation or
 turn end retires the prompt locally. Only a user's answer emits a settlement.
 
-Compared with the [legacy client](../../apps/cli/src/codexAppServer.ts):
+Compared with the [legacy client](../../apps/cli/src/codex-app-server.ts):
 
 - Kept initialization, start and resume, sandbox restatement, local images,
   turn and item notifications, tool output, thread status and name, and

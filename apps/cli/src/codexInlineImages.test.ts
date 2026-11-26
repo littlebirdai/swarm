@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   threadItemToMessage,
   threadItemsToMessages,
-} from "./codexAppServer.js";
+} from "./codex-app-server.js";
 import { inlineImageMarker } from "./inlineImage.js";
 import { parseCodexSessionFile } from "./parser.js";
 
