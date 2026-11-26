@@ -712,8 +712,8 @@ export async function enqueuePendingMessage(
     )
     .collect();
   for (const row of deferred)
-    if (!row.queued) await ctx.db.patch(row._id, { status: "pending" });
-
+    if (!row.queued)
+      await writePendingStatus(ctx, row._id, { status: "pending" });
   // Work for a cloud host that is asleep: ask a local daemon to boot it.
   if (!isConversationSafetyBlocked(conversation))
     await requestRemoteWake(ctx, conversation);
@@ -1812,7 +1812,7 @@ export async function cancelPendingMessageForUser(
     ) {
       throw new Error("This message is already being delivered to the session");
     }
-    await ctx.db.patch(message._id, {
+    await writePendingStatus(ctx, message._id, {
       delivery_status: "cancelled-by-supersession" as const,
       active_delivery_attempt_id: undefined,
       status: "cancelled" as const,
@@ -1927,7 +1927,7 @@ export async function mergeQueuedForUser(
     channel: undefined,
     typed_text: undefined,
   });
-  await ctx.db.patch(absorb._id, {
+  await writePendingStatus(ctx, absorb._id, {
     status: "cancelled" as const,
     merged_into: keep._id,
   });
