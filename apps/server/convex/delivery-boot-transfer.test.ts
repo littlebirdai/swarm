@@ -5,7 +5,7 @@ import {
   setupRunLease,
   start,
 } from "../test-helpers/run-lease.testkit";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   claimNextDeliveryInDb,
   completeDeliveryInDb,
@@ -19,12 +19,19 @@ afterEach(() => setSystemTime());
 
 for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
   for (const leased of [false, true]) {
-    for (const alreadyTransferred of [false, true]) {
-      test(`${state} recovers on boot transfer (${leased ? "leased" : "legacy"}${alreadyTransferred ? ", previously stranded" : ""})`, async () => {
+    for (const bindingBoot of [
+      "original",
+      "intermediate",
+      "replacement",
+    ] as const) {
+      if (state === "claimed" && bindingBoot === "replacement") continue;
+      test(`${state} recovers on boot claim (${leased ? "leased" : "legacy"}, ${bindingBoot} binding)`, async () => {
         setSystemTime(new Date(start));
         const {
           t,
           bearer,
+          wrongDevice,
+          unbound,
           owner,
           conversation,
           binding,
@@ -57,27 +64,29 @@ for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
           );
         }
 
-        if (alreadyTransferred) {
+        const replacementBoot = "replacement";
+        if (bindingBoot !== "original") {
           await t.run(({ db }) =>
-            db.patch(binding, { daemon_boot_id: "intermediate-boot" }),
+            db.patch(binding, { daemon_boot_id: bindingBoot }),
           );
         }
         const now = start + 1;
         setSystemTime(new Date(now));
-        const replacementBoot = "replacement";
         const device = {
           owner_device_id: machine,
           daemon_boot_id: replacementBoot,
           api_token: bearer,
         };
-        await t.mutation(
-          api.executionBindings.registerExecutionDaemonBoot,
-          device,
-        );
-        const adopt = (daemon_boot_id: string) =>
+        const adopt = (
+          daemon_boot_id: string,
+          owner_device_id = machine,
+          api_token = bearer,
+        ) =>
           t.mutation(api.executionBindings.claimExecutionStart, {
             ...device,
             daemon_boot_id,
+            owner_device_id,
+            api_token,
             conversation_id: conversation,
             epoch: 1,
             configuration_revision: 1,
@@ -85,6 +94,29 @@ for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
             required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
             proposed_operation_id: "operation",
           });
+        if (bindingBoot === "replacement") {
+          expect(await adopt(replacementBoot)).toMatchObject({
+            state: "rejected",
+          });
+        }
+        await expect(
+          t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
+            ...device,
+            api_token: wrongDevice,
+          }),
+        ).rejects.toThrow("DAEMON_DEVICE_MISMATCH");
+        await t.mutation(
+          api.executionBindings.registerExecutionDaemonBoot,
+          device,
+        );
+        await expect(
+          adopt(replacementBoot, machine, wrongDevice),
+        ).rejects.toThrow("DAEMON_DEVICE_MISMATCH");
+        expect(
+          await adopt(replacementBoot, "wrong-machine", wrongDevice),
+        ).toMatchObject({
+          state: "rejected",
+        });
         expect(await adopt(replacementBoot)).toMatchObject({
           state: "ready",
           binding: { daemonBootId: replacementBoot },
@@ -208,6 +240,9 @@ for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
           await expect(
             t.run((ctx) => startDeliveryInDb(ctx, owner, replacement)),
           ).rejects.toThrow("DELIVERY_ATTEMPT_STATE_MISMATCH");
+          await expect(
+            resolve({ ...replacement, ownerDeviceId: "wrong-machine" }),
+          ).rejects.toThrow("DELIVERY_BINDING_FENCE_MISMATCH");
           await expect(resolve(replacement, "")).rejects.toThrow(
             "resolutionEvidence",
           );
@@ -222,9 +257,71 @@ for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
             activeState: "ambiguous",
           });
           expect(await readSlot()).toEqual(slot);
-          expect(await resolve(replacement)).toEqual({
-            state: "correlated-delivered",
-          });
+          if (second) {
+            const request = {
+              v: second.v,
+              session: second.session,
+              run: second.run,
+              fencing_token: second.fencing_token,
+              attempt_id: original.attemptId,
+              delivery_id: original.deliveryId,
+              seq: original.conversationSequence,
+              intent: "queue" as const,
+              sender: { kind: "person" as const, id: owner },
+              outcome: "applied" as const,
+              resolution_evidence: "matching receipt",
+            };
+            expect(
+              await t.mutation(internal.edgeDelivery.settle, {
+                ...request,
+                bearer: wrongDevice,
+              }),
+            ).toEqual({ v: 1, status: "stale" });
+            expect(
+              await t.mutation(internal.edgeDelivery.settle, {
+                ...request,
+                bearer,
+              }),
+            ).toEqual({ v: 1, status: "recorded" });
+          } else {
+            const request = {
+              permit: {
+                message_id: message,
+                delivery_id: original.deliveryId,
+                conversation_sequence: String(original.conversationSequence),
+                attempt_id: original.attemptId,
+                conversation_id: conversation,
+                execution_epoch: 1,
+                configuration_revision: 1,
+                owner_device_id: machine,
+                daemon_boot_id: replacementBoot,
+                runtime_id: "runtime",
+              },
+              resolution: "correlated-delivered" as const,
+              resolution_evidence: "matching receipt",
+            };
+            await expect(
+              t.mutation(api.executionBindings.resolveAmbiguousDelivery, {
+                ...request,
+                api_token: wrongDevice,
+              }),
+            ).rejects.toThrow("DAEMON_DEVICE_MISMATCH");
+            await expect(
+              t.mutation(api.executionBindings.abandonAmbiguousAndResend, {
+                permit: request.permit,
+                resolution_evidence: request.resolution_evidence,
+                api_token: wrongDevice,
+                new_client_id: "resend",
+              }),
+            ).rejects.toThrow("DAEMON_DEVICE_MISMATCH");
+            expect(await readSlot()).toEqual(slot);
+            expect(
+              await t.mutation(api.executionBindings.resolveAmbiguousDelivery, {
+                ...request,
+                api_token: bindingBoot === "replacement" ? unbound : bearer,
+              }),
+            ).toEqual({ state: "correlated-delivered" });
+          }
           expect(await readSlot()).toMatchObject({
             attempt: { state: "correlated-delivered" },
             message: { delivery_status: "correlated-delivered" },
@@ -277,3 +374,56 @@ test("adopting a pending binding leaves the current delivery slot intact", async
     permit: { attemptId: permit.attemptId, daemonBootId: boot },
   });
 });
+
+test.each([
+  ["moved", "destination-machine"],
+  ["unassigned", undefined],
+] as const)(
+  "the %s conversation case refuses the old device's boot recovery and writes nothing",
+  async (_case, ownerDevice) => {
+    setSystemTime(new Date(start));
+    const { t, bearer, owner, conversation, binding, head, message, deliver } =
+      await setupRunLease();
+    const { permit } = await deliver();
+    await t.run((ctx) =>
+      startDeliveryInDb(ctx, owner, {
+        ...permit,
+        conversationId: conversation,
+        conversationSequence: Number(permit.conversationSequence),
+        now: start,
+      }),
+    );
+    const device = {
+      owner_device_id: machine,
+      daemon_boot_id: "replacement",
+      api_token: bearer,
+    };
+    await t.mutation(api.executionBindings.registerExecutionDaemonBoot, device);
+    await t.run(({ db }) =>
+      db.patch(conversation, { owner_device_id: ownerDevice }),
+    );
+    const rows = () =>
+      t.run(async ({ db }) => ({
+        binding: await db.get(binding),
+        head: await db.get(head),
+        message: await db.get(message),
+        attempts: await db.query("delivery_attempts").collect(),
+      }));
+    const before = await rows();
+    expect(
+      await t.mutation(api.executionBindings.claimExecutionStart, {
+        ...device,
+        conversation_id: conversation,
+        epoch: 1,
+        configuration_revision: 1,
+        protocol_version: 1,
+        required_capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        proposed_operation_id: "operation",
+      }),
+    ).toMatchObject({
+      state: "rejected",
+      failure: { code: "EXECUTION_BINDING_FENCE_MISMATCH" },
+    });
+    expect(await rows()).toEqual(before);
+  },
+);
