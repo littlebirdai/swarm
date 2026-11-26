@@ -506,6 +506,62 @@ describe("judge, on what GitHub said about two real runs", () => {
     }
   });
 
+  test("a scheduled retry skips GitHub once that attempt is lost", async () => {
+    const w = await connected();
+    let throwOnJobs = true;
+    const gh = github({
+      jobs: () => {
+        if (throwOnJobs) throw new Error("temporary GitHub failure");
+        return recorded.FLAKE_JOBS_A1;
+      },
+      logs: recorded.FLAKE_LOGS_A1,
+    });
+    try {
+      const row = await w.finish(
+        recorded.FLAKE_RUN,
+        recorded.FLAKE_SHA,
+        1,
+        "failure",
+      );
+      if (!row) throw new Error("Expected a claimed CI run");
+      expect(row).toMatchObject({ judge_error: "temporary GitHub failure" });
+      expect(
+        await w.t.mutation(internal.mainRed.settle, {
+          run: row._id,
+          attempt: row.attempt,
+          verdict: "lost",
+          jobs: [],
+          failed: [],
+          failing: [],
+          reran: false,
+        }),
+      ).toBe("lost");
+      const lost = await w.t.run((ctx) => ctx.db.get(row._id));
+      const retry = await w.t.run(async (ctx) =>
+        (await ctx.db.system.query("_scheduled_functions").collect()).find(
+          (job) =>
+            job.name.endsWith("mainRed:judge") && job.state.kind === "pending",
+        ),
+      );
+      if (!retry) throw new Error("Expected a scheduled judge retry");
+      const calls = gh.calls.length;
+      throwOnJobs = false;
+
+      jest.advanceTimersByTime(60_000);
+      await w.t.finishInProgressScheduledFunctions();
+
+      expect(
+        await w.t.run(
+          async (ctx) => (await ctx.db.system.get(retry._id))?.state,
+        ),
+      ).toEqual({ kind: "success" });
+      expect(gh.calls.slice(calls)).toEqual([]);
+      expect(await w.t.run((ctx) => ctx.db.get(row._id))).toEqual(lost);
+    } finally {
+      gh.restore();
+    }
+  });
+
   test("a finished attempt whose judge never settled it is judged again by the recheck", async () => {
     const w = await connected();
     const row = await w.t.run(async (ctx) =>

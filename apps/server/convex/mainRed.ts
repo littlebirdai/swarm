@@ -425,7 +425,8 @@ export const judge = internalAction({
       internal.mainRed.runRow,
       { run: args.run },
     );
-    if (!row || row.attempt !== args.attempt) return "stale";
+    if (!row || row.attempt !== args.attempt || row.state === "lost")
+      return "stale";
     try {
       return await judgeAttempt(ctx, row, args.ok);
     } catch (err) {
