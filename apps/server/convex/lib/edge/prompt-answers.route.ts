@@ -60,7 +60,8 @@ async function openPromptTurn(
     head?.owner_user_id !== owner ||
     head.protocol_state !== "fenced" ||
     head.current_epoch === undefined ||
-    (expected && head.current_epoch !== expected.run)
+    (expected && head.current_epoch !== expected.run) ||
+    head.device_move !== undefined
   )
     return null;
   const run = head.current_epoch;

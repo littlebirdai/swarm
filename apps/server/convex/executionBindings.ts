@@ -2195,9 +2195,12 @@ export const listExecutionWork = query({
     capabilities: v.array(capabilityValidator),
     api_token: v.string(),
   },
-  handler: async (ctx, args) => {
-    const userId = await authenticateExecutionDaemon(ctx, args.api_token);
-    requireNonEmpty(args.owner_device_id, "ownerDeviceId");
+  handler: async (
+    ctx,
+    { api_token: token, owner_device_id: device, ...args },
+  ) => {
+    const userId = await authenticateExecutionDaemon(ctx, token, device);
+    requireNonEmpty(device, "ownerDeviceId");
     requireNonEmpty(args.daemon_boot_id, "daemonBootId");
     requireProtocolVersion(args.protocol_version);
     requireProtocolCapabilities(args.capabilities);
@@ -2231,8 +2234,7 @@ export const listExecutionWork = query({
           head.conversation_id,
           epoch as number,
         );
-        if (!binding || binding.owner_device_id !== args.owner_device_id)
-          continue;
+        if (!binding || binding.owner_device_id !== device) continue;
         if (
           !capabilitiesEqual(
             binding.required_capabilities ?? [],
@@ -2259,8 +2261,7 @@ export const listExecutionWork = query({
       }
       const intent = head.successor_intent;
       const pendingIntent =
-        intent?.status === "pending" &&
-        intent.owner_device_id === args.owner_device_id
+        intent?.status === "pending" && intent.owner_device_id === device
           ? {
               intentId: intent.intent_id,
               expectedCurrentEpoch: intent.expected_current_epoch,

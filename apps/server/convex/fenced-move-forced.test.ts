@@ -38,13 +38,25 @@ afterEach(() => {
 async function fixture(crossAccount = false) {
   const f = await setupRunLease();
   const secret = "forced-move-target-token";
-  const { outsider, runner } = await f.t.run(async ({ db }) => {
+  const runner = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "forced device move");
-    const outsider = await rows.user();
-    const runner = crossAccount ? outsider : f.owner;
+    const runner = crossAccount ? await rows.user() : f.owner;
     const token = await rows.token(runner, secret);
     await db.patch(token, { device_id: device });
-    return { outsider, runner };
+    await rows.device(f.owner, { device_id: machine });
+    await rows.device(runner, { device_id: device });
+    if (crossAccount) {
+      const team = await rows.team();
+      await rows.membership(f.owner, team);
+      await rows.membership(runner, team);
+      await db.insert("device_shares", {
+        user_id: runner,
+        team_id: team,
+        device_id: device,
+        shared_at: start,
+      });
+    }
+    return runner;
   });
   const bearer = presentToken(secret, device);
   await f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
@@ -55,15 +67,19 @@ async function fixture(crossAccount = false) {
   const target = {
     conversation_id: f.conversation,
     expected_source_epoch: 1,
-    destination_runner_id: runner,
     destination_device_id: device,
   };
-  const force = (user = f.owner) =>
+  const force = (user = f.owner, destination_device_id = device) =>
     asUser(f.t, user).mutation(api.edgeRunLease.forceMove, {
       ...target,
+      destination_device_id,
       acknowledge_source_may_still_run: true,
     });
-  const record = () => f.t.mutation(internal.edgeRunLease.recordMove, target);
+  const record = () =>
+    f.t.mutation(internal.edgeRunLease.recordMove, {
+      ...target,
+      destination_runner_id: runner,
+    });
   const move = (move_id: string) => {
     const address = { conversation_id: f.conversation, move_id, bearer };
     const binding = {
@@ -75,7 +91,10 @@ async function fixture(crossAccount = false) {
       daemon_boot_id: destinationBoot,
       protocol_version: 1,
     };
+    const source = { ...address, bearer: f.bearer };
     return {
+      abort: () => f.t.mutation(internal.edgeRunLease.abortMove, source),
+      restore: () => f.t.mutation(internal.edgeRunLease.retargetMove, source),
       prepare: () =>
         f.t.mutation(internal.edgeRunLease.prepareMove, {
           ...address,
@@ -134,7 +153,6 @@ async function fixture(crossAccount = false) {
   return {
     ...f,
     bearer,
-    outsider,
     runner,
     target,
     force,
@@ -338,6 +356,24 @@ test("a forced move refuses the old device after it reconnects on the same accou
       cursors: await db.query("run_event_cursors").collect(),
       leases: await db.query("run_leases").collect(),
     }));
+  const work = {
+    owner_device_id: device,
+    daemon_boot_id: destinationBoot,
+    protocol_version: 1,
+    capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+  };
+  expect(
+    await f.t.query(api.executionBindings.listExecutionWork, {
+      ...work,
+      api_token: f.bearer,
+    }),
+  ).toEqual([expect.objectContaining({ conversationId: f.conversation })]);
+  await expect(
+    f.t.query(api.executionBindings.listExecutionWork, {
+      ...work,
+      api_token: revokedDevice,
+    }),
+  ).rejects.toThrow("DAEMON_DEVICE_MISMATCH");
   const before = await snapshot();
   const fence = f.requestFence(permit.fencing_token);
   const stale = { status: "stale" };
@@ -439,10 +475,15 @@ test("a forced move refuses the old device after it reconnects on the same accou
   await expect(
     f.t.mutation(internal.edgeRunLease.recordMove, {
       ...f.target,
+      destination_runner_id: f.runner,
       expected_source_epoch: 2,
       destination_device_id: machine,
     }),
   ).rejects.toThrow("EXECUTION_DEVICE_FORCE_FENCED");
+  process.env[forcedFlag] = "1";
+  await expect(f.force()).rejects.toThrow(
+    "The source epoch changed before the forced move",
+  );
   expect(await snapshot()).toEqual(before);
 });
 
@@ -523,11 +564,8 @@ test("a historical head rejection cannot be replayed for a force-fenced epoch", 
   await expect(reject()).rejects.toThrow("delivery epoch was force-fenced");
 });
 
-test("a non-owner cannot force a move and the flag defaults to off", async () => {
+test("the forced move flag defaults to off", async () => {
   const f = await fixture();
-  await expect(f.force(f.outsider)).rejects.toThrow(
-    "Only the current session owner",
-  );
   delete process.env[forcedFlag];
   await expect(f.force()).rejects.toThrow("Forced device moves are disabled");
   expect(
@@ -558,6 +596,11 @@ test("forcing an already prepared move closes settlement and the flag gates acti
   expect(
     (await f.t.run(({ db }) => db.get(f.head)))?.active_delivery_state,
   ).toBe("ambiguous");
+  delete process.env[forcedFlag];
+  await expect(move.begin()).rejects.toThrow(
+    "Forced device moves are disabled",
+  );
+  process.env[forcedFlag] = "1";
   await move.begin();
   await move.ready();
   delete process.env[forcedFlag];
@@ -565,4 +608,137 @@ test("forcing an already prepared move closes settlement and the flag gates acti
     "Forced device moves are disabled",
   );
   expect((await f.t.run(({ db }) => db.get(f.head)))?.current_epoch).toBe(1);
+});
+
+test("only the running account can force a move to an eligible device", async () => {
+  const f = await fixture(true);
+  const { coowner, teammate } = await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "forced move caller roles");
+    const coowner = await rows.user();
+    const teammate = await rows.user();
+    const team = (await db.query("teams").first())!._id;
+    await rows.membership(coowner, team);
+    await rows.membership(teammate, team);
+    await rows.device(teammate, { device_id: "unshared-teammate" });
+    await rows.device(f.owner, { device_id: " " + machine });
+    await db.patch(f.conversation, { team_id: team, owner_user_id: coowner });
+    await db.insert("session_owners", {
+      conversation_id: f.conversation,
+      user_id: coowner,
+      added_by: f.owner,
+      added_at: start,
+    });
+    return { coowner, teammate };
+  });
+  await expect(
+    f.t.mutation(api.edgeRunLease.forceMove, {
+      ...f.target,
+      acknowledge_source_may_still_run: true,
+    }),
+  ).rejects.toThrow("signed-in session owner");
+  for (const user of [coowner, teammate, f.runner]) {
+    await expect(f.force(user)).rejects.toThrow(
+      "Only the current session owner",
+    );
+  }
+  await expect(f.force(f.owner, "unshared-teammate")).rejects.toThrow(
+    "device shared with your team",
+  );
+  await expect(f.force(f.owner, " " + machine)).rejects.toThrow(
+    "device ID must be canonical",
+  );
+  await expect(f.force(f.owner, machine)).rejects.toThrow(
+    "requires a different device",
+  );
+  const withRunner = {
+    ...f.target,
+    destination_runner_id: teammate,
+    acknowledge_source_may_still_run: true as const,
+  };
+  await expect(
+    asUser(f.t, f.owner).mutation(api.edgeRunLease.forceMove, withRunner),
+  ).rejects.toThrow("destination_runner_id");
+  expect(
+    (await f.t.run(({ db }) => db.get(f.head)))?.device_move,
+  ).toBeUndefined();
+  const recorded = await f.force();
+  expect(
+    (await f.t.run(({ db }) => db.get(f.head)))?.device_move,
+  ).toMatchObject({
+    move_id: recorded,
+    destination_runner_id: f.runner,
+    destination_device_id: device,
+  });
+});
+
+test("a forced move cannot be redirected or restarted while it aborts", async () => {
+  const f = await fixture();
+  await f.t.run(({ db }) =>
+    fixtureRows(db, "second forced move target").device(f.owner, {
+      device_id: "second-target",
+    }),
+  );
+  const id = await f.force();
+  await expect(f.force(f.owner, "second-target")).rejects.toThrow(
+    "EXECUTION_DEVICE_MOVE_IN_PROGRESS",
+  );
+  const move = f.move(id);
+  await move.prepare();
+  expect(await move.retarget()).toEqual({ moved: 1, done: true });
+  expect(await move.abort()).toEqual({ done: false });
+  await expect(f.force()).rejects.toThrow("An aborting move cannot be forced");
+  expect(await move.restore()).toEqual({ moved: 1, done: true });
+  const { head, message } = await f.t.run(async ({ db }) => ({
+    head: await db.get(f.head),
+    message: await db.get(f.message),
+  }));
+  expect(head?.device_move).toBeUndefined();
+  expect(head?.current_epoch).toBe(1);
+  expect(message).toMatchObject({
+    execution_epoch: 1,
+    owner_user_id: f.owner,
+    delivery_status: "pending",
+  });
+});
+
+test("a forced move cannot abort once the destination starts", async () => {
+  const f = await fixture();
+  const move = f.move(await f.force());
+  await move.prepare();
+  await move.begin();
+  await expect(move.abort()).rejects.toThrow(
+    "destination runtime must be disposed",
+  );
+});
+
+test("forced settlement stays closed with a clock behind the stored deadline", async () => {
+  const f = await fixture();
+  const permit = await f.sourcePermit();
+  await f.t.mutation(internal.edgeDelivery.start, permit);
+  await f.record();
+  await f.t.run(async ({ db }) => {
+    const head = await db.get(f.head);
+    if (!head?.device_move)
+      throw new Error("Expected a source settlement window");
+    await db.patch(f.head, {
+      device_move: {
+        ...head.device_move,
+        forced: { by_user_id: f.owner, at: start + 1 },
+        settlement_deadline: start + 1,
+      },
+    });
+  });
+  expect(
+    await f.t.mutation(internal.edgeDelivery.settle, {
+      ...permit,
+      outcome: "applied",
+    }),
+  ).toMatchObject({ status: "stale" });
+  await f.t.mutation(internal.edgeRunLease.expireMove, {
+    head_id: f.head,
+    source_epoch: 1,
+  });
+  expect(
+    (await f.t.run(({ db }) => db.get(f.head)))?.active_delivery_state,
+  ).toBe("ambiguous");
 });

@@ -49,11 +49,10 @@ const moveTarget = {
   conversation_id: v.id("conversations"),
   expected_source_epoch: v.number(),
   destination_device_id: v.string(),
-  destination_runner_id: v.id("users"),
 };
 
 export const recordMove = internalMutation({
-  args: moveTarget,
+  args: { ...moveTarget, destination_runner_id: v.id("users") },
   handler: async (ctx, args): Promise<string> => {
     const now = Date.now();
     const recorded = await recordDeviceMove(ctx, args, now);
@@ -82,9 +81,8 @@ export const forceMove = mutation({
     const now = Date.now();
     const { moveId, headId, sourceEpoch } = await recordDeviceMove(
       ctx,
-      args,
+      { ...args, forced_by: userId },
       now,
-      userId,
     );
     await expireMoveSettlement(ctx, headId, sourceEpoch, now);
     return moveId;
