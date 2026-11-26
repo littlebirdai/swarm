@@ -115,13 +115,11 @@ describe("classifyChangedPaths", () => {
 
   // The few web and convex test files that import cli code run in
   // test-always instead.
-  test("a cli change runs build, lint, typecheck and the cli tests", () => {
-    expect(ran(["apps/cli/src/daemon.ts"])).toEqual([
-      "build",
-      "lint",
-      "test-cli",
-      "typecheck",
-    ]);
+  test.each([
+    "apps/cli/src/daemon.ts",
+    "tests/codex-driver-parity/parity.test.ts",
+  ])("%s runs build, lint, typecheck and the cli tests", (file) => {
+    expect(ran([file])).toEqual(["build", "lint", "test-cli", "typecheck"]);
   });
 
   // convex source imports web code. The cli test files that read web files

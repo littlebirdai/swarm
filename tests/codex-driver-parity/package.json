@@ -1,0 +1,13 @@
+{
+  "name": "@codecast/test-codex-driver-parity",
+  "private": true,
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@codecast/agent-clients": "workspace:*",
+    "@codecast/provider-adapter": "workspace:*",
+    "@codecast/provider-contract": "workspace:*",
+    "@codecast/test-helpers": "workspace:*"
+  }
+}

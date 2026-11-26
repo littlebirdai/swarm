@@ -448,6 +448,7 @@ describe("matrices", () => {
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
       ["matrix.suite == 'evals'", "bun test"],
       ["matrix.suite == 'evals'", "bun test ./learning/"],
+      ["matrix.suite == 'evals'", "bun run test"],
       [
         "matrix.suite == 'evals'",
         "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
