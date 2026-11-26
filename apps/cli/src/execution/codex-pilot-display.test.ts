@@ -11,7 +11,7 @@ import {
   recordedCompletion,
   recordedItems,
 } from "../../../../tests/codex-driver-parity/recording.js";
-import { CodexAppServer } from "../codexAppServer.js";
+import { CodexAppServer } from "../codex-app-server.js";
 import { inlineImageMarker } from "../inlineImage.js";
 import type { ParsedMessage } from "../parser.js";
 import { registerAppServerSpawnTracking, tmuxSpawns } from "../tmuxSpawns.js";

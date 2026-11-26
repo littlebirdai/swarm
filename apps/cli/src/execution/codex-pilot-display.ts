@@ -5,7 +5,7 @@ import {
   threadItemToMessage,
   threadItemsToMessages,
   type ThreadItem,
-} from "../codexAppServer.js";
+} from "../codex-app-server.js";
 import { codexTurnErrorMessage } from "../codexTurnError.js";
 import type { ParsedMessage } from "../parser.js";
 
