@@ -142,7 +142,7 @@ export function createEffectAdapter(
   }
 
   return {
-    provider: providerOffer(options.provider),
+    provider: providerOffer(options),
     observe: (spec, signal) =>
       facade.run(
         Effect.flatMap(ProviderAdapter, (adapter) => adapter.observe(spec)),

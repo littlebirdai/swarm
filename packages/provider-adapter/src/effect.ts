@@ -27,7 +27,7 @@ const ownedLayer = (
   Layer.effect(
     ProviderAdapter,
     Effect.sync(() => {
-      const provider = providerOffer(options.provider);
+      const provider = providerOffer(options);
       const own = Effect.fn("provider.own")(function* (
         spec: StartSpec | ResumeSpec,
       ) {
@@ -90,7 +90,11 @@ interface Service {
   readonly own: (spec: StartSpec | ResumeSpec) => Effect.Effect<
     | {
         readonly status: "opened";
-        readonly session: Effect.Success<ReturnType<typeof openAcp>>;
+        readonly session: Effect.Success<
+          ReturnType<
+            typeof openAcp | typeof openAppServer | typeof openClaudeSdk
+          >
+        >;
       }
     | ReturnType<typeof refused>
     | ReturnType<typeof unsupported>
@@ -108,7 +112,7 @@ export class ProviderAdapter extends Context.Service<
 export function providerAdapterLayer(
   options: ProviderAdapterOptions,
 ): Layer.Layer<ProviderAdapter> {
-  const offer = providerOffer(options.provider);
+  const offer = providerOffer(options);
   if (offer.capabilities.includes("own"))
     return ownedLayer(
       options,

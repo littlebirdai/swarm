@@ -80,6 +80,7 @@ const item = Schema.Union([
   Schema.Struct({
     id,
     type: Schema.Literal("userMessage"),
+    clientId: optional(Schema.NullOr(id)),
     content: Schema.Array(userInput),
   }),
   Schema.Struct({

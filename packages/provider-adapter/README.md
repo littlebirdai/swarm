@@ -33,10 +33,21 @@ and provider config in `StartSpec.options`. New turns restate the sandbox
 supplied by the server. Resume uses the server's policy.
 
 RPCs acknowledge steer and interrupt against the expected turn. Only
-`turn/completed` or exit ends the turn. A steer remains `in-doubt`.
-The [recorded user item](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
-has a null `clientId`. Resume can identify a live turn and supplies no
-durable delivery receipts. Controls settle while the consumer waits.
+`turn/completed` or exit ends the turn. An RPC acknowledgement alone leaves a
+send `in-doubt`.
+
+Supply a `receiptJournal` in `ProviderAdapterOptions` to enable receipts for
+persistent threads. The adapter sends `clientUserMessageId` on both start and steer. When a completed
+user item echoes that ID, the adapter records its item ID and turn in the
+journal. It emits a receipt after the journal commits. If the RPC has already
+returned in doubt, the receipt arrives on the event stream. If the item has no
+client ID, its text can supply transcript evidence only.
+
+Resume loads committed receipts for the session and checkpoint. Pass
+`inDoubtDeliveryIds` to emit the selected receipts once on that open. A
+valid retry of a committed delivery returns `duplicate` with no new send.
+
+Controls settle while the consumer waits.
 The reader stages 64 frames or 32 MiB. Overflow fails the stream and
 reports pending controls as `in-doubt`.
 
