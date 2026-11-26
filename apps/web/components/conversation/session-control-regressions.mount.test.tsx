@@ -381,6 +381,8 @@ test("returning from solo clears the previous shared outcome for the same facts"
   expect(button(ui.container, "Take over").disabled).toBe(true);
   await ui.type("Retained draft");
   await ui.press("Enter");
+  await ui.clock!.advance(17);
+  expect(ui.dom.window.document.activeElement).toBe(ui.box());
   await fake.reply("stale");
   expect(ui.container.textContent).toContain("Turn ended");
   await act(() => button(ui.container, "Interrupt").click());
