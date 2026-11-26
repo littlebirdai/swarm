@@ -1,0 +1,12 @@
+{
+  "request": {
+    "v": 1,
+    "session": "session-1",
+    "run": 3,
+    "fencing_token": "claim-token-1",
+    "fence_id": "takeover-1",
+    "turn": "turn-1",
+    "baton_token": 17
+  },
+  "response": { "v": 1, "status": "recorded" }
+}

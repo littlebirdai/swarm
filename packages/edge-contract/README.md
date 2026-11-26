@@ -248,9 +248,28 @@ The server supplies the effective intent on each permit. An agent sender
 queues by default. The server can issue steer after the session owner grants
 it to that sender.
 
+The `STEER_BATON_CAPABILITY` (`"steer-baton-v1"`) versions baton support
+within the unreleased v1 protocol. The daemon lists it in `hello`. The
+server lists it in policy when it supports the baton. Use the baton
+only when both advertise support. Otherwise, issue queue permits.
+
+| Permit intent | Required baton fields                                              | Delivery rule                                                       |
+| ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `queue`       | None                                                               | Wait until the turn ends.                                           |
+| `steer`       | `baton_token` and `expected: { "kind": "turn", "turn": "turn-1" }` | Start only for the current baton holder and the named running turn. |
+
+The baton token is a positive safe integer from the steer claim. Use null
+when the turn starter has the implied right to steer without a claim. The
+run lease uses the separate text `fencing_token`. The server stores the baton
+token and guard with the attempt and rechecks both when it starts the
+delivery. The machine compares the permit's guard with the running turn
+immediately before the effect. A different or absent turn gives a stale
+outcome. The machine reports the turn it saw with `delivery.settle`.
+An in-doubt steer requires a person's decision before any resend.
+
 The permit's `seq` orders deliveries within the session. The daemon echoes
-the delivery fields, including `attempt_id`. The `expected` field stays on
-the permit. A permit marked `started` or a
+the delivery fields, including `attempt_id`. The `expected` and `baton_token`
+fields stay on the permit. A permit marked `started` or a
 start response of `already_started` requires recovery before another effect.
 The daemon checks the transcript for the original effect. If the result is
 uncertain, it reports `in_doubt`. It reports `failed` with `retryable` only
@@ -267,8 +286,8 @@ in its `hello` request. The server sends guarded steers and commands only to
 daemons that advertise this capability. A guarded steer queues if the daemon
 does not advertise it.
 
-`permits.next` can include a turn guard. `commands.next` can include any
-of these guards.
+`permits.next` requires a turn guard for steer. `commands.next` can include
+any of these guards.
 
 | Action             | `expected`                                                                    |
 | ------------------ | ----------------------------------------------------------------------------- |
@@ -276,7 +295,8 @@ of these guards.
 | Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`                     |
 | Terminal input     | `{ "kind": "terminal", "run": 3, "pane_instance": 4, "fencing_token": "17" }` |
 
-A null `turn` names the state with no current turn. The pane instance is a
+A null `turn` names the state with no current turn. A steer permit requires
+a turn ID. The pane instance is a
 positive safe integer. Use a new instance when the pane restarts. The
 terminal `fencing_token` is the typing lease token encoded as text. The daemon
 compares the run, pane instance, and token for equality. The server alone
@@ -293,6 +313,37 @@ kind as the guard and report the current values. Use null for an absent
 turn, prompt ID, pane instance, or typing lease token. Prompt and terminal
 observations use null for `run` when there is no active run. Only a stale
 outcome carries `observed`. A stale command result has no `output`.
+
+### Turn starter
+
+`turn.started.body.starter` carries the sender's `id` and `kind` (`person`
+or `agent`). Send it only when the server advertises baton support. Omit it
+if the starter is unknown. The server verifies the starter against its own
+sender records before it uses the value to grant a claim.
+
+Projection storage version 2 preserves the starter with the open turn across
+event batches. An absent starter means unknown. The starter clears when the
+turn ends. Existing consumers keep storage version 1 until they can store
+the new field.
+
+### Takeover fence acknowledgment
+
+The server gives each takeover fence a unique `fence_id`, the `turn`, and
+the `baton_token` of the steer it fences. The daemon stops handover of
+steers for that turn and token.
+It records a steer handover before it passes the steer to the agent. It
+acknowledges the fence only when no handed steer for that token remains open.
+
+Send `POST /edge/v1/takeover.ack` with the device-bound bearer token. The JSON
+body carries `v`, `session`, `run`, `fencing_token`, `fence_id`, `turn`
+and `baton_token`. Retries use the same values. Each response carries `v` and
+`status`.
+
+| Status      | Meaning                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `recorded`  | The server accepted the acknowledgment for the current fence.                           |
+| `duplicate` | The server already accepted the same acknowledgment under the same run claim.           |
+| `stale`     | The run claim or fence no longer matches. The acknowledgment cannot transfer the baton. |
 
 ### Resolving an in-doubt attempt
 

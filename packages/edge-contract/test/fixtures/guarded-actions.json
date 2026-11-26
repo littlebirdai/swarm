@@ -1,6 +1,7 @@
 {
   "steer": {
     "intent": "steer",
+    "baton_token": 17,
     "expected": { "kind": "turn", "turn": "turn-1" }
   },
   "stale_steer": {

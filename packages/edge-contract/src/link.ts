@@ -13,6 +13,7 @@ import { readServerBehind, readUpgradeRequired, readV1 } from "./version";
 import { response } from "./response";
 
 export const EXPECTED_CAPABILITY = "expected";
+export const STEER_BATON_CAPABILITY = "steer-baton-v1";
 
 export const daemon = {
   machine: nonEmptyString,
