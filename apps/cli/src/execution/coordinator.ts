@@ -49,8 +49,19 @@ interface ActiveDelivery {
   resolvePublic: (outcome: DeliveryOutcome) => void;
   publicSettled: boolean;
   ambiguityReported: boolean;
+  effectFinished: boolean;
   timeout: ReturnType<typeof setTimeout>;
   controlChain: Promise<void>;
+}
+
+type DeliveryIdentity = Omit<ActiveDeliverySnapshot, "state">;
+
+interface DeliveryOperation {
+  identity: DeliveryIdentity;
+  signature: string;
+  effect: () => Promise<DriverDeliveryResult>;
+  settle: (outcome: DriverDeliveryResult) => Promise<void>;
+  timeoutMs?: number;
 }
 
 export interface ExecutionCoordinatorOptions {
@@ -904,46 +915,55 @@ export class ExecutionCoordinator {
       );
     }
 
-    const signature = permitSignature(request.permit);
-    let completed = this.completedAttempts.get(request.permit.attemptId);
-    if (completed) {
-      if (completed.signature !== signature) {
-        throw new ExecutionCoordinatorError(
-          "BINDING_FENCE_MISMATCH",
-          "Attempt id was reused with a different delivery fence",
-        );
-      }
-      return completed.outcome;
-    }
-
-    let existing = this.activeDeliveries.get(request.permit.conversationId);
-    if (existing) {
-      if (
-        existing.snapshot.attemptId === request.permit.attemptId &&
-        existing.signature === signature
-      ) {
-        return existing.publicPromise;
-      }
-      throw new ExecutionCoordinatorError(
-        "DELIVERY_SLOT_BUSY",
-        `Conversation delivery slot is held by attempt ${existing.snapshot.attemptId}`,
-      );
-    }
+    const { permit } = request;
+    const signature = permitSignature(permit);
+    const previous = this.existingDelivery(permit, signature);
+    if (previous) return previous;
 
     // Do not even initialize a replacement binding while an earlier attempt owns
     // the conversation slot. The server is authoritative, but this local check
     // prevents an invalid/stale caller from turning a delivery wake into a start.
     const binding = await this.ensureBinding(request.binding);
-    if (!readyBindingMatchesPermit(binding, request.permit)) {
+    if (!readyBindingMatchesPermit(binding, permit)) {
       throw new ExecutionCoordinatorError(
         "BINDING_FENCE_MISMATCH",
         "Delivery requires a ready binding matching the started server permit",
       );
     }
+    const driver = this.drivers.resolve(
+      binding.requestedAgent,
+      binding.transport,
+    );
+    return this.runDeliveryOperation({
+      identity: {
+        conversationId: binding.conversationId,
+        runtimeId: binding.runtimeId,
+        attemptId: permit.attemptId,
+        deliveryId: permit.deliveryId,
+      },
+      signature,
+      timeoutMs: request.timeoutMs,
+      effect: () =>
+        driver.deliver({ binding, permit, delivery: request.delivery }),
+      settle: async (outcome) => {
+        if (outcome.state === "delivered")
+          await this.controlPlane.completeDelivery({ permit, outcome });
+        else if (outcome.state === "ambiguous")
+          await this.controlPlane.markDeliveryAmbiguous({ permit, outcome });
+        else
+          await this.controlPlane.failDeliveryBeforeEffect({ permit, outcome });
+      },
+    });
+  }
 
-    // The binding await can race another local caller; recheck both caches before
-    // publishing a new driver effect.
-    completed = this.completedAttempts.get(request.permit.attemptId);
+  private existingDelivery(
+    {
+      attemptId,
+      conversationId,
+    }: Pick<DeliveryIdentity, "attemptId" | "conversationId">,
+    signature: string,
+  ): Promise<DeliveryOutcome> | undefined {
+    const completed = this.completedAttempts.get(attemptId);
     if (completed) {
       if (completed.signature !== signature) {
         throw new ExecutionCoordinatorError(
@@ -951,74 +971,86 @@ export class ExecutionCoordinator {
           "Attempt id was reused with a different delivery fence",
         );
       }
-      return completed.outcome;
+      return Promise.resolve(completed.outcome);
     }
-    existing = this.activeDeliveries.get(request.permit.conversationId);
-    if (existing) {
-      if (
-        existing.snapshot.attemptId === request.permit.attemptId &&
-        existing.signature === signature
-      ) {
-        return existing.publicPromise;
-      }
-      throw new ExecutionCoordinatorError(
-        "DELIVERY_SLOT_BUSY",
-        `Conversation delivery slot is held by attempt ${existing.snapshot.attemptId}`,
-      );
-    }
+    const active = this.activeDeliveries.get(conversationId);
+    if (!active) return;
+    if (
+      active.snapshot.attemptId === attemptId &&
+      active.signature === signature
+    )
+      return active.publicPromise;
+    throw new ExecutionCoordinatorError(
+      "DELIVERY_SLOT_BUSY",
+      `Conversation delivery slot is held by attempt ${active.snapshot.attemptId}`,
+    );
+  }
 
-    const timeoutMs = request.timeoutMs ?? this.defaultDeliveryTimeoutMs;
+  runDeliveryOperation(operation: DeliveryOperation): Promise<DeliveryOutcome> {
+    const { identity, signature } = operation;
+    const previous = this.existingDelivery(identity, signature);
+    if (previous) return previous;
+    const timeoutMs = operation.timeoutMs ?? this.defaultDeliveryTimeoutMs;
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new TypeError("Delivery timeout must be positive");
     }
-    const driver = this.drivers.resolve(
-      binding.requestedAgent,
-      binding.transport,
-    );
     let resolvePublic!: (outcome: DeliveryOutcome) => void;
     const publicPromise = new Promise<DeliveryOutcome>((resolve) => {
       resolvePublic = resolve;
     });
     const active: ActiveDelivery = {
       signature,
-      snapshot: {
-        conversationId: binding.conversationId,
-        attemptId: request.permit.attemptId,
-        deliveryId: request.permit.deliveryId,
-        runtimeId: binding.runtimeId,
-        state: "running",
-      },
+      snapshot: { ...identity, state: "running" },
       publicPromise,
       resolvePublic,
       publicSettled: false,
       ambiguityReported: false,
-      timeout: undefined as unknown as ReturnType<typeof setTimeout>,
+      effectFinished: false,
+      timeout: setTimeout(() => {
+        void this.reportDeliveryAmbiguous(active, operation, {
+          state: "ambiguous",
+          failure: {
+            code: "DELIVERY_TIMEOUT_AMBIGUOUS",
+            message: `Delivery attempt ${identity.attemptId} did not settle within ${timeoutMs}ms`,
+          },
+        });
+      }, timeoutMs),
       controlChain: Promise.resolve(),
     };
 
-    active.timeout = setTimeout(() => {
-      const failure: StructuredFailure = {
-        code: "DELIVERY_TIMEOUT_AMBIGUOUS",
-        message: `Delivery attempt ${request.permit.attemptId} did not settle within ${timeoutMs}ms`,
-      };
-      void this.reportDeliveryAmbiguous(active, request.permit, {
-        state: "ambiguous",
-        failure,
-      });
-    }, timeoutMs);
-
     // Publish the slot before the driver microtask can perform an external effect.
-    this.activeDeliveries.set(binding.conversationId, active);
-    void Promise.resolve().then(() =>
-      this.runDelivery(
-        active,
-        driver,
-        binding,
-        request.permit,
-        request.delivery,
-      ),
-    );
+    this.activeDeliveries.set(identity.conversationId, active);
+    void Promise.resolve().then(() => this.runDelivery(active, operation));
     return publicPromise;
+  }
+
+  async reconcileOwnedDelivery(
+    conversationId: string,
+    attemptId: string,
+    confirm: () => Promise<"applied" | "released" | "held">,
+  ): Promise<boolean> {
+    const active = this.activeDeliveries.get(conversationId);
+    if (!active) return true;
+    if (
+      active.snapshot.attemptId !== attemptId ||
+      active.snapshot.state !== "ambiguous" ||
+      !active.effectFinished
+    )
+      return false;
+    let released = false;
+    await this.enqueueControl(active, async () => {
+      if (this.activeDeliveries.get(conversationId) !== active) return;
+      const result = await confirm();
+      if (result === "held") return;
+      if (result === "applied")
+        this.rememberCompleted(attemptId, active.signature, {
+          state: "delivered",
+          externalDeliveryId: active.snapshot.deliveryId,
+        });
+      this.activeDeliveries.delete(conversationId);
+      released = true;
+    });
+    return released;
   }
 
   private settlePublic(active: ActiveDelivery, outcome: DeliveryOutcome): void {
@@ -1038,10 +1070,11 @@ export class ExecutionCoordinator {
 
   private async reportDeliveryAmbiguous(
     active: ActiveDelivery,
-    permit: StartedDeliveryPermit,
+    operation: DeliveryOperation,
     outcome: Extract<DeliveryOutcome, { state: "ambiguous" }>,
   ): Promise<void> {
-    if (this.activeDeliveries.get(permit.conversationId) !== active) return;
+    if (this.activeDeliveries.get(operation.identity.conversationId) !== active)
+      return;
     active.snapshot.state = "ambiguous";
     if (active.ambiguityReported) {
       this.settlePublic(active, outcome);
@@ -1053,9 +1086,7 @@ export class ExecutionCoordinator {
     // late terminal result before it can release that slot.
     this.settlePublic(active, outcome);
     try {
-      await this.enqueueControl(active, () =>
-        this.controlPlane.markDeliveryAmbiguous({ permit, outcome }),
-      );
+      await this.enqueueControl(active, () => operation.settle(outcome));
     } catch {
       // Never turn a failed ambiguity write into permission to retry.
     }
@@ -1065,14 +1096,11 @@ export class ExecutionCoordinator {
 
   private async runDelivery(
     active: ActiveDelivery,
-    driver: RuntimeDriver,
-    binding: ReadyBinding,
-    permit: StartedDeliveryPermit,
-    delivery: DeliverFencedRequest["delivery"],
+    operation: DeliveryOperation,
   ): Promise<void> {
     let result: DriverDeliveryResult;
     try {
-      result = await driver.deliver({ binding, permit, delivery });
+      result = await operation.effect();
     } catch (error) {
       result = {
         state: "ambiguous",
@@ -1081,37 +1109,26 @@ export class ExecutionCoordinator {
     }
     clearTimeout(active.timeout);
 
-    if (result.state === "ambiguous") {
-      await this.reportDeliveryAmbiguous(active, permit, result);
-      return;
-    }
-
     try {
-      await active.controlChain;
-      if (result.state === "delivered") {
-        await this.enqueueControl(active, () =>
-          this.controlPlane.completeDelivery({ permit, outcome: result }),
-        );
-      } else {
-        await this.enqueueControl(active, () =>
-          this.controlPlane.failDeliveryBeforeEffect({
-            permit,
-            outcome: result,
-          }),
-        );
+      if (result.state === "ambiguous") {
+        await this.reportDeliveryAmbiguous(active, operation, result);
+        return;
       }
+      await this.enqueueControl(active, () => operation.settle(result));
+      const { conversationId, attemptId } = operation.identity;
+      if (this.activeDeliveries.get(conversationId) === active) {
+        this.activeDeliveries.delete(conversationId);
+      }
+      this.rememberCompleted(attemptId, active.signature, result);
     } catch (error) {
-      await this.reportDeliveryAmbiguous(active, permit, {
+      await this.reportDeliveryAmbiguous(active, operation, {
         state: "ambiguous",
         failure: structuredFailure("DELIVERY_TERMINAL_WRITE_AMBIGUOUS", error),
       });
       return;
+    } finally {
+      active.effectFinished = true;
     }
-
-    if (this.activeDeliveries.get(permit.conversationId) === active) {
-      this.activeDeliveries.delete(permit.conversationId);
-    }
-    this.rememberCompleted(permit.attemptId, active.signature, result);
     this.settlePublic(active, result);
   }
 

@@ -2770,7 +2770,7 @@
     "swarm/no-comments": 2
   },
   "apps/cli/src/execution/coordinator.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 28
   },
   "apps/cli/src/execution/driver.ts": {
     "swarm/no-comments": 3

@@ -119,6 +119,8 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
             ],
           });
         }
+        if (operation.endsWith("/permits.next"))
+          return Response.json({ v: 1, status: "empty" });
         if (operation.endsWith("/renew")) {
           renewals.push(body.fencing_token);
           return Response.json({ v: 1, status: "renewed", lease_ms: 60_000 });
@@ -250,8 +252,9 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     ];
     return { runtime, work };
   }
+  const original = run("boot-1", first);
+  let restarted: ReturnType<typeof run> | undefined;
   try {
-    const original = run("boot-1", first);
     expect(original.runtime.drivers.resolve("codex", "app-server").id).toBe(
       "codex-app-server-with-owned-pilot-v1",
     );
@@ -273,36 +276,43 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     expect(journal.get(ready!.conversationId, 1)?.binding?.handle).toBe(
       ready!.handle,
     );
+    await until(
+      () => statuses.length === 1,
+      "fresh session opens with its lease",
+    );
     expect(savedEvents.map(({ kind, seq }) => [kind, seq])).toEqual([
       ["session.started", 1],
+      ["turn.started", 2],
     ]);
     await until(
       () => renewals.length === 1,
       "active pilot renews its run lease",
     );
     expect(renewals).toEqual(["lease-boot-1"]);
-    await first.close();
+    await original.runtime.stop();
     expect(releases).toEqual(["lease-boot-1"]);
-    const restarted = run("boot-2", resumed);
+    restarted = run("boot-2", resumed);
     await restarted.runtime.processWorkUpdate(restarted.work);
     await until(
-      () => statuses.length === 1,
+      () => statuses.length === 2,
       "resumed turn reaches the event writer",
     );
     expect(
       appServer.wire().filter(({ method }) => method === "thread/resume"),
-    ).toEqual([
-      expect.objectContaining({
-        params: expect.objectContaining({
-          threadId: appServer.thread,
-          sandbox: "read-only",
-          approvalPolicy: "on-request",
-        }),
-      }),
-    ]);
+    ).toHaveLength(2);
+    for (const { params } of appServer
+      .wire()
+      .filter(({ method }) => method === "thread/resume")) {
+      expect(params).toMatchObject({
+        threadId: appServer.thread,
+        sandbox: "read-only",
+        approvalPolicy: "on-request",
+      });
+    }
     expect(savedEvents.map(({ kind, seq }) => [kind, seq])).toEqual([
       ["session.started", 1],
       ["turn.started", 2],
+      ["turn.started", 3],
     ]);
     appServer.send({
       frames: [
@@ -316,7 +326,7 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
     expect(titles).toEqual([
       [flag.CODECAST_CODEX_OWNED_PILOT_SESSION, "Resumed title", "context"],
     ]);
-    expect(statuses).toEqual([
+    expect(statuses.slice(1)).toEqual([
       {
         conversation: flag.CODECAST_CODEX_OWNED_PILOT_SESSION,
         thread: appServer.thread,
@@ -324,7 +334,10 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
       },
     ]);
   } finally {
-    await Promise.allSettled([first.close(), resumed.close()]);
+    await Promise.allSettled([
+      original.runtime.stop(),
+      restarted?.runtime.stop(),
+    ]);
     fetchEdge.mockRestore();
     rmSync(directory, { recursive: true, force: true });
   }

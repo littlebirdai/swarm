@@ -106,7 +106,7 @@ Set `CODECAST_CODEX_OWNED_PILOT_SESSION` to the ID of one fresh managed
 conversation to select it for this pilot. The ready binding keeps the provider
 checkpoint and the launch policy. The event writer claims the run after the
 binding is ready and resumes at the last sequence confirmed by the server.
-The inbox for this binding waits for the delivery bridge.
+The owned binding drains its inbox through the edge delivery routes.
 [Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtime-rail.ts#L275-L327)
 
 Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
@@ -116,27 +116,33 @@ the lease and prove cleanup before release or rollback.
 
 ### Pilot bridges
 
-- **Delivery.** Map `in-doubt/best-effort` to ambiguity. The coordinator keeps the `activeDeliveries` slot and the runtime stops draining. Reconcile or release the slot with control-plane authority before the next send. Require a durable receipt for success. [Coordinator](../../apps/cli/src/execution/coordinator.ts#L1039-L1112), [drain](../../apps/cli/src/execution/runtime-rail.ts#L484-L529)
+- **Delivery.** The pilot reads and starts the exact server permit before sending. An in-doubt result holds the coordinator slot and ends the drain. Only the server's settlement or a confirmed change to the queue head releases the slot. The poll reads the server for authority. [Pilot delivery](../../apps/cli/src/execution/codex-pilot-delivery.ts), [coordinator](../../apps/cli/src/execution/coordinator.ts), [runtime rail](../../apps/cli/src/execution/runtime-rail.ts)
 - **Restart and controls.** Add runtime routes for checkpoint resume, interrupt, and answer. `RuntimeDriver` has none. Codex `adopt` checks a live in-memory registration and cannot restore a thread after restart on its own. Prove the previous boot ended, resume from the journal, and use the active-turn event with the journal or transcript for history. The adapter returns no historical turns. [Driver](../../apps/cli/src/execution/driver.ts#L21-L37), [boot fence](../../apps/cli/src/execution/coordinator.ts#L506-L547), [Codex inspection](../../apps/cli/src/daemon.ts#L43999-L44007), [adapter resume](../../packages/provider-adapter/src/app-server-session.ts#L199-L211)
 - **Prompts.** Route permission decisions and question choices to the fenced prompt ID with the actor. Send structured answers by question ID. The old client grants permissions for the session, and the adapter grants them for one turn. [Legacy replies](../../apps/cli/src/codex-app-server.ts#L438-L465), [adapter replies](../../packages/provider-adapter/src/app-server-prompts.ts#L65-L110)
 - **Events and display.** The owned pilot applies display effects after the edge acknowledges each durable event. It uses the daemon's status and title handlers and runs spawn tracking at tool start. Matching decoded frames supply the tool fields and structured error codes used by the legacy formatters. [Pilot registration](../../apps/cli/src/daemon.ts#L43855), [display projection](../../apps/cli/src/execution/codex-pilot-display.ts), [parity test](../../apps/cli/src/execution/codex-pilot-display.test.ts)
 - **Launch and policy.** Apply `withWorktreeConfig` and pass stable developer instructions. Set `STABLE_ENV_MODE` to off and use the agent spawn path. Preserve auth refresh, policy invalidation, and sandbox state across resume. [Worktree](../../apps/cli/src/worktreeEnv.ts#L144), [instructions](../../apps/cli/src/daemon.ts#L34348), [spawn](../../apps/cli/src/codex-app-server.ts#L976-L997), [auth refresh](../../apps/cli/src/codex-app-server.ts#L584-L648) and [policy on resume](../../apps/cli/src/codex-app-server.ts#L785-L938), [invalidation](../../apps/cli/src/codex-app-server.ts#L850-L867)
 - **Fork and Escape.** Keep fork on its existing route. Route Escape to the exact active turn and keep the press-time guard and queued-message release rules. [Fork](../../apps/cli/src/daemon-commands/resume-forks.ts#L181-L195), [Escape](../../apps/cli/src/daemon-commands/session-input.ts#L77-L186)
 
-A fresh adapter session opens with the start operation ID as its local fence.
-The edge grants the run lease after the ready binding is published. The writer
-uses that lease token for appends, and a resumed adapter opens with it. The
-delivery bridge must align the fresh adapter with the granted token before the
-first send.
+The start operation creates the checkpoint. After the edge grants the lease,
+the pilot closes the provisional adapter and resumes the checkpoint with the
+lease token before the first send. The event writer starts after that resume.
 
-A linked Codex user echo is insufficient for a delivery receipt. The adapter
-matches the echo by content against requests held in memory. It does not record
-a durable association between the delivery ID and the provider's accepted
-item, and it recovers no receipts after restart. The adapter needs to record that
-association durably, recover it after restart, and replay a receipt for the same
-delivery ID. Until then, a linked echo leaves the delivery in doubt.
-[Echo matching](../../packages/provider-adapter/src/app-server-items.ts#L66-L86)
-[Receipt recovery](../../packages/provider-adapter/src/app-server-session.ts#L593-L599)
+The adapter commits the delivery ID, provider item ID, and turn to the daemon's
+local journal before it emits a receipt. An RPC acknowledgement or a text echo
+alone leaves the delivery in doubt. After restart, the adapter replays the
+receipt for the server's started attempt. The daemon appends the receipt and
+uses its journal record as evidence for the server settlement.
+[Journal](../../apps/cli/src/execution/local-journal.ts),
+[adapter receipts](../../packages/provider-adapter/src/app-server-receipts.ts)
+
+The pilot also requires `CODECAST_EDGE_DELIVERY_V1` on the server. Without a
+completed Codex user item that echoes the client delivery ID, the server keeps
+the attempt in doubt until it receives settlement evidence.
+
+A pending successor waits for any started delivery on the owned run to settle.
+The server still needs a route to record the disposition of a leased run after
+provider cleanup. The current disposition mutation has no lease token input.
+[Server disposition](../../apps/server/convex/executionBindings.ts#L3742)
 
 ## Compare both paths offline
 
@@ -155,9 +161,9 @@ diffs and a failed turn.
 | Case                             | Legacy driver and client                                                                                               | Owned adapter                                                                                                                                                       | Verdict                                                                                                                                              |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Start and resume handshake       | Sends `initialize` only.                                                                                               | Also sends `initialized`.                                                                                                                                           | Intended                                                                                                                                             |
-| Idle send and late reply         | Marks delivery complete when the RPC returns.                                                                          | Returns `in-doubt/best-effort` even when the RPC succeeds.                                                                                                          | Must be bridged by the pilot                                                                                                                         |
-| Mid-turn send                    | Calls `turn/start`. The fake rejects the busy request and the driver reports ambiguity.                                | Calls `turn/steer` for the expected turn.                                                                                                                           | Must be bridged by the pilot                                                                                                                         |
-| User echoes                      | Omits echoed input from the final messages.                                                                            | Emits the user message. Links a matching input to its actor and delivery ID.                                                                                        | Must be bridged by the pilot                                                                                                                         |
+| Idle send and late reply         | Marks delivery complete when the RPC returns.                                                                          | Returns `in-doubt/best-effort` when the RPC succeeds without a durable receipt.                                                                                     | The pilot waits for a receipt or a server settlement.                                                                                                |
+| Mid-turn send                    | Calls `turn/start`. The fake rejects the busy request and the driver reports ambiguity.                                | Calls `turn/steer` for the expected turn.                                                                                                                           | The pilot requires a steer permit with the exact active turn.                                                                                        |
+| User echoes                      | Omits echoed input from the final messages.                                                                            | Emits the user message. Correlates delivery receipts by the echoed client ID and stores the accepted item and turn in the daemon journal.                           | The pilot settles from the durable receipt. A text-only echo supplies transcript evidence.                                                           |
 | Command approval                 | Sends accept or decline. There is no client settlement event.                                                          | Sends the same decision and records the actor in a settlement. The reply has no provider acknowledgement.                                                           | Must be bridged by the pilot                                                                                                                         |
 | Question                         | Exposes the choices in the request. Sends empty answers through the boolean approval API.                              | Emits choice context and sends the selected answer.                                                                                                                 | Must be bridged by the pilot                                                                                                                         |
 | Assistant delta                  | Emits item ID and text.                                                                                                | Also emits the text offset.                                                                                                                                         | Intended                                                                                                                                             |

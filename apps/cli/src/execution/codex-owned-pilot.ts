@@ -12,7 +12,12 @@ import {
   type EdgeParseResult,
 } from "@codecast/edge-contract";
 import type { ProviderAdapterClient } from "@codecast/provider-adapter";
-import type { OwnedSession, StartSpec } from "@codecast/provider-contract";
+import type {
+  DeliveryReceiptJournal,
+  OwnedSession,
+  ResumeSpec,
+  StartSpec,
+} from "@codecast/provider-contract";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { STABLE_ENV_MODE } from "@codecast/snippets/stableContext";
 import {
@@ -24,6 +29,12 @@ import type { RetryQueue } from "../retryQueue.js";
 import type { SyncService } from "../syncService.js";
 import { agentSpawnPath } from "../agentSpawnPath.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
+import {
+  CodexPilotDelivery,
+  deliveryFence,
+  readEdge,
+} from "./codex-pilot-delivery.js";
+import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
 import type {
   EnsureBindingRequest,
@@ -122,6 +133,10 @@ export function createCodexOwnedPilot(
 
 export class CodexOwnedPilot {
   private readonly display = new CodexPilotDisplay();
+  private readonly delivery = new CodexPilotDelivery(
+    this.edgeResponse.bind(this),
+  );
+  private deliveryReady = false;
   private adapter?: ProviderAdapterClient;
   private session?: OwnedSession;
   private opening?: Promise<OwnedSession>;
@@ -150,6 +165,10 @@ export class CodexOwnedPilot {
       binding.transport === "app-server" &&
       ownsCodexCheckpoint(binding.handle)
     );
+  }
+
+  useReceiptJournal(journal: DeliveryReceiptJournal | undefined): void {
+    this.delivery.receiptJournal = journal;
   }
 
   register(legacy: RuntimeDriver): RuntimeDriver {
@@ -216,13 +235,12 @@ export class CodexOwnedPilot {
     });
   }
 
-  private open(spec: StartSpec, checkpoint?: string): Promise<OwnedSession> {
-    return (this.opening = this.openProvider(spec, checkpoint));
+  private open(spec: StartSpec | ResumeSpec): Promise<OwnedSession> {
+    return (this.opening = this.openProvider(spec));
   }
 
   private async openProvider(
-    spec: StartSpec,
-    checkpoint?: string,
+    spec: StartSpec | ResumeSpec,
   ): Promise<OwnedSession> {
     const { createProviderAdapter } =
       await import("@codecast/provider-adapter");
@@ -232,13 +250,12 @@ export class CodexOwnedPilot {
       command: this.options.command(),
       env: { ...process.env, PATH: agentSpawnPath(), [STABLE_ENV_MODE]: "off" },
       retainRaw: (frame) => this.display.retain(frame),
+      receiptJournal: this.delivery.receiptJournal,
     });
-    const result = checkpoint
-      ? await this.adapter.resume(
-          { ...spec, checkpoint },
-          this.controller.signal,
-        )
-      : await this.adapter.start(spec, this.controller.signal);
+    const result =
+      "checkpoint" in spec
+        ? await this.adapter.resume(spec, this.controller.signal)
+        : await this.adapter.start(spec, this.controller.signal);
     if (result.status !== "opened")
       throw new Error("message" in result ? result.message : result.status);
     return result.session;
@@ -314,6 +331,20 @@ export class CodexOwnedPilot {
     parse: (input: unknown) => EdgeParseResult<T>,
     signal: AbortSignal = this.controller.signal,
   ): Promise<T> {
+    return readEdge(
+      this.edgeResponse.bind(this),
+      signal,
+      operation,
+      request,
+      parse,
+    );
+  }
+
+  private async edgeResponse(
+    operation: string,
+    request: object,
+    signal: AbortSignal,
+  ): Promise<Response> {
     const response = await fetch(
       new URL(`/edge/v1/${operation}`, this.options.siteUrl),
       {
@@ -331,24 +362,15 @@ export class CodexOwnedPilot {
       throw new Error(
         `Owned Codex ${operation} failed with HTTP ${response.status}`,
       );
-    const result = parse(await response.json());
-    if (!result.ok) throw result.error;
-    return result.value;
-  }
-
-  private fence(claim: ClaimGrant) {
-    return {
-      session: claim.session,
-      run: claim.run,
-      fencing_token: claim.fencing_token,
-    };
+    return response;
   }
 
   private async claimAndRead(
     binding: ReadyBinding,
     request: EnsureBindingRequest,
   ): Promise<void> {
-    this.claiming = this.edge(
+    const previousClaim = this.claim;
+    this.claiming ??= this.edge(
       "claim",
       {
         v,
@@ -370,22 +392,41 @@ export class CodexOwnedPilot {
     this.controller.signal.throwIfAborted();
     if (claim.session !== binding.conversationId || claim.run !== binding.epoch)
       throw new Error("Owned Codex lease does not match the binding");
-    this.scheduleRenewal(claim, claim.lease_ms);
+    if (!previousClaim) this.scheduleRenewal(claim, claim.lease_ms);
     const checkpoint = checkpointOf(binding);
     const previous = claim.last_event_seq ?? 0;
-    if (this.session && previous !== 0)
-      throw new Error("Fresh owned Codex binding already has events");
-    this.session ??= await this.open(
-      {
-        session: claim.session,
-        run: claim.run,
-        fencing_token: claim.fencing_token,
-        cwd: request.target.projectPath,
-        afterSeq: Math.max(previous, 1),
-        options: await this.settings(request, checkpoint),
-      },
-      checkpoint.threadId,
-    );
+    let pending;
+    try {
+      pending = await this.delivery.nextPermit(claim, this.controller.signal);
+    } catch (error) {
+      if (this.controller.signal.aborted) throw error;
+      this.options.log(
+        `[owned-codex] could not read the delivery head: ${String(error)}`,
+      );
+      this.activation = undefined;
+      return;
+    }
+    if (!this.delivery.receiptJournal)
+      throw new Error(
+        "Owned Codex requires a durable delivery receipt journal",
+      );
+    if (this.session) {
+      if (previous !== 0)
+        throw new Error("Fresh owned Codex binding already has events");
+      if ((await this.session.close()).status !== "closed")
+        throw new Error("Could not close the provisional owned Codex session");
+    }
+    this.session = await this.open({
+      session: claim.session,
+      run: claim.run,
+      fencing_token: claim.fencing_token,
+      cwd: request.target.projectPath,
+      afterSeq: Math.max(previous, 1),
+      options: await this.settings(request, checkpoint),
+      checkpoint: checkpoint.threadId,
+      inDoubtDeliveryIds:
+        pending?.state === "started" ? [pending.delivery_id] : [],
+    });
     if (previous === 0) {
       await this.append(claim, {
         v,
@@ -399,6 +440,7 @@ export class CodexOwnedPilot {
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
       });
     }
+    this.deliveryReady = true;
     void this.writeEvents(
       claim,
       this.session,
@@ -414,6 +456,32 @@ export class CodexOwnedPilot {
       });
   }
 
+  async drain(
+    binding: ReadyBinding,
+    coordinator: ExecutionCoordinator,
+    prepareText: (text: string) => Promise<string>,
+    sendNew: boolean,
+  ): Promise<boolean> {
+    const { session, claim } = this;
+    if (
+      !this.deliveryReady ||
+      this.stopping ||
+      !session ||
+      !claim ||
+      !this.owns(binding)
+    )
+      return false;
+    return this.delivery.drain(
+      binding,
+      coordinator,
+      session,
+      claim,
+      prepareText,
+      this.controller.signal,
+      sendNew,
+    );
+  }
+
   private async writeEvents(
     claim: ClaimGrant,
     session: OwnedSession,
@@ -426,6 +494,7 @@ export class CodexOwnedPilot {
     for await (const event of session.events) {
       if (event.kind === "message.delta") continue;
       await this.append(claim, event);
+      this.delivery.observe(event);
       await this.display
         .publish(
           runtimeId,
@@ -492,7 +561,7 @@ export class CodexOwnedPilot {
       "events.append",
       {
         v,
-        batches: [{ ...this.fence(claim), events: [event] }],
+        batches: [{ ...deliveryFence(claim), events: [event] }],
       },
       parseEventsAppendResponse,
     );
@@ -510,7 +579,7 @@ export class CodexOwnedPilot {
     this.renewal = setTimeout(() => {
       this.renewalTask = this.edge(
         "renew",
-        { v, ...this.fence(claim) },
+        { v, ...deliveryFence(claim) },
         parseRenewResponse,
       ).then((result) => {
         if (result.status !== "renewed")
@@ -538,14 +607,15 @@ export class CodexOwnedPilot {
     await this.claiming?.catch(() => {});
     await this.renewalTask?.catch(() => {});
     const session =
-      this.session ?? (await this.opening?.catch(() => undefined));
+      (await this.opening?.catch(() => undefined)) ?? this.session;
     if (session && (await session.close()).status !== "closed")
       throw new Error("Owned Codex cleanup could not be confirmed");
     await this.adapter?.dispose();
+    await this.delivery.clearImages();
     if (this.claim && session) {
       await this.edge(
         "release",
-        { v, ...this.fence(this.claim) },
+        { v, ...deliveryFence(this.claim) },
         parseReleaseResponse,
         AbortSignal.timeout(10_000),
       );

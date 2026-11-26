@@ -1,21 +1,35 @@
 import { expect, spyOn } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   FENCED_RUNTIME_CAPABILITIES,
   parseStartedDeliveryPermit,
   type ReadyBinding,
   type StartedDeliveryPermit,
 } from "@codecast/agent-clients/executionBinding";
-import { fake } from "../../../../tests/codex-driver-parity/peers.js";
+import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
 import type { RetryQueue } from "../retryQueue.js";
 import type { SyncService } from "../syncService.js";
 import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
-import { InMemoryExecutionOperationJournal } from "./local-journal.js";
+import { FileExecutionOperationJournal } from "./local-journal.js";
+import {
+  parseDeliverySettleRequest,
+  parseDeliveryStartRequest,
+  type CanonicalEvent,
+  type DeliverySettleRequest,
+  type PermitsNextResponse,
+} from "@codecast/edge-contract";
 import { DaemonExecutionRuntime } from "./runtime-rail.js";
 import type { RuntimeStartRequest } from "./types.js";
 
@@ -107,9 +121,52 @@ export function started(
   });
 }
 
-export function fixture(selected = "pilot") {
+export function fixture(
+  selected = "pilot",
+  enabled = true,
+  useReceiptPeer: false | "receipt" | "receipt-before-reply" = false,
+) {
   const directory = mkdtempSync(join(tmpdir(), "owned-codex-recovery-"));
   const appServer = fake(directory, "owned-recovery");
+  const peerCommand = [
+    "/usr/bin/env",
+    ...(useReceiptPeer === "receipt-before-reply"
+      ? ["FIXTURE_HOLD_START=1"]
+      : []),
+    process.execPath,
+    resolve(
+      import.meta.dir,
+      "../../../../packages/provider-adapter/test/fake-app-server.ts",
+    ),
+    directory,
+  ] as const;
+  let commandIndex = 0;
+  async function sendFrame(command: object) {
+    const name = String(++commandIndex).padStart(6, "0");
+    const barrier = `barrier:${name}`;
+    const temporary = join(directory, `${name}.tmp`);
+    writeFileSync(temporary, JSON.stringify({ ...command, barrier }));
+    renameSync(temporary, join(directory, `${name}.command`));
+    await until(
+      () => existsSync(join(directory, barrier)),
+      "fake app-server consumes the frame",
+    );
+  }
+  function deliveryRequests() {
+    const effects = join(directory, "effects");
+    if (!existsSync(effects)) return [];
+    return readFileSync(effects, "utf8")
+      .split("\n")
+      .slice(0, -1)
+      .map((line) => {
+        const {
+          message,
+        }: { message: { method: string; params: Record<string, unknown> } } =
+          JSON.parse(line);
+        return message;
+      })
+      .filter(({ method }) => method === "turn/start");
+  }
   const actions: string[] = [];
   const logs: string[] = [];
   const pilotRequest = request("pilot", directory);
@@ -150,37 +207,41 @@ export function fixture(selected = "pilot") {
       actions.push(`legacy-quarantine:${binding.conversationId}`);
     },
   };
-  const pilot = createCodexOwnedPilot(
-    {
-      siteUrl: "https://pilot.invalid",
-      bearer: "fixture-bearer",
-      command: () => [appServer.executable],
-      permissions: () => ({
-        sandbox: "read-only",
-        approvalPolicy: "on-request",
-      }),
-      instructions: async () => undefined,
-      display: {
-        syncService: strictStub<SyncService>("syncService"),
-        retryQueue: strictStub<RetryQueue>("retryQueue"),
-        conversationCache: {},
-        mapCodexAppServerThreadStatusToAgentStatus: () => null,
-        sendAgentStatus: () => {},
-        trackTmuxSpawns: async () => {},
-        syncMessagesBatch: async () => {},
+  function createPilot(flag = enabled) {
+    return createCodexOwnedPilot(
+      {
+        siteUrl: "https://pilot.invalid",
+        bearer: "fixture-bearer",
+        command: () => (useReceiptPeer ? peerCommand : [appServer.executable]),
+        permissions: () => ({
+          sandbox: "read-only",
+          approvalPolicy: "on-request",
+        }),
+        instructions: async () => undefined,
+        display: {
+          syncService: strictStub<SyncService>("syncService"),
+          retryQueue: strictStub<RetryQueue>("retryQueue"),
+          conversationCache: {},
+          mapCodexAppServerThreadStatusToAgentStatus: () => null,
+          sendAgentStatus: () => {},
+          trackTmuxSpawns: async () => {},
+          syncMessagesBatch: async () => {},
+        },
+        log: (message) => logs.push(message),
       },
-      log: (message) => logs.push(message),
-    },
-    {
-      CODECAST_FENCED_EXECUTION_V1: "1",
-      CODECAST_CODEX_OWNED_PILOT_SESSION: selected,
-    },
-  )!;
+      {
+        CODECAST_FENCED_EXECUTION_V1: flag ? "1" : "0",
+        CODECAST_CODEX_OWNED_PILOT_SESSION: selected,
+      },
+    );
+  }
+  const pilot = createPilot();
   let initial: unknown = [];
   const permits = new Map<string, StartedDeliveryPermit>();
   const remaining = new Map([
     ["legacy:1", 2],
     ["pilot:2", 1],
+    ...(!enabled ? [["pilot:1", 1] as const] : []),
   ]);
   const emptyAfterDelivery = new Set<string>();
   const transport: ExecutionConvexTransport = {
@@ -246,16 +307,33 @@ export function fixture(selected = "pilot") {
       throw new Error(`Unexpected execution mutation ${name} for ${key}`);
     },
   };
-  const driver = pilot.register(legacy);
-  const runtime = new DaemonExecutionRuntime({
-    transport,
-    ownerDeviceId: "device",
-    daemonBootId: "boot",
-    drivers: [driver],
-    codexOwnedPilot: pilot,
-    journal: new InMemoryExecutionOperationJournal(),
-    onLog: (message) => logs.push(message),
-  });
+  const journalDirectory = join(directory, "journal");
+  const driver = pilot?.register(legacy) ?? legacy;
+  function runtimeFor(
+    boot: string,
+    owned: typeof pilot,
+    driver: RuntimeDriver,
+  ) {
+    return new DaemonExecutionRuntime({
+      transport,
+      ownerDeviceId: "device",
+      daemonBootId: boot,
+      drivers: [driver],
+      codexOwnedPilot: owned,
+      journal: new FileExecutionOperationJournal(journalDirectory),
+      onLog: (message) => logs.push(message),
+    });
+  }
+  const runtime = runtimeFor("boot", pilot, driver);
+  const runtimes = [runtime];
+  type Permit = Extract<PermitsNextResponse, { status: "permit" }>;
+  const queue: Permit[] = [];
+  const image = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const events: CanonicalEvent[] = [];
+  const settlements: DeliverySettleRequest[] = [];
+  let refuseSettlement = false;
+  let permitReadStale = false;
+  let lease = "edge-lease";
   const claimResponses: Response[] = [];
   const releasing = Promise.withResolvers<void>();
   let release: Promise<void> | undefined;
@@ -277,15 +355,55 @@ export function fixture(selected = "pilot") {
               status: "granted",
               session: "pilot",
               run: 1,
-              fencing_token: "edge-lease",
+              fencing_token: lease,
               lease_ms: 60_000,
               last_pane_instance: 0,
               last_event_seq: lastSeq,
             })
           );
         }
+        if (operation === "permits.next") {
+          expect(body.fencing_token).toBe(lease);
+          if (permitReadStale) return Response.json({ v: 1, status: "stale" });
+          return Response.json(
+            queue[0]
+              ? { ...queue[0], fencing_token: lease }
+              : { v: 1, status: "empty" },
+          );
+        }
+        if (operation === "blobs.get") {
+          expect(body.fencing_token).toBe(lease);
+          expect(body.attempt_id).toBe(queue[0]?.attempt_id);
+          expect(body.blob_id).toBe("image");
+          return new Response(image, {
+            headers: { "Content-Type": "image/png" },
+          });
+        }
+        if (operation === "delivery.start") {
+          const parsed = parseDeliveryStartRequest(body);
+          if (!parsed.ok) throw parsed.error;
+          const head = queue[0]!;
+          expect(parsed.value.fencing_token).toBe(lease);
+          expect(parsed.value.attempt_id).toBe(head.attempt_id);
+          const status = head.state === "new" ? "started" : "already_started";
+          head.state = "started";
+          return Response.json({ ...head, fencing_token: lease, status });
+        }
+        if (operation === "delivery.settle") {
+          const parsed = parseDeliverySettleRequest(body);
+          if (!parsed.ok) throw parsed.error;
+          expect(parsed.value.fencing_token).toBe(lease);
+          expect(parsed.value.attempt_id).toBe(queue[0]?.attempt_id);
+          if (refuseSettlement) return Response.json({ v: 1, status: "stale" });
+          settlements.push(parsed.value);
+          if (parsed.value.outcome === "applied") queue.shift();
+          return Response.json({ v: 1, status: "recorded" });
+        }
         if (operation === "events.append") {
           const [batch] = body.batches;
+          expect(batch.fencing_token).toBe(lease);
+          expect(batch.events[0].seq).toBe(lastSeq + 1);
+          events.push(...batch.events);
           lastSeq = batch.events[0].seq;
           return Response.json({
             v: 1,
@@ -295,7 +413,7 @@ export function fixture(selected = "pilot") {
           });
         }
         if (operation === "release") {
-          expect(body.fencing_token).toBe("edge-lease");
+          expect(body.fencing_token).toBe(lease);
           releasing.resolve();
           await release;
           return Response.json({ v: 1, status: "released" });
@@ -309,12 +427,70 @@ export function fixture(selected = "pilot") {
     actions,
     logs,
     runtime,
-    pilot,
+    pilot: pilot!,
     driver,
     appServer,
+    sendFrame,
+    deliveryRequests,
+    deliveryThread: "codex-fixture-thread",
     pilotRequest,
     legacyRequest,
     successor,
+    events,
+    settlements,
+    queue,
+    image,
+    enqueue(id: number, attachImage = false) {
+      const permit: Permit = {
+        status: "permit",
+        v: 1,
+        session: "pilot",
+        run: 1,
+        fencing_token: lease,
+        attempt_id: `attempt-${id}`,
+        delivery_id: `delivery-${id}`,
+        seq: id,
+        intent: "queue",
+        sender: { kind: "person", id: "owner" },
+        state: "new",
+        input: [
+          { type: "text", text: "identical follow-up" },
+          ...(attachImage
+            ? [
+                {
+                  type: "blob",
+                  blob_id: "image",
+                  content_type: "image/png",
+                } as const,
+              ]
+            : []),
+        ],
+      };
+      queue.push(permit);
+    },
+    staleReads(value: boolean) {
+      permitReadStale = value;
+    },
+    rejectSettlements(value: boolean) {
+      refuseSettlement = value;
+    },
+    async restart() {
+      await runtime.stop();
+      const row = ledger.get("pilot:1")!;
+      row[0] = { ...row[0], daemonBootId: "restarted-boot" };
+      row[1] = { ...row[1]!, daemonBootId: row[0].daemonBootId };
+      lease = "renewed-lease";
+      const resumed = createPilot()!;
+      const restarted = runtimeFor(
+        row[0].daemonBootId,
+        resumed,
+        resumed.register(legacy),
+      );
+      runtimes.push(restarted);
+      const result = item(row[0], row[1]);
+      await restarted.processWorkUpdate([result]);
+      return { restarted, work: result };
+    },
     claimResponses,
     releasing,
     pauseRelease(gate: Promise<void>) {
@@ -333,7 +509,7 @@ export function fixture(selected = "pilot") {
     },
     async dispose() {
       try {
-        await runtime.stop();
+        await Promise.all(runtimes.map((current) => current.stop()));
       } finally {
         network.mockRestore();
         rmSync(directory, { recursive: true, force: true });

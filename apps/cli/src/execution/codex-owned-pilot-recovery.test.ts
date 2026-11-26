@@ -74,9 +74,13 @@ test("owned current epoch stops before the legacy successor activates and drains
         bindings: [pending(f.pilotRequest, owned), pending(f.successor)],
       },
     ]);
-    expect(f.actions).toEqual([
+    expect(
+      f.actions.filter(
+        (action) =>
+          action !== "edge:events.append" && action !== "edge:permits.next",
+      ),
+    ).toEqual([
       "edge:claim",
-      "edge:events.append",
       "legacy-start:pilot:2",
       "edge:release",
       "disposition:pilot:1:stopped",
@@ -150,6 +154,7 @@ test("runtime shutdown retains the edge lease when provider cleanup is unconfirm
   const f = fixture();
   const spawn = Bun.spawn;
   const kill = process.kill.bind(process);
+  let denyCleanup = false;
   let child: ReturnType<typeof Bun.spawn> | undefined;
   const spawnSpy = spyOn(Bun, "spawn").mockImplementation(((
     ...args: Parameters<typeof Bun.spawn>
@@ -168,13 +173,14 @@ test("runtime shutdown retains the edge lease when provider cleanup is unconfirm
     return launched;
   }) as typeof Bun.spawn);
   const killSpy = spyOn(process, "kill").mockImplementation((pid, signal) => {
-    if (child && pid === -child.pid)
+    if (denyCleanup && child && pid === -child.pid)
       throw Object.assign(new Error("fixture kill denied"), { code: "EPERM" });
     return kill(pid, signal);
   });
   try {
     await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
     expect(child).toBeDefined();
+    denyCleanup = true;
     await f.runtime.stop();
     expect(f.logs.join("\n")).toContain("cleanup could not be confirmed");
     expect(f.actions).not.toContain("edge:release");

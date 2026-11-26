@@ -12,6 +12,10 @@ import {
   agentSupportsExecutionTransport,
   parseExecutionAgentClientId,
 } from "@codecast/agent-clients/agentClients";
+import type {
+  DeliveryReceiptJournal,
+  DeliveryReceiptRecord,
+} from "@codecast/provider-contract";
 import type { RuntimeHandle } from "./types.js";
 import { ExecutionCoordinatorError } from "./types.js";
 import { atomicWriteFile } from "../atomicWrite.js";
@@ -45,6 +49,7 @@ export interface ExecutionJournalRecord {
 }
 
 export interface ExecutionOperationJournal {
+  readonly deliveryReceipts?: DeliveryReceiptJournal;
   get(
     conversationId: string,
     epoch: number,
@@ -292,8 +297,73 @@ function assertTransition(
   }
 }
 
+function receiptScope(session: string, checkpoint: string): string {
+  return createHash("sha256")
+    .update(JSON.stringify([session, checkpoint]))
+    .digest("hex");
+}
+
+function assertReceipt(
+  receipt: unknown,
+): asserts receipt is DeliveryReceiptRecord {
+  if (
+    typeof receipt !== "object" ||
+    receipt === null ||
+    !("delivery_id" in receipt) ||
+    typeof receipt.delivery_id !== "string" ||
+    !receipt.delivery_id ||
+    !("provider_item_id" in receipt) ||
+    typeof receipt.provider_item_id !== "string" ||
+    !receipt.provider_item_id ||
+    !("turn" in receipt) ||
+    typeof receipt.turn !== "string" ||
+    !receipt.turn
+  ) {
+    throw new Error("Invalid owned delivery receipt");
+  }
+}
+
+function sameReceipt(
+  previous: DeliveryReceiptRecord,
+  next: DeliveryReceiptRecord,
+): void {
+  if (
+    previous.delivery_id !== next.delivery_id ||
+    previous.provider_item_id !== next.provider_item_id ||
+    previous.turn !== next.turn
+  ) {
+    throw new Error("Conflicting owned delivery receipt");
+  }
+}
+
 export class InMemoryExecutionOperationJournal implements ExecutionOperationJournal {
   private readonly records = new Map<string, ExecutionJournalRecord>();
+
+  private readonly receipts = new Map<
+    string,
+    Map<string, DeliveryReceiptRecord>
+  >();
+
+  readonly deliveryReceipts: DeliveryReceiptJournal = {
+    read: async (session, checkpoint, signal) => {
+      signal.throwIfAborted();
+      return [
+        ...(this.receipts.get(receiptScope(session, checkpoint))?.values() ??
+          []),
+      ].map((receipt) => ({ ...receipt }));
+    },
+    record: async (session, checkpoint, receipt, signal) => {
+      signal.throwIfAborted();
+      assertReceipt(receipt);
+      const scope = receiptScope(session, checkpoint);
+      const records =
+        this.receipts.get(scope) ?? new Map<string, DeliveryReceiptRecord>();
+      const previous = records.get(receipt.delivery_id);
+      if (previous) sameReceipt(previous, receipt);
+      else records.set(receipt.delivery_id, { ...receipt });
+      this.receipts.set(scope, records);
+    },
+  };
 
   get(
     conversationId: string,
@@ -325,6 +395,62 @@ export class InMemoryExecutionOperationJournal implements ExecutionOperationJour
  */
 export class FileExecutionOperationJournal implements ExecutionOperationJournal {
   constructor(private readonly directory: string) {}
+
+  readonly deliveryReceipts: DeliveryReceiptJournal = {
+    read: async (session, checkpoint, signal) => {
+      signal.throwIfAborted();
+      if (!fs.existsSync(this.directory)) return [];
+      const prefix = receiptScope(session, checkpoint) + ".";
+      return fs
+        .readdirSync(this.directory)
+        .sort()
+        .flatMap((name) => {
+          if (!name.startsWith(prefix) || !name.endsWith(".receipt")) return [];
+          const file = path.join(this.directory, name);
+          const receipt = this.readReceipt(file);
+          if (
+            file !== this.receiptPath(session, checkpoint, receipt.delivery_id)
+          )
+            throw new ExecutionJournalCorruptError(
+              file,
+              "receipt identity differs from file name",
+            );
+          return [receipt];
+        });
+    },
+    record: async (session, checkpoint, receipt, signal) => {
+      signal.throwIfAborted();
+      assertReceipt(receipt);
+      const file = this.receiptPath(session, checkpoint, receipt.delivery_id);
+      if (fs.existsSync(file)) {
+        sameReceipt(this.readReceipt(file), receipt);
+        return;
+      }
+      atomicWriteFile(file, `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+    },
+  };
+
+  private receiptPath(
+    session: string,
+    checkpoint: string,
+    deliveryId: string,
+  ): string {
+    const id = createHash("sha256").update(deliveryId).digest("hex");
+    return path.join(
+      this.directory,
+      `${receiptScope(session, checkpoint)}.${id}.receipt`,
+    );
+  }
+
+  private readReceipt(file: string): DeliveryReceiptRecord {
+    try {
+      const receipt: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+      assertReceipt(receipt);
+      return receipt;
+    } catch (error) {
+      throw new ExecutionJournalCorruptError(file, String(error));
+    }
+  }
 
   private filePath(conversationId: string, epoch: number): string {
     const digest = createHash("sha256").update(conversationId).digest("hex");
