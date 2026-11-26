@@ -1,5 +1,9 @@
 import type {
   ClaimResponse,
+  DeliverySettleResponse,
+  DeliveryStartResponse,
+  PermitsNextResponse,
+  TakeoverAckResponse,
   EdgeErrorResponse,
   HeartbeatResponse,
   HelloResponse,
@@ -31,7 +35,11 @@ type WireReply =
   | HeartbeatResponse
   | HelloResponse
   | ReleaseResponse
-  | RenewResponse;
+  | RenewResponse
+  | PermitsNextResponse
+  | DeliveryStartResponse
+  | DeliverySettleResponse
+  | TakeoverAckResponse;
 type RejectedReply = EdgeErrorResponse | { status: "busy" };
 
 type StartTime = Effect.Success<typeof readTime>;

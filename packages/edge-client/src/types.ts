@@ -1,12 +1,22 @@
 import type {
   ClaimRequest,
   ClaimResponse,
+  DeliveryResolutionRequest,
+  DeliverySettleRequest,
+  DeliverySettleResponse,
+  DeliveryStartRequest,
+  DeliveryStartResponse,
   EdgeErrorResponse,
   EdgeParseErrorCode,
   HeartbeatRequest,
   HeartbeatResponse,
   HelloRequest,
   HelloResponse,
+  PermitsNextRequest,
+  PermitsNextResponse,
+  TakeoverAckRequest,
+  TakeoverAckResponse,
+  TakeoverFence,
   ReleaseRequest,
   ReleaseResponse,
   RenewRequest,
@@ -19,6 +29,10 @@ export type EdgeRequests = {
   claim: ClaimRequest;
   renew: RenewRequest;
   release: ReleaseRequest;
+  "permits.next": PermitsNextRequest;
+  "delivery.start": DeliveryStartRequest;
+  "delivery.settle": DeliverySettleRequest | DeliveryResolutionRequest;
+  "takeover.ack": TakeoverAckRequest;
 };
 
 export type EdgeOperation = keyof EdgeRequests;
@@ -43,7 +57,74 @@ export interface EdgeClientOptions {
   transport: EdgeTransport;
   attemptTimeoutMs?: number;
   callTimeoutMs?: number;
+  steering?: EdgeSteeringHost;
 }
+
+export type EdgeSteerPermit = Extract<
+  PermitsNextResponse,
+  { status: "permit"; intent: "steer" }
+>;
+
+export type EdgeSteerHandover = DeliveryStartRequest & {
+  expected: EdgeSteerPermit["expected"];
+  baton_token: EdgeSteerPermit["baton_token"];
+};
+
+type RunIdentity = Pick<PermitsNextRequest, "session" | "run">;
+
+export type EdgeSteerJournal = {
+  readonly fences: readonly TakeoverFence[];
+  readonly handovers: readonly EdgeSteerHandover[];
+};
+
+export type EdgeSteerOutcome =
+  | { outcome: "applied" }
+  | { outcome: "failed"; retryable: boolean; detail?: string }
+  | { outcome: "in_doubt"; detail?: string };
+
+export type EdgeSteerRecovery =
+  | { outcome: "applied" | "failed"; resolution_evidence: string }
+  | { outcome: "in_doubt"; detail?: string };
+
+export interface EdgeSteeringHost {
+  runningTurn(run: PermitsNextRequest): string | null;
+  prepare(
+    permit: EdgeSteerPermit,
+    signal: AbortSignal,
+  ): Promise<(signal: AbortSignal) => Promise<EdgeSteerOutcome>>;
+  recover(
+    handover: EdgeSteerHandover,
+    signal: AbortSignal,
+  ): Promise<EdgeSteerRecovery>;
+  journal: {
+    load(
+      run: RunIdentity,
+      signal: AbortSignal,
+    ): Promise<EdgeSteerJournal | undefined>;
+    save(
+      run: RunIdentity,
+      state: EdgeSteerJournal,
+      signal: AbortSignal,
+    ): Promise<void>;
+  };
+}
+
+export type EdgeDeliveryStep =
+  | Extract<
+      PermitsNextResponse,
+      { status: "empty" | "stale" } | { status: "permit"; intent: "queue" }
+    >
+  | Extract<DeliveryStartResponse, { status: "rejected" }>
+  | {
+      status: "settled";
+      outcome: DeliverySettleRequest["outcome"];
+      receipt: Exclude<DeliverySettleResponse, EdgeErrorResponse>;
+    }
+  | { status: "pending" | "fenced" }
+  | {
+      status: "takeover";
+      receipt: Exclude<TakeoverAckResponse, EdgeErrorResponse>;
+    };
 
 export type ClaimResult = Exclude<
   ClaimResponse,
@@ -88,6 +169,7 @@ export interface EdgeClient {
   claim: Call<ClaimRequest, ClaimResult>;
   renew: Call<RenewRequest, Renewed>;
   release: Call<ReleaseRequest, Exclude<ReleaseResponse, EdgeErrorResponse>>;
+  deliverNext: Call<PermitsNextRequest, EdgeDeliveryStep>;
   withClaim<T>(
     request: ClaimRequest,
     work: (grant: ClaimGrant, signal: AbortSignal) => Promise<T>,

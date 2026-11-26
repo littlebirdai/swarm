@@ -29,3 +29,28 @@ claim. A callback that never settles keeps the session reserved and prevents
 `withClaim()` and, if called, `close()` from finishing. Release uses a single
 bounded attempt. A stale renewal means the server already rejected the token,
 so the client skips release.
+
+## Enable steer delivery in a host
+
+Pass an `EdgeSteeringHost` as `steering` when you create the client. The
+client offers `steer-baton-v1` and `takeover-fence-v1` in `hello` only with
+this option. Run `hello` before you poll so the client can use the server's
+negotiated capabilities.
+
+- Return the live turn ID from `runningTurn`, or `null` between turns.
+- Use `prepare` for input preparation. Return a function that initiates the
+  agent handoff when called. The client checks the turn and records the
+  handover before it calls that function.
+- Implement `journal.load` and `journal.save` for each session and run. Save
+  the whole snapshot atomically and confirm the write after it is durable.
+  Use the same journal after a restart. Close the current client before a
+  replacement starts delivery for the same run.
+- Use `recover` to look up the existing attempt. Return `in_doubt` while its
+  effect is uncertain. Supply provider evidence when you know the result.
+
+Call `deliverNext` with the live run lease. Handle a queue permit with your
+queue delivery path. A stale steer returns its settlement receipt and leaves
+the agent untouched. Keep polling when a takeover returns `pending`.
+A `takeover` result carries the server's acknowledgment receipt. A stale
+receipt leaves the old baton fenced. A steer under a different baton still
+needs its own permit.
