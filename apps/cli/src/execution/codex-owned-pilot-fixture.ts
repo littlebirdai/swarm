@@ -212,6 +212,8 @@ export function fixture(
       actions.push(`legacy-quarantine:${binding.conversationId}`);
     },
   };
+  const promptMessages: Parameters<SyncService["addMessages"]>[0]["messages"] =
+    [];
   function createPilot(flag = enabled) {
     return createCodexOwnedPilot(
       {
@@ -233,7 +235,12 @@ export function fixture(
         }),
         instructions: async () => undefined,
         display: {
-          syncService: strictStub<SyncService>("syncService"),
+          syncService: strictStub<SyncService>("syncService", {
+            async addMessages({ messages }) {
+              promptMessages.push(...structuredClone(messages));
+              return { inserted: messages.length, ids: [] };
+            },
+          }),
           retryQueue: strictStub<RetryQueue>("retryQueue"),
           conversationCache: {},
           mapCodexAppServerThreadStatusToAgentStatus: () => null,
@@ -474,6 +481,7 @@ export function fixture(
     pilot: pilot!,
     driver,
     appServer,
+    promptMessages,
     sendFrame,
     deliveryRequests,
     deliveryThread: "codex-fixture-thread",

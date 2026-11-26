@@ -37,6 +37,7 @@ import {
   deliveryFence,
   readEdge,
 } from "./codex-pilot-delivery.js";
+import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
 import type {
@@ -135,6 +136,7 @@ export function createCodexOwnedPilot(
 
 export class CodexOwnedPilot {
   private readonly display = new CodexPilotDisplay();
+  private readonly promptCards = new CodexPilotPromptCards();
   private readonly delivery = new CodexPilotDelivery(
     this.edgeResponse.bind(this),
     (message) => this.options.log(message),
@@ -252,7 +254,10 @@ export class CodexOwnedPilot {
       provider,
       command: this.options.command(),
       env: { ...process.env, PATH: agentSpawnPath(), [STABLE_ENV_MODE]: "off" },
-      retainRaw: (frame) => this.display.retain(frame),
+      retainRaw: (frame) => {
+        this.display.retain(frame);
+        this.promptCards.retain(frame);
+      },
       receiptJournal: this.delivery.receiptJournal,
     });
     const result =
@@ -503,6 +508,20 @@ export class CodexOwnedPilot {
       if (event.kind === "message.delta") continue;
       await this.append(claim, event);
       await this.delivery.observe(event, session, this.controller.signal);
+      await this.promptCards
+        .publish(event, claim, session, syncService, () => {
+          display.sendAgentStatus(
+            syncService,
+            conversationId,
+            runtimeId,
+            "permission_blocked",
+          );
+        })
+        .catch((error) =>
+          this.options.log(
+            `[owned-codex] prompt card update failed: ${String(error)}`,
+          ),
+        );
       await this.display
         .publish(
           runtimeId,
