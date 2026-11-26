@@ -186,7 +186,7 @@ test("concurrent answers to the same prompt record just one decision", async () 
   expect(results.filter(({ status }) => status === "rejected")).toEqual([
     expect.objectContaining({
       reason: expect.objectContaining({
-        message: expect.stringContaining("PROMPT_ALREADY_ANSWERED"),
+        message: expect.stringContaining("This prompt already has an answer."),
       }),
     }),
   ]);
@@ -205,17 +205,23 @@ test("a stale run cannot accept or deliver an answer", async () => {
       run: 2,
       answer: null,
     }),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await expect(
     f.browser.mutation(api.permissions.answerPrompt, {
       ...f.address,
       turn_id: "old-turn",
       answer: null,
     }),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await f.answer();
   await f.t.run(({ db }) => db.patch(f.head, { current_epoch: 2 }));
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   expect(await f.next()).toEqual({ v: 1, status: "empty" });
 });
 
@@ -235,7 +241,9 @@ test("a settled prompt refuses new answers and queued work cannot use a replacem
     },
   ]);
   expect(await f.next()).toEqual({ v: 1, status: "empty" });
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
 
   setSystemTime(new Date(start + leaseMs));
   const lease = await f.claim("replacement");
@@ -252,7 +260,9 @@ test("a settled prompt refuses new answers and queued work cannot use a replacem
     ],
     lease.fencing_token,
   );
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   const current = await f.browser.query(
     api.permissions.getPromptAddress,
     f.target,
@@ -280,7 +290,9 @@ test("an unsigned caller and another signed-in person cannot retrieve or answer 
   ).toBeNull();
   await expect(
     browser.mutation(api.permissions.answerPrompt, args),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await expect(
     f.t.mutation(api.permissions.answerPrompt, args),
   ).rejects.toThrow("Unauthorized");
@@ -302,6 +314,8 @@ test.each([flag, edge])(
         session_id: "runtime",
         tool_name: "read",
         arguments_preview: "read notes",
+        fenced_prompt_id: f.target.prompt_id,
+        fenced_prompt_turn_id: f.target.turn_id,
       },
     );
     await expect(
@@ -754,4 +768,54 @@ test("the source cannot pull a queued prompt answer during a forced move", async
     if (previous === undefined) delete process.env[flag];
     else process.env[flag] = previous;
   }
+});
+
+test("web dispatch queues an exact answer while a legacy permission denial leaves the fenced card open", async () => {
+  const f = await fixture("permission");
+  const legacy = await f.browser.mutation(
+    api.permissions.createPermissionRequest,
+    {
+      conversation_id: f.conversation,
+      session_id: "runtime",
+      tool_name: "read",
+      arguments_preview: "read notes",
+    },
+  );
+  const fenced = await f.browser.mutation(
+    api.permissions.createPermissionRequest,
+    {
+      conversation_id: f.conversation,
+      session_id: "runtime",
+      tool_name: "read",
+      arguments_preview: "other notes",
+      fenced_prompt_id: f.target.prompt_id,
+      fenced_prompt_turn_id: f.target.turn_id,
+    },
+  );
+  const legacyAnswer = await f.browser.mutation(
+    api.permissions.updatePermissionStatus,
+    {
+      permission_id: legacy,
+      status: "denied",
+      message: "Deny the old request",
+    },
+  );
+  expect(legacyAnswer).toBe(legacy);
+  expect(await f.rows()).toEqual([]);
+  const pending = await f.browser.query(api.permissions.getPendingPermissions, {
+    conversation_id: f.conversation,
+  });
+  expect(pending.map(({ _id }) => _id)).toEqual([fenced]);
+  const answer = { behavior: "deny" } as const;
+  const action = {
+    action: "answerFencedPrompt",
+    args: ["web-row", { ...f.address, answer }],
+  };
+  await f.browser.mutation(api.dispatch.dispatch, action);
+  expect(await f.rows()).toMatchObject([
+    { ...f.address, actor_user_id: f.owner, answer },
+  ]);
+  await expect(
+    f.browser.mutation(api.dispatch.dispatch, action),
+  ).rejects.toThrow("This prompt already has an answer.");
 });
