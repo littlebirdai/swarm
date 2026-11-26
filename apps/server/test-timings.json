@@ -26,7 +26,7 @@
     "convex/agentDefinitions.unauthenticated.test.ts": 80,
     "convex/agentPromptRepair.test.ts": 34,
     "convex/agentReviews.test.ts": 422,
-    "convex/agentTasks.armedKind.test.ts": 73,
+    "convex/agent-tasks.armed-kind.test.ts": 73,
     "convex/agentTasks.cadence.test.ts": 39,
     "convex/agentTasks.cloudWake.test.ts": 80,
     "convex/agentTasks.conversationAccess.test.ts": 32,
