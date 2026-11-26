@@ -4,6 +4,7 @@ import {
   parseStartedDeliveryPermit,
   type ReadyBinding,
 } from "@codecast/agent-clients/executionBinding";
+import { CodexRequestRefused } from "../../codex-app-server.js";
 import type { RuntimeStartRequest } from "../types.js";
 import {
   CodexAppServerRuntimeDriver,
@@ -142,55 +143,71 @@ describe("CodexAppServerRuntimeDriver", () => {
     });
   });
 
-  test("a turn/start error remains ambiguous on the same Codex binding", async () => {
-    const io = fakeIo();
-    io.client.turnStart = async () => {
-      throw new Error("response lost");
-    };
-    const driver = new CodexAppServerRuntimeDriver({ io });
-    const binding: ReadyBinding = {
-      conversationId: "conversation-1",
-      epoch: 1,
-      requestedAgent: "codex",
-      actualAgent: "codex",
-      transport: "app-server",
-      handle: "thread-1",
-      ownerDeviceId: "device-1",
-      daemonBootId: "boot-1",
-      runtimeId: "thread-1",
-      operationId: "operation-1",
-      appliedConfigurationRevision: 1,
-      protocolVersion: 1,
-      capabilities: [...FENCED_RUNTIME_CAPABILITIES],
-    };
-    const permit = parseStartedDeliveryPermit({
-      state: "delivery-started",
-      messageId: "message-1",
-      deliveryId: "delivery-1",
-      conversationSequence: "1",
-      attemptId: "attempt-1",
-      conversationId: "conversation-1",
-      executionEpoch: 1,
-      configurationRevision: 1,
-      ownerDeviceId: "device-1",
-      daemonBootId: "boot-1",
-      runtimeId: "thread-1",
-    });
-    const result = await driver.deliver({
-      binding,
-      permit,
-      delivery: {
+  test.each([
+    {
+      label: "lost reply",
+      error: new Error("response lost"),
+      state: "ambiguous",
+      code: "CODEX_TURN_START_AMBIGUOUS",
+    },
+    {
+      label: "explicit refusal",
+      error: new CodexRequestRefused("Turn already active"),
+      state: "failed-before-effect",
+      code: "CODEX_TURN_START_REFUSED",
+    },
+  ])(
+    "$label maps to the correct delivery state on the same binding",
+    async ({ error, state, code }) => {
+      const io = fakeIo();
+      io.client.turnStart = async () => {
+        throw error;
+      };
+      const driver = new CodexAppServerRuntimeDriver({ io });
+      const binding: ReadyBinding = {
+        conversationId: "conversation-1",
+        epoch: 1,
+        requestedAgent: "codex",
+        actualAgent: "codex",
+        transport: "app-server",
+        handle: "thread-1",
+        ownerDeviceId: "device-1",
+        daemonBootId: "boot-1",
+        runtimeId: "thread-1",
+        operationId: "operation-1",
+        appliedConfigurationRevision: 1,
+        protocolVersion: 1,
+        capabilities: [...FENCED_RUNTIME_CAPABILITIES],
+      };
+      const permit = parseStartedDeliveryPermit({
+        state: "delivery-started",
         messageId: "message-1",
         deliveryId: "delivery-1",
         conversationSequence: "1",
-        input: [{ type: "text", text: "hello" }],
-      },
-    });
-    expect(result).toMatchObject({
-      state: "ambiguous",
-      failure: { code: "CODEX_TURN_START_AMBIGUOUS" },
-    });
-  });
+        attemptId: "attempt-1",
+        conversationId: "conversation-1",
+        executionEpoch: 1,
+        configurationRevision: 1,
+        ownerDeviceId: "device-1",
+        daemonBootId: "boot-1",
+        runtimeId: "thread-1",
+      });
+      const result = await driver.deliver({
+        binding,
+        permit,
+        delivery: {
+          messageId: "message-1",
+          deliveryId: "delivery-1",
+          conversationSequence: "1",
+          input: [{ type: "text", text: "hello" }],
+        },
+      });
+      expect(result).toMatchObject({
+        state,
+        failure: { code },
+      });
+    },
+  );
 
   test("recovering without a durably journaled thread handle fails closed", async () => {
     const driver = new CodexAppServerRuntimeDriver({ io: fakeIo() });

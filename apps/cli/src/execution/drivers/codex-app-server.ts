@@ -2,6 +2,7 @@ import {
   FENCED_RUNTIME_CAPABILITIES,
   type RuntimeCapability,
 } from "@codecast/agent-clients/executionBinding";
+import { isAuthoritativeRefusal } from "../../codex-app-server.js";
 import { assertRuntimeDeliveryFence, type RuntimeDriver } from "../driver.js";
 import type {
   DriverDeliveryResult,
@@ -211,7 +212,11 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
       });
       return { state: "delivered" };
     } catch (error) {
-      // A failed/late RPC response does not prove the user turn was not accepted.
+      if (isAuthoritativeRefusal(error))
+        return {
+          state: "failed-before-effect",
+          failure: structuredFailure("CODEX_TURN_START_REFUSED", error),
+        };
       return {
         state: "ambiguous",
         failure: structuredFailure("CODEX_TURN_START_AMBIGUOUS", error),

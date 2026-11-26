@@ -669,6 +669,7 @@ import {
 } from "./headlessRuns.js";
 import {
   CodexAppServer,
+  isAuthoritativeRefusal,
   threadItemsToMessages,
   type ApprovalPolicy,
   type SandboxPolicy,
@@ -35050,6 +35051,7 @@ async function deliverMessage(
   }
 }
 
+class CodexDeliveryInDoubt extends PendingDeliveryHeldError {}
 async function deliverMessageIntoSession(
   conversationId: string,
   content: string,
@@ -35196,6 +35198,7 @@ async function deliverMessageIntoSession(
     const readyServer = await readyCodexAppServer(conversationId);
     if (!readyServer) return false;
     const appServerThreadId = appServerConversations.get(conversationId);
+    let state: "admitting" | "starting" | "accepted" = "admitting";
     if (appServerThreadId) {
       const prompt = await deliverCodexPromptAnswer(
         appServerThreadId,
@@ -35211,13 +35214,13 @@ async function deliverMessageIntoSession(
           "waiting for an answer to the Codex question",
         );
       try {
-        const input: Array<{ type: "text"; text: string }> = [
-          { type: "text", text: content },
-        ];
         await deliveryStep(messageId, "admit_app_server", admit);
-        await readyServer.turnStart({ threadId: appServerThreadId, input });
-        // turn/start answered: the turn is Codex's. The user turn the daemon
-        // writes for it below is its echo, by the uuid it is written under.
+        state = "starting";
+        await readyServer.turnStart({
+          threadId: appServerThreadId,
+          input: [{ type: "text", text: content }],
+        });
+        state = "accepted";
         const userTurn = buildCodexUserTurnMessage(
           content,
           messageId,
@@ -35229,14 +35232,7 @@ async function deliverMessageIntoSession(
           payload: content,
           exactUuid: userTurn.uuid,
         });
-        // Delivered input = a new turn: spend any declared settle verdict from
-        // before it (codex settles key turnStartedAt by thread id — see
-        // resolveTurnEndStatus at the app-server turn-completed handler).
         markTurnStarted(appServerThreadId, Date.now());
-        // Persist the user turn ourselves: the app-server replays only the agent's output,
-        // so without this the prompt is never stored and the conversation reads as agent-only
-        // (ct-36429). syncMessagesBatch routes it through the same addMessages path as Claude,
-        // where its delivery id settles the pending row (client_id adoption + delivered ack).
         if (retryQueueRef) {
           await syncMessagesBatch(
             [userTurn],
@@ -35255,7 +35251,15 @@ async function deliverMessageIntoSession(
         );
         return true;
       } catch (err) {
-        if (err instanceof PendingDeliveryHeldError) throw err;
+        if (state === "admitting") throw err;
+        if (state === "accepted" || !isAuthoritativeRefusal(err)) {
+          await markInjectedBestEffort(syncService, messageId, undefined, {
+            conversationId,
+            pasteVerified: true,
+          });
+          logDelivery(`[codex-app-server] delivery in doubt: ${String(err)}`);
+          throw new CodexDeliveryInDoubt();
+        }
         if (
           isCodexSafetyError(err as Parameters<typeof isCodexSafetyError>[0])
         ) {
@@ -35271,10 +35275,6 @@ async function deliverMessageIntoSession(
           );
           throw new PendingDeliveryHeldError();
         }
-        // Retire the binding ONLY when the thread is provably gone. A timed-out or
-        // dropped turn/start leaves a live thread live, and unregistering it there
-        // was what made a codex conversation look backend-less on the next delivery
-        // (2026-09-04); the recovery sweep re-resumes anything genuinely lost.
         if (isMissingAppServerThreadError(err)) {
           removeAppServerThreadRegistration(
             appServerThreads,
@@ -35284,9 +35284,7 @@ async function deliverMessageIntoSession(
           );
           forgetPersistedAppServerConversation(conversationId);
         }
-        logDelivery(
-          `[codex-app-server] delivery failed, falling back to tmux: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        logDelivery(`[codex-app-server] refused, trying tmux: ${err}`);
       }
     }
     return false;
@@ -44489,6 +44487,7 @@ async function main(): Promise<void> {
             );
             return;
           }
+          if (outcome instanceof CodexDeliveryInDoubt) return;
           injectedMessageTs.delete(msg._id);
           if (outcome instanceof PendingDeliveryHeldError) return;
           logDelivery(
@@ -44650,6 +44649,7 @@ async function main(): Promise<void> {
           }
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
+          if (err instanceof CodexDeliveryInDoubt) continue;
           injectedMessageTs.delete(msg._id);
           if (err instanceof PendingDeliveryHeldError) {
             logDelivery(
