@@ -6,6 +6,7 @@ import { LIVE_SYNC_COLLECTIONS } from "./clientSyncRegistry.live";
 import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
+import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
 import { thinPullRequestRow, thinTaskRow } from "../lib/detailRows";
 export {
@@ -1687,10 +1688,6 @@ export const CLIENT_SYNC_REGISTRY = {
   // COMPLETE live set (24h heartbeat window) — snapshot, so a session that
   // stops heartbeating leaves. Readers additionally hide rows whose
   // last_heartbeat is stale, so a persisted row can't outlive its window.
-  forcedMoveOptions: {
-    sync: { isDelta: true, deepFields: ["destinations"] },
-    feeds: ["edgeRunLease.forcedMoveOptions"],
-  },
   // Daemon commands a store action asked for (hibernate, restart, device
   // move, account switch, a line file edit), keyed by the action's request id, plus the extra
   // rows of a restart or move (the kill, a remote move's later resume) keyed
@@ -1740,20 +1737,7 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { isDelta: true },
     feeds: ["machineResources.getMine"],
   },
-  migrationCandidates: {
-    persistence: { kind: "meta", key: "migrationCandidates" },
-    hydration: { phase: "deferred", merge: "fill" },
-    sync: { kind: "list" },
-    feeds: ["sessionMigrations.candidates"],
-  },
-  migrationBatches: {
-    persistence: { kind: "meta", key: "migrationBatches" },
-    hydration: { phase: "deferred", merge: "fill" },
-    sync: { kind: "list", rowKey: "batch_id" },
-    localFirst: true,
-    unprotectedFields: ["rows", "queued", "cancelled", "state"],
-    feeds: ["sessionMigrations.listBatches"],
-  },
+  ...MOVE_SYNC_COLLECTIONS,
   // Dry runs of session moves the offload review asked for, the last few
   // minutes of them (convex/moveRehearsals.ts). The whole recent set each push.
   moveRehearsals: {
