@@ -169,10 +169,15 @@ async function fullWorker() {
       transcript(`held-${index}`),
     ),
   );
-  const held = inputs.map((input) => read(input));
+  const readsBySession = new Map(
+    inputs.map((input) => [input.sessionId, read(input)]),
+  );
   await pollUntil(
     () => worker.opens.length === MAX_INFLIGHT,
     "all cursor slots occupied",
+  );
+  const held = worker.opens.map(({ payload }) =>
+    readsBySession.get(payload.job.sessionId)!,
   );
   return {
     ...worker,
