@@ -242,6 +242,11 @@ exports[`legacy Codex and the owned adapter replay one recorded turn schedule 1`
     "legacy": {
       "api": [],
       "events": [
+        "turn-3 reasoning text:665a91a4c5c43017",
+        "turn-3 call turn-3:command commandExecution recorded-command",
+        "turn-3 result turn-3:command recorded-output false",
+        "turn-3 assistant recorded-answer",
+        "turn-3 reasoning text:8e7e4bdd9cf92fcd",
         "turn-3 ended completed",
       ],
     },

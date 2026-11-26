@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import type { Turn, ThreadItem } from "./codex-app-server.js";
 import { CodexRecoveryQueue } from "./codexRecoveryQueue";
 import { functionBlock } from "./test-helpers/sourceRegion";
 
@@ -15,6 +16,9 @@ function fixture() {
   for (let i = 0; i < 50; i++)
     saved.set(`conversation-${i}`, { threadId: `thread-${i}` });
   const live = new Map<string, string>();
+  const queued = new Set<string>();
+  const liveTurns = new Map<string, Turn>();
+  const progress = new Map<string, { threadId: string; items: ThreadItem[] }>();
   const resumed: string[] = [];
   const queried: string[] = [];
   const errors: unknown[] = [];
@@ -34,13 +38,19 @@ function fixture() {
       restartIfAuthChanged: async () => {},
       threadResume: async ({ threadId }: { threadId: string }) => {
         resumed.push(threadId);
-        return { thread: { id: threadId }, sandbox: { type: "readOnly" } };
+        const active = liveTurns.get(threadId);
+        return {
+          thread: { id: threadId, turns: active ? [active] : [] },
+          sandbox: { type: "readOnly" },
+        };
       },
     },
     appServerShuttingDown: false,
     persistedAppServerThreads: saved,
     appServerConversations: live,
     appServerThreads: new Map(),
+    appServerTurnProgress: progress,
+    makeAppServerTurnProgress: (threadId: string) => ({ threadId, items: [] }),
     appServerRecoveryRetryAt: new Map(),
     appServerRecoveringThreads: new Set(),
     pendingAgentSwitches: new Set(),
@@ -52,7 +62,7 @@ function fixture() {
           hideStateKnown: true,
           agentType: "codex",
           status: "active",
-          hasPendingMessages: false,
+          hasPendingMessages: queued.has(id),
         };
       },
       getConversationOwnerInfo: async () => ({ ownerDeviceId: "local" }),
@@ -94,6 +104,9 @@ function fixture() {
     errors,
     queue,
     registered,
+    queued,
+    liveTurns,
+    progress,
   };
 }
 
@@ -127,4 +140,26 @@ test("daemon boot still restores an interrupted active turn without a new delive
   await f.queue.wait();
   expect(f.resumed).toEqual(["thread-8"]);
   expect(f.errors).toEqual([]);
+});
+
+test("a queued follow-up keeps the resumed active turn ready for streaming", async () => {
+  const f = fixture();
+  const conversation = "conversation-8";
+  const threadId = "thread-8";
+  const turnId = "active-turn";
+  const item = {
+    type: "agentMessage",
+    id: "earlier-item",
+    text: "Earlier output",
+  } as const;
+  f.saved.get(conversation)!.activeTurnId = turnId;
+  f.queued.add(conversation);
+  f.liveTurns.set(threadId, {
+    id: turnId,
+    status: "inProgress",
+    items: [item],
+  });
+  await f.ready(conversation);
+  expect(f.errors).toEqual([]);
+  expect(f.progress.get(turnId)).toEqual({ threadId, items: [item] });
 });

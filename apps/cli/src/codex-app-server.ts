@@ -374,7 +374,7 @@ interface PendingRequest {
 }
 
 interface TurnAccumulator {
-  items: ThreadItem[];
+  items: Map<string, ThreadItem>;
   threadId: string;
   model?: string;
 }
@@ -895,6 +895,15 @@ export class CodexAppServer extends EventEmitter {
         THREAD_START_TIMEOUT_MS,
       )) as ThreadResumeResponse;
       this.threadModels.set(response.thread.id, response.model);
+      for (const turn of response.thread.turns ?? []) {
+        if (turn.status !== "inProgress" || this.turnAccumulators.has(turn.id))
+          continue;
+        this.turnAccumulators.set(turn.id, {
+          threadId: response.thread.id,
+          model: response.model,
+          items: new Map(turn.items?.map((item) => [item.id, item])),
+        });
+      }
       // Resume by history or by path can return a different thread. That id has
       // no earlier generation to capture, so it records under a fresh one.
       const sameThread = response.thread.id === params.threadId;
@@ -1277,7 +1286,12 @@ export class CodexAppServer extends EventEmitter {
         const threadId = params.threadId as string;
         const turn = params.turn as Turn;
         const model = this.threadModels.get(threadId);
-        this.turnAccumulators.set(turn.id, { items: [], threadId, model });
+        if (!this.turnAccumulators.has(turn.id))
+          this.turnAccumulators.set(turn.id, {
+            items: new Map(),
+            threadId,
+            model,
+          });
         this.emit("turnStarted", threadId, turn.id, model);
         break;
       }
@@ -1291,7 +1305,7 @@ export class CodexAppServer extends EventEmitter {
           this.userInputRequests.delete(id);
         }
         const acc = this.turnAccumulators.get(turn.id);
-        const items = acc?.items || [];
+        const items = [...(acc?.items.values() ?? [])];
         this.turnAccumulators.delete(turn.id);
         const messages: ParsedMessage[] = threadItemsToMessages(items).map(
           (message) => ({ ...message, model: acc?.model }),
@@ -1336,9 +1350,7 @@ export class CodexAppServer extends EventEmitter {
         const turnId = params.turnId as string;
         const item = params.item as ThreadItem;
         const acc = this.turnAccumulators.get(turnId);
-        if (acc) {
-          acc.items.push(item);
-        }
+        acc?.items.set(item.id, item);
         this.emit("itemCompleted", threadId, turnId, item);
         break;
       }
