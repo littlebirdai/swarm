@@ -8,6 +8,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./functions";
 import {
   expireMoveSettlement,
+  findForceFencedDeviceBinding,
   forcedDeviceMoveEnabled,
   recordDeviceMove,
 } from "./lib/edge/device-move.state";
@@ -110,6 +111,12 @@ export const forcedMoveOptions = query({
     )
       return [];
     const move = head.device_move;
+    if (
+      !move &&
+      (head.pending_epoch !== undefined ||
+        head.successor_intent?.status === "pending")
+    )
+      return [];
     const shared = await listTeamMachines(ctx, userId);
     const ownIds = new Set(own.map(({ device_id }) => device_id));
     const sharedCounts = new Map<string, number>();
@@ -128,22 +135,35 @@ export const forcedMoveOptions = query({
         )
         .map(({ device }) => device),
     ];
-    const destinations = move?.forced
+    const candidates = move?.forced
       ? []
-      : eligible
-          .filter(
-            (device) =>
-              device.device_id !== sourceId &&
-              device.device_id.length > 0 &&
-              device.device_id.trim() === device.device_id &&
-              (!move ||
-                (device.device_id === move.destination_device_id &&
-                  device.user_id === move.destination_runner_id)),
+      : eligible.filter(
+          (device) =>
+            device.device_id !== sourceId &&
+            device.device_id.length > 0 &&
+            device.device_id.trim() === device.device_id &&
+            (!move ||
+              (device.device_id === move.destination_device_id &&
+                device.user_id === move.destination_runner_id)),
+        );
+    const destinations = (
+      await Promise.all(
+        candidates.map(async (device) => {
+          if (
+            await findForceFencedDeviceBinding(
+              ctx,
+              conversation_id,
+              device.device_id,
+            )
           )
-          .map((device) => ({
+            return null;
+          return {
             id: device.device_id,
             label: device.display_name || device.label,
-          }));
+          };
+        }),
+      )
+    ).filter((device) => device !== null);
     const requested = move?.forced
       ? eligible.find(
           (device) =>

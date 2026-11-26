@@ -2499,8 +2499,10 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   resumeSession: async (ctx, userId, [convId]: [string]) =>
     resumeConversationSession(ctx, userId, convId as Id<"conversations">),
 
-  moveSessionToDevice,
-  forceSessionMove,
+  moveSessionToDevice: async (ctx, userId, args) =>
+    await moveSessionToDevice(ctx, userId, args),
+  forceSessionMove: async (ctx, userId, args) =>
+    await forceSessionMove(ctx, userId, args),
 
   // A cloud session's live mirror into a laptop worktree: the web stamps
   // local_mirror starting/stopping on the draft; this queues the laptop job.

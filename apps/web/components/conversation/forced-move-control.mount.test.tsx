@@ -12,13 +12,37 @@ const flag = "VITE_CODECAST_FORCED_DEVICE_MOVE_V1";
 const previous = process.env[flag];
 const builders = webBuilders("forced-move-control.mount.test.tsx");
 const refusal = "The source epoch changed before the forced move";
+const destinations = [
+  { id: "studio", label: "Studio" },
+  { id: "team-mac", label: "Team Mac" },
+];
+
+function moveOptions(conversationId: Id<"conversations">) {
+  return {
+    _id: conversationId,
+    epoch: 7,
+    sourceLabel: "Laptop",
+    offlineAfter: 0,
+    requestedDestination: null as string | null,
+    destinations,
+  };
+}
 
 afterEach(() => {
   if (previous === undefined) delete process.env[flag];
   else process.env[flag] = previous;
 });
 
-async function mount(outcome: "off" | "accepted" | "refused" | "online") {
+async function mount(
+  outcome:
+    | "off"
+    | "accepted"
+    | "refused"
+    | "structured"
+    | "online"
+    | "transient",
+) {
+  const refused = outcome === "refused" || outcome === "structured";
   if (outcome === "off") delete process.env[flag];
   else process.env[flag] = "1";
   const conversationId = builders.session.build()._id as Id<"conversations">;
@@ -28,10 +52,14 @@ async function mount(outcome: "off" | "accepted" | "refused" | "online") {
     {
       authenticated: true,
       dispatch: true,
+      clock: outcome === "transient",
       expectedConsoleErrors:
-        outcome === "refused"
+        refused || outcome === "transient"
           ? [
-              /\[CONVEX M\(dispatch:dispatch\)\].*/,
+              ...Array.from(
+                { length: refused ? 1 : 4 },
+                () => /\[CONVEX M\(dispatch:dispatch\)\].*/,
+              ),
               /\[sync\] dispatch failed after retries: forceSessionMove/,
             ]
           : undefined,
@@ -39,24 +67,22 @@ async function mount(outcome: "off" | "accepted" | "refused" | "online") {
         if (outcome !== "off") {
           backend.set(api.edgeRunLease.forcedMoveOptions, [
             {
-              _id: conversationId,
-              epoch: 7,
-              sourceLabel: "Laptop",
+              ...moveOptions(conversationId),
               offlineAfter: outcome === "online" ? Date.now() + 600_000 : 0,
-              requestedDestination: null,
-              destinations: [
-                { id: "studio", label: "Studio" },
-                { id: "team-mac", label: "Team Mac" },
-              ],
             },
           ]);
         }
         backend.mutation(api.dispatch.dispatch, ({ action, args }) => {
           if (action !== "forceSessionMove") throw new Error(action);
           calls.push(args);
-          if (outcome !== "refused") return "move-id";
-          const error = new ConvexError(refusal);
-          error.message = `[Request ID: fake] Server Error\nUncaught ConvexError: "${refusal}"`;
+          if (outcome === "transient") return new Error("Try again later");
+          if (!refused) return "move-id";
+          const data =
+            outcome === "structured"
+              ? { code: "STALE_EPOCH", message: refusal }
+              : refusal;
+          const error = new ConvexError(data);
+          error.message = `[Request ID: fake] Server Error\nUncaught ConvexError: ${JSON.stringify(data)}`;
           return error;
         });
       },
@@ -79,6 +105,9 @@ async function chooseDestination(container: HTMLElement) {
   await act(async () => button(container, "Move to another device").click());
   const dialog = document.querySelector('[role="dialog"]')!;
   const select = dialog.querySelector("select")!;
+  expect(
+    dialog.querySelector<HTMLButtonElement>("[data-switch-confirm]")?.disabled,
+  ).toBe(true);
   expect([...select.options].map((o) => o.textContent)).toEqual([
     "Choose a device",
     "Studio",
@@ -88,6 +117,7 @@ async function chooseDestination(container: HTMLElement) {
     select.value = "team-mac";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
+  expect(button(dialog, "Force move").disabled).toBe(false);
   return dialog;
 }
 
@@ -125,6 +155,11 @@ test("deliberate confirm dispatches the selected move once and paints the reques
   expect(ui.calls).toEqual([
     [expect.any(String), ui.conversationId, 7, "team-mac", "Team Mac", true],
   ]);
+  await act(async () => flushSyncPublishes());
+  expect(ui.container.querySelector('[role="status"]')?.textContent).toBe(
+    "Move to Team Mac requested",
+  );
+  expect(ui.container.querySelector("button")).toBeNull();
   await act(async () => {
     ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
       {
@@ -143,14 +178,91 @@ test("deliberate confirm dispatches the selected move once and paints the reques
   );
 });
 
-test("a server refusal appears beside the move action", async () => {
-  const ui = await mount("refused");
+async function refuseMove(ui: Awaited<ReturnType<typeof mount>>) {
   const dialog = await chooseDestination(ui.container);
   await act(async () => button(dialog, "Force move").click());
   expect(ui.calls).toHaveLength(1);
   await act(async () => flushSyncPublishes());
-  expect(ui.container.querySelector('[role="alert"]')?.textContent).toContain(
-    refusal,
-  );
-  expect(button(ui.container, "Move to another device").disabled).toBe(false);
+}
+
+test.each(["refused", "structured"] as const)(
+  "a %s server error appears as the exact refusal message",
+  async (outcome) => {
+    const ui = await mount(outcome);
+    await refuseMove(ui);
+    expect(ui.container.querySelector('[role="alert"]')?.textContent).toBe(
+      refusal,
+    );
+    expect(button(ui.container, "Move to another device").disabled).toBe(false);
+  },
+);
+
+test("a destination-only push refreshes the choices and an empty list hides the action", async () => {
+  const ui = await mount("accepted");
+  const options = moveOptions(ui.conversationId);
+  await act(async () => {
+    ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+      { ...options, destinations: [{ id: "new", label: "New computer" }] },
+    ]);
+    flushSyncPublishes();
+  });
+  await act(async () => button(ui.container, "Move to another device").click());
+  const strip = button(ui.container, "Move to another device").parentElement!;
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(
+    [...dialog.querySelectorAll("option")].map((option) => option.value),
+  ).toEqual(["", "new"]);
+  await act(async () => button(dialog, "Cancel").click());
+  await act(async () => {
+    ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+      { ...options, destinations: [] },
+    ]);
+    flushSyncPublishes();
+  });
+  expect(ui.container.textContent).toBe("");
+  expect(ui.container.contains(strip)).toBe(false);
+});
+
+test.each(["dismissed", "new epoch", "source online", "flag off"] as const)(
+  "the refusal disappears when %s",
+  async (cause) => {
+    const ui = await mount("refused");
+    await refuseMove(ui);
+    expect(ui.container.querySelector('[role="alert"]')?.textContent).toBe(
+      refusal,
+    );
+    if (cause === "dismissed")
+      await act(async () => button(ui.container, "Dismiss").click());
+    else if (cause === "flag off") {
+      delete process.env[flag];
+      await ui.rerender(
+        <DeviceMoveStatusStrip
+          key="flag changed"
+          conversationId={ui.conversationId}
+        />,
+      );
+    } else {
+      const options = moveOptions(ui.conversationId);
+      await act(async () => {
+        ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+          cause === "new epoch"
+            ? { ...options, epoch: options.epoch + 1 }
+            : { ...options, offlineAfter: Date.now() + 600_000 },
+        ]);
+        flushSyncPublishes();
+      });
+    }
+    expect(ui.container.querySelector('[role="alert"]')).toBeNull();
+  },
+);
+
+test("a transient dispatch failure leaves the request pending", async () => {
+  const ui = await mount("transient");
+  const dialog = await chooseDestination(ui.container);
+  await act(async () => button(dialog, "Force move").click());
+  for (const delay of [1000, 2000, 4000]) await ui.clock!.advance(delay);
+  await act(async () => flushSyncPublishes());
+  expect(ui.calls).toHaveLength(4);
+  expect(ui.container.querySelector('[role="alert"]')).toBeNull();
+  expect(button(ui.container, "Requesting move").disabled).toBe(true);
 });

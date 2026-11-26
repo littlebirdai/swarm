@@ -77,6 +77,14 @@ const writeHelpersOf = (body: string) =>
     .filter((name) => !NOT_A_WRITE.test(name))
     .filter((name) => !SHARED_STATUS_WRITERS.has(name));
 
+const DEVICE_MOVE_HELPERS = new Map(
+  [
+    ...withoutComments(
+      readFileSync(join(CONVEX, "lib", "device-move-dispatch.ts"), "utf8"),
+    ).matchAll(/^export async function (\w+)\([\s\S]*?^}/gm),
+  ].map((match) => [match[1]!, match[0]]),
+);
+
 /** Each public mutation's handler body in the Convex tree, by its api path. */
 function publicMutations(): Map<string, string> {
   const out = new Map<string, string>();
@@ -110,8 +118,12 @@ function ownedMutations(): Map<string, string[]> {
   for (const [action, body] of dispatchHandlers()) {
     if (!(action in UNDO_POLICY)) continue;
     for (const m of body.matchAll(API_REF)) own(m[1]!, action);
-    for (const helper of writeHelpersOf(body))
+    for (const helper of writeHelpersOf(body)) {
       helperActions.set(helper, [...(helperActions.get(helper) ?? []), action]);
+      const moveHandler = DEVICE_MOVE_HELPERS.get(helper);
+      if (moveHandler)
+        for (const m of moveHandler.matchAll(API_REF)) own(m[1]!, action);
+    }
   }
   for (const [path, body] of publicMutations()) {
     for (const helper of writeHelpersOf(body))
@@ -143,6 +155,11 @@ describe("surfaces write through the store action that owns the write", () => {
     expect(owned.get("teams.setTeamVisibility")).toContain(
       "setTeamMembershipVisibility",
     );
+    expect(owned.get("devices.moveToRemote")).toContain("moveSessionToDevice");
+    expect(owned.get("sessionMigrations.runHere")).toContain(
+      "moveSessionToDevice",
+    );
+    expect(owned.get("edgeRunLease.forceMove")).toContain("forceSessionMove");
     expect(owned.size).toBeGreaterThan(30);
   });
 

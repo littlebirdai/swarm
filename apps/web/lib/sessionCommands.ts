@@ -5,6 +5,7 @@
 // in-flight state, progress and outcome from these rows, and a command a dead
 // daemon never answers expires here, at read time, from when it was asked.
 
+import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useInboxStore, type AccountSwitchArgs } from "../store/inboxStore";
 import {
   isParkedDispatchError,
@@ -183,8 +184,9 @@ export function recordSessionCommandDispatchError(
   error: unknown,
 ) {
   if (!isRefusedDispatchError(error)) return;
+  const kind = useInboxStore.getState().sessionCommands[requestId]?.kind;
   settleSessionCommand(requestId, {
-    error: String(error),
+    error: kind === "force-move" ? humanizeConvexError(error) : String(error),
     result: DISPATCH_REFUSED,
   });
 }

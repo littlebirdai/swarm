@@ -2,17 +2,39 @@ import { useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useForcedMoveOptions } from "../../hooks/use-forced-move-options";
-import { dispatchRefusalReason } from "../../lib/dispatchRefusal";
 import {
   DISPATCH_REFUSED,
   latestSessionCommand,
   newRequestId,
+  recordSessionCommandDispatchError,
   settleSessionCommand,
 } from "../../lib/sessionCommands";
 import { useInboxStore } from "../../store/inboxStore";
-import { isParkedDispatchError } from "../../store/mutativeMiddleware";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { Button } from "../ui/button";
+
+async function requestForcedMove(
+  conversationId: string,
+  epoch: number,
+  target: { id: string; label: string },
+) {
+  const requestId = newRequestId();
+  try {
+    await useInboxStore
+      .getState()
+      .forceSessionMove(
+        requestId,
+        conversationId,
+        epoch,
+        target.id,
+        target.label,
+        true,
+      );
+    settleSessionCommand(requestId, { result: "requested" });
+  } catch (error) {
+    recordSessionCommandDispatchError(requestId, error);
+  }
+}
 
 export function ForcedMoveControl({
   conversationId,
@@ -30,18 +52,28 @@ export function ForcedMoveControl({
   const now = useCoarseNow(15_000);
   const [reviewing, setReviewing] = useState(false);
   const [selected, setSelected] = useState("");
+  const [dismissed, setDismissed] = useState<string | null>(null);
   const submitting = useRef(false);
-  const failure =
-    request?.result === DISPATCH_REFUSED && request.error
-      ? dispatchRefusalReason(request.error)
-      : null;
-  const requested = options?.requestedDestination;
-  const pending =
-    request?.source_epoch === options?.epoch && request?.executed_at === null;
+  const requestEpoch = request?.source_epoch;
+  const optionsEpoch = options?.epoch;
+  const currentRequest = requestEpoch === optionsEpoch ? request : undefined;
+  const offline = options !== undefined && now >= options.offlineAfter;
+  const result = currentRequest?.result;
+  const refusal =
+    result === DISPATCH_REFUSED &&
+    currentRequest &&
+    currentRequest._id !== dismissed
+      ? currentRequest
+      : undefined;
+  const echoedDestination = options?.requestedDestination;
+  const requestLabel = currentRequest?.to_label;
+  const requested =
+    echoedDestination ?? (result === "requested" ? requestLabel : undefined);
+  const pending = currentRequest?.executed_at === null;
   useWatchEffect(() => {
-    if (requested && pending && request)
-      settleSessionCommand(request._id, { result: "requested" });
-  }, [requested, pending, request]);
+    if (echoedDestination && pending && currentRequest)
+      settleSessionCommand(currentRequest._id, { result: "requested" });
+  }, [echoedDestination, pending, currentRequest]);
   if (requested)
     return (
       <div
@@ -51,67 +83,54 @@ export function ForcedMoveControl({
         Move to {requested} requested
       </div>
     );
-  if (!options || now < options.offlineAfter)
-    return failure ? (
-      <div role="alert" className="px-4 py-1.5 text-[12px] text-sol-red">
-        {failure}
-      </div>
-    ) : null;
+  if (!options || !offline || (!options.destinations.length && !refusal))
+    return null;
   const target = options.destinations.find((d) => d.id === selected);
 
-  const confirm = async () => {
+  const confirm = () => {
     if (!target || submitting.current) return;
     submitting.current = true;
     setReviewing(false);
-    const requestId = newRequestId();
-    try {
-      await useInboxStore
-        .getState()
-        .forceSessionMove(
-          requestId,
-          conversationId,
-          options.epoch,
-          target.id,
-          target.label,
-          true,
-        );
-      settleSessionCommand(requestId, { result: "requested" });
-    } catch (error) {
-      if (!isParkedDispatchError(error)) {
-        const data = (error as { data?: unknown } | null)?.data;
-        settleSessionCommand(requestId, {
-          result: DISPATCH_REFUSED,
-          error: dispatchRefusalReason(
-            typeof data === "string" ? data : String(error),
-          ),
-        });
-      }
-    } finally {
-      submitting.current = false;
-    }
+    void requestForcedMove(conversationId, options.epoch, target).finally(
+      () => {
+        submitting.current = false;
+      },
+    );
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-1.5 text-[12px] text-sol-text-muted">
-      <span>{options.sourceLabel} is offline</span>
       {options.destinations.length > 0 && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={pending}
-          onClick={() => {
-            setSelected("");
-            setReviewing(true);
-          }}
-        >
-          {pending ? "Requesting move…" : "Move to another device"}
-        </Button>
+        <>
+          <span>{options.sourceLabel} is offline</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={() => {
+              setSelected("");
+              setReviewing(true);
+            }}
+          >
+            {pending ? "Requesting move…" : "Move to another device"}
+          </Button>
+        </>
       )}
-      {failure && (
-        <span role="alert" className="text-sol-red">
-          {failure}
-        </span>
+      {refusal && (
+        <>
+          <span role="alert" className="text-sol-red">
+            {refusal.error}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDismissed(refusal._id)}
+          >
+            Dismiss
+          </Button>
+        </>
       )}
       {reviewing && (
         <SwitchReview

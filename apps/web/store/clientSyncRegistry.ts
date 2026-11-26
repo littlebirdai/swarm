@@ -1688,7 +1688,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // stops heartbeating leaves. Readers additionally hide rows whose
   // last_heartbeat is stale, so a persisted row can't outlive its window.
   forcedMoveOptions: {
-    sync: { isDelta: true },
+    sync: { isDelta: true, deepFields: ["destinations"] },
     feeds: ["edgeRunLease.forcedMoveOptions"],
   },
   // Daemon commands a store action asked for (hibernate, restart, device
