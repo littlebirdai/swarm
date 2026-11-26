@@ -355,3 +355,36 @@ test("merge transfers an anchor without a destination row and removes denied row
     },
   ]);
 });
+
+test("a delayed begin and a departed tab's outbox save cannot displace the newer claim", async () => {
+  const f = await setup();
+  const retired = { id: "00000000-0000-4000-8000-000000000001", order: 1 };
+  const current = { id: "00000000-0000-4000-8000-000000000002", order: 2 };
+  const dispatch = (action: string, args: unknown[]) =>
+    f.reader.mutation(api.dispatch.dispatch, { action, args });
+  const begin = (claim: typeof retired) =>
+    dispatch("beginSavedReadingAnchor", [f.conversation, claim]);
+  expect(await begin(retired)).toBe(retired.id);
+  expect(await begin(current)).toBe(current.id);
+  expect(await f.save(current.id, 1)).toBe("saved");
+  expect(await begin(retired)).toBeNull();
+  expect(await begin(current)).toBe(current.id);
+  expect(await f.save(current.id, 1, f.second)).toBe("stale");
+  expect(
+    await f.reader.mutation(api.dispatch.dispatch, {
+      action: "saveSavedReadingAnchor",
+      args: [
+        {
+          ...f.args,
+          view_id: retired.id,
+          sequence: 9,
+          message_id: f.second,
+          offset: 0.8,
+        },
+      ],
+      outbox: { owner: f.owner, id: `1000:${crypto.randomUUID()}`, age_ms: 0 },
+    }),
+  ).toBe("stale");
+  expect(await f.get()).toMatchObject({ message_id: f.first });
+  expect(await f.save(current.id, 2, f.second)).toBe("saved");
+});

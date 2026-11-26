@@ -39,10 +39,14 @@ export const get = query({
 });
 
 export const begin = mutation({
-  args: { conversation_id: v.id("conversations") },
-  handler: async (ctx, { conversation_id }) => {
-    const userId = await viewer(ctx, conversation_id);
-    return userId ? beginReadAnchor(ctx, userId, conversation_id) : null;
+  args: {
+    conversation_id: v.id("conversations"),
+    claim: v.optional(v.object({ id: v.string(), order: v.number() })),
+  },
+  handler: async (ctx, { conversation_id, claim }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    return beginReadAnchor(ctx, userId, conversation_id, claim);
   },
 });
 
@@ -55,7 +59,8 @@ export const save = mutation({
     sequence: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await viewer(ctx, args.conversation_id);
-    return userId ? saveReadAnchor(ctx, userId, args) : "unavailable";
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return "unavailable" as const;
+    return saveReadAnchor(ctx, userId, args);
   },
 });

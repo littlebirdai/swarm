@@ -11,6 +11,7 @@ import {
 import { replaceGlobals } from "../../test-helpers/globals";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
+import { makeDispatchBinding } from "../../lib/dispatch-binding";
 import { noteInputForTests, TYPING_QUIET_MS } from "../../lib/inputQuiet";
 import {
   readingRowForMessage,
@@ -52,17 +53,24 @@ async function open({
   answer = null,
   restoreResult = "restored",
   lostExit = false,
+  wireLate = false,
+  beginReply,
+  beginError = false,
 }: {
   enabled?: boolean;
   answer?: SavedReadingAnchor | typeof pending | null;
   restoreResult?: "restored" | "loading" | "requested";
   lostExit?: boolean;
+  wireLate?: boolean;
+  beginReply?: () => string | Error | Promise<string>;
+  beginError?: boolean;
 } = {}) {
   const restore = mock(
     (
       _anchor: SavedReadingAnchor,
       _requestedWindow: boolean,
       _expired: boolean,
+      _windowLoaded: boolean,
     ) => restoreResult,
   );
   type Observe = ReturnType<typeof useSavedReadingAnchor>;
@@ -86,14 +94,17 @@ async function open({
     authenticated: true,
     clock: true,
     dispatch: true,
-    expectedConsoleErrors: lostExit
-      ? [/CONVEX M\(dispatch:dispatch\).*Disconnected/]
-      : [],
-    setup(backend) {
+    expectedConsoleErrors:
+      lostExit || beginError
+        ? [/CONVEX M\(dispatch:dispatch\).*Disconnected/]
+        : [],
+    setup(backend, store) {
+      if (wireLate) store._setDispatch(null);
       document.hasFocus = () => true;
       backend.set(anchors.get, answer);
       backend.mutation(api.dispatch.dispatch, ({ action, args: [args] }) => {
-        if (action === "beginSavedReadingAnchor") return viewId;
+        if (action === "beginSavedReadingAnchor")
+          return beginReply?.() ?? viewId;
         if (action !== "saveSavedReadingAnchor") throw new Error(action);
         saves++;
         if (lostExit && saves > 1) return new Error("Uncaught Disconnected");
@@ -184,7 +195,7 @@ test("solo capture checkpoints at most twice per viewer-minute and saves the fin
 test("after a lost final save a reconnect restores the checkpoint once, through the local store", async () => {
   const ui = await open({ answer: checkpoint, lostExit: true });
   expect(ui.restore).toHaveBeenCalledTimes(1);
-  expect(ui.restore).toHaveBeenCalledWith(checkpoint, false, false);
+  expect(ui.restore).toHaveBeenCalledWith(checkpoint, false, false, false);
   expect(ui.store.getState().sessionReadAnchors[conversation]).toEqual(
     checkpoint,
   );
@@ -312,7 +323,7 @@ test("a due checkpoint waits until typing is quiet", async () => {
 test("a stalled restore expires and the next real movement can be checkpointed", async () => {
   const ui = await open({ answer: checkpoint, restoreResult: "requested" });
   await ui.clock!.advance(5000);
-  expect(ui.restore).toHaveBeenLastCalledWith(checkpoint, true, true);
+  expect(ui.restore).toHaveBeenLastCalledWith(checkpoint, true, true, false);
   await ui.sample(second, 0.8);
   ui.backend.ping();
   await ui.clock!.advance(30_000);
@@ -371,7 +382,7 @@ test("ConversationView enables a bounded restore only under the reading anchor f
           isLoadingOlder={isLoadingOlder}
         />
       );
-      const ui = await mountWeb(view(true), {
+      const ui = await mountWeb(view(false), {
         clock: true,
         authenticated: true,
         dispatch: true,
@@ -412,6 +423,10 @@ test("ConversationView enables a bounded restore only under the reading anchor f
         },
       });
       expect(jump.mock.calls).toEqual(enabled ? [[checkpoint.timestamp]] : []);
+      expect(tail).not.toHaveBeenCalled();
+      await ui.rerender(view(false));
+      expect(tail).not.toHaveBeenCalled();
+      await ui.rerender(view(true));
       expect(tail).not.toHaveBeenCalled();
       await ui.rerender(view(false));
       expect(tail).toHaveBeenCalledTimes(enabled ? 1 : 0);
@@ -463,4 +478,76 @@ test("a collapsed turn resolves to its visible text row, and an open turn keeps 
   expect(readingRowForMessage(first, "compact", turn, new Set(["turn"]))).toBe(
     first,
   );
+});
+
+async function setVisibility(visibilityState: DocumentVisibilityState) {
+  await act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: visibilityState,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+test("a begin reply after the visit ends cannot flush its position", async () => {
+  const pendingBegin = Promise.withResolvers<string>();
+  const ui = await open({ beginReply: () => pendingBegin.promise });
+  await ui.sample(first, 0, false);
+  await ui.sample(second, 0.8);
+  await setVisibility("hidden");
+  await act(() => pendingBegin.resolve(viewId));
+  expect(ui.writes()).toEqual([]);
+});
+
+test("an ended visit does not retry a failed begin request", async () => {
+  const ui = await open({
+    beginReply: () => new Error("Disconnected"),
+    beginError: true,
+  });
+  const claimCount = () =>
+    dispatches(ui.backend).filter(
+      ({ action }) => action === "beginSavedReadingAnchor",
+    ).length;
+  expect(claimCount()).toBe(1);
+  await setVisibility("hidden");
+  await ui.clock!.advance(8000);
+  expect(claimCount()).toBe(1);
+});
+
+test("showing the same mounted view claims again without restoring again", async () => {
+  const ui = await open({ answer: checkpoint });
+  await setVisibility("hidden");
+  await act(async () => {
+    await setVisibility("visible");
+    await ui.clock!.advance(0);
+  });
+  const claims = dispatches(ui.backend).filter(
+    ({ action }) => action === "beginSavedReadingAnchor",
+  );
+  expect(claims).toHaveLength(2);
+  expect(claims[1].args[1].id).not.toBe(claims[0].args[1].id);
+  expect(claims[1].args[1].order).toBeGreaterThan(claims[0].args[1].order);
+  expect(ui.restore).toHaveBeenCalledTimes(1);
+  await ui.close();
+});
+
+test("a visit opened before dispatch wiring claims and saves after wiring", async () => {
+  const ui = await open({ wireLate: true });
+  expect(ui.backend.mutations).toEqual([]);
+  await ui.sample(first, 0, false);
+  await ui.sample(second, 0.8);
+  ui.store
+    .getState()
+    ._setDispatch(
+      makeDispatchBinding((args) =>
+        ui.backend.client.mutation(api.dispatch.dispatch, args),
+      ),
+    );
+  await ui.clock!.advance(100);
+  expect(dispatches(ui.backend).map(({ action }) => action)).toEqual([
+    "beginSavedReadingAnchor",
+  ]);
+  await ui.close();
+  expect(ui.writes()).toHaveLength(1);
 });

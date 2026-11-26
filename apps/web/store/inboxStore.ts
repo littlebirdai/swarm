@@ -2286,7 +2286,6 @@ function unreadVerdictOf(
 export function sessionUnreadMap(state: {
   sessions: Record<string, InboxSession>;
   sessionReads: Record<string, SessionReadItem>;
-  sessionReadAnchors: Record<string, SavedReadingAnchor>;
   _lastViewedAt: Record<string, number>;
 }): Record<string, boolean> {
   let byReads = sessionUnreadMaps.get(state.sessions);
@@ -8286,8 +8285,8 @@ export interface InboxStoreState
   // -- Fork navigation --
   // Forks are first-class conversations; we navigate to them by URL. No overlay state.
   optimisticForkChildren: ForkChild[];
-
   // -- Dispatch (provided by middleware) --
+  _isDispatchWired: () => boolean;
   _setDispatch: (
     fn:
       | ((
@@ -9470,6 +9469,7 @@ export interface InboxStoreState
   /** The viewer's read marks, keyed by row id (sessionReads.listMine). Unread
    *  is derived from these against each session's updated_at, never stored. */
   sessionReads: Record<string, SessionReadItem>;
+  sessionReadAnchors: Record<string, SavedReadingAnchor>;
   /** "I am looking at this session now." Called only while the conversation is
    *  the active view AND the reader is present (useAckActiveConversation);
    *  `at` is the session's own updated_at so the optimistic mark is exactly

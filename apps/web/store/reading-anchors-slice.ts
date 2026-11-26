@@ -1,3 +1,4 @@
+import type { ReadingAnchorClaim } from "../lib/reading-anchor-claims";
 import { asyncAction, sync } from "./mutativeMiddleware";
 import type { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -7,7 +8,10 @@ import type { SavedReadingAnchor } from "../hooks/use-saved-reading-anchor";
 type SaveArgs = FunctionArgs<typeof api.conversationReadAnchors.save>;
 
 export type ReadingAnchorsSlice = {
-  beginSavedReadingAnchor: (id: Id<"conversations">) => Promise<string | null>;
+  beginSavedReadingAnchor: (
+    id: Id<"conversations">,
+    claim: ReadingAnchorClaim,
+  ) => Promise<string | null>;
   saveSavedReadingAnchor: (
     args: SaveArgs,
   ) => Promise<FunctionReturnType<typeof api.conversationReadAnchors.save>>;
@@ -18,6 +22,7 @@ export function createReadingAnchorsSlice(): ReadingAnchorsSlice {
   return {
     beginSavedReadingAnchor: asyncAction(function (
       _id: Id<"conversations">,
+      _claim: ReadingAnchorClaim,
     ) {}),
     saveSavedReadingAnchor: asyncAction(function (_args: SaveArgs) {}),
     dropSavedReadingAnchor: sync(function (

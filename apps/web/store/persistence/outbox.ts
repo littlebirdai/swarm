@@ -21,7 +21,11 @@ export function enqueueDispatch(entry: OutboxEntry): Promise<void> {
   // clear that follows the boundary unbinds the outbox, and this covers the
   // gap before that clear. Resolved, not rejected: it is not a storage fault.
   // Docs shots keep nothing, their outbox included.
-  if (DOCS_SHOTS || entry.action === "beginSavedReadingAnchor")
+  if (
+    DOCS_SHOTS ||
+    entry.action === "beginSavedReadingAnchor" ||
+    entry.action === "saveSavedReadingAnchor"
+  )
     return Promise.resolve();
   // The engine hands over the args as the caller passed them; a tab address in them is stored in its safe form (lib/tabSafePath).
   const accountId = outboxAccountId();

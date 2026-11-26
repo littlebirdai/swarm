@@ -1,3 +1,4 @@
+import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
 // The store's server dispatch binding and its failure handler, outside React.
 //
 // useEnsureDispatch wires these into the live store through a Convex
@@ -148,6 +149,11 @@ export function makeDispatchBinding(
       return res;
     };
     for (;;) {
+      if (
+        action === "beginSavedReadingAnchor" &&
+        !isReadingAnchorClaimActive(args?.[1])
+      )
+        return null;
       if (outbox && outbox.accountId !== outboxAccountId())
         throw new StaleDispatchBindingError();
       const request: DispatchCallArgs = { action, args, patches, result };

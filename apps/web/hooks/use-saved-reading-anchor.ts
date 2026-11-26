@@ -2,6 +2,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
 import { useCallback, useRef, useSyncExternalStore } from "react";
+import { startReadingAnchorClaim } from "../lib/reading-anchor-claims";
 import { isConvexId } from "../lib/entityLinks";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../lib/inputQuiet";
 import type { ReadingAnchorsSlice } from "../store/reading-anchors-slice";
@@ -21,6 +22,7 @@ type Visit = {
   confirmed: (position: Position | null) => void;
   placed: () => void;
   startRestoreDeadline: (expire: () => void) => void;
+  sawWindowLoading: boolean;
   restore: "pending" | "waiting" | "done";
 };
 
@@ -44,10 +46,12 @@ const materiallyDifferent = (a: Position, b: Position | null) =>
 function createReadingVisit(
   active: Id<"conversations">,
   key: string,
-  acquired: Promise<string | null>,
+  restored: boolean,
   save: ReadingAnchorsSlice["saveSavedReadingAnchor"],
 ) {
   const lifetime = new AbortController();
+  const { claim, end } = startReadingAnchorClaim();
+  let wiring: ReturnType<typeof setTimeout> | undefined;
   let ready = false;
   let viewId: string | null | undefined;
   let initial: Position | null = null;
@@ -56,9 +60,21 @@ function createReadingVisit(
   let restoreDeadline: ReturnType<typeof setTimeout> | undefined;
   let latest: Position | null = null;
   let lastSent: Position | null = null;
-  void acquired.then((id) => {
-    if (!lifetime.signal.aborted) viewId = id;
-  });
+  const acquire = () => {
+    if (lifetime.signal.aborted) return;
+    const store = useInboxStore.getState();
+    if (!store._isDispatchWired()) {
+      wiring = setTimeout(acquire, 100);
+      return;
+    }
+    void store
+      .beginSavedReadingAnchor(active, claim)
+      .then((id) => {
+        if (!lifetime.signal.aborted) viewId = id;
+      })
+      .catch(() => {});
+  };
+  acquire();
   const flush = (id: string | null | undefined, final = false) => {
     if (!id || !ready || !latest || current.restore !== "done") return;
     if (final) {
@@ -99,7 +115,8 @@ function createReadingVisit(
   };
   const current: Visit = {
     key,
-    restore: "pending",
+    sawWindowLoading: false,
+    restore: restored ? "done" : "pending",
     confirmed(position) {
       if (!ready) lastSent = position;
       ready = true;
@@ -129,10 +146,11 @@ function createReadingVisit(
   const finish = () => {
     if (lifetime.signal.aborted) return;
     lifetime.abort();
+    end();
+    clearTimeout(wiring);
     clearTimeout(restoreDeadline);
     clearTimeout(checkpoint);
-    if (viewId === undefined) void acquired.then((id) => flush(id, true));
-    else flush(viewId, true);
+    flush(viewId, true);
   };
   return { current, finish };
 }
@@ -142,14 +160,17 @@ export function useSavedReadingAnchor({
   userId,
   enabled,
   restore,
+  loadingWindow,
 }: {
   conversationId: Id<"conversations"> | null;
   userId: string | undefined;
   enabled: boolean;
+  loadingWindow?: boolean;
   restore: (
     anchor: SavedReadingAnchor,
     requestedWindow: boolean,
     expired: boolean,
+    windowLoaded: boolean,
   ) => "restored" | "loading" | "requested" | "fallback";
 }) {
   const tabVisible = useTabVisible();
@@ -160,7 +181,13 @@ export function useSavedReadingAnchor({
   );
   const active =
     enabled && tabVisible && visible && userId ? conversationId : null;
-  const key = active ? `${userId}:${active}` : "";
+  const mountedKey =
+    conversationId && userId ? `${userId}:${conversationId}` : "";
+  const key = active ? mountedKey : "";
+  const restoredKey = useRef("");
+  useWatchEffect(() => {
+    restoredKey.current = "";
+  }, [mountedKey]);
   const restoreRef = useRef(restore);
   useWatchEffect(() => {
     restoreRef.current = restore;
@@ -174,13 +201,11 @@ export function useSavedReadingAnchor({
 
   useWatchEffect(() => {
     if (!active) return;
-    const { beginSavedReadingAnchor, saveSavedReadingAnchor } =
-      useInboxStore.getState();
-    const acquired = beginSavedReadingAnchor(active).catch(() => null);
+    const { saveSavedReadingAnchor } = useInboxStore.getState();
     const { current, finish } = createReadingVisit(
       active,
       key,
-      acquired,
+      restoredKey.current === key,
       saveSavedReadingAnchor,
     );
     visit.current = current;
@@ -205,9 +230,10 @@ export function useSavedReadingAnchor({
 
   useWatchEffect(() => {
     const current = visit.current;
-    if (!current || current.key !== key || current.restore === "done") return;
+    if (!current || current.key !== key) return;
     if (response.error || response.data === null) {
       if (!response.error) current.confirmed(null);
+      restoredKey.current = key;
       current.restore = "done";
       return;
     }
@@ -216,17 +242,35 @@ export function useSavedReadingAnchor({
       : undefined;
     if (!response.data || saved?.user_id !== userId || !saved) return;
     current.confirmed(saved);
+    if (current.restore === "done") return;
     current.startRestoreDeadline(() => {
       if (current.restore === "done") return;
       const requested = current.restore === "waiting";
       current.restore = "done";
-      restoreRef.current(saved, requested, true);
+      restoredKey.current = key;
+      restoreRef.current(saved, requested, true, false);
     });
-    const result = restore(saved, current.restore === "waiting", false);
+    const requested = current.restore === "waiting";
+    if (requested && loadingWindow === true) current.sawWindowLoading = true;
+    const result = restore(
+      saved,
+      requested,
+      false,
+      current.sawWindowLoading && loadingWindow === false,
+    );
+    if (result === "loading") return;
+    restoredKey.current = key;
     if (result === "restored") current.placed();
-    if (result === "requested") current.restore = "waiting";
-    else if (result !== "loading") current.restore = "done";
-  }, [key, active, userId, response.data, response.error, restore]);
+    current.restore = result === "requested" ? "waiting" : "done";
+  }, [
+    key,
+    active,
+    userId,
+    response.data,
+    response.error,
+    restore,
+    loadingWindow,
+  ]);
 
   const observe = useCallback(
     (messageId: string, offset: number, scrolled: boolean) => {

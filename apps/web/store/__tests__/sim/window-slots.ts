@@ -33,6 +33,10 @@ const NO_REACT: SlotClass = {
   shared:
     "subscribers registered by mounted components; the sim mounts no React",
 };
+const READING_VISITS: SlotClass = {
+  shared:
+    "reading anchor claims only come from mounted conversation views, and the sim mounts no React",
+};
 const IDB: SlotClass = {
   shared:
     "IndexedDB persistence: sim windows persist through their own _setIDBWrite tee, never idbCache",
@@ -381,6 +385,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
     shared:
       "the person's last keystroke, one keyboard for every window; the sim types nothing, so it never moves",
   },
+  "lib/reading-anchor-claims.ts:active": READING_VISITS,
+  "lib/reading-anchor-claims.ts:lastOrder": READING_VISITS,
   "lib/externalEventOutcomes.ts:SESSION_COMMIT_KINDS": CONSTANT,
   "lib/settingsData.ts:TEAM_SCOPED_SETTINGS": CONSTANT,
   "lib/settingsData.ts:RETIRED_SETTINGS": CONSTANT,

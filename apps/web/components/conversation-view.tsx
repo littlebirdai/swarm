@@ -3626,7 +3626,6 @@ const ConversationViewInner = function ConversationView(
     if (!el) return;
     return setupDesktopDrag(el);
   }, [deskClass]);
-
   useMountEffect(() =>
     observeComposerBand(containerRef.current, setMessageInputHeight),
   );
@@ -3637,7 +3636,8 @@ const ConversationViewInner = function ConversationView(
         ? (conversation._id as Id<"conversations">)
         : null,
     userId: currentUser?._id,
-    restore(anchor, requestedWindow, expired) {
+    loadingWindow: isLoadingOlder,
+    restore(anchor, requestedWindow, expired, windowLoaded) {
       if (
         userScrolledRef.current ||
         targetMessageId ||
@@ -3653,7 +3653,7 @@ const ConversationViewInner = function ConversationView(
             timeline,
             virtualizer,
             jumpToTimestamp: onJumpToTimestamp,
-            windowLoaded: isLoadingOlder === false,
+            windowLoaded,
             resolveMessage: (id) =>
               readingRowForMessage(
                 id,

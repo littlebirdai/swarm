@@ -286,6 +286,8 @@ describe("gestures on synced collections go through a store action", () => {
       "codeComments.unresolve",
       "codeComments.update",
       "codeComments.remove",
+      "conversationReadAnchors.begin",
+      "conversationReadAnchors.save",
     ]) {
       expect(ownedByAction.has(m)).toBe(true);
     }

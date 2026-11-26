@@ -296,7 +296,7 @@ test("old-server detection ignores nested validation errors and re-probes", asyn
   ]);
 });
 
-test("a departed tab cannot reclaim the reading visit by replaying the outbox", async () => {
+test("reading visits and checkpoints stay out of the durable outbox", async () => {
   const base = {
     accountId: TEST_PRINCIPAL,
     args: [],
@@ -314,7 +314,5 @@ test("a departed tab cannot reclaim the reading visit by replaying the outbox", 
     id: "reading-checkpoint",
     action: "saveSavedReadingAnchor",
   });
-  expect((await loadOutbox()).map(({ id }) => id)).toEqual([
-    "reading-checkpoint",
-  ]);
+  expect(await loadOutbox()).toEqual([]);
 });
