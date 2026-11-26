@@ -27980,6 +27980,9 @@
   "apps/web/store/chipFilterClicks.ts": {
     "swarm/no-comments": 10
   },
+  "apps/web/store/client-sync-registry.scope.ts": {
+    "swarm/no-comments": 46
+  },
   "apps/web/store/clientPrefsTypes.ts": {
     "swarm/no-comments": 42
   },
@@ -28003,9 +28006,6 @@
   },
   "apps/web/store/clientSyncRegistry.pool.ts": {
     "swarm/no-comments": 10
-  },
-  "apps/web/store/clientSyncRegistry.scope.ts": {
-    "swarm/no-comments": 46
   },
   "apps/web/store/clientSyncRegistry.ts": {
     "swarm/no-comments": 899
