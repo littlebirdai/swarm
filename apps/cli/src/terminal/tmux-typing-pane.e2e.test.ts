@@ -87,7 +87,7 @@ test.skipIf(!Bun.which("tmux"))(
       );
       expect(fs.readFileSync(second).toString()).toBe("y");
     } finally {
-      await tmuxRunAsync(["kill-session", "-t", name]);
+      await tmuxRunAsync(["kill-session", "-t", `=${name}`]);
       fs.rmSync(dir, { recursive: true, force: true });
     }
   },
@@ -113,6 +113,88 @@ test.skipIf(!Bun.which("tmux"))(
       expect(await writeTypingPane(":0.0", pane, [0x78])).toBe(false);
     } finally {
       await tmuxRunAsync(["kill-session", "-t", `=${session}`]);
+    }
+  },
+);
+
+test.skipIf(!Bun.which("tmux"))(
+  "absent and malformed pane targets and an old session name deliver no keys",
+  async () => {
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cast-tmux-typing-target-"),
+    );
+    const name = "cc-typing-target";
+    const renamed = `${name}-renamed`;
+    const keys = path.join(dir, "received.keys");
+    let socket: string | undefined;
+    try {
+      const created = await tmuxRunAsync([
+        "new-session",
+        "-d",
+        "-s",
+        name,
+        "-c",
+        dir,
+        "stty raw -echo; touch ready; exec cat > received.keys",
+      ]);
+      expect(created.status).toBe(0);
+      await pollUntil(
+        () => fs.existsSync(path.join(dir, "ready")) && fs.existsSync(keys),
+        "the receiving pane is ready",
+      );
+      const pane = await resolveTypingPane(name);
+      if (!pane) throw new Error("Expected the receiving pane");
+      socket = pane.socket;
+      const refused = [];
+      const suffixes = [
+        "0.1",
+        "1.0",
+        "",
+        "bad",
+        ".0",
+        "0.",
+        "0.0:1",
+        "%0",
+        "@0",
+      ];
+      for (const suffix of suffixes) {
+        const invalid = `${name}:${suffix}`;
+        refused.push([
+          suffix,
+          await resolveTypingPane(invalid),
+          await writeTypingPane(invalid, pane, [0x78]),
+        ]);
+      }
+      const rename = await tmuxRunAsync([
+        "rename-session",
+        "-t",
+        `=${name}`,
+        renamed,
+      ]);
+      expect(rename.status).toBe(0);
+      const oldName = [
+        await resolveTypingPane(name),
+        await writeTypingPane(name, pane, [0x78]),
+      ];
+      expect(fs.statSync(keys).size).toBe(0);
+      expect(refused).toEqual(suffixes.map((suffix) => [suffix, null, false]));
+      expect(oldName).toEqual([null, false]);
+      expect(await writeTypingPane(renamed, pane, [0x79])).toBe(true);
+      await pollUntil(
+        () => fs.statSync(keys).size > 0,
+        "the accepted key arrives",
+      );
+      expect(fs.readFileSync(keys).toString()).toBe("y");
+    } finally {
+      for (const session of [name, renamed]) {
+        await tmuxRunAsync([
+          ...(socket ? ["-S", socket] : []),
+          "kill-session",
+          "-t",
+          `=${session}`,
+        ]);
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   },
 );

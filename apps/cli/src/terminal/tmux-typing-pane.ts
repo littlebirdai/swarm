@@ -16,13 +16,20 @@ export type TypingPane = {
   watchIdentity: string;
 };
 
-function exactTypingTarget(target: string) {
+export function exactTypingTarget(target: string) {
   if (!isValidPaneTarget(target)) return null;
-  const sessionName = target.split(":")[0];
-  if (!sessionName || /^[@.%]/.test(sessionName)) return null;
+  const match = /^([^:.@%][^:.]*)(?::(\d+)\.(\d+))?$/.exec(target);
+  if (!match) return null;
+  const [, sessionName, window = "0", pane = "0"] = match;
+  const windowIndex = Number(window);
+  const paneIndex = Number(pane);
+  if (!Number.isSafeInteger(windowIndex) || !Number.isSafeInteger(paneIndex))
+    return null;
   return {
     sessionName,
-    paneTarget: `=${target.includes(":") ? target : `${target}:0.0`}`,
+    windowIndex,
+    paneIndex,
+    paneTarget: `=${sessionName}:${windowIndex}.${paneIndex}`,
   };
 }
 
@@ -48,11 +55,23 @@ export async function resolveTypingPane(
     exact.paneTarget,
     "-F",
     WATCH_PANE_IDENTITY,
+    ";",
+    "display-message",
+    "-p",
+    "-t",
+    exact.paneTarget,
+    "-F",
+    "#{window_index}.#{pane_index}",
   ]);
   const lines = result.stdout.replace(/\n$/, "").split("\n");
-  if (result.status !== 0 || lines.length !== 2) return null;
-  const [socket, watchIdentity] = lines;
-  if (!path.isAbsolute(socket) || watchIdentity.length > 256) return null;
+  if (result.status !== 0 || lines.length !== 3) return null;
+  const [socket, watchIdentity, indices] = lines;
+  if (
+    !path.isAbsolute(socket) ||
+    watchIdentity.length > 256 ||
+    indices !== `${exact.windowIndex}.${exact.paneIndex}`
+  )
+    return null;
   const [name, , serverPid, paneId, panePid, dead] = watchIdentity.split("|");
   if (
     name !== exact.sessionName ||
@@ -80,6 +99,8 @@ export async function writeTypingPane(
     return false;
   const checks = [
     `#{==:#{session_name},${exact.sessionName}}`,
+    `#{==:#{window_index},${exact.windowIndex}}`,
+    `#{==:#{pane_index},${exact.paneIndex}}`,
     `#{==:#{pid},${pane.serverPid}}`,
     `#{==:#{pane_id},${pane.paneId}}`,
     `#{==:#{pane_pid},${pane.panePid}}`,

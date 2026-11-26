@@ -466,3 +466,23 @@ test("an absent pane stops polling until a new pane opens", async () => {
     await stop();
   }
 });
+
+test("discovery ignores malformed pane suffixes before reaching tmux", async () => {
+  const f = rig();
+  f.setRows(
+    ["", "bad", ".0", "0.", "0.0:1", "%0", "@0"].map((suffix) => ({
+      ...binding,
+      conversation_id: suffix,
+      tmux_session: `${binding.tmux_session}:${suffix}`,
+    })),
+  );
+  const stop = f.start();
+  try {
+    await flush();
+    expect(f.nativeCalls).toEqual([]);
+    expect(f.reports).toEqual([]);
+    expect(f.polls).toEqual([]);
+  } finally {
+    await stop();
+  }
+});

@@ -1,12 +1,15 @@
 import { setTimeout as wait } from "node:timers/promises";
 import {
   hexToBytes,
-  isValidPaneTarget,
   PANE_HEARTBEAT_MS,
   PANE_INPUT_POLL_MS,
   PANE_MAX_PENDING_INPUT_BYTES,
 } from "@codecast/daemon/terminalStream";
-import { physicalPaneKey, type TypingPane } from "./tmux-typing-pane.js";
+import {
+  exactTypingTarget,
+  physicalPaneKey,
+  type TypingPane,
+} from "./tmux-typing-pane.js";
 import { countingSemaphore } from "../semaphore.js";
 
 export type TypingBinding = {
@@ -242,11 +245,7 @@ export function startTerminalTyping(enabled: boolean, deps: Dependencies) {
         if (stop.signal.aborted) break;
         const wanted = new Map(
           rows
-            .filter(
-              ({ tmux_session }) =>
-                isValidPaneTarget(tmux_session) &&
-                !tmux_session.startsWith("%"),
-            )
+            .filter(({ tmux_session }) => exactTypingTarget(tmux_session))
             .map((row) => [row.conversation_id, row]),
         );
         const retired: Promise<void>[] = [];
