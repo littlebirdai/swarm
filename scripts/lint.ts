@@ -368,7 +368,11 @@ async function main(prune: boolean) {
     );
   }
 
-  if (prune && (transferred.length || shrank.length || stale.length)) {
+  const reordered = Object.keys(onDisk).join() !== Object.keys(pruned).join();
+  if (
+    prune &&
+    (transferred.length || shrank.length || stale.length || reordered)
+  ) {
     const tempPath = `${baselinePath}.tmp.${process.pid}.a`;
     await writeFile(tempPath, JSON.stringify(pruned, null, 2) + "\n");
     await rename(tempPath, baselinePath);

@@ -4758,14 +4758,14 @@
   "apps/cli/src/terminal/daemon-bridge.ts": {
     "swarm/no-comments": 51
   },
+  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
+    "swarm/no-comments": 2
+  },
   "apps/cli/src/terminal/paneStream.test.ts": {
     "swarm/no-comments": 38
   },
   "apps/cli/src/terminal/paneStream.ts": {
     "swarm/no-comments": 108
-  },
-  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
-    "swarm/no-comments": 2
   },
   "apps/cli/src/terminal/terminalColors.test.ts": {
     "swarm/no-comments": 5
@@ -15792,10 +15792,6 @@
   "apps/web/components/activity/ActivityNow.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/activity/activity-page.mount.test.tsx": {
-    "react/immutability": 1,
-    "swarm/no-comments": 31
-  },
   "apps/web/components/activity/ActivityPage.tsx": {
     "swarm/no-comments": 27
   },
@@ -15804,6 +15800,10 @@
   },
   "apps/web/components/activity/ActivityRow.tsx": {
     "swarm/no-comments": 17
+  },
+  "apps/web/components/activity/activity-page.mount.test.tsx": {
+    "react/immutability": 1,
+    "swarm/no-comments": 31
   },
   "apps/web/components/activity/activityModel.test.ts": {
     "swarm/no-comments": 2
@@ -27929,8 +27929,8 @@
   "apps/web/store/blockedRevive.test.ts": {
     "swarm/no-comments": 10
   },
-  "apps/web/store/persistence/cache-ownership.ts": {
-    "swarm/no-comments": 49
+  "apps/web/store/cache-events.ts": {
+    "swarm/no-comments": 24
   },
   "apps/web/store/cacheOwnershipRule.ts": {
     "swarm/no-comments": 1
@@ -28028,14 +28028,14 @@
   "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
   },
+  "apps/web/store/idb-collection-diff.ts": {
+    "swarm/no-comments": 40
+  },
   "apps/web/store/idbCacheKeys.native.ts": {
     "swarm/no-comments": 20
   },
   "apps/web/store/idbCacheWriteBehind.native.ts": {
     "swarm/no-comments": 35
-  },
-  "apps/web/store/persistence/idb-liveness-lane.ts": {
-    "swarm/no-comments": 24
   },
   "apps/web/store/idbV2Salvage.ts": {
     "swarm/no-comments": 7
@@ -28110,6 +28110,9 @@
   "apps/web/store/persistence/boot-loader.ts": {
     "swarm/no-comments": 20
   },
+  "apps/web/store/persistence/cache-ownership.ts": {
+    "swarm/no-comments": 49
+  },
   "apps/web/store/persistence/collection-writer.ts": {
     "swarm/no-comments": 26
   },
@@ -28118,6 +28121,9 @@
   },
   "apps/web/store/persistence/hydration.ts": {
     "swarm/no-comments": 2
+  },
+  "apps/web/store/persistence/idb-liveness-lane.ts": {
+    "swarm/no-comments": 24
   },
   "apps/web/store/persistence/message-cache.ts": {
     "swarm/no-comments": 27
@@ -30281,11 +30287,5 @@
   },
   "tests/jsonl-fidelity/roundtrip.ts": {
     "swarm/no-comments": 27
-  },
-  "apps/web/store/cache-events.ts": {
-    "swarm/no-comments": 24
-  },
-  "apps/web/store/idb-collection-diff.ts": {
-    "swarm/no-comments": 40
   }
 }
