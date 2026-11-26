@@ -370,7 +370,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/useStorageImageUrl.ts:pendingIds": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:waiters": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:flushScheduled": IMAGE_URLS,
-  "hooks/use-conversation-messages.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
+  "hooks/conversation-wake-signature.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
   "hooks/use-conversation-messages.ts:navIndexRequested": {
     shared:
       "the conversations whose prompt index a mounted view already asked for; the sim mounts no React, so it stays empty",
