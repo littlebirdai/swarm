@@ -587,6 +587,10 @@ import type {
   AgentChainSpec,
   AgentDefinitionSpec,
 } from "@codecast/agents/agentDefinitions";
+import {
+  setSessionTargetDevice,
+  stageSessionReconfigure,
+} from "./session-reconfigure";
 import type { PendingComment } from "../lib/quoteFormat";
 import {
   isRecordedQuote,
@@ -13694,6 +13698,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
   },
 
+  setSessionTargetDevice,
   ...createComposeSlice(set, get),
 
   createModal: null,
@@ -16624,6 +16629,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
     extraArgs?: Record<string, any>,
     optimistic?: Record<string, any>,
   ) {
+    if (command === "reconfigureSession") {
+      stageSessionReconfigure(this.sessions[convId], extraArgs);
+      return optimistic?.rememberDeviceId;
+    }
     if (
       command === "sendEscapeToSession" ||
       command === "stopAndSendToSession"
@@ -18124,19 +18133,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
     this.conversations[id].project_path = projectPath;
     this.conversations[id].git_root = projectPath;
-  }),
-
-  // The machine row's stamp. Local-only (`sync`): the conversations table has no
-  // such column — the value's only job is to survive on the stub row until
-  // createSessionFromStub reads it. Null clears a pick the user reverted.
-  setSessionTargetDevice: sync(function (
-    this: Draft,
-    id: string,
-    deviceId: string | null,
-  ) {
-    if (this.sessions[id]) this.sessions[id].target_device_id = deviceId;
-    if (this.conversations[id])
-      (this.conversations[id] as any).target_device_id = deviceId;
   }),
 
   setConversationAgent: action(function (

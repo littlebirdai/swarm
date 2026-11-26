@@ -9041,7 +9041,7 @@
     "swarm/no-comments": 8
   },
   "apps/server/convex/conversations.ts": {
-    "swarm/no-comments": 2738
+    "swarm/no-comments": 2725
   },
   "apps/server/convex/conversations.updateProjectPath.test.ts": {
     "swarm/no-comments": 8
@@ -17176,19 +17176,19 @@
   "apps/web/components/conversation/scrollProgressSignal.ts": {
     "swarm/no-comments": 6
   },
+  "apps/web/components/conversation/session-controls.cloud-pick.test.ts": {
+    "swarm/no-comments": 20
+  },
   "apps/web/components/conversation/session-controls.tsx": {
     "react-hooks/exhaustive-deps": 1,
     "react/refs": 6,
     "swarm/ime-safe-key-handlers": 4,
-    "swarm/no-comments": 323
+    "swarm/no-comments": 314
   },
   "apps/web/components/conversation/sessionChrome.tsx": {
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 103,
     "swarm/no-native-title-on-button": 2
-  },
-  "apps/web/components/conversation/sessionControls.cloudPick.test.ts": {
-    "swarm/no-comments": 20
   },
   "apps/web/components/conversation/teamProposals.tsx": {
     "swarm/no-comments": 10
@@ -27521,8 +27521,8 @@
   "apps/web/store/__tests__/outboxTransientTimeout.test.ts": {
     "swarm/no-comments": 13
   },
-  "apps/web/store/__tests__/parkedConvCommandCallers.guard.test.ts": {
-    "swarm/no-comments": 13
+  "apps/web/store/__tests__/parked-conv-command-callers.guard.test.ts": {
+    "swarm/no-comments": 12
   },
   "apps/web/store/__tests__/pendingMessageJournal.test.ts": {
     "swarm/no-comments": 11
@@ -28066,7 +28066,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5088
+    "swarm/no-comments": 5085
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -28096,7 +28096,7 @@
     "swarm/no-comments": 16
   },
   "apps/web/store/mutativeMiddleware.ts": {
-    "swarm/no-comments": 123
+    "swarm/no-comments": 120
   },
   "apps/web/store/opsSlice.ts": {
     "swarm/no-comments": 63
@@ -28172,6 +28172,9 @@
   },
   "apps/web/store/serverShape.ts": {
     "swarm/no-comments": 1
+  },
+  "apps/web/store/session-reconfigure.ts": {
+    "swarm/no-comments": 3
   },
   "apps/web/store/sessionCommandStamp.ts": {
     "swarm/no-comments": 9

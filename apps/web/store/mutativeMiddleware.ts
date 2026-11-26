@@ -97,9 +97,6 @@ export type DurableCreateContinuation =
 
 const SINGLETON_KEY = "_";
 
-// Everything the engine derives from the registry (dispatch table maps, the
-// protected-collection check) comes from the same CLIENT_SYNC_REGISTRY the
-// rest of the store wires from.
 const REGISTRY_MAPS = deriveRegistryMaps(CLIENT_SYNC_REGISTRY as any);
 
 const GROUP_CTX: GroupPatchesContext = {

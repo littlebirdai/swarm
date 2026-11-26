@@ -23,7 +23,7 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./functions";
-import { v } from "convex/values";
+import { v, type GenericValidator, type ObjectType } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
 import {
   fleetRowFields,
@@ -15698,57 +15698,87 @@ export const healHistoricalUpdatedAt = mutation({
   },
 });
 
-export const reconfigureSession = mutation({
-  args: {
-    conversation_id: v.id("conversations"),
-    agent_type: v.optional(
-      v.union(
-        v.literal("claude_code"),
-        v.literal("codex"),
-        v.literal("cursor"),
-        v.literal("gemini"),
-        v.literal("opencode"),
-        v.literal("pi"),
-        v.literal("grok"),
-        v.literal("muse"),
-        v.literal("antigravity"),
-      ),
+const reconfigureSessionArgs = {
+  conversation_id: v.id("conversations"),
+  agent_type: v.optional(
+    v.union(
+      v.literal("claude_code"),
+      v.literal("codex"),
+      v.literal("cursor"),
+      v.literal("gemini"),
+      v.literal("opencode"),
+      v.literal("pi"),
+      v.literal("grok"),
+      v.literal("muse"),
+      v.literal("antigravity"),
     ),
-    project_path: v.optional(v.string()),
-    git_root: v.optional(v.string()),
-    isolated: v.optional(v.boolean()),
-    // The machine picked on the new-session page. Routing honours it while it's
-    // online and otherwise falls back, so ownership follows the resolved route
-    // (stamped by enqueueStartSession) rather than the request. Naming a
-    // NON-cloud device for a row parked on the cloud host UN-PARKS it; naming
-    // the host itself re-decides the placement for the (new) folder: a folder
-    // the host already holds starts there plainly, anything else re-parks.
-    target_device_id: v.optional(v.string()),
-    // "Run in the cloud" for a (blank) existing row: park it on this host
-    // (cloudPlacement.parkOnCloudHost). Runner-only — co-owners are refused.
-    cloud_device_id: v.optional(v.string()),
-    // With cloud_device_id: the workspace the park should prepare (absent =
-    // the row's own stamp, else isolated).
-    cloud_workspace: v.optional(cloudWorkspaceValidator),
-    // With cloud_device_id: what the worktree starts from (absent = the row's
-    // own stamp, else checkout). A change re-parks like a folder change.
-    cloud_start_from: v.optional(cloudStartFromArg),
-    // Launch model/effort for the (blank) session — option keys from the
-    // shared contract. "default" clears the stamp and omits the flag. Launch
-    // flags leave no transcript echo, so the stamp here is the only record
-    // until the first assistant turn confirms.
-    model: v.optional(v.string()),
-    effort: v.optional(v.string()),
-    // A parked create can land with an earlier stable-context selection than
-    // the still-local stub. Rekey reconciliation relaunches the blank session
-    // through this mutation with the latest values before its first message.
-    stable_mode: v.optional(v.string()),
-    stable_exclude: v.optional(v.array(v.string())),
-  },
-  handler: async (ctx, args) => {
+  ),
+  project_path: v.optional(v.string()),
+  git_root: v.optional(v.string()),
+  isolated: v.optional(v.boolean()),
+  // The machine picked on the new-session page. Routing honours it while it's
+  // online and otherwise falls back, so ownership follows the resolved route
+  // (stamped by enqueueStartSession) rather than the request. Naming a
+  // NON-cloud device for a row parked on the cloud host UN-PARKS it; naming
+  // the host itself re-decides the placement for the (new) folder: a folder
+  // the host already holds starts there plainly, anything else re-parks.
+  target_device_id: v.optional(v.string()),
+  // "Run in the cloud" for a (blank) existing row: park it on this host
+  // (cloudPlacement.parkOnCloudHost). Runner-only — co-owners are refused.
+  cloud_device_id: v.optional(v.string()),
+  // With cloud_device_id: the workspace the park should prepare (absent =
+  // the row's own stamp, else isolated).
+  cloud_workspace: v.optional(cloudWorkspaceValidator),
+  // With cloud_device_id: what the worktree starts from (absent = the row's
+  // own stamp, else checkout). A change re-parks like a folder change.
+  cloud_start_from: v.optional(cloudStartFromArg),
+  // Launch model/effort for the (blank) session — option keys from the
+  // shared contract. "default" clears the stamp and omits the flag. Launch
+  // flags leave no transcript echo, so the stamp here is the only record
+  // until the first assistant turn confirms.
+  model: v.optional(v.string()),
+  effort: v.optional(v.string()),
+  // A parked create can land with an earlier stable-context selection than
+  // the still-local stub. Rekey reconciliation relaunches the blank session
+  // through this mutation with the latest values before its first message.
+  stable_mode: v.optional(v.string()),
+  stable_exclude: v.optional(v.array(v.string())),
+};
+const reconfigureSessionDefinition = {
+  args: reconfigureSessionArgs,
+  handler: async (
+    ctx: MutationCtx,
+    args: ObjectType<typeof reconfigureSessionArgs>,
+  ) => {
+    const matches = (field: GenericValidator, value: unknown): boolean => {
+      if (value === undefined) return field.isOptional === "optional";
+      if (field.kind === "literal") return field.value === value;
+      if (field.kind === "union")
+        return field.members.some((member: GenericValidator) =>
+          matches(member, value),
+        );
+      if (field.kind === "array")
+        return (
+          Array.isArray(value) &&
+          value.every((item) => matches(field.element, item))
+        );
+      if (field.kind === "id")
+        return (
+          typeof value === "string" &&
+          !!ctx.db.normalizeId("conversations", value)
+        );
+      return field.kind === typeof value;
+    };
+    for (const [key, value] of Object.entries(args)) {
+      const field: GenericValidator | undefined =
+        Object.getOwnPropertyDescriptor(reconfigureSessionArgs, key)?.value;
+      if (!field || !matches(field, value))
+        throw new Error(
+          `ArgumentValidationError: Invalid reconfigureSession argument ${key}`,
+        );
+    }
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-
     const conv = await ctx.db.get(args.conversation_id);
     if (
       !conv ||
@@ -15764,7 +15794,6 @@ export const reconfigureSession = mutation({
       const reason = fencedMoveRefusal(conv);
       if (reason) return { reconfigured: false as const, reason };
     }
-    // A hosted conversation has no machine, folder or local agent to pick.
     const hostedRefusal = agentTypeChangeRefusal(
       conv.agent_type,
       "claude_code",
@@ -15772,8 +15801,6 @@ export const reconfigureSession = mutation({
     if (hostedRefusal) throw new Error(hostedRefusal);
     if ((conv.message_count ?? 0) > 0)
       throw new Error("Cannot reconfigure session with messages");
-    // What the row said BEFORE this call's patch — the placed-row rule below
-    // compares the requested folder against it.
     const priorProjectPath = conv.project_path;
     if (args.cloud_device_id) {
       if (userId !== conv.user_id)
@@ -15824,9 +15851,6 @@ export const reconfigureSession = mutation({
         hostTarget = target;
     }
     if (args.agent_type) patch.agent_type = args.agent_type;
-    // An agent flip invalidates the previous agent's model/effort stamps
-    // (claude-opus on a codex session is nonsense; effort scales differ too).
-    // An explicit model/effort in the same call re-stamps below.
     if (args.agent_type && args.agent_type !== conv.agent_type) {
       patch.model = undefined;
       patch.effort = undefined;
@@ -15845,8 +15869,6 @@ export const reconfigureSession = mutation({
         : undefined;
     }
     if (args.effort !== undefined) {
-      // "default" clears the pin: no stamp, no --effort flag — the agent's own
-      // saved default wins (mirrors model "default").
       if (args.effort === "default") {
         patch.effort = undefined;
       } else {
@@ -15914,13 +15936,8 @@ export const reconfigureSession = mutation({
     const pathChanged =
       args.project_path !== undefined && args.project_path !== priorProjectPath;
 
-    // start_session is now idempotent on the daemon: it kills any tmux with the
-    // deterministic name `cc-<agent>-<convId-suffix>` and respawns it. One
-    // command, last-write-wins, no two-step kill+start race.
     const updated = { ...conv, ...patch };
     const daemonAgentType = fromConvexAgentType(updated.agent_type);
-    // Re-derive the launch payload from the (possibly just-patched) stamps so
-    // an agent flip alone re-launches with the conversation's chosen model.
     const stampedModelKey =
       args.model !== undefined
         ? launchModelOpt?.cliAlias
@@ -15993,7 +16010,10 @@ export const reconfigureSession = mutation({
       targetDeviceId: args.target_device_id ?? null,
     });
   },
-});
+};
+
+export const reconfigureSession = mutation(reconfigureSessionDefinition);
+export const reconfigureSessionCore = reconfigureSessionDefinition.handler;
 
 /** The launch option key a conversation's stamped model names ("claude-opus"
  *  → "opus"), or undefined when the stamp is no launchable option and the

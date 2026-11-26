@@ -79,10 +79,7 @@ import {
   type BucketItem,
   resolveCloudStartFrom,
 } from "../../store/inboxStore";
-import {
-  isParkedDispatchError,
-  isPermanentDispatchError,
-} from "../../store/mutativeMiddleware";
+import { isParkedDispatchError } from "../../store/mutativeMiddleware";
 import { withoutUndo } from "../../store/undoStack";
 import { getLabelColor } from "../../lib/labelColors";
 import {
@@ -256,6 +253,10 @@ export function ProjectSwitcher({
       };
     }),
   );
+  const liveId = useInboxStore((s) => s.resolveLiveSessionId(conversation._id));
+  const pickedDeviceId = isConvexId(liveId)
+    ? (storeSession?.owner_device_id ?? storeSession?.target_device_id)
+    : storeSession?.target_device_id;
   const isolatedToggle = useInboxStore((s) => s.isolatedWorktreeMode);
   // The composer's new project switch (NewSessionProjectToggle) words the question.
   const startsProject = useInboxStore(
@@ -274,8 +275,7 @@ export function ProjectSwitcher({
     cloudAgentProviderForLaunch(liveMeta?.agentType, cloudLaunchKey) ??
     cloudAgentProvidersFor(liveMeta?.agentType)[0];
   // The machine the session will run from: the picked target, else its owner.
-  const cloudDeviceId =
-    storeSession?.target_device_id ?? storeSession?.owner_device_id ?? null;
+  const cloudDeviceId = pickedDeviceId ?? storeSession?.owner_device_id ?? null;
   const cloudStatus = useCloudAgentStatus(cloudSpec, cloudDeviceId);
   const cloudConnectedTo = useCloudAgentConnectedTo();
   const cloudAgent = useMemo(() => {
@@ -349,7 +349,6 @@ export function ProjectSwitcher({
     () => [...devices].sort(compareMachineChips),
     [devices],
   );
-  const [pickedDeviceId, setPickedDeviceId] = useState<string | null>(null);
   // Machine picker rests as a single pill showing where the session will run;
   // clicking it unfolds the full chip row for an explicit pick.
   const [machinesOpen, setMachinesOpen] = useState(false);
@@ -686,7 +685,7 @@ export function ProjectSwitcher({
       projectPath: string | null,
       forceIsolated?: boolean,
       forceDeviceId?: string | null,
-      opts: { onlyCloudPark?: boolean } = {},
+      opts: { onlyCloudPark?: boolean; rememberDevice?: boolean } = {},
     ) => {
       const trimmed = (projectPath ?? "").trim();
       const machineOnly = !trimmed && forceDeviceId !== undefined;
@@ -727,11 +726,7 @@ export function ProjectSwitcher({
       // folder has no worktree-or-root choice to re-issue.
       if (opts.onlyCloudPark && !cloudPark) return;
       const store = useInboxStore.getState();
-      const id = storeSession?._id || conversation._id;
-      // What to restore on failure: nothing for a machine-only reconfigure,
-      // which never touched the row's project.
-      const prevPath = machineOnly ? undefined : currentPath;
-      if (!machineOnly) store.updateSessionProject(id, trimmed);
+      const id = store.resolveLiveSessionId(conversation._id);
       // Always push the switch to the daemon so it kills + recreates the tmux at
       // the new cwd. A freshly-created stub has no Convex id yet — its id arrives
       // via the in-flight create promise, so wait for that rather than dropping
@@ -739,7 +734,15 @@ export function ProjectSwitcher({
       let convexId = isConvexId(id) ? id : store.getConvexId(id);
       if (!convexId) {
         const pending = store.awaitSessionCreate(id);
-        if (pending) convexId = await pending.catch(() => undefined);
+        if (pending) {
+          convexId = await pending.catch(() => undefined);
+        } else {
+          if (!machineOnly) store.updateSessionProject(id, trimmed);
+          if (forceDeviceId !== undefined)
+            store.setSessionTargetDevice(id, forceDeviceId);
+          if (opts.rememberDevice && forceDeviceId)
+            store.updateClientUI({ last_picked_device_id: forceDeviceId });
+        }
       }
       if (!convexId) return;
       // A cloud session's worktree is made on the HOST by the daemon that
@@ -767,24 +770,15 @@ export function ProjectSwitcher({
             useInboxStore.getState().clientState.ui,
           ),
         }),
+        opts.rememberDevice && forceDeviceId
+          ? { rememberDeviceId: forceDeviceId }
+          : undefined,
       ).catch((err) => {
-        if (isParkedDispatchError(err)) return;
-        // The switch failed: putting the path back is not an undoable change.
-        if (prevPath)
-          withoutUndo(() =>
-            useInboxStore.getState().updateSessionProject(convexId!, prevPath),
-          );
-        if (isPermanentDispatchError(err)) {
+        if (!isParkedDispatchError(err))
           toastWriteError(err, "Failed to switch project");
-        } else {
-          toast.error(
-            err instanceof Error ? err.message : "Failed to switch project",
-          );
-        }
       });
     },
     [
-      storeSession,
       conversation._id,
       convCommand,
       currentPath,
@@ -829,18 +823,9 @@ export function ProjectSwitcher({
   // bites when the conversation already exists server-side; every new-session
   // surface defers its create, so the stamp below is what usually carries the
   // choice — see createSessionFromStub.
-  const updateClientUI = useInboxStore((s) => s.updateClientUI);
   const handleMachinePick = useCallback(
     (d: SessionMachine) => {
-      // The DROPDOWN is the standing choice: every transition goes through the
-      // pure helpers so cloudMode === isCloudHost(picked) holds by construction.
-      const next = machineSelectionAfterPick(d);
-      setPickedDeviceId(next.pickedDeviceId);
-      // Remember the choice: it becomes the picker's default for subsequent NEW
-      // sessions, which is what makes "explicit every time" cost one click total
-      // rather than one click per session. A cloud host is a legitimate standing
-      // pick, honoured even while it sleeps.
-      updateClientUI({ last_picked_device_id: d.device_id });
+      const { pickedDeviceId } = machineSelectionAfterPick(d);
       // Same project, THAT machine's checkout: keep the stored path truthful for
       // where the session now routes (the daemon would remap by repo name anyway,
       // but the label/tooltip shouldn't show a path the machine doesn't have). A
@@ -853,13 +838,15 @@ export function ProjectSwitcher({
               (r) => repoName(r) === repoName(currentPath),
             ) ?? currentPath)
         : null;
-      handleSwitch(remapped, undefined, d.device_id);
+      handleSwitch(remapped, undefined, pickedDeviceId, {
+        rememberDevice: true,
+      });
     },
-    [currentPath, handleSwitch, updateClientUI],
+    [currentPath, handleSwitch],
   );
 
-  // "Run in the cloud" is THIS composer's override: it moves the component-
-  // local pick (on → the cloud host; off → what the ladder picks among the
+  // "Run in the cloud" is THIS composer's override: it moves the session's
+  // pick (on → the cloud host; off → what the ladder picks among the
   // non-cloud machines) and remembers nothing — a mode toggle must not repoint
   // every future new session at the cloud box; the dropdown does that. It DOES
   // reconfigure an existing row: on parks it on the host, off un-parks it.
@@ -870,7 +857,6 @@ export function ProjectSwitcher({
       !cloudMode,
     );
     if (next.pickedDeviceId === null && !cloudMode) return;
-    setPickedDeviceId(next.pickedDeviceId);
     handleSwitch(currentPath ?? null, undefined, next.pickedDeviceId);
   }, [cloudMode, machineChips, machineOpts, currentPath, handleSwitch]);
 
@@ -887,17 +873,9 @@ export function ProjectSwitcher({
     // mount already made, silently returning the session to server-side routing.
     // There is no longer any path that intentionally clears the selection: every
     // chip click names a machine.
-    if (!selectedDeviceId) return;
-    setSessionTargetDevice(
-      storeSession?._id || conversation._id,
-      selectedDeviceId,
-    );
-  }, [
-    storeSession?._id,
-    conversation._id,
-    selectedDeviceId,
-    setSessionTargetDevice,
-  ]);
+    if (!selectedDeviceId || isConvexId(liveId)) return;
+    setSessionTargetDevice(liveId, selectedDeviceId);
+  }, [liveId, selectedDeviceId, setSessionTargetDevice]);
 
   // Hand the imperative surface up to NewSessionView's ⌥-chord router.
   // Re-assigned every render so isOpen/commitAndClose read fresh state.
