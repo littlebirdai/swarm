@@ -9517,6 +9517,9 @@
   "apps/server/convex/gitActivity.ts": {
     "swarm/no-comments": 38
   },
+  "apps/server/convex/github-webhooks.ci-drain.test.ts": {
+    "swarm/no-comments": 12
+  },
   "apps/server/convex/githubApi.errors.test.ts": {
     "swarm/no-comments": 12
   },
@@ -9549,9 +9552,6 @@
   },
   "apps/server/convex/githubWebhooks.ci.test.ts": {
     "swarm/no-comments": 8
-  },
-  "apps/server/convex/github-webhooks.ci-drain.test.ts": {
-    "swarm/no-comments": 12
   },
   "apps/server/convex/githubWebhooks.commentSweep.test.ts": {
     "swarm/no-comments": 3
@@ -10976,7 +10976,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/main-red.judge.test.ts": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 11
   },
   "apps/server/convex/mainRed.recorded.testkit.ts": {
     "swarm/no-comments": 6
@@ -12061,6 +12061,9 @@
   "apps/server/convex/sendBackfill.ts": {
     "swarm/no-comments": 73
   },
+  "apps/server/convex/session-goals.test.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/server/convex/sessionAsk.request.test.ts": {
     "swarm/no-comments": 13
   },
@@ -12102,9 +12105,6 @@
   },
   "apps/server/convex/sessionFlowsSchema.ts": {
     "swarm/no-comments": 11
-  },
-  "apps/server/convex/session-goals.test.ts": {
-    "swarm/no-comments": 9
   },
   "apps/server/convex/sessionGoals.ts": {
     "swarm/no-comments": 49
