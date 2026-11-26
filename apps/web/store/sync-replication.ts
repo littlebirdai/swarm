@@ -1,3 +1,23 @@
+import type { Patch } from "mutative";
+import {
+  cacheEvictionEnabled,
+  cacheEvictionsFor,
+  withoutEvictionPatches,
+} from "./cache-eviction";
+import {
+  canHydrateDetail,
+  detailAccountIsCurrent,
+  detailReadPosition,
+  setDetailInvalidationReporter,
+} from "./doc-detail-cache";
+import { createDetailInvalidationTransport } from "./detail-invalidation-transport";
+import {
+  hideInvalidatedDetails,
+  persistDetailInvalidation,
+  verifyDetailInvalidation,
+  collectCompleteDocCrawlAbsences,
+  type DetailAuthorityReader,
+} from "./doc-detail-authority";
 // Cross-window replication wiring: election, transport, and the store hookup
 // for the sync-host design (docs/architecture/sync-host.md).
 //
@@ -310,13 +330,26 @@ export function replicationFollowerFor(
   selfId: string,
   channel: ReplicationChannel,
   onSynced: (synced: boolean) => void,
+  details?: ReturnType<typeof createDetailInvalidationTransport>,
 ): ReplicationFollower {
   return createReplicationFollower({
     selfId,
     channel,
     replicatedKeys: REPLICATED_STORE_KEYS,
     isCollectionKey: isReplicatedCollectionKey,
-    applyUpdates: (updates) => applyUpdatesToStore(updates),
+    applyUpdates: (updates, origin) => {
+      for (const update of updates) {
+        if (
+          update.key === "docDetails" &&
+          update.kind === "authoritativeRemoval" &&
+          update.ids
+        )
+          details?.applyRemoval(update.ids, origin);
+      }
+      applyUpdatesToStore(updates);
+    },
+    onPosition: details?.onPosition,
+    onSnapshot: details?.onSnapshot,
     onOwnEcho: forgetSeenBeforeOwnEcho,
     onSynced,
   });
@@ -386,7 +419,19 @@ function applyUpdatesToStoreInner(
   opts?: { optimistic?: boolean },
 ): void {
   const state = useInboxStore.getState();
-  for (const u of updates) {
+  for (const original of updates) {
+    if (original.kind === "authoritativeRemoval") continue;
+    const u =
+      original.key === "docDetails" &&
+      original.upserts &&
+      cacheEvictionEnabled()
+        ? {
+            ...original,
+            upserts: original.upserts.filter((row) =>
+              canHydrateDetail(String(row._id)),
+            ),
+          }
+        : original;
     if (u.fields && opts?.optimistic) {
       // The sibling's field writes land as the gesture bridge lands a triage
       // gesture: the value, and a lock on it until the server echoes it.
@@ -541,10 +586,47 @@ function setRole(role: "host" | "follower"): void {
 export function startSyncReplication(opts: {
   eligible: boolean;
   principalId: string | null;
+  detailAuthority?: DetailAuthorityReader;
 }): () => void {
   if (running) return running.stop;
   setRole("host");
+  const account = detailReadPosition();
+  const authority =
+    cacheEvictionEnabled() && opts.principalId
+      ? opts.detailAuthority
+      : undefined;
   if (!transportAvailable() || !opts.principalId) {
+    if (authority) {
+      let active = true;
+      const current = () => active && detailAccountIsCurrent(account);
+      setDetailInvalidationReporter(
+        (evidence) => {
+          if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
+          void verifyDetailInvalidation(authority, evidence, current)
+            .then((ids) => persistDetailInvalidation(ids, current))
+            .catch(() => {});
+        },
+        authority.detail,
+        collectCompleteDocCrawlAbsences,
+      );
+      const stop = () => {
+        active = false;
+        setDetailInvalidationReporter();
+        running = null;
+      };
+      running = {
+        stop,
+        status: () => ({
+          principalId: opts.principalId,
+          role: "host",
+          elected: false,
+          holdsLock: false,
+          synced: false,
+          selfId: "",
+        }),
+      };
+      return stop;
+    }
     // No transport (React Native, SSR, ancient browser) or no account: stay
     // host, changed nothing. Share pages and tests land here too.
     return () => {};
@@ -558,8 +640,6 @@ export function startSyncReplication(opts: {
     replicationChannelName(opts.principalId),
     selfId,
   );
-  const channel = transport.channel;
-
   let stopped = false;
   let elected = false;
   let follower: ReplicationFollower | null = null;
@@ -568,6 +648,29 @@ export function startSyncReplication(opts: {
   const lock = replicationLock(opts.principalId);
 
   const persistence = replicationPersistence(() => useInboxStore.getState());
+  const details = authority
+    ? createDetailInvalidationTransport({
+        selfId,
+        channel: transport.channel,
+        host: () => host,
+        verify: (request, current) =>
+          verifyDetailInvalidation(authority, request, current),
+        deleteDetails: (ids, current) =>
+          persistDetailInvalidation(ids, current),
+        apply: hideInvalidatedDetails,
+        current: () => !stopped && detailAccountIsCurrent(account),
+      })
+    : undefined;
+  const channel = details?.channel ?? transport.channel;
+  if (details && authority)
+    setDetailInvalidationReporter(
+      (evidence) => {
+        if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
+        details.report(evidence);
+      },
+      authority.detail,
+      collectCompleteDocCrawlAbsences,
+    );
 
   const armSoloFallback = () => {
     if (soloTimer) clearTimeout(soloTimer);
@@ -587,21 +690,26 @@ export function startSyncReplication(opts: {
 
   const startFollower = () => {
     (useInboxStore.getState() as any)._setIDBWrite(persistence.bootWrite);
-    follower = replicationFollowerFor(selfId, channel, (synced) => {
-      if (stopped || elected) return;
-      if (synced) {
-        if (soloTimer) clearTimeout(soloTimer);
-        setRole("follower");
-        // The host persists the shared slice; nothing skipped is owed.
-        persistence.discardSkipped();
-        (useInboxStore.getState() as any)._setIDBWrite(
-          persistence.followerWrite,
-        );
-        setActionTee(followerActionTee(channel, selfId));
-      } else {
-        armSoloFallback();
-      }
-    });
+    follower = replicationFollowerFor(
+      selfId,
+      channel,
+      (synced) => {
+        if (stopped || elected) return;
+        if (synced) {
+          if (soloTimer) clearTimeout(soloTimer);
+          setRole("follower");
+          // The host persists the shared slice; nothing skipped is owed.
+          persistence.discardSkipped();
+          (useInboxStore.getState() as any)._setIDBWrite(
+            persistence.followerWrite,
+          );
+          setActionTee(followerActionTee(channel, selfId));
+        } else {
+          armSoloFallback();
+        }
+      },
+      details,
+    );
     armSoloFallback();
   };
 
@@ -615,13 +723,15 @@ export function startSyncReplication(opts: {
     follower = null;
     const internals = useInboxStore.getState() as any;
     // The write-through tee: persist first, then broadcast the same patches.
-    internals._setIDBWrite((patches: any[], state: any) => {
+    internals._setIDBWrite((patches: Patch[], state: any) => {
+      const evictions = cacheEvictionsFor(patches, state);
       const persisted = persistence.hostWrite(patches, state);
-      host?.tee(patches, state);
+      host?.tee(withoutEvictionPatches(patches, evictions), state, evictions);
       return persisted;
     });
     // Straight to disk, not through the tee: followers already have the data.
     persistence.persistSkipped();
+    details?.promote();
   };
 
   startFollower();
@@ -634,6 +744,7 @@ export function startSyncReplication(opts: {
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();
     host?.stop();
+    if (details) setDetailInvalidationReporter();
     lock.release();
     transport.close();
     const internals = useInboxStore.getState() as any;

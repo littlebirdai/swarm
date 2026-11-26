@@ -1,4 +1,16 @@
-import { useCallback, useRef, useState } from "react";
+import { cacheEvictionEnabled } from "../store/cache-eviction";
+import {
+  canHydrateDetail,
+  detailInvalidationRevision,
+  detailReadIsCurrent,
+  detailReadPosition,
+  readFreshDocDetail,
+  reportDetailInvalidation,
+  reportCompleteDocCrawl,
+  subscribeDetailInvalidations,
+} from "../store/doc-detail-cache";
+import { useServerAuthenticated } from "./useServerAuthSettled";
+import { useSyncExternalStore, useCallback, useRef, useState } from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
@@ -136,12 +148,19 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
       for (let i = 0; i < ids.length && !cancelled; i += 6) {
         const batch = ids.slice(i, i + 6);
         try {
+          const position = detailReadPosition();
           const { bodies } = await convex.query(api.docs.webGetBodies, {
             ids: batch,
           });
           if (cancelled) return;
           const store = useInboxStore.getState();
           for (const body of bodies ?? []) {
+            if (
+              cacheEvictionEnabled() &&
+              (!detailReadIsCurrent(body._id, position) ||
+                !canHydrateDetail(body._id))
+            )
+              continue;
             // Compose a list-shaped row + body so the cached detail can carry
             // the whole read view (title, dates, labels come from the thin
             // row); the live detail query enriches with joins on open.
@@ -194,6 +213,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
       !!useInboxStore.getState().syncMeta[syncMetaKey("docs", wsKey)]
         ?.backfilledAt;
     const healedRef = { count: 0 };
+    const detailPosition = detailReadPosition();
     runReconcileCrawl({
       namespace: "docs",
       wsKey,
@@ -276,7 +296,25 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
               extra: { docProjectPaths: projectPaths },
             }
           : { isDelta: true, pruneAbsentScope };
-        useInboxStore.getState().syncTable("docs", all, opts);
+        const store = useInboxStore.getState();
+        store.syncTable("docs", all, opts);
+        if (
+          complete &&
+          wsArgs !== "skip" &&
+          !wsArgs.project_path &&
+          cacheEvictionEnabled()
+        ) {
+          const workspace =
+            wsArgs.workspace === "team"
+              ? `team:${wsArgs.team_id}`
+              : store.currentUser?._id && `user:${store.currentUser._id}`;
+          if (workspace)
+            void reportCompleteDocCrawl(
+              workspace,
+              new Set(all.map((d) => String(d._id))),
+              detailPosition,
+            )?.catch(() => {});
+        }
       },
     });
   }, [convex, wsKey, reconcileNonce, hydrated, crawlReset]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -321,35 +359,68 @@ export function useSyncMentionDocs() {
 // recency is all the LRU retention needs.
 const CACHED_AT_GRAIN_MS = 6 * 60 * 60 * 1000;
 
+function syncAuthorizedDocDetail(id: string, data: Record<string, unknown>) {
+  const { embedding: _embedding, ...row } = data;
+  const store = useInboxStore.getState();
+  const previous = store.docDetails[id]?._cachedAt ?? 0;
+  const now = Date.now();
+  store.syncRecord("docDetails", id, {
+    ...row,
+    _cachedAt: now - previous < CACHED_AT_GRAIN_MS ? previous : now,
+  } as unknown as DocDetail);
+}
+
+function refreshInvalidatedDocDetail(id: string) {
+  const position = detailReadPosition();
+  void readFreshDocDetail(id)
+    ?.then((detail) => {
+      if (
+        detail &&
+        detail.archived_at === undefined &&
+        detailReadIsCurrent(id, position)
+      )
+        syncAuthorizedDocDetail(id, detail);
+    })
+    .catch(() => {});
+}
+
 export function useSyncDocDetail(id?: string) {
+  const enabled = cacheEvictionEnabled();
+  const authenticated = useServerAuthenticated();
+  const syncRevision = useSyncExternalStore(
+    subscribeDetailInvalidations,
+    () => (enabled && id ? detailInvalidationRevision(id) : 0),
+    () => 0,
+  );
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
-    // A placeholder doc (a new artifact the server hasn't made yet) has no detail to ask for.
-    id && !isStubDoc(id) ? { id: id as any } : "skip",
+    id && !isStubDoc(id) && (!enabled || authenticated) ? { id } : "skip",
   ).data;
-  const syncRecord = useInboxStore((s) => s.syncRecord);
+
+  useWatchEffect(() => {
+    if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);
+  }, [id, authenticated, syncRevision]);
 
   useConvexSync(
     data,
     useCallback(
-      (d: any) => {
+      (detail: any) => {
         if (!id) return;
-        if (d) {
-          // The detail row spreads the whole doc, embedding included — dead weight
-          // for a cache that now persists (the registry hydrateRow sheds it at
-          // boot; shedding here keeps it out of memory and disk in the first place).
-          const { embedding: _m, ...row } = d;
-          const prev = useInboxStore.getState().docDetails[id]?._cachedAt ?? 0;
-          row._cachedAt =
-            Date.now() - prev < CACHED_AT_GRAIN_MS ? prev : Date.now();
-          syncRecord("docDetails", id, row as unknown as DocDetail);
-        } else if (d === null && useInboxStore.getState().docDetails[id]) {
-          // Deleted or access revoked — a persisted body must not outlive the
-          // server's answer, or the page renders stale content forever.
-          useInboxStore.getState().dropDocDetail(id);
+        if (detail === null || (enabled && detail?.archived_at !== undefined)) {
+          const reported =
+            enabled &&
+            authenticated &&
+            reportDetailInvalidation({
+              ids: [id],
+              cause: detail === null ? "access" : "archive",
+            });
+          if (!reported) useInboxStore.getState().dropDocDetail(id);
+        } else if (detail) {
+          if (enabled && !canHydrateDetail(id)) refreshInvalidatedDocDetail(id);
+          else syncAuthorizedDocDetail(id, detail);
         }
       },
-      [id, syncRecord],
+      [id, enabled, authenticated],
     ),
   );
 

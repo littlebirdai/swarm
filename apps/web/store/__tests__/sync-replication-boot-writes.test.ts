@@ -2,7 +2,11 @@
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
-import { createReplicationHost } from "@platform/engine";
+import {
+  createReplicationFollower,
+  createReplicationHost,
+  type ReplicationUpdate,
+} from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -295,4 +299,134 @@ test("boot hydration writes only documented row trims and retention drops", asyn
   ]);
   expect(await sessions.toArray()).toEqual([fresh]);
   expect(await docs.toArray()).toEqual([thinDoc]);
+});
+
+test.each(["access", "archive", "crawl"] as const)(
+  "the elected host deletes a disk-only detail after a follower reports %s",
+  async (cause) => {
+    const original = process.env.VITE_CACHE_EVICTION_METADATA;
+    process.env.VITE_CACHE_EVICTION_METADATA = "1";
+    const { createDetailInvalidationTransport } =
+      await import("../detail-invalidation-transport");
+    const { resetDetailInvalidations } = await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    const release = holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "a".repeat(32),
+      workspace: "team:alpha",
+      content: "Body on disk only",
+    };
+    await COLLECTION_TABLES.docDetails.put(row);
+    startSyncReplication({
+      eligible: true,
+      principalId: TEST_PRINCIPAL,
+      detailAuthority: {
+        async detail() {
+          return cause === "access"
+            ? null
+            : { ...row, ...(cause === "archive" ? { archived_at: 1 } : {}) };
+        },
+        async page(workspace) {
+          expect(workspace).toBe(row.workspace);
+          return { page: [], isDone: true, continueCursor: "" };
+        },
+      },
+    });
+    release();
+    await waitFor(() => (dom.window as any).__syncReplication?.().holdsLock);
+    const transport = replicationTransport(
+      replicationChannelName(TEST_PRINCIPAL),
+      "requesting-follower",
+    );
+    const received = Promise.withResolvers<string[] | undefined>();
+    const protocol = createDetailInvalidationTransport({
+      selfId: "requesting-follower",
+      channel: transport.channel,
+      host: () => null,
+      current: () => true,
+      async verify() {
+        return [];
+      },
+      async deleteDetails() {
+        return [];
+      },
+      apply(ids) {
+        received.resolve(ids);
+      },
+    });
+    const follower = createReplicationFollower({
+      selfId: "requesting-follower",
+      channel: protocol.channel,
+      replicatedKeys: ["docDetails"],
+      isCollectionKey: () => true,
+      onPosition: protocol.onPosition,
+      onSnapshot: protocol.onSnapshot,
+      applyUpdates(updates: ReplicationUpdate[], origin) {
+        for (const update of updates)
+          if (update.kind === "authoritativeRemoval" && update.ids)
+            protocol.applyRemoval(update.ids, origin);
+      },
+    });
+    try {
+      await waitFor(() => follower.synced());
+      expect(state().docDetails[row._id]).toBeUndefined();
+      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+      protocol.report({
+        ids: [row._id],
+        cause,
+        ...(cause === "crawl" ? { workspace: row.workspace } : {}),
+      });
+      expect(await received.promise).toEqual([row._id]);
+      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+    } finally {
+      follower.stop();
+      transport.close();
+      stopSyncReplication();
+      if (original === undefined)
+        delete process.env.VITE_CACHE_EVICTION_METADATA;
+      else process.env.VITE_CACHE_EVICTION_METADATA = original;
+      resetDetailInvalidations();
+    }
+  },
+);
+
+test("the complete crawl compares disk-only details by workspace", async () => {
+  const flag = "VITE_CACHE_EVICTION_METADATA";
+  const original = process.env[flag];
+  process.env[flag] = "1";
+  const {
+    detailReadPosition,
+    setDetailInvalidationReporter,
+    resetDetailInvalidations,
+  } = await import("../doc-detail-cache");
+  const { collectCompleteDocCrawlAbsences } =
+    await import("../doc-detail-authority");
+  const here = {
+    _id: "a".repeat(32),
+    workspace: "team:alpha",
+    content: "Missing",
+  };
+  const elsewhere = { ...here, _id: "b".repeat(32), workspace: "team:beta" };
+  const live = { ...here, _id: "c".repeat(32), content: "Current" };
+  await bootCache();
+  await COLLECTION_TABLES.docDetails.bulkPut([here, elsewhere, live]);
+  const reported: unknown[] = [];
+  setDetailInvalidationReporter((evidence) => reported.push(evidence));
+  try {
+    expect(state().docDetails[here._id]).toBeUndefined();
+    expect(state().docs[here._id]).toBeUndefined();
+    await collectCompleteDocCrawlAbsences(
+      here.workspace,
+      new Set([live._id]),
+      detailReadPosition(),
+    );
+    expect(reported).toEqual([
+      { ids: [here._id], cause: "crawl", workspace: here.workspace },
+    ]);
+  } finally {
+    resetDetailInvalidations();
+    if (original === undefined) delete process.env[flag];
+    else process.env[flag] = original;
+  }
 });

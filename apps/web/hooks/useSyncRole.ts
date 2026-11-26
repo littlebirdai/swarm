@@ -1,3 +1,5 @@
+import { detailAuthorityReader } from "../lib/detail-authority-client";
+import { cacheEvictionEnabled } from "../store/cache-eviction";
 import { useSyncExternalStore } from "react";
 import { useAuthPrincipal } from "../lib/authPrincipal";
 import {
@@ -29,6 +31,14 @@ export function useSyncReplication(eligible: boolean): void {
     () => true,
   );
   useWatchEffect(() => {
-    if (active) return startSyncReplication({ eligible, principalId });
+    if (active)
+      return startSyncReplication({
+        eligible,
+        principalId,
+        detailAuthority:
+          principalId && cacheEvictionEnabled()
+            ? detailAuthorityReader(principalId)
+            : undefined,
+      });
   }, [active, eligible, principalId]);
 }

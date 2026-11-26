@@ -1,3 +1,5 @@
+import { cacheEvictionEnabled } from "./cache-eviction";
+import { canHydrateDetail } from "./doc-detail-cache";
 import type { StoreApi } from "zustand";
 import type { InboxStoreState, Message } from "./inboxStore";
 import { queuedMessagesFromPending } from "./pendingMessageJournal";
@@ -135,12 +137,20 @@ export function hydrateMergeValue(
       ? { apply: true, value: val }
       : { apply: false };
   }
-  if (typeof val === "object") {
+  if (val !== null && typeof val === "object") {
     const live = cur as Record<string, unknown> | undefined;
     return {
       apply: true,
       value: unionHydrate(
-        cacheFloorUnderSnapshot(key, val as Record<string, unknown>, live),
+        cacheFloorUnderSnapshot(
+          key,
+          key === "docDetails" && cacheEvictionEnabled()
+            ? Object.fromEntries(
+                Object.entries(val).filter(([id]) => canHydrateDetail(id)),
+              )
+            : (val as Record<string, unknown>),
+          live,
+        ),
         live,
       ),
     };

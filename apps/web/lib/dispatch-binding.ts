@@ -1,4 +1,11 @@
 import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
+import { cacheEvictionEnabled } from "../store/cache-eviction";
+import {
+  detailAccountIsCurrent,
+  detailReadPosition,
+  invalidateDetailReads,
+  reportDetailInvalidation,
+} from "../store/doc-detail-cache";
 // The store's server dispatch binding and its failure handler, outside React.
 //
 // useEnsureDispatch wires these into the live store through a Convex
@@ -69,10 +76,24 @@ export function makeDispatchBinding(
     // delivering it into a room nobody is still asking to film.
     const dead = deadRecordingPress(action, args);
     if (dead) return Promise.reject(dead);
+    const detailWrite =
+      cacheEvictionEnabled() &&
+      (action === "archiveDoc" || action === "restoreArchivedDoc")
+        ? detailReadPosition()
+        : null;
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
         settle({ ok: true });
+        if (
+          detailWrite &&
+          detailAccountIsCurrent(detailWrite) &&
+          typeof args?.[0] === "string"
+        ) {
+          if (action === "archiveDoc")
+            reportDetailInvalidation({ ids: [args[0]], cause: "archive" });
+          else invalidateDetailReads([args[0]]);
+        }
         if (
           action === "convCommand" &&
           args?.[1] === "reconfigureSession" &&

@@ -23,6 +23,8 @@ export type ReplicationUpdate = {
   upserts?: any[];
   /** Collection keys: row ids removed by this write. */
   removes?: string[];
+  kind?: "authoritativeRemoval";
+  ids?: string[];
   /** Non-collection keys: the whole new value. */
   value?: any;
   /** Distinguishes `value: undefined` (key cleared) from "no value field". */

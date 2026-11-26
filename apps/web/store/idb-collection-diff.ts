@@ -109,10 +109,11 @@ export function durableDeletes(
   pending: Record<string, { type?: string } | undefined>,
   prevShadow: Map<string, any> | undefined,
   next: Map<string, any>,
+  cacheOnly?: ReadonlySet<string>,
 ): string[] {
   const deletes: string[] = [];
   for (const id of rawDeletes) {
-    if (deleteAllowed(key, id, pending)) {
+    if (!cacheOnly?.has(id) && deleteAllowed(key, id, pending)) {
       deletes.push(id);
     } else if (prevShadow?.has(id)) {
       next.set(id, prevShadow.get(id));

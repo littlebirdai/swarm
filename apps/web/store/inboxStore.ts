@@ -1,3 +1,4 @@
+import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
   cancelResourceBatch,
@@ -17367,7 +17368,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       }
       get().applySyncTableRows(field, incoming, opts);
       if (isDetailKey(field) && Array.isArray(incoming) && incoming.length)
-        evictDetailRows(useInboxStore.getState(), field, incoming);
+        evictDetailRows(useInboxStore.getState, field, incoming);
     });
   },
 
@@ -22183,6 +22184,7 @@ const currentHydrationEpoch = () => hydrationEpoch;
 /** Synchronous gate used before an old principal store is closed or purged. */
 export function clearProtectedInboxMemory(): void {
   hydrationEpoch++;
+  resetDetailInvalidations();
   messageWarmState.full = false;
   messageWarmState.coldIds.clear();
   messageWarmState.inFlight = new Set();

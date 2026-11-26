@@ -12,6 +12,7 @@
   "files": [
     "hooks/__tests__/fenced-prompt-addresses.mount.test.tsx",
     "hooks/__tests__/heartbeat-wake.mount.test.tsx",
+    "hooks/__tests__/doc-detail-invalidation.mount.test.tsx",
     "components/terminal/team-terminal.mount.test.tsx",
     "components/relay-presence-provider.mount.test.tsx",
     "components/conversation/session-control-composer.mount.test.tsx",

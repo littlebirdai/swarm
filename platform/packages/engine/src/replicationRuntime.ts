@@ -74,7 +74,8 @@ export type ReplicationHost = {
   /** The write-through tee: call with every store write's patches + post-write
    *  state (the host wraps its IDB write binding with this). Broadcasts the
    *  replicated slice of the write. */
-  tee: (patches: readonly Patch[], state: any) => void;
+  tee: (patches: readonly Patch[], state: any, evictions?: readonly {key: string; id: string}[]) => void;
+  publish: (updates: ReplicationUpdate[]) => void;
   /** Current broadcast position (for tests and diagnostics). */
   seq: () => number;
   stop: () => void;
@@ -159,8 +160,20 @@ export function createReplicationHost(opts: ReplicationHostOptions): Replication
   });
 
   return {
-    tee(patches, state) {
+    tee(patches, state, evictions) {
       if (stopped) return;
+      const editedShadows = new Map<string, Record<string, any>>();
+      for (const { key, id } of evictions ?? []) {
+        const previous = shadows.get(key);
+        if (!previous || !(id in previous)) continue;
+        let shadow = editedShadows.get(key);
+        if (!shadow) {
+          shadow = { ...previous };
+          editedShadows.set(key, shadow);
+          shadows.set(key, shadow);
+        }
+        delete shadow[id];
+      }
       broadcast(
         extractReplicationUpdates(patches, state, isReplicated, opts.isCollectionKey, {
           shadowOf: (key) => shadows.get(key),
@@ -168,6 +181,9 @@ export function createReplicationHost(opts: ReplicationHostOptions): Replication
         currentOrigin,
       );
       refreshShadows(state);
+    },
+    publish(updates) {
+      if (!stopped) broadcast(updates, hostId);
     },
     seq: () => seq,
     stop() {
@@ -196,6 +212,8 @@ export type ReplicationFollowerOptions = {
    *  content is not applied (see applyMessages); the app may use the moment,
    *  e.g. to forget values its locks recorded from host rows sent before. */
   onOwnEcho?: (updates: ReplicationUpdate[]) => void;
+  onSnapshot?: (msg: Extract<ReplicationMessage, { type: "snapshot" | "snapshotChunk" }>) => void;
+  onPosition?: (hostId: string, seq: number) => void;
 };
 
 export type ReplicationFollower = {
@@ -258,6 +276,7 @@ export function createReplicationFollower(opts: ReplicationFollowerOptions): Rep
       // already holds these values, and re-applying them through the sync path
       // would retire the field locks early (a value match reads as an echo),
       // reopening the stale-push window the locks exist to close.
+      opts.onPosition?.(m.hostId, m.seq);
       if (m.origin === selfId) {
         opts.onOwnEcho?.(m.updates);
         continue;
@@ -299,6 +318,8 @@ export function createReplicationFollower(opts: ReplicationFollowerOptions): Rep
           requestSnapshot();
           return;
         }
+        opts.onSnapshot?.(msg);
+        opts.onPosition?.(msg.hostId, msg.seq);
         applyMessages(res.messages);
         finishSnapshot();
       }
@@ -323,6 +344,8 @@ export function createReplicationFollower(opts: ReplicationFollowerOptions): Rep
         }
       }
       opts.applyUpdates(updates, msg.hostId);
+      opts.onSnapshot?.(msg);
+      opts.onPosition?.(msg.hostId, msg.seq);
       applyMessages(res.messages);
       finishSnapshot();
     }
