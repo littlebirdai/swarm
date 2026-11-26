@@ -9985,7 +9985,7 @@
   "apps/server/convex/lib/devPushes.ts": {
     "swarm/no-comments": 8
   },
-  "apps/server/convex/lib/device-move-dispatch.ts": {
+  "apps/server/convex/lib/device-move-dispatch.effects.ts": {
     "swarm/no-comments": 6
   },
   "apps/server/convex/lib/deviceUpdate.ts": {

@@ -80,7 +80,10 @@ const writeHelpersOf = (body: string) =>
 const DEVICE_MOVE_HELPERS = new Map(
   [
     ...withoutComments(
-      readFileSync(join(CONVEX, "lib", "device-move-dispatch.ts"), "utf8"),
+      readFileSync(
+        join(CONVEX, "lib", "device-move-dispatch.effects.ts"),
+        "utf8",
+      ),
     ).matchAll(/^export async function (\w+)\([\s\S]*?^}/gm),
   ].map((match) => [match[1]!, match[0]]),
 );

@@ -1,7 +1,7 @@
 import {
   forceSessionMove,
   moveSessionToDevice,
-} from "./lib/device-move-dispatch";
+} from "./lib/device-move-dispatch.effects";
 import {
   insertConversationWithStatus,
   patchConversationLifecycle,
