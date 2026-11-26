@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { WorkerHost } from "./host.js";
 import { MessagePreparation } from "./preparationClient.js";
-import { ingestIdentity } from "./ingestJobs.js";
+import { ingestIdentity } from "./ingest-jobs.js";
 
 const raw = [
   {

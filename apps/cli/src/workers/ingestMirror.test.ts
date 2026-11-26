@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { MirrorTranscript, mirrorMetaJson } from "../cloudAgents/transcript.js";
-import { readIngestJob, ingestIdentity } from "./ingestJobs.js";
+import { readIngestJob, ingestIdentity } from "./ingest-jobs.js";
 import type { IngestJob } from "./ingestTypes.js";
 import { validateIngestResult } from "./ingestValidation.js";
 

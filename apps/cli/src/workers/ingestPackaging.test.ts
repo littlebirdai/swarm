@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Database } from "bun:sqlite";
 import { WorkerHost } from "./host.js";
-import { ingestIdentity } from "./ingestJobs.js";
+import { ingestIdentity } from "./ingest-jobs.js";
 import { IngestAssembler } from "./ingestTransport.js";
 import {
   INGEST_PAGE_BYTES,

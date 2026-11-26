@@ -1,4 +1,4 @@
-import type { readIngestJob } from "../ingestJobs.js";
+import type { readIngestJob } from "../ingest-jobs.js";
 import { mock } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +22,7 @@ fs.writeFileSync(
   JSON.stringify(receipt),
 );
 const implementation = await import(producer);
-mock.module("../ingestJobs.js", () => ({
+mock.module("../ingest-jobs.js", () => ({
   ...implementation,
   readIngestJob: (...args: Parameters<typeof readIngestJob>) => {
     fs.appendFileSync(

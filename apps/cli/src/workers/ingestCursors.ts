@@ -1,6 +1,6 @@
 import { MAX_INFLIGHT } from "./protocol.js";
 import { ingestTokenPages } from "./ingestTransport.js";
-import { readIngestJob } from "./ingestJobs.js";
+import { readIngestJob } from "./ingest-jobs.js";
 import { IngestDeadline } from "./ingestDeadline.js";
 import type { IngestPayload, IngestPage, IngestToken } from "./ingestTypes.js";
 type Cursor = {
