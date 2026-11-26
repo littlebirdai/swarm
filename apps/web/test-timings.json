@@ -291,7 +291,7 @@
     "components/conversation/classify.test.ts": 257,
     "components/conversation/hostedNoticeWords.test.ts": 251,
     "components/conversation/notePreview.test.ts": 251,
-    "components/conversation/sessionControls.cloudPick.test.ts": 251,
+    "components/conversation/session-controls.cloud-pick.test.ts": 251,
     "components/conversationScroll.release.test.ts": 255,
     "components/conversationScroll.resume.test.ts": 255,
     "components/conversationScroll.settle.test.ts": 885,

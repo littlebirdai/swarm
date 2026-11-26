@@ -17164,6 +17164,9 @@
   "apps/web/components/conversation/scrollProgressSignal.ts": {
     "swarm/no-comments": 6
   },
+  "apps/web/components/conversation/session-controls.cloud-pick.test.ts": {
+    "swarm/no-comments": 20
+  },
   "apps/web/components/conversation/session-controls.tsx": {
     "react-hooks/exhaustive-deps": 1,
     "react/refs": 6,
@@ -17174,9 +17177,6 @@
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 103,
     "swarm/no-native-title-on-button": 2
-  },
-  "apps/web/components/conversation/sessionControls.cloudPick.test.ts": {
-    "swarm/no-comments": 20
   },
   "apps/web/components/conversation/teamProposals.tsx": {
     "swarm/no-comments": 10
