@@ -11558,7 +11558,7 @@
     "swarm/no-comments": 86
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 585
+    "swarm/no-comments": 582
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6
@@ -12194,7 +12194,7 @@
     "swarm/no-comments": 6
   },
   "apps/server/convex/sessionThreads.ts": {
-    "swarm/no-comments": 67
+    "swarm/no-comments": 64
   },
   "apps/server/convex/sessionTransfer.test.ts": {
     "swarm/no-comments": 4

@@ -5,11 +5,14 @@ import { fixtureRows } from "../test-helpers/rows.testkit";
 import { setupRunLease } from "../test-helpers/run-lease.testkit";
 import { api, internal } from "./_generated/api";
 
-async function replay(f: Awaited<ReturnType<typeof setupRunLease>>) {
+async function replay(
+  f: Awaited<ReturnType<typeof setupRunLease>>,
+  clientId = "delivery",
+) {
   return asUser(f.t, f.owner).mutation(api.pendingMessages.sendMessageV2, {
     conversation_id: f.conversation,
-    command_id: "delivery",
-    client_id: "delivery",
+    command_id: clientId,
+    client_id: clientId,
     content: "queued",
   });
 }
@@ -95,6 +98,22 @@ async function expectReplayRejected(
   expect(await queued()).toEqual(before);
 }
 
+async function forgetReceipt(
+  f: Awaited<ReturnType<typeof setupRunLease>>,
+  clientId: string,
+) {
+  await f.t.run(async ({ db }) => {
+    const receipt = await db
+      .query("local_command_receipts")
+      .withIndex("by_principal_command", (q) =>
+        q.eq("principal_id", f.owner).eq("command_id", clientId),
+      )
+      .unique();
+    if (!receipt) throw new Error("Expected a send receipt");
+    await db.delete(receipt._id);
+  });
+}
+
 test.each(["preparing", "aborting"] as const)(
   "exact replays match on the source and retargeted successor during %s",
   async (phase) => {
@@ -102,16 +121,7 @@ test.each(["preparing", "aborting"] as const)(
     const move = await recordMove(f);
     await move.prepare();
     expect(await replay(f)).toMatchObject({ status: "acknowledged" });
-    await f.t.run(async ({ db }) => {
-      const receipt = await db
-        .query("local_command_receipts")
-        .withIndex("by_principal_command", (q) =>
-          q.eq("principal_id", f.owner).eq("command_id", "delivery"),
-        )
-        .unique();
-      if (!receipt) throw new Error("Expected a source replay receipt");
-      await db.delete(receipt._id);
-    });
+    await forgetReceipt(f, "delivery");
 
     expect(
       await f.t.mutation(internal.edgeRunLease.retargetMove, {
@@ -136,6 +146,66 @@ test.each(["preparing", "aborting"] as const)(
     expect(
       await f.t.run(({ db }) => db.query("pending_messages").collect()),
     ).toEqual([before]);
+  },
+);
+
+test.each(["preparing", "aborting"] as const)(
+  "abort restores a staged send cancelled during %s so its replay matches",
+  async (phase) => {
+    const f = await setupRunLease();
+    const clientId = "cancelled-staged-send";
+    const cancel = (id: string) =>
+      asUser(f.t, f.owner).mutation(api.dispatch.dispatch, {
+        action: "cancelPendingMessage",
+        args: [f.conversation, { clientId: id }],
+      });
+    expect(await replay(f, clientId)).toMatchObject({ status: "acknowledged" });
+    expect(await cancel("delivery")).toBe("cancelled");
+
+    const move = await recordMove(f);
+    await move.prepare();
+    const retarget = (bearer: string) =>
+      f.t.mutation(internal.edgeRunLease.retargetMove, {
+        ...move.address,
+        bearer,
+      });
+    expect(await retarget(move.bearer)).toEqual({ moved: 1, done: true });
+    const abort = () =>
+      f.t.mutation(internal.edgeRunLease.abortMove, {
+        ...move.address,
+        bearer: f.bearer,
+      });
+    if (phase === "aborting") expect(await abort()).toEqual({ done: false });
+    expect(await cancel(clientId)).toBe("cancelled");
+    if (phase === "preparing") expect(await abort()).toEqual({ done: false });
+
+    const read = () =>
+      f.t.run(({ db }) => db.query("pending_messages").collect());
+    const staged = await read();
+    expect(staged).toMatchObject([
+      { client_id: "delivery", execution_epoch: 1, owner_user_id: f.owner },
+      {
+        client_id: clientId,
+        execution_epoch: 2,
+        owner_user_id: move.destination,
+        delivery_status: "cancelled-by-supersession",
+        status: "cancelled",
+      },
+    ]);
+    const restored = await retarget(f.bearer);
+    await forgetReceipt(f, clientId);
+    expect(await replay(f, clientId)).toMatchObject({ status: "acknowledged" });
+    expect(restored).toEqual({ moved: 1, done: true });
+    expect(await read()).toEqual(
+      staged.map((row) => ({
+        ...row,
+        execution_epoch: 1,
+        owner_user_id: f.owner,
+      })),
+    );
+    expect(
+      await f.t.run(({ db }) => db.query("execution_bindings").collect()),
+    ).toMatchObject([{ epoch: 1 }]);
   },
 );
 

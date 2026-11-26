@@ -296,16 +296,16 @@ function epochRows(
   ctx: DbCtx,
   conversationId: Id<"conversations">,
   epoch: number,
-  status: "pending" | "claimed" | "delivery-started" | "ambiguous",
+  status?: "pending" | "claimed" | "delivery-started" | "ambiguous",
 ) {
   return ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_epoch_delivery", (q) =>
-      q
+    .withIndex("by_conversation_epoch_delivery", (q) => {
+      const range = q
         .eq("conversation_id", conversationId)
-        .eq("execution_epoch", epoch)
-        .eq("delivery_status", status),
-    );
+        .eq("execution_epoch", epoch);
+      return status === undefined ? range : range.eq("delivery_status", status);
+    });
 }
 
 export async function retargetDeviceMove(
@@ -333,7 +333,7 @@ export async function retargetDeviceMove(
     ctx,
     args.conversation_id,
     from.epoch,
-    "pending",
+    aborting ? undefined : "pending",
   ).paginate({ cursor: null, numItems: 100, maximumBytesRead: 512 * 1024 });
   for (const row of page)
     await ctx.db.patch(row._id, {
