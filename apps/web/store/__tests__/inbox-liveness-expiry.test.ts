@@ -176,6 +176,11 @@ const omissionCases: {
     truncated: [],
     fields: { owner_user_id: teammate },
   },
+  {
+    name: "a viewer-run team session reassigned away",
+    truncated: [],
+    fields: { owner_user_id: teammate, team_id: "t1" },
+  },
   { name: "unrelated window", truncated: ["pinned"] },
   {
     name: "out of the recent window",

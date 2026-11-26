@@ -134,7 +134,7 @@ export function expireOmittedInboxLeases(
   function ownsOmittedRow(row: InboxSession): boolean {
     const foreign = isForeign(row, viewerId);
     return scope === "mine"
-      ? !foreign || (row.team_id == null && row.user_id === viewerId)
+      ? !foreign || row.user_id === viewerId
       : scope === "team" &&
           foreign &&
           typeof teamId === "string" &&
