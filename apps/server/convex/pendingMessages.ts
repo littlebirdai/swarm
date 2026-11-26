@@ -53,6 +53,7 @@ import {
   releaseQueuedRows,
   reviveConversationOnDelivery,
 } from "./pendingMessageWrites";
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import {
   formatUserMessage,
   formatSessionMessage,
@@ -796,7 +797,6 @@ export async function enqueuePendingMessage(
     fields.wake_cause ??
       (fields.origin === "scheduler" ? "routine" : "message"),
   );
-
   // Wake-up rules. A human send resurfaces the session everywhere: dismissed,
   // stashed, and killed flags all clear ("I messaged it, show it to me").
   // A scheduler injection (a trigger firing) inherits all of that, with one
@@ -821,7 +821,7 @@ export async function enqueuePendingMessage(
   // four fields on its draft so the panel drops before this lands.
   const answersThreadState =
     fields.human === true && hasThreadState(conversation);
-  await ctx.db.patch(conversation._id, {
+  await patchConversationLifecycle(ctx, conversation._id, {
     updated_at: Date.now(),
     has_pending_messages: true,
     ...(conversation.status === "completed" ? { status: "active" } : {}),

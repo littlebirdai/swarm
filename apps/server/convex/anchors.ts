@@ -1,3 +1,4 @@
+import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { internalMutation, mutation, query } from "./functions";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -529,7 +530,7 @@ export async function provisionStandingAgent(
         : { team_id: teamId, is_private: false, auto_shared: undefined };
 
     const agentType = args.agent_type ?? "claude_code";
-    const conversationId = await ctx.db.insert("conversations", {
+    const conversationId = await insertConversationWithStatus(ctx, {
       user_id: hostUserId,
       acting_user_id: botUserId,
       anchor_id: anchorId,

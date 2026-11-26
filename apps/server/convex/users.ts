@@ -1,3 +1,4 @@
+import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { lineSlotsValidator } from "./lib/lineSlotsValidator";
 import { currentMembershipVisibility } from "./teamVisibility";
 import {
@@ -4509,7 +4510,7 @@ export const startSession = mutation({
       args.project_path,
     );
 
-    const conversationId = await ctx.db.insert("conversations", {
+    const conversationId = await insertConversationWithStatus(ctx, {
       user_id: userId,
       agent_type:
         args.agent_type === "claude" ? "claude_code" : args.agent_type,
