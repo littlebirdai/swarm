@@ -1,4 +1,11 @@
-import { useCallback, useState, useRef, useMemo, useEffect } from "react";
+import {
+  useCallback,
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -9,6 +16,10 @@ import {
   ensureHydrated,
 } from "../store/inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../store/cacheRetention";
+import {
+  hasEvictableMessagesOverBudget,
+  retainOpenMessageView,
+} from "../store/store-eviction";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { prefetchStorageImageUrls } from "./useStorageImageUrl";
@@ -27,10 +38,15 @@ import {
   readForward,
   rereadAnchor,
   WARM_DEEP_ROWS,
-} from "./inboxWarm";
+} from "./inbox-warm";
 
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_PENDING: Message[] = [];
+
+function hasConversation(id: string): boolean {
+  const state = useInboxStore.getState();
+  return !!(state.sessions[id] || state.conversations[id]);
+}
 
 // The tail anchor for a fresh visit: one ms below the newest cached row, so
 // the still-streaming newest row is inside the subscribed range from the first
@@ -147,6 +163,7 @@ export function useConversationMessages(
   // Open on the conversation's first page instead of the live tail (share-link
   // guests read from the beginning). An explicit target or highlight wins.
   openAtStart?: boolean,
+  prewarm = false,
 ) {
   // Follow the optimistic-create rekey. When a stub conversation resolves to
   // its real Convex id, rekeyId deletes the stub rows in the same store
@@ -157,6 +174,15 @@ export function useConversationMessages(
   const conversationId = useInboxStore((s) =>
     s.resolveLiveSessionId(requestedConversationId),
   );
+  useLayoutEffect(() => {
+    if (prewarm || !conversationId) return;
+    const release = retainOpenMessageView(conversationId);
+    return () => {
+      release();
+      if (hasEvictableMessagesOverBudget(useInboxStore.getState()))
+        queueMicrotask(() => useInboxStore.getState().trimMessageCache());
+    };
+  }, [conversationId, prewarm]);
   const canQuery = isConvexId(conversationId);
   const convId = conversationId as Id<"conversations">;
   // Share-link viewers must PRESENT the token on every read — the server no
@@ -319,6 +345,7 @@ export function useConversationMessages(
 
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const snapshotInFlightRef = useRef<string | null>(null);
+  const failedSnapshotRef = useRef<string | null>(null);
 
   // One-shot page-1 fetch: cold opens, and the recovery path for deletes /
   // backfill edits (transcript_revision jumps). Replaces the window and
@@ -326,13 +353,15 @@ export function useConversationMessages(
   const fetchSnapshot = useCallback(async () => {
     if (snapshotInFlightRef.current === conversationId) return;
     snapshotInFlightRef.current = conversationId;
-    setSnapshotLoading(true);
+    const hadConversation = hasConversation(conversationId);
+    setSnapshotLoading(failedSnapshotRef.current !== conversationId);
     try {
       const res: any = await convex.query(api.conversations.listMessages, {
         conversation_id: convId,
         paginationOpts: { numItems: MESSAGE_PAGE_SIZE, cursor: null },
         ...shareTokenArg(conversationId),
       });
+      if (hadConversation && !hasConversation(conversationId)) return;
       const state = useInboxStore.getState();
       const meta: any =
         state.conversations[conversationId] ?? state.sessions[conversationId];
@@ -351,6 +380,7 @@ export function useConversationMessages(
         anchor: page.length ? page[page.length - 1].timestamp - 1 : 0,
       });
     } catch (err) {
+      failedSnapshotRef.current = conversationId;
       console.warn("[useConversationMessages] snapshot fetch failed", {
         conversationId,
         err,
@@ -372,9 +402,11 @@ export function useConversationMessages(
     )
       return;
     let cancelled = false;
+    const hadConversation = hasConversation(conversationId);
     (async () => {
       await ensureHydrated(conversationId);
-      if (cancelled) return;
+      if (cancelled || (hadConversation && !hasConversation(conversationId)))
+        return;
       const local = useInboxStore.getState().messages[conversationId];
       if (local?.length) {
         setTailState({
@@ -594,14 +626,6 @@ export function useConversationMessages(
   // skipped, and the one-shot snapshot is not retried by the framework.
   // Without a fallback, the local store can sit frozen while the server keeps
   // inserting messages — the user sees a stuck conversation.
-  //
-  // This loop watches storeMeta.message_count (server truth, kept fresh by the
-  // watermark subscription) against the local store, in both directions:
-  // server ahead → fetch the delta via getNewMessages and merge; local ahead
-  // for a sustained stretch → rows were deleted server-side (banner
-  // supersession is in tail range, but deleteMessagesByUuid can hit any row) →
-  // snapshot refetch. A transcript_revision jump (backfill edit behind the
-  // tail anchor) also snapshot-refetches.
   const recoveryInFlightRef = useRef(false);
   const countMismatchRef = useRef<{ id: string; ticks: number }>({
     id: conversationId,
@@ -613,12 +637,13 @@ export function useConversationMessages(
   useEffect(() => {
     if (!canQuery || targetMode) return; // recovery only applies to live normal-mode view
 
-    const tick = async () => {
+    const tick = async (retryEmpty = true) => {
       if (recoveryInFlightRef.current) return;
       const state = useInboxStore.getState();
       const meta =
         state.conversations[conversationId] ?? state.sessions[conversationId];
       const local = state.messages[conversationId] ?? [];
+      if (prewarm && local.length === 0) return;
       // While a fork copy is in flight the local seeded window is the complete
       // view and the server count is a moving partial — nothing to recover.
       if ((meta as any)?.fork_status === "copying") return;
@@ -653,6 +678,10 @@ export function useConversationMessages(
       }
       countMismatchRef.current.ticks = 0;
       if (local.length >= serverCount) return;
+      if (local.length === 0) {
+        if (retryEmpty && tailAnchorRef.current === null) await fetchSnapshot();
+        return;
+      }
       // A read forward that found nothing past the newest local row settles
       // this count: the rows it is short of are older than the window held
       // here (a long thread opened on its tail), not missing from the end.
@@ -675,11 +704,9 @@ export function useConversationMessages(
           .length;
         if (fetched !== null && after <= before)
           settledRef.current = { id: conversationId, count: serverCount };
-        // null is unauth/no-access: a transient failure, logged so it doesn't
-        // silently strand the UI in the loading state.
         if (fetched === null)
           console.warn(
-            "[useConversationMessages] recovery got null (auth not ready?)",
+            "[useConversationMessages] recovery could not apply a delta",
             { conversationId },
           );
         else if (fetched > 0)
@@ -701,10 +728,18 @@ export function useConversationMessages(
     // Run once immediately so a freshly-opened stuck conversation catches up
     // without waiting a full interval, then poll. 1s cadence — getNewMessages
     // with a current watermark is near-empty, so cost is latency-bound.
-    tick();
+    tick(false);
     const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
-  }, [conversationId, canQuery, targetMode, convex, convId, fetchSnapshot]);
+  }, [
+    conversationId,
+    canQuery,
+    targetMode,
+    convex,
+    convId,
+    fetchSnapshot,
+    prewarm,
+  ]);
 
   // =============================================
   // READ FROM STORE (primary source of truth - never waits on Convex)

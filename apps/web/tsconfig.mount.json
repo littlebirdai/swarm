@@ -89,6 +89,7 @@
     "components/pr/ReviewMenu.mount.test.tsx",
     "components/settings/PasskeysSection.mount.test.tsx",
     "components/team/__tests__/WorkspaceSharePicker.empty.mount.test.tsx",
+    "hooks/__tests__/message-cache-view.mount.test.tsx",
     "hooks/__tests__/useConvexSync.identityLost.mount.test.tsx",
     "hooks/__tests__/useJumpToDecisionAsk.test.tsx",
     "hooks/__tests__/useLiveInboxSessions.error.test.tsx",

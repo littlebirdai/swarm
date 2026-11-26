@@ -158,7 +158,7 @@ import {
   StickyPromptBanner,
   type StickyPrompt,
 } from "@/components/session/StickyPromptBanner";
-import { useConversationMessages } from "@codecast/web/hooks/useConversationMessages";
+import { useConversationMessages } from "@codecast/web/hooks/use-conversation-messages";
 import { useStorageImageUrl } from "@codecast/web/hooks/useStorageImageUrl";
 import {
   usePendingMessageStatus,

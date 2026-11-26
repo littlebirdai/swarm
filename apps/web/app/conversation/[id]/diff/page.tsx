@@ -7,7 +7,7 @@ import { DashboardLayout } from "../../../../components/DashboardLayout";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { ConversationDiffLayout } from "../../../../components/ConversationDiffLayout";
 import type { ConversationData } from "../../../../components/conversation/types";
-import { useConversationMessages } from "../../../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../../../hooks/use-conversation-messages";
 import { useDiffViewerStore } from "../../../../store/diffViewerStore";
 import { ConversationSharePopover } from "../../../../components/ConversationSharePopover";
 

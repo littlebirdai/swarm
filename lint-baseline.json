@@ -882,14 +882,14 @@
   "apps/cli/src/browser/siteGuard.ts": {
     "swarm/no-comments": 29
   },
+  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
+    "swarm/no-comments": 13
+  },
   "apps/cli/src/browser/snapshot.test.ts": {
     "swarm/no-comments": 39
   },
   "apps/cli/src/browser/snapshot.ts": {
     "swarm/no-comments": 77
-  },
-  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
-    "swarm/no-comments": 13
   },
   "apps/cli/src/browser/snapshotOrdinals.chrome.test.ts": {
     "swarm/no-comments": 6
@@ -5197,14 +5197,14 @@
   "apps/cli/src/workers/host.test.ts": {
     "swarm/no-comments": 1
   },
+  "apps/cli/src/workers/ingest-client.ts": {
+    "swarm/no-comments": 25
+  },
   "apps/cli/src/workers/ingest.e2e.test.ts": {
     "swarm/no-comments": 2
   },
   "apps/cli/src/workers/ingestClient.bounds.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/cli/src/workers/ingest-client.ts": {
-    "swarm/no-comments": 25
   },
   "apps/cli/src/workers/ingestDatabase.ts": {
     "swarm/no-comments": 1
@@ -5557,6 +5557,9 @@
   "apps/cli/src/workflow/reviewNote.ts": {
     "swarm/no-comments": 7
   },
+  "apps/cli/src/workflow/run-worktree.test.ts": {
+    "swarm/no-comments": 11
+  },
   "apps/cli/src/workflow/runDirs.ts": {
     "swarm/no-blocking-child-process-call": 1,
     "swarm/no-comments": 11
@@ -5575,9 +5578,6 @@
   },
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
-  },
-  "apps/cli/src/workflow/run-worktree.test.ts": {
-    "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/runWorktree.ts": {
     "swarm/no-blocking-child-process-call": 3,
@@ -15820,7 +15820,7 @@
   "apps/web/components/activity/useActivityView.ts": {
     "swarm/no-comments": 9
   },
-  "apps/web/components/agentDock/AgentDock.tsx": {
+  "apps/web/components/agentDock/agent-dock.tsx": {
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 46,
@@ -21693,8 +21693,8 @@
   "apps/web/hooks/ghostSweep.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/hooks/inboxWarm.ts": {
-    "swarm/no-comments": 100
+  "apps/web/hooks/inbox-warm.ts": {
+    "swarm/no-comments": 78
   },
   "apps/web/hooks/incrementalSync.test.ts": {
     "swarm/no-comments": 24
@@ -21734,6 +21734,10 @@
   },
   "apps/web/hooks/toolCallMemo.ts": {
     "swarm/no-comments": 13
+  },
+  "apps/web/hooks/use-conversation-messages.ts": {
+    "swarm/no-comments": 282,
+    "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
     "swarm/no-comments": 209,
@@ -21892,10 +21896,6 @@
   },
   "apps/web/hooks/useConversationFileDrop.ts": {
     "swarm/no-comments": 1
-  },
-  "apps/web/hooks/useConversationMessages.ts": {
-    "swarm/no-comments": 292,
-    "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/useConversationOwnerDevice.ts": {
     "swarm/no-comments": 1
@@ -27455,9 +27455,6 @@
   "apps/web/store/__tests__/mergeMessagesRefresh.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/web/store/__tests__/message-eviction.test.ts": {
-    "swarm/no-comments": 17
-  },
   "apps/web/store/__tests__/messageRetention.test.ts": {
     "swarm/no-comments": 5
   },
@@ -27593,14 +27590,14 @@
   "apps/web/store/__tests__/sectionHeaderCount.test.ts": {
     "swarm/no-comments": 6
   },
+  "apps/web/store/__tests__/session-controls.test.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/web/store/__tests__/sessionCacheRetention.test.ts": {
     "swarm/no-comments": 10
   },
   "apps/web/store/__tests__/sessionCommands.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/web/store/__tests__/sessionControls.test.ts": {
-    "swarm/no-comments": 9
   },
   "apps/web/store/__tests__/sessionGoalActions.test.ts": {
     "swarm/no-comments": 3
@@ -27731,14 +27728,14 @@
   "apps/web/store/__tests__/sim/sim.test.ts": {
     "swarm/no-comments": 14
   },
+  "apps/web/store/__tests__/sim/window-slots.ts": {
+    "swarm/no-comments": 63
+  },
   "apps/web/store/__tests__/sim/window.ts": {
     "swarm/no-comments": 83
   },
   "apps/web/store/__tests__/sim/windowSlots.guard.test.ts": {
     "swarm/no-comments": 22
-  },
-  "apps/web/store/__tests__/sim/window-slots.ts": {
-    "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/sim/world.ts": {
     "swarm/no-comments": 65
@@ -28054,7 +28051,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5097
+    "swarm/no-comments": 5088
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -28174,7 +28171,7 @@
     "swarm/no-comments": 34
   },
   "apps/web/store/store-eviction.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 4
   },
   "apps/web/store/storeListenerCensus.ts": {
     "swarm/no-comments": 20

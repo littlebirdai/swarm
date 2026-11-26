@@ -14,7 +14,7 @@ import { threadStateView } from "../../lib/threadState";
 import {
   useConversationMessages,
   type Message,
-} from "../../hooks/useConversationMessages";
+} from "../../hooks/use-conversation-messages";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { classifyUserMessage, stripSystemTags } from "./classify";
 import type { Message as ConvMessage, UserMessageKind } from "./types";

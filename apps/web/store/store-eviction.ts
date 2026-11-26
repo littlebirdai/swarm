@@ -1,86 +1,191 @@
 import { detailRowsToEvict, type DetailKey } from "../lib/detailRows";
+import { sessionIdleAt } from "../lib/liveness";
 import { REPLICATION_CLASSIFICATION } from "./clientSyncRegistry";
 import { noteEvictedRows } from "./idb-collection-diff";
 import type { InboxStoreState } from "./inboxStore";
 
-type MessageEvictionDraft = {
-  messages: Record<string, unknown>;
-  pagination: Record<string, unknown>;
-  userMessages: Record<string, unknown>;
-  pendingMessages: Record<string, readonly unknown[]>;
-  currentConversation: { conversationId?: string | null } | null;
-  currentSessionId: string | null;
-  sidePanelSessionId: string | null;
-  viewingDismissedId: string | null;
-  warmProtectedIds?: ReadonlySet<string>;
-  liveInboxIds?: ReadonlySet<string>;
-  _lastViewedAt?: Record<string, number>;
+export const MESSAGE_CACHE_BUDGET_BYTES =
+  (globalThis.navigator?.product === "ReactNative" ? 16 : 32) * 1024 * 1024;
+
+const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
+
+export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
+
+export const messageWarmState = {
+  full: false,
+  coldIds: new Set<string>(),
+  inFlight: new Set<string>(),
+  rowTried: new Set<string>(),
+  syncedCount: new Map<string, number>(),
 };
 
-// Max conversations to keep messages for in the in-memory store. Generous on
-// purpose — instant switching across a lot of recent conversations is the point —
-// but bounded, because the store never prunes and message bodies carry inline
-// images. Evicted conversations stay in IDB and reload instantly.
-export const MAX_IN_MEMORY_CONVERSATIONS = 400;
+export function messageRowBytes(value: unknown): number {
+  if (typeof value === "string") return 24 + value.length * 2;
+  if (value === null || typeof value !== "object") return 8;
+  let bytes = 32;
+  for (const child of Object.values(value)) bytes += 8 + messageRowBytes(child);
+  return bytes;
+}
+
+export function omitRedundantInlineImages<
+  Row extends { images?: Array<{ storage_id?: string; data?: string }> },
+>(rows: Row[]): Row[] {
+  let compacted: Row[] | undefined;
+  for (const [index, row] of rows.entries()) {
+    if (!row.images?.some((image) => image?.storage_id && image.data)) continue;
+    compacted ??= rows.slice();
+    compacted[index] = {
+      ...row,
+      images: row.images.map((image) => {
+        if (!image?.storage_id || !image.data) return image;
+        const { data: _data, ...reference } = image;
+        return reference;
+      }),
+    };
+  }
+  return compacted ?? rows;
+}
+
+type MessageCacheDraft = Pick<
+  InboxStoreState,
+  | "messages"
+  | "pagination"
+  | "userMessages"
+  | "pendingMessages"
+  | "queuedMessages"
+  | "pendingSessionCreates"
+  | "sessions"
+  | "currentConversation"
+  | "currentSessionId"
+  | "sidePanelSessionId"
+  | "viewingDismissedId"
+  | "pendingNavigateId"
+  | "messageCacheBytes"
+  | "messageCacheBytesByConversation"
+  | "_lastViewedAt"
+>;
+
+const openViews = new Map<string, number>();
+
+export function retainOpenMessageView(id: string): () => void {
+  openViews.set(id, (openViews.get(id) ?? 0) + 1);
+  let retained = true;
+  return () => {
+    if (!retained) return;
+    retained = false;
+    const count = openViews.get(id) ?? 0;
+    if (count <= 1) openViews.delete(id);
+    else openViews.set(id, count - 1);
+  };
+}
+
+export function adjustMessageCacheBytes(
+  draft: MessageCacheDraft,
+  id: string,
+  delta: number,
+): void {
+  if (!delta) return;
+  const bytes = (draft.messageCacheBytesByConversation[id] ?? 0) + delta;
+  if (bytes) draft.messageCacheBytesByConversation[id] = bytes;
+  else delete draft.messageCacheBytesByConversation[id];
+  draft.messageCacheBytes += delta;
+}
+
+export function dropCachedMessages(draft: MessageCacheDraft, id: string): void {
+  delete draft.messages[id];
+  delete draft.pagination[id];
+  delete draft.userMessages[id];
+  adjustMessageCacheBytes(
+    draft,
+    id,
+    -(draft.messageCacheBytesByConversation[id] ?? 0),
+  );
+}
+
+export function rekeyCachedMessages(
+  draft: MessageCacheDraft,
+  oldId: string,
+  newId: string,
+): void {
+  const movePage = <Row extends object>(
+    pages: Record<string, Row[]>,
+    replace: boolean,
+  ) => {
+    const moved = pages[oldId];
+    if (!moved) return;
+    const existing = pages[newId];
+    if (existing) {
+      let bytes = MESSAGE_CACHE_PAGE_OVERHEAD;
+      for (const row of replace ? existing : moved)
+        bytes += messageRowBytes(row);
+      adjustMessageCacheBytes(draft, replace ? newId : oldId, -bytes);
+    }
+    if (replace || !existing) pages[newId] = moved;
+    delete pages[oldId];
+  };
+  movePage(draft.messages, true);
+  movePage(draft.userMessages, false);
+  const bytes = draft.messageCacheBytesByConversation[oldId] ?? 0;
+  if (bytes) {
+    draft.messageCacheBytesByConversation[newId] =
+      (draft.messageCacheBytesByConversation[newId] ?? 0) + bytes;
+    delete draft.messageCacheBytesByConversation[oldId];
+  }
+}
+
+function canEvictMessages(
+  state: MessageCacheDraft,
+  id: string,
+  now: number,
+): boolean {
+  if (
+    openViews.has(id) ||
+    messageWarmState.inFlight.has(id) ||
+    id === state.currentConversation?.conversationId ||
+    id === state.currentSessionId ||
+    id === state.sidePanelSessionId ||
+    id === state.viewingDismissedId ||
+    id === state.pendingNavigateId ||
+    state.pendingMessages[id]?.length ||
+    state.queuedMessages[id]?.length ||
+    Object.hasOwn(state.pendingSessionCreates, id)
+  )
+    return false;
+  const session = state.sessions[id];
+  return !session || (!session.has_pending && sessionIdleAt(session, now));
+}
+
+export function hasEvictableMessagesOverBudget(
+  state: MessageCacheDraft,
+): boolean {
+  if (state.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return false;
+  const now = Date.now();
+  return Object.keys(state.messageCacheBytesByConversation).some((id) =>
+    canEvictMessages(state, id, now),
+  );
+}
 
 export function evictInactiveMessages(
-  draft: MessageEvictionDraft,
-  activeConvId: string,
-) {
-  const loaded = Object.keys(draft.messages);
-  if (loaded.length <= MAX_IN_MEMORY_CONVERSATIONS) return;
+  draft: MessageCacheDraft,
+  writtenId?: string,
+): void {
+  if (draft.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return;
 
-  const currentConvId = draft.currentConversation?.conversationId;
-  // Never evict whatever is actually on screen...
-  const keep = new Set(
-    [
-      activeConvId,
-      currentConvId,
-      draft.currentSessionId,
-      draft.sidePanelSessionId,
-      draft.viewingDismissedId,
-    ].filter((id): id is string => Boolean(id)),
-  );
+  const now = Date.now();
+  const viewedAt = draft._lastViewedAt;
+  const candidates = Object.keys(draft.messageCacheBytesByConversation)
+    .filter((id) => id !== writtenId && canEvictMessages(draft, id, now))
+    .sort(
+      (a, b) =>
+        (viewedAt[a] ?? 0) - (viewedAt[b] ?? 0) ||
+        (draft.sessions[a]?.updated_at ?? 0) -
+          (draft.sessions[b]?.updated_at ?? 0),
+    );
 
-  // ...nor the rows on screen (the warm loop's published set), so switching to
-  // anything the user can see is instant. Before the first warm pass the live
-  // inbox set stands in for it.
-  //
-  // We deliberately do NOT protect every id in draft.sessions. That map never
-  // prunes (a session you've opened stays forever), so keeping messages for all
-  // of them defeated this LRU entirely: every conversation ever opened was pinned
-  // in memory, letting the store balloon to multiple GB over a few days of use.
-  // Nor the whole live inbox set once the on-screen set exists: the live window
-  // outgrew the cap (~870 rows vs 400), so protecting it left zero slack — every
-  // row OUTSIDE it (exactly what the flat "All" view and the show-old fold add)
-  // was evicted the moment the next one loaded, and the All view could never
-  // hold a warm tail. The cap above is the real bound; anything past it reloads
-  // from IDB on click.
-  const shown: ReadonlySet<string> | undefined = draft.warmProtectedIds?.size
-    ? draft.warmProtectedIds
-    : draft.liveInboxIds;
-  if (shown) for (const id of shown) keep.add(id);
-
-  // Evict least-recently-viewed first
-  // Never evict conversations with pending messages — the user just sent something
-  // and evicting would make it vanish from the UI
-  const viewedAt = draft._lastViewedAt || {};
-  const candidates = loaded
-    .filter(
-      (id: string) => !keep.has(id) && !(draft.pendingMessages[id]?.length > 0),
-    )
-    .sort((a: string, b: string) => (viewedAt[a] ?? 0) - (viewedAt[b] ?? 0));
-
-  const toEvict = candidates.slice(
-    0,
-    loaded.length - MAX_IN_MEMORY_CONVERSATIONS,
-  );
-  for (const id of toEvict) {
-    delete draft.messages[id];
-    // NEVER evict pendingMessages — these are the user's outbound messages
-    // and must survive until confirmed by the server
-    delete draft.pagination[id];
-    delete draft.userMessages[id];
+  for (const id of candidates) {
+    dropCachedMessages(draft, id);
+    messageWarmState.full = true;
+    if (draft.messageCacheBytes <= MESSAGE_CACHE_LOW_WATER_BYTES) break;
   }
 }
 

@@ -57,8 +57,8 @@ mock.module("../../../../../../hooks/useSyncCollection", () => ({
   useSyncCollection: () => ({ ready: true }),
 }));
 const realMessages =
-  await import("../../../../../../hooks/useConversationMessages");
-mock.module("../../../../../../hooks/useConversationMessages", () => ({
+  await import("../../../../../../hooks/use-conversation-messages");
+mock.module("../../../../../../hooks/use-conversation-messages", () => ({
   ...realMessages,
   useConversationMessages: () => ({ conversation: null }),
 }));

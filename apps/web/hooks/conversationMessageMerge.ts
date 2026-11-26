@@ -1,5 +1,5 @@
 import { isTaggedDecisionAnswer } from "@codecast/decisions/decisionAnswers";
-import type { Message } from "./useConversationMessages";
+import type { Message } from "./use-conversation-messages";
 
 /**
  * The rendered list: every row the session has taken, in transcript order,

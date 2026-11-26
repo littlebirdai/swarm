@@ -40,6 +40,7 @@ export function hydrateConversation(
 ): Promise<boolean> {
   const store = useInboxStore.getState();
   const epoch = currentHydrationEpoch();
+  const hadConversation = store.sessions[convId] || store.conversations[convId];
   const hasMessages = store.messages[convId]?.length > 0;
   // Already in memory — nothing to hydrate
   if (
@@ -57,6 +58,8 @@ export function hydrateConversation(
       _idbHydrating.delete(convId);
       if (epoch !== currentHydrationEpoch()) return false;
       const s = useInboxStore.getState();
+      if (hadConversation && !s.sessions[convId] && !s.conversations[convId])
+        return false;
       if (cached?.userMessages && !s.userMessages[convId])
         s.setUserMessages(convId, cached.userMessages, "cache");
       if (!cached || cached.messages.length === 0) return hasMessages;
@@ -488,7 +491,7 @@ async function hydrateInboxCacheFromIDB(
   }
 
   // Preload messages for the restored focus target only. The rows on screen
-  // are hydrated by the inbox warm loop (hooks/inboxWarm.ts) in rendered
+  // are hydrated by the inbox warm loop (hooks/inbox-warm.ts) in rendered
   // order, and anything else hydrates on open. Preloading the whole live
   // inbox set here made a phone with 594 live sessions parse 78 MB of cached
   // message JSON on the JS thread right after first paint, and load hundreds

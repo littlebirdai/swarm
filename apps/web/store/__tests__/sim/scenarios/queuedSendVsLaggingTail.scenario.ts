@@ -10,7 +10,7 @@
 // Sweep seed 157409 also fails INV-sessions-mine on a generated anchor (ct-56054).
 
 import { stripPastedContent } from "@codecast/messages/machineMessages";
-import { mergeUnconfirmedMessages } from "../../../../hooks/useConversationMessages";
+import { mergeUnconfirmedMessages } from "../../../../hooks/use-conversation-messages";
 import { scenario, type ScenarioWorld } from "../dsl";
 import { windowContext } from "../invariants";
 import type { SimWindow } from "../window";

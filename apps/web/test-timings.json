@@ -1429,7 +1429,7 @@
     "store/__tests__/sessionCacheRetention.test.ts": 259,
     "store/__tests__/sessionCommandStamp.test.ts": 250,
     "store/__tests__/sessionCommands.test.ts": 271,
-    "store/__tests__/sessionControls.test.ts": 288,
+    "store/__tests__/session-controls.test.ts": 288,
     "store/__tests__/sessionGoalActions.test.ts": 267,
     "store/__tests__/sessionSnooze.test.ts": 302,
     "store/__tests__/sessionUnread.test.ts": 276,

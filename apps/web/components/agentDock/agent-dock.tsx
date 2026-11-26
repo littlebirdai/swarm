@@ -71,7 +71,7 @@ import {
   type AgentDockEdge,
 } from "../../lib/desktopAgentDock";
 import { PermissionStack } from "../PermissionCard";
-import { SessionPrewarm } from "../SessionPrewarm";
+import { useConversationMessages } from "../../hooks/use-conversation-messages";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import {
@@ -413,6 +413,7 @@ function DockCard({
   const stashSession = useInboxStore((s) => s.stashSession);
   const killSession = useInboxStore((s) => s.killSession);
   const convex = useConvex();
+  useConversationMessages(entry.id);
   const messages = useInboxStore((s) => s.messages[entry.id]);
   const now = useCoarseNow(30_000);
 
@@ -511,7 +512,6 @@ function DockCard({
 
   return (
     <div className="dock-glass dock-card flex w-[380px] flex-col overflow-hidden rounded-[22px]">
-      <SessionPrewarm sessionId={entry.id} />
       <div className="flex items-start gap-2 px-4 pt-3.5">
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-semibold">

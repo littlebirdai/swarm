@@ -17,7 +17,7 @@ import { ShortcutProvider } from "../../shortcuts";
 import { useEnsureDispatch } from "../../hooks/useEnsureDispatch";
 import { useLiveInboxSessions } from "../../hooks/useLiveInboxSessions";
 import { useSyncReplication } from "../../hooks/useSyncRole";
-import { AgentDock } from "../../components/agentDock/AgentDock";
+import { AgentDock } from "../../components/agentDock/agent-dock";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { AGENT_DOCK_RELEASED, setAgentDock } from "../../lib/desktopAgentDock";
 

@@ -11,6 +11,11 @@ import {
   sessionStructuralSig,
   type InboxSession,
 } from "../store/inboxStore";
+import {
+  hasEvictableMessagesOverBudget,
+  MESSAGE_CACHE_BUDGET_BYTES,
+  messageWarmState,
+} from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
@@ -88,7 +93,10 @@ export function warmDepthForRank(rank: number): number {
 }
 
 /** The pure planner: rows in on-screen order → the bounded fetch list. */
-export function planWarm(rows: WarmRow[]): WarmAction[] {
+export function planWarm(
+  rows: WarmRow[],
+  coldWarmed?: ReadonlySet<string>,
+): WarmAction[] {
   const actions: WarmAction[] = [];
   let cold = 0;
   let deepens = 0;
@@ -102,6 +110,7 @@ export function planWarm(rows: WarmRow[]): WarmAction[] {
       return;
     }
     if (row.storedCount === 0) {
+      if (coldWarmed && (rank >= 10 || coldWarmed.has(row.id))) return;
       if (cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
       actions.push({
@@ -112,7 +121,7 @@ export function planWarm(rows: WarmRow[]): WarmAction[] {
       });
       return;
     }
-    if (row.storedCount < depth && row.hasMoreAbove) {
+    if (!coldWarmed && row.storedCount < depth && row.hasMoreAbove) {
       if (deepens >= MAX_DEEPEN_PER_PASS) return;
       deepens++;
       actions.push({
@@ -155,8 +164,7 @@ export function rereadAnchor(
 /**
  * Every row after `after`, paged forward and merged into the store. The one
  * forward read the warm delta, the open path's recovery and the hosted heal
- * share. Returns how many rows arrived, or null when the server refused
- * (no access yet, auth still loading).
+ * share.
  */
 export async function readForward(
   convex: ConvexClient,
@@ -164,6 +172,7 @@ export async function readForward(
   after: number,
   maxPages = 40,
 ): Promise<number | null> {
+  const inFlight = messageWarmState.inFlight;
   let cursor = after;
   let fetched = 0;
   for (let i = 0; i < maxPages; i++) {
@@ -171,13 +180,17 @@ export async function readForward(
       conversation_id: conversationId as Id<"conversations">,
       after_timestamp: cursor,
     });
+    const state = useInboxStore.getState();
+    if (
+      inFlight !== messageWarmState.inFlight ||
+      !state.messages[conversationId]?.length
+    )
+      return null;
     if (result === null) return fetched > 0 ? fetched : null;
     if (!result.messages?.length) break;
-    useInboxStore
-      .getState()
-      .mergeMessages(conversationId, result.messages, "append", {
-        initialized: true,
-      });
+    state.mergeMessages(conversationId, result.messages, "append", {
+      initialized: true,
+    });
     fetched += result.messages.length;
     if (!result.has_more || result.last_timestamp == null) break;
     cursor = result.last_timestamp;
@@ -185,19 +198,22 @@ export async function readForward(
   return fetched;
 }
 
-// Module state (not hook refs): the personal sync, the team sync, the
-// recovery polls and the open path all drive the same loop and must share one
-// in-flight set — two callers warming the same row is the duplicate fetch this
-// set exists to prevent.
-const inFlight = new Set<string>();
-// message_count we'd hold if caught up, per conversation. We warm the TAIL, so
-// we always hold the newest message — nothing newer exists until message_count
-// grows past this. Without it the delta branch re-fires an empty getNewMessages
-// every pass for any conversation holding a partial window.
-const syncedCount = new Map<string, number>();
-// Row fetches tried this page life (runRow), whatever came back: a row the
-// server withholds, or sends without is_anchor, is not asked for every pass.
-const rowTried = new Set<string>();
+function finishWarm(inFlight: Set<string>, id: string): void {
+  inFlight.delete(id);
+  if (
+    inFlight !== messageWarmState.inFlight ||
+    useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES
+  )
+    return;
+  queueMicrotask(() => {
+    const state = useInboxStore.getState();
+    if (
+      inFlight === messageWarmState.inFlight &&
+      hasEvictableMessagesOverBudget(state)
+    )
+      state.trimMessageCache();
+  });
+}
 
 /** One-shot older page. History walks must not subscribe: a live query on a
  *  long session re-runs on every conversation heartbeat and OCC-retries
@@ -248,19 +264,24 @@ export async function fetchOlderPage(
   const oldest =
     useInboxStore.getState().messages[conversationId]?.[0]?.timestamp;
   if (oldest === undefined) return false;
+  const inFlight = messageWarmState.inFlight;
   const res: any = await fetchOlderMessages(
     convex,
     conversationId,
     oldest,
     limit,
   );
-  if (!res?.messages) return false;
-  useInboxStore
-    .getState()
-    .mergeMessages(conversationId, res.messages, "prepend", {
-      hasMoreAbove: res.has_more_above ?? false,
-      initialized: true,
-    });
+  const state = useInboxStore.getState();
+  if (
+    inFlight !== messageWarmState.inFlight ||
+    !res?.messages ||
+    !state.messages[conversationId]?.length
+  )
+    return false;
+  state.mergeMessages(conversationId, res.messages, "prepend", {
+    hasMoreAbove: res.has_more_above ?? false,
+    initialized: true,
+  });
   return true;
 }
 
@@ -280,12 +301,13 @@ export function deepenConversation(
     !st.pagination[conversationId]?.hasMoreAbove
   )
     return Promise.resolve();
+  const inFlight = messageWarmState.inFlight;
   if (inFlight.has(conversationId)) return Promise.resolve();
   inFlight.add(conversationId);
   return fetchOlderPage(convex, conversationId, rows - stored)
     .then(() => undefined)
     .catch(() => undefined)
-    .finally(() => inFlight.delete(conversationId));
+    .finally(() => finishWarm(inFlight, conversationId));
 }
 
 function runCold(
@@ -293,15 +315,18 @@ function runCold(
   action: Extract<WarmAction, { kind: "cold" }>,
 ) {
   const { id, rows, serverCount } = action;
+  const inFlight = messageWarmState.inFlight;
+  messageWarmState.coldIds.add(id);
   inFlight.add(id);
-  // A previously-opened session usually still sits in IDB — restore it for
-  // free and only go to the network on a real miss. Awaiting the restore is
-  // what keeps a relaunch from firing one listMessages per inbox row while the
-  // live subscriptions are still fighting for the same server.
   ensureHydrated(id)
     .then((restored) => {
+      if (
+        inFlight !== messageWarmState.inFlight ||
+        !useInboxStore.getState().sessions[id]
+      )
+        return null;
       if (restored) {
-        syncedCount.set(id, serverCount);
+        messageWarmState.syncedCount.set(id, serverCount);
         return null;
       }
       return convex.query(api.conversations.listMessages, {
@@ -310,39 +335,39 @@ function runCold(
       });
     })
     .then((res: any) => {
-      if (!res) return;
+      if (inFlight !== messageWarmState.inFlight || !res) return;
+      const state = useInboxStore.getState();
       const page = res?.page;
-      // Don't clobber a window the user opened (or IDB restored) meanwhile —
-      // the live tail owns it from that point on.
       if (
         Array.isArray(page) &&
         page.length > 0 &&
-        (useInboxStore.getState().messages[id]?.length ?? 0) === 0
+        state.sessions[id] &&
+        !state.messages[id]?.length
       ) {
-        // listMessages is DESC (newest-first); the store holds ASC.
-        useInboxStore.getState().setMessages(id, [...page].reverse(), {
+        state.setMessages(id, [...page].reverse(), {
           hasMoreAbove: !res.isDone,
           initialized: true,
         });
-        syncedCount.set(id, serverCount);
+        messageWarmState.syncedCount.set(id, serverCount);
       }
     })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] cold warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runRow(convex: ConvexClient, id: string) {
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
-  rowTried.add(id);
+  messageWarmState.rowTried.add(id);
   convex
     .query(api.conversations.getConversation, {
       conversation_id: id as Id<"conversations">,
       limit: 1,
     })
     .then((data: any) => {
-      if (data)
+      if (inFlight === messageWarmState.inFlight && data)
         useInboxStore
           .getState()
           .seedSession(sessionRowFromConversation(id, data));
@@ -350,7 +375,7 @@ function runRow(convex: ConvexClient, id: string) {
     .catch((err: unknown) => {
       console.warn("[inboxWarm] row warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runDelta(
@@ -358,25 +383,30 @@ function runDelta(
   action: Extract<WarmAction, { kind: "delta" }>,
 ) {
   const { id, serverCount } = action;
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
   readForward(convex, id, action.after)
-    .then(() => syncedCount.set(id, serverCount))
+    .then((fetched) => {
+      if (fetched !== null && inFlight === messageWarmState.inFlight)
+        messageWarmState.syncedCount.set(id, serverCount);
+    })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] delta warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runDeepen(
   convex: ConvexClient,
   action: Extract<WarmAction, { kind: "deepen" }>,
 ) {
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(action.id);
   fetchOlderPage(convex, action.id, action.rows)
     .catch((err: unknown) => {
       console.warn("[inboxWarm] deepen failed", { id: action.id, err });
     })
-    .finally(() => inFlight.delete(action.id));
+    .finally(() => finishWarm(inFlight, action.id));
 }
 
 /**
@@ -480,7 +510,7 @@ export function warmRowsFromState(
       // A row fetch is tried once (rowTried), then the row's own count rules,
       // whatever came back.
       serverCount:
-        needsRow && !rowTried.has(id)
+        needsRow && !messageWarmState.rowTried.has(id)
           ? null
           : (st.sessions[id]?.message_count ?? session?.message_count ?? 0),
       storedCount,
@@ -490,23 +520,11 @@ export function warmRowsFromState(
         msgs,
         st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
       ),
-      syncedCount: syncedCount.get(id),
-      inFlight: inFlight.has(id),
+      syncedCount: messageWarmState.syncedCount.get(id),
+      inFlight: messageWarmState.inFlight.has(id),
     });
   }
   return rows;
-}
-
-// The on-screen set is what message eviction protects (evictInactiveMessages).
-// Change-guarded so an identical pass allocates nothing and wakes no subscriber;
-// ephemeral state, so a raw set is the right write.
-function publishProtectedIds(
-  st: ReturnType<typeof useInboxStore.getState>,
-  rows: WarmRow[],
-) {
-  const prev = st.warmProtectedIds;
-  if (prev.size === rows.length && rows.every((r) => prev.has(r.id))) return;
-  useInboxStore.setState({ warmProtectedIds: new Set(rows.map((r) => r.id)) });
 }
 
 /** One warm pass over what is on screen. Idempotent and cheap when caught up:
@@ -515,8 +533,10 @@ function publishProtectedIds(
 export function warmVisibleSessions(convex: ConvexClient): void {
   const st = useInboxStore.getState();
   const rows = warmRowsFromState(st);
-  publishProtectedIds(st, rows);
-  const plan = planWarm(rows);
+  const plan = planWarm(
+    rows,
+    messageWarmState.full ? messageWarmState.coldIds : undefined,
+  );
   lastPass = {
     at: Date.now(),
     planned: plan.length,
@@ -662,8 +682,6 @@ function runWarmLoop(convex: ConvexClient): () => void {
   };
 }
 
-// Dev console access (same convention as window.__inboxStore): the last pass
-// and the shared in-flight/synced maps, for verifying the loop in a browser.
 // NODE_ENV (not import.meta.env.DEV): this module reaches the Expo bundle
 // through useSyncCore, and Hermes cannot parse `import.meta`; both Vite and
 // Metro statically replace NODE_ENV.
@@ -674,7 +692,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     get lastPass() {
       return lastPass;
     },
-    inFlight,
-    syncedCount,
+    get inFlight() {
+      return messageWarmState.inFlight;
+    },
+    syncedCount: messageWarmState.syncedCount,
   };
 }

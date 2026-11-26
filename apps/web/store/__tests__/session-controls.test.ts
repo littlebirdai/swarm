@@ -152,7 +152,7 @@ describe("session controls use the default optimistic store path", () => {
         ];
         if (channel === "snapshot") store().setMessages(ID, messages);
         if (channel === "tail")
-          store().applyTailMessages(ID, timestamp - 10, messages, timestamp);
+          store().applyTailMessages(ID, 0, messages, timestamp);
         if (channel === "recovery")
           store().mergeMessages(ID, messages, "append");
         expect(store().pendingMessages[ID]).toHaveLength(0);

@@ -79,6 +79,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/inboxStore.ts:recentThawTimer": "window",
   "store/inboxStore.ts:_userMsgsProbed": "window",
   "store/inboxStore.ts:_idbHydrating": "window",
+  "store/store-eviction.ts:openViews": NO_REACT,
   "store/inboxStore.ts:hydrationEpoch": "window",
   // A server-deleted session the prune skipped while it was open: per-store hide state.
   "store/inboxStore.ts:deferredDeletedSessions": "window",
@@ -124,7 +125,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
     shared:
       "the docs shots mode's offline Convex client; the sim never installs it, so it stays null",
   },
-  "hooks/inboxWarm.ts:renderedMemo": {
+  "hooks/inbox-warm.ts:renderedMemo": {
     shared:
       "keyed on the placements ref and the view inputs it was built from; another window's state has its own refs, so it misses and rebuilds",
   },
@@ -356,12 +357,9 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
     shared:
       "shared coarse-tick subscribers; sim windows tick their digest comparer by hand and subscribe none",
   },
-  "hooks/inboxWarm.ts:lastPass": NO_WARM,
-  "hooks/inboxWarm.ts:inFlight": NO_WARM,
-  "hooks/inboxWarm.ts:syncedCount": NO_WARM,
-  "hooks/inboxWarm.ts:rowTried": NO_WARM,
-  "hooks/inboxWarm.ts:loopRefs": NO_WARM,
-  "hooks/inboxWarm.ts:stopLoop": NO_WARM,
+  "hooks/inbox-warm.ts:lastPass": NO_WARM,
+  "hooks/inbox-warm.ts:loopRefs": NO_WARM,
+  "hooks/inbox-warm.ts:stopLoop": NO_WARM,
   "hooks/useStorageImageUrl.ts:urlCache": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:loadedSrcs": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:persistScheduled": IMAGE_URLS,
@@ -372,8 +370,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/useStorageImageUrl.ts:pendingIds": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:waiters": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:flushScheduled": IMAGE_URLS,
-  "hooks/useConversationMessages.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
-  "hooks/useConversationMessages.ts:navIndexRequested": {
+  "hooks/use-conversation-messages.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
+  "hooks/use-conversation-messages.ts:navIndexRequested": {
     shared:
       "the conversations whose prompt index a mounted view already asked for; the sim mounts no React, so it stays empty",
   },

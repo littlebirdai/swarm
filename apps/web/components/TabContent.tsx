@@ -14,7 +14,7 @@ import {
   pathLabel,
   tabNeedsUrlRestore,
 } from "../lib/pathLabel";
-import { SessionPrewarm } from "./SessionPrewarm";
+import { SessionPrewarm } from "./session-prewarm";
 import { stageRenderLayout } from "../lib/stage";
 import { useNarrowStage } from "../hooks/useNarrowStage";
 import { useStageShortcuts } from "../hooks/useStageShortcuts";

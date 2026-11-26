@@ -568,7 +568,7 @@ describe("SessionDecisionCard writes only on gestures", () => {
     expect(model.match(/resolveSessionQuestion\(/g)?.length ?? 0).toBe(1);
     const surfaces = [
       await read("../../components/SessionDecisionCard.tsx"),
-      await read("../../components/agentDock/AgentDock.tsx"),
+      await read("../../components/agentDock/agent-dock.tsx"),
     ];
     for (const source of surfaces)
       expect(source.match(/resolveSessionQuestion\(/g) ?? []).toEqual([]);

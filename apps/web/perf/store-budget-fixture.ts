@@ -10,13 +10,21 @@ export const session = (index: number) => ({
 });
 
 export const budgetMessages = (conversation: number): Message[] =>
-  Array.from({ length: 200 }, (_, index) => ({
+  Array.from({ length: 250 }, (_, index) => ({
     _id: `message-${index}`,
     timestamp: index + 1,
     role: "assistant",
-    content: `Résumé ${conversation} ${index} ${"word ".repeat(16)}`,
+    content: `Résumé ${conversation} ${index} ${"word ".repeat(76)}`,
     ...(index === 100
-      ? { images: [{ data: "a".repeat(4096), mediaType: "image/png" }] }
+      ? {
+          images: [
+            {
+              data: "a".repeat(128 * 1024),
+              media_type: "image/png",
+              ...(conversation % 4 ? { storage_id: id(conversation) } : {}),
+            },
+          ],
+        }
       : {}),
   }));
 

@@ -39,7 +39,7 @@ import {
 } from "../lib/inboxViewHistory";
 import { RecentlyViewedMenu } from "./RecentlyViewedMenu";
 import { useConvex, useMutation } from "convex/react";
-import { startWarmLoop } from "../hooks/inboxWarm";
+import { startWarmLoop } from "../hooks/inbox-warm";
 import { useAuthGate } from "@platform/auth/web";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Panel, Group, Separator, usePanelRef } from "react-resizable-panels";

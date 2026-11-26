@@ -10,7 +10,7 @@ import {
   rereadAnchor,
   warmDepthForRank,
   type WarmRow,
-} from "../inboxWarm";
+} from "../inbox-warm";
 import { useInboxStore } from "../../store/inboxStore";
 import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 
@@ -230,7 +230,7 @@ describe("warmRowsFromState", () => {
   // hides a row from the render but not from the inbox. Expanding it, or a
   // jump that reveals it, must open a warm row.
   it("covers inbox rows the render hides", async () => {
-    const { warmRowsFromState } = await import("../inboxWarm");
+    const { warmRowsFromState } = await import("../inbox-warm");
     const id = "jx7ccccccccccccccccccccccccccccc";
     useInboxStore.setState({
       sessions: {
@@ -270,7 +270,7 @@ describe("warmRowsFromState", () => {
   // A role's standing session files behind its role card (or only on the org
   // page) and may have no row in the store at all.
   it("covers every role's standing session", async () => {
-    const { warmRowsFromState } = await import("../inboxWarm");
+    const { warmRowsFromState } = await import("../inbox-warm");
     const fromTree = "jx7ddddddddddddddddddddddddddddd";
     const fromRow = "jx7eeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     useInboxStore.setState({
@@ -353,7 +353,7 @@ describe("startWarmLoop", () => {
   // from a feeder, and holds its own message cache. A row that lands after the
   // window mounted must still be warmed, or dismissing onto it shows a loader.
   it("warms a row that arrives in the store with no feeder push", async () => {
-    const { startWarmLoop, WARM_COALESCE_MS } = await import("../inboxWarm");
+    const { startWarmLoop, WARM_COALESCE_MS } = await import("../inbox-warm");
     const id = "jx7aaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     useInboxStore.setState({
       sessions: {},
