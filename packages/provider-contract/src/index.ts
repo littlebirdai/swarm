@@ -20,6 +20,25 @@ export type DeliveryReceipt = Readonly<
   Extract<CanonicalEvent, { kind: "receipt" }>["body"]
 >;
 
+export interface DeliveryReceiptRecord extends DeliveryReceipt {
+  readonly provider_item_id: string;
+  readonly turn: string;
+}
+
+export interface DeliveryReceiptJournal {
+  read(
+    session: SessionScope["session"],
+    checkpoint: string,
+    signal: AbortSignal,
+  ): Promise<readonly DeliveryReceiptRecord[]>;
+  record(
+    session: SessionScope["session"],
+    checkpoint: string,
+    receipt: DeliveryReceiptRecord,
+    signal: AbortSignal,
+  ): Promise<void>;
+}
+
 export interface SessionScope {
   readonly session: CanonicalEvent["session"];
   readonly run: CanonicalEvent["run"];
@@ -44,6 +63,7 @@ export interface StartSpec extends SessionScope {
 
 export interface ResumeSpec extends StartSpec {
   readonly checkpoint: string;
+  readonly inDoubtDeliveryIds?: readonly DeliveryReceipt["delivery_id"][];
 }
 
 type ExpectedPrompt = Extract<Expected, { kind: "prompt" }>;

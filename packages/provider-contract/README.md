@@ -57,6 +57,14 @@ with the same receipt and emits no second receipt event. If the adapter
 supports resume, it exposes recovered receipts from earlier runs of the
 session. The machine records delivery start before it calls the adapter.
 
+An adapter can use a `DeliveryReceiptJournal` to retain the provider item ID
+and turn. The journal keys each receipt by session, checkpoint, and delivery
+ID. A write must commit before it resolves. Exact repeats are idempotent.
+Reject a write that conflicts with a stored receipt. Reads return committed
+records and must work after a restart. The canonical receipt event carries
+the delivery ID. On resume, `inDoubtDeliveryIds` selects which recovered
+receipts to emit again. The adapter emits each selected ID once per open.
+
 A clean write without a durable receipt returns `in-doubt` with reason
 `best-effort`. This includes a successful paste, SDK enqueue, or structured
 transport acknowledgment without durable receipt support. Use reason
