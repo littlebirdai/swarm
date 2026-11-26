@@ -21,10 +21,11 @@ function scratchHome(): string {
 function runCli(
   home: string,
   args: string[],
+  env: NodeJS.ProcessEnv = {},
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [processEntry, ...args], {
-      env: { ...process.env, HOME: home, NO_COLOR: "1" },
+      env: { ...process.env, HOME: home, NO_COLOR: "1", ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -55,6 +56,23 @@ afterEach(() => {
 });
 
 describe("cast config — the home mirror keys", () => {
+  test("an unauthenticated agent can run local config commands", async () => {
+    const home = scratchHome();
+    const result = await runCli(
+      home,
+      ["config", "cloud_mirror_enabled", "true"],
+      {
+        CLAUDE_CODE_SESSION_ID: "fixture-agent",
+      },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(config(home).cloud_mirror_enabled).toBe(true);
+    expect(fs.readdirSync(path.join(home, ".codecast"))).not.toContain(
+      "plan-log-none-fixture-agent",
+    );
+  });
+
   test("cloud_mirror_enabled persists a boolean; true/1/false/0 coerce; anything else is refused", async () => {
     const home = scratchHome();
     expect(

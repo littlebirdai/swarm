@@ -24150,16 +24150,20 @@ function formatRunAt(timestamp: number): string {
 
 // --- Work Items (codecast task) ---
 
-function getCliEndpoint(): { siteUrl: string; apiToken: string } {
+function readCliEndpoint(): { siteUrl: string; apiToken: string } | null {
   const config = readConfig();
-  if (!config?.auth_token || !config?.convex_url) {
-    console.error("Not authenticated. Run: cast auth");
-    process.exit(1);
-  }
+  if (!config?.auth_token || !config?.convex_url) return null;
   return {
     siteUrl: config.convex_url.replace(".cloud", ".site"),
     apiToken: config.auth_token,
   };
+}
+
+function getCliEndpoint(): { siteUrl: string; apiToken: string } {
+  const endpoint = readCliEndpoint();
+  if (endpoint) return endpoint;
+  console.error("Not authenticated. Run: cast auth");
+  process.exit(1);
 }
 
 // The CLI's single workspace resolver. Every subcommand that needs to know
@@ -33974,9 +33978,17 @@ program.hook("postAction", async (_thisCommand, actionCommand) => {
   )
     names.unshift(c.name());
   const json = !!actionCommand.opts().json || process.argv.includes("--json");
+  if (json) return;
+  let endpoint: ReturnType<typeof readCliEndpoint>;
+  try {
+    endpoint = readCliEndpoint();
+  } catch {
+    return;
+  }
+  if (!endpoint) return;
   const { deliverPlanLog } = await import("./planLogDelivery.js");
   await deliverPlanLog(
-    { getCliEndpoint },
+    { getCliEndpoint: () => endpoint },
     { command: names.join(" "), json, sessionId, stateDir: CONFIG_DIR },
   );
 });
