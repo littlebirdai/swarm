@@ -15826,9 +15826,14 @@ const reconfigureSessionDefinition = {
     // for a folder the shared predicate calls native, cloud_device_id
     // otherwise) is re-decided below once the folder is known: native →
     // un-park to the host (a plain start there), else → re-park.
-    let unpark = false;
     let hostTarget: any = null;
     const patch: Record<string, any> = { updated_at: Date.now() };
+    if (
+      args.project_path === undefined &&
+      args.target_device_id !== undefined &&
+      args.target_device_id !== conv.owner_device_id
+    )
+      patch.owner_device_id = conv.owner_device_id;
     if (
       !args.cloud_device_id &&
       conv.cloud_placement === "pending" &&
@@ -15841,8 +15846,7 @@ const reconfigureSessionDefinition = {
         )
         .first();
       const unparkFields = await unparkForMove(ctx, conv, target);
-      unpark = Object.keys(unparkFields).length > 0;
-      if (unpark)
+      if (Object.keys(unparkFields).length > 0)
         Object.assign(patch, unparkFields, {
           owner_device_id: undefined,
           session_error: undefined,
@@ -15893,7 +15897,6 @@ const reconfigureSessionDefinition = {
       patch.is_private = isPrivate;
       patch.auto_shared = autoShared || undefined;
     }
-
     // A pending row re-pointed at its host: with the folder it will have
     // AFTER this patch, does the host already hold it? Then the placement is
     // done with (no laptop needs to prepare anything) and the row starts on
@@ -15915,7 +15918,6 @@ const reconfigureSessionDefinition = {
       if (unparkToHost)
         Object.assign(patch, CLOUD_UNPARK_PATCH, { session_error: undefined });
     }
-
     await ctx.db.patch(args.conversation_id, patch);
     // A project-path change re-resolves team/privacy; if the access inputs
     // actually moved, advance the comment view head (matrix SRV-02). Guarded
@@ -15927,7 +15929,6 @@ const reconfigureSessionDefinition = {
     ) {
       await advanceCommentsAccessRevision(ctx, conv);
     }
-
     if (unparkToHost)
       await supersedeCloudSpawns(ctx, conv.user_id, args.conversation_id);
     // The folder moved under a park: the cloud_spawn a laptop may already be
@@ -15935,7 +15936,6 @@ const reconfigureSessionDefinition = {
     // ask again with a fresh token.
     const pathChanged =
       args.project_path !== undefined && args.project_path !== priorProjectPath;
-
     const updated = { ...conv, ...patch };
     const daemonAgentType = fromConvexAgentType(updated.agent_type);
     const stampedModelKey =
