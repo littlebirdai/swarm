@@ -7,3 +7,4 @@ export * from "./coordinator.js";
 export * from "./runtime-rail.js";
 export * from "./drivers/managedTmux.js";
 export * from "./drivers/codexAppServer.js";
+export { createCodexOwnedPilot } from "./codex-owned-pilot.js";

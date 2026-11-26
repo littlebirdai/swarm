@@ -25,6 +25,10 @@ import {
   type AttachedFileRef,
 } from "@codecast/daemon/fileAttachment";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
+import {
+  ownsCodexCheckpoint,
+  type CodexOwnedPilot,
+} from "./codex-owned-pilot.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
 export const FENCED_EXECUTION_FEATURE_FLAG =
@@ -275,6 +279,7 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
 export interface DaemonExecutionRuntimeOptions {
   transport: ExecutionConvexTransport;
   ownerDeviceId: string;
+  codexOwnedPilot?: CodexOwnedPilot;
   drivers: RuntimeDriverRegistry | readonly RuntimeDriver[];
   journal?: ExecutionOperationJournal;
   journalDirectory?: string;
@@ -291,6 +296,7 @@ export class DaemonExecutionRuntime {
   readonly coordinator: ExecutionCoordinator;
   readonly drivers: RuntimeDriverRegistry;
   private readonly ownerDeviceId: string;
+  private readonly codexOwnedPilot?: CodexOwnedPilot;
   private readonly resolveImage?: DaemonExecutionRuntimeOptions["resolveImage"];
   private readonly resolveFile?: DaemonExecutionRuntimeOptions["resolveFile"];
   private readonly onLog: (message: string) => void;
@@ -300,6 +306,7 @@ export class DaemonExecutionRuntime {
   constructor(options: DaemonExecutionRuntimeOptions) {
     this.daemonBootId = options.daemonBootId ?? randomUUID();
     this.ownerDeviceId = options.ownerDeviceId;
+    this.codexOwnedPilot = options.codexOwnedPilot;
     this.resolveImage = options.resolveImage;
     this.resolveFile = options.resolveFile;
     this.onLog = options.onLog ?? (() => {});
@@ -359,6 +366,9 @@ export class DaemonExecutionRuntime {
   stop(): void {
     this.unsubscribe?.();
     this.unsubscribe = undefined;
+    void this.codexOwnedPilot
+      ?.close()
+      .catch((error) => this.onLog(String(error)));
   }
 
   processWorkUpdate(value: unknown): Promise<void> {
@@ -439,6 +449,15 @@ export class DaemonExecutionRuntime {
     }
 
     const current = ready.get(item.currentEpoch);
+    if (
+      current?.state === "ready" &&
+      current.binding.actualAgent === "codex" &&
+      current.binding.transport === "app-server" &&
+      ownsCodexCheckpoint(current.binding.handle)
+    ) {
+      await this.codexOwnedPilot?.activate(current.binding, current.request);
+      return;
+    }
     const pendingEpoch =
       item.pendingEpoch ?? item.pendingIntent?.request.target.epoch;
     const successor =

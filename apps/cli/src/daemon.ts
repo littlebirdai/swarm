@@ -1185,6 +1185,7 @@ import {
   ManagedTmuxRuntimeDriver,
   RuntimeDriverRegistry,
   assertLegacyDeliveryEnvelope,
+  createCodexOwnedPilot,
   fencedExecutionEnabled,
   getProcessExecutionRuntime,
   type FencedTmuxTags,
@@ -43810,13 +43811,25 @@ async function main(): Promise<void> {
     );
   }
 
-  // Fenced execution is an explicit local rollout only. There is no remote
-  // command/UI switch that can activate it; without the exact environment bit
-  // the legacy daemon remains byte-for-byte responsible for execution.
+  const codexOwnedPilot = createCodexOwnedPilot({
+    siteUrl: (config.convex_url || "").replace(".cloud", ".site"),
+    bearer: config.auth_token,
+    command: () => [launchBinary("codex"), "app-server"],
+    permissions: () => resolveCodexPermissionDefaults(activeConfig),
+    instructions: ({ target }) =>
+      buildCodexStableContext(
+        activeConfig,
+        target.projectPath,
+        {},
+        target.conversationId,
+      ).then((built) => built?.text),
+    log,
+  });
   const fencedRuntime = fencedExecutionEnabled()
     ? getProcessExecutionRuntime({
         transport: syncService,
         ownerDeviceId: deviceId(),
+        codexOwnedPilot,
         journalDirectory: path.join(CONFIG_DIR, "execution-journal"),
         drivers: (() => {
           const registry = new RuntimeDriverRegistry();
@@ -43937,49 +43950,33 @@ async function main(): Promise<void> {
             }),
           );
           if (codexAppServerInstance) {
-            registry.register(
-              new CodexAppServerRuntimeDriver({
-                defaultPermissions: () =>
-                  resolveCodexPermissionDefaults(activeConfig),
-                io: {
-                  client: codexAppServerInstance,
-                  registerThread({
-                    conversationId,
-                    threadId,
-                    cwd,
-                    approvalPolicy,
-                    sandbox,
-                  }) {
-                    registerAppServerConversation(conversationId, threadId, {
-                      cwd,
-                      approvalPolicy,
-                      sandbox,
-                      persist: true,
-                    });
-                  },
-                  async inspectThread(threadId) {
-                    if (!codexAppServerInstance?.running) return "unknown";
-                    return appServerThreads.has(threadId) ? "alive" : "unknown";
-                  },
-                  async stopThread(threadId) {
-                    const entry = appServerThreads.get(threadId);
-                    if (!entry) return;
-                    await teardownConversationBackendsLive(
-                      entry.conversationId,
-                      { interruptActiveTurn: true },
-                    );
-                  },
-                  async quarantineThread(threadId) {
-                    const entry = appServerThreads.get(threadId);
-                    if (!entry) return;
-                    await teardownConversationBackendsLive(
-                      entry.conversationId,
-                      { interruptActiveTurn: true },
-                    );
-                  },
+            const stopThread = async (threadId: string) => {
+              const entry = appServerThreads.get(threadId);
+              if (entry)
+                await teardownConversationBackendsLive(entry.conversationId, {
+                  interruptActiveTurn: true,
+                });
+            };
+            const legacy = new CodexAppServerRuntimeDriver({
+              defaultPermissions: () =>
+                resolveCodexPermissionDefaults(activeConfig),
+              io: {
+                client: codexAppServerInstance,
+                registerThread({ conversationId, threadId, ...params }) {
+                  registerAppServerConversation(conversationId, threadId, {
+                    ...params,
+                    persist: true,
+                  });
                 },
-              }),
-            );
+                async inspectThread(threadId) {
+                  if (!codexAppServerInstance?.running) return "unknown";
+                  return appServerThreads.has(threadId) ? "alive" : "unknown";
+                },
+                stopThread,
+                quarantineThread: stopThread,
+              },
+            });
+            registry.register(codexOwnedPilot?.register(legacy) ?? legacy);
           }
           return registry;
         })(),
