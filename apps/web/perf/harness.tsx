@@ -507,7 +507,7 @@ function messages(conv: string, n: number): any[] {
   for (let i = 0; i < n; i++) {
     const user = i % 2 === 0;
     out.push({
-      _id: `${conv.slice(0, 20)}m${String(i).padStart(11, "0")}`,
+      _id: `${conv.slice(-20)}m${String(i).padStart(11, "0")}`,
       conversation_id: conv,
       role: user ? "user" : "assistant",
       timestamp: now - (n - i) * 30_000,
@@ -761,7 +761,7 @@ async function setupAppend(): Promise<Bench> {
       measure(async () => {
         const i = n++;
         const row = {
-          _id: `${a.slice(0, 20)}m${String(i).padStart(11, "0")}`,
+          _id: `${a.slice(-20)}m${String(i).padStart(11, "0")}`,
           conversation_id: a,
           role: "assistant",
           timestamp: now + i * 1000,
