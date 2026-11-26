@@ -197,7 +197,10 @@ export class CodexPilotPromptCards {
     const { session: conversationId, turn, at } = event;
     if (event.kind === "prompt.opened" && turn) {
       const { prompt_id, tool_call_id, kind, summary } = event.body;
-      if (this.open.has(prompt_id)) return;
+      if (this.open.has(prompt_id)) {
+        if (kind === "permission") onBlocked();
+        return;
+      }
       if (kind === "question") {
         this.open.set(prompt_id, {
           kind,
@@ -214,7 +217,7 @@ export class CodexPilotPromptCards {
           fenced_prompt_id: prompt_id,
           fenced_prompt_turn_id: turn,
           tool_name: raw?.method ?? event.body.tool_name ?? "Codex permission",
-          arguments_preview: raw?.preview ?? summary ?? "",
+          arguments_preview: raw?.preview ?? redactSecrets(summary ?? ""),
         });
         this.open.set(prompt_id, { kind, turn, rowId });
         onBlocked();

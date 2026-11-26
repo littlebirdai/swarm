@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ClaimGrant } from "@codecast/edge-client";
 import { createProviderAdapter } from "@codecast/provider-adapter";
+import type { OwnedSession } from "@codecast/provider-contract";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import { waitFor } from "@codecast/test-helpers/waitFor";
 import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
@@ -16,6 +17,17 @@ import { strictStub } from "../test-helpers/strictStub.js";
 import { fixture, item } from "./codex-owned-pilot-fixture.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 
+const claim: ClaimGrant = {
+  v: 1,
+  status: "granted",
+  session: "conversation",
+  run: 1,
+  fencing_token: "granted-fence",
+  lease_ms: 30_000,
+  last_pane_instance: 0,
+};
+const previewToken = "ghp_0123456789abcdefghijklmnopqrstuvwxyz";
+
 test("owned Codex publishes legacy-shaped prompt cards and closes them on provider settlement", async () => {
   const directory = mkdtempSync(join(tmpdir(), "owned-codex-cards-"));
   const app = fake(directory, "cards");
@@ -25,15 +37,6 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
     command: [app.executable],
     retainRaw: (frame) => cards.retain(frame),
   });
-  const claim: ClaimGrant = {
-    v: 1,
-    status: "granted",
-    session: "conversation",
-    run: 1,
-    fencing_token: "granted-fence",
-    lease_ms: 30_000,
-    last_pane_instance: 0,
-  };
   const messages: Parameters<SyncService["addMessages"]>[0]["messages"] = [];
   const permissions: Parameters<SyncService["createPermissionRequest"]>[0][] =
     [];
@@ -53,29 +56,6 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
     async cancelPermissionRequest(id) {
       closedPermissions.push(id);
       return true;
-    },
-    getClient() {
-      const page = [
-        ...permissions.map((request) => ({
-          kind: "permission",
-          id: request.fenced_prompt_id,
-          turn: request.fenced_prompt_turn_id,
-          rowId: `row-${request.fenced_prompt_id}`,
-        })),
-        ...messages.flatMap((message) =>
-          (message.toolCalls ?? []).map((call) => ({
-            kind: "question",
-            id: call.id,
-            turn: (call.input as { fencedTurnId: string }).fencedTurnId,
-            messageUuid: message.messageUuid,
-          })),
-        ),
-      ];
-      return strictStub<ReturnType<SyncService["getClient"]>>("stored cards", {
-        async query() {
-          return { page, isDone: true, continueCursor: "" } as never;
-        },
-      });
     },
   });
   let writer: Promise<void> | undefined;
@@ -123,7 +103,7 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
           params: {
             ...params,
             itemId: "exec",
-            command: "pwd",
+            command: `pwd && echo ${previewToken}`,
             reason: "Show the working directory",
           },
         },
@@ -152,13 +132,16 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
       () => messages.length === 1 && permissions.length === 1,
       "publish visible cards",
     );
+    expect(permissions[0]?.arguments_preview).not.toContain(previewToken);
     expect(permissions[0]).toMatchObject({
       conversation_id: claim.session,
       session_id: app.thread,
       fenced_prompt_id: address("approve").prompt_id,
       fenced_prompt_turn_id: turnId,
       tool_name: "item/commandExecution/requestApproval",
-      arguments_preview: expect.stringContaining("pwd"),
+      arguments_preview: expect.stringContaining(
+        "pwd && echo [redacted:github-token]",
+      ),
     });
     const questionCall = messages[0]!.toolCalls?.[0];
     expect(questionCall).toEqual({
@@ -186,17 +169,6 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
     });
     expect(messages).toHaveLength(1);
     expect(blocked).toHaveLength(2);
-    expect(session.getPendingPrompts).toBeDefined();
-    await new CodexPilotPromptCards().recover(
-      claim.session,
-      "fixture-bearer",
-      sync,
-      session.getPendingPrompts!,
-      new AbortController().signal,
-    );
-    expect(messages).toHaveLength(1);
-    expect(closedPermissions).toEqual([]);
-
     await session.answer({
       expected: address("ask"),
       by: { kind: "person", id: "owner" },
@@ -229,6 +201,192 @@ test("owned Codex publishes legacy-shaped prompt cards and closes them on provid
       address("secret").prompt_id,
       address("ask").prompt_id,
       address("approve").prompt_id,
+    ]);
+  } finally {
+    await adapter.dispose();
+    await writer;
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("redacts the permission summary when the raw approval is unavailable", async () => {
+  const previews: string[] = [];
+  const sync = strictStub<SyncService>("publisher", {
+    async createPermissionRequest(request) {
+      previews.push(request.arguments_preview);
+      return "permission-row";
+    },
+  });
+  await new CodexPilotPromptCards().publish(
+    {
+      v: 1,
+      session: claim.session,
+      run: claim.run,
+      seq: 1,
+      at: 1,
+      source: "provider",
+      turn: "turn",
+      kind: "prompt.opened",
+      body: {
+        prompt_id: "permission",
+        kind: "permission",
+        summary: `Approve command using ${previewToken}`,
+      },
+    },
+    claim,
+    strictStub<OwnedSession>("provider", { getCheckpoint: () => "thread" }),
+    sync,
+    () => {},
+  );
+  expect(previews).toEqual(["Approve command using [redacted:github-token]"]);
+});
+
+test("restart closes stranded cards and restores held prompts with their answers", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "owned-codex-mixed-cards-"));
+  const app = fake(directory, "mixed-cards");
+  const cards = new CodexPilotPromptCards();
+  const adapter = createProviderAdapter({
+    provider: { agent: "codex", version: "0.153.4" },
+    command: [app.executable],
+    retainRaw: (frame) => cards.retain(frame),
+  });
+  const turn = app.turn(3);
+  const address = (id: string) => `1:app-server:string:${id}`;
+  const stored = ["held", "stranded"].flatMap((state) => {
+    const questionId = address(`${state}-question`);
+    return [
+      {
+        kind: "permission",
+        id: address(`${state}-approval`),
+        turn,
+        rowId: `${state}-row`,
+      },
+      {
+        kind: "question",
+        id: questionId,
+        turn,
+        messageUuid: `owned-prompt:1:${turn}:${questionId}`,
+      },
+    ];
+  });
+  const messages: Parameters<SyncService["addMessages"]>[0]["messages"] = [];
+  const closedPermissions: string[] = [];
+  const states: string[] = [];
+  const sync = strictStub<SyncService>("previous process cards", {
+    getClient() {
+      return strictStub<ReturnType<SyncService["getClient"]>>("stored cards", {
+        async query() {
+          return { page: stored, isDone: true, continueCursor: "" } as never;
+        },
+      });
+    },
+    async cancelPermissionRequest(rowId) {
+      closedPermissions.push(rowId);
+      return true;
+    },
+    async addMessages({ conversationId, messages: batch }) {
+      expect(conversationId).toBe(claim.session);
+      messages.push(...batch);
+      return { inserted: batch.length, ids: [] };
+    },
+  });
+  let writer: Promise<void> | undefined;
+  try {
+    const opened = await adapter.resume({
+      ...claim,
+      cwd: directory,
+      checkpoint: app.thread,
+      afterSeq: 4,
+    });
+    if (opened.status !== "opened") throw new Error(JSON.stringify(opened));
+    const session = opened.session;
+    const pendingPrompts = session.getPendingPrompts;
+    if (!pendingPrompts) throw new Error("Expected pending Codex prompts");
+    const params = { threadId: app.thread, turnId: turn };
+    app.send({
+      frames: [
+        {
+          id: "held-approval",
+          method: "item/commandExecution/requestApproval",
+          params: { ...params, itemId: "held-command", command: "pwd" },
+        },
+        {
+          id: "held-question",
+          method: "item/tool/requestUserInput",
+          params: { ...params, itemId: "held-item", questions: [question] },
+        },
+      ],
+    });
+    await until(
+      () => pendingPrompts().length === 2,
+      "the resumed adapter holds the two live prompts",
+    );
+    await cards.recover(
+      claim.session,
+      "fixture-bearer",
+      sync,
+      pendingPrompts,
+      new AbortController().signal,
+    );
+    expect(closedPermissions).toEqual(["stranded-row"]);
+    expect(messages.map(({ toolResults }) => toolResults)).toEqual([
+      [
+        {
+          toolUseId: address("stranded-question"),
+          content: "Codex question cancelled",
+        },
+      ],
+    ]);
+
+    let replayedQuestion = false;
+    writer = (async () => {
+      for await (const event of session.events) {
+        if (event.kind === "message.delta") continue;
+        if (event.kind === "turn.started") states.push("working");
+        await cards.publish(event, claim, session, sync, () =>
+          states.push(
+            event.kind === "prompt.opened"
+              ? "permission_blocked"
+              : "question_blocked",
+          ),
+        );
+        if (event.kind === "context") replayedQuestion = true;
+      }
+    })();
+    await until(
+      () => replayedQuestion,
+      "the live question context is replayed",
+    );
+    expect(states).toEqual([
+      "working",
+      "permission_blocked",
+      "question_blocked",
+    ]);
+    expect(messages).toHaveLength(1);
+    expect(closedPermissions).toEqual(["stranded-row"]);
+
+    await session.answer({
+      expected: {
+        run: claim.run,
+        fencing_token: claim.fencing_token,
+        prompt_id: address("held-question"),
+      },
+      by: { kind: "person", id: "owner" },
+      answer: { answers: { [question.id]: { answers: ["Short"] } } },
+    });
+    await until(
+      () => messages.length === 2,
+      "the real answer settles the held question",
+    );
+    expect(messages[1]?.toolResults).toEqual([
+      {
+        toolUseId: address("held-question"),
+        content: "Answered from the app: Short",
+      },
+    ]);
+    expect(closedPermissions).toEqual(["stranded-row"]);
+    expect(pendingPrompts().map(({ id }) => id)).toEqual([
+      address("held-approval"),
     ]);
   } finally {
     await adapter.dispose();
