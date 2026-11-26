@@ -256,7 +256,9 @@ export function createDetailInvalidationTransport(opts: Options) {
           msg.hostId === knownHost &&
           extension?.version === 1
         ) {
+          const recovered = !compatibleHost && extension.compatible === true;
           compatibleHost = extension.compatible ? knownHost : undefined;
+          if (recovered) sendPending();
         } else if (msg.type === "mut" && extension?.settled) {
           const settled = extension.settled;
           if (
@@ -339,8 +341,7 @@ export function createDetailInvalidationTransport(opts: Options) {
       knownHost = undefined;
       compatibleHost = undefined;
       const host = opts.host();
-      const current = () =>
-        opts.current() && opts.host() === host && compatible();
+      const current = () => opts.current() && opts.host() === host;
       if (host && current())
         for (const [id, request] of pending)
           void commit(request, current)

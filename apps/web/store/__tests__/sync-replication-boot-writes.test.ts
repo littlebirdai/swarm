@@ -594,7 +594,7 @@ test.each(["elected", "follower", "solo"] as const)(
               : Promise.resolve(null);
           },
           async page() {
-            return { page: [], isDone: true, continueCursor: "" };
+            return { page: [row], isDone: true, continueCursor: "" };
           },
         },
       });

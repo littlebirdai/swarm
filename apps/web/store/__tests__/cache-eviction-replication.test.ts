@@ -349,6 +349,93 @@ test("mixed cohorts confirm host removals through the legacy wire format and rec
   });
 });
 
+test("election drains queued invalidations while a legacy peer is present", async () => {
+  const bus = hub();
+  const selfId = "promoted";
+  const disk = new Map([[docId, row]]);
+  const verified: string[][] = [];
+  let host: ReplicationHost | null = null;
+  const protocol = createDetailInvalidationTransport({
+    selfId,
+    channel: bus.channel(selfId),
+    host: () => host,
+    current: active,
+    async verify(request) {
+      verified.push(request.ids);
+      return request.ids;
+    },
+    async deleteDetails(ids) {
+      for (const id of ids) disk.delete(id);
+      return ids;
+    },
+    apply() {},
+  });
+  const stopListening = protocol.channel.onMessage(() => {});
+  cleanup.push(stopListening);
+  protocol.enterSolo();
+  expect(protocol.report({ ids: [docId], cause: "access" })).toBe(true);
+  makeFollower(bus, false, "legacy");
+  stopListening();
+  host = createReplicationHost({
+    hostId: selfId,
+    channel: protocol.channel,
+    getState: () => ({ docDetails: {} }),
+    replicatedKeys: ["docDetails"],
+    isCollectionKey: () => true,
+    applyUpdates() {},
+  });
+  cleanup.push(host.stop);
+
+  protocol.promote();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(verified).toEqual([[docId]]);
+  expect(disk.has(docId)).toBe(false);
+  expect(bus.sent.filter((msg) => msg.type === "update")).toEqual([
+    expect.objectContaining({
+      hostId: selfId,
+      updates: [{ key: "docDetails", removes: [docId] }],
+    }),
+  ]);
+});
+
+test("a compatible host advertisement resends queued invalidations once", async () => {
+  const bus = hub();
+  let now = 0;
+  const { host, disk } = makeHost(
+    bus,
+    {
+      async detail() {
+        return null;
+      },
+      async page() {
+        return { page: [], isDone: true, continueCursor: "" };
+      },
+    },
+    () => now,
+  );
+  const { follower, protocol } = makeFollower(bus, true);
+  const requests = () =>
+    bus.sent.filter((msg) => msg.type === "mut" && msg.from === "follower");
+  bus.omit((receiver, msg) => receiver === "host" && msg.type === "mut");
+  expect(protocol?.report({ ids: [docId], cause: "access" })).toBe(true);
+  expect(requests()).toHaveLength(1);
+  const [first] = requests();
+  const { follower: legacy } = makeFollower(bus, false, "legacy");
+  expect(protocol?.report({ ids: [other], cause: "access" })).toBe(false);
+  expect(disk.has(docId)).toBe(true);
+  expect(requests()).toHaveLength(1);
+  bus.omit();
+  legacy.stop();
+  now += 10 * 60_000;
+
+  host.publish([{ key: "docDetails", upserts: [] }]);
+  host.publish([{ key: "docDetails", upserts: [] }]);
+  expect(follower.synced()).toBe(true);
+  expect(requests()).toEqual([first, first]);
+  await bus.next(isAuthoritativeRemoval);
+  expect(disk.has(docId)).toBe(false);
+});
+
 test.each([false, true])(
   "a rejected request settles after resync (initial acknowledgement lost: %s)",
   async (loseAck) => {
