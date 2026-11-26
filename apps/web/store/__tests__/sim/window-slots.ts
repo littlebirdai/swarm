@@ -387,6 +387,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   },
   "lib/reading-anchor-claims.ts:active": READING_VISITS,
   "lib/reading-anchor-claims.ts:lastOrder": READING_VISITS,
+  "lib/reading-anchor-claims.ts:session": READING_VISITS,
   "lib/externalEventOutcomes.ts:SESSION_COMMIT_KINDS": CONSTANT,
   "lib/settingsData.ts:TEAM_SCOPED_SETTINGS": CONSTANT,
   "lib/settingsData.ts:RETIRED_SETTINGS": CONSTANT,

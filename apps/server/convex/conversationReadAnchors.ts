@@ -41,7 +41,7 @@ export const get = query({
 export const begin = mutation({
   args: {
     conversation_id: v.id("conversations"),
-    claim: v.optional(v.object({ id: v.string(), order: v.number() })),
+    claim: v.optional(v.object({ session: v.string(), order: v.number() })),
   },
   handler: async (ctx, { conversation_id, claim }) => {
     const userId = await getAuthUserId(ctx);

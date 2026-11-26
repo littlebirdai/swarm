@@ -350,11 +350,13 @@ test("window focus and programmatic movement do not claim or checkpoint again", 
   ]);
 });
 
-test("ConversationView enables a bounded restore only under the reading anchor flag", async () => {
-  const flag = "VITE_SESSION_READ_ANCHORS";
-  const previous = process.env[flag];
-  try {
-    for (const enabled of [false, true]) {
+test.each(["flag off", "visible tab", "tab hidden while loading"] as const)(
+  "ConversationView finishes a bounded anchor restore with %s",
+  async (mode) => {
+    const flag = "VITE_SESSION_READ_ANCHORS";
+    const previous = process.env[flag];
+    try {
+      const enabled = mode !== "flag off";
       process.env[flag] = enabled ? "1" : "0";
       const jump = mock((_timestamp: number) => {});
       const tail = mock(() => {});
@@ -428,6 +430,14 @@ test("ConversationView enables a bounded restore only under the reading anchor f
       expect(tail).not.toHaveBeenCalled();
       await ui.rerender(view(true));
       expect(tail).not.toHaveBeenCalled();
+      if (mode === "tab hidden while loading") {
+        for (const visibility of ["hidden", "visible"] as const)
+          await act(async () => {
+            await setVisibility(visibility);
+            await ui.clock!.advance(0);
+          });
+        expect(tail).not.toHaveBeenCalled();
+      }
       await ui.rerender(view(false));
       expect(tail).toHaveBeenCalledTimes(enabled ? 1 : 0);
       expect(
@@ -441,12 +451,12 @@ test("ConversationView enables a bounded restore only under the reading anchor f
         ),
       ).toBe(enabled);
       await ui.close();
+    } finally {
+      if (previous === undefined) delete process.env[flag];
+      else process.env[flag] = previous;
     }
-  } finally {
-    if (previous === undefined) delete process.env[flag];
-    else process.env[flag] = previous;
-  }
-});
+  },
+);
 
 test("only scrolls backed by reader input are marked as movement", async () => {
   const ui = await mountWeb(<div id="feed" />, { clock: true });
@@ -526,8 +536,9 @@ test("showing the same mounted view claims again without restoring again", async
     ({ action }) => action === "beginSavedReadingAnchor",
   );
   expect(claims).toHaveLength(2);
-  expect(claims[1].args[1].id).not.toBe(claims[0].args[1].id);
-  expect(claims[1].args[1].order).toBeGreaterThan(claims[0].args[1].order);
+  expect(claims[0].args[1].session).toEqual(expect.any(String));
+  expect(claims[1].args[1].session).toBe(claims[0].args[1].session);
+  expect(claims[1].args[1].order).toBe(claims[0].args[1].order + 1);
   expect(ui.restore).toHaveBeenCalledTimes(1);
   await ui.close();
 });

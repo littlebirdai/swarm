@@ -345,6 +345,7 @@ export const viewFollowTables = {
       }),
     ),
     view_id: v.optional(v.string()),
+    claim_session: v.optional(v.string()),
     claim_order: v.optional(v.number()),
     sequence: v.optional(v.number()),
   })

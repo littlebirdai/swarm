@@ -1,21 +1,18 @@
-export type ReadingAnchorClaim = { id: string; order: number };
+export type ReadingAnchorClaim = { session: string; order: number };
 
-const active = new Set<string>();
+const active = new Set<number>();
+let session: string | undefined;
 let lastOrder = 0;
 
 export function startReadingAnchorClaim() {
-  const order = Math.max(
-    performance.timeOrigin + performance.now(),
-    lastOrder + 0.001,
-  );
-  const id = crypto.randomUUID();
-  lastOrder = order;
-  active.add(id);
-  return { claim: { id, order }, end: () => active.delete(id) };
+  const order = ++lastOrder;
+  const claim = { session: (session ??= crypto.randomUUID()), order };
+  active.add(order);
+  return { claim, end: () => active.delete(order) };
 }
 
 export function isReadingAnchorClaimActive(
   claim: ReadingAnchorClaim | undefined,
 ) {
-  return !!claim && active.has(claim.id);
+  return !!claim && claim.session === session && active.has(claim.order);
 }

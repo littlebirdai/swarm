@@ -358,25 +358,29 @@ test("merge transfers an anchor without a destination row and removes denied row
 
 test("a delayed begin and a departed tab's outbox save cannot displace the newer claim", async () => {
   const f = await setup();
-  const retired = { id: "00000000-0000-4000-8000-000000000001", order: 1 };
-  const current = { id: "00000000-0000-4000-8000-000000000002", order: 2 };
+  const session = crypto.randomUUID();
+  const retired = { session, order: 1 };
+  const current = { session, order: 2 };
   const dispatch = (action: string, args: unknown[]) =>
     f.reader.mutation(api.dispatch.dispatch, { action, args });
   const begin = (claim: typeof retired) =>
     dispatch("beginSavedReadingAnchor", [f.conversation, claim]);
-  expect(await begin(retired)).toBe(retired.id);
-  expect(await begin(current)).toBe(current.id);
-  expect(await f.save(current.id, 1)).toBe("saved");
+  const retiredView = (await begin(retired)) as string;
+  const currentView = (await begin(current)) as string;
+  expect(retiredView).toEqual(expect.any(String));
+  expect(currentView).toEqual(expect.any(String));
+  expect(currentView).not.toBe(retiredView);
+  expect(await f.save(currentView, 1)).toBe("saved");
   expect(await begin(retired)).toBeNull();
-  expect(await begin(current)).toBe(current.id);
-  expect(await f.save(current.id, 1, f.second)).toBe("stale");
+  expect(await begin(current)).toBeNull();
+  expect(await f.save(currentView, 1, f.second)).toBe("stale");
   expect(
     await f.reader.mutation(api.dispatch.dispatch, {
       action: "saveSavedReadingAnchor",
       args: [
         {
           ...f.args,
-          view_id: retired.id,
+          view_id: retiredView,
           sequence: 9,
           message_id: f.second,
           offset: 0.8,
@@ -386,5 +390,43 @@ test("a delayed begin and a departed tab's outbox save cannot displace the newer
     }),
   ).toBe("stale");
   expect(await f.get()).toMatchObject({ message_id: f.first });
-  expect(await f.save(current.id, 2, f.second)).toBe("saved");
+  expect(await f.save(currentView, 2, f.second)).toBe("saved");
+});
+
+test("a new device can save with a lower claim counter than the previous device", async () => {
+  const f = await setup();
+  const ahead = {
+    session: crypto.randomUUID(),
+    order: 12,
+  };
+  const behind = {
+    session: crypto.randomUUID(),
+    order: 1,
+  };
+  const begin = (claim: typeof ahead) =>
+    f.reader.mutation(anchors.begin, { ...f.args, claim });
+  jest.setSystemTime(6000);
+  const firstView = await begin(ahead);
+  expect(firstView).toEqual(expect.any(String));
+  expect(await f.save(firstView, 1)).toBe("saved");
+  jest.setSystemTime(1000);
+  const secondView = await begin(behind);
+  expect(secondView).toEqual(expect.any(String));
+  expect(await f.save(secondView, 1, f.second)).toBe("saved");
+  expect(await f.save(firstView, 2)).toBe("stale");
+  expect(await f.get()).toMatchObject({ message_id: f.second });
+});
+
+test("a legacy begin can take over a claimed visit and save", async () => {
+  const f = await setup();
+  const claimed = await f.reader.mutation(anchors.begin, {
+    ...f.args,
+    claim: { session: crypto.randomUUID(), order: 1 },
+  });
+  expect(claimed).toEqual(expect.any(String));
+  const legacy = await f.begin();
+  expect(legacy).toEqual(expect.any(String));
+  expect(await f.save(legacy, 1)).toBe("saved");
+  expect(await f.save(claimed, 2, f.second)).toBe("stale");
+  expect(await f.get()).toMatchObject({ message_id: f.first });
 });

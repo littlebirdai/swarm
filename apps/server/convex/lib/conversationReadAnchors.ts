@@ -108,6 +108,7 @@ export async function mergeReadAnchor(
       await ctx.db.patch(destination._id, {
         anchor,
         view_id: undefined,
+        claim_session: undefined,
         claim_order: undefined,
         sequence: undefined,
       });
@@ -118,6 +119,7 @@ export async function mergeReadAnchor(
       user_id: userId,
       anchor,
       view_id: undefined,
+      claim_session: undefined,
       claim_order: undefined,
       sequence: undefined,
     });
@@ -136,7 +138,7 @@ export async function beginReadAnchor(
   ctx: AnchorWriteCtx,
   userId: Id<"users">,
   id: unknown,
-  claim?: { id: string; order: number },
+  claim?: { session: string; order: number },
 ) {
   if (!readAnchorsEnabled() || typeof id !== "string") return null;
   const conversation_id = ctx.db.normalizeId("conversations", id);
@@ -145,22 +147,26 @@ export async function beginReadAnchor(
   if (
     claim !== undefined &&
     (!claim ||
-      !Number.isFinite(claim.order) ||
+      !Number.isSafeInteger(claim.order) ||
       claim.order <= 0 ||
-      typeof claim.id !== "string" ||
-      !/^[0-9a-f-]{36}$/.test(claim.id))
+      typeof claim.session !== "string" ||
+      !/^[0-9a-f-]{36}$/.test(claim.session))
   )
     return null;
   const row = await readAnchorRow(ctx, userId, conversation_id);
-  if (row?.claim_order !== undefined) {
-    if (!claim || claim.order < row.claim_order) return null;
-    if (claim.order === row.claim_order) {
-      if (claim.id === row.view_id) return row.view_id;
-      if (claim.id < (row.view_id ?? "")) return null;
-    }
-  }
-  const view_id = claim?.id ?? crypto.randomUUID();
-  const visit = { view_id, claim_order: claim?.order, sequence: 0 };
+  if (
+    claim &&
+    row?.claim_session === claim.session &&
+    claim.order <= (row.claim_order ?? 0)
+  )
+    return null;
+  const view_id = crypto.randomUUID();
+  const visit = {
+    view_id,
+    claim_session: claim?.session,
+    claim_order: claim?.order,
+    sequence: 0,
+  };
   if (row) await ctx.db.patch(row._id, visit);
   else
     await ctx.db.insert("conversation_read_anchors", {

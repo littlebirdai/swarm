@@ -259,9 +259,14 @@ export function useSavedReadingAnchor({
       current.sawWindowLoading && loadingWindow === false,
     );
     if (result === "loading") return;
+    if (result === "requested") {
+      current.sawWindowLoading = loadingWindow === true;
+      current.restore = "waiting";
+      return;
+    }
     restoredKey.current = key;
     if (result === "restored") current.placed();
-    current.restore = result === "requested" ? "waiting" : "done";
+    current.restore = "done";
   }, [
     key,
     active,
