@@ -1,6 +1,6 @@
 // Shared fixtures for the face row model tests (faceRow*.test.ts).
 import { dmRoomKey } from "@codecast/calls/callRoomKeys";
-import type { FaceMember, FaceRow, FaceRowInput } from "./faceRow";
+import type { FaceMember, FaceRow, FaceRowInput } from "./face-row";
 
 export const NOW = 1_700_000_000_000;
 export const ME = "u-me";

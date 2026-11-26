@@ -24,7 +24,7 @@ import {
   deriveFaceRow,
   faceRowInputFrom,
   faceRowInputSig,
-} from "../faces/faceRow";
+} from "../faces/face-row";
 import { walkieDoorOpen } from "../calls/walkieDoor";
 import { useInboxStore } from "../../store/inboxStore";
 
@@ -345,7 +345,6 @@ describe("the engine as a remote", () => {
       useInboxStore.getState(),
       getWalkieStatus(),
       null,
-      0,
     );
     mirror(true, ["ann"], ["me", "ann"]);
     expect(useInboxStore.getState().call.camera).toBe(false);
@@ -366,18 +365,17 @@ describe("the engine as a remote", () => {
       cameras: ["me", "ann"],
     });
     expect(
-      faceRowInputSig(useInboxStore.getState(), getWalkieStatus(), null, 0),
+      faceRowInputSig(useInboxStore.getState(), getWalkieStatus(), null),
     ).not.toBe(before);
     // A camera alone moving (Ann turns hers off) re-derives the row too.
     const withAnn = faceRowInputSig(
       useInboxStore.getState(),
       getWalkieStatus(),
       null,
-      0,
     );
     mirror(true, ["ann"], ["me"]);
     expect(
-      faceRowInputSig(useInboxStore.getState(), getWalkieStatus(), null, 0),
+      faceRowInputSig(useInboxStore.getState(), getWalkieStatus(), null),
     ).not.toBe(withAnn);
     mirror(true, ["ann"], ["me", "ann"]);
     // And the model, fed that input: my camera is my face, and Ann's ring is

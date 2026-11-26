@@ -22,7 +22,7 @@ import type { PeopleDensity } from "./peopleDensity";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { type LiveRoomRow } from "../../hooks/useLiveRooms";
-import type { FaceState } from "../../lib/faces/faceRow";
+import type { FaceState } from "../../lib/faces/face-row";
 import { useCallsAvailable } from "../../lib/teamFeatures";
 import {
   canOpenFacesOverlay,
@@ -38,7 +38,7 @@ import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";
 import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { useHandCallToPanel } from "../../hooks/useHandCallToPanel";
-import { engagementOf, isInHuddle, isTalking } from "../../lib/faces/faceRow";
+import { engagementOf, isInHuddle, isTalking } from "../../lib/faces/face-row";
 import { CallSettingsSheet } from "../calls/CallSettings";
 import { ElsewhereCallPill } from "../calls/ElsewhereCallPill";
 import { LiveNowRail } from "../calls/LiveNow";

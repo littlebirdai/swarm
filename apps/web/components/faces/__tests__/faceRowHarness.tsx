@@ -13,7 +13,7 @@ import type {
   FaceRow as FaceRowModel,
   Link,
   LinkKind,
-} from "../../../lib/faces/faceRow";
+} from "../../../lib/faces/face-row";
 import type { PushToTalk } from "../../../hooks/useWalkie";
 
 // ── the world the row talks to ──────────────────────────────────────────────

@@ -27,7 +27,7 @@ import {
 } from "../calls/RoomThreadRows";
 import { buildPassages } from "../calls/roomThreadModel";
 import { FaceRow } from "../faces/FaceRow";
-import { deriveFaceRow, type FaceRowInput } from "../../lib/faces/faceRow";
+import { deriveFaceRow, type FaceRowInput } from "../../lib/faces/face-row";
 import type { TaskRow } from "../triggerTasks";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {

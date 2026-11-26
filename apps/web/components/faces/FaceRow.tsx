@@ -73,7 +73,7 @@ import {
   type FaceRow as FaceRowModel,
   type FaceState,
   type LinkKind,
-} from "../../lib/faces/faceRow";
+} from "../../lib/faces/face-row";
 import { useCircleFace } from "../../hooks/useCircleFace";
 import { CircleFace } from "../calls/FaceCircle";
 import {

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { EngagementCard } from "../faces/EngagementCard";
-import type { FaceCard } from "../../lib/faces/faceRow";
+import type { FaceCard } from "../../lib/faces/face-row";
 import { walkieStageWords } from "../../hooks/useWalkie";
 
 // THE CARD, IN EVERY STATE IT HAS (pl-756 F3).

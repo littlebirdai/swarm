@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { joinCall, knockRoom, ringInto } from "../../lib/calls/actions";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
-import { callRoomOf } from "../../lib/faces/faceRow";
+import { callRoomOf } from "../../lib/faces/face-row";
 import { useFaceRowSelect } from "../../hooks/useFaceRow";
 import type { LiveRoomRow } from "../../hooks/useLiveRooms";
 import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";

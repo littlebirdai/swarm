@@ -10,7 +10,7 @@ import { fleetCountedSessions, fleetSessionsWakeSig } from "../fleetBands";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useLiveRoomOfMember } from "../../hooks/useLiveRooms";
 import { useFaceRow } from "../../hooks/useFaceRow";
-import { engagementOf, isInHuddle } from "../../lib/faces/faceRow";
+import { engagementOf, isInHuddle } from "../../lib/faces/face-row";
 import {
   fleetSummariesByMember,
   memberPresenceVisual,

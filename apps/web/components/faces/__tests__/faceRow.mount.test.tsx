@@ -10,7 +10,7 @@ import { describe, expect, test } from "bun:test";
 import { act } from "react";
 import { FIXTURE_TEAM, withTeamRoster } from "../../../test-helpers/teamRoster";
 import { stampRoster } from "../../../lib/activeTeam";
-import type { FaceCard, FaceState } from "../../../lib/faces/faceRow";
+import type { FaceCard, FaceState } from "../../../lib/faces/face-row";
 import {
   ANN,
   BO,
@@ -1514,7 +1514,7 @@ describe("the engagement card renders the model's card", () => {
   });
 
   test("on a call, a teammate's card adds them to it", async () => {
-    const { fakeFaceRowInput } = await import("../../../lib/faces/faceRow");
+    const { fakeFaceRowInput } = await import("../../../lib/faces/face-row");
     const room = "dm:u-ann:u-me";
     fakeFaceRowInput({
       input: {

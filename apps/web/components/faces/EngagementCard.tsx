@@ -26,7 +26,7 @@ import {
 // (calls/walkie.css) and the ring card's (calls/ringCard.css), compacted in
 // faceRow.css, so a colour still means what it meant.
 import { Lock, MicOff, Mic, PhoneOff, Video, VideoOff } from "lucide-react";
-import type { FaceCard } from "../../lib/faces/faceRow";
+import type { FaceCard } from "../../lib/faces/face-row";
 import type { FaceDensity } from "../../lib/faces/layout";
 import { WalkiePttButton } from "../calls/WalkiePtt";
 import { firstName } from "../calls/speakers";

@@ -1,5 +1,5 @@
 // The face row's shared reader (readFaceRow) and its input signature, and the
-// DM unread line a face carries. The model itself is tested in faceRow.test.ts.
+// DM unread line a face carries. The model itself is tested in face-row.test.ts.
 import { beforeEach, describe, expect, test } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
 import { dmUnreadOf } from "./faceDmUnread";
@@ -8,7 +8,7 @@ import {
   isInCall,
   readFaceRow,
   resetFaceRow,
-} from "./faceRow";
+} from "./face-row";
 import {
   NOW,
   ME,
@@ -75,42 +75,19 @@ describe("the shared reader", () => {
       asr: "live",
       error: null,
     } as const;
-    const a = faceRowInputSig(st, idle, null, [], NOW);
+    const a = faceRowInputSig(st, idle, null);
     expect(
-      faceRowInputSig(
-        st,
-        { ...idle, asr: "unavailable", error: "x" },
-        null,
-        [],
-        NOW + 1_000,
-      ),
+      faceRowInputSig(st, { ...idle, asr: "unavailable", error: "x" }, null),
     ).toBe(a);
     expect(
-      faceRowInputSig(
-        st,
-        { ...idle, liveRoom: burstRoom(DM_ANN) },
-        null,
-        [],
-        NOW,
-      ),
+      faceRowInputSig(st, { ...idle, liveRoom: burstRoom(DM_ANN) }, null),
     ).not.toBe(a);
     expect(
-      faceRowInputSig(
-        st,
-        idle,
-        { roomKey: DM_ANN, text: "Ann joined", at: NOW },
-        [],
-        NOW,
-      ),
-    ).not.toBe(a);
-    expect(
-      faceRowInputSig(
-        st,
-        idle,
-        null,
-        [{ identity: ANN, isLocal: false, kind: "camera" }],
-        NOW,
-      ),
+      faceRowInputSig(st, idle, {
+        roomKey: DM_ANN,
+        text: "Ann joined",
+        at: NOW,
+      }),
     ).not.toBe(a);
   });
 });

@@ -321,17 +321,6 @@ function seatsIn(input: FaceRowInput, roomKey: string | null): FaceSeat[] {
   return input.liveRooms.find((r) => r.room_key === roomKey)?.members ?? [];
 }
 
-/**
- * THE ROOM THE VIEWER IS ENGAGED IN. The walkie's live room is canonical: it
- * is non null from the instant of a press until the seat is handed back, so
- * the linger after Stop and the listen after a burst both count. An ordinary
- * huddle is the call plane's room while its phase is anything but idle, which
- * includes a LiveKit reconnect (phase `connecting`) and the local first
- * `connecting` before any round trip. A seat the roster still shows the viewer
- * in (another window is the voice host) counts too. The phase alone never
- * decides against the other two: a room the walkie holds is engaged even when
- * the call plane went idle under it.
- */
 /** A hang up holds for as long as the server could still list our seat: its
  *  lease, and the sweep that clears it, when the leave itself never lands. */
 const LEFT_HOLD_MS = CALL_MEMBER_STALE_MS + CALL_HEARTBEAT_MS;
@@ -571,6 +560,7 @@ function cardOf(
     mode: "burst" | "listen" | "call" | null;
     others: FaceEntry[];
     label: string;
+    expireAt: (at: number) => void;
   },
 ): FaceCard {
   const { room, mode, others, label } = ctx;
@@ -637,13 +627,20 @@ function cardOf(
     let hearing: SenderHearing | null = null;
     if (mode === "burst" && walkie.sending?.heardLive && other) {
       const m = input.roster.find((r) => idOf(r._id) === other.id);
+      const snoozedUntil = Number(m?.walkie_snoozed_until ?? 0);
       hearing = senderHearing(seatsIn(input, room), input.viewer?.id, {
         userId: other.id,
         name: other.name,
         status: m?.status,
         pref: m?.walkie_pref,
-        snoozed: Number(m?.walkie_snoozed_until ?? 0) > input.now,
+        snoozed: snoozedUntil > input.now,
       });
+      if (
+        hearing.state === "busy" &&
+        m?.status !== "busy" &&
+        m?.walkie_pref !== "off"
+      )
+        ctx.expireAt(snoozedUntil);
     }
     return {
       kind: "live",
@@ -700,9 +697,18 @@ export function deriveFaceRow(
   raw: FaceRowInput,
   prev: FaceRow | null,
 ): FaceRow {
+  return deriveFaceRowWithClock(raw, prev).row;
+}
+
+function deriveFaceRowWithClock(raw: FaceRowInput, prev: FaceRow | null) {
   const left = withoutLeftRoom(raw);
   const viewer = left.viewer;
-  if (!viewer?.id) return EMPTY_ROW;
+  let nextUpdateAt = Infinity;
+  if (!viewer?.id) return { row: EMPTY_ROW, nextUpdateAt };
+  const expireAt = (at: number) => {
+    nextUpdateAt = Math.min(nextUpdateAt, at);
+  };
+  if (left !== raw && raw.call.left) expireAt(raw.call.left.at + LEFT_HOLD_MS);
   const meId = viewer.id;
   const room = engagedRoomOf(left);
   const mode = roomModeOf(left, room);
@@ -882,18 +888,18 @@ export function deriveFaceRow(
     mode,
     others: others.filter((e) => e.tier === "linked"),
     label,
+    expireAt,
   });
+  if (others.some((e) => e.joinedAgo !== null))
+    expireAt((Math.floor(input.now / FACE_ROW_TICK_MS) + 1) * FACE_ROW_TICK_MS);
+  if (
+    input.announcement &&
+    (card.kind === "joined-notice" || others.some((e) => e.state === "joining"))
+  )
+    expireAt(input.announcement.at + JOIN_TITLE_MS);
   const entries = me ? [me, ...others] : others;
-  return { entries, links, card, me, room };
+  return { row: { entries, links, card, me, room }, nextUpdateAt };
 }
-
-// ── the shared derivation ───────────────────────────────────────────────────
-//
-// One reader for React and everything else. The inputs are gathered from the
-// store and the engine, signed, and the row is derived only when the signature
-// moved: a heartbeat that changed no field a face draws hands back the SAME
-// row object, which is what lets useSyncExternalStore skip the render and a
-// non React caller compare by identity.
 
 function seatSig(seats: FaceSeat[] | undefined): string {
   let s = "";
@@ -911,7 +917,7 @@ function occupancySig(occ: Record<string, FaceSeat[]> | undefined): string {
 function liveRoomsSig(rooms: FaceLiveRoom[] | undefined): string {
   let s = "";
   for (const r of rooms ?? []) {
-    s += `${r.room_key}|${r.seat ?? ""}|${r.private ? 1 : 0}|${seatSig(r.members)}|${(r.guests ?? []).map((g) => `${g.identity}:${g.name}`).join(",")}\n`;
+    s += `${r.room_key}|${r.seat ?? ""}|${r.private ? 1 : 0}|${seatSig(r.members)}|${(r.guests ?? []).map((g) => `${g.identity}:${g.name}:${g.joined_at ?? ""}`).join(",")}\n`;
   }
   return s;
 }
@@ -963,9 +969,6 @@ function walkieRowSig(w: WalkieStatus): string {
   return `${live?.key ?? ""}|${live?.mode ?? ""}|${s ? `${s.roomKey}:${s.live ? 1 : 0}:${s.heardLive ? 1 : 0}` : ""}|${w.incoming?.fromUserId ?? ""}:${w.incoming?.roomKey ?? ""}|${w.canReply ? 1 : 0}|${walkieJoinedRoom(w) ?? ""}|${walkieHoldsRoom(w, null) ? 1 : 0}`;
 }
 
-/** The clock the row needs: `joinedAgo` and a snooze running out move on
- *  this, the join notice on its own timer (JOIN_TITLE_MS is under one tick,
- *  so the announcement subscription is what wakes that seam). */
 export const FACE_ROW_TICK_MS = 15_000;
 
 /** What the model reads, as one string. Exported so a test can pin that a
@@ -974,7 +977,6 @@ export function faceRowInputSig(
   st: any,
   walkie: WalkieStatus,
   announcement: JoinAnnouncement | null,
-  now: number,
 ): string {
   const call = walkieCallState();
   return [
@@ -991,7 +993,6 @@ export function faceRowInputSig(
     ringsSig(st.myCalls),
     announcement ? `${announcement.roomKey}|${announcement.at}` : "",
     railUnreadSig(st),
-    String(Math.floor(now / FACE_ROW_TICK_MS)),
   ].join("\u0001");
 }
 
@@ -1063,16 +1064,12 @@ export function faceRowInputFrom(
 
 let lastSig = "";
 let lastRow: FaceRow = EMPTY_ROW;
-// The inputs the signature was last built from, by identity. A store write
-// hands every subscriber the same state object, so the first reader after a
-// write builds the signature and the rest compare five references: a roster
-// of faces, each with its own subscription, costs one signature per write.
+let nextUpdateAt = Infinity;
 let lastInputs: {
   st: unknown;
   walkie: unknown;
   announcement: unknown;
   tiles: unknown;
-  tick: number;
 } | null = null;
 
 /** A stand in for the engine, from the console: the walkie's status and the
@@ -1112,8 +1109,8 @@ export function readFaceRow(): FaceRow {
   // The tiles are read for their identity only: a camera coming or going in
   // this window is a new array, and the call state below reads who from it.
   const tiles = getCallTiles();
-  const now = Date.now();
-  const tick = Math.floor(now / FACE_ROW_TICK_MS);
+  const now = fake?.input?.now ?? Date.now();
+  const clockDue = now >= nextUpdateAt;
   const li = lastInputs;
   if (
     li &&
@@ -1121,21 +1118,23 @@ export function readFaceRow(): FaceRow {
     li.walkie === walkie &&
     li.announcement === announcement &&
     li.tiles === tiles &&
-    li.tick === tick
+    !clockDue
   ) {
     return lastRow;
   }
-  lastInputs = { st, walkie, announcement, tiles, tick };
+  lastInputs = { st, walkie, announcement, tiles };
   const sig =
-    faceRowInputSig(st, walkie, announcement, now) +
+    faceRowInputSig(st, walkie, announcement) +
     (fake ? `\u0001fake${fakeSeq}` : "");
-  if (sig === lastSig) return lastRow;
+  if (!clockDue && sig === lastSig) return lastRow;
   lastSig = sig;
   const gathered = faceRowInputFrom(st, walkie, announcement, now);
-  lastRow = deriveFaceRow(
+  const derived = deriveFaceRowWithClock(
     fake?.input ? { ...gathered, ...fake.input } : gathered,
     lastRow,
   );
+  lastRow = derived.row;
+  nextUpdateAt = derived.nextUpdateAt;
   return lastRow;
 }
 
@@ -1161,6 +1160,7 @@ export function subscribeFaceRow(cb: () => void): () => void {
 export function resetFaceRow(): void {
   lastSig = "";
   lastRow = EMPTY_ROW;
+  nextUpdateAt = Infinity;
   lastInputs = null;
   fake = null;
 }

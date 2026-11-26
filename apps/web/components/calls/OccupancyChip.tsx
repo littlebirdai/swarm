@@ -1,8 +1,8 @@
 import { useCallsAvailable } from "../../lib/teamFeatures";
 import { useCallback } from "react";
-import type { FaceRow } from "../../lib/faces/faceRow";
+import type { FaceRow } from "../../lib/faces/face-row";
 import { useFaceRowSelect } from "../../hooks/useFaceRow";
-import { roomHeldAsBurst } from "../../lib/faces/faceRow";
+import { roomHeldAsBurst } from "../../lib/faces/face-row";
 import { Headphones, Link2 } from "lucide-react";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { joinCall } from "../../lib/calls/actions";

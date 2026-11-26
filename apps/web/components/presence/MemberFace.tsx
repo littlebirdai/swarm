@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Headphones } from "lucide-react";
-import type { FaceRow } from "../../lib/faces/faceRow";
+import type { FaceRow } from "../../lib/faces/face-row";
 import { AvatarImg } from "../../lib/avatarCache";
 import { PresenceBadge } from "./PresenceBadge";
 import {
@@ -10,7 +10,7 @@ import {
   presenceLabel,
 } from "./memberPresence";
 import { useFaceRowSelect } from "../../hooks/useFaceRow";
-import { isInHuddle } from "../../lib/faces/faceRow";
+import { isInHuddle } from "../../lib/faces/face-row";
 
 /**
  * One teammate's face: the avatar, faded to match their presence, with the

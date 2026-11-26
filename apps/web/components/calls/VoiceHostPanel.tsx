@@ -12,7 +12,7 @@ import { useDesktopWindowRole } from "../../hooks/useDesktopWindowRole";
 import { useTrackedStore } from "../../store/inboxStore";
 import { useWalkieStatus } from "../../hooks/useWalkie";
 import { useFaceRow } from "../../hooks/useFaceRow";
-import { callRoomOf } from "../../lib/faces/faceRow";
+import { callRoomOf } from "../../lib/faces/face-row";
 import { useCallsAvailable } from "../../lib/teamFeatures";
 import { CallStage } from "./CallStage";
 import { FloatingFaceRow } from "../faces/FaceRow";
