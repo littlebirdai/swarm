@@ -521,7 +521,7 @@ test("head rejection refuses a presented token when the binding is missing", asy
 
 for (const outcome of ["rejected", "failed"] as const) {
   for (const replay of ["release", "fail"] as const) {
-    test(`a terminal ${outcome} delivery refuses a retryable ${replay} replay`, async () => {
+    test(`a terminal ${outcome} delivery returns the final receipt to a ${replay} replay`, async () => {
       setSystemTime(new Date(start));
       const f = await setupRunLease();
       const grant = await f.claim("terminal");
@@ -571,6 +571,15 @@ for (const outcome of ["rejected", "failed"] as const) {
             })
           ).json(),
         ).toEqual({ v: 1, status: "recorded" });
+        expect(
+          await (
+            await post("delivery.settle", {
+              ...fields,
+              outcome: "failed",
+              retryable: true,
+            })
+          ).json(),
+        ).toEqual({ v: 1, status: "duplicate" });
       } finally {
         if (previous === undefined) delete process.env[flag];
         else process.env[flag] = previous;
@@ -613,8 +622,88 @@ for (const outcome of ["rejected", "failed"] as const) {
                 failureMessage: "no write",
               }),
         ),
-      ).rejects.toThrow("DELIVERY_PERMIT_FENCE_MISMATCH");
+      ).resolves.toEqual({
+        retryable: false,
+        deliveryId: fence.deliveryId,
+        outcome,
+      });
       expect(await snapshot()).toEqual(before);
     });
   }
 }
+
+test.each(["release", "fail"] as const)(
+  "a late final report cannot close an attempt after %s permits a retry",
+  async (first) => {
+    setSystemTime(new Date(start));
+    const f = await setupRunLease();
+    const grant = await f.claim("retry");
+    if (grant.status !== "granted") throw new Error("Expected a grant");
+    const run = {
+      v: grant.v,
+      session: grant.session,
+      run: grant.run,
+      fencing_token: grant.fencing_token,
+      bearer: f.bearer,
+    };
+    const next = () => f.t.mutation(internal.edgeDelivery.next, run);
+    const takePermit = async () => {
+      const permit = await next();
+      if (permit.status !== "permit") throw new Error("Expected a permit");
+      const { delivery_id, attempt_id, seq, intent, sender } = permit;
+      return { ...run, delivery_id, attempt_id, seq, intent, sender };
+    };
+    const permit = await takePermit();
+    const settle = (fields: typeof permit, retryable: boolean) =>
+      f.t.mutation(internal.edgeDelivery.settle, {
+        ...fields,
+        outcome: first === "release" && !retryable ? "rejected" : "failed",
+        retryable,
+      });
+    if (first === "release") {
+      await f.t.run(async (ctx) => {
+        const attemptId = ctx.db.normalizeId(
+          "delivery_attempts",
+          permit.attempt_id,
+        );
+        if (!attemptId) throw new Error("Expected an attempt");
+        expect(
+          await releaseClaimBeforeEffectInDb(ctx, f.owner, {
+            conversationId: f.conversation,
+            messageId: f.message,
+            attemptId,
+            deliveryId: permit.delivery_id,
+            conversationSequence: permit.seq,
+            executionEpoch: run.run,
+            configurationRevision: 1,
+            ownerDeviceId: machine,
+            daemonBootId: boot,
+            runtimeId: "runtime",
+            fencingToken: run.fencing_token,
+            now: start,
+            reason: "no effect",
+            evidence: "no write",
+          }),
+        ).toMatchObject({ retryable: true });
+      });
+    } else {
+      await f.t.mutation(internal.edgeDelivery.start, permit);
+      expect(await settle(permit, true)).toMatchObject({ status: "recorded" });
+    }
+    expect(await settle(permit, false)).toMatchObject({ status: "stale" });
+    const replacement = await takePermit();
+    expect(replacement.attempt_id).not.toBe(permit.attempt_id);
+    expect(replacement).toMatchObject({
+      delivery_id: permit.delivery_id,
+      seq: permit.seq,
+    });
+    await f.t.mutation(internal.edgeDelivery.start, replacement);
+    expect(await settle(replacement, false)).toMatchObject({
+      status: "recorded",
+    });
+    expect(await settle(replacement, true)).toMatchObject({
+      status: "duplicate",
+    });
+    expect(await next()).toMatchObject({ status: "empty" });
+  },
+);

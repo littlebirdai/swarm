@@ -37,6 +37,10 @@ import {
   type ReadyBindingFence,
 } from "./lib/delivery-slot.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
+import {
+  finalDeliveryReceipt,
+  type FinalDeliveryReceipt,
+} from "./lib/edge/final-delivery.receipt";
 
 export const EXECUTION_PROTOCOL_VERSION = 1 as const;
 
@@ -2209,11 +2213,14 @@ export async function releaseClaimBeforeEffectInDb(
   ctx: DbCtx,
   userId: Id<"users">,
   fence: PermitFence & { reason: string; evidence: string; now: number },
-): Promise<{ retryable: true; deliveryId: string }> {
+): Promise<{ retryable: true; deliveryId: string } | FinalDeliveryReceipt> {
   requireNonEmpty(fence.reason, "reason");
   requireNonEmpty(fence.evidence, "evidence");
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
+  const final = finalDeliveryReceipt(existingAttempt);
+  if (final && attemptMatchesFence(existingAttempt, fence, userId))
+    return final;
   if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
@@ -2346,9 +2353,12 @@ export async function failDeliveryBeforeEffectInDb(
     failureMessage: string;
     now: number;
   },
-): Promise<{ retryable: true; deliveryId: string }> {
+): Promise<{ retryable: true; deliveryId: string } | FinalDeliveryReceipt> {
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
+  const final = finalDeliveryReceipt(existingAttempt);
+  if (final && attemptMatchesFence(existingAttempt, fence, userId))
+    return final;
   if (matchesRetryableDeliveryReplay(existingAttempt, fence, userId)) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }

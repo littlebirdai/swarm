@@ -28,6 +28,7 @@ import {
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
+import { finalDeliveryReceipt } from "./lib/edge/final-delivery.receipt";
 import {
   inspectPermitImage,
   permitImageIds,
@@ -418,6 +419,13 @@ export const settle = internalMutation({
       if (!delivery) return stale;
       const { owner, fence, attempt } = delivery;
       const { outcome, resolution_evidence: evidence } = args;
+      if (
+        outcome === "failed" &&
+        args.retryable !== false &&
+        evidence === undefined &&
+        finalDeliveryReceipt(attempt)
+      )
+        return { v: v1, status: "duplicate" };
       const applied = outcome === "applied" || outcome === "duplicate";
       const rejection =
         outcome === "rejected"
