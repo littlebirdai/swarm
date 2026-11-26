@@ -1046,6 +1046,7 @@ async function keepVersion(
   await ctx.db.insert("secret_versions", {
     secret_id: row._id,
     workspace: row.workspace,
+    value_version: valueVersion(row),
     value_id: await valueIdOf(ctx, row, row),
     fingerprint: row.fingerprint,
     signin_expires_at: row.signin_expires_at,
@@ -2030,6 +2031,7 @@ export const recordReads = internalMutation({
         actor: args.user_id,
         conversation_id: args.conversation_id,
         purpose: args.purpose,
+        value_version: kind === "revealed" ? undefined : valueVersion(row),
       });
       if (args.kind === "read") {
         await ctx.db.patch(row._id, {
@@ -2203,20 +2205,40 @@ async function reachedUser(
   {
     kinds = FEED_KINDS,
     before,
-  }: { kinds?: readonly (typeof FEED_KINDS)[number][]; before?: number } = {},
+    version = before === undefined ? valueVersion(row) : undefined,
+  }: {
+    kinds?: readonly (typeof FEED_KINDS)[number][];
+    before?: number;
+    version?: number;
+  } = {},
 ): Promise<boolean> {
   for (const kind of kinds) {
+    const key = (q: any) =>
+      q.eq("secret_id", row._id).eq("actor_user_id", userId).eq("kind", kind);
+    if (version !== undefined) {
+      const events = () => ctx.db.query("secret_events");
+      const exact = await events()
+        .withIndex("by_secret_actor_kind_version_at", (q: any) =>
+          key(q).eq("value_version", version),
+        )
+        .first();
+      if (exact) return true;
+      const legacy = await events()
+        .withIndex("by_secret_actor_kind_version_at", (q: any) => {
+          const dated = key(q)
+            .eq("value_version", undefined)
+            .gte("at", version);
+          return before === undefined ? dated : dated.lte("at", before);
+        })
+        .first();
+      if (legacy) return true;
+      continue;
+    }
     const hit = await ctx.db
       .query("secret_events")
-      .withIndex("by_secret_actor_kind_at", (q: any) => {
-        const at = q
-          .eq("secret_id", row._id)
-          .eq("actor_user_id", userId)
-          .eq("kind", kind);
-        return before === undefined
-          ? at.gte("at", valueVersion(row))
-          : at.lte("at", before);
-      })
+      .withIndex("by_secret_actor_kind_at", (q: any) =>
+        key(q).lte("at", before),
+      )
       .first();
     if (hit) return true;
   }
@@ -2248,6 +2270,7 @@ export const redactionRows = internalQuery({
       name: string;
       kind: SecretKind;
       workspace: string;
+      version: number;
       values: ValueRef[];
       unsent: boolean;
     }[] = [];
@@ -2262,7 +2285,10 @@ export const redactionRows = internalQuery({
         if (ver.workspace !== r.workspace) continue;
         if (
           held ||
-          (await reachedUser(ctx, r, args.user_id, { before: ver.rotated_at }))
+          (await reachedUser(ctx, r, args.user_id, {
+            before: ver.rotated_at,
+            version: ver.value_version,
+          }))
         )
           kept.push(valueRefOf(ver));
       }
@@ -2277,6 +2303,7 @@ export const redactionRows = internalQuery({
         name: r.name,
         kind: r.kind,
         workspace: r.workspace,
+        version: valueVersion(r),
         values: held ? [valueRefOf(r), ...kept] : kept,
         unsent,
       });
@@ -2294,18 +2321,23 @@ export const redactionRows = internalQuery({
  * approvals and reads out of the secret's activity within hours.
  */
 export const recordRedactionSync = internalMutation({
-  args: { user_id: v.id("users"), ids: v.array(v.id("secrets")) },
+  args: {
+    user_id: v.id("users"),
+    values: v.array(v.object({ id: v.id("secrets"), version: v.number() })),
+  },
   handler: async (ctx, args) => {
-    for (const id of args.ids) {
+    for (const { id, version } of args.values) {
       const row = await ctx.db.get(id);
       if (
         row &&
+        valueVersion(row) === version &&
         !(await reachedUser(ctx, row, args.user_id, {
           kinds: ["redaction_sync"],
         }))
       )
         await recordSecretEvent(ctx, row, "redaction_sync", {
           actor: args.user_id,
+          value_version: version,
         });
     }
   },
@@ -2335,7 +2367,7 @@ export const redactionValues = action({
       user_id: userId,
     });
     const values: { name: string; value: string }[] = [];
-    const unsent: Id<"secrets">[] = [];
+    const unsent: { id: Id<"secrets">; version: number }[] = [];
     const encs = await loadCiphertexts(
       ctx,
       got.rows.flatMap((row) => row.values),
@@ -2353,12 +2385,12 @@ export const redactionValues = action({
       }
       if (!opened) continue;
       for (const value of found) values.push({ name: row.name, value });
-      if (row.unsent) unsent.push(row.id);
+      if (row.unsent) unsent.push({ id: row.id, version: row.version });
     }
     if (unsent.length)
       await ctx.runMutation(internal.secrets.recordRedactionSync, {
         user_id: userId,
-        ids: unsent,
+        values: unsent,
       });
     return { version: got.version, values };
   },

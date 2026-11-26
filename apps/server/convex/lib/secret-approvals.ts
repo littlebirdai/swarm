@@ -41,6 +41,7 @@ export async function recordSecretEvent(
     conversation_id?: Id<"conversations">;
     purpose?: string;
     decision_id?: Id<"session_decisions">;
+    value_version?: number;
   } = {},
 ) {
   await ctx.db.insert("secret_events", {
@@ -53,6 +54,7 @@ export async function recordSecretEvent(
     conversation_id: fields.conversation_id,
     purpose: fields.purpose,
     decision_id: fields.decision_id,
+    value_version: fields.value_version,
     at: Date.now(),
   });
 }
