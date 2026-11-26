@@ -31,6 +31,7 @@ import { slackTables } from "./slackSchema";
 import { passkeyTables } from "./passkeysSchema";
 import { accessLogTables } from "./accessLogSchema";
 import { teamReadKeyTables } from "./teamReadKeysSchema";
+import { edgePromptAnswerTables } from "./schema/edge-prompt-answers.tables";
 import { dataDeletionTables } from "./dataDeletionsSchema";
 import {
   accountTables,
@@ -175,6 +176,7 @@ export default defineSchema(
     ...authTables,
     ...accountTables,
     ...daemonCommandTables,
+    ...edgePromptAnswerTables,
     ...teamTables,
     ...subscriptionTables,
     ...teamMembershipTables,

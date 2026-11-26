@@ -1,3 +1,4 @@
+import { edgePromptAnswer } from "./schema/edge-prompt-answers.tables";
 import { permissionRemovalValidator } from "./lib/permissionRemoval";
 import { settlePermissionProposals, viewerSeesDetail } from "./teamSuggestions";
 import { redactSecrets } from "./redact";
@@ -7,6 +8,13 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
+import {
+  fencedPromptAnswersEnabled,
+  finishPromptAnswer,
+  nextPromptAnswer,
+  promptAddress,
+  queuePromptAnswer,
+} from "./lib/edge/prompt-answers";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import {
   boundedRuleRequest,
@@ -195,6 +203,58 @@ export const cancelPermissionRequest = mutation({
   },
 });
 
+const promptTarget = {
+  conversation_id: v.id("conversations"),
+  run: v.number(),
+  turn_id: v.string(),
+  prompt_id: v.string(),
+};
+
+export const getPromptAddress = query({
+  args: promptTarget,
+  handler: async (ctx, target) => {
+    const userId = await getAuthUserId(ctx);
+    return userId ? promptAddress(ctx, target, userId) : null;
+  },
+});
+
+export const answerPrompt = mutation({
+  args: {
+    ...promptTarget,
+    lease_id: v.id("run_leases"),
+    answer: edgePromptAnswer,
+  },
+  handler: async (ctx, { answer, ...position }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+    return queuePromptAnswer(ctx, position, userId, answer);
+  },
+});
+
+const edgeDevice = {
+  bearer: v.string(),
+  machine: v.string(),
+  boot: v.string(),
+};
+export const nextEdgePromptAnswer = internalMutation({
+  args: edgeDevice,
+  handler: nextPromptAnswer,
+});
+export const finishEdgePromptAnswer = internalMutation({
+  args: {
+    ...edgeDevice,
+    command_id: v.string(),
+    claim: v.optional(
+      v.object({
+        session: v.string(),
+        run: v.number(),
+        fencing_token: v.string(),
+      }),
+    ),
+  },
+  handler: finishPromptAnswer,
+});
+
 export const updatePermissionStatus = mutation({
   args: {
     permission_id: v.id("pending_permissions"),
@@ -226,6 +286,14 @@ export const updatePermissionStatus = mutation({
         "Unauthorized: can only manage permissions for your own conversations",
       );
     }
+
+    if (
+      fencedPromptAnswersEnabled() &&
+      conversation.execution_protocol_state === "fenced"
+    )
+      throw new Error(
+        "Fenced permission decisions require an exact prompt address",
+      );
 
     if (permission.status !== "pending") {
       if (permission.status === args.status) {
