@@ -1784,6 +1784,9 @@
   "apps/cli/src/codex-app-server.ts": {
     "swarm/no-comments": 72
   },
+  "apps/cli/src/codex-prompt-cards.ts": {
+    "swarm/no-comments": 5
+  },
   "apps/cli/src/codexAccounts.test.ts": {
     "swarm/no-comments": 11
   },
@@ -2519,7 +2522,7 @@
   },
   "apps/cli/src/daemon.ts": {
     "swarm/no-blocking-child-process-call": 2,
-    "swarm/no-comments": 6751
+    "swarm/no-comments": 6746
   },
   "apps/cli/src/daemon.turn-claims-wiring.test.ts": {
     "swarm/no-comments": 23

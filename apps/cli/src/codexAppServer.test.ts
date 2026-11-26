@@ -6,12 +6,12 @@ import { EventEmitter } from "node:events";
 import {
   CodexAppServer,
   CodexRequestRefused,
-  approvalResultForMethod,
   codexAuthIdentity,
   threadForkTimeoutMsForBytes,
   threadItemToMessage,
   threadItemsToMessages,
 } from "./codex-app-server.js";
+import { approvalResultForMethod } from "./codex-user-input.js";
 import { persistedPolicyFor } from "./codexTurnRecovery.js";
 import { pollUntil } from "./test-helpers/pollUntil.js";
 

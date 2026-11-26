@@ -17,6 +17,14 @@ import type {
   ImageBlock,
 } from "./parser.js";
 
+import {
+  approvalResultForMethod,
+  codexUserInputResponse,
+  readCodexQuestions,
+  type CodexQuestion,
+} from "./codex-user-input.js";
+import type { PollMessage } from "./pollMessage.js";
+
 export type SandboxMode =
   | "read-only"
   | "workspace-write"
@@ -341,6 +349,11 @@ export interface ApprovalRequest {
 }
 
 export interface CodexAppServerOptions {
+  onUserInput?: (
+    threadId: string,
+    request: { id: number | string; questions: CodexQuestion[] },
+    signal: AbortSignal,
+  ) => Promise<PollMessage | null>;
   log: (msg: string) => void;
   onApproval?: (
     threadId: string,
@@ -435,44 +448,14 @@ const SILENT_NOTIFICATIONS = new Set([
   "serverRequest/resolved",
 ]);
 
-export function approvalResultForMethod(
-  method: string,
-  approved: boolean,
-  params?: Record<string, unknown>,
-): Record<string, unknown> {
-  switch (method) {
-    case "execCommandApproval":
-    case "applyPatchApproval":
-      return { decision: approved ? "approved" : "denied" };
-
-    case "item/commandExecution/requestApproval":
-      return { decision: approved ? "accept" : "decline" };
-
-    case "item/fileChange/requestApproval":
-      return { decision: approved ? "accept" : "decline" };
-
-    case "item/permissions/requestApproval": {
-      const requested = (params?.permissions || {}) as Record<string, unknown>;
-      return approved
-        ? { permissions: requested, scope: "session" }
-        : { permissions: {}, scope: "turn" };
-    }
-
-    case "item/tool/requestUserInput":
-      return { answers: {} };
-
-    case "item/tool/call":
-      return { contentItems: [], success: approved };
-
-    default:
-      return { decision: approved ? "approved" : "denied" };
-  }
-}
-
 export class CodexAppServer extends EventEmitter {
   private process: ChildProcess | null = null;
   private rl: readline.Interface | null = null;
   private nextId = 1;
+  private userInputRequests = new Map<
+    number | string,
+    { turnId: unknown; controller: AbortController }
+  >();
   private pendingRequests = new Map<number | string, PendingRequest>();
   private turnAccumulators = new Map<string, TurnAccumulator>();
   private threadModels = new Map<string, string>();
@@ -510,6 +493,7 @@ export class CodexAppServer extends EventEmitter {
   private reviveMinMs: number;
   private reviveDelay: number;
   private log: (msg: string) => void;
+  private onUserInput?: CodexAppServerOptions["onUserInput"];
   private onApproval?: (
     threadId: string,
     approval: ApprovalRequest,
@@ -521,6 +505,7 @@ export class CodexAppServer extends EventEmitter {
     super();
     this.log = opts.log;
     this.onApproval = opts.onApproval;
+    this.onUserInput = opts.onUserInput;
     this.codexBinary = opts.codexBinary || "codex";
     this.defaultPermissions = opts.defaultPermissions;
     this.reviveMinMs = opts.reviveDelayMs ?? REVIVE_MIN_MS;
@@ -1106,6 +1091,9 @@ export class CodexAppServer extends EventEmitter {
   private cleanup(): void {
     this.initialized = false;
     this.turnAccumulators.clear();
+    for (const { controller } of this.userInputRequests.values())
+      controller.abort();
+    this.userInputRequests.clear();
     if (this.rl) {
       this.rl.close();
       this.rl = null;
@@ -1221,9 +1209,29 @@ export class CodexAppServer extends EventEmitter {
     if (APPROVAL_METHODS.has(method)) {
       const threadId = (params.threadId as string) || "";
       const approval: ApprovalRequest = { id, method, params };
-      this.emit("approvalRequested", threadId, approval);
+      if (method !== "item/tool/requestUserInput" || !this.onUserInput)
+        this.emit("approvalRequested", threadId, approval);
 
-      if (this.onApproval) {
+      if (method === "item/tool/requestUserInput" && this.onUserInput) {
+        const questions = readCodexQuestions(params.questions);
+        const controller = new AbortController();
+        this.userInputRequests.set(id, { turnId: params.turnId, controller });
+        const answer =
+          questions.length && !questions.some(({ isSecret }) => isSecret)
+            ? this.onUserInput(threadId, { id, questions }, controller.signal)
+            : Promise.resolve(null);
+        void answer
+          .catch(() => null)
+          .then((poll) => {
+            if (controller.signal.aborted) return;
+            this.userInputRequests.delete(id);
+            this.writeMessage({
+              jsonrpc: "2.0",
+              id,
+              result: codexUserInputResponse(questions, poll),
+            });
+          });
+      } else if (this.onApproval) {
         this.onApproval(threadId, approval)
           .then((approved) => {
             this.respondToApproval(id, approved, method, params);
@@ -1251,6 +1259,13 @@ export class CodexAppServer extends EventEmitter {
     const params = (msg.params || {}) as Record<string, unknown>;
 
     switch (method) {
+      case "serverRequest/resolved": {
+        const id = params.requestId as number | string;
+        this.userInputRequests.get(id)?.controller.abort();
+        this.userInputRequests.delete(id);
+        break;
+      }
+
       case "thread/started": {
         const thread = params.thread as Record<string, unknown>;
         const threadId = (thread?.id || params.threadId) as string;
@@ -1270,6 +1285,11 @@ export class CodexAppServer extends EventEmitter {
       case "turn/completed": {
         const threadId = params.threadId as string;
         const turn = params.turn as Turn;
+        for (const [id, request] of this.userInputRequests) {
+          if (request.turnId !== turn.id) continue;
+          request.controller.abort();
+          this.userInputRequests.delete(id);
+        }
         const acc = this.turnAccumulators.get(turn.id);
         const items = acc?.items || [];
         this.turnAccumulators.delete(turn.id);

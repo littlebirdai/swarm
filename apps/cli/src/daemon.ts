@@ -672,9 +672,12 @@ import {
   threadItemsToMessages,
   type ApprovalPolicy,
   type SandboxPolicy,
-  type ApprovalRequest,
   type ThreadItem,
 } from "./codex-app-server.js";
+import {
+  codexPromptHandlers,
+  deliverCodexPromptAnswer,
+} from "./codex-prompt-cards.js";
 import { CodexRecoveryQueue } from "./codexRecoveryQueue.js";
 import {
   choosePreferredCodexCandidate,
@@ -788,8 +791,6 @@ import {
   type PermissionSource,
 } from "./permissionHandler.js";
 import {
-  boundedRuleRequest,
-  codexApprovalRequest,
   keptPatterns,
   type PermissionRuleRequest,
 } from "@codecast/policy/permissionRules";
@@ -798,7 +799,6 @@ import {
   glanceCommand,
   permissionDecisionOutput,
   parsePermissionHookInput,
-  projectRootOf,
   PERMISSION_HOOK_PATH,
   PERMISSION_LAUNCH_TOKEN_HEADER,
   PERMISSION_HOOK_MAX_BODY,
@@ -35198,6 +35198,19 @@ async function deliverMessageIntoSession(
     if (!readyServer) return false;
     const appServerThreadId = appServerConversations.get(conversationId);
     if (appServerThreadId) {
+      const prompt = await deliverCodexPromptAnswer(
+        appServerThreadId,
+        withoutDeliveryId(content),
+        messageId,
+        admit,
+        syncService,
+      );
+      if (prompt === "handled") return true;
+      if (prompt === "blocked")
+        throw new InputBlockedError(
+          "Codex is waiting for a question card answer",
+          "waiting for an answer to the Codex question",
+        );
       try {
         const input: Array<{ type: "text"; text: string }> = [
           { type: "text", text: content },
@@ -43503,63 +43516,31 @@ async function main(): Promise<void> {
     },
   });
 
+  const { onApprovalRequested, ...promptHandlers } = codexPromptHandlers(
+    syncService,
+    (threadId) => appServerThreads.get(threadId),
+    log,
+    (conversationId, threadId) =>
+      sendAgentStatus(
+        syncService,
+        conversationId,
+        threadId,
+        "permission_blocked",
+      ),
+    (threadId, conversationId, promptUuid, resolution) => {
+      lastEmittedSyntheticPrompt.set(threadId, promptUuid);
+      void closeSyntheticPrompt(
+        threadId,
+        conversationId,
+        syncService,
+        resolution,
+      );
+    },
+  );
   codexAppServerInstance = new CodexAppServer({
     log,
     defaultPermissions: () => resolveCodexPermissionDefaults(activeConfig),
-    onApproval: async (threadId: string, approval: ApprovalRequest) => {
-      const entry = appServerThreads.get(threadId);
-      if (!entry) return true;
-      // The same rules as Claude's calls: a command or an edit settles against
-      // codecast's saved approvals before any card, and "always" keeps one.
-      // A request of another kind has no rule terms: rules never allow it, and
-      // a session nobody watches still gets a decline instead of a wait.
-      const ruleRequest = boundedRuleRequest(
-        codexApprovalRequest(approval.method, approval.params, {
-          cwd: entry.cwd,
-          root: projectRootOf(entry.cwd),
-        }) ?? {
-          permission: approval.method,
-          patterns: [],
-          always: [],
-          opaque: true,
-        },
-      );
-      if (entry.approvalPolicy === "never") {
-        // Nobody is asked here, but a configured deny still wins.
-        const settled = await settlePermission(
-          syncService,
-          entry.conversationId,
-          ruleRequest,
-          log,
-        );
-        if (settled && !settled.approved && settled.settled === "rule")
-          return false;
-        log(
-          `[codex-app-server] auto-approving ${approval.method} for thread ${threadId.slice(0, 8)} (approvalPolicy=never)`,
-        );
-        return true;
-      }
-      const permissionPrompt = {
-        tool_name: approval.method,
-        arguments_preview: JSON.stringify(approval.params).slice(0, 200),
-        ruleRequest,
-      };
-      try {
-        const decision = await handlePermissionRequest(
-          syncService,
-          entry.conversationId,
-          threadId,
-          permissionPrompt,
-          log,
-        );
-        return decision?.approved ?? true;
-      } catch (err) {
-        log(
-          `[codex-app-server] approval error: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return true;
-      }
-    },
+    ...promptHandlers,
   });
 
   codexRecoveryQueue = new CodexRecoveryQueue(
@@ -43809,28 +43790,7 @@ async function main(): Promise<void> {
     },
   );
 
-  codexAppServerInstance.on(
-    "approvalRequested",
-    (threadId: string, approval: ApprovalRequest) => {
-      const entry = appServerThreads.get(threadId);
-      if (entry && entry.approvalPolicy !== "never") {
-        sendAgentStatus(
-          syncService,
-          entry.conversationId,
-          threadId,
-          "permission_blocked",
-        );
-        syncService
-          .createSessionNotification({
-            conversation_id: entry.conversationId,
-            type: "permission_request" as any,
-            title: "codecast - Permission needed",
-            message: `${approval.method}: ${JSON.stringify(approval.params).slice(0, 200)}`,
-          })
-          .catch(() => {});
-      }
-    },
-  );
+  codexAppServerInstance.on("approvalRequested", onApprovalRequested);
 
   codexAppServerInstance.on("error", (err: Error) => {
     log(`[codex-app-server] error: ${err.message}`);
