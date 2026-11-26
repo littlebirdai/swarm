@@ -1,4 +1,4 @@
-import { useSyncDocsPaginated } from "@codecast/web/hooks/useSyncDocs";
+import { useSyncDocsPaginated } from "@codecast/web/hooks/use-sync-docs";
 import { useWorkspaceArgs } from "./useWorkspaceArgs";
 
 export function useSyncDocs() {

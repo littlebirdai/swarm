@@ -7,7 +7,7 @@ import {
   DETAIL_ROW_CAPS,
   pinDetailRows,
   resetDetailPins,
-} from "../../lib/detailRows";
+} from "../../lib/detail-rows";
 
 // deployDetails holds the names an opened deploy's push added and dropped
 // (hooks/useDeployDetail), keyed by the deploy's id; the teamDeploys row keeps

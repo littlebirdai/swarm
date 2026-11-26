@@ -17,7 +17,7 @@ import {
   prThreadKey,
 } from "../lib/externalEventOutcomes";
 import { CLIENT_SYNC_REGISTRY } from "./clientSyncRegistry";
-import { DETAIL_ROW_CAPS } from "../lib/detailRows";
+import { DETAIL_ROW_CAPS } from "../lib/detail-rows";
 import { isRetiredSettingsKey } from "../lib/settingsData";
 
 // The message page the server sends on open (useConversationMessages' snapshot

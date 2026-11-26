@@ -23,7 +23,7 @@ import {
   thinPullRequestRow,
   thinTaskRow,
   withTaskComments,
-} from "../../lib/detailRows";
+} from "../../lib/detail-rows";
 import { _resetSnapshotLedger, deleteAllowed } from "../idb-collection-diff";
 
 // The list rows every window holds carry none of the fields only an opened

@@ -8,7 +8,7 @@ import { useSyncSessionReads } from "./useSyncSessionReads";
 import { useInboxDigestCompare } from "./useInboxDigestCompare";
 import { emitSyncWake } from "./syncWake";
 import { useSyncMentionTasks } from "./useSyncTasks";
-import { useSyncMentionDocs } from "./useSyncDocs";
+import { useSyncMentionDocs } from "./use-sync-docs";
 import { useSyncMentionPlans } from "./useSyncPlans";
 import { useSyncTeamShipFeeds } from "./useSessionShipState";
 

@@ -9,7 +9,7 @@ import {
   resetDetailInvalidations,
   setDetailInvalidationReporter,
 } from "../../store/doc-detail-cache";
-import { useSyncDocDetail } from "../useSyncDocs";
+import { useSyncDocDetail } from "../use-sync-docs";
 
 const flag = "VITE_CACHE_EVICTION_METADATA";
 const original = process.env[flag];

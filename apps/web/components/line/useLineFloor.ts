@@ -23,7 +23,7 @@ import {
   useSyncProjectTasks,
   useSyncTaskThreads,
 } from "../../hooks/useSyncTasks";
-import { withTaskComments } from "../../lib/detailRows";
+import { withTaskComments } from "../../lib/detail-rows";
 import { useSyncWorkspaceProjects } from "../../hooks/useSyncProjects";
 import {
   isCause,

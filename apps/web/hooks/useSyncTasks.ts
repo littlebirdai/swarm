@@ -20,14 +20,14 @@ import {
   type WorkspaceArgs,
 } from "./useWorkspaceArgs";
 import { useSyncCollection } from "./useSyncCollection";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { isConvexId } from "../lib/entityLinks";
 import {
   pinDetailRows,
   taskCommentsRow,
   taskThreadStale,
   type TaskCommentsRow,
-} from "../lib/detailRows";
+} from "../lib/detail-rows";
 import { useServerAuthState } from "./useServerAuthSettled";
 import { useWatchEffect } from "./useWatchEffect";
 

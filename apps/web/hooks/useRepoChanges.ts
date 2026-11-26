@@ -14,7 +14,7 @@ import { activeTeamIdOf } from "../lib/activeTeam";
 import {
   joinPullRequestDetail,
   type PullRequestDetailRow,
-} from "../lib/detailRows";
+} from "../lib/detail-rows";
 import {
   assemble,
   findChange,

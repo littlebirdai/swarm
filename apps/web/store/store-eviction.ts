@@ -3,7 +3,7 @@ import {
   detailRowsToEvict,
   isDetailPinned,
   type DetailKey,
-} from "../lib/detailRows";
+} from "../lib/detail-rows";
 import { sessionIdleAt } from "../lib/liveness";
 import { REPLICATION_CLASSIFICATION } from "./clientSyncRegistry";
 import { noteEvictedRows } from "./idb-collection-diff";

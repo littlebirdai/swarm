@@ -9,7 +9,7 @@ import {
 } from "../store/inboxStore";
 import { batchGet } from "./use-sync-change-feed";
 import { useConvexSync } from "./useConvexSync";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { useSplitQueryNoThrow } from "./useSplitQuery";
 import { useFeederError } from "./useSyncCollection";
 

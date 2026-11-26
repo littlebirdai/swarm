@@ -24,7 +24,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { agentName, agentTitle, type AnchorRow } from "./useSyncAnchors";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

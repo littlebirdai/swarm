@@ -6,7 +6,7 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore, InboxSession, isConvexId } from "../store/inboxStore";
 import { useConvexSync } from "./useConvexSync";
 import { useInboxRecovery } from "./use-inbox-recovery";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 
 import { useWatchEffect } from "./useWatchEffect";
 // Record the team-mode active id set, change-guarded so an identical payload

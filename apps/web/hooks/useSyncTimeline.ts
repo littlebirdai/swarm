@@ -27,7 +27,7 @@ import {
   pinDetailRows,
   pullRequestDetailRow,
   type PullRequestDetailRow,
-} from "../lib/detailRows";
+} from "../lib/detail-rows";
 
 const api = _api as any;
 

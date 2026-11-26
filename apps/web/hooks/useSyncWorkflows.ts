@@ -10,7 +10,7 @@ import { stableRefId } from "../store/wakeSig";
 import { isViewersWorkflow } from "../store/lineWorkflowSlice";
 import { useFeederWorkspace } from "./useWorkspaceArgs";
 import { useWatchEffect } from "./useWatchEffect";
-import { cachedAt, pinDetailRows } from "../lib/detailRows";
+import { cachedAt, pinDetailRows } from "../lib/detail-rows";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 
 const api = _api as any;

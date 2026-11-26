@@ -7,7 +7,7 @@ import {
   type ReplicationMessage,
   type ReplicationUpdate,
 } from "@platform/engine";
-import { pinDetailRows, resetDetailPins } from "../../lib/detailRows";
+import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import {
   cacheEvictionsFor,
   withCacheEvictions,
@@ -413,7 +413,7 @@ test("the host refuses stale or incomplete evidence", async () => {
 
 test("eviction rechecks the row generation, pins and pending writes before committing", async () => {
   const { evictDetailRows } = await import("../store-eviction");
-  const { DETAIL_ROW_CAPS } = await import("../../lib/detailRows");
+  const { DETAIL_ROW_CAPS } = await import("../../lib/detail-rows");
   const key = "taskComments";
   const cap = DETAIL_ROW_CAPS[key];
   const rows = Object.fromEntries(

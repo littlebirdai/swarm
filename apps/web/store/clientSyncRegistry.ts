@@ -7,7 +7,7 @@ import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
-import { thinPullRequestRow, thinTaskRow } from "../lib/detailRows";
+import { thinPullRequestRow, thinTaskRow } from "../lib/detail-rows";
 export {
   DATA_SCOPE,
   EPHEMERAL_SLOT_SCOPE,

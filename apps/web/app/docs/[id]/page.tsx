@@ -8,7 +8,7 @@ import {
   type DocItem,
 } from "../../../store/inboxStore";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
-import { useSyncDocDetail } from "../../../hooks/useSyncDocs";
+import { useSyncDocDetail } from "../../../hooks/use-sync-docs";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
 import { DetailSplitLayout } from "../../../components/DetailSplitLayout";
 import { AuthGuard } from "../../../components/AuthGuard";

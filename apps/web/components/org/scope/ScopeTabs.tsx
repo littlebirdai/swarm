@@ -18,7 +18,7 @@ import { useOrgSessionsUnder } from "../../../hooks/useOrgSessionsUnder";
 import type { ScopeRef } from "../../../hooks/useScopeQueries";
 import { ScopeFeed } from "./ScopeFeed";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
-import { useSyncDocDetail } from "../../../hooks/useSyncDocs";
+import { useSyncDocDetail } from "../../../hooks/use-sync-docs";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   useInboxStore,

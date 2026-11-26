@@ -731,7 +731,7 @@ import {
   thinTaskRow,
   type PullRequestDetailRow,
   type TaskCommentsRow,
-} from "../lib/detailRows";
+} from "../lib/detail-rows";
 import {
   FOLDER_ACTIVE_WINDOW_MS,
   type FolderActivity,
