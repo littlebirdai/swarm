@@ -9,7 +9,7 @@ import {
   sanitizeLayout,
   setLeafPath,
 } from "../store/stageSplit";
-import { tabSafePath, tabSafeTitle } from "./tabSafePath";
+import { tabSafePath, tabSafeTitle } from "./tab-safe-path";
 // The single-segment routes that live inside the shell, shared with the
 // desktop hand-off gate (which may import nothing, so the list lives there).
 import { IN_SHELL_ROOT_SEGMENTS, isPublicProfilePath } from "./desktopHandoff";

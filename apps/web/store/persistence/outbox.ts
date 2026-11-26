@@ -1,5 +1,5 @@
 import { DOCS_SHOTS } from "../../lib/docsShots/flag";
-import { storableActionArgs } from "../../lib/tabSafePath";
+import { storableActionArgs } from "../../lib/tab-safe-path";
 import { deleteDatabaseWithTimeout, readV2LegacyOutbox } from "../idbV2Salvage";
 import { retryOutboxPut } from "../outboxPutRetry";
 import { db } from "./db";

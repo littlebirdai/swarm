@@ -551,7 +551,7 @@ import type {
 import { conversationRefInPath, conversationTabPath } from "../lib/pathLabel";
 import { directConversationId } from "../lib/desktopHandoff";
 import { healTabPaths, isNonTabRoute, shellTabPath } from "../lib/tabRoutes";
-import { tabSafePath, tabSafeTitle } from "../lib/tabSafePath";
+import { tabSafePath, tabSafeTitle } from "../lib/tab-safe-path";
 import {
   countLeaves,
   findLeaf as findStageLeaf,

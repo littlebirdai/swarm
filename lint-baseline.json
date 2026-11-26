@@ -26288,7 +26288,7 @@
   "apps/web/lib/tabRoutes.ts": {
     "swarm/no-comments": 62
   },
-  "apps/web/lib/tabSafePath.ts": {
+  "apps/web/lib/tab-safe-path.ts": {
     "swarm/no-comments": 17
   },
   "apps/web/lib/tabTitle.test.ts": {

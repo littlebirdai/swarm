@@ -6,7 +6,7 @@ import {
   settingsSectionForPath,
 } from "../../lib/settingsSections";
 import { isNonTabRoute, routerNavigate } from "../../lib/tabRoutes";
-import { tabSafePath } from "../../lib/tabSafePath";
+import { tabSafePath } from "../../lib/tab-safe-path";
 
 // Re-exported so callers of the routing layer keep one import; the rule itself
 // lives in lib/tabRoutes (pure, no store import) so the store can apply it too.
