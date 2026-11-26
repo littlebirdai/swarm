@@ -9,7 +9,15 @@ const checkpoint = "00000000-0000-4000-8000-000000000001";
 type Frame = Parameters<ReturnType<typeof claudeTurns>["receive"]>[0];
 type Body<F = Frame> = F extends Frame ? Omit<F, "session_id" | "uuid"> : never;
 
-function exercise(seed: number) {
+const orders = [
+  "submit after idle releases abandoned input",
+  "trailing idle preserves a successor",
+  "replay of a finished turn leaves the current turn open",
+  "terminal lifecycle waits for the live result",
+] as const;
+type Order = (typeof orders)[number];
+
+function exercise(seed: number, order?: Order) {
   let state = seed;
   function pick(limit: number) {
     state ^= state << 13;
@@ -122,12 +130,15 @@ function exercise(seed: number) {
     const replay = lastFinished;
     if (replay) {
       const live = turns.active();
+      const ids = pick(2)
+        ? { user_message_uuid: replay }
+        : { user_message_uuids: [replay] };
       assert.equal(
         frame({
           type: "result",
           subtype: "success",
           is_error: false,
-          user_message_uuids: [replay],
+          ...ids,
         }),
         false,
         "finished input result was accepted as live",
@@ -155,6 +166,54 @@ function exercise(seed: number) {
   }
 
   try {
+    switch (order) {
+      case "submit after idle releases abandoned input": {
+        const abandoned = submit();
+        if (pick(2)) lifecycle("queued", abandoned);
+        status("idle");
+        assert.equal(lifecycle("started", abandoned), false);
+        const next = submit();
+        start(next);
+        result([next]);
+        return;
+      }
+      case "trailing idle preserves a successor": {
+        const first = submit();
+        start(first);
+        result([first]);
+        const next = submit();
+        if (pick(2)) lifecycle("queued", next);
+        status("idle");
+        start(next, false);
+        result([next]);
+        return;
+      }
+      case "replay of a finished turn leaves the current turn open": {
+        const first = submit();
+        start(first);
+        result([first]);
+        const next = submit();
+        start(next);
+        result([next]);
+        return;
+      }
+      case "terminal lifecycle waits for the live result": {
+        const first = submit();
+        start(first);
+        const queued = submit();
+        lifecycle("queued", queued);
+        terminal(first);
+        terminal(queued);
+        assert.equal(lifecycle("started", queued), false);
+        result([first, queued]);
+        assert(
+          attributed.has(deliveries.get(queued)!),
+          "result lost terminal input",
+        );
+        assert(!turns.awaitingTurn(), "result left terminal inputs pending");
+        return;
+      }
+    }
     if (pick(2)) {
       status("running");
       result();
@@ -230,6 +289,14 @@ function exercise(seed: number) {
 }
 
 const caseCount = process.env.CLAUDE_TURN_EXTENDED === "1" ? 100_000 : 384;
+
+for (const order of orders) {
+  it.effect(order, () =>
+    Effect.sync(() => {
+      for (let seed = 1; seed <= 16; seed++) exercise(seed, order);
+    }),
+  );
+}
 
 it.effect(
   `generated Claude turns preserve results and release idle input (${caseCount} cases)`,

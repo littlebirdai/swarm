@@ -13,7 +13,6 @@ import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
-import { createProviderAdapter } from "../src";
 import { ProviderAdapter, providerAdapterLayer } from "../src/effect";
 import {
   answer,
@@ -577,15 +576,15 @@ appServerCase(
       turn: "actual-turn-2",
     });
   },
-  { FIXTURE_COMPLETED_REPLY: "1" },
+  { FIXTURE_COMPLETED_REPLY: "1", FIXTURE_REPLY_ONLY: "1" },
 );
 
 it.effect("failed open waits for asynchronous handshake retention", () =>
-  Effect.promise(async () => {
+  Effect.gen(function* () {
     const fake = fixture({ FIXTURE_WRONG_CHECKPOINT: "1" });
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
-    const client = createProviderAdapter({
+    const layer = providerAdapterLayer({
       ...fake.options,
       async retainRaw(frame, signal) {
         if (frame.line.includes("wrong-thread")) {
@@ -596,21 +595,27 @@ it.effect("failed open waits for asynchronous handshake retention", () =>
         fake.options.retainRaw(frame);
       },
     });
+    const adapter = yield* ProviderAdapter.pipe(Effect.provide(layer));
     try {
-      const opened = client.resume({ ...fake.spec, checkpoint: threadId });
-      await entered.promise;
-      await new Promise<void>((resolve) => setImmediate(resolve));
+      const opened = yield* Effect.forkChild(
+        adapter.own({ ...fake.spec, checkpoint: threadId }),
+      );
+      yield* Effect.raceFirst(
+        Effect.promise(() => entered.promise),
+        Fiber.join(opened).pipe(Effect.asVoid),
+      );
+      yield* TestClock.adjust("1 second");
       release.resolve();
-      expect(await opened).toMatchObject({
+      expect(yield* Fiber.join(opened)).toMatchObject({
         status: "in-doubt",
         code: "checkpoint-mismatch",
       });
-      expect(fake.raw.some(({ line }) => line.includes("wrong-thread"))).toBe(
-        true,
-      );
+      expect(fake.raw.map(({ line }) => JSON.parse(line))).toMatchObject([
+        { result: { userAgent: expect.stringContaining("codex_cli_rs/") } },
+        { result: { thread: { id: "wrong-thread" } } },
+      ]);
     } finally {
       release.resolve();
-      await client.dispose();
     }
   }),
 );
