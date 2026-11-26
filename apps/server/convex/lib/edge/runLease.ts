@@ -242,7 +242,7 @@ export async function claimRunLease(
   } as const;
 }
 
-async function currentClaim(
+export async function currentClaim(
   ctx: MutationCtx,
   args: Fence,
   now: number,

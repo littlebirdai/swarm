@@ -3,6 +3,7 @@ import {
   id,
   object,
   oneOf,
+  owns,
   parser,
   positive,
   RelayParseError,
@@ -39,6 +40,22 @@ export const machineSignal = "machine_liveness";
 
 const readVersion = responseObject({ v: positive });
 const issuance = { issued_at_ms: positive, grant_seq: positive };
+const sessionGrantFields = {
+  ...session,
+  publish: array(oneOf(...userSignals, sessionLiveness), 0, userSignals.length),
+};
+const readSessionGrant = object(sessionGrantFields);
+const readRunGrant = object({ ...sessionGrantFields, run: positive });
+
+function sessionGrant(
+  value: unknown,
+  path: string,
+): ReturnType<typeof readSessionGrant> & { run?: number } {
+  return typeof value === "object" && value !== null && owns(value, "run")
+    ? readRunGrant(value, path)
+    : readSessionGrant(value, path);
+}
+
 const claims = object({
   v: oneOf(RELAY_GRANT_VERSION),
   ...issuance,
@@ -47,14 +64,7 @@ const claims = object({
   expires_at_ms: positive,
   grants: array(
     tagged("kind", {
-      session: object({
-        ...session,
-        publish: array(
-          oneOf(...userSignals, sessionLiveness),
-          0,
-          userSignals.length,
-        ),
-      }),
+      session: sessionGrant,
       machine: object({
         ...machine,
         publish: array(oneOf(machineSignal), 0, 1),
@@ -99,6 +109,12 @@ export const parseRelayGrantClaims = parser((value, path) => {
     } else if (subject.kind === "machine" && subject.id === grant.id) {
       allowed = [machineSignal];
     }
+    if (
+      grant.kind === "session" &&
+      grant.run !== undefined &&
+      (subject.kind !== "machine" || !grant.publish.includes(sessionLiveness))
+    )
+      throw new RelayParseError("invalid_field", `${grantPath}.run`);
     const publish = new Set<string>();
     for (const [index, signal] of grant.publish.entries()) {
       const signalPath = `${grantPath}.publish[${index}]`;

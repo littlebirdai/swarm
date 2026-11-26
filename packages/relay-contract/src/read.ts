@@ -74,7 +74,7 @@ function record(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-const owns = (value: object, key: string) =>
+export const owns = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
 
 export function object<S extends Shape>(

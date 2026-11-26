@@ -70,3 +70,20 @@ export const parseRenewRequest = parser(renewRequest);
 export const parseRenewResponse = parser(renewResponse);
 export const parseReleaseRequest = parser(releaseRequest);
 export const parseReleaseResponse = parser(releaseResponse);
+
+const relayGrantResponse = response(
+  tagged("status", {
+    ok: responseObject({
+      v: readV1,
+      status: oneOf("ok"),
+      token: nonEmptyString,
+      ttl_ms: positiveInteger,
+    }),
+    stale: responseObject({ v: readV1, status: oneOf("stale") }),
+    unavailable: responseObject({ v: readV1, status: oneOf("unavailable") }),
+    rate_limited: responseObject({ v: readV1, status: oneOf("rate_limited") }),
+  }),
+);
+
+export const parseRelayGrantRequest = parseRenewRequest;
+export const parseRelayGrantResponse = parser(relayGrantResponse);

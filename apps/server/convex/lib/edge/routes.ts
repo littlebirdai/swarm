@@ -12,6 +12,7 @@ import {
   parseHeartbeatRequest,
   parseHelloRequest,
   parsePermitsNextRequest,
+  parseRelayGrantRequest,
   parseReleaseRequest,
   parseRenewRequest,
   type EdgeErrorResponse,
@@ -25,6 +26,7 @@ import type { HttpRouter } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
+import { machineRelayGrantConfig } from "../../relayGrants";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
@@ -236,9 +238,10 @@ export function registerEdgeRoutes(http: HttpRouter) {
         ...version,
         policy: {
           ...policy,
-          capabilities: policy.capabilities.filter((capability) =>
-            body.capabilities.includes(capability),
-          ),
+          capabilities: [
+            ...policy.capabilities,
+            ...(machineRelayGrantConfig() ? ["relay_session_liveness"] : []),
+          ].filter((capability) => body.capabilities.includes(capability)),
         },
       };
     }),
@@ -279,6 +282,20 @@ export function registerEdgeRoutes(http: HttpRouter) {
           fencing_token,
         }),
       { operation: "renew" },
+    ),
+  });
+  http.route({
+    path: "/edge/v1/relay-grant",
+    method: "POST",
+    handler: workAction(
+      parseRelayGrantRequest,
+      (ctx, bearer, { session, run, fencing_token }) =>
+        ctx.runMutation(internal.relayGrants.mintMachineLiveness, {
+          bearer,
+          conversation_id: session,
+          run,
+          fencing_token,
+        }),
     ),
   });
   http.route({

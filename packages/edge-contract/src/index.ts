@@ -66,6 +66,8 @@ export {
 export {
   parseClaimRequest,
   parseClaimResponse,
+  parseRelayGrantRequest,
+  parseRelayGrantResponse,
   parseRenewRequest,
   parseRenewResponse,
   parseReleaseRequest,

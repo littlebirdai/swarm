@@ -107,7 +107,7 @@ it.effect(
           claims({
             subject: machine,
             grants: [
-              { ...session, publish: ["session_liveness"] },
+              { ...session, run: 4, publish: ["session_liveness"] },
               { ...machine, publish: ["machine_liveness"] },
             ],
           }),
@@ -137,6 +137,8 @@ it.effect(
         expect(watcher.events).toHaveLength(3);
         yield* owner.subscribe();
         yield* owner.subscribe(machine);
+        yield* owner.send({ ...run, run: 5 });
+        expect(watcher.events).toHaveLength(3);
         yield* owner.send(run);
         yield* owner.send(pulse);
         expect(watcher.events.slice(3)).toEqual([
