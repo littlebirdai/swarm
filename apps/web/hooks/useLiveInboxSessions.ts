@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex } from "convex/react";
 import {
@@ -113,7 +113,7 @@ export function applyInboxListPayload(data: any, convex?: any): any[] | null {
  * degrades to the cached rows, the subscription re-runs on the next data change,
  * and the 15s recovery probe re-feeds the store meanwhile.
  */
-// The ONE argument shape for the live inbox window. The 15s recovery probe in
+// The ONE argument shape for the live inbox window. The recovery probe in
 // useSyncInboxSessions spreads THIS constant (plus its cache-busting _probe),
 // so a stalled subscription can never flap the store between two payload
 // shapes — the probe and the subscription are byte-identical requests.
@@ -123,9 +123,7 @@ export const LIST_INBOX_SESSIONS_ARGS = {
   fast_fields_in_overlay: true,
 } as const;
 
-export function useLiveInboxSessions(opts?: {
-  onSync?: (sessions: any[]) => void;
-}) {
+export function useLiveInboxSessions() {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
   const { data: inboxSessions, error } = useSplitQueryNoThrow(
@@ -135,15 +133,12 @@ export function useLiveInboxSessions(opts?: {
   );
   useFeederError("conversations.listInboxSessions", error);
   const convex = useConvex();
-  const onSyncRef = useRef(opts?.onSync);
-  onSyncRef.current = opts?.onSync;
 
   useConvexSync(
     inboxSessions,
     useCallback(
       (data: any) => {
-        const sessions = applyInboxListPayload(data, convex);
-        if (sessions) onSyncRef.current?.(sessions);
+        applyInboxListPayload(data, convex);
       },
       [convex],
     ),

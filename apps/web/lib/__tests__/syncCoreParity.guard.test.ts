@@ -54,7 +54,9 @@ describe("useSyncCore owns the full feeder mount set", () => {
   });
 
   test("the anti-entropy loop is part of the profile — every platform compares (sync-convergence C6)", () => {
-    expect(coreSrc.includes("useInboxDigestCompare();")).toBe(true);
+    expect(coreSrc.includes("useInboxDigestCompare(inboxRecovery);")).toBe(
+      true,
+    );
   });
 
   test("web DashboardLayout mounts useSyncCore, not a subset", () => {
@@ -88,11 +90,9 @@ describe("useSyncCore owns the full feeder mount set", () => {
         live,
       ),
     ).toBe(true);
-    // The probe reads the same constant; querySplitWhole adds the `_probe`
-    // token that makes each read a fresh round trip.
     const syncSrc = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
     expect(
-      /querySplitWhole\(\s*convex,\s*api\.conversations\.listInboxSessions,\s*LIST_INBOX_SESSIONS_ARGS,/.test(
+      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
         syncSrc,
       ),
     ).toBe(true);

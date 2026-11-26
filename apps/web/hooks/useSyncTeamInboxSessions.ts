@@ -1,13 +1,12 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
-import { querySplitWhole, useSplitQueryNoThrow } from "./useSplitQuery";
-import { useConvex } from "convex/react";
+import { useSplitQueryNoThrow } from "./useSplitQuery";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore, InboxSession, isConvexId } from "../store/inboxStore";
 import { useConvexSync } from "./useConvexSync";
-import { INBOX_RECOVERY_STALE_MS, useRecoveryPoll } from "./useRecoveryPoll";
-import { queryWithSignal } from "../lib/queryWithSignal";
+import { useInboxRecovery } from "./use-inbox-recovery";
+import { useIsSyncHost } from "./useSyncRole";
 
 import { useWatchEffect } from "./useWatchEffect";
 // Record the team-mode active id set, change-guarded so an identical payload
@@ -85,24 +84,34 @@ export function applyTeamLivenessPayload(
  * team rows are fetched) until the user actually opens the team board.
  */
 export function useSyncTeamInboxSessions() {
-  const convex = useConvex();
+  const isSyncHost = useIsSyncHost();
   const scope = useInboxStore((s) => s.clientState.ui?.inbox_scope ?? "mine");
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
   // A freshly created team holds an optimistic stub id until the server
   // echoes; a stub is not an Id<"teams">, so skip rather than throw.
   const active =
     scope === "team" && (!activeTeamId || isConvexId(String(activeTeamId)));
-  const teamArgs = active ? teamInboxArgs(activeTeamId) : "skip";
+  const teamArgs = useMemo(
+    () => (active ? teamInboxArgs(activeTeamId) : "skip"),
+    [active, activeTeamId],
+  );
 
-  const teamSessions = useQueryNoThrow(
+  const livenessArgs = useMemo(
+    () =>
+      active
+        ? { activeTeamId: activeTeamId as Id<"teams"> | undefined }
+        : "skip",
+    [active, activeTeamId],
+  );
+  const { data: teamSessions, error: teamListError } = useQueryNoThrow(
     api.conversations.listTeamInboxSessions,
-    teamArgs as any,
-  ).data;
-  const teamLiveness = useSplitQueryNoThrow(
+    teamArgs,
+  );
+  const { data: teamLiveness, error: teamLivenessError } = useSplitQueryNoThrow(
     api.conversations.teamSessionsLiveness,
-    active ? { activeTeamId: activeTeamId as Id<"teams"> | undefined } : "skip",
+    livenessArgs,
     "liveness",
-  ).data;
+  );
   const scopedLiveness = useMemo(
     () =>
       teamLiveness === undefined
@@ -111,23 +120,13 @@ export function useSyncTeamInboxSessions() {
     [teamLiveness, activeTeamId],
   );
 
-  const lastSyncRef = useRef(Date.now());
-  const lastLivenessRef = useRef(Date.now());
-
   useConvexSync(
     teamSessions,
     useCallback(
       (data: any) => {
         // Team rows warm through the store-driven loop (startWarmLoop): the board's
         // cards are the rows on screen in team scope.
-        if (
-          !applyTeamListPayload(
-            data,
-            (activeTeamId as string | undefined) ?? null,
-          )
-        )
-          return;
-        lastSyncRef.current = Date.now();
+        applyTeamListPayload(data, activeTeamId ?? null);
       },
       [activeTeamId],
     ),
@@ -141,8 +140,7 @@ export function useSyncTeamInboxSessions() {
       ({ teamId, data }) => {
         // A coalesced push can flush after the team or inbox scope has changed.
         if (!active || teamId !== activeTeamId) return;
-        if (!applyTeamLivenessPayload(activeTeamId, data)) return;
-        lastLivenessRef.current = Date.now();
+        applyTeamLivenessPayload(activeTeamId, data);
       },
       [active, activeTeamId],
     ),
@@ -165,65 +163,25 @@ export function useSyncTeamInboxSessions() {
     useInboxStore.setState({ teamInboxIds: new Set<string>() });
   }, [active, activeTeamId]);
 
-  // Recovery: a Convex subscription can silently stall after sleep/reconnect. When
-  // team mode is active, probe a novel-token round-trip to re-sync the list and
-  // active set (same pattern as the personal inbox recovery poll). The `_probe`
-  // arg dodges the stalled live cache. No-op when not in team mode.
-  useRecoveryPoll(
-    lastSyncRef,
+  useInboxRecovery(
+    api.conversations.listTeamInboxSessions,
+    isSyncHost ? teamArgs : "skip",
+    null,
+    teamListError,
     useCallback(
-      async (signal: AbortSignal) => {
-        if (!active) return;
-        const fresh: any = await queryWithSignal(
-          convex,
-          api.conversations.listTeamInboxSessions,
-          {
-            ...teamInboxArgs(activeTeamId),
-            _probe: Date.now(),
-          },
-          signal,
-        );
-        if (signal.aborted) return;
-        if (
-          !applyTeamListPayload(
-            fresh,
-            (activeTeamId as string | undefined) ?? null,
-          )
-        )
-          return;
-        lastSyncRef.current = Date.now();
-      },
-      [convex, active, activeTeamId],
+      (data) => applyTeamListPayload(data, activeTeamId ?? null),
+      [activeTeamId],
     ),
-    INBOX_RECOVERY_STALE_MS,
   );
-
-  useRecoveryPoll(
-    lastLivenessRef,
+  useInboxRecovery(
+    api.conversations.teamSessionsLiveness,
+    isSyncHost ? livenessArgs : "skip",
+    "liveness",
+    teamLivenessError,
     useCallback(
-      async (signal: AbortSignal) => {
-        if (!active) return;
-        // Split and rebuilt from the subscription's cache, as the personal poll does,
-        // so a recovery refills that cache instead of leaving the next push to fetch whole.
-        const fresh: any = await querySplitWhole(
-          convex,
-          api.conversations.teamSessionsLiveness,
-          {
-            activeTeamId: activeTeamId as Id<"teams"> | undefined,
-          },
-          "liveness",
-          signal,
-        );
-        if (signal.aborted) return;
-        const liveness = fresh?.liveness;
-        if (!liveness) return;
-        // Same applier as the subscription: a recovery pass must not fork shapes.
-        if (!applyTeamLivenessPayload(activeTeamId, fresh)) return;
-        lastLivenessRef.current = Date.now();
-      },
-      [convex, active, activeTeamId],
+      (data) => applyTeamLivenessPayload(activeTeamId, data),
+      [activeTeamId],
     ),
-    INBOX_RECOVERY_STALE_MS,
   );
 
   return teamSessions;

@@ -6,14 +6,11 @@ import {
 } from "@codecast/inbox/inboxProjection";
 import { STATUS_TRUST_TTL_MS } from "@codecast/sessions/agentStatus";
 import {
-  INBOX_COMPARE_MAX_PAYLOAD_AGE_MS,
   INBOX_COMPARE_QUIESCENT_MS,
   INBOX_COMPARE_SKIPS,
   INBOX_HEAL_BUDGET,
   INBOX_HEAL_WINDOW_MS,
   INBOX_HEARTBEAT_INTERVAL_MS,
-  INBOX_PROBE_MIN_INTERVAL_MS,
-  INBOX_PROBE_PAYLOAD_AGE_MS,
   createInboxDigestComparer,
   createInboxDigestDevHandle,
   evaluateInboxCompare,
@@ -150,6 +147,7 @@ const ctx = (
 ) => ({
   now: NOW,
   nowMono: MONO + 1_000,
+  subscriptionHealthy: true,
   crawlMetaKey: CRAWL_KEY,
   lastApplyMono: MONO - 10 * MIN,
   inflight: 0,
@@ -166,6 +164,7 @@ describe("development outcome diagnostics", () => {
       const handle = createInboxDigestDevHandle(
         harness().comparer,
         () => CRAWL_KEY,
+        () => true,
       );
       for (const reason of INBOX_COMPARE_SKIPS) {
         handle.logOutcome({ kind: "skip", reason });
@@ -193,6 +192,7 @@ describe("development outcome diagnostics", () => {
       const handle = createInboxDigestDevHandle(
         harness().comparer,
         () => CRAWL_KEY,
+        () => true,
       );
       handle.logOutcome({ kind: "skip", reason: "not_quiescent" });
       expect(handle.renderVsStamp()).toEqual([
@@ -221,6 +221,7 @@ describe("development outcome diagnostics", () => {
       const handle = createInboxDigestDevHandle(
         harness().comparer,
         () => CRAWL_KEY,
+        () => true,
       );
       handle.logOutcome({
         kind: "clean",
@@ -287,21 +288,16 @@ describe("gates, in contract order", () => {
     });
   });
 
-  it("gate 3: payload age on the receipt clock", () => {
-    const r = evaluateInboxCompare(
-      converged,
-      ctx({ nowMono: MONO + INBOX_COMPARE_MAX_PAYLOAD_AGE_MS + 1 }),
-    );
-    expect(r).toMatchObject({
+  it("gate 3: overlay health controls freshness independently of age", () => {
+    expect(
+      evaluateInboxCompare(converged, ctx({ subscriptionHealthy: false })),
+    ).toMatchObject({
       kind: "skip",
       reason: "stale_payload",
-      payload_age_ms: INBOX_COMPARE_MAX_PAYLOAD_AGE_MS + 1,
+      payload_age_ms: 1_000,
     });
     expect(
-      evaluateInboxCompare(
-        converged,
-        ctx({ nowMono: MONO + INBOX_COMPARE_MAX_PAYLOAD_AGE_MS }),
-      ).kind,
+      evaluateInboxCompare(converged, ctx({ nowMono: MONO + 330_000 })).kind,
     ).toBe("clean");
   });
 
@@ -586,6 +582,7 @@ function harness(over: Partial<InboxDigestComparerIO> = {}): Harness {
   };
   h.comparer = createInboxDigestComparer({
     platform: "test",
+    subscriptionHealthy: () => true,
     track: (event, props) => events.push({ event, props }),
     fetchByIds: async (ids) => {
       fetched.push(ids);
@@ -944,21 +941,19 @@ describe("telemetry (C7)", () => {
   it("max_payload_age_ms tracks the oldest payload seen, skipped or checked", () => {
     const h = harness();
     h.comparer.tick(cleanState());
-    h.clock.mono = MONO + INBOX_COMPARE_MAX_PAYLOAD_AGE_MS + 5_000;
+    h.clock.mono = MONO + 330_000;
     h.comparer.tick(cleanState());
-    expect(h.comparer.counters().max_payload_age_ms).toBe(
-      INBOX_COMPARE_MAX_PAYLOAD_AGE_MS + 5_000,
-    );
-    expect(h.comparer.counters().skips.stale_payload).toBe(1);
+    expect(h.comparer.counters().max_payload_age_ms).toBe(330_000);
+    expect(h.comparer.counters().skips.stale_payload).toBe(0);
   });
 });
 
-describe("kill switch (C8) and the stale-payload probe (C2)", () => {
-  it("a null digest turns off compare, heal AND the stale probe", async () => {
+describe("kill switch (C8)", () => {
+  it("a null digest turns off compare and heal", async () => {
     const h = harness();
     const off = withSlot(driftingState(), {
       set_digest: null,
-      receivedAtMono: MONO - INBOX_PROBE_PAYLOAD_AGE_MS * 2,
+      receivedAtMono: MONO - 600_000,
     });
     h.comparer.tick(off);
     h.comparer.tick({
@@ -972,26 +967,6 @@ describe("kill switch (C8) and the stale-payload probe (C2)", () => {
     expect(h.fetched).toEqual([]);
     expect(h.comparer.counters().disabled).toBe(2);
     expect(h.events).toEqual([]);
-  });
-
-  it("a payload older than five minutes gets one probe on the slow budget", async () => {
-    const h = harness();
-    const stale = cleanState(
-      EPOCH,
-      MONO + 1_000 - INBOX_PROBE_PAYLOAD_AGE_MS - 1,
-    );
-    expect(h.comparer.tick(stale)).toMatchObject({
-      kind: "skip",
-      reason: "stale_payload",
-    });
-    expect(h.probes).toBe(1);
-    await h.flushHeal(); // let the probe settle
-    h.comparer.tick(stale);
-    expect(h.probes).toBe(1); // budgeted
-    h.clock.now += INBOX_PROBE_MIN_INTERVAL_MS;
-    h.comparer.tick(stale);
-    expect(h.probes).toBe(2);
-    expect(h.comparer.counters().probes).toBe(2);
   });
 
   it("dispose cancels a scheduled heal and stops the loop", async () => {

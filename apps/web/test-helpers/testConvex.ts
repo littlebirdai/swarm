@@ -174,6 +174,8 @@ export function testConvex() {
       constructor() {
         super(receive);
         socket = this;
+        subscriptions.clear();
+        version = { querySet: 0, identity: 0, ts: timestamp(0) };
       }
     },
   );
@@ -200,6 +202,9 @@ export function testConvex() {
     mutations,
     actions,
     writeRequests,
+    disconnect() {
+      socket?.close();
+    },
     ping() {
       socket?.reply({ type: "Ping" });
     },

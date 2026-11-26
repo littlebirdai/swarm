@@ -37,7 +37,7 @@ export type QueryUpdate =
 export class TestSocket {
   readyState = 0;
   onopen?: () => void;
-  onclose?: () => void;
+  onclose?: (event: { code: number; reason: string }) => void;
   onmessage?: (event: { data: string }) => void;
 
   constructor(private readonly receive: (frame: ClientFrame) => void) {
@@ -64,6 +64,6 @@ export class TestSocket {
     this.readyState = 3;
     const onclose = this.onclose;
     this.onopen = this.onclose = this.onmessage = undefined;
-    onclose?.();
+    onclose?.({ code: 1001, reason: "" });
   }
 }

@@ -22,7 +22,6 @@ import {
 } from "../inboxStore";
 import {
   INBOX_HEAL_BUDGET,
-  INBOX_PROBE_PAYLOAD_AGE_MS,
   INBOX_COMPARE_TICK_MS,
   evaluateInboxCompare,
 } from "../inboxDigestCompare";
@@ -253,7 +252,7 @@ describe("the cold replica", () => {
 });
 
 describe("a dead subscription is detected and healed", () => {
-  it("overlay zombie: the payload ages out, the stale probe forces a fresh execution, the replica re-converges", async () => {
+  it("overlay zombie: an unhealthy feed skips comparison until recovery delivers a fresh result", async () => {
     const server = new SimServer(seededWorld(41));
     const a = await bootReplica(server, "A", 1);
     const id = memberIds(server, () => 0.3)!;
@@ -280,13 +279,12 @@ describe("a dead subscription is detected and healed", () => {
     // pinning a stale "working" — the compare never sees this (gated).
     const frozen = a.placed();
     expect(frozen.placements.get(id)?.bucket).not.toBe("working");
-    // Past the probe age the comparer issues ONE budgeted probe.
-    advance(INBOX_PROBE_PAYLOAD_AGE_MS);
-    a.tick();
-    expect(a.comparer.counters().probes).toBe(1);
-    await a.flush();
-    // The fresh payload landed through the applier: the probe's own execution
-    // clock is the tick's, so the very next tick is clean.
+    advance(360_000);
+    expect(a.tick()).toMatchObject({ kind: "skip", reason: "stale_payload" });
+    expect(a.comparer.counters().probes).toBe(0);
+    a.overlayDead = false;
+    await a.receiveOverlay();
+    advance(INBOX_COMPARE_TICK_MS);
     expect(a.tick()).toMatchObject({ kind: "clean" });
     expect(a.comparer.counters().heals).toBe(0);
     a.overlayDead = false;
@@ -481,7 +479,7 @@ describe("the two drills", () => {
       expect(a.tick()).toEqual({ kind: "disabled" });
       expect(b.tick()).toEqual({ kind: "disabled" });
       expect(await b.drainHeals()).toBe(0);
-      advance(INBOX_PROBE_PAYLOAD_AGE_MS + GEN_MIN);
+      advance(300_000 + GEN_MIN);
     }
     expect(b.comparer.counters()).toMatchObject({
       disabled: 3,
@@ -512,6 +510,7 @@ describe("the pure compare on the same replicas", () => {
     const out = evaluateInboxCompare(state, {
       now: now(),
       nowMono: mono(),
+      subscriptionHealthy: true,
       crawlMetaKey: CRAWL_KEY,
       lastApplyMono: mono() - 10 * GEN_MIN,
       inflight: 0,

@@ -17,7 +17,6 @@ const existingDefinitions = new Set([
   "components/__tests__/composerTypingBudget.mount.test.tsx",
   "components/__tests__/vaultFill.mount.test.tsx",
   "hooks/__tests__/killedShelf.test.ts",
-  "hooks/__tests__/querySplitWhole.test.ts",
   "hooks/__tests__/triggerFeedHistory.test.ts",
   "lib/__tests__/remotePaneInput.test.ts",
   "lib/__tests__/walkieBursts.test.ts",

@@ -4680,12 +4680,6 @@ export type PlaceInboxState = {
   pending?: InboxOverlayState["pending"];
 };
 
-// How old the latest overlay payload may be (receipt clock) before the digest
-// compare stops trusting it (INBOX_COMPARE_MAX_PAYLOAD_AGE_MS is this bound)
-// and the stale probe forces a fresh execution within five minutes. Rendering
-// does not gate on it: a row's live fields re-derive from its replicated
-// facts at any instant (deriveLiveAt), payload or no payload.
-export const INBOX_PAYLOAD_FRESH_MS = 90_000;
 // InboxSession → the shared ProjectableInboxRow, with the live fields
 // (agent_status, is_idle, is_unresponsive, awaiting_input) taken from `live`:
 // the shared deriveLiveAt over the row's replicated facts at the caller's

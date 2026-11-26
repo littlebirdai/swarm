@@ -274,10 +274,10 @@ export class SimWindow implements RealmWindow {
         currentUserId,
         applyBridgedGesture,
       );
-      this.comparer = startInboxDigestCompare(
-        this.client,
-        () => () => {},
-      ).comparer;
+      this.comparer = startInboxDigestCompare(this.client, () => () => {}, {
+        subscriptionHealthy: () =>
+          this.role === "host" && !this.world.net.held(this.conn),
+      }).comparer;
       this.device.attach(this);
       this.mount(
         "deliveryReceipts",

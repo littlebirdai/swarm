@@ -543,6 +543,7 @@ export class Replica {
     await w.run(() => {
       w.comparer?.dispose();
       const io: Partial<InboxDigestComparerIO> = {
+        subscriptionHealthy: () => this.isOnline && !this.overlayDead,
         // The replica names itself in its drift events; no real surface label fits.
         platform:
           `sim-${this.name}` as unknown as InboxDigestComparerIO["platform"],

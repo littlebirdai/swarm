@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useWatchEffect } from "./useWatchEffect";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
@@ -41,6 +41,7 @@ export function startInboxDigestCompare(
 ): { comparer: InboxDigestComparer; dispose: () => void } {
   const crawlMetaKeyFor = (meId: string | null) =>
     meId ? syncMetaKey("sessions", inboxCrawlWsKey(meId)) : null;
+  const subscriptionHealthy = io.subscriptionHealthy ?? (() => true);
   const comparer = createInboxDigestComparer({
     platform: getPlatform(),
     track,
@@ -57,13 +58,18 @@ export function startInboxDigestCompare(
       );
     },
     ...io,
+    subscriptionHealthy,
   });
   // Dev console handle (same convention as __inboxStore): the read-only
   // diagnostics live in the compare module (an allowed reader of the stamp
   // buffer); this mount only adds the two IO peeks and attaches it.
   const dev =
     process.env.NODE_ENV !== "production"
-      ? createInboxDigestDevHandle(comparer, crawlMetaKeyFor)
+      ? createInboxDigestDevHandle(
+          comparer,
+          crawlMetaKeyFor,
+          subscriptionHealthy,
+        )
       : null;
   if (dev && typeof window !== "undefined") {
     (window as any).__inboxDigest = {
@@ -94,8 +100,22 @@ export function startInboxDigestCompare(
   };
 }
 
-export function useInboxDigestCompare(): void {
+export function useInboxDigestCompare({
+  recoverLiveness,
+  isLivenessHealthy,
+}: {
+  recoverLiveness: () => Promise<boolean>;
+  isLivenessHealthy: () => boolean;
+}): void {
   const convex = useConvex();
-  // eslint-disable-next-line no-restricted-syntax -- subscribes to the shared coarse clock
-  useEffect(() => startInboxDigestCompare(convex).dispose, [convex]);
+  useWatchEffect(
+    () =>
+      startInboxDigestCompare(convex, subscribeCoarseTick, {
+        subscriptionHealthy: isLivenessHealthy,
+        probeOverlay: async () => {
+          await recoverLiveness();
+        },
+      }).dispose,
+    [convex, isLivenessHealthy, recoverLiveness],
+  );
 }
