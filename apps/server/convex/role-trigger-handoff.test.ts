@@ -6,11 +6,37 @@ import {
   type ServerTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import type { Doc } from "./_generated/dataModel";
+import { api, internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
 import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
 
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
+
+const continuation = internal.lib.agentTaskRows.continueRoleTriggerHandoff;
+
+async function oldRunnerClaims(
+  t: ServerTest,
+  role: Id<"org_roles">,
+  oldRunner: Id<"users">,
+  due: Id<"agent_tasks">[],
+) {
+  const token = "old-trigger-runner";
+  await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "role-trigger-handoff-claims");
+    const team = await fixtures.team({ features: { org: true } });
+    await fixtures.membership(oldRunner, team);
+    await fixtures.token(oldRunner, token);
+    await db.patch(role, { team_id: team });
+    for (const id of due) await db.patch(id, { run_at: 1 });
+  });
+  return (task_id: Id<"agent_tasks">) =>
+    t.mutation(api.agentTasks.claimTask, {
+      api_token: token,
+      daemon_id: "old-daemon",
+      task_id,
+    });
+}
 
 async function seedSeat(
   t: ServerTest,
@@ -80,7 +106,17 @@ async function seedSeat(
         }),
       );
     }
-    return { seat, runner, oldRunner, moved, personal, offSeat, alreadyOwned };
+    return {
+      seat,
+      runner,
+      oldRunner,
+      moved,
+      personal,
+      offSeat,
+      alreadyOwned,
+      role,
+      otherSeat,
+    };
   });
 }
 
@@ -148,6 +184,7 @@ test("a standing trigger beyond the byte budget repairs the kind on its own page
     120,
     "Check in ".repeat(5_000),
   );
+  await t.run(({ db }) => db.patch(seat, { armed_trigger_kind: "none" }));
   await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
   jest.runOnlyPendingTimers();
   await t.finishInProgressScheduledFunctions();
@@ -161,4 +198,161 @@ test("a standing trigger beyond the byte budget repairs the kind on its own page
     expect((await db.get(moved.at(-1)!))?.user_id).toBe(runner);
     expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
   });
+});
+
+test("a bounded scan repairs a seat armed only with once triggers", async () => {
+  const t = serverTest({});
+  const { seat, runner, oldRunner, moved } = await seedSeat(
+    t,
+    120,
+    "Check in ".repeat(5_000),
+  );
+  await t.run(async ({ db }) => {
+    await db.patch(seat, { armed_trigger_kind: "none" });
+    await db.patch(moved.at(-1)!, { schedule_type: "once" });
+  });
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  await t.run(async ({ db }) => {
+    expect((await db.get(moved.at(-1)!))?.user_id).toBe(oldRunner);
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("once");
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect((await db.get(moved.at(-1)!))?.user_id).toBe(runner);
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("once");
+  });
+});
+
+test("a later witness page repairs once when the initial scan found no armed trigger", async () => {
+  const t = serverTest({});
+  const { seat, moved, personal, offSeat, alreadyOwned } = await seedSeat(
+    t,
+    120,
+    "Check in ".repeat(5_000),
+  );
+  await t.run(async ({ db }) => {
+    await db.patch(seat, { armed_trigger_kind: "none" });
+    await db.patch(moved.at(-1)!, { schedule_type: "once" });
+    for (const id of [personal, offSeat, alreadyOwned, ...moved.slice(0, -1)]) {
+      await db.patch(id, { status: "completed" });
+    }
+  });
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "none",
+  );
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "once",
+  );
+});
+
+test("the original continuation stops when a third runner takes the seat", async () => {
+  const t = serverTest({});
+  const { seat, runner, oldRunner, moved, alreadyOwned } = await seedSeat(
+    t,
+    500,
+  );
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  const nextRunner = await t.run(async ({ db }) => {
+    expect((await db.get(moved[0]))?.user_id).toBe(runner);
+    const user = await db.insert("users", { name: "Third runner" });
+    await db.patch(seat, { user_id: user });
+    return user;
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await scheduledJobs(t, continuation)).toHaveLength(2);
+  await t.run(async (ctx) => {
+    expect((await ctx.db.get(moved[0]))?.user_id).toBe(runner);
+    expect((await ctx.db.get(moved.at(-1)!))?.user_id).toBe(oldRunner);
+    await handRoleTriggersToRunner(ctx, seat);
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    const owners = await Promise.all(
+      [alreadyOwned, ...moved].map(async (id) => (await db.get(id))?.user_id),
+    );
+    expect(new Set(owners)).toEqual(new Set([nextRunner]));
+  });
+});
+
+test.each(["moved", "unseated"])(
+  "a continuation skips its role after the anchor is %s",
+  async (change) => {
+    const t = serverTest({});
+    const { seat, runner, oldRunner, moved, role, otherSeat } = await seedSeat(
+      t,
+      150,
+    );
+    await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+    jest.runOnlyPendingTimers();
+    await t.finishInProgressScheduledFunctions();
+    await t.run(async ({ db }) => {
+      expect((await db.get(moved[0]))?.user_id).toBe(runner);
+      const anchor = (await db.get(role))!.anchor_id!;
+      await db.patch(anchor, {
+        conversation_id: change === "moved" ? otherSeat : undefined,
+      });
+    });
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    await t.run(async ({ db }) => {
+      expect((await db.get(moved[0]))?.user_id).toBe(runner);
+      expect((await db.get(moved.at(-1)!))?.user_id).toBe(oldRunner);
+    });
+  },
+);
+
+test("old-runner polls hand off due triggers immediately and share one continuation chain", async () => {
+  const t = serverTest({});
+  const { runner, oldRunner, moved, role, alreadyOwned } = await seedSeat(
+    t,
+    500,
+  );
+  const due = moved.slice(-20);
+  const claim = await oldRunnerClaims(t, role, oldRunner, due);
+  for (const id of [...due, ...due]) {
+    expect(await claim(id)).toBeNull();
+  }
+  expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+  await t.run(async ({ db }) => {
+    const owners = await Promise.all(
+      due.map(async (id) => (await db.get(id))?.user_id),
+    );
+    expect(new Set(owners)).toEqual(new Set([runner]));
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await scheduledJobs(t, continuation)).toHaveLength(4);
+  await t.run(async ({ db }) => {
+    const owners = await Promise.all(
+      [alreadyOwned, ...moved].map(async (id) => (await db.get(id))?.user_id),
+    );
+    expect(new Set(owners)).toEqual(new Set([runner]));
+  });
+});
+
+test("a claim of the last stale trigger leaves projection repair on the queued chain", async () => {
+  const t = serverTest({});
+  const { seat, runner, oldRunner, moved, role } = await seedSeat(t, 150);
+  const last = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [last]);
+  await t.run(async (ctx) => {
+    await ctx.db.patch(seat, { armed_trigger_kind: "none" });
+    for (const id of moved.slice(0, -1)) {
+      await ctx.db.patch(id, { user_id: runner });
+    }
+    await handRoleTriggersToRunner(ctx, seat);
+  });
+  expect(await claim(last)).toBeNull();
+  expect((await t.run(({ db }) => db.get(last)))?.user_id).toBe(runner);
+  expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "standing",
+  );
 });

@@ -370,29 +370,101 @@ export async function handRoleTriggersToRunner(
 ): Promise<number> {
   const seat: Doc<"conversations"> | null = await ctx.db.get(conversationId);
   if (!seat) return 0;
+  return handRoleTriggersForSeat(ctx, seat, false);
+}
+
+export async function handClaimedRoleTriggerToRunner(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<boolean> {
+  const seat = await seatOfRoleTrigger(ctx, task);
+  if (!seat || seat.user_id === task.user_id) return false;
+  await ctx.db.patch(task._id, { user_id: seat.user_id });
+  await handRoleTriggersForSeat(ctx, seat, true);
+  return true;
+}
+
+type RoleHandoff = {
+  jobId: Id<"_scheduled_functions">;
+  runner: Id<"users">;
+  claimed: boolean;
+};
+
+function readRoleHandoff(row: Doc<"system_config">): RoleHandoff {
+  return JSON.parse(row.value) as RoleHandoff;
+}
+
+async function writeRoleHandoff(
+  ctx: TaskCtx,
+  id: Id<"system_config">,
+  state: RoleHandoff,
+): Promise<void> {
+  await ctx.db.patch(id, { value: JSON.stringify(state) });
+}
+
+async function handRoleTriggersForSeat(
+  ctx: TaskCtx,
+  seat: Doc<"conversations">,
+  claimed: boolean,
+): Promise<number> {
+  const key = `role-trigger-handoff:${seat._id}`;
+  const db: DatabaseReader = ctx.db;
+  const handoff = await db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+  if (handoff) {
+    const state = readRoleHandoff(handoff);
+    if (state.runner === seat.user_id) {
+      const job = await db.system.get(state.jobId);
+      if (job?.state.kind === "pending" || job?.state.kind === "inProgress") {
+        if (claimed && !state.claimed) {
+          await writeRoleHandoff(ctx, handoff._id, { ...state, claimed });
+        }
+        return 0;
+      }
+    }
+    await ctx.db.delete(handoff._id);
+  }
   const tasks: Doc<"agent_tasks">[] = [];
   let bytes = 0;
-  for await (const task of triggersForConversation(ctx.db, conversationId)) {
+  for await (const task of triggersForConversation(ctx.db, seat._id)) {
     tasks.push(task);
     bytes += getDocumentSize(task);
     if (tasks.length >= HANDOFF_PAGE_ROWS || bytes >= HANDOFF_PAGE_BYTES) {
       if (!ctx.scheduler)
         throw new Error("Trigger handoff requires a scheduler");
-      await ctx.scheduler.runAfter(
+      const handoffId: Id<"system_config"> = await ctx.db.insert(
+        "system_config",
+        { key, value: "", updated_at: Date.now() },
+      );
+      const jobId = (await ctx.scheduler.runAfter(
         0,
         internal.lib.agentTaskRows.continueRoleTriggerHandoff,
         {
-          conversationId,
+          conversationId: seat._id,
           runner: seat.user_id,
           cursor: null,
           repair: "pending",
+          handoffId,
         },
-      );
+      )) as Id<"_scheduled_functions">;
+      await writeRoleHandoff(ctx, handoffId, {
+        jobId,
+        runner: seat.user_id,
+        claimed,
+      });
       return 0;
     }
   }
-  return handRoleTriggerPage(ctx, seat, tasks, () =>
-    writeArmedTriggerKind(ctx, seat, armedTriggerKindFor(tasks)),
+  const repairKind = () =>
+    writeArmedTriggerKind(ctx, seat, armedTriggerKindFor(tasks));
+  if (claimed) await repairKind();
+  return handRoleTriggerPage(
+    ctx,
+    seat,
+    tasks,
+    claimed ? undefined : repairKind,
   );
 }
 
@@ -400,7 +472,7 @@ async function handRoleTriggerPage(
   ctx: TaskCtx,
   seat: Doc<"conversations">,
   tasks: Doc<"agent_tasks">[],
-  afterFirstWrite: () => Promise<void>,
+  afterFirstWrite?: () => Promise<void>,
 ): Promise<number> {
   const roleBelongsToSeat = new Map<Id<"org_roles">, boolean>();
   let handed = 0;
@@ -413,7 +485,7 @@ async function handRoleTriggerPage(
     }
     if (!belongs) continue;
     await ctx.db.patch(task._id, { user_id: seat.user_id });
-    if (handed === 0) await afterFirstWrite();
+    if (handed === 0) await afterFirstWrite?.();
     handed++;
   }
   return handed;
@@ -421,6 +493,7 @@ async function handRoleTriggerPage(
 
 export const continueRoleTriggerHandoff = internalMutation({
   args: {
+    handoffId: v.optional(v.id("system_config")),
     conversationId: v.id("conversations"),
     runner: v.id("users"),
     cursor: v.union(v.null(), v.string()),
@@ -431,8 +504,13 @@ export const continueRoleTriggerHandoff = internalMutation({
     ),
   },
   handler: async (ctx, args): Promise<void> => {
+    const handoff = args.handoffId && (await ctx.db.get(args.handoffId));
+    if (args.handoffId && !handoff) return;
     const seat = await ctx.db.get(args.conversationId);
-    if (!seat || seat.user_id !== args.runner) return;
+    if (!seat || seat.user_id !== args.runner) {
+      if (handoff) await ctx.db.delete(handoff._id);
+      return;
+    }
     const page = await triggersForConversation(ctx.db, seat._id).paginate({
       numItems: HANDOFF_PAGE_ROWS,
       maximumBytesRead: HANDOFF_PAGE_BYTES,
@@ -441,7 +519,8 @@ export const continueRoleTriggerHandoff = internalMutation({
     const pageKind =
       args.repair === "done" ? undefined : armedTriggerKindFor(page.page);
     let repair = args.repair;
-    await handRoleTriggerPage(ctx, seat, page.page, async () => {
+    const seatKind = seat.armed_trigger_kind ?? "none";
+    const repairKind = async () => {
       if (repair !== "pending") return;
       if (
         pageKind === "standing" ||
@@ -464,19 +543,33 @@ export const continueRoleTriggerHandoff = internalMutation({
         count++;
         bytes += getDocumentSize(task);
         if (count >= HANDOFF_KIND_ROWS || bytes >= HANDOFF_KIND_BYTES) {
+          if ((kind === "once" || pageKind === "once") && seatKind === "none") {
+            await writeArmedTriggerKind(ctx, seat, "once");
+          }
           repair = "witness";
           return;
         }
       }
       await writeArmedTriggerKind(ctx, seat, kind);
       repair = "done";
-    });
-    if (repair === "witness" && pageKind === "standing") {
-      await writeArmedTriggerKind(ctx, seat, "standing");
-      repair = "done";
+    };
+    const state = handoff ? readRoleHandoff(handoff) : null;
+    if (state?.claimed) await repairKind();
+    await handRoleTriggerPage(ctx, seat, page.page, repairKind);
+    if (repair === "witness") {
+      if (pageKind === "standing") {
+        await writeArmedTriggerKind(ctx, seat, "standing");
+        repair = "done";
+      } else if (
+        args.repair === "witness" &&
+        pageKind === "once" &&
+        seatKind === "none"
+      ) {
+        await writeArmedTriggerKind(ctx, seat, "once");
+      }
     }
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(
+      const jobId = await ctx.scheduler.runAfter(
         0,
         internal.lib.agentTaskRows.continueRoleTriggerHandoff,
         {
@@ -485,6 +578,11 @@ export const continueRoleTriggerHandoff = internalMutation({
           repair,
         },
       );
+      if (handoff && state) {
+        await writeRoleHandoff(ctx, handoff._id, { ...state, jobId });
+      }
+    } else if (handoff) {
+      await ctx.db.delete(handoff._id);
     }
   },
 });

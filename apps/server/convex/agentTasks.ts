@@ -116,8 +116,7 @@ import { roleCharterOf } from "./lib/roleCharter";
 import {
   type TaskCtx,
   rewriterOf,
-  roleTriggerRunnerOf,
-  handRoleTriggersToRunner,
+  handClaimedRoleTriggerToRunner,
   projectQuiet,
   refreshArmedTriggerKind,
   patchTask,
@@ -1960,13 +1959,7 @@ export const claimTask = mutation({
     // A role trigger whose session another account now runs: whatever moved
     // the session, the firing is that account's, so the trigger goes to it
     // and its daemon claims it on its next poll (roleTriggerRunnerOf).
-    if (
-      task.originating_conversation_id &&
-      (await roleTriggerRunnerOf(ctx, task))
-    ) {
-      await handRoleTriggersToRunner(ctx, task.originating_conversation_id);
-      return null;
-    }
+    if (await handClaimedRoleTriggerToRunner(ctx, task)) return null;
 
     const now = Date.now();
     const sourceFields = claimRunSourceFields(task);
