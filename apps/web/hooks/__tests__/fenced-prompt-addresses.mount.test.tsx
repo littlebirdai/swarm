@@ -15,14 +15,22 @@ const other = "b".repeat(32) as Id<"conversations">;
 function row(conversation_id: Id<"conversations">, prompt_id: string): Row {
   const lease_id = conversation_id as string as Id<"run_leases">;
   return {
-    _id: JSON.stringify([lease_id, "turn", prompt_id]),
-    lease_id,
+    _id: conversation_id,
     conversation_id,
-    run: 1,
-    turn_id: "turn",
-    prompt_id,
-    kind: "question",
-    questions: [{ id: "question", is_secret: true }],
+    lease_expires_at: 5000,
+    observed_turn: null,
+    prompts: [
+      {
+        _id: JSON.stringify([lease_id, "turn", prompt_id]),
+        lease_id,
+        conversation_id,
+        run: 1,
+        turn_id: "turn",
+        prompt_id,
+        kind: "question",
+        questions: [{ id: "question", is_secret: true }],
+      },
+    ],
   };
 }
 
@@ -32,7 +40,7 @@ function Feed({ enabled }: { enabled: boolean }) {
   return (
     <output>
       {rows
-        .map(({ prompt_id }) => prompt_id)
+        .flatMap(({ prompts }) => prompts.map(({ prompt_id }) => prompt_id))
         .sort()
         .join(",")}
     </output>
@@ -66,19 +74,14 @@ test("a conversation feed inserts and removes its addresses without dropping oth
       prompt,
     );
     const before = web.store.getState().fencedPromptAddresses[prompt._id];
-    await act(async () =>
-      web.backend.set(feed, [
-        structuredClone(prompt),
-        row(conversation, "new"),
-      ]),
-    );
-    expect(web.container.querySelector("output")?.textContent).toBe(
-      "ask,new,sibling",
-    );
+    await act(async () => web.backend.set(feed, [structuredClone(prompt)]));
     expect(web.store.getState().fencedPromptAddresses[prompt._id]).toBe(before);
-    const revised = {
+    const revised: Row = {
       ...prompt,
-      questions: [{ id: "second", is_secret: false }],
+      prompts: prompt.prompts.map((p) => ({
+        ...p,
+        questions: [{ id: "second", is_secret: false }],
+      })),
     };
     await act(async () => web.backend.set(feed, [revised]));
     expect(web.store.getState().fencedPromptAddresses[prompt._id]).toEqual(

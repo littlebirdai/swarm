@@ -465,6 +465,7 @@ export const sessionDeliveryTables = {
           v.literal("delivery-permit-v1"),
           v.literal("strict-agent-routing"),
           v.literal("runtime-inspection-v1"),
+          v.literal("steer-baton-v1"),
         ),
       ),
     ),

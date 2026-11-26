@@ -9,6 +9,15 @@ import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useServerAuthSettled } from "./useServerAuthSettled";
 
+export function FencedPromptAddressesFeeder({
+  conversationId,
+}: {
+  conversationId: Id<"conversations"> | undefined;
+}) {
+  useSyncFencedPromptAddresses(conversationId, true);
+  return null;
+}
+
 export function useSyncFencedPromptAddresses(
   conversationId: Id<"conversations"> | undefined,
   enabled: boolean,

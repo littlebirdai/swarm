@@ -8,6 +8,7 @@ import { paginationOptsValidator } from "convex/server";
 import { readOwnedPromptCards } from "./lib/owned-prompt-cards.query";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
+import { canSendProductMessage } from "./pendingMessages";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -246,7 +247,13 @@ export const listAnswerablePromptAddresses = query({
   args: { conversation_id: v.id("conversations") },
   handler: async (ctx, { conversation_id }) => {
     const actor = await getAuthUserId(ctx);
-    return actor ? answerablePromptAddresses(ctx, conversation_id, actor) : [];
+    if (!actor) return [];
+    const conversation = await ctx.db.get(conversation_id);
+    if (conversation?.execution_protocol_state !== "fenced") return [];
+    const maySteer =
+      process.env.SWARM_TURN_BATON === "1" &&
+      (await canSendProductMessage(ctx, actor, conversation));
+    return answerablePromptAddresses(ctx, conversation, actor, maySteer);
   },
 });
 
