@@ -3,6 +3,7 @@ import {
   hasLiveInboxLease,
   heartbeatsFor,
   inboxHeartbeatsFor,
+  inboxUserHeartbeatRows,
 } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
@@ -10171,16 +10172,14 @@ async function buildUserSessionMaps(
   ctx: any,
   userId: Id<"users">,
   now: number,
+  heartbeatSince?: number,
 ): Promise<InboxSessionMaps> {
-  const managedSessions = await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
-    .collect();
-  return sessionMapsFromManagedRows(
-    managedSessions,
-    await inboxHeartbeatsFor(ctx, managedSessions),
-    now,
+  const { sessions, beats } = await inboxUserHeartbeatRows(
+    ctx,
+    userId,
+    heartbeatSince,
   );
+  return sessionMapsFromManagedRows(sessions, beats, now);
 }
 
 // Liveness maps for a NAMED set of conversations, for a caller that asked for
@@ -11260,6 +11259,7 @@ export async function scanInboxConversations(
     // child rows carry the fields. Off for team scope, whose list never
     // strips them.
     subagentWindow?: boolean;
+    heartbeatSince?: number;
     // The caller named its sessions (extraConvIds) and wants only those: skip
     // every window and the owner window, admit the named rows by the same
     // rule, and read their liveness per conversation (buildNamedSessionMaps).
@@ -11799,7 +11799,7 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else {
-    maps = await buildUserSessionMaps(ctx, userId, now);
+    maps = await buildUserSessionMaps(ctx, userId, now, opts.heartbeatSince);
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;
@@ -11968,6 +11968,7 @@ export async function computeInboxSessions(
     extraConvIds: opts.extraConvIds,
     teamScope: opts.teamScope,
     subagentWindow: fastFieldsInOverlay,
+    heartbeatSince: opts.projection ? now - USER_DAEMON_ALIVE_MS : undefined,
     namedOnly: opts.namedOnly,
   });
   const { conversations, maps, truncated, pinnedOverflowIds } = scan;

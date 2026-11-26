@@ -303,7 +303,7 @@ describe("listInboxSessions read budget on a full account", () => {
   test("the CLI's call (include_liveness:true, the projection) stays inside the same budget", async () => {
     const fixture = full();
     const { result, calls, queriedTables } = await run(fixture, CLI);
-    expect(queriedTables.has("session_heartbeats")).toBe(false);
+    expect(queriedTables.has("session_heartbeats")).toBe(true);
     console.log(
       `cli listInboxSessions on a full account: ${calls} db calls, ${result.sessions.length} rows, truncated=${JSON.stringify(result.truncated)}`,
     );

@@ -36,8 +36,7 @@ function inboxHeartbeatOf(
   session: Doc<"managed_sessions"> | null,
 ) {
   if (!session) return 0;
-  if (!inboxLeaseWritesEnabled() && session.liveness_lease?.expired === false)
-    return heartbeatOf(ctx, session);
+  if (!inboxLeaseWritesEnabled()) return heartbeatOf(ctx, session);
   return Math.max(
     session.last_heartbeat,
     (session.liveness_lease?.end ?? 0) - HEARTBEAT_ALIVE_MS,
@@ -49,6 +48,36 @@ export function inboxHeartbeatsFor(
   sessions: Array<Doc<"managed_sessions"> | null>,
 ) {
   return Promise.all(sessions.map((row) => inboxHeartbeatOf(ctx, row)));
+}
+
+export async function inboxUserHeartbeatRows(
+  ctx: Reader,
+  userId: Id<"users">,
+  since?: number,
+) {
+  const sessions = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+    .collect();
+  if (inboxLeaseWritesEnabled())
+    return { sessions, beats: await inboxHeartbeatsFor(ctx, sessions) };
+  if (sessions.length === 0) return { sessions, beats: [] };
+  const rows = await ctx.db
+    .query("session_heartbeats")
+    .withIndex("by_user_heartbeat", (q) => {
+      const range = q.eq("user_id", userId);
+      return since === undefined ? range : range.gt("heartbeat_at", since);
+    })
+    .collect();
+  const beats = new Map(
+    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
+  );
+  return {
+    sessions,
+    beats: sessions.map((session) =>
+      resolveHeartbeat(session, beats.get(session._id)),
+    ),
+  };
 }
 
 export async function heartbeatOf(
