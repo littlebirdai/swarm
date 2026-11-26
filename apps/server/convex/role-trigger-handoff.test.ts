@@ -461,3 +461,30 @@ test.each(["none", "once"] as const)(
     );
   },
 );
+
+test("handoff retains a standing witness beyond the scan budget before the first owner write", async () => {
+  const t = serverTest({});
+  const { seat, runner, moved, personal, offSeat, alreadyOwned } =
+    await seedSeat(t, 140, "Check in ".repeat(5_000));
+  const standing = moved[105];
+  const last = moved.at(-1)!;
+  await t.run(async ({ db }) => {
+    await db.patch(seat, { armed_trigger_kind: "standing" });
+    for (const id of [personal, offSeat, alreadyOwned, ...moved]) {
+      if (id === last) await db.patch(id, { status: "completed" });
+      else
+        await db.patch(id, {
+          user_id: runner,
+          ...(id === standing
+            ? { schedule_type: "recurring" as const }
+            : { status: "completed" as const }),
+        });
+    }
+  });
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect((await db.get(last))?.user_id).toBe(runner);
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
+  });
+});

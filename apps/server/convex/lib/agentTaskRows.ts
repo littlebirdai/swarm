@@ -505,7 +505,9 @@ export const continueRoleTriggerHandoff = internalMutation({
     conversationId: v.id("conversations"),
     runner: v.id("users"),
     cursor: v.union(v.null(), v.string()),
-    seenKind: v.optional(v.union(v.literal("none"), v.literal("once"))),
+    seenKind: v.optional(
+      v.union(v.literal("none"), v.literal("once"), v.literal("standing")),
+    ),
     repair: v.union(
       v.literal("pending"),
       v.literal("witness"),
@@ -529,15 +531,18 @@ export const continueRoleTriggerHandoff = internalMutation({
     });
     const pageKind =
       args.repair === "done" ? undefined : armedTriggerKindFor(page.page);
+    const seenKind =
+      args.seenKind === "standing" || pageKind === "standing"
+        ? "standing"
+        : args.seenKind === "once" || pageKind === "once"
+          ? "once"
+          : "none";
     let repair = args.repair;
     const seatKind = seat.armed_trigger_kind ?? "none";
     const repairKind = async () => {
       if (repair !== "pending") return;
-      if (
-        pageKind === "standing" ||
-        (pageKind && args.cursor === null && page.isDone)
-      ) {
-        await writeArmedTriggerKind(ctx, seat, pageKind);
+      if (seenKind === "standing" || (args.cursor === null && page.isDone)) {
+        await writeArmedTriggerKind(ctx, seat, seenKind);
         repair = "done";
         return;
       }
@@ -566,10 +571,8 @@ export const continueRoleTriggerHandoff = internalMutation({
     };
     if (state?.claimed) await repairKind();
     await handRoleTriggerPage(ctx, seat, page.page, repairKind);
-    const seenKind =
-      args.seenKind === "once" || pageKind === "once" ? "once" : "none";
     if (repair === "witness") {
-      if (pageKind === "standing") {
+      if (seenKind === "standing") {
         await writeArmedTriggerKind(ctx, seat, "standing");
         repair = "done";
       } else if (page.isDone) {
