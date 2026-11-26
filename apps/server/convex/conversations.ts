@@ -2064,7 +2064,7 @@ export const createConversation = mutation({
       args.git_remote_url,
     ));
 
-    const conversationId = await ctx.db.insert("conversations", {
+    const conversationId = await insertConversationWithStatus(ctx, {
       user_id: args.user_id,
       team_id: resolvedTeamId,
       agent_type: args.agent_type,
@@ -2160,7 +2160,7 @@ export const createConversation = mutation({
         !parent.inbox_dismissed_at &&
         (await isConversationOwner(ctx, args.user_id, parent))
       ) {
-        await ctx.db.patch(parentConversationId, {
+        await patchConversationLifecycle(ctx, parentConversationId, {
           inbox_dismissed_at: Date.now(),
           status: "completed",
         });
