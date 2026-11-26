@@ -88,14 +88,20 @@ export function resolveMachineKey(
 
   let key = readMachineKey(keyFile);
   if (!key) {
+    const wasShort = key === null;
     const candidate = crypto.randomBytes(MACHINE_KEY_LEN);
-    if (publishPrivateFile(keyFile, candidate)) {
+    const publication = publishPrivateFile(keyFile, candidate);
+    if (publication === "published") {
       key = candidate;
     } else {
-      key = readPublishedFile(() => readMachineKey(keyFile)) ?? null;
+      key = readPublishedFile(() => readMachineKey(keyFile) ?? null);
       if (!key) {
-        writeSecretFile(keyFile, candidate);
-        key = fs.readFileSync(keyFile);
+        key = readMachineKey(keyFile);
+        if (key === null && wasShort && publication === "link-exists") {
+          writeSecretFile(keyFile, candidate);
+          key = fs.readFileSync(keyFile);
+        }
+        if (!key) throw new Error("Machine key publication is incomplete");
       }
     }
     recorded = "";
@@ -135,13 +141,13 @@ export function resolveMachineKey(
   return { secret: rotated, previousSecret: key, rotated: true };
 }
 
-function readMachineKey(file: string): Buffer | null {
+function readMachineKey(file: string): Buffer | null | undefined {
   try {
     const key = fs.readFileSync(file);
     return key.length >= MACHINE_KEY_LEN ? key : null;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    return null;
+    return undefined;
   }
 }
 

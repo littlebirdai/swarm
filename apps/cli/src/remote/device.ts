@@ -113,10 +113,10 @@ export function deviceId(): string {
   if (identity.persist && !binding) {
     try {
       if (
-        !publishPrivateFile(
+        publishPrivateFile(
           DEVICE_BINDING_FILE,
           JSON.stringify(identity.persist),
-        )
+        ) !== "published"
       ) {
         binding = readPublishedFile(readDeviceBinding);
         if (binding === null) {

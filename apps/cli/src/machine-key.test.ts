@@ -62,7 +62,7 @@ describe("machineKey hardware binding", () => {
   });
 
   it.each(["hard-link publish", "exclusive-create fallback"])(
-    "decrypts tokens from both processes after concurrent first runs with %s",
+    "decrypts tokens from four concurrent first runs with %s",
     async (publication) => {
       const dir = tmpDir();
       const keyFile = path.join(dir, ".machine_key");
@@ -93,7 +93,7 @@ describe("machineKey hardware binding", () => {
       const { secret } = resolveMachineKey(process.env.TEST_KEY_DIR, () => ${JSON.stringify(HW_A())});
       console.log(encryptTokenWithSecret("first run token", secret));
     `;
-      const children = Array.from({ length: 2 }, () =>
+      const children = Array.from({ length: 4 }, () =>
         Bun.spawn([process.execPath, "-e", script], {
           cwd: path.resolve(import.meta.dir, ".."),
           env: {
@@ -136,7 +136,7 @@ describe("machineKey hardware binding", () => {
         );
         expect(
           await Promise.all(children.map((child) => child.exited)),
-        ).toEqual([0, 0]);
+        ).toEqual([0, 0, 0, 0]);
         const { secret } = resolveMachineKey(dir, HW_A);
         for (const encrypted of ciphertexts) {
           expect(decryptTokenWithSecrets(encrypted, [secret])).toBe(
@@ -229,6 +229,31 @@ describe("machineKey hardware binding", () => {
       expect(read(keyFile)).toEqual(winner);
     } finally {
       intercept.mockRestore();
+      link.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not replace an exclusive-create winner that has not finished writing", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const winner = Buffer.alloc(MACHINE_KEY_LEN, 42);
+    const link = spyOn(fs, "linkSync").mockImplementation(() => {
+      throw Object.assign(new Error("Hard links unavailable"), {
+        code: "ENOTSUP",
+      });
+    });
+    const fd = fs.openSync(keyFile, "wx", 0o600);
+    try {
+      expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(
+        "Machine key publication is incomplete",
+      );
+      expect(fs.statSync(keyFile).size).toBe(0);
+      fs.writeFileSync(fd, winner);
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
+      expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+    } finally {
+      fs.closeSync(fd);
       link.mockRestore();
       fs.rmSync(dir, { recursive: true, force: true });
     }

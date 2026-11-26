@@ -18,7 +18,7 @@ const publicationWait = new Int32Array(new SharedArrayBuffer(4));
 export function publishPrivateFile(
   file: string,
   data: Uint8Array | string,
-): boolean {
+): "published" | "link-exists" | "exclusive-create-exists" {
   let target = file;
   for (let hops = 0; ; hops++) {
     if (hops === 40) throw new Error(`Too many symlink hops for ${file}`);
@@ -45,12 +45,11 @@ export function publishPrivateFile(
       fs.closeSync(fd);
     }
 
-    let published = true;
+    let publication: ReturnType<typeof publishPrivateFile> = "published";
     try {
       fs.linkSync(temp, target);
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
-      published = false;
       if (code && LINK_UNAVAILABLE.has(code)) {
         let destination: number | undefined;
         try {
@@ -58,11 +57,11 @@ export function publishPrivateFile(
         } catch (openError) {
           if ((openError as NodeJS.ErrnoException).code !== "EEXIST")
             throw openError;
+          publication = "exclusive-create-exists";
         }
         if (destination !== undefined) {
           try {
             writeAndSyncPrivateFile(destination, data);
-            published = true;
           } catch (writeError) {
             try {
               const created = fs.fstatSync(destination, { bigint: true });
@@ -75,7 +74,10 @@ export function publishPrivateFile(
             fs.closeSync(destination);
           }
         }
-      } else if (code !== "EEXIST") throw err;
+      } else {
+        if (code !== "EEXIST") throw err;
+        publication = "link-exists";
+      }
     }
     try {
       const dirFd = fs.openSync(directory, "r");
@@ -99,7 +101,7 @@ export function publishPrivateFile(
         } catch {}
       }
     } catch {}
-    return published;
+    return publication;
   } finally {
     try {
       fs.unlinkSync(temp);
