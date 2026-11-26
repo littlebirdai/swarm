@@ -10,6 +10,7 @@ import {
   parsePermitsNextResponse,
   type CanonicalEvent,
   type DeliverySettleRequest,
+  type DeliveryStartRequest,
   type DeliveryResolutionRequest,
   type EdgeParseResult,
   type PermitsNextResponse,
@@ -51,7 +52,7 @@ export function deliveryFence({
 
 type PilotPermit = Extract<PermitsNextResponse, { status: "permit" }>;
 
-function permitIdentity(permit: PilotPermit) {
+function permitIdentity(permit: Omit<DeliveryStartRequest, "v">) {
   const {
     session,
     run,
@@ -183,6 +184,8 @@ export class CodexPilotDelivery {
       next.fencing_token !== claim.fencing_token
     )
       throw new Error("Owned Codex permit does not match the lease");
+    if (next.status === "takeover_fence")
+      throw new Error("Owned Codex pilot cannot acknowledge a takeover fence");
     this.headDeliveryId = next.delivery_id;
     return next;
   }
@@ -310,9 +313,7 @@ export class CodexPilotDelivery {
     );
     if (
       started.status !== "started" ||
-      JSON.stringify(
-        permitIdentity({ ...permit, ...started, status: "permit" }),
-      ) !== JSON.stringify(identity)
+      JSON.stringify(permitIdentity(started)) !== JSON.stringify(identity)
     )
       return {
         state: "ambiguous",

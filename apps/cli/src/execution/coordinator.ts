@@ -905,9 +905,10 @@ export class ExecutionCoordinator {
   }
 
   async deliver(request: DeliverFencedRequest): Promise<DeliveryOutcome> {
+    const { permit, delivery } = request;
     if (
-      request.permit.state !== "delivery-started" ||
-      !deliveryMatchesPermit(request.delivery, request.permit)
+      permit.state !== "delivery-started" ||
+      !deliveryMatchesPermit(delivery, permit)
     ) {
       throw new ExecutionCoordinatorError(
         "BINDING_FENCE_MISMATCH",
@@ -915,7 +916,6 @@ export class ExecutionCoordinator {
       );
     }
 
-    const { permit } = request;
     const signature = permitSignature(permit);
     const previous = this.existingDelivery(permit, signature);
     if (previous) return previous;
@@ -943,8 +943,7 @@ export class ExecutionCoordinator {
       },
       signature,
       timeoutMs: request.timeoutMs,
-      effect: () =>
-        driver.deliver({ binding, permit, delivery: request.delivery }),
+      effect: () => driver.deliver({ binding, permit, delivery }),
       settle: async (outcome) => {
         if (outcome.state === "delivered")
           await this.controlPlane.completeDelivery({ permit, outcome });

@@ -150,6 +150,7 @@ without sending it. The current settlement route refuses the `stale` outcome.
 Before enabling steer permits, update `pruneSettledReceipts` to preserve the
 receipt for any queued message that a steer permit moved behind it. The head
 of the queue alone cannot establish settlement once a steer can jump ahead.
+The pilot stops draining when the control plane returns a takeover fence.
 
 A pending successor waits for any started delivery on the owned run to settle.
 The server still needs a route to record the disposition of a leased run after

@@ -206,13 +206,15 @@ test("a missing receipt holds the slot until the server settles that delivery", 
     });
     await finishTurn(f, "actual-turn-1");
     await f.runtime.processWorkUpdate(work);
-    f.staleReads(true);
-    await f.runtime.processWorkUpdate(work);
-    expect(f.runtime.coordinator.getActiveDelivery("pilot")?.attemptId).toBe(
-      "attempt-1",
-    );
-    expect(providerSends(f)).toHaveLength(1);
-    f.staleReads(false);
+    for (const status of ["stale", "takeover_fence"] as const) {
+      f.setPermitReadStatus(status);
+      await f.runtime.processWorkUpdate(work);
+      expect(f.runtime.coordinator.getActiveDelivery("pilot")?.attemptId).toBe(
+        "attempt-1",
+      );
+      expect(providerSends(f)).toHaveLength(1);
+    }
+    f.setPermitReadStatus();
     f.queue.shift();
 
     const next = f.runtime.processWorkUpdate(work);

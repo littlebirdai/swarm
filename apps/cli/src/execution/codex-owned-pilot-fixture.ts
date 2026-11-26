@@ -346,7 +346,7 @@ export function fixture(
   const events: CanonicalEvent[] = [];
   const settlements: DeliverySettleRequest[] = [];
   let refuseSettlement = false;
-  let permitReadStale = false;
+  let permitReadStatus: "stale" | "takeover_fence" | undefined;
   let lease = "edge-lease";
   const claimResponses: Response[] = [];
   const releasing = Promise.withResolvers<void>();
@@ -378,7 +378,20 @@ export function fixture(
         }
         if (operation === "permits.next") {
           expect(body.fencing_token).toBe(lease);
-          if (permitReadStale) return Response.json({ v: 1, status: "stale" });
+          if (permitReadStatus === "stale")
+            return Response.json({ v: 1, status: "stale" });
+          if (permitReadStatus === "takeover_fence")
+            return Response.json({
+              v: 1,
+              status: permitReadStatus,
+              session: "pilot",
+              run: 1,
+              fencing_token: lease,
+              fence_id: "takeover",
+              turn: "actual-turn-1",
+              baton_token: null,
+              new_baton_token: 1,
+            });
           return Response.json(
             queue[0]
               ? { ...queue[0], fencing_token: lease }
@@ -486,8 +499,8 @@ export function fixture(
       };
       queue.push(permit);
     },
-    staleReads(value: boolean) {
-      permitReadStale = value;
+    setPermitReadStatus(status?: typeof permitReadStatus) {
+      permitReadStatus = status;
     },
     rejectSettlements(value: boolean) {
       refuseSettlement = value;
