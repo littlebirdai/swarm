@@ -118,6 +118,7 @@ const STAGE_LIVENESS_FIELDS = new Set([
   "updated_at",
   "last_heartbeat",
   "liveness_lease_end",
+  "daemon_alive_until",
   "last_metrics_at",
   "last_active_at",
   "last_message_at",

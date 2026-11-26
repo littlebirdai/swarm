@@ -13143,9 +13143,9 @@ const inboxStoreConfig = (set: any, get: any) => ({
           const base = baseSessions[id];
           if (
             !base ||
-            Object.hasOwn(liveness, id) ||
             (base.liveness_lease_end !== LIVE_INBOX_LEASE_END &&
               base.daemon_alive_until !== LIVE_INBOX_LEASE_END) ||
+            Object.hasOwn(liveness, id) ||
             (isForeignRow(base, viewerId) &&
               (typeof teamId !== "string" || base.team_id !== teamId))
           )

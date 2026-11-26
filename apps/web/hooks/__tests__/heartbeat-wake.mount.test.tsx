@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { Profiler, act } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
+import { useLiveWatchRows } from "../use-live-watch-rows";
+import type { InboxSession } from "../../store/inboxStore";
 import { useConversationMessages } from "../use-conversation-messages";
 import { CardNode } from "../../components/sessionMap/map-card";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -11,6 +13,7 @@ const heartbeat = 1_000;
 const facts = (at: number) => ({
   last_heartbeat: at,
   liveness_lease_end: at + HEARTBEAT_ALIVE_MS,
+  daemon_alive_until: at + HEARTBEAT_ALIVE_MS,
   updated_at: at,
   message_count: 1,
 });
@@ -25,6 +28,7 @@ function MapStage() {
     <ReactFlowProvider>
       <CardNode
         id={id}
+        type="card"
         data={{
           s: {
             id,
@@ -98,4 +102,31 @@ test.each([
     });
   });
   expect(commits).toBeGreaterThan(initial);
+});
+
+const watchNow = heartbeat + HEARTBEAT_ALIVE_MS * 2;
+
+function WatchCount({ session }: { session: InboxSession }) {
+  return <span>{useLiveWatchRows(session, watchNow).length}</span>;
+}
+
+test("the watch row disappears when the lease expires at the same clock tick", async () => {
+  const session: InboxSession = {
+    _id: id,
+    session_id: id,
+    agent_type: "claude_code",
+    message_count: 1,
+    updated_at: heartbeat,
+    last_heartbeat: heartbeat,
+    liveness_lease_end: watchNow + 1,
+    agent_status: "waiting",
+    open_tasks: [{ id: "build", kind: "background" }],
+    open_tasks_at: heartbeat,
+  };
+  const ui = await mountWeb(<WatchCount session={session} />);
+  expect(ui.container.textContent).toBe("1");
+  await ui.rerender(
+    <WatchCount session={{ ...session, liveness_lease_end: watchNow }} />,
+  );
+  expect(ui.container.textContent).toBe("0");
 });
