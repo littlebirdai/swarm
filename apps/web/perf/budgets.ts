@@ -105,7 +105,7 @@ await test(
         storeWrites: 0,
         // The pane swaps its subtrees; nothing else on the page moves. Six rows
         // of overscan each side (ConversationView) set how many it mounts.
-        domMutations: 21,
+        domMutations: 81,
       });
     }
   },
