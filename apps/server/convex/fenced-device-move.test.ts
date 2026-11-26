@@ -315,13 +315,22 @@ test("claimDeviceAccount transfers a legacy session after 500 fenced rows", asyn
     return { to, legacy };
   });
   const before = await f.read();
-  const result = await f.t.mutation(api.devices.claimDeviceAccount, {
-    api_token: apiToken,
-    previous_api_token: previousToken,
-    previous_user_id: f.user,
-    device_id: source,
+  const claim = () =>
+    f.t.mutation(api.devices.claimDeviceAccount, {
+      api_token: apiToken,
+      previous_api_token: previousToken,
+      previous_user_id: f.user,
+      device_id: source,
+    });
+  for (let skipped = 100; skipped <= 500; skipped += 100) {
+    expect(await claim()).toEqual({ moved: 0, more: true, skipped });
+  }
+  expect(await claim()).toEqual({
+    moved: 1,
+    more: false,
+    skipped: 500,
+    error: refusal,
   });
-  expect(result).toEqual({ moved: 1, more: false, skipped: 1, error: refusal });
   expect(await f.read()).toEqual(before);
   await f.t.run(async ({ db }) => {
     expect(await db.get(legacy)).toMatchObject({
