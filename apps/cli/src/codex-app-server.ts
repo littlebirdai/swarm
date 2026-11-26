@@ -904,8 +904,6 @@ export class CodexAppServer extends EventEmitter {
           items: new Map(turn.items?.map((item) => [item.id, item])),
         });
       }
-      // Resume by history or by path can return a different thread. That id has
-      // no earlier generation to capture, so it records under a fresh one.
       const sameThread = response.thread.id === params.threadId;
       const recordGeneration = sameThread
         ? generation
