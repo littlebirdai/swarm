@@ -1378,7 +1378,12 @@ export const webGetBodies = query({
       const id = ctx.db.normalizeId("docs", raw);
       if (!id) continue;
       const doc = await ctx.db.get(id);
-      if (!doc || !(await canAccessDoc(ctx, userId, doc))) continue;
+      if (
+        !doc ||
+        doc.archived_at !== undefined ||
+        !(await canAccessDoc(ctx, userId, doc))
+      )
+        continue;
       bodies.push({
         _id: doc._id,
         content: doc.content ?? "",

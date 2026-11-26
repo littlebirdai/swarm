@@ -159,10 +159,17 @@ export function reportDetailInvalidation(
 }
 
 export function __detailCacheSimSlots() {
+  const copy = (cache: typeof detailCache): typeof detailCache => ({
+    ...cache,
+    invalidated: new Map(cache.invalidated),
+    confirmed: new Map(cache.confirmed),
+    reads: new Map(cache.reads),
+    listeners: new Set(cache.listeners),
+  });
   return {
-    get: () => ({ detailCache }),
+    get: () => ({ detailCache: copy(detailCache) }),
     set: (slots: { detailCache: typeof detailCache }) => {
-      detailCache = slots.detailCache;
+      detailCache = copy(slots.detailCache);
     },
     fresh: () => ({ detailCache: freshDetailCache() }),
   };

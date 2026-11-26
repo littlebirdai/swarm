@@ -184,3 +184,44 @@ test("a declined invalidation uses the untagged legacy store drop", async () => 
   expect(ui.container.textContent).toBe("No body");
   expect(canHydrateDetail(id)).toBe(true);
 });
+
+test.each(["stale", "archived"] as const)(
+  "hydration stays blocked when the authority read is %s",
+  async (answer) => {
+    process.env[flag] = "1";
+    const ui = await mountWeb(<Body />, {
+      authenticated: true,
+      setup(backend) {
+        backend.set(api.taskMining.webGetDocDetail, row);
+      },
+    });
+    const first = Promise.withResolvers<
+      typeof row & { archived_at?: number }
+    >();
+    const later = Promise.withResolvers<typeof row | null>();
+    const reads: string[] = [];
+    setDetailInvalidationReporter(
+      () => true,
+      (id) => {
+        reads.push(id);
+        return reads.length === 1 ? first.promise : later.promise;
+      },
+    );
+    await act(async () => hideInvalidatedDetails());
+    expect(reads).toEqual([id]);
+    if (answer === "stale") {
+      await act(async () => hideInvalidatedDetails([id]));
+      expect(reads).toEqual([id, id]);
+    }
+    try {
+      await act(async () =>
+        first.resolve(answer === "archived" ? { ...row, archived_at: 2 } : row),
+      );
+      await act(async () => flushSyncPublishes());
+      expect(canHydrateDetail(id)).toBe(false);
+      expect(ui.container.textContent).toBe("No body");
+    } finally {
+      await act(async () => later.resolve(null));
+    }
+  },
+);

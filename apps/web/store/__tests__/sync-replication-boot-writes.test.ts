@@ -1,7 +1,7 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
-import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
   createReplicationFollower,
   createReplicationHost,
@@ -447,3 +447,83 @@ test("a thin row disappearing during the disk transaction does not cancel a veri
   expect(await removal).toEqual([doc._id]);
   expect(await COLLECTION_TABLES.docDetails.get(doc._id)).toBeUndefined();
 });
+
+test.each(["access", "archive", "crawl"] as const)(
+  "a solo window verifies and deletes a disk-only detail after %s",
+  async (cause) => {
+    const flag = "VITE_CACHE_EVICTION_METADATA";
+    const enabled = process.env[flag] === "1";
+    const {
+      detailReadPosition,
+      reportCompleteDocCrawl,
+      reportDetailInvalidation,
+      resetDetailInvalidations,
+    } = await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "s".repeat(32),
+      workspace: "team:alpha",
+      content: "Cache only",
+    };
+    await COLLECTION_TABLES.docDetails.put(row);
+    const verified: string[] = [];
+    jest.useFakeTimers();
+    try {
+      startSyncReplication({
+        eligible: false,
+        principalId: TEST_PRINCIPAL,
+        detailAuthority: {
+          async detail(id) {
+            verified.push(id);
+            return cause === "archive" ? { ...row, archived_at: 1 } : null;
+          },
+          async page() {
+            return { page: [], isDone: true, continueCursor: "" };
+          },
+        },
+      });
+      jest.advanceTimersByTime(8001);
+    } finally {
+      jest.useRealTimers();
+    }
+    try {
+      const role = (dom.window as any).__syncReplication?.();
+      expect(role.role).toBe("host");
+      expect(role.holdsLock).toBe(false);
+      expect(role.synced).toBe(false);
+      expect(state().docDetails[row._id]).toBeUndefined();
+      mutations = [];
+      if (cause === "crawl")
+        await reportCompleteDocCrawl(
+          row.workspace,
+          new Set(),
+          detailReadPosition(),
+        );
+      else
+        expect(reportDetailInvalidation({ ids: [row._id], cause })).toBe(
+          enabled,
+        );
+      if (enabled) {
+        await waitFor(() =>
+          mutations!.some(
+            (mutation) =>
+              mutation.table === "docDetails" &&
+              mutation.type === "delete" &&
+              mutation.keys.includes(row._id),
+          ),
+        );
+        await drainWrites();
+        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+        expect(verified).toEqual([row._id]);
+      } else {
+        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+        expect(verified).toEqual([]);
+      }
+    } finally {
+      stopSyncReplication();
+      resetDetailInvalidations();
+    }
+  },
+);

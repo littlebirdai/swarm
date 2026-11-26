@@ -547,3 +547,20 @@ test("eviction rechecks the row generation, pins and pending writes before commi
   expect(observations).toBe(2);
   expect(removed).toEqual([]);
 });
+
+test("document cache simulation snapshots detach collections on save and restore", async () => {
+  const { __detailCacheSimSlots, invalidateDetailReads } =
+    await import("../doc-detail-cache");
+  const seam = __detailCacheSimSlots();
+  const saved = seam.get();
+  invalidateDetailReads([docId]);
+  expect(saved.detailCache.invalidated.has(docId)).toBe(false);
+  seam.set(saved);
+  invalidateDetailReads([other]);
+  expect(saved.detailCache.invalidated.has(other)).toBe(false);
+  const current = seam.get();
+  expect(current.detailCache.invalidated.has(other)).toBe(true);
+  expect(current.detailCache.confirmed).not.toBe(saved.detailCache.confirmed);
+  expect(current.detailCache.reads).not.toBe(saved.detailCache.reads);
+  expect(current.detailCache.listeners).not.toBe(saved.detailCache.listeners);
+});
