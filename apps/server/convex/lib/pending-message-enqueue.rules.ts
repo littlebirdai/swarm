@@ -99,6 +99,7 @@ export async function admitFencedHumanSend(
     .unique();
   const admissionRun = head?.admission_epoch ?? head?.current_epoch;
   const run = observed ? head?.current_epoch : admissionRun;
+  if (observed && admissionRun !== run) throw staleTurn();
   if (observed && observed.run !== run) throw staleTurn();
   if (!head || run === undefined) return;
   const binding = await ctx.db
@@ -130,7 +131,6 @@ export async function admitFencedHumanSend(
   const now = Date.now();
   const turn = projection?.open_turn;
   if (
-    admissionRun !== run ||
     binding.state !== "ready" ||
     projection?.status !== "active" ||
     projection.binding_id !== binding._id ||

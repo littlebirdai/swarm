@@ -212,6 +212,27 @@ test.each(["requested", "ready"] as const)(
   },
 );
 
+test("an observation from an incapable epoch cannot enter a capable successor", async () => {
+  const f = await setup({ capable: false });
+  await f.t.run(async ({ db }) => {
+    const { _id, _creationTime, ...binding } = (await db.get(f.binding))!;
+    await db.insert("execution_bindings", {
+      ...binding,
+      epoch: 2,
+      capabilities: [...binding.required_capabilities, STEER_BATON_CAPABILITY],
+      claim_id: undefined,
+    });
+    await db.patch(f.head, { admission_epoch: 2, pending_epoch: 2 });
+  });
+  const before = await f.snapshot();
+  await expect(f.send("observed")).rejects.toThrow("STALE_TURN");
+  expect(await f.snapshot()).toEqual(before);
+  await f.send("unobserved", { observed_turn: null });
+  expect((await f.snapshot()).messages).toMatchObject([
+    { client_id: "unobserved", execution_epoch: 2, delivery_intent: "queue" },
+  ]);
+});
+
 test("an expired run lease refuses a steer while leaving the receipt and inbox untouched", async () => {
   const f = await setup();
   const before = await f.snapshot();
