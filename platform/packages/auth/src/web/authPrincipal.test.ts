@@ -191,6 +191,70 @@ describe("auth principal tracker", () => {
       else delete (globalThis as { localStorage?: unknown }).localStorage;
     }
   });
+
+  test("rebinds global window storage listener when eventTarget option is omitted", () => {
+    const hadWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+    const hadLocal = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    const listenersA = new Set<(e: StorageEventLike) => void>();
+    const listenersB = new Set<(e: StorageEventLike) => void>();
+    const winA = {
+      addEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        listenersA.add(l);
+      },
+      removeEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        listenersA.delete(l);
+      },
+    };
+    const winB = {
+      addEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        listenersB.add(l);
+      },
+      removeEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        listenersB.delete(l);
+      },
+    };
+    const map = new Map<string, string>();
+    const dynamicStorage = { getItem: (k: string) => map.get(k) ?? null };
+    let tracker: ReturnType<typeof createAuthPrincipalTracker> | undefined;
+    try {
+      Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        writable: true,
+        value: winA,
+      });
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        writable: true,
+        value: dynamicStorage,
+      });
+      tracker = createAuthPrincipalTracker({
+        jwtKey: JWT_KEY,
+        subscribeWrites: () => () => {},
+        readDurable: async () => null,
+      });
+      expect(listenersA.size).toBe(1);
+      expect(listenersB.size).toBe(0);
+
+      Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        writable: true,
+        value: winB,
+      });
+      tracker.check();
+      expect(listenersA.size).toBe(0);
+      expect(listenersB.size).toBe(1);
+
+      map.set(JWT_KEY, fakeToken("userB"));
+      for (const l of listenersB) l({ key: JWT_KEY, storageArea: dynamicStorage });
+      expect(tracker.current()).toBe("userB");
+    } finally {
+      tracker?.dispose();
+      if (hadWindow) Object.defineProperty(globalThis, "window", hadWindow);
+      else delete (globalThis as { window?: unknown }).window;
+      if (hadLocal) Object.defineProperty(globalThis, "localStorage", hadLocal);
+      else delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
 });
 
 // A token that is present but does not parse is not a logout. The library

@@ -9,6 +9,7 @@
 // dispatches for the next one, and a token rotated for the same user changes
 // nothing.
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import "fake-indexeddb/auto";
 import { JSDOM } from "jsdom";
 
@@ -94,6 +95,8 @@ type Root = import("react-dom/client").Root;
 const { useAuthActions, useAuthToken } = await import("@convex-dev/auth/react");
 const { CodecastAuthRoot } = await import("../authRoot");
 const { AUTH_JWT_STORAGE_KEY, CONVEX_URL } = await import("../localAuth");
+const { authPrincipal } = await import("../authPrincipal");
+const { _reopenForTests } = await import("../../store/persistence/db");
 const { useInboxStore, ensureHydrated } =
   await import("../../store/inboxStore");
 const { installAuthPrincipalBoundary, uninstallAuthPrincipalBoundary } =
@@ -199,6 +202,18 @@ const inboxRows = () => Object.keys(store.getState().sessions).length;
 const tA1 = issue("userA", "sA1");
 let roots: Root[] = [];
 beforeEach(async () => {
+  Object.defineProperty(globalThis, "window", {
+    value: dom.window,
+    configurable: true,
+    writable: true,
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    value: dom.window.localStorage,
+    configurable: true,
+    writable: true,
+  });
+  await _reopenForTests({ indexedDB, IDBKeyRange });
+  authPrincipal.check();
   installAuthPrincipalBoundary();
   for (const r of roots) act(() => r.unmount());
   roots = [];
@@ -311,7 +326,7 @@ describe("logout and account change across windows", () => {
   test("a cache read still in flight at the boundary lands nowhere", async () => {
     await twoWindowsSignedInAsA();
     const { default: Dexie } = await import("dexie");
-    const db = new Dexie("codecast-store");
+    const db = new Dexie("codecast-store", { indexedDB, IDBKeyRange });
     await db.open();
     const now = Date.now();
     await db.table("conversationMessageMeta").put({

@@ -12,8 +12,7 @@ import {
 import { storageTimings } from "./storage-timings";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
-export const PERSISTENCE_AVAILABLE =
-  typeof window !== "undefined" && !DOCS_SHOTS;
+export let PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
 
 export type ConversationMessageRow = {
   convId: string;
@@ -111,7 +110,10 @@ export function setUpgradeBlockedListener(
 ) {
   upgradeBlockedListener = fn;
 }
-if (PERSISTENCE_AVAILABLE) {
+let dbEventsAttached = false;
+function attachDbEvents(): void {
+  if (!PERSISTENCE_AVAILABLE || dbEventsAttached) return;
+  dbEventsAttached = true;
   db.on("blocked", (ev: any) => {
     console.warn(
       `[idbCache] codecast-store upgrade to schema v${CACHE_SCHEMA_VERSION} is blocked by another Codecast tab still on schema v${Math.ceil((ev?.oldVersion ?? 0) / 10)} — close or reload other tabs`,
@@ -163,6 +165,7 @@ if (PERSISTENCE_AVAILABLE) {
     );
   });
 }
+attachDbEvents();
 
 const COLLECTION_STORE_KEYS = Object.keys(WEB_COLLECTION_INDEXES);
 export const COLLECTION_TABLES: Record<
@@ -230,6 +233,8 @@ export function _reopenForTests(deps: {
   indexedDB: unknown;
   IDBKeyRange: unknown;
 }): Promise<unknown> {
+  PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
+  attachDbEvents();
   closeExpected = null;
   cacheServed = false;
   purgeInProgress = false;

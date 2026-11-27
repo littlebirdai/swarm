@@ -74,9 +74,25 @@ export function createAuthPrincipalTracker(opts: {
       return null;
     }
   };
-  const target = opts.eventTarget === undefined
-    ? (typeof window !== "undefined" ? (window as unknown as StorageEventTarget) : null)
-    : opts.eventTarget;
+  let boundTarget: StorageEventTarget | null = null;
+  let disposed = false;
+  function currentTarget(): StorageEventTarget | null {
+    try {
+      return opts.eventTarget === undefined
+        ? (typeof window !== "undefined" ? (window as unknown as StorageEventTarget) : null)
+        : opts.eventTarget;
+    } catch {
+      return null;
+    }
+  }
+  function syncTarget(): void {
+    if (disposed) return;
+    const nextTarget = currentTarget();
+    if (nextTarget === boundTarget) return;
+    boundTarget?.removeEventListener("storage", onStorage);
+    boundTarget = nextTarget;
+    boundTarget?.addEventListener("storage", onStorage);
+  }
 
   const listeners = new Set<(change: AuthPrincipalChange) => void>();
   let epoch = 0;
@@ -144,7 +160,7 @@ export function createAuthPrincipalTracker(opts: {
     if (event.key !== null && event.key !== jwtKey) return;
     recompute();
   };
-  target?.addEventListener("storage", onStorage);
+  syncTarget();
   const unsubscribeWrites = opts.subscribeWrites((key) => {
     if (key !== null && key !== jwtKey) return;
     recompute();
@@ -184,13 +200,18 @@ export function createAuthPrincipalTracker(opts: {
       }
       return principal ?? found;
     },
-    check: recompute,
+    check: () => {
+      syncTarget();
+      recompute();
+    },
     subscribe: (listener) => {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
     dispose: () => {
-      target?.removeEventListener("storage", onStorage);
+      disposed = true;
+      boundTarget?.removeEventListener("storage", onStorage);
+      boundTarget = null;
       unsubscribeWrites();
       listeners.clear();
     },
