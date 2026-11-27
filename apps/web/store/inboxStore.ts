@@ -20746,18 +20746,15 @@ const inboxStoreConfig = (set: any, get: any) => ({
     if (this.docs[id]) this.docs[id].pinned = pinned;
     if (this.docDetails[id]) (this.docDetails[id] as any).pinned = pinned;
   }),
-
   archiveDoc: action(function (this: Draft, id: string) {
     deferredCache.noteDeferredDocEdit(id, "archive");
     delete this.docs[id];
     delete this.docDetails[id];
   }),
-
   // undoActions restores the exact cached doc snapshots itself. This action is
   // intentionally memory-neutral and exists to make the authoritative unarchive
   // survive reload/offline windows through the outbox.
   restoreArchivedDoc: action(function (_id: string) {}),
-
   // =====================
   // MESSAGE QUEUE
   // =====================

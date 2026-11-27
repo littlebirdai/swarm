@@ -1,3 +1,4 @@
+import { isDetailPinned } from "../../lib/detail-rows";
 import { timedDocCapsEnabled } from "../cache-eviction";
 import {
   deferredCacheReadsEnabled,
@@ -79,6 +80,17 @@ async function readRetainedMySends() {
     }
     return [...newer, ...tied.slice(0, remaining)];
   });
+}
+
+function protectedDocDetails(
+  rows: readonly { _id: string }[],
+  pending: Record<string, unknown>,
+): ReadonlySet<string> {
+  const ids = pendingDocDetailIds(pending);
+  for (const row of rows) {
+    if (isDetailPinned("docDetails", row._id)) ids.add(row._id);
+  }
+  return ids;
 }
 
 export async function loadCache(
@@ -251,7 +263,7 @@ export async function loadCache(
           ? partitionDocDetailRetention(
               rows,
               Date.now(),
-              pendingDocDetailIds(hydrateCtx.pending),
+              protectedDocDetails(rows, hydrateCtx.pending),
             )
           : retain(rows, Date.now());
         if (memoryOnly && drop.length) {

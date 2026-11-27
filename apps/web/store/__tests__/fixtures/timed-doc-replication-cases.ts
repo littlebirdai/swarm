@@ -23,7 +23,7 @@ export function registerTimedDocReplicationCases({
   readMutations,
 }: {
   window: Window;
-  state: () => Pick<InboxStoreState, "docDetails" | "syncRole">;
+  state: () => Pick<InboxStoreState, "docDetails" | "syncRole" | "syncTable">;
   sessionId: (n: number) => string;
   table: (typeof COLLECTION_TABLES)["docDetails"];
   bootCache: () => Promise<void>;
@@ -84,6 +84,18 @@ export function registerTimedDocReplicationCases({
       try {
         await table.bulkPut([old, current]);
         await bootCache();
+        if (process.env.VITE_DEFERRED_CACHE_BOOT === "1") {
+          expect(state().docDetails[current._id]).toBeUndefined();
+          const { loadCache } = await import("../../persistence/boot-loader");
+          const cached = await loadCache(["docDetails"]);
+          state().syncTable(
+            "docDetails",
+            Object.values(cached?.docDetails ?? {}),
+            {
+              isDelta: true,
+            },
+          );
+        }
         expect(state().docDetails[old._id]).toBeUndefined();
         expect(persistedDocDetailWorkspace(old._id)).toBe(old.workspace);
         expect(state().docDetails[current._id]?.content).toBe(current.content);

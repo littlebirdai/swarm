@@ -389,8 +389,7 @@ export const CLIENT_SYNC_REGISTRY = {
     localFirst: false,
     feeds: ["taskMining.webGetDocDetail"],
     // The detail query spreads the whole doc row, which includes the vector
-    // embedding — dead weight for rendering; shed it on the way in like the
-    // docs list does.
+    // embedding — dead weight for rendering; shed it on the way in.
     hydrateRow: (row: any) => {
       if (row?.embedding === undefined) return row;
       const { embedding: _m, ...rest } = row;

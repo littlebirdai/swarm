@@ -413,7 +413,9 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   );
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
-    id && subscribe && !isStubDoc(id) && (!enabled || authenticated) ? { id } : "skip",
+    id && subscribe && !isStubDoc(id) && (!enabled || authenticated)
+      ? { id }
+      : "skip",
   ).data;
 
   useLayoutEffect(() => {
@@ -423,8 +425,9 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const applied = useRef<object | null>(null);
 
   useWatchEffect(() => {
-    if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);
-  }, [id, authenticated, syncRevision]);
+    if (subscribe && id && authenticated && syncRevision)
+      refreshInvalidatedDocDetail(id);
+  }, [id, subscribe, authenticated, syncRevision]);
 
   useConvexSync(
     data,
