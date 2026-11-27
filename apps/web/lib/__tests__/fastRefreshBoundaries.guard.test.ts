@@ -54,7 +54,7 @@ const ALLOWED = new Set<string>([
   "components/ImageGallery.tsx",
   "components/InlineDiff.tsx",
   "components/OwnersBadge.tsx",
-  "components/PermissionCard.tsx",
+  "components/permission-card.tsx",
   "components/SessionConstellation.tsx",
   "components/SyncStatusChip.tsx",
   "components/TaskStatusBadge.tsx",

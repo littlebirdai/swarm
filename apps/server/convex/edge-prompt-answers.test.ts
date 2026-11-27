@@ -1,126 +1,25 @@
-import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
-import {
-  parseCommandsNextResponse,
-  type CanonicalEvent,
-} from "@codecast/edge-contract";
-import type { FunctionArgs } from "convex/server";
+import { expect, setSystemTime, test } from "bun:test";
+import type { CanonicalEvent } from "@codecast/edge-contract";
 import { asUser } from "../test-helpers/database.testkit";
+import {
+  edge,
+  flag,
+  edgePromptFixture,
+  installEdgePromptTestClock,
+} from "../test-helpers/edge-prompt.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
   boot,
   leaseMs,
   machine,
-  setupRunLease,
   start,
 } from "../test-helpers/run-lease.testkit";
 import { api, internal } from "./_generated/api";
 
-const flag = "CODECAST_FENCED_EXECUTION_V1";
-const edge = "CODECAST_EDGE_DELIVERY_V1";
-const saved = [process.env[flag], process.env[edge]];
-beforeEach(() => {
-  process.env[flag] = "1";
-  process.env[edge] = "1";
-  setSystemTime(new Date(start));
-});
-afterEach(() => {
-  for (const [index, name] of [flag, edge].entries()) {
-    const previous = saved[index];
-    if (previous === undefined) delete process.env[name];
-    else process.env[name] = previous;
-  }
-  setSystemTime();
-});
-
-async function fixture(kind: "question" | "permission" = "question") {
-  const f = await setupRunLease();
-  const browser = asUser(f.t, f.owner);
-  const lease = await f.claim("prompt-lease");
-  if (lease.status !== "granted") throw new Error("Expected run lease");
-
-  const target = {
-    conversation_id: f.conversation,
-    run: 1,
-    turn_id: "turn",
-    prompt_id: "active-prompt",
-  };
-  const base = {
-    v: 1,
-    session: f.conversation,
-    run: target.run,
-    source: "provider",
-    turn: target.turn_id,
-    at: start,
-  } as const;
-  const append = async (
-    events: CanonicalEvent[],
-    token = lease.fencing_token,
-  ) => {
-    expect(
-      await f.t.mutation(internal.edgeRunLease.append, {
-        ...f.requestFence(token),
-        events_json: JSON.stringify(events),
-      }),
-    ).toMatchObject({ status: "appended" });
-  };
-
-  await append([
-    { ...base, seq: 1, kind: "turn.started", body: {} },
-    {
-      ...base,
-      seq: 2,
-      kind: "prompt.opened",
-      body: { prompt_id: target.prompt_id, kind },
-    },
-  ]);
-  const address = await browser.query(api.permissions.getPromptAddress, target);
-  if (!address) throw new Error("Expected open prompt address");
-  const post = (name: string, body: unknown, bearer = f.bearer) =>
-    f.t.fetch(`/edge/v1/${name}`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${bearer}` },
-      body: JSON.stringify(body),
-    });
-  const next = async (
-    bearer = f.bearer,
-    requestedBoot = boot,
-    requestedMachine = machine,
-  ) => {
-    const response = await post(
-      "commands.next",
-      {
-        v: 1,
-        machine: requestedMachine,
-        boot: requestedBoot,
-      },
-      bearer,
-    );
-    expect(response.status).toBe(200);
-    const parsed = parseCommandsNextResponse(await response.json());
-    if (!parsed.ok) throw new Error(JSON.stringify(parsed));
-    return parsed.value;
-  };
-  return {
-    ...f,
-    browser,
-    target,
-    address,
-    lease,
-    base,
-    append,
-    next,
-    post,
-    answer: (
-      answer: FunctionArgs<typeof api.permissions.answerPrompt>["answer"] = {
-        behavior: "allow",
-      },
-    ) => browser.mutation(api.permissions.answerPrompt, { ...address, answer }),
-    rows: () => f.t.run(({ db }) => db.query("edge_prompt_answers").collect()),
-  };
-}
+installEdgePromptTestClock();
 
 test("question answers deliver with the authenticated actor only to the run device and boot", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const answer = { answers: { "question-id": { answers: ["Choice"] } } };
   const id = await f.answer(answer);
   expect(
@@ -175,7 +74,7 @@ test("question answers deliver with the authenticated actor only to the run devi
 });
 
 test("concurrent answers to the same prompt record just one decision", async () => {
-  const f = await fixture("permission");
+  const f = await edgePromptFixture("permission");
   const results = await Promise.allSettled([
     f.answer({ behavior: "allow" }),
     f.answer({ behavior: "deny" }),
@@ -186,7 +85,7 @@ test("concurrent answers to the same prompt record just one decision", async () 
   expect(results.filter(({ status }) => status === "rejected")).toEqual([
     expect.objectContaining({
       reason: expect.objectContaining({
-        message: expect.stringContaining("PROMPT_ALREADY_ANSWERED"),
+        message: expect.stringContaining("This prompt already has an answer."),
       }),
     }),
   ]);
@@ -198,29 +97,35 @@ test("concurrent answers to the same prompt record just one decision", async () 
 });
 
 test("a stale run cannot accept or deliver an answer", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   await expect(
     f.browser.mutation(api.permissions.answerPrompt, {
       ...f.address,
       run: 2,
       answer: null,
     }),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await expect(
     f.browser.mutation(api.permissions.answerPrompt, {
       ...f.address,
       turn_id: "old-turn",
       answer: null,
     }),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await f.answer();
   await f.t.run(({ db }) => db.patch(f.head, { current_epoch: 2 }));
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   expect(await f.next()).toEqual({ v: 1, status: "empty" });
 });
 
 test("a settled prompt refuses new answers and queued work cannot use a replacement lease", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   await f.answer(null);
   await f.append([
     {
@@ -235,7 +140,9 @@ test("a settled prompt refuses new answers and queued work cannot use a replacem
     },
   ]);
   expect(await f.next()).toEqual({ v: 1, status: "empty" });
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
 
   setSystemTime(new Date(start + leaseMs));
   const lease = await f.claim("replacement");
@@ -252,7 +159,9 @@ test("a settled prompt refuses new answers and queued work cannot use a replacem
     ],
     lease.fencing_token,
   );
-  await expect(f.answer()).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  await expect(f.answer()).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   const current = await f.browser.query(
     api.permissions.getPromptAddress,
     f.target,
@@ -269,7 +178,7 @@ test("a settled prompt refuses new answers and queued work cannot use a replacem
 });
 
 test("an unsigned caller and another signed-in person cannot retrieve or answer the prompt", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const other = await f.t.run(({ db }) =>
     fixtureRows(db, "wrong prompt actor").user(),
   );
@@ -280,7 +189,9 @@ test("an unsigned caller and another signed-in person cannot retrieve or answer 
   ).toBeNull();
   await expect(
     browser.mutation(api.permissions.answerPrompt, args),
-  ).rejects.toThrow("STALE_OR_UNAUTHORIZED_PROMPT");
+  ).rejects.toThrow(
+    "The prompt has closed or you no longer have permission to answer it.",
+  );
   await expect(
     f.t.mutation(api.permissions.answerPrompt, args),
   ).rejects.toThrow("Unauthorized");
@@ -294,7 +205,7 @@ test("an unsigned caller and another signed-in person cannot retrieve or answer 
 test.each([flag, edge])(
   "the legacy permission mutation keeps its path with %s off",
   async (disabled) => {
-    const f = await fixture();
+    const f = await edgePromptFixture();
     const permission_id = await f.browser.mutation(
       api.permissions.createPermissionRequest,
       {
@@ -302,6 +213,8 @@ test.each([flag, edge])(
         session_id: "runtime",
         tool_name: "read",
         arguments_preview: "read notes",
+        fenced_prompt_id: f.target.prompt_id,
+        fenced_prompt_turn_id: f.target.turn_id,
       },
     );
     await expect(
@@ -326,7 +239,7 @@ test.each([flag, edge])(
 );
 
 test("conversation deletion removes queued prompt answers and stops command delivery immediately", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   await f.answer();
   await f.browser.mutation(api.sessionDelete.deleteSession, {
     conversation_id: f.conversation,
@@ -339,7 +252,7 @@ test("conversation deletion removes queued prompt answers and stops command deli
 });
 
 test("account deletion removes orphan prompt answers by owner", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   await f.answer();
   await f.t.run(({ db }) => db.delete(f.conversation));
   await f.t.mutation(internal.accountDelete.purgeAccount, { user_id: f.owner });
@@ -348,7 +261,7 @@ test("account deletion removes orphan prompt answers by owner", async () => {
 });
 
 test("the answerable feed publishes only the owner's exact prompt addresses and question metadata", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const feed = api.permissions.listAnswerablePromptAddresses;
   expect(
     await f.browser.query(feed, { conversation_id: f.conversation }),
@@ -480,7 +393,7 @@ test("the answerable feed publishes only the owner's exact prompt addresses and 
 });
 
 test("settlement, turn end, and lease release remove durable prompt details", async () => {
-  const f = await fixture("permission");
+  const f = await edgePromptFixture("permission");
   const feed = () =>
     f.browser.query(api.permissions.listAnswerablePromptAddresses, {
       conversation_id: f.conversation,
@@ -576,7 +489,7 @@ test("settlement, turn end, and lease release remove durable prompt details", as
 });
 
 test("a replacement lease starts without question metadata from the expired lease", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const context: Omit<Extract<CanonicalEvent, { kind: "context" }>, "seq"> = {
     ...f.base,
     kind: "context",
@@ -635,7 +548,7 @@ test("a replacement lease starts without question metadata from the expired leas
 });
 
 test("the prompt feed keeps only the 32 prompts admitted by the turn", async () => {
-  const f = await fixture("permission");
+  const f = await edgePromptFixture("permission");
   await f.append(
     Array.from({ length: 32 }, (_, index) => ({
       ...f.base,
@@ -663,7 +576,7 @@ test.each([
   ],
   ["question id length", ["q".repeat(257)]],
 ])("the prompt feed refuses excessive %s", async (_bound, ids) => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   await f.append([
     {
       ...f.base,
@@ -685,7 +598,7 @@ test.each([
 });
 
 test("question metadata respects the total turn budget and can use space freed by a settled prompt", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const ids = [f.target.prompt_id, "second", "third", "fourth"];
   const questions = Array.from({ length: 32 }, (_, index) => ({
     id: String(index).padStart(256, "q"),
@@ -728,7 +641,7 @@ test("question metadata respects the total turn budget and can use space freed b
 });
 
 test("the source cannot pull a queued prompt answer during a forced move", async () => {
-  const f = await fixture();
+  const f = await edgePromptFixture();
   const flag = "CODECAST_FORCED_DEVICE_MOVE_V1";
   const previous = process.env[flag];
   process.env[flag] = "1";

@@ -60,7 +60,7 @@ import {
   Pin,
   Lock,
 } from "lucide-react";
-import { ImageBlock } from "./interactiveBlocks";
+import { ImageBlock } from "./interactive-blocks";
 import {
   CastBrowserRowContext,
   ChatWakeContext,

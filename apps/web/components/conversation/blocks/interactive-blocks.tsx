@@ -45,7 +45,7 @@ import { useIsModernStyle } from "../../../hooks/useVisualStyle";
 import { ModernImage } from "./ModernImage";
 import { ModernMonitorRow, ModernThinking } from "./ModernEventRows";
 import { ModernPlanMode } from "./ModernPlanMode";
-import { ModernAskUserQuestion } from "./ModernAskUserQuestion";
+import { ModernAskUserQuestion } from "./modern-ask-user-question";
 import {
   forgetModernAskSent,
   markModernAskSent,
@@ -493,11 +493,15 @@ function PollCheckIcon({ className }: { className?: string }) {
 
 type AskUserQuestionProps = {
   tool: ToolCall;
+  conversationId?: string;
   result?: ToolResult;
   onSendMessage?: (content: string) => void;
 };
 type AskUserQuestionInput = {
+  fencedTurnId?: string;
   questions?: Array<{
+    id?: string;
+    isSecret?: boolean;
     question: string;
     header?: string;
     detail?: string;
@@ -510,20 +514,39 @@ type AskUserQuestionInput = {
   deniesAt?: number;
 };
 
+function parseAskUserQuestionInput(input: string): AskUserQuestionInput {
+  try {
+    return JSON.parse(input) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export function AskUserQuestionBlock(props: AskUserQuestionProps) {
   const proposals = useTeamProposalRole();
+  const parsedInput = parseAskUserQuestionInput(props.tool.input);
+  if (parsedInput.fencedTurnId)
+    return (
+      <AskUserQuestionInner
+        {...props}
+        parsedInput={parsedInput}
+        conversationId={props.conversationId ?? proposals?.conversationId}
+      />
+    );
   if (proposals?.role === "teammate" && !props.onSendMessage && !props.result)
-    return <TeammateAskUserQuestion {...props} />;
+    return <TeammateAskUserQuestion {...props} parsedInput={parsedInput} />;
   if (proposals?.role === "owner" && props.onSendMessage && !props.result)
-    return <OwnerAskUserQuestion {...props} />;
-  return <AskUserQuestionInner {...props} />;
+    return <OwnerAskUserQuestion {...props} parsedInput={parsedInput} />;
+  return <AskUserQuestionInner {...props} parsedInput={parsedInput} />;
 }
 
 // The owner's open question with the teammates' proposed answers under it.
 // Sending one answers the question, so the card closes as if pressed: a
 // second answer before the transcript catches up would land in whatever the
 // terminal shows next.
-function OwnerAskUserQuestion(props: AskUserQuestionProps) {
+function OwnerAskUserQuestion(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
   const [rev, setRev] = useState(0);
   const [answered, setAnswered] = useState(false);
   const closeCard = () => {
@@ -557,11 +580,10 @@ function OwnerAskUserQuestion(props: AskUserQuestionProps) {
   );
 }
 
-function AskUserQuestionInner(props: AskUserQuestionProps) {
-  let parsedInput: AskUserQuestionInput = {};
-  try {
-    parsedInput = JSON.parse(props.tool.input);
-  } catch {}
+function AskUserQuestionInner(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
+  const { parsedInput } = props;
   // Only a terminal dialog still counting down holds a ticking clock.
   return typeof parsedInput.deniesAt === "number" && !props.result ? (
     <TimedAskUserQuestion
@@ -577,7 +599,9 @@ function AskUserQuestionInner(props: AskUserQuestionProps) {
 // A teammate's press on an open question proposes that answer to the owner
 // (convex teamSuggestions.proposeAnswerFor). The card stays open, so another
 // pick replaces the proposal until the owner answers.
-function TeammateAskUserQuestion(props: AskUserQuestionProps) {
+function TeammateAskUserQuestion(
+  props: AskUserQuestionProps & { parsedInput: AskUserQuestionInput },
+) {
   const ctx = useTeamProposalRole()!;
   const [rev, setRev] = useState(0);
   const propose = useInboxStore((s) => s.proposeAnswer);
@@ -628,6 +652,7 @@ function TimedAskUserQuestion({
 
 function AskUserQuestionCard({
   tool,
+  conversationId,
   result,
   onSendMessage,
   parsedInput,
@@ -645,10 +670,11 @@ function AskUserQuestionCard({
   const [otherOpen, setOtherOpen] = useState<Record<number, boolean>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
   const modern = useIsModernStyle();
-  if (modern)
+  if (modern || parsedInput.fencedTurnId)
     return (
       <ModernAskUserQuestion
         tool={tool}
+        conversationId={conversationId}
         result={result}
         onSendMessage={onSendMessage}
         parsedInput={parsedInput}

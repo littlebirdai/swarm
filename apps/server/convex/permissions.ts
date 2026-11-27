@@ -3,7 +3,7 @@ import { permissionRemovalValidator } from "./lib/permissionRemoval";
 import { settlePermissionProposals, viewerSeesDetail } from "./teamSuggestions";
 import { redactSecrets } from "./redact";
 import { mutation, query, internalMutation } from "./functions";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { readOwnedPromptCards } from "./lib/owned-prompt-cards.query";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -259,7 +259,18 @@ export const answerPrompt = mutation({
   handler: async (ctx, { answer, ...position }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    return queuePromptAnswer(ctx, position, userId, answer);
+    try {
+      return await queuePromptAnswer(ctx, position, userId, answer);
+    } catch (error) {
+      const code = error instanceof ConvexError ? error.data : null;
+      if (code === "STALE_OR_UNAUTHORIZED_PROMPT")
+        throw new ConvexError(
+          "The prompt has closed or you no longer have permission to answer it.",
+        );
+      if (code === "PROMPT_ALREADY_ANSWERED")
+        throw new ConvexError("This prompt already has an answer.");
+      throw error;
+    }
   },
 });
 
@@ -321,7 +332,8 @@ export const updatePermissionStatus = mutation({
 
     if (
       fencedPromptAnswersEnabled() &&
-      conversation.execution_protocol_state === "fenced"
+      conversation.execution_protocol_state === "fenced" &&
+      permission.fenced_prompt_id !== undefined
     )
       throw new Error(
         "Fenced permission decisions require an exact prompt address",
@@ -393,7 +405,9 @@ export const updatePermissionStatus = mutation({
       _id: String(p._id),
       conversation_id: String(p.conversation_id),
     });
-    const pending = await otherPending(ctx, permission);
+    const pending = (await otherPending(ctx, permission)).filter(
+      (row) => row.fenced_prompt_id === undefined,
+    );
     const cascade = cascadeFromAnswer(
       asks(permission),
       { status: args.status, message, remember },

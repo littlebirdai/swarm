@@ -87,6 +87,8 @@ export function makeDispatchBinding(
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
         settle({ ok: true });
+        if (action === "answerFencedPrompt" && typeof args?.[0] === "string")
+          useInboxStore.getState().acceptFencedPromptAnswer(args[0]);
         if (
           detailWrite &&
           detailAccountIsCurrent(detailWrite) &&
@@ -299,6 +301,12 @@ export function applyDispatchFailure(
   error: unknown,
   args?: unknown,
 ): void {
+  if (
+    action === "answerFencedPrompt" &&
+    Array.isArray(args) &&
+    typeof args[0] === "string"
+  )
+    useInboxStore.getState().refuseFencedPromptAnswer(args[0]);
   if (QUIET_ACTIONS.has(action)) {
     console.warn(`[sync] ${action} not recorded`, error);
     return;

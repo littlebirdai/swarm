@@ -17,6 +17,12 @@ import {
 import { ModernAnsweredRow, ModernAskCard } from "../ModernAsk";
 import type { ToolCall, ToolResult } from "../types";
 import { sentByCall } from "../../../lib/modernAskSent";
+import { useFencedPromptAddresses } from "../../../hooks/use-sync-fenced-prompt-addresses";
+import {
+  findFencedPromptAddress,
+  submitFencedPromptAnswer,
+} from "../../../store/fenced-prompt-answer";
+import { useInboxStore } from "../../../store/inboxStore";
 
 // An agent's AskUserQuestion in the Modern style (interactiveBlocks branches
 // here). Open, it is the loud card: the question, the options as Buttons (the
@@ -31,18 +37,23 @@ const clean = (label: string) => label.replace(RECOMMENDED, "");
 
 type Deadline = { expired: boolean; left: string } | null | undefined;
 type AskInput = {
-  questions?: Array<PollQuestion & { multi_select?: boolean }>;
+  fencedTurnId?: string;
+  questions?: Array<
+    PollQuestion & { id?: string; isSecret?: boolean; multi_select?: boolean }
+  >;
   answers?: Record<string, string>;
 };
 
 export function ModernAskUserQuestion({
   tool,
+  conversationId,
   result,
   onSendMessage,
   parsedInput,
   deadline,
 }: {
   tool: ToolCall;
+  conversationId?: string;
   result?: ToolResult;
   onSendMessage?: (content: string) => void;
   parsedInput: AskInput;
@@ -54,7 +65,30 @@ export function ModernAskUserQuestion({
   const [sent, setSent] = useState(() => sentByCall.has(tool.id));
   const [texts, setTexts] = useState<Record<number, string>>({});
 
-  const questions: PollQuestion[] = (parsedInput.questions ?? []).map((q) => ({
+  const { fencedTurnId } = parsedInput;
+  const { ready, rows } = useFencedPromptAddresses(
+    conversationId,
+    Boolean(fencedTurnId && onSendMessage && !result),
+  );
+  const address = fencedTurnId
+    ? findFencedPromptAddress(rows, tool.id, fencedTurnId, "question")
+    : undefined;
+  const inputQuestions = parsedInput.questions ?? [];
+  const addressQuestions = address?.questions ?? [];
+  const secret =
+    inputQuestions.some(({ isSecret }) => isSecret) ||
+    addressQuestions.some(({ is_secret }) => is_secret);
+  const ownsQuestions =
+    addressQuestions.length === inputQuestions.length &&
+    inputQuestions.every(
+      ({ id }) => id && addressQuestions.some((question) => question.id === id),
+    );
+  const pendingAnswer = address?.submitted;
+  const acceptedAnswer = address?.accepted;
+  const submitted = pendingAnswer === true || acceptedAnswer === true;
+  const answerSummary = address?.answerSummary;
+  const awaitingAddress = Boolean(fencedTurnId && !address);
+  const questions = inputQuestions.map((q) => ({
     ...q,
     multiSelect: q.multiSelect ?? q.multi_select,
   }));
@@ -65,13 +99,46 @@ export function ModernAskUserQuestion({
   const expired = !!deadline?.expired;
   // Still open: the card. Answerable only where this view can send (a shared
   // view reads the same card with its answers disabled).
-  const open = !result && !sent && !expired;
-  const interactive = open && !!onSendMessage;
+  const open =
+    !result &&
+    !sent &&
+    !expired &&
+    !submitted &&
+    !secret &&
+    !(awaitingAddress && ready);
+  const interactive =
+    open &&
+    !!onSendMessage &&
+    !awaitingAddress &&
+    (!address || !!ownsQuestions);
 
   const send = (
     sels: PollSelections,
     payload = buildPollPayload(questions, sels),
   ) => {
+    if (address) {
+      if (!ownsQuestions || secret) return;
+      const answers = Object.fromEntries(
+        questions.map((question, index) => [
+          question.id!,
+          {
+            answers: (sels[index] ?? []).map(
+              (selection) =>
+                selection.text ??
+                question.options.find(
+                  (_, optionIndex) =>
+                    pollKeyForOption(optionIndex, question.isConfirmation) ===
+                    selection.key,
+                )?.label ??
+                selection.label,
+            ),
+          },
+        ]),
+      );
+      submitFencedPromptAnswer(useInboxStore.getState(), address, { answers });
+      return;
+    }
+    if (awaitingAddress || secret) return;
     sentByCall.set(tool.id, sels);
     setSelections(sels);
     setSent(true);
@@ -79,13 +146,22 @@ export function ModernAskUserQuestion({
   };
 
   if (!open) {
-    const closed = expired ? POLL_TIMED_OUT : pollClosedLabel(result, answers);
+    const closed = secret
+      ? "Secret question cancelled"
+      : expired
+        ? POLL_TIMED_OUT
+        : (pollClosedLabel(result, answers) ??
+          (awaitingAddress && ready ? "Question closed" : undefined));
     return (
       <div data-cc-ask-settled>
         {questions.map((q, i) => {
           const picked =
             answers[q.question] ??
-            selections[i]?.map((s) => s.label).join(", ");
+            (fencedTurnId
+              ? submitted && q.id
+                ? answerSummary?.[q.id]
+                : undefined
+              : selections[i]?.map((s) => s.label).join(", "));
           return (
             <ModernAnsweredRow
               key={i}
@@ -94,7 +170,7 @@ export function ModernAskUserQuestion({
               answer={
                 picked
                   ? picked.replace(RECOMMENDED, "")
-                  : (closed ?? (sent ? "Sent" : undefined))
+                  : (closed ?? (sent || submitted ? "Sent" : undefined))
               }
               closed={!picked}
               detail={
@@ -144,7 +220,7 @@ export function ModernAskUserQuestion({
       label: text,
       text,
     };
-    setTexts((prev) => ({ ...prev, [qi]: "" }));
+    if (!address || needsSubmit) setTexts((prev) => ({ ...prev, [qi]: "" }));
     if (questions[qi].multiSelect)
       setSelections((prev) => ({
         ...prev,

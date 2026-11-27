@@ -208,7 +208,7 @@
       },
       {
         "name": "PermissionStack / PermissionCard (Approve / Deny)",
-        "file": "packages/web/components/PermissionCard.tsx",
+        "file": "packages/web/components/permission-card.tsx",
         "role": "The amber permission card above the composer. One pending permission gives the two-row card: pulsing dot, tool name, preview, Approve / Allow all / Deny, and y/n KeyCaps (222-275). Several give a header plus PermissionRow list. Note that the product wording has no 'Permission Required' title; that string exists only in the hero's phone mock (heroFly/surfaces.tsx:259).",
         "props": "PermissionStack{permissions: {_id, conversation_id?, tool_name, arguments_preview?, status, created_at}[], onAllowAll?}; PermissionCard{permission}",
         "deps": "useMutation(api.permissions.updatePermissionStatus) at 121 runs on Approve and Deny: a real server call with the fixture id, which fails validation and is swallowed by .catch. useInboxStore(resolveSessionQuestion) at 122 WRITES the real store when conversation_id is set (137). A GLOBAL window keydown listener (185) approves on 'y' and denies on 'n' whenever focus is not in an input, so a visitor pressing y anywhere on the homepage would trigger it. The internal PermissionRow (49) takes props only but is not exported.",
@@ -226,7 +226,7 @@
       },
       {
         "name": "ImageBlock",
-        "file": "packages/web/components/conversation/blocks/interactiveBlocks.tsx",
+        "file": "packages/web/components/conversation/blocks/interactive-blocks.tsx",
         "role": "An image attachment or screenshot in a message or tool row, with the fixed collapsed-height frame and bottom fade (588).",
         "props": "{image: ImageData{media_type, data?: base64, preview_url?, storage_id?, tool_use_id?, uploading?}}",
         "deps": "useImageSrc (hooks/useImageSrc.ts:10) calls useStorageImageUrl(storage_id), which uses useConvex and requests a URL only when storage_id is set (useStorageImageUrl.ts:216-228). useImageGallery and useGalleryMessageId are contexts that are null without ImageGalleryProvider, so a click does nothing. The decoded-src cache lives in module memory.",
@@ -235,7 +235,7 @@
       },
       {
         "name": "ThinkingBlock / AssistantIcon / UserIcon / CodeBlock / WorkingStatusLine / TimelineRule",
-        "file": "packages/web/components/conversation/blocks/interactiveBlocks.tsx:556; blocks/shared.tsx:135,170; components/CodeBlock.tsx; conversation/sessionChrome.tsx:844,125",
+        "file": "packages/web/components/conversation/blocks/interactive-blocks.tsx:556; blocks/shared.tsx:135,170; components/CodeBlock.tsx; conversation/sessionChrome.tsx:844,125",
         "role": "Small leaves: the collapsible thinking block, the agent and user avatars in turn headers, highlighted code, the 'Working \u00b7 1:20 \u00b7 phrase' line above the composer, and divider rules.",
         "props": "ThinkingBlock{content}; AssistantIcon{agentType}; UserIcon{avatarUrl, size}; CodeBlock{code, language}; WorkingStatusLine{startedAt, phrase, conversationId}; TimelineRule{color, label, children}",
         "deps": "Mostly props. UserIcon writes avatar bytes into Cache Storage through AvatarImg. WorkingStatusLine runs its own 1s setInterval on Date.now and a read-only store read of sessions[conversationId].activity.",
@@ -594,7 +594,7 @@
     "components": [
       {
         "name": "PermissionStack (web, the real permission prompt)",
-        "file": "/Users/ashot/src/codecast/packages/web/components/PermissionCard.tsx",
+        "file": "/Users/ashot/src/codecast/packages/web/components/permission-card.tsx",
         "role": "The product's actual Approve/Deny permission card, used in the conversation footer (conversation-view.tsx:4855) and the decision queue (SessionDecisionCard.tsx:478). Single-permission layout at :222-275 (pulsing yellow dot, formatted tool name, mono preview, Approve / optional Allow all / Deny, y/n KeyCaps). Multi-permission layout at :279-349. PermissionCard at :352 is a one-line wrapper. This is the best real source for the phone's permission moment.",
         "deps": "Props: permissions: Permission[] ({_id, conversation_id?, tool_name, arguments_preview?, status, created_at}), onAllowAll?. Data deps: useMutation(api.permissions.updatePermissionStatus) (:121), which fires a REAL server mutation with the fixture id on Approve/Deny (errors are swallowed by .catch at :144/:152). useInboxStore(s => s.resolveSessionQuestion) (:122), which WRITES to the live store (markUnblockedIfLast :133-138) when the last one resolves: a fixture leaks into a signed-in user's real store if conversation_id is set. useEventListener('keydown') (:185-200) is a GLOBAL window listener for bare y/n: on the marketing page any y/n keypress outside an input would approve or deny the fixture. Needs a ConvexProvider (present on the marketing page, which calls useConvexAuth). KeyCap from KeyboardShortcutsHelp; formatToolName from @codecast/shared/render (pure). No router, no portals, no analytics.",
         "presentational": "nearly",
@@ -746,7 +746,7 @@
       },
       {
         "name": "PermissionStack / PermissionCard (+ private PermissionRow)",
-        "file": "packages/web/components/PermissionCard.tsx:114 (Stack), :352 (Card), :49 (PermissionRow, not exported)",
+        "file": "packages/web/components/permission-card.tsx:114 (Stack), :352 (Card), :49 (PermissionRow, not exported)",
         "role": "[Conversation / steering] The Approve/Deny permission prompt with the tool name and argument preview. FILM: HIGH, and an interactive candidate (click Approve).",
         "props": "PermissionCard: permission {_id, conversation_id?, tool_name, arguments_preview?, status, created_at}. PermissionStack: permissions[], onAllowAll?. PermissionRow: permission, onApprove, onDeny, isExpanded, onToggleExpand, showToolName",
         "deps": "useMutation(api.permissions.updatePermissionStatus) (121). The store sync action resolveSessionQuestion (122, defined at inboxStore.ts:8398) writes the real store. A WINDOW-level keydown listener fires on 'y'/'n' (188-201): on the marketing page a visitor pressing y or n would run the real mutation with fixture ids (caught) and write resolveSessionQuestion(fixtureConvId) into the real store, which persists to IDB.",
@@ -1193,7 +1193,7 @@
       },
       {
         "name": "PermissionStack / PermissionRow (internal)",
-        "file": "packages/web/components/PermissionCard.tsx",
+        "file": "packages/web/components/permission-card.tsx",
         "role": "The amber 'Permission Required' Approve/Deny stack, used by the decision stepper and the conversation view.",
         "props": "PermissionStack({permissions: Permission[], onAllowAll?}) :114; PermissionRow({permission, onApprove, onDeny, isExpanded, onToggleExpand, showToolName}) :49 is NOT exported; Permission shape :39-47",
         "deps": "PermissionStack: useMutation(api.permissions.updatePermissionStatus) (:121) called on Approve/Deny/Allow-all with the permission _id (:144,:152,:160,:169,:179, errors swallowed with .catch) -> a real server call carrying a fixture id; useInboxStore resolveSessionQuestion (:122) mutates the real store; useEventListener('keydown') on window (:185) for approve/deny shortcuts. PermissionRow is pure props (buttons at :88-100).",

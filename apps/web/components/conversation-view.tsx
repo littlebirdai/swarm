@@ -252,7 +252,7 @@ import { TmuxAttachPill } from "./TmuxAttachPill";
 import { useAttachCopy } from "../hooks/useAttachCopy";
 import { SessionDaemonChip, SessionHooksOffChip } from "./DaemonStatusChip";
 import { BrowserWatchSplit } from "./browser/BrowserWatchSplit";
-import { PermissionStack, PERMISSION_SKIP_TOOLS } from "./PermissionCard";
+import { PermissionStack, PERMISSION_SKIP_TOOLS } from "./permission-card";
 import {
   PermissionProposals,
   TeammatePermissions,

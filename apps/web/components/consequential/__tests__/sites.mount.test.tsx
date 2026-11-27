@@ -10,7 +10,7 @@ import { expectToast } from "../../../test-helpers/expectToast";
 import { waitForPopupClose } from "../../../test-helpers/waitForPopupClose";
 import { InboxSelectionBar } from "../../BulkMoveSessions";
 import { LineStartSwitch } from "../../line/map/LineStartSwitch";
-import { PermissionStackView } from "../../PermissionCard";
+import { PermissionStackView } from "../../permission-card";
 import { MergeMenu } from "../../pr/PRActions";
 import { TeamSharingNudgeBanner } from "../../TeamSharingNudgeBanner";
 

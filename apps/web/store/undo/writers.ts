@@ -323,6 +323,8 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
 
 /** Local-first keys off the patch rail that need no writer, with the reason. */
 export const LOCAL_ONLY_UNDO_KEYS: Record<string, string> = {
+  fencedPromptAddresses:
+    "Only the local submission marker changes. The agent acts on the answer once it arrives.",
   anchors:
     "Written only by setAnchorCleanChat, which re-sends the seat its opening and is never undoable.",
   capabilityBindings:

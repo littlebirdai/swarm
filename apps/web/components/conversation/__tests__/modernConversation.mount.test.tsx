@@ -37,7 +37,7 @@ const { offlineConvexClient } =
 const { ToolBlock } = await import("../blocks/toolBlocks");
 const { CastCommandBlock } = await import("../blocks/castBlocks");
 const { SystemBlock } = await import("../blocks/systemBlocks");
-const { ImageBlock } = await import("../blocks/interactiveBlocks");
+const { ImageBlock } = await import("../blocks/interactive-blocks");
 const { AgentStatusPill, ConversationHeaderBar, ConversationHeaderTitle } =
   await import("../ConversationHeaderBar");
 const { ComposerSendButton, ComposerShell, ComposerTextarea, ComposerTextRow } =
@@ -47,12 +47,12 @@ const { modernToolHead, failureLine, toolRowKind, modernGroupHead } =
 const { AgentWorkingBubble, AssistantBlock } =
   await import("../blocks/turnBlocks");
 const { AskUserQuestionBlock, MonitorBlock, PlanModeBlock, ThinkingBlock } =
-  await import("../blocks/interactiveBlocks");
+  await import("../blocks/interactive-blocks");
 const { StructuredResultBlock } = await import("../blocks/toolBlocks");
 const { ReviveDivider, SessionMessageBlock } =
   await import("../blocks/systemBlocks");
 const { ApiErrorCard } = await import("../sessionChrome");
-const { PermissionStackView } = await import("../../PermissionCard");
+const { PermissionStackView } = await import("../../permission-card");
 const { ModernDecisionDock } = await import("../ModernDecisionDock");
 const { DELIVERY_FAILED_SUBTYPE, formatDeliveryFailedNotice } =
   await import("@codecast/sessions/deliveryFailed");

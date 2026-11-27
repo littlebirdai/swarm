@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useEventListener } from "../hooks/useEventListener";
@@ -8,6 +8,11 @@ import { matchesAction } from "../shortcuts";
 import { SwitchReview } from "./consequential/ConsequentialSwitch";
 import { allowAllLedger } from "./consequential/ledgers";
 import { useInboxStore } from "../store/inboxStore";
+import { useFencedPromptAddresses } from "../hooks/use-sync-fenced-prompt-addresses";
+import {
+  findFencedPromptAddress,
+  submitFencedPromptAnswer,
+} from "../store/fenced-prompt-answer";
 import { formatToolName } from "@codecast/render/toolNames";
 import {
   permissionSourceTags,
@@ -63,6 +68,8 @@ export const PERMISSION_SKIP_TOOLS: ReadonlySet<string> = new Set([
 type Permission = {
   _id: Id<"pending_permissions">;
   conversation_id?: string;
+  fenced_prompt_id?: string;
+  fenced_prompt_turn_id?: string;
   tool_name: string;
   arguments_preview?: string;
   status: "pending" | "approved" | "denied" | "cancelled";
@@ -80,6 +87,7 @@ type Permission = {
 /** The fields the view renders. A real row satisfies it, and so does a fixture with a plain string id. */
 export type PermissionViewItem<PId extends string = string> = {
   _id: PId;
+  fenced_prompt_id?: string;
   tool_name: string;
   arguments_preview?: string;
   status: Permission["status"];
@@ -314,6 +322,7 @@ export function PermissionRow({
   isExpanded,
   onToggleExpand,
   showToolName,
+  inflight = false,
 }: {
   permission: PermissionViewItem;
   onApprove: () => void;
@@ -322,6 +331,7 @@ export function PermissionRow({
   isExpanded: boolean;
   onToggleExpand: () => void;
   showToolName: boolean;
+  inflight?: boolean;
 }) {
   const [denying, setDenying] = useState(false);
   if (permission.status !== "pending") return null;
@@ -351,6 +361,7 @@ export function PermissionRow({
         {!preview && <span className="flex-1" />}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
+            disabled={inflight}
             onClick={onApprove}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
@@ -363,7 +374,10 @@ export function PermissionRow({
           />
           {!denying && (
             <button
-              onClick={() => setDenying(true)}
+              disabled={inflight}
+              onClick={() =>
+                permission.fenced_prompt_id ? onDeny() : setDenying(true)
+              }
               className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-red/30 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors"
             >
               Deny
@@ -372,7 +386,7 @@ export function PermissionRow({
         </div>
       </div>
       <PermissionContext permission={permission} />
-      {denying && (
+      {denying && !permission.fenced_prompt_id && !inflight && (
         <DenyReason onDeny={onDeny} onCancel={() => setDenying(false)} />
       )}
       {preview && isExpanded && (
@@ -400,85 +414,120 @@ export function PermissionStack({
 }) {
   const resolvePermission = useInboxStore((s) => s.resolvePermission);
 
-  const pending = permissions.filter((p) => p.status === "pending");
-
-  // Local-first: the store drops the row in the same commit (and marks the
-  // session's question resolved when it was the last one), so the card leaves
-  // on the press and nothing here waits on the server.
-  const handleApprove = useCallback(
-    (id: Id<"pending_permissions">) => resolvePermission(id, "approved"),
-    [resolvePermission],
+  const marked = permissions.find((permission) => permission.fenced_prompt_id);
+  const { ready, rows } = useFencedPromptAddresses(
+    marked?.conversation_id,
+    Boolean(marked),
   );
-  const handleDeny = useCallback(
-    (id: Id<"pending_permissions">, message?: string) =>
-      resolvePermission(id, "denied", message ? { message } : undefined),
-    [resolvePermission],
-  );
-  const handleAlwaysAllow = useCallback(
-    (id: Id<"pending_permissions">) =>
-      resolvePermission(id, "approved", { remember: true }),
-    [resolvePermission],
-  );
-  const handleApproveAll = useCallback(() => {
-    for (const p of pending) resolvePermission(p._id, "approved");
-  }, [pending, resolvePermission]);
-  const handleDenyAll = useCallback(() => {
-    for (const p of pending) resolvePermission(p._id, "denied");
-  }, [pending, resolvePermission]);
-  const handleAllowAll = useCallback(() => {
-    if (!onAllowAll) return;
-    for (const p of pending) resolvePermission(p._id, "approved");
-    onAllowAll();
-  }, [pending, resolvePermission, onAllowAll]);
-
-  useEventListener(
-    "keydown",
-    useCallback(
-      (e: KeyboardEvent) => {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (
-          tag === "INPUT" ||
-          tag === "TEXTAREA" ||
-          (e.target as HTMLElement)?.isContentEditable
+  const addressFor = (permission: Permission) =>
+    permission.conversation_id === marked?.conversation_id &&
+    permission.fenced_prompt_id
+      ? findFencedPromptAddress(
+          rows,
+          permission.fenced_prompt_id,
+          permission.fenced_prompt_turn_id,
+          "permission",
         )
-          return;
-        if (pending.length === 0) return;
-
-        if (matchesAction(e, "permission.approve")) {
-          e.preventDefault();
-          if (pending.length === 1) handleApprove(pending[0]._id);
-          else handleApproveAll();
-        }
-        if (matchesAction(e, "permission.deny")) {
-          e.preventDefault();
-          if (pending.length === 1) handleDeny(pending[0]._id);
-          else handleDenyAll();
-        }
-      },
-      [pending, handleApprove, handleDeny, handleApproveAll, handleDenyAll],
-    ),
+      : undefined;
+  const settled = permissions.filter((permission) => {
+    if (!permission.fenced_prompt_id) return false;
+    const address = addressFor(permission);
+    return address ? address.submitted || address.accepted : ready;
+  });
+  const pending = permissions.filter(
+    (permission) =>
+      permission.status === "pending" && !settled.includes(permission),
   );
+  const waiting = new Set(
+    pending
+      .filter(
+        (permission) => permission.fenced_prompt_id && !addressFor(permission),
+      )
+      .map(({ _id }) => _id),
+  );
+
+  const decide = (
+    id: Id<"pending_permissions">,
+    status: "approved" | "denied",
+    opts?: { message?: string; remember?: boolean },
+  ) => {
+    const permission = pending.find(({ _id }) => _id === id);
+    if (!permission) return;
+    if (!permission.fenced_prompt_id) {
+      resolvePermission(id, status, opts);
+      return;
+    }
+    const address = addressFor(permission);
+    if (address)
+      submitFencedPromptAnswer(useInboxStore.getState(), address, {
+        behavior: status === "approved" ? "allow" : "deny",
+      });
+  };
+  const handleApprove = (id: Id<"pending_permissions">) =>
+    decide(id, "approved");
+  const handleDeny = (id: Id<"pending_permissions">, message?: string) =>
+    decide(id, "denied", message ? { message } : undefined);
+  const handleApproveAll = () => {
+    for (const p of pending) handleApprove(p._id);
+  };
+  const handleDenyAll = () => {
+    for (const p of pending) handleDeny(p._id);
+  };
+  const handleAllowAll = () => {
+    if (!onAllowAll || marked) return;
+    handleApproveAll();
+    onAllowAll();
+  };
+
+  useEventListener("keydown", (e) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      (e.target as HTMLElement)?.isContentEditable ||
+      pending.length === 0
+    )
+      return;
+    if (matchesAction(e, "permission.approve")) {
+      e.preventDefault();
+      handleApproveAll();
+    }
+    if (matchesAction(e, "permission.deny")) {
+      e.preventDefault();
+      handleDenyAll();
+    }
+  });
 
   return (
-    <PermissionStackView
-      pending={pending}
-      inflight={NO_INFLIGHT}
-      onApprove={handleApprove}
-      onDeny={handleDeny}
-      onAlwaysAllow={handleAlwaysAllow}
-      onApproveAll={handleApproveAll}
-      onDenyAll={handleDenyAll}
-      onAllowAll={onAllowAll ? handleAllowAll : undefined}
-    />
+    <>
+      {settled.length > 0 && (
+        <div role="status" className="px-2 py-1 text-meta text-sol-text-muted">
+          {settled.some((permission) => {
+            const address = addressFor(permission);
+            return address?.submitted || address?.accepted;
+          })
+            ? "Permission decision sent"
+            : "Permission request closed"}
+        </div>
+      )}
+      <PermissionStackView
+        pending={pending}
+        inflight={waiting.size ? waiting : NO_INFLIGHT}
+        onApprove={handleApprove}
+        onDeny={handleDeny}
+        onAlwaysAllow={
+          marked
+            ? undefined
+            : (id) => decide(id, "approved", { remember: true })
+        }
+        onApproveAll={handleApproveAll}
+        onDenyAll={handleDenyAll}
+        onAllowAll={onAllowAll && !marked ? handleAllowAll : undefined}
+      />
+    </>
   );
 }
 
-/**
- * The permission stack as pure markup: every write goes through the callbacks,
- * and only presentation state (collapsed, which row is expanded) lives here.
- * PermissionStack wires it to the mutation and the y/n keys; the marketing
- * hero renders it with fixture rows.
- */
 export function PermissionStackView<PId extends string>({
   pending,
   inflight,
@@ -511,6 +560,7 @@ export function PermissionStackView<PId extends string>({
   const modern = useIsModernStyle();
 
   if (pending.length === 0) return null;
+  const allInFlight = pending.every(({ _id }) => inflight.has(_id));
   // Modern: the loud ask card with 32px answers (CONV-20); the keys and the writes stay PermissionStack's.
   if (modern)
     return (
@@ -610,7 +660,9 @@ export function PermissionStackView<PId extends string>({
             />
             {!denying && (
               <button
-                onClick={() => setDenying(true)}
+                onClick={() =>
+                  p.fenced_prompt_id ? onDeny(p._id) : setDenying(true)
+                }
                 disabled={inflight.has(p._id)}
                 className={DENY_CLASS}
               >
@@ -631,7 +683,7 @@ export function PermissionStackView<PId extends string>({
             </span>
           </div>
         )}
-        {denying && (
+        {denying && !p.fenced_prompt_id && !inflight.has(p._id) && (
           <DenyReason
             onDeny={(message) => onDeny(p._id, message)}
             onCancel={() => setDenying(false)}
@@ -659,6 +711,7 @@ export function PermissionStackView<PId extends string>({
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
           <button
             onClick={onApproveAll}
+            disabled={allInFlight}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
             Approve all
@@ -677,6 +730,7 @@ export function PermissionStackView<PId extends string>({
           {allowAllReview}
           <button
             onClick={onDenyAll}
+            disabled={allInFlight}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-border/40 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors"
           >
             Deny all
@@ -716,6 +770,7 @@ export function PermissionStackView<PId extends string>({
               setExpandedId(expandedId === p._id ? null : p._id)
             }
             showToolName={!allSameTool}
+            inflight={inflight.has(p._id)}
           />
         ))}
       </div>

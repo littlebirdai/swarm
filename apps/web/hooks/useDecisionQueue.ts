@@ -34,6 +34,7 @@ function chronological(messages: any[]): any[] {
 export function openQuestionFromMessages(raw: any[] | undefined): {
   question: PollQuestion;
   toolUseId: string;
+  fencedTurnId?: string;
   createdAt: number;
 } | null {
   if (!raw?.length) return null;
@@ -59,6 +60,9 @@ export function openQuestionFromMessages(raw: any[] | undefined): {
       return {
         question: q as PollQuestion,
         toolUseId: tc.id,
+        ...(typeof parsed.fencedTurnId === "string" && {
+          fencedTurnId: parsed.fencedTurnId,
+        }),
         createdAt: m.timestamp ?? 0,
       };
     }

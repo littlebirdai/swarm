@@ -70,7 +70,7 @@ import {
   onAgentDockSummon,
   type AgentDockEdge,
 } from "../../lib/desktopAgentDock";
-import { PermissionStack } from "../PermissionCard";
+import { PermissionStack } from "../permission-card";
 import { useConversationMessages } from "../../hooks/use-conversation-messages";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { KeyCap } from "../KeyboardShortcutsHelp";
@@ -616,17 +616,29 @@ function DockCard({
       ) : (
         <div className="px-3 pb-3 pt-1.5">
           {entry.kind === "ask" ? (
-            !decision.isPermissionCard && (
-              <DockInput
-                placeholder="Type your answer…"
-                onSend={(text) =>
-                  hold({
-                    label: "Answer sent",
-                    tone: "ok",
-                    commit: () => decision.answerFreeText(text),
-                  })
-                }
-              />
+            decision.isFencedQuestion ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => agentDockOpen(`/conversation/${entry.id}`)}
+                className="w-full rounded-xl"
+              >
+                Answer in conversation
+              </Button>
+            ) : (
+              !decision.isPermissionCard &&
+              decision.canAnswerFreeText && (
+                <DockInput
+                  placeholder="Type your answer…"
+                  onSend={(text) =>
+                    hold({
+                      label: "Answer sent",
+                      tone: "ok",
+                      commit: () => decision.answerFreeText(text),
+                    })
+                  }
+                />
+              )
             )
           ) : (
             <DockInput

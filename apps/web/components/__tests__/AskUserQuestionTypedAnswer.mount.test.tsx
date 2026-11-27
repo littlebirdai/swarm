@@ -16,7 +16,7 @@ const restoreGlobals = replaceGlobals({
 });
 const { createRoot } = await import("react-dom/client");
 const { AskUserQuestionBlock } =
-  await import("../conversation/blocks/interactiveBlocks");
+  await import("../conversation/blocks/interactive-blocks");
 const { typedPollAnswerTexts } = await import("../../lib/pollPayload");
 
 afterAll(() => {
