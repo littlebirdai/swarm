@@ -225,3 +225,43 @@ it.effect(
       );
     }),
 );
+
+it.effect(
+  "MachineLive runs HeartbeatFlush on a scoped fiber and stops it on close",
+  () =>
+    Effect.gen(function* () {
+      const sessions = new Set<string>();
+      const batches: Array<ReadonlyArray<{ session_id: string }>> = [];
+      yield* Effect.gen(function* () {
+        const machine = yield* Machine;
+        yield* machine.ensureSessionHeartbeat("session-a");
+        yield* adjust(30_000);
+        expect(batches).toEqual([[{ session_id: "session-a" }]]);
+        yield* machine.stopSessionHeartbeat("session-a");
+        yield* adjust(30_000);
+        expect(batches).toHaveLength(1);
+      }).pipe(
+        Effect.provide(
+          MachineLive({
+            log: () => {},
+            heartbeatFlush: {
+              log: () => {},
+              isReady: () => true,
+              sessions,
+              currentSessions: () => [...sessions],
+              agentStatus: () => undefined,
+              isParked: () => false,
+              hasPane: () => true,
+              isProcessAlive: () => true,
+              isOwnedOrSuperseded: () => false,
+              sendBatch: async (payload) => {
+                batches.push(payload);
+              },
+            },
+          }),
+        ),
+      );
+      yield* adjust(60_000);
+      expect(batches).toHaveLength(1);
+    }),
+);

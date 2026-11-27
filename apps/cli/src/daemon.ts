@@ -209,10 +209,13 @@ import {
   TmuxSpawnRegistry,
 } from "./tmuxSpawns.js";
 import { countTrackedFleet, type FleetCounts } from "./fleetCounts.js";
-import {
-  deadTranscriptBeats,
-  strikeUnknownBeats,
-} from "./heartbeatMembership.js";
+import type {
+  HeartbeatFlushHost,
+  HeartbeatLogEntry,
+  HeartbeatSessionPayload,
+  MachineSupervisor,
+} from "@codecast/edge-supervisor";
+import { createHeartbeatFlushController } from "./heartbeat-flush.js";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -3252,11 +3255,7 @@ export function statusFlipEndsTurn(
   return !!prevStatus && inTurn(prevStatus) && !inTurn(status);
 }
 const DAEMON_BOOTED_AT = Date.now();
-const lastHeartbeatLogged = new Map<
-  string,
-  { status: string; ts: number; since: number }
->();
-const HEARTBEAT_LOG_THROTTLE_MS = 5 * 60 * 1000;
+const lastHeartbeatLogged = new Map<string, HeartbeatLogEntry>();
 const PERMISSION_MODES: ReadonlySet<string> = new Set([
   "default",
   "plan",
@@ -4143,33 +4142,6 @@ const SETTLE_STATUSES_WITH_TASKS: ReadonlySet<string> = new Set([
   "dormant",
   "done",
 ]);
-
-// Log the status carried on a heartbeat. Throttled per-session to once every
-// 5 minutes for same-status heartbeats; always logs on status change. The
-// "stuck=<seconds>" field is the dwell time in the current status — if we see
-// "status=working stuck=61234" in logs, that's the "session stuck in working"
-// bug. If we see status transitions in the log but the server still shows
-// stale status, the fault is in the transport, not the daemon's state tracking.
-function logHeartbeatStatus(
-  sessionId: string,
-  status: AgentStatus | undefined,
-): void {
-  if (!status) return;
-  const now = Date.now();
-  const prev = lastHeartbeatLogged.get(sessionId);
-  const since = prev && prev.status === status ? prev.since : now;
-  if (
-    prev &&
-    prev.status === status &&
-    now - prev.ts < HEARTBEAT_LOG_THROTTLE_MS
-  )
-    return;
-  lastHeartbeatLogged.set(sessionId, { status, ts: now, since });
-  const stuckSec = Math.round((now - since) / 1000);
-  log(
-    `[HEARTBEAT] session=${sessionId.slice(0, 8)} status=${status} stuck=${stuckSec}s`,
-  );
-}
 
 // --- HTTP Hook Server ---
 // Provides a push endpoint for agent status events at localhost:{port}/hook/status.
@@ -24905,14 +24877,8 @@ const lastResumeAt = new Map<string, number>();
 // window that decides a daemon is dead is derived from it, so the two cannot
 // be set apart from each other.
 const managedHeartbeatSessions = new Set<string>();
-let heartbeatFlushTimer: NodeJS.Timeout | null = null;
-let heartbeatFlushInProgress = false;
 let heartbeatMaintenanceInProgress = false;
 let heartbeatMaintenanceCount = 0;
-let lastHeartbeatSendAt = 0;
-// Cap the per-transaction slice so a write conflict retries a bounded number of
-// rows, not the whole fleet.
-const HEARTBEAT_BATCH_SIZE = 25;
 const HEALTH_CHECK_EVERY_N_HEARTBEATS = 3;
 
 // Tmux-kill policy: the daemon only tears down a managed tmux session in
@@ -26594,37 +26560,81 @@ export function shouldStartBlankSessionAfterResumeFailure(
   return !shouldMaterializeFreshClaudeSession(reason);
 }
 
-function stopManagedSessionHeartbeat(sessionId: string | undefined): void {
-  if (!sessionId) return;
-  managedHeartbeatSessions.delete(sessionId);
-  transcriptHeartbeatSessions.delete(sessionId);
+let legacyHeartbeatFlush:
+  | ReturnType<typeof createHeartbeatFlushController>
+  | undefined;
+
+function createHeartbeatFlushHost() {
+  return {
+    log,
+    isReady: () => Boolean(syncServiceRef),
+    sessions: managedHeartbeatSessions,
+    currentSessions: () => currentHeartbeatSessions(),
+    agentStatus: (sessionId: string) => lastSentAgentStatus.get(sessionId),
+    isParked: (sessionId: string) => hibernatedSessions.has(sessionId),
+    hasPane: (sessionId: string) => resumeSessionCache.has(sessionId),
+    isProcessAlive: sessionRegistryProcessAlive,
+    isOwnedOrSuperseded: (sessionId: string) =>
+      Boolean(codexOwnedPilot?.ownsThread(sessionId)) ||
+      isSupersededAppServerSession(sessionId),
+    beforeFlush: () => retryHibernationStamps(),
+    sendBatch: (payload: ReadonlyArray<HeartbeatSessionPayload>) =>
+      syncServiceRef!.heartbeatManagedSessionsBatch([...payload]),
+    onTick: () => triggerHeartbeatMaintenance(),
+    lastLogged: lastHeartbeatLogged,
+    scheduleInterval: (fn: () => void, ms: number) =>
+      outsideTranscriptDeadline(() =>
+        setInterval(() => {
+          fn();
+        }, ms),
+      ),
+  };
 }
 
-// Sessions that beat only because a transcript sync found a process writing
-// them (heartbeatMembership.ts). Anything this daemon runs or holds itself
-// (a resume, a bind, a park) takes the session out of this set.
-const transcriptHeartbeatSessions = new Set<string>();
-// Flushes in a row the server answered "no row" for a session (heartbeatMembership.ts).
-const unknownBeatStrikes = new Map<string, number>();
+function getLegacyHeartbeatFlush() {
+  return (legacyHeartbeatFlush ??= createHeartbeatFlushController(
+    createHeartbeatFlushHost(),
+  ));
+}
 
-function ensureManagedSessionHeartbeat(
+function isEdgeSupervisorEnabled(): boolean {
+  return process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1";
+}
+
+export function stopManagedSessionHeartbeat(
+  sessionId: string | undefined,
+): void {
+  if (!sessionId) return;
+  if (edgeMachine || isEdgeSupervisorEnabled()) {
+    managedHeartbeatSessions.delete(sessionId);
+    void edgeMachine
+      ?.then((m) => m.stopSessionHeartbeat(sessionId))
+      .catch(() => {});
+    return;
+  }
+  getLegacyHeartbeatFlush().stopSession(sessionId);
+}
+
+export function ensureManagedSessionHeartbeat(
   sessionId: string,
   source?: "transcript",
 ): void {
-  if (
-    !syncServiceRef ||
-    codexOwnedPilot?.ownsThread(sessionId) ||
-    isSupersededAppServerSession(sessionId)
-  )
+  if (edgeMachine || isEdgeSupervisorEnabled()) {
+    if (
+      !syncServiceRef ||
+      codexOwnedPilot?.ownsThread(sessionId) ||
+      isSupersededAppServerSession(sessionId)
+    )
+      return;
+    managedHeartbeatSessions.add(sessionId);
+    void edgeMachine
+      ?.then((m) => m.ensureSessionHeartbeat(sessionId, source))
+      .catch(() => {});
     return;
-  if (source !== "transcript") transcriptHeartbeatSessions.delete(sessionId);
-  else if (!managedHeartbeatSessions.has(sessionId))
-    transcriptHeartbeatSessions.add(sessionId);
-  managedHeartbeatSessions.add(sessionId);
-  ensureHeartbeatFlushLoop();
+  }
+  getLegacyHeartbeatFlush().ensureSession(sessionId, source);
 }
 
-/** Whether the process a session's registry file names is still running. */
 function sessionRegistryProcessAlive(sessionId: string): boolean {
   try {
     const reg = JSON.parse(
@@ -26639,37 +26649,50 @@ function sessionRegistryProcessAlive(sessionId: string): boolean {
   }
 }
 
-/** Stop beating the transcript-added sessions whose process has exited. */
-function pruneDeadTranscriptHeartbeats(): void {
-  const dead = deadTranscriptBeats(transcriptHeartbeatSessions, {
-    hasPane: (id) => resumeSessionCache.has(id),
-    parked: (id) => hibernatedSessions.has(id),
-    processAlive: sessionRegistryProcessAlive,
-  });
-  for (const id of dead) stopManagedSessionHeartbeat(id);
-  if (dead.length > 0)
-    log(
-      `[HEARTBEAT-FLUSH] stopped beating ${dead.length} session(s) whose process exited`,
-    );
-}
-
-// Armed lazily by whichever call site registers the first session, often from
-// inside a transcript ingest. A timer keeps the async context it was created
-// in, so it is armed outside any transcript deadline: the fleet's liveness
-// send and reconciles must never fail on one transcript's budget.
 function ensureHeartbeatFlushLoop(): void {
-  if (heartbeatFlushTimer || !syncServiceRef) return;
-  heartbeatFlushTimer = outsideTranscriptDeadline(() =>
-    setInterval(() => {
-      void flushManagedHeartbeats();
-    }, HEARTBEAT_FLUSH_INTERVAL_MS),
-  );
+  if (edgeMachine || isEdgeSupervisorEnabled()) {
+    void edgeMachine?.then((m) => m.armHeartbeatFlush()).catch(() => {});
+    return;
+  }
+  getLegacyHeartbeatFlush().ensureLoop();
 }
 
-// Run an async op over items with bounded concurrency (a small worker pool), so
-// a fleet-wide pass doesn't fire N tmux/network calls at once.
-// One item's failure is logged and the pool moves on: a fleet pass must not
-// stop at its first bad session.
+export async function runHeartbeatFlush(): Promise<void> {
+  if (edgeMachine || isEdgeSupervisorEnabled()) {
+    if (edgeMachine) await edgeMachine.then((m) => m.flushHeartbeats());
+    return;
+  }
+  await getLegacyHeartbeatFlush().runFlush();
+}
+
+export function heartbeatFlushHostForTests(): HeartbeatFlushHost {
+  return createHeartbeatFlushHost();
+}
+
+export function setEdgeMachineForTests(
+  machine: Promise<MachineSupervisor> | undefined,
+): void {
+  edgeMachine = machine;
+}
+
+export function isLegacyHeartbeatFlushLoopRunningForTests(): boolean {
+  return legacyHeartbeatFlush?.isLoopRunning() ?? false;
+}
+
+export function stopLegacyHeartbeatFlushLoopForTests(): void {
+  legacyHeartbeatFlush?.stopLoop();
+}
+
+async function triggerHeartbeatMaintenance(): Promise<void> {
+  if (heartbeatMaintenanceInProgress) return;
+  heartbeatMaintenanceInProgress = true;
+  try {
+    await runHeartbeatMaintenance();
+  } finally {
+    heartbeatMaintenanceInProgress = false;
+  }
+}
+
 export async function runBounded<T>(
   items: T[],
   concurrency: number,
@@ -26703,102 +26726,6 @@ export function heartbeatHealthCheckBucket(
   for (let i = 0; i < sessionId.length; i++)
     h = (h * 31 + sessionId.charCodeAt(i)) >>> 0;
   return h % mod;
-}
-
-// One flush per HEARTBEAT_FLUSH_INTERVAL_MS for the WHOLE fleet: collapses N
-// per-session heartbeat transactions into ⌈N/25⌉ batched ones, so the inbox
-// subscription recomputes ~once per flush instead of ~once per session.
-async function flushManagedHeartbeats(): Promise<void> {
-  if (!syncServiceRef || managedHeartbeatSessions.size === 0) return;
-  // The liveness send and the maintenance pass are guarded SEPARATELY. The send
-  // is a couple of batched mutations and must land every tick: the server
-  // coerces a session's active status to "stopped" once last_heartbeat ages
-  // past the 90s liveness window, so a starved send re-files the entire working
-  // fleet under needs-input. Maintenance (tmux health checks, the orphan
-  // reaper, the WIP snapshot sweep) legitimately runs for minutes under load —
-  // one shared guard let a single long pass swallow every send in between
-  // (observed: 11-minute heartbeat gaps while a 92-session WIP sweep ran,
-  // 2026-07-20).
-  if (!heartbeatFlushInProgress) {
-    heartbeatFlushInProgress = true;
-    try {
-      await runHeartbeatFlush();
-    } finally {
-      heartbeatFlushInProgress = false;
-    }
-  }
-  // Fire-and-forget: a maintenance pass must never delay the next send. Its own
-  // guard skips ticks while the prior pass is still in flight so passes don't
-  // pile up; the next tick resumes the cadence.
-  if (!heartbeatMaintenanceInProgress) {
-    heartbeatMaintenanceInProgress = true;
-    void runHeartbeatMaintenance()
-      .catch(() => {})
-      .finally(() => {
-        heartbeatMaintenanceInProgress = false;
-      });
-  }
-}
-
-export async function runHeartbeatFlush(): Promise<void> {
-  // Capture once so the non-null narrowing holds across the awaits below
-  // (a module-level `let` would re-widen to `SyncService | null` after each).
-  const sync = syncServiceRef;
-  if (!sync) return;
-  retryHibernationStamps();
-  pruneDeadTranscriptHeartbeats();
-  const ids = currentHeartbeatSessions();
-  const now = Date.now();
-
-  // Cadence sentinel: sends past 2x the interval mean something starved the
-  // send path (an event-loop block, a guard regression) and the server is about
-  // to distrust the fleet's active statuses — make it loud in the log.
-  if (
-    lastHeartbeatSendAt &&
-    now - lastHeartbeatSendAt > HEARTBEAT_FLUSH_INTERVAL_MS * 2
-  ) {
-    log(
-      `[HEARTBEAT-FLUSH] WARNING: ${Math.round((now - lastHeartbeatSendAt) / 1000)}s since last send (interval ${HEARTBEAT_FLUSH_INTERVAL_MS / 1000}s) — liveness sends are being starved`,
-    );
-  }
-  lastHeartbeatSendAt = now;
-
-  // Batched liveness write. logHeartbeatStatus stays per-session (throttled,
-  // local-only). Resource metrics are pushed separately by collectResourceSnapshot.
-  const batchCount = Math.ceil(ids.length / HEARTBEAT_BATCH_SIZE);
-  for (let i = 0; i < ids.length; i += HEARTBEAT_BATCH_SIZE) {
-    const payload = ids.slice(i, i + HEARTBEAT_BATCH_SIZE).map((sessionId) => {
-      const status = lastSentAgentStatus.get(sessionId);
-      logHeartbeatStatus(sessionId, status);
-      return status
-        ? { session_id: sessionId, agent_status: status, client_ts: now }
-        : { session_id: sessionId };
-    });
-    try {
-      const answer = await sync.heartbeatManagedSessionsBatch(payload);
-      const disowned = strikeUnknownBeats(
-        unknownBeatStrikes,
-        payload.map((p) => p.session_id),
-        answer?.unknown,
-      )
-        // A parked session's row is this daemon's to restore, never to forget.
-        .filter((id) => !hibernatedSessions.has(id));
-      for (const id of disowned) stopManagedSessionHeartbeat(id);
-      if (disowned.length > 0)
-        log(
-          `[HEARTBEAT-FLUSH] stopped beating ${disowned.length} session(s) the server has no row for`,
-        );
-    } catch (err) {
-      // A failed send leaves every session in the batch reading as stopped on
-      // the server within the liveness window, so it must be visible here.
-      log(
-        `[HEARTBEAT-FLUSH] batch of ${payload.length} failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
-  // One line/tick to confirm the fleet flushes in a handful of transactions
-  // (each = one inbox invalidation) rather than ~N. Pre-batch this was N/30s.
-  log(`[HEARTBEAT-FLUSH] sessions=${ids.length} batches=${batchCount}`);
 }
 
 // The slow fleet-hygiene half of the heartbeat tick — everything that may block
@@ -40322,7 +40249,7 @@ async function main(): Promise<void> {
   // depends on later (potentially slow) init steps.
   if (process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1") {
     edgeMachine = import("@codecast/edge-supervisor").then((m) =>
-      m.startMachine({ log }),
+      m.startMachine({ log, heartbeatFlush: createHeartbeatFlushHost() }),
     );
     void edgeMachine.catch(() => log("[EDGE] Supervisor start failed"));
   }

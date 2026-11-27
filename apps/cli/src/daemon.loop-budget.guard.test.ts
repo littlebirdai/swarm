@@ -372,7 +372,7 @@ const ROWS: Row[] = [
     mustContain: "performReconciliation",
   },
   {
-    file: D,
+    file: "heartbeat-flush.ts",
     name: "flushManagedHeartbeats",
     kind: "function",
     minLines: 10,
@@ -464,10 +464,17 @@ const ROWS: Row[] = [
   },
   {
     file: D,
+    name: "createHeartbeatFlushHost",
+    kind: "function",
+    minLines: 15,
+    mustContain: "heartbeatManagedSessionsBatch",
+  },
+  {
+    file: "heartbeat-flush.ts",
     name: "runHeartbeatFlush",
     kind: "function",
     minLines: 20,
-    mustContain: "heartbeatManagedSessionsBatch",
+    mustContain: "sendBatch",
   },
   {
     file: D,
