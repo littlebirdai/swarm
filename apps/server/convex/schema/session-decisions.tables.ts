@@ -328,6 +328,11 @@ export const sessionDecisionTables = {
     .index("by_share_token", ["share_token"])
     .index("by_user_status", ["user_id", "status"])
     .index("by_conversation_status", ["conversation_id", "status"])
+    .index("by_conversation_status_resolved", [
+      "conversation_id",
+      "status",
+      "resolved_at",
+    ])
     // Global recency scan for the email digest sweep: recent pending decisions.
     .index("by_status_created", ["status", "created_at"])
     .index("by_task", ["task_id", "status"])

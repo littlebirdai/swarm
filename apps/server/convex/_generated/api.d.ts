@@ -253,6 +253,7 @@ import type * as judgeReview from "../judgeReview.js";
 import type * as keyBindings from "../keyBindings.js";
 import type * as landedChanges from "../landedChanges.js";
 import type * as landedChangesSchema from "../landedChangesSchema.js";
+import type * as lateJoinSummary from "../lateJoinSummary.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_accessKeys from "../lib/accessKeys.js";
 import type * as lib_accessLog from "../lib/accessLog.js";
@@ -1114,6 +1115,7 @@ declare const fullApi: ApiFromModules<{
   keyBindings: typeof keyBindings;
   landedChanges: typeof landedChanges;
   landedChangesSchema: typeof landedChangesSchema;
+  lateJoinSummary: typeof lateJoinSummary;
   "lib/access": typeof lib_access;
   "lib/accessKeys": typeof lib_accessKeys;
   "lib/accessLog": typeof lib_accessLog;
