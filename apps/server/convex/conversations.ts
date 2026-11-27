@@ -11254,6 +11254,7 @@ export async function scanInboxConversations(
 ): Promise<{
   conversations: any[];
   maps: InboxSessionMaps;
+  loadIndexedLiveness?: (ids: Id<"conversations">[]) => Promise<void>;
   // The subagent window (see opts.subagentWindow): newest INBOX_WINDOW_CAP
   // subagent rows inside the recency window. Empty when not requested.
   recentSubagents: any[];
@@ -11773,6 +11774,9 @@ export async function scanInboxConversations(
   // its lead (groupPoolChildren) without the teammate becoming a row here.
   let poolChildren: any[] = [];
   let maps: InboxSessionMaps;
+  let loadIndexedLiveness:
+    | ((ids: Id<"conversations">[]) => Promise<void>)
+    | undefined;
   if (!opts.includeLiveness) {
     maps = EMPTY_INBOX_MAPS;
   } else if (opts.namedOnly) {
@@ -11783,21 +11787,20 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else if (opts.indexedLiveness) {
-    const { sessions, beats, latestDaemonHeartbeat } =
-      await indexedInboxSessionRows(
-        ctx,
-        userId,
-        now,
-        [...conversations.filter(shouldShowInInbox), ...recentSubagents].map(
-          (c) => c._id,
-        ),
-      );
-    maps = sessionMapsFromManagedRows(
+    const rows = await indexedInboxSessionRows(ctx, userId, now);
+    const buildMaps = ({
       sessions,
       beats,
-      now,
       latestDaemonHeartbeat,
-    );
+    }: Awaited<ReturnType<typeof rows.withHistory>>) =>
+      sessionMapsFromManagedRows(sessions, beats, now, latestDaemonHeartbeat);
+    maps = buildMaps(rows);
+    loadIndexedLiveness = async (ids) => {
+      const next = buildMaps(await rows.withHistory(ids));
+      if (foreignConvs.length)
+        await mergeForeignConversationLiveness(ctx, next, foreignConvs, now);
+      Object.assign(maps, next);
+    };
   } else {
     maps = await buildUserSessionMaps(ctx, userId, now, opts.heartbeatSince);
   }
@@ -11809,7 +11812,7 @@ export async function scanInboxConversations(
   const foreignConvs = conversations.filter(
     (c) => c.user_id.toString() !== userId.toString(),
   );
-  if (opts.includeLiveness && foreignConvs.length > 0) {
+  if (opts.includeLiveness && !loadIndexedLiveness && foreignConvs.length > 0) {
     await mergeForeignConversationLiveness(ctx, maps, foreignConvs, now);
   }
 
@@ -11840,6 +11843,7 @@ export async function scanInboxConversations(
   return {
     conversations,
     maps,
+    loadIndexedLiveness,
     deliberateIds,
     clusterCutoff,
     selectionIds: new Set(selection.members.keys()),
@@ -13320,6 +13324,9 @@ export async function computeSessionsLiveness(
     maps,
     pendingDecisionIds,
   );
+  await scan.loadIndexedLiveness?.(
+    [...pool, ...scan.recentSubagents].map((c) => c._id),
+  );
   const childrenByParent = groupPoolChildren(pool);
   const scannedIds = new Set(conversations.map((c: any) => c._id.toString()));
   const pooledAt = (cid: string, t: number) =>
@@ -13349,9 +13356,6 @@ export async function computeSessionsLiveness(
   const producingUntilFor = (cid: string): number | null =>
     producingUntilOf(childrenByParent.get(cid) ?? [], maps);
 
-  // Phase 2 — foreign-run parents whose children are invisible to the pool:
-  // the budget goes to the most recently updated idle ones, and overflow is
-  // flagged rather than dropped by iteration order.
   const foreignCandidates: Array<{ conv: any; i: number }> = [];
   shownConvs.forEach((conv, i) => {
     if (conv.user_id.toString() === uid) return;
@@ -13382,6 +13386,8 @@ export async function computeSessionsLiveness(
         .take(20),
     ),
   );
+  if (scannedChildren.length)
+    await scan.loadIndexedLiveness?.(scannedChildren.flat().map((c) => c._id));
   scanTargets.forEach(({ conv }, k) => {
     const cid = conv._id.toString();
     const known = new Set(
@@ -13514,14 +13520,6 @@ export async function computeSessionsLiveness(
       liveness[cid] = deriveLivenessAt(c, maps, childReads, null, now);
     }
   }
-  // The subagent window's children of shown parents, idle ones included: the
-  // list strips message_count/updated_at from exactly these rows (they change
-  // on every streamed message of an Agent-tool subagent, which has no managed
-  // session and so never enters the live pool), so this overlay is their only
-  // writer. Grouped by parent_conversation_id, the same link the list's
-  // children scan reads, so the two sets agree child for child. No probe: an
-  // AUQ answer comes from this execution's pool probes or the cache, as for
-  // the pool children above.
   for (const c of scan.recentSubagents) {
     const cid = c._id.toString();
     if (liveness[cid] || (c.message_count ?? 0) === 0) continue;

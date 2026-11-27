@@ -90,7 +90,6 @@ export async function indexedInboxSessionRows(
   ctx: Reader,
   userId: Id<"users">,
   now: number,
-  conversationIds: Id<"conversations">[],
 ) {
   const recentWithoutLiveLease = (expired: true | undefined) =>
     ctx.db
@@ -124,32 +123,42 @@ export async function indexedInboxSessionRows(
         )
         .order("desc")
         .first();
-  const covered = new Set(hot.map((row) => row.conversation_id));
-  const historical = await Promise.all(
-    [...new Set(conversationIds)]
-      .filter((id) => !covered.has(id))
-      .map((id) =>
+  const rows = new Map(hot.map((row) => [row._id, row]));
+  const loaded = new Set<Id<"conversations">>();
+  async function snapshot() {
+    const sessions = [...rows.values()].sort(
+      (a, b) =>
+        a._creationTime - b._creationTime ||
+        (a._id < b._id ? -1 : Number(a._id > b._id)),
+    );
+    return {
+      sessions,
+      beats: await inboxHeartbeatsFor(ctx, sessions),
+      latestDaemonHeartbeat: newestDaemon?.last_heartbeat,
+    };
+  }
+
+  async function withHistory(conversationIds: Id<"conversations">[]) {
+    const missing = [...new Set(conversationIds)].filter(
+      (id) => !loaded.has(id),
+    );
+    const historical = await Promise.all(
+      missing.map((id) =>
         ctx.db
           .query("managed_sessions")
           .withIndex("by_conversation_user", (q) =>
             q.eq("conversation_id", id).eq("user_id", userId),
           )
           .order("desc")
-          .first(),
+          .take(8),
       ),
-  );
+    );
+    for (const id of missing) loaded.add(id);
+    for (const row of historical.flat()) rows.set(row._id, row);
+    return snapshot();
+  }
 
-  const sessions = [...hot, ...historical.filter((row) => row !== null)].sort(
-    (a, b) =>
-      a._creationTime - b._creationTime ||
-      (a._id < b._id ? -1 : Number(a._id > b._id)),
-  );
-  const beats = await inboxHeartbeatsFor(ctx, sessions);
-  return {
-    sessions,
-    beats,
-    latestDaemonHeartbeat: newestDaemon?.last_heartbeat,
-  };
+  return { ...(await snapshot()), withHistory };
 }
 
 export async function heartbeatOf(

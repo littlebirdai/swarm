@@ -168,15 +168,15 @@ test("indexed personal liveness reads the same documents as unrelated history gr
   const bounded = await read();
 
   expect(legacy.managed).toBe(2000);
-  expect(bounded.managed).toBe(21);
+  expect(bounded.managed).toBe(41);
   expect(bounded.heartbeats).toBe(0);
-  expect(bounded.documents).toBe(42);
+  expect(bounded.documents).toBe(62);
   expect(bounded.documents).toBe(small.documents);
   expect(bounded.dbCalls).toBe(small.dbCalls);
-  expect(bounded.dbCalls).toBeLessThanOrEqual(80);
+  expect(bounded.dbCalls).toBeLessThanOrEqual(121);
   expect(bounded.bytes).toBe(small.bytes);
   expect(bounded.documents).toBeLessThan(legacy.documents / 30);
-  expect(bounded.bytes).toBeLessThan(legacy.bytes / 30);
+  expect(bounded.bytes).toBeLessThan(legacy.bytes / 20);
   expect(bounded.result).toEqual(legacy.result);
   expect(bounded.result.liveness[pin]?.agent_status).toBe("done");
   expect(bounded.result.liveness[liveIds[0]]?.is_connected).toBe(true);
@@ -278,4 +278,154 @@ test("indexed liveness retains live children beyond the inbox child window", asy
   expect(
     childIds.filter((id) => liveness[id]?.agent_status === "working"),
   ).toHaveLength(513);
+});
+
+for (const kind of ["workflow", "pinned", "stashed decision"] as const) {
+  test(`indexed liveness preserves expired ${kind} child facts`, async () => {
+    const t = serverTest(true);
+    const { user, parent, child } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, `indexed ${kind} child`);
+      const user = await rows.user();
+      const parent = await rows.conversation(user, {
+        updated_at: now - 10_000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const child = await rows.conversation(user, {
+        parent_conversation_id: parent,
+        updated_at: now - 1_000,
+        message_count: 1,
+        last_message_role: "assistant",
+        ...(kind === "workflow"
+          ? { is_workflow_sub: true }
+          : { is_subagent: true }),
+        ...(kind === "pinned" ? { inbox_pinned_at: now - 1000 } : {}),
+        ...(kind === "stashed decision"
+          ? { inbox_stashed_at: now - 1000 }
+          : {}),
+      });
+      const last = now - 500_000;
+      await rows.session(user, {
+        conversation_id: child,
+        last_heartbeat: last,
+        liveness_lease: { end: last + HEARTBEAT_ALIVE_MS, expired: true },
+        agent_status:
+          kind === "stashed decision" ? "working" : "permission_blocked",
+      });
+      if (kind === "stashed decision") {
+        await db.insert("session_decisions", {
+          conversation_id: child,
+          session_id: "stashed-child",
+          user_id: user,
+          question: "Proceed?",
+          options: [{ label: "Yes" }, { label: "No" }],
+          blocking: true,
+          status: "pending",
+          created_at: now - 1_000,
+        });
+      }
+      return { user, parent, child };
+    });
+    const viewer = asUser(t, user);
+    const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+    const full = await read();
+    expect(full.liveness[parent]).toMatchObject({
+      child_asking: true,
+      child_live: true,
+      bucket: "questions",
+    });
+    expect(full.liveness[child]?.agent_status).toBe(
+      kind === "stashed decision" ? "working" : "permission_blocked",
+    );
+    process.env.INBOX_INDEXED_LIVENESS = "1";
+    expect(await read()).toEqual(full);
+  });
+}
+
+for (const newerIsLive of [false, true]) {
+  test(`indexed liveness merges older fields with a ${newerIsLive ? "live" : "historical"} duplicate`, async () => {
+    const t = serverTest(true);
+    const { user, conversation } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "managed session duplicates");
+      const user = await rows.user();
+      const conversation = await rows.conversation(user, {
+        updated_at: now - 1000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const olderBeat = now - 500_000;
+      const newerBeat = now - (newerIsLive ? 1_000 : 600_000);
+      await rows.session(user, {
+        conversation_id: conversation,
+        last_heartbeat: olderBeat,
+        liveness_lease: { end: olderBeat + HEARTBEAT_ALIVE_MS, expired: true },
+        agent_status: "done",
+        tmux_session: "pane-1",
+      });
+      await rows.session(user, {
+        conversation_id: conversation,
+        last_heartbeat: newerBeat,
+        liveness_lease: {
+          end: newerBeat + HEARTBEAT_ALIVE_MS,
+          expired: !newerIsLive,
+        },
+        agent_status: undefined,
+        tmux_session: undefined,
+      });
+      return { user, conversation };
+    });
+    const viewer = asUser(t, user);
+    const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+    const full = await read();
+    expect(full.liveness[conversation]).toMatchObject({
+      agent_status: "done",
+      tmux_session: "pane-1",
+      last_heartbeat: now - (newerIsLive ? 1_000 : 500_000),
+    });
+    process.env.INBOX_INDEXED_LIVENESS = "1";
+    expect(await read()).toEqual(full);
+  });
+}
+
+test("indexed liveness retains child facts found by the foreign parent scan", async () => {
+  const t = serverTest(true);
+  const { user, parent, child } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "indexed foreign child");
+    const user = await rows.user();
+    const runner = await rows.user();
+    const parent = await rows.conversation(runner, {
+      owner_user_id: user,
+      updated_at: now - 20 * 60_000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    await db.insert("session_owners", {
+      conversation_id: parent,
+      user_id: user,
+      added_by: user,
+      added_at: now - 1000,
+    });
+    const child = await rows.conversation(runner, {
+      parent_conversation_id: parent,
+      is_subagent: true,
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const beat = now - 500_000;
+    await rows.session(user, {
+      conversation_id: child,
+      agent_status: "working",
+      last_heartbeat: beat,
+      liveness_lease: { end: beat + HEARTBEAT_ALIVE_MS, expired: true },
+    });
+    return { user, parent, child };
+  });
+  const viewer = asUser(t, user);
+  const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+  const full = await read();
+  expect(full.liveness[parent]?.child_live).toBe(true);
+  expect(full.liveness[child]?.agent_status).toBe("working");
+  process.env.INBOX_INDEXED_LIVENESS = "1";
+  expect(await read()).toEqual(full);
 });
