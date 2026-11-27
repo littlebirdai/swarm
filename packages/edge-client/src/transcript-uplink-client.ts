@@ -61,10 +61,8 @@ export function createTranscriptUplink(options: {
               response.status === 401
                 ? "Authentication failed: invalid transcript device token"
                 : `Transcript batch request failed (${response.status})`,
-            retryable:
-              response.status === 401 ||
-              response.status === 429 ||
-              response.status >= 500,
+            credentialRejected: response.status === 401,
+            retryable: response.status === 429 || response.status >= 500,
             fallbackAllowed: [400, 403, 404, 405, 410, 413, 422].includes(
               response.status,
             ),

@@ -314,7 +314,7 @@ test("a disabled route replays through legacy in order and skips refused rows", 
   }
 });
 
-test("a 401 waits for a different bearer and then replays the same batch", async () => {
+test("repeated 401s wait for different bearers and replay the same batch", async () => {
   const tmp = await mkdtemp(join(tmpdir(), "cli-transcript-auth-"));
   const spoolPath = join(tmp, "spool.json");
   const request: TranscriptAppendRequest = {
@@ -328,7 +328,7 @@ test("a 401 waits for a different bearer and then replays the same batch", async
     ],
   };
   await writeFile(spoolPath, JSON.stringify(request));
-  let credentialReads = 0;
+  let readRejectedToken = false;
   const posts: [string | null, TranscriptAppendRequest][] = [];
   const fetch = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
@@ -336,7 +336,7 @@ test("a 401 waits for a different bearer and then replays the same batch", async
         const authorization = new Headers(init?.headers).get("Authorization");
         const body = JSON.parse(String(init?.body));
         posts.push([authorization, body]);
-        return authorization === "Bearer new-token"
+        return authorization === "Bearer token-8"
           ? wireReceipt(body)
           : new Response(null, { status: 401 });
       },
@@ -346,20 +346,28 @@ test("a 401 waits for a different bearer and then replays the same batch", async
   const uplink = createTranscriptUplink({
     siteUrl: "https://edge.invalid",
     spoolPath,
-    bearer: () => (++credentialReads < 3 ? "old-token" : "new-token"),
+    bearer: () => {
+      if (posts.length === 1 && !readRejectedToken) {
+        readRejectedToken = true;
+        return "token-0";
+      }
+      return `token-${posts.length}`;
+    },
     fallback: async () => {
       throw new Error("401 must not fall back");
     },
   });
   try {
     await uplink.start();
-    expect(posts).toEqual([
-      ["Bearer old-token", request],
-      ["Bearer new-token", request],
-    ]);
+    expect(posts).toEqual(
+      Array.from({ length: 9 }, (_, index) => [
+        `Bearer token-${index}`,
+        request,
+      ]),
+    );
   } finally {
     await uplink.close();
     fetch.mockRestore();
     await rm(tmp, { recursive: true, force: true });
   }
-});
+}, 12_000);

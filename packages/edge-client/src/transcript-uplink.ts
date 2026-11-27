@@ -13,12 +13,16 @@ import * as Data from "effect/Data";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Queue from "effect/Queue";
 import * as Schedule from "effect/Schedule";
 import type { TranscriptSpool } from "./transcript-spool";
 
 const queueCapacity = 32;
 const batchInterval = "250 millis";
+const recoveryBackoffMs = 30_000;
+const maxRetryDelayMs = 60_000;
+const terminalBypasses = Metric.counter("transcript_uplink_terminal_bypasses");
 
 export type TranscriptSubmission =
   | TranscriptAppendResult
@@ -36,6 +40,7 @@ export class TranscriptUplinkError extends Data.TaggedError(
   retryable: boolean;
   retryAfterMs?: number;
   fallbackAllowed?: boolean;
+  credentialRejected?: boolean;
 }> {}
 
 export interface TranscriptUplinkOptions {
@@ -79,6 +84,12 @@ export class TranscriptUplink extends Context.Service<
           TranscriptUplinkError
         >();
         let activeBatch: TranscriptAppendRequest | null = null;
+        let heldFailure: TranscriptUplinkError | undefined;
+        let terminalFailure: TranscriptUplinkError | undefined;
+        const activeConversation = (id: string) =>
+          activeBatch?.writes.some(
+            ({ conversation_id }) => conversation_id === id,
+          );
 
         const fallback = Effect.fn("TranscriptUplink.fallback")(function* (
           batch: TranscriptAppendRequest,
@@ -127,18 +138,22 @@ export class TranscriptUplink extends Context.Service<
                     }),
             }).pipe(
               Effect.retry({
+                schedule: Schedule.forever,
+                while: (error) => error.credentialRejected === true,
+              }),
+              Effect.retry({
                 schedule: Schedule.spaced("1 second").pipe(
                   Schedule.modifyDelay(({ input }) =>
                     Effect.succeed(
                       Math.max(
                         1_000,
                         input instanceof TranscriptUplinkError
-                          ? Math.min(input.retryAfterMs ?? 0, 60_000)
+                          ? Math.min(input.retryAfterMs ?? 0, maxRetryDelayMs)
                           : 0,
                       ),
                     ),
                   ),
-                  Schedule.upTo({ times: 5, duration: "1 minute" }),
+                  Schedule.upTo({ times: 5 }),
                 ),
                 while: (error) => error.retryable,
               }),
@@ -163,6 +178,35 @@ export class TranscriptUplink extends Context.Service<
           return receipt.value.results;
         });
 
+        const sendHeldBatch = Effect.fn("TranscriptUplink.send-held-batch")(
+          function* (batch: TranscriptAppendRequest, entries: PendingWrite[]) {
+            for (;;) {
+              const attempt = yield* Effect.result(transmit(batch));
+              if (attempt._tag === "Success") {
+                yield* spoolIo(options.spool.clear);
+                activeBatch = null;
+                heldFailure = undefined;
+                for (const [index, entry] of entries.entries())
+                  yield* Deferred.succeed(
+                    entry.result,
+                    attempt.success[index]!,
+                  );
+                return;
+              }
+              if (!attempt.failure.retryable) return yield* attempt.failure;
+              heldFailure = attempt.failure;
+              for (const entry of entries)
+                yield* Deferred.fail(entry.result, heldFailure);
+              yield* Effect.sleep(
+                Math.max(
+                  recoveryBackoffMs,
+                  Math.min(heldFailure.retryAfterMs ?? 0, maxRetryDelayMs),
+                ),
+              );
+            }
+          },
+        );
+
         yield* Effect.gen(function* () {
           activeBatch = yield* spoolIo(options.spool.read);
           yield* Deferred.succeed(
@@ -171,11 +215,7 @@ export class TranscriptUplink extends Context.Service<
               activeBatch?.writes.map(({ conversation_id }) => conversation_id),
             ),
           );
-          if (activeBatch) {
-            yield* transmit(activeBatch);
-            yield* spoolIo(options.spool.clear);
-            activeBatch = null;
-          }
+          if (activeBatch) yield* sendHeldBatch(activeBatch, []);
           yield* Deferred.succeed(ready, undefined);
           let pending: PendingWrite[] = [];
           for (;;) {
@@ -201,19 +241,16 @@ export class TranscriptUplink extends Context.Service<
             };
             activeBatch = batch;
             yield* spoolIo(() => options.spool.save(batch));
-            const results = yield* transmit(batch);
-            yield* spoolIo(options.spool.clear);
-            activeBatch = null;
-            for (const [index, entry] of entries.entries()) {
-              yield* Deferred.succeed(entry.result, results[index]!);
-            }
+            yield* sendHeldBatch(batch, entries);
           }
         }).pipe(
           Effect.catch(
             Effect.fn("TranscriptUplink.fail")(function* (error) {
+              terminalFailure = error;
               yield* Deferred.fail(discovered, error);
               yield* Deferred.fail(ready, error);
               yield* Deferred.fail(fatal, error);
+              yield* Queue.shutdown(queue);
             }),
           ),
           Effect.forkScoped,
@@ -224,15 +261,11 @@ export class TranscriptUplink extends Context.Service<
           waitForReplay: Effect.fn("TranscriptUplink.wait-for-replay")(
             function* (conversationId) {
               const sessions = yield* Deferred.await(discovered);
+              if (heldFailure && activeConversation(conversationId))
+                return yield* heldFailure;
               if (sessions.has(conversationId)) yield* Deferred.await(ready);
-              const failure = yield* Deferred.poll(fatal);
-              if (
-                failure._tag === "Some" &&
-                activeBatch?.writes.some(
-                  ({ conversation_id }) => conversation_id === conversationId,
-                )
-              )
-                return yield* failure.value;
+              if (terminalFailure && activeConversation(conversationId))
+                return yield* terminalFailure;
             },
           ),
           submit: Effect.fn("TranscriptUplink.submit")(function* (write) {
@@ -242,6 +275,16 @@ export class TranscriptUplink extends Context.Service<
                 retryable: false,
               });
             }
+            const onTerminal = (error: TranscriptUplinkError) =>
+              !options.fallback || activeConversation(write.conversation_id)
+                ? Effect.fail(error)
+                : Effect.succeed({ status: "legacy" as const });
+            if (terminalFailure) {
+              yield* Metric.update(terminalBypasses, 1);
+              return yield* onTerminal(terminalFailure);
+            }
+            if (heldFailure && activeConversation(write.conversation_id))
+              return yield* heldFailure;
             const submit = Effect.gen(function* () {
               const result = yield* Deferred.make<
                 TranscriptAppendResult,
@@ -250,16 +293,9 @@ export class TranscriptUplink extends Context.Service<
               yield* Queue.offer(queue, { write, result });
               return yield* Deferred.await(result);
             });
-            return yield* Effect.raceFirst(submit, Deferred.await(fatal)).pipe(
-              Effect.catch((error) =>
-                !options.fallback ||
-                activeBatch?.writes.some(
-                  ({ conversation_id }) =>
-                    conversation_id === write.conversation_id,
-                )
-                  ? Effect.fail(error)
-                  : Effect.succeed({ status: "legacy" as const }),
-              ),
+            return yield* Effect.raceFirst(
+              submit,
+              Deferred.await(fatal).pipe(Effect.catch(onTerminal)),
             );
           }),
         });

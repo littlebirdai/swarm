@@ -12,6 +12,7 @@ import {
 import { it } from "@codecast/effect-kit/effect/testing";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
 import { join } from "effect/Fiber";
 import { adjust } from "effect/testing/TestClock";
 import {
@@ -337,9 +338,143 @@ it.effect(
               error,
             );
             yield* uplink.waitForReplay("unrelated");
-            expect(yield* uplink.submit(write("unrelated"))).toEqual({
-              status: "legacy",
-            });
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "the worker retries a held packet after backoff and then sends newer writes",
+  () =>
+    Effect.gen(function* () {
+      const spool = memorySpool();
+      const attempts: TranscriptAppendRequest[] = [];
+      const error = new TranscriptUplinkError({
+        message: "unavailable",
+        retryable: true,
+      });
+      let online = false;
+      yield* withUplink(
+        {
+          spool,
+          async send(batch) {
+            attempts.push(batch);
+            if (!online) throw error;
+            return receipt(batch);
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const first = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("held"))),
+            );
+            yield* adjust(10_000);
+            expect(yield* join(first)).toBe(error);
+            expect(attempts).toHaveLength(6);
+            expect(yield* Effect.promise(spool.read)).toEqual(attempts[0]);
+            expect(yield* Effect.flip(uplink.waitForReplay("held"))).toBe(
+              error,
+            );
+
+            online = true;
+            yield* adjust(30_000);
+            expect(attempts).toHaveLength(7);
+            expect(attempts.slice(1)).toEqual(
+              Array.from({ length: 6 }, () => attempts[0]),
+            );
+            expect(yield* Effect.promise(spool.read)).toBeNull();
+            yield* uplink.waitForReplay("held");
+            const next = yield* Effect.forkChild(uplink.submit(write("held")));
+            yield* adjust(250);
+            expect(yield* join(next)).toMatchObject({ status: "applied" });
+            expect(attempts[7]?.batch_id).not.toBe(attempts[0]?.batch_id);
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "credential rejections leave all five transport retries available",
+  () =>
+    Effect.gen(function* () {
+      let credentialRejections = 0;
+      let transportAttempts = 0;
+      const attempts: TranscriptAppendRequest[] = [];
+      const credentialFailure = new TranscriptUplinkError({
+        message: "credential expired",
+        retryable: false,
+        credentialRejected: true,
+      });
+      yield* withUplink(
+        {
+          spool: memorySpool(),
+          async send(batch) {
+            attempts.push(batch);
+            if (credentialRejections < 8) {
+              credentialRejections++;
+              throw credentialFailure;
+            }
+            if (++transportAttempts <= 5)
+              throw new TranscriptUplinkError({
+                message: "unavailable",
+                retryable: true,
+              });
+            return receipt(batch);
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              uplink.submit(write("credentials")),
+            );
+            yield* adjust(5_500);
+            expect(credentialRejections).toBe(8);
+            expect(transportAttempts).toBe(6);
+            expect(yield* join(pending)).toMatchObject({ status: "applied" });
+            expect(new Set(attempts.map((batch) => batch.batch_id)).size).toBe(
+              1,
+            );
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "new submissions after a permanent worker failure bypass the dead queue",
+  () =>
+    Effect.gen(function* () {
+      const skipped = Metric.counter("transcript_uplink_terminal_bypasses");
+      const before = (yield* Metric.value(skipped)).count;
+      const spool = memorySpool();
+      const rejected = new TranscriptUplinkError({
+        message: "permanent",
+        retryable: false,
+      });
+      let sends = 0;
+      yield* withUplink(
+        {
+          spool,
+          async send() {
+            sends++;
+            throw rejected;
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const first = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("first"))),
+            );
+            yield* adjust(250);
+            expect(yield* join(first)).toBe(rejected);
+            for (let i = 0; i < 40; i++)
+              expect(yield* Effect.flip(uplink.submit(write("later")))).toBe(
+                rejected,
+              );
+            expect((yield* Metric.value(skipped)).count - before).toBe(40);
+            expect(sends).toBe(1);
           }),
       );
     }),
