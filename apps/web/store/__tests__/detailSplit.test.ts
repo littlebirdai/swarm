@@ -17,6 +17,7 @@ import {
   DETAIL_ROW_CAPS,
   joinPullRequestDetail,
   pinDetailRows,
+  pullRequestBodyDetailEnabled,
   pullRequestDetailRow,
   resetDetailPins,
   taskThreadStale,
@@ -225,11 +226,11 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     expect(row.checks).toBeUndefined();
     expect(row).toMatchObject({
       title: "Seven",
-      body: "why",
       changed_files: 1,
       commits_count: 1,
       checks_state: "failure",
     });
+    expect(row.body).toBe(pullRequestBodyDetailEnabled() ? undefined : "why");
     expect(state().pullRequestDetails).toEqual({});
   });
 
@@ -257,6 +258,22 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     );
     expect(state().pullRequestDetails[id("p")].checks).toEqual(passed);
     expect(state().pullRequestDetails[id("p")].checks_state).toBe("success");
+    const {
+      files: _files,
+      commits: _commits,
+      checks: _checks,
+      ...bodyOnly
+    } = pr("p");
+    state().syncRecord("pullRequests", id("p"), {
+      ...bodyOnly,
+      body: "Edited",
+    });
+    const held = state().pullRequestDetails[id("p")];
+    expect(held.files).toEqual(files);
+    expect(held.checks_state).toBe("success");
+    expect(held.body).toBe(
+      pullRequestBodyDetailEnabled() ? "Edited" : undefined,
+    );
   });
 
   it("the page's read lays the detail on the row, and hides checks read under another state", () => {
@@ -264,6 +281,7 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     const row = state().pullRequests[id("p")];
     const detail = state().pullRequestDetails[id("p")];
     expect(joinPullRequestDetail(row, detail)).toMatchObject({
+      body: "why",
       files,
       commits,
       checks,
@@ -294,7 +312,7 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     expect(kept.files).toBeUndefined();
     expect(kept.commits).toBeUndefined();
     expect(kept.checks).toBeUndefined();
-    expect(kept.body).toBe("why");
+    expect(kept.body).toBe(pullRequestBodyDetailEnabled() ? undefined : "why");
   });
 
   it("a detail keeps its last-opened stamp inside the grain, so a push does not rewrite it to disk", () => {

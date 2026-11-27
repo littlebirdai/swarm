@@ -5,17 +5,20 @@ import { SESSION_CARD_PR_FIELDS } from "@codecast/convex/convex/lib/prSessions";
 
 type Row = Record<string, unknown>;
 
-/** A pull request row some full feed wrote: every one carries its body, the chip feed never does. */
-export function isFullPullRequest(row: { body?: unknown }): boolean {
-  return typeof row.body === "string";
+/** A pull request row some full feed wrote. */
+export function isFullPullRequest(row: {
+  body?: unknown;
+  has_full_projection?: unknown;
+}): boolean {
+  return row.has_full_projection === true || typeof row.body === "string";
 }
 
 /**
  * Lay chip rows over the rows the store holds, so a push never drops what a
  * fuller feed cached (its body, its other links), and a chip field the
  * payload leaves out (a cleared draft flag) clears. A row nothing fuller has
- * written has no body, which is how the PR page and the timeline know it is
- * not loaded. The detail a fuller feed cached under an older state would
+ * written lacks both the full-projection stamp and body, so the PR page
+ * and timeline wait for the full projection. Detail cached under an older state would
  * contradict the new one: the merge state goes until that feed sends it
  * again, and the checks, which live in pullRequestDetails, are hidden by
  * their reader while they were read under another checks_state

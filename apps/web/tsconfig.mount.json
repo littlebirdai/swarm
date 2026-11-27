@@ -95,6 +95,7 @@
     "components/org/scope/ScopePage.mount.test.tsx",
     "components/org/scope/ScopeSettings.mount.test.tsx",
     "components/org/scope/__tests__/ScopeLineTab.mount.test.tsx",
+    "components/pr/pull-request-body-detail.mount.test.tsx",
     "components/pr/PRDeploy.deploysLink.test.tsx",
     "components/pr/ReviewMenu.mount.test.tsx",
     "components/settings/PasskeysSection.mount.test.tsx",

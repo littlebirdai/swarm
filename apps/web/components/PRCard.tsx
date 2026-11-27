@@ -4,12 +4,17 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { DiffFile } from "./FileDiffView";
 import { PullRequestFiles } from "./pr/PullRequestFiles";
 import { prPageHref } from "../lib/repoView";
+import { pullRequestBodyDetailEnabled } from "../lib/detail-rows";
+import {
+  usePullRequestDetail,
+  useSyncPullRequestDetail,
+} from "../hooks/useSyncTimeline";
 
 type PRCardProps = {
   _id: Id<"pull_requests">;
   number: number;
   title: string;
-  body: string;
+  body?: string;
   state: "open" | "closed" | "merged";
   repository: string;
   author_github_username: string;
@@ -196,18 +201,10 @@ export function PRCard(props: PRCardProps) {
 
       {expanded && (
         <div className="border-t border-sol-border/50">
-          {props.body && (
-            <div className="px-3 py-2 bg-sol-bg/30 border-b border-sol-border/30">
-              <div className="text-xs text-sol-text-muted whitespace-pre-wrap">
-                {props.body}
-              </div>
-            </div>
-          )}
-
-          <PullRequestFiles
+          <PullRequestCardContents
             id={props._id}
+            body={props.body}
             files={props.files}
-            emptyText="No file changes synced yet"
           />
 
           <div className="px-3 py-2 bg-sol-bg/20 flex items-center justify-between">
@@ -238,5 +235,37 @@ export function PRCard(props: PRCardProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function PullRequestCardContents({
+  id,
+  body,
+  files,
+}: {
+  id: string;
+  body?: string;
+  files?: DiffFile[];
+}) {
+  const detailId = pullRequestBodyDetailEnabled() ? id : undefined;
+  const feed = useSyncPullRequestDetail(detailId);
+  const detail = usePullRequestDetail(detailId);
+  const content = body ?? detail?.body;
+  const loading = detailId && !detail && !feed.ready && !feed.error;
+  return (
+    <>
+      {content && (
+        <div className="px-3 py-2 bg-sol-bg/30 border-b border-sol-border/30">
+          <div className="text-xs text-sol-text-muted whitespace-pre-wrap">
+            {content}
+          </div>
+        </div>
+      )}
+      <PullRequestFiles
+        id={detailId ? undefined : id}
+        files={files ?? detail?.files}
+        emptyText={loading ? undefined : "No file changes synced yet"}
+      />
+    </>
   );
 }

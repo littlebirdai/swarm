@@ -197,6 +197,7 @@ export const PULL_REQUEST_DETAIL_FIELDS = [
 
 export type PullRequestDetailRow = {
   _id: string;
+  body?: string;
   files?: any[];
   commits?: any[];
   checks?: any[];
@@ -208,14 +209,36 @@ export type PullRequestDetailRow = {
   _cachedAt: number;
 };
 
+export function pullRequestBodyDetailEnabled(): boolean {
+  return process.env.VITE_THIN_PULL_REQUEST_ROWS === "1";
+}
+
 const carriesPullRequestDetail = (row: Row): boolean =>
   !!row && PULL_REQUEST_DETAIL_FIELDS.some((f) => row[f] !== undefined);
 
 /** A pull request row as the `pullRequests` collection holds it: without its
- *  files, commits and checks. A row that carries none is returned as it came. */
+ *  files, commits, checks and, when enabled, body. */
 export function thinPullRequestRow<T extends Row>(row: T): T {
-  if (!carriesPullRequestDetail(row)) return row;
-  const { files: _f, commits: _c, checks: _k, ...rest } = row;
+  const splitBody =
+    pullRequestBodyDetailEnabled() && typeof row.body === "string";
+  if (!splitBody && !carriesPullRequestDetail(row)) return row;
+  const { files: _f, commits: _c, checks: _k, ...rest } = row as Row;
+  if (splitBody) {
+    delete rest.body;
+    rest.has_full_projection = true;
+  }
+  return rest as T;
+}
+
+export function hydratePullRequestRow<T extends Row>(row: T): T {
+  const thin = thinPullRequestRow(row);
+  if (
+    pullRequestBodyDetailEnabled() ||
+    typeof thin.body === "string" ||
+    thin.has_full_projection !== true
+  )
+    return thin;
+  const { has_full_projection: _projection, ...rest } = thin;
   return rest as T;
 }
 
@@ -225,15 +248,31 @@ export function pullRequestDetailRow(
   prev: PullRequestDetailRow | undefined,
   now: number,
 ): PullRequestDetailRow | null {
-  if (!carriesPullRequestDetail(row)) return null;
+  const hasArrays = carriesPullRequestDetail(row);
+  const splitBody = pullRequestBodyDetailEnabled();
+  const body = splitBody && typeof row.body === "string" ? row.body : undefined;
+  if (!hasArrays && body === undefined) return null;
   const out: PullRequestDetailRow = {
+    ...(!hasArrays && prev),
     _id: String(row._id),
-    checks_state: row.checks_state ?? null,
+    checks_state: hasArrays
+      ? (row.checks_state ?? null)
+      : (prev?.checks_state ?? null),
     _cachedAt: cachedAt(prev, now),
   };
+  const keptBody = splitBody ? (body ?? prev?.body) : undefined;
+  if (keptBody !== undefined) out.body = keptBody;
   for (const f of PULL_REQUEST_DETAIL_FIELDS)
     if (row[f] !== undefined) out[f] = row[f];
   return out;
+}
+
+export function thinCachedPullRequestDetail(
+  row: PullRequestDetailRow,
+): PullRequestDetailRow {
+  if (pullRequestBodyDetailEnabled() || row.body === undefined) return row;
+  const { body: _body, ...detail } = row;
+  return detail;
 }
 
 /** A pull request as its page reads it: the list row with its detail laid on. */
@@ -243,6 +282,8 @@ export function joinPullRequestDetail<T extends Row>(
 ): T {
   if (!detail) return row;
   const out: Row = { ...row };
+  if (row.body === undefined && detail.body !== undefined)
+    out.body = detail.body;
   if (detail.files !== undefined) out.files = detail.files;
   if (detail.commits !== undefined) out.commits = detail.commits;
   if (
