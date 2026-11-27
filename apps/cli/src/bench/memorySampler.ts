@@ -16,18 +16,6 @@ export async function sampleDaemonMemory(
     return { daemonRssBytes: inventory?.rssBytes ?? null, agents: null };
 
   const pids = new Set([pid, ...(inventory?.agentPids ?? [])]);
-  const samples = await readResidentMemory(pids);
-  const daemonRssBytes =
-    samples?.get(pid)?.rssBytes ?? inventory?.rssBytes ?? null;
-  const agents =
-    inventory?.agentPids && samples
-      ? [...samples].filter(([id]) => id !== pid).map(([, sample]) => sample)
-      : null;
-  return { daemonRssBytes, agents };
-}
-
-export async function readResidentMemory(pids: ReadonlySet<number>) {
-  if (process.platform === "win32" || pids.size === 0) return null;
   const { stdout } = await execFileAsync(
     "ps",
     ["-ww", "-o", "pid=,rss=,lstart=,args=", "-p", [...pids].join(",")],
@@ -41,25 +29,25 @@ export async function readResidentMemory(pids: ReadonlySet<number>) {
     },
   ).catch(() => ({ stdout: "" }));
 
-  if (!stdout.trim()) return null;
-  const samples = new Map<
-    number,
-    NonNullable<MemorySample["agents"]>[number]
-  >();
+  let daemonRssBytes = inventory?.rssBytes ?? null;
+  const agents: MemorySample["agents"] =
+    inventory?.agentPids && stdout.trim() ? [] : null;
   for (const line of stdout.split("\n")) {
     const row =
       /^\s*(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\S+\s+\S+\s+\S+)(?:\s+(.*))?$/.exec(
         line,
       );
     if (!row) continue;
-    const pid = Number(row[1]);
+    const processPid = Number(row[1]);
     const rssBytes = Number(row[2]) * 1024;
-    if (!pids.has(pid) || !Number.isSafeInteger(rssBytes) || rssBytes <= 0)
-      continue;
-    const provider = agentOfRow({ comm: "", args: row[4] ?? "" }) ?? "unknown";
-    samples.set(pid, { identity: `${pid}:${row[3]}`, provider, rssBytes });
+    if (processPid === pid) daemonRssBytes = rssBytes;
+    else if (pids.has(processPid) && rssBytes > 0 && agents) {
+      const provider =
+        agentOfRow({ comm: "", args: row[4] ?? "" }) ?? "unknown";
+      agents.push({ identity: `${processPid}:${row[3]}`, provider, rssBytes });
+    }
   }
-  return samples;
+  return { daemonRssBytes, agents };
 }
 
 async function readInventory(

@@ -2519,7 +2519,7 @@
   },
   "apps/cli/src/daemon.ts": {
     "swarm/no-blocking-child-process-call": 2,
-    "swarm/no-comments": 6730
+    "swarm/no-comments": 6726
   },
   "apps/cli/src/daemon.turn-claims-wiring.test.ts": {
     "swarm/no-comments": 23

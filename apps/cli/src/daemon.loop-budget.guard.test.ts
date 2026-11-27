@@ -474,6 +474,13 @@ const ROWS: Row[] = [
     name: "runHibernationPass",
     kind: "function",
     minLines: 15,
+    mustContain: "runHibernationSelection",
+  },
+  {
+    file: "hibernation.ts",
+    name: "runHibernationSelection",
+    kind: "function",
+    minLines: 15,
     mustContain: "selectHibernationCandidates",
   },
   {

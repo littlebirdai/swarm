@@ -468,12 +468,11 @@ export function parseProcessSnapshot(
   return result;
 }
 
-export function getSubtreePids(
-  snapshot: Map<number, ProcessInfo>,
-  rootPid: number,
-): number[] {
+export function indexProcessChildren(
+  processes: Iterable<Pick<ProcessInfo, "pid" | "ppid">>,
+): Map<number, number[]> {
   const childrenOf = new Map<number, number[]>();
-  for (const info of snapshot.values()) {
+  for (const info of processes) {
     let children = childrenOf.get(info.ppid);
     if (!children) {
       children = [];
@@ -481,7 +480,14 @@ export function getSubtreePids(
     }
     children.push(info.pid);
   }
+  return childrenOf;
+}
 
+export function getSubtreePids(
+  snapshot: ReadonlyMap<number, Pick<ProcessInfo, "pid" | "ppid">>,
+  rootPid: number,
+  childrenOf = indexProcessChildren(snapshot.values()),
+): number[] {
   const result: number[] = [];
   const stack = [rootPid];
   const visited = new Set<number>();

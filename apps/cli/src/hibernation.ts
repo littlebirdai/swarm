@@ -277,3 +277,84 @@ export function parkTargetsBeyondAgent(
     );
   });
 }
+
+const durableRefusals = new Set([
+  "pinned",
+  "bad-tmux-name",
+  "codex-owned",
+  "multi-pane",
+  "stamp-mismatch",
+  "process-not-ours",
+  "argv-session-mismatch",
+  "process-not-owned",
+  "process-claimed-by-other",
+  "borrowed-process",
+  "not-a-claude-transcript",
+  "has-subagent-history",
+]);
+
+export function rememberHibernationRefusal(
+  refused: Map<string, number>,
+  sessionId: string,
+  reason: string,
+  now: number,
+): void {
+  refused.set(
+    sessionId,
+    now + (durableRefusals.has(reason) ? HIBERNATE_REFUSAL_BACKOFF_MS : 30_000),
+  );
+}
+
+export function pruneHibernationRefusals(
+  refused: Map<string, number>,
+  now: number,
+): void {
+  for (const [id, retryAt] of refused) if (now >= retryAt) refused.delete(id);
+}
+
+export async function runHibernationSelection(
+  candidates: HibernationCandidate[],
+  policy: HibernationPolicy,
+  refused: Map<string, number>,
+  io: {
+    now(): number;
+    preview(candidate: HibernationCandidate): Promise<string | null>;
+    attempt(candidate: HibernationCandidate): Promise<string | null>;
+    report(message: string, skips: string[]): void;
+  },
+): Promise<number> {
+  pruneHibernationRefusals(refused, io.now());
+  const { picked, skips } = selectHibernationCandidates(
+    candidates,
+    policy,
+    new Set(refused.keys()),
+  );
+  const cap = `${candidates.length} live, cap=${policy.maxLive}`;
+  const would: string[] = [];
+  let hibernated = 0;
+  for (const candidate of picked) {
+    const refusal = policy.dryRun
+      ? await io.preview(candidate).catch(() => "evidence-unavailable")
+      : await io.attempt(candidate);
+    if (refusal) {
+      skips.push(refusal);
+      rememberHibernationRefusal(
+        refused,
+        candidate.sessionId,
+        refusal,
+        io.now(),
+      );
+    } else if (policy.dryRun) {
+      would.push(
+        `${candidate.sessionId.slice(0, 8)}@${Math.round(candidate.awakeIdleMs / 3600000)}h`,
+      );
+    } else hibernated++;
+  }
+  io.report(
+    policy.dryRun
+      ? `hibernation DRY RUN: ${cap}, would park ${would.length}${would.length ? ` (${would.join(", ")})` : ""}`
+      : `hibernation pass: ${cap}, hibernated ${hibernated}`,
+    skips,
+  );
+  return hibernated;
+}
