@@ -81,10 +81,8 @@ import {
   dropCachedMessages,
   evictDetailRows,
   evictInactiveMessages,
-  hasEvictableMessagesOverBudget,
-  releasedInlineMessageIds,
+  queueMessageCacheTrim,
   holdsUnsentComment,
-  messageMemoryBudgetEnabled,
   messageRowBytes,
   omitRedundantInlineImages,
   rekeyCachedMessages,
@@ -22435,24 +22433,9 @@ if (!survivingInboxStore) {
 // as the view moves off it (dropSessionInDraft deferred it).
 if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
-    const protectionChanged =
-      state.sessions !== prev.sessions ||
-      (state.pendingMessages !== prev.pendingMessages &&
-        (state.messages === prev.messages || messageMemoryBudgetEnabled())) ||
-      state.queuedMessages !== prev.queuedMessages ||
-      state.pendingSessionCreates !== prev.pendingSessionCreates ||
-      state.currentSessionId !== prev.currentSessionId ||
-      state.currentConversation !== prev.currentConversation ||
-      state.sidePanelSessionId !== prev.sidePanelSessionId ||
-      state.viewingDismissedId !== prev.viewingDismissedId ||
-      state.pendingNavigateId !== prev.pendingNavigateId;
-    if (protectionChanged) {
-      const released = releasedInlineMessageIds(state);
-      if (released.length || hasEvictableMessagesOverBudget(state))
-        queueMicrotask(() =>
-          useInboxStore.getState().trimMessageCache(released),
-        );
-    }
+    queueMessageCacheTrim(state, prev, (released) =>
+      useInboxStore.getState().trimMessageCache(released),
+    );
     if (
       state.currentSessionId === prev.currentSessionId ||
       deferredDeletedSessions.size === 0

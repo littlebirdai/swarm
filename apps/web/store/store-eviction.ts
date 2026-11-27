@@ -228,6 +228,34 @@ export function releasedInlineMessageIds(state: MessageCacheDraft): string[] {
   );
 }
 
+export function queueMessageCacheTrim(
+  state: MessageCacheDraft,
+  prev: MessageCacheDraft,
+  trim: (releasedIds: readonly string[]) => void,
+): void {
+  const strict = messageMemoryBudgetEnabled();
+  if (
+    !state.messageCacheBytes ||
+    (!strict && state.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES)
+  )
+    return;
+  const protectionChanged =
+    state.sessions !== prev.sessions ||
+    (state.pendingMessages !== prev.pendingMessages &&
+      (state.messages === prev.messages || strict)) ||
+    state.queuedMessages !== prev.queuedMessages ||
+    state.pendingSessionCreates !== prev.pendingSessionCreates ||
+    state.currentSessionId !== prev.currentSessionId ||
+    state.currentConversation !== prev.currentConversation ||
+    state.sidePanelSessionId !== prev.sidePanelSessionId ||
+    state.viewingDismissedId !== prev.viewingDismissedId ||
+    state.pendingNavigateId !== prev.pendingNavigateId;
+  if (!protectionChanged) return;
+  const released = releasedInlineMessageIds(state);
+  if (released.length || hasEvictableMessagesOverBudget(state))
+    queueMicrotask(() => trim(released));
+}
+
 export function evictInactiveMessages(
   draft: MessageCacheDraft,
   writtenId?: string,
