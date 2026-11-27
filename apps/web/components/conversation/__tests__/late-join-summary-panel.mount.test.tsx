@@ -1,11 +1,8 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { act, StrictMode } from "react";
+import { act, Profiler } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import {
-  useLateJoinSummary,
-  type LateJoinSummary,
-} from "../../../hooks/use-late-join-summary";
+import type { LateJoinSummary } from "../../../hooks/use-late-join-summary";
 import { mountWeb } from "../../../test-helpers/mountWeb";
 import { pending } from "../../../test-helpers/testConvex";
 import { ConversationView } from "../../conversation-view";
@@ -167,16 +164,153 @@ async function mountConversation({
   return { ...ui, jump };
 }
 
-test("absent when VITE_LATE_JOIN_SUMMARY flag is off", async () => {
-  const ui = await mountConversation({
-    flag: undefined,
-    summary: populatedSummary,
-  });
-  expect(ui.container.querySelector("[data-cc-late-join-summary]")).toBeNull();
-  expect(
-    ui.backend.queryRequests.some((q) => q.name === "lateJoinSummary:get"),
-  ).toBe(false);
-  await ui.close();
+test("absent when VITE_LATE_JOIN_SUMMARY flag is off and triggers no scroll or switch state updates", async () => {
+  delete process.env[FLAG];
+  const jump = mock((_timestamp: number) => {});
+  let renders = 0;
+  const ui = await mountWeb(
+    <Profiler
+      id="conv-flag-off"
+      onRender={() => {
+        renders += 1;
+      }}
+    >
+      <ConversationView
+        conversation={{
+          _id: conversationId,
+          user_id: userId,
+          title: "Flag off check",
+          messages: [
+            {
+              _id: latestMsgId,
+              timestamp: 10_000,
+              role: "user",
+              content: "Latest message",
+            } as Message,
+          ],
+        }}
+        backHref="/"
+        hideHeader
+        showMessageInput={false}
+        autoFocusInput={false}
+        onJumpToTimestamp={jump}
+      />
+    </Profiler>,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("currentUser", { _id: userId });
+        for (const query of [
+          api.transcripts.webCallsForConversation,
+          api.devices.listDevices,
+          api.sessionOwnership.listOwners,
+          api.conversations.getUserMessages,
+          api.commentTwins.conversationComments,
+          api.pendingMessages.getConversationPendingMessage,
+          api.messages.getConversationImages,
+          api.conversationPages.list,
+          api.tasks.webListByConversation,
+          api.docSync.getPresence,
+          api.sessionGoals.forConversation,
+          api.guestSuggestions.listPending,
+          api.quoteDrafts.listForConversation,
+          api.externalEvents.listForConversation,
+          api.workflows.webList,
+          api.permissions.getPendingPermissions,
+          api.commits.getCommitsForConversation,
+          api.pull_requests.getPRsForConversation,
+          api.pull_requests.sessionCardPRs,
+          api.users.getMySkills,
+          api.accountSwitch.listAccountProfiles,
+        ])
+          backend.set(query, pending);
+        backend.mutation(api.users.requestTerminalEndpoints, {
+          commands: [],
+        });
+        backend.set(api.lateJoinSummary.get, populatedSummary);
+      },
+    },
+  );
+  try {
+    expect(
+      ui.container.querySelector("[data-cc-late-join-summary]"),
+    ).toBeNull();
+    expect(
+      ui.backend.queryRequests.some((q) => q.name === "lateJoinSummary:get"),
+    ).toBe(false);
+
+    const renderSwitch = async (convId: Id<"conversations">, title: string) => {
+      renders = 0;
+      await ui.rerender(
+        <Profiler
+          id="conv-flag-off"
+          onRender={() => {
+            renders += 1;
+          }}
+        >
+          <ConversationView
+            conversation={{
+              _id: convId,
+              user_id: userId,
+              title,
+              messages: [
+                {
+                  _id: latestMsgId,
+                  timestamp: 10_000,
+                  role: "user",
+                  content: "Message",
+                } as Message,
+              ],
+            }}
+            backHref="/"
+            hideHeader
+            showMessageInput={false}
+            autoFocusInput={false}
+            onJumpToTimestamp={jump}
+          />
+        </Profiler>,
+      );
+      return renders;
+    };
+
+    const feed = ui.container.querySelector<HTMLElement>("[data-sv-feed]")!;
+    let scrollTop = 0;
+    Object.defineProperty(feed, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(feed, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(feed, "scrollTop", {
+      configurable: true,
+      get: () => scrollTop,
+      set: (v: number) => {
+        scrollTop = v;
+      },
+    });
+
+    await act(async () => {
+      scrollTop = 450;
+      feed.dispatchEvent(new Event("scroll"));
+    });
+
+    renders = 0;
+    await act(async () => {
+      scrollTop = 600;
+      feed.dispatchEvent(new Event("scroll"));
+    });
+    expect(renders).toBe(0);
+
+    await renderSwitch(otherConversationId, "Next flag off");
+    expect(
+      ui.backend.queryRequests.some((q) => q.name === "lateJoinSummary:get"),
+    ).toBe(false);
+  } finally {
+    await ui.close();
+  }
 });
 
 test("absent when flag is on and there is nothing new", async () => {
@@ -419,7 +553,18 @@ test("clears pending_permission prompt on empty pendingPermissions without clear
     ui.container.querySelector("[data-cc-late-join-prompt]"),
   ).not.toBeNull();
   await act(async () => {
-    ui.backend.set(api.permissions.getPendingPermissions, []);
+    ui.backend.set(api.permissions.getPendingPermissions, [
+      {
+        _id: "perm-skip-1" as Id<"pending_permissions">,
+        _creationTime: 10,
+        conversation_id: conversationId,
+        session_id: "sess-1",
+        tool_name: "AskUserQuestion",
+        arguments_preview: "{}",
+        status: "pending",
+        created_at: 10,
+      },
+    ]);
   });
   expect(ui.container.querySelector("[data-cc-late-join-prompt]")).toBeNull();
 
@@ -465,6 +610,92 @@ test("clears pending_permission prompt on empty pendingPermissions without clear
   await ui.close();
 });
 
+test("jumps locally to a loaded message folded in condensed density without remote timestamp jump", async () => {
+  process.env[FLAG] = "1";
+  const jump = mock((_timestamp: number) => {});
+  const ui = await mountWeb(
+    <ConversationView
+      conversation={{
+        _id: conversationId,
+        user_id: userId,
+        title: "Condensed jump check",
+        messages: [
+          {
+            _id: "u-start" as Id<"messages">,
+            timestamp: 500,
+            role: "user",
+            content: "Start turn",
+          } as Message,
+          {
+            _id: anchorMsgId,
+            timestamp: 1_000,
+            role: "assistant",
+            content: "",
+            tool_calls: [{ id: "tc-1", name: "Read", input: "{}" }],
+          } as Message,
+          {
+            _id: latestMsgId,
+            timestamp: 10_000,
+            role: "assistant",
+            content: "Done",
+          } as Message,
+        ],
+      }}
+      backHref="/"
+      hideHeader
+      initialDensity="condensed"
+      showMessageInput={false}
+      autoFocusInput={false}
+      onJumpToTimestamp={jump}
+    />,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("currentUser", { _id: userId });
+        for (const query of [
+          api.transcripts.webCallsForConversation,
+          api.devices.listDevices,
+          api.sessionOwnership.listOwners,
+          api.conversations.getUserMessages,
+          api.commentTwins.conversationComments,
+          api.pendingMessages.getConversationPendingMessage,
+          api.messages.getConversationImages,
+          api.conversationPages.list,
+          api.tasks.webListByConversation,
+          api.docSync.getPresence,
+          api.sessionGoals.forConversation,
+          api.guestSuggestions.listPending,
+          api.quoteDrafts.listForConversation,
+          api.externalEvents.listForConversation,
+          api.workflows.webList,
+          api.permissions.getPendingPermissions,
+          api.commits.getCommitsForConversation,
+          api.pull_requests.getPRsForConversation,
+          api.pull_requests.sessionCardPRs,
+          api.users.getMySkills,
+          api.accountSwitch.listAccountProfiles,
+        ])
+          backend.set(query, pending);
+        backend.mutation(api.users.requestTerminalEndpoints, {
+          commands: [],
+        });
+        backend.set(api.lateJoinSummary.get, populatedSummary);
+      },
+    },
+  );
+
+  const jumpBtn = ui.container.querySelector<HTMLButtonElement>(
+    "[data-cc-late-join-jump]",
+  );
+  expect(jumpBtn).not.toBeNull();
+  await act(async () => {
+    jumpBtn!.click();
+  });
+  expect(jump).toHaveBeenCalledTimes(0);
+  await ui.close();
+});
+
 test("omits /decisions links when can_open_decisions is false", async () => {
   const ui = await mountConversation({
     flag: "1",
@@ -474,109 +705,4 @@ test("omits /decisions links when can_open_decisions is false", async () => {
   expect(panel?.textContent).toContain("Keep summary behind flag?");
   expect(panel?.querySelectorAll('a[href^="/decisions/"]')).toHaveLength(0);
   await ui.close();
-});
-
-function HookProbe({
-  convId,
-  enabled,
-}: {
-  convId: Id<"conversations">;
-  enabled: boolean;
-}) {
-  const summary = useLateJoinSummary(convId, enabled);
-  return (
-    <div data-cc-hook-probe>
-      {summary ? summary.anchor.message_id : summary === null ? "null" : "wait"}
-    </div>
-  );
-}
-
-test("survives StrictMode double mount, enabled flicker, and retries at most once on failure", async () => {
-  process.env[FLAG] = "1";
-  const strictUi = await mountWeb(
-    <StrictMode>
-      <HookProbe convId={conversationId} enabled />
-    </StrictMode>,
-    {
-      authenticated: true,
-      dispatch: true,
-      setup(backend) {
-        backend.set(api.lateJoinSummary.get, pending);
-      },
-    },
-  );
-  expect(
-    strictUi.backend.queryRequests.filter(
-      (q) => q.name === "lateJoinSummary:get",
-    ),
-  ).toHaveLength(1);
-
-  await strictUi.rerender(
-    <StrictMode>
-      <HookProbe convId={conversationId} enabled={false} />
-    </StrictMode>,
-  );
-  await strictUi.rerender(
-    <StrictMode>
-      <HookProbe convId={conversationId} enabled />
-    </StrictMode>,
-  );
-  expect(
-    strictUi.backend.queryRequests.filter(
-      (q) => q.name === "lateJoinSummary:get",
-    ),
-  ).toHaveLength(1);
-
-  await act(async () => {
-    strictUi.backend.set(api.lateJoinSummary.get, populatedSummary);
-  });
-  expect(
-    strictUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
-  ).toBe(anchorMsgId);
-  await strictUi.close();
-
-  let attempt = 0;
-  const retryUi = await mountWeb(
-    <HookProbe convId={conversationId} enabled />,
-    {
-      authenticated: true,
-      dispatch: true,
-      setup(backend) {
-        backend.set(api.lateJoinSummary.get, () => {
-          attempt += 1;
-          if (attempt === 1) return new Error("transient outage");
-          return populatedSummary;
-        });
-      },
-    },
-  );
-  expect(
-    retryUi.backend.queryRequests.filter(
-      (q) => q.name === "lateJoinSummary:get",
-    ),
-  ).toHaveLength(2);
-  expect(
-    retryUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
-  ).toBe(anchorMsgId);
-  await retryUi.close();
-
-  const failUi = await mountWeb(<HookProbe convId={conversationId} enabled />, {
-    authenticated: true,
-    dispatch: true,
-    setup(backend) {
-      backend.set(
-        api.lateJoinSummary.get,
-        () => new Error("persistent outage"),
-      );
-    },
-  });
-  expect(
-    failUi.backend.queryRequests.filter(
-      (q) => q.name === "lateJoinSummary:get",
-    ),
-  ).toHaveLength(2);
-  expect(
-    failUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
-  ).toBe("wait");
-  await failUi.close();
 });

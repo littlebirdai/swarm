@@ -260,7 +260,7 @@ test("returns new turns, changed files, decisions, and open prompt since the vie
     open_prompt: {
       kind: "permission",
       source: "pending_permission",
-      label: "Run unit tests",
+      label: "bun test",
       tool_name: "Bash",
       created_at: BASE_TIME + 90_000,
     },
@@ -350,6 +350,62 @@ test("finds older decisions resolved after the anchor and sets truncation flags 
     conversation_id: f.teamConv,
   });
   expect(truncatedLate?.decisions_truncated).toBe(true);
+});
+
+test("checks pending truncation on first dropped row rather than last kept row", async () => {
+  const f = await setup();
+  await f.t.run(async ({ db }) => {
+    await db.insert("session_decisions", {
+      conversation_id: f.teamConv,
+      session_id: "sess-1",
+      user_id: f.owner,
+      short_id: "sd-pend-pre",
+      question: "Pre-anchor pending decision",
+      options: [{ label: "Yes" }],
+      blocking: false,
+      status: "pending",
+      created_at: BASE_TIME - 1_000,
+    });
+    for (let i = 0; i < 50; i++) {
+      await db.insert("session_decisions", {
+        conversation_id: f.teamConv,
+        session_id: "sess-1",
+        user_id: f.owner,
+        short_id: `sd-pend-${i}`,
+        question: `Pending decision ${i}`,
+        options: [{ label: "Yes" }],
+        blocking: false,
+        status: "pending",
+        created_at: BASE_TIME + 1_000 + i,
+      });
+    }
+  });
+
+  const exactFifty = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+  expect(exactFifty?.decisions_total).toBe(50);
+  expect(exactFifty?.decisions_truncated).toBe(false);
+
+  await f.t.run(async ({ db }) => {
+    await db.insert("session_decisions", {
+      conversation_id: f.teamConv,
+      session_id: "sess-1",
+      user_id: f.owner,
+      short_id: "sd-pend-51",
+      question: "Pending decision 51",
+      options: [{ label: "Yes" }],
+      blocking: false,
+      status: "pending",
+      created_at: BASE_TIME + 2_000,
+    });
+  });
+
+  const fiftyOne = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+  expect(fiftyOne?.decisions_total).toBe(50);
+  expect(fiftyOne?.decisions_truncated).toBe(true);
 });
 
 test("returns zero updates when nothing happened since the viewer's anchor", async () => {
@@ -544,4 +600,16 @@ test("withholds decisions and tree_snapshots from share-link viewers", async () 
     { path: "src/public-file.ts", count: 1 },
   ]);
   expect(shared?.new_turns).toBe(1);
+});
+
+test("returns null to a summary-only teammate even when an anchor row exists", async () => {
+  const f = await setup();
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.teamConv, { team_visibility: "summary" });
+  });
+
+  const summary = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+  expect(summary).toBeNull();
 });

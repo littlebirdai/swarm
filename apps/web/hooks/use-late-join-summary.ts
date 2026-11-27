@@ -3,7 +3,6 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
-import type { TimelineItem } from "../components/conversation/types";
 import { useWatchEffect } from "./useWatchEffect";
 
 export type LateJoinSummary = NonNullable<
@@ -140,8 +139,8 @@ export function useLateJoinSummaryController({
   visitKey,
   guest,
   newSessionPage,
-  pendingPermissionsRaw,
-  timeline,
+  pendingPermissions,
+  loadedMessageIds,
   scrollToMessageById,
   onJumpToTimestamp,
   hasMoreBelow,
@@ -158,8 +157,8 @@ export function useLateJoinSummaryController({
   visitKey: string | null;
   guest: boolean;
   newSessionPage: boolean;
-  pendingPermissionsRaw: readonly unknown[] | undefined;
-  timeline: TimelineItem[];
+  pendingPermissions: readonly unknown[] | undefined;
+  loadedMessageIds: ReadonlySet<string>;
   scrollToMessageById: (id: string) => void;
   onJumpToTimestamp?: (ts: number) => void;
   hasMoreBelow?: boolean;
@@ -185,22 +184,24 @@ export function useLateJoinSummaryController({
     if (!summaryRaw) return summaryRaw;
     if (
       summaryRaw.open_prompt?.source === "pending_permission" &&
-      pendingPermissionsRaw !== undefined &&
-      pendingPermissionsRaw.length === 0
+      pendingPermissions !== undefined &&
+      pendingPermissions.length === 0
     ) {
       return { ...summaryRaw, open_prompt: null };
     }
     return summaryRaw;
-  }, [summaryRaw, pendingPermissionsRaw]);
+  }, [summaryRaw, pendingPermissions]);
 
   useWatchEffect(() => {
+    if (!enabled) return;
     setReachedBottom(false);
     sawAwayFromBottomRef.current = false;
-  }, [visitKey]);
+  }, [enabled, visitKey]);
 
   const markReachedBottom = useCallback(() => {
+    if (!enabled) return;
     setReachedBottom(true);
-  }, []);
+  }, [enabled]);
 
   const noteScrollPosition = useCallback(
     (
@@ -209,6 +210,7 @@ export function useLateJoinSummaryController({
       noPendingJump: boolean,
       readerMovingDown: boolean,
     ) => {
+      if (!enabled) return;
       if (!isAtBottom || moreBelow) {
         sawAwayFromBottomRef.current = true;
       } else if (
@@ -218,34 +220,27 @@ export function useLateJoinSummaryController({
         setReachedBottom(true);
       }
     },
-    [],
+    [enabled],
   );
 
   const handleJumpAnchor = useCallback(
     (messageId: string, timestamp: number) => {
       sawAwayFromBottomRef.current = true;
-      const inTimeline = timeline.some(
-        (item) => item.type === "message" && item.data._id === messageId,
-      );
-      if (inTimeline || !onJumpToTimestamp) {
+      if (loadedMessageIds.has(messageId) || !onJumpToTimestamp) {
         scrollToMessageById(messageId);
       } else {
         onJumpToTimestamp(timestamp);
       }
     },
-    [timeline, scrollToMessageById, onJumpToTimestamp],
+    [loadedMessageIds, scrollToMessageById, onJumpToTimestamp],
   );
 
   const handleJumpPrompt = useCallback(
     (prompt: NonNullable<LateJoinSummary["open_prompt"]>) => {
       if (prompt.message_id) {
         sawAwayFromBottomRef.current = true;
-        const inTimeline = timeline.some(
-          (item) =>
-            item.type === "message" && item.data._id === prompt.message_id,
-        );
         if (
-          inTimeline ||
+          loadedMessageIds.has(prompt.message_id) ||
           !onJumpToTimestamp ||
           prompt.timestamp === undefined
         ) {
@@ -273,7 +268,7 @@ export function useLateJoinSummaryController({
       }
     },
     [
-      timeline,
+      loadedMessageIds,
       scrollToMessageById,
       onJumpToTimestamp,
       hasMoreBelow,

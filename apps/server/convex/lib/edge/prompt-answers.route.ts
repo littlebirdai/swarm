@@ -418,18 +418,23 @@ export async function finishPromptAnswer(
 export type FencedPromptState = {
   run: number;
   leaseId: Id<"run_leases">;
+  binding: Doc<"execution_bindings">;
   hasOpenTurn: boolean;
   openPrompt: { kind: "question" | "permission"; prompt_id: string } | null;
   allOpenTurnPromptsAnswered: boolean;
   isAnswered: (turnId: string, promptId: string) => Promise<boolean>;
 };
 
-export async function readFencedPromptState(
+export async function readFencedBindingAndPromptState(
   ctx: Reader,
   conversation: Doc<"conversations">,
-): Promise<FencedPromptState | null> {
+): Promise<{
+  binding: Doc<"execution_bindings"> | null;
+  fencedState: FencedPromptState | null;
+}> {
   const bound = await readBoundPromptTurn(ctx, conversation);
-  if (!bound?.lease) return null;
+  if (!bound) return { binding: null, fencedState: null };
+  if (!bound.lease) return { binding: bound.binding, fencedState: null };
 
   const { binding, lease, projection, now } = bound;
   const openTurn =
@@ -449,12 +454,16 @@ export async function readFencedPromptState(
 
   if (!openTurn || openTurn.prompt_ids.length === 0) {
     return {
-      run: binding.epoch,
-      leaseId: lease._id,
-      hasOpenTurn: Boolean(openTurn),
-      openPrompt: null,
-      allOpenTurnPromptsAnswered: false,
-      isAnswered,
+      binding,
+      fencedState: {
+        run: binding.epoch,
+        leaseId: lease._id,
+        binding,
+        hasOpenTurn: Boolean(openTurn),
+        openPrompt: null,
+        allOpenTurnPromptsAnswered: false,
+        isAnswered,
+      },
     };
   }
 
@@ -476,11 +485,22 @@ export async function readFencedPromptState(
   }
 
   return {
-    run: binding.epoch,
-    leaseId: lease._id,
-    hasOpenTurn: true,
-    openPrompt,
-    allOpenTurnPromptsAnswered: openPrompt === null,
-    isAnswered,
+    binding,
+    fencedState: {
+      run: binding.epoch,
+      leaseId: lease._id,
+      binding,
+      hasOpenTurn: true,
+      openPrompt,
+      allOpenTurnPromptsAnswered: openPrompt === null,
+      isAnswered,
+    },
   };
+}
+
+export async function readFencedPromptState(
+  ctx: Reader,
+  conversation: Doc<"conversations">,
+): Promise<FencedPromptState | null> {
+  return (await readFencedBindingAndPromptState(ctx, conversation)).fencedState;
 }

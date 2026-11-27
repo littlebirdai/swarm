@@ -317,7 +317,7 @@ import {
   type MatchInstance,
   type PendingHit,
 } from "../lib/conversationSearch";
-import { useDeferUntilSettled } from "../hooks/useDeferUntilSettled";
+import { useDeferUntilSettled } from "../hooks/use-defer-until-settled";
 import { FilePathContext } from "../lib/filePathLinks";
 import { WorktreesProvider } from "./worktree/WorktreesContext";
 import { SessionWorktreePills } from "./worktree/WorktreePill";
@@ -595,7 +595,7 @@ import {
   VIRT_HEIGHT_CACHE,
   virtHeightKey,
   recordVirtHeight,
-} from "../lib/virtualList/virtHeightCache";
+} from "../lib/virtualList/virt-height-cache";
 import { lazyNamed } from "../lib/lazyNamed";
 
 const MOMENT_FEATURES: readonly MomentFeature[] = [
@@ -6756,8 +6756,8 @@ const ConversationViewInner = function ConversationView(
     visitKey: conversation?._id ? String(conversation._id) : null,
     guest,
     newSessionPage,
-    pendingPermissionsRaw,
-    timeline,
+    pendingPermissions,
+    loadedMessageIds,
     scrollToMessageById,
     onJumpToTimestamp,
     hasMoreBelow,

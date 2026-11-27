@@ -10,7 +10,7 @@ import {
 import { answerLabel } from "./lib/decisionVerdict";
 import {
   fencedPromptAnswersEnabled,
-  readFencedPromptState,
+  readFencedBindingAndPromptState,
 } from "./lib/edge/prompt-answers.route";
 import { sharedPromptPermissionsEnabled } from "./lib/edge/prompt-authority.rules";
 import { checkConversationAccess, type AccessLevel } from "./privacy";
@@ -247,7 +247,7 @@ async function readDecisionsSince(
 
   let truncated =
     pendingRaw.length > DECISIONS_SCAN_CAP &&
-    pendingRaw[DECISIONS_SCAN_CAP - 1]!.created_at > since;
+    pendingRaw[DECISIONS_SCAN_CAP]!.created_at > since;
   const byId = new Map<string, Doc<"session_decisions">>();
   for (const d of pendingRaw.slice(0, DECISIONS_SCAN_CAP)) {
     if (d.created_at > since) {
@@ -255,10 +255,7 @@ async function readDecisionsSince(
     }
   }
   for (const bucket of resolvedBuckets) {
-    if (
-      bucket.length > DECISIONS_SCAN_CAP &&
-      (bucket[DECISIONS_SCAN_CAP - 1]!.resolved_at ?? 0) > since
-    ) {
+    if (bucket.length > DECISIONS_SCAN_CAP) {
       truncated = true;
     }
     for (const d of bucket.slice(0, DECISIONS_SCAN_CAP)) {
@@ -327,6 +324,7 @@ async function resolvePermissionViewer(
   userId: Id<"users">,
   conversation: Doc<"conversations">,
   access: AccessLevel,
+  preloadedBinding: Doc<"execution_bindings"> | null,
 ): Promise<{
   runner: boolean;
   proposer: boolean;
@@ -344,7 +342,7 @@ async function resolvePermissionViewer(
     !ownerDoc?.is_bot && (await viewerSeesDetail(ctx, userId, conversation));
   const sharedFenced =
     fencedPromptAnswersEnabled() &&
-    (await sharedPromptPermissionsEnabled(ctx, conversation));
+    (await sharedPromptPermissionsEnabled(ctx, conversation, preloadedBinding));
   return { runner: false, proposer, sharedFenced };
 }
 
@@ -354,16 +352,17 @@ async function readOpenPrompt(
   conversation: Doc<"conversations">,
   access: AccessLevel,
 ): Promise<OpenPromptSummary | null> {
-  const fencedState =
+  const { binding: fencedBinding, fencedState } =
     conversation.execution_protocol_state === "fenced"
-      ? await readFencedPromptState(ctx, conversation)
-      : null;
+      ? await readFencedBindingAndPromptState(ctx, conversation)
+      : { binding: null, fencedState: null };
 
   const permViewer = await resolvePermissionViewer(
     ctx,
     userId,
     conversation,
     access,
+    fencedBinding,
   );
   const canReadPermission =
     permViewer.runner || permViewer.proposer || permViewer.sharedFenced;
@@ -399,15 +398,15 @@ async function readOpenPrompt(
       ) {
         continue;
       }
-      const intent = permViewer.runner
-        ? p.intent?.trim()
-        : permViewer.proposer && p.intent?.trim()
-          ? redactSecrets(p.intent.trim())
-          : undefined;
+      const label = permViewer.runner
+        ? p.intent?.trim() || p.tool_name
+        : permViewer.proposer
+          ? redactSecrets(p.arguments_preview).trim() || p.tool_name
+          : p.tool_name;
       return {
         kind: "permission",
         source: "pending_permission",
-        label: intent || p.tool_name,
+        label,
         tool_name: p.tool_name,
         created_at: p.created_at,
       };
@@ -415,6 +414,7 @@ async function readOpenPrompt(
   }
 
   if (fencedState?.openPrompt) {
+    if (access === "shared") return null;
     if (fencedState.openPrompt.kind === "permission") {
       if (!canReadPermission) return null;
       return {

@@ -395,8 +395,8 @@ test("withholds permission details from share-link viewers and redacts secrets f
       conversation_id: f.teamConv,
       session_id: "team-sess",
       tool_name: "Bash",
-      arguments_preview: "cat secret",
-      intent: "Use token sk-ant-api03-abcdefghijklmnopqrstuvwx",
+      arguments_preview: "Use token sk-ant-api03-abcdefghijklmnopqrstuvwx",
+      intent: "Owner private intent text",
       status: "pending",
       created_at: BASE_TIME + 50_000,
       owner_user_id: f.owner,
@@ -412,8 +412,12 @@ test("withholds permission details from share-link viewers and redacts secrets f
     conversation_id: f.teamConv,
   });
   expect(teamSummary?.open_prompt?.kind).toBe("permission");
+  expect(teamSummary?.open_prompt?.tool_name).toBe("Bash");
   expect(teamSummary?.open_prompt?.label).not.toContain(
     "sk-ant-api03-abcdefghijklmnopqrstuvwx",
+  );
+  expect(teamSummary?.open_prompt?.label).not.toContain(
+    "Owner private intent text",
   );
   expect(teamSummary?.open_prompt?.label).toContain("[REDACTED_API_KEY]");
 
@@ -421,6 +425,42 @@ test("withholds permission details from share-link viewers and redacts secrets f
     conversation_id: f.privateConv,
   });
   expect(ownerSummary).toBeNull();
+});
+
+test("does not return a generic fenced_turn Question prompt to a share-link viewer", async () => {
+  const f = await setup();
+  const { conv } = await setupFencedTurn(f, [
+    { prompt_id: "q-shared-1", kind: "question" },
+  ]);
+  await f.t.run(async ({ db }) => {
+    await db.patch(conv, { is_private: true, share_token: "share-fenced-q" });
+    await db.insert("share_redemptions", {
+      user_id: f.outsider,
+      conversation_id: conv,
+      token: "share-fenced-q",
+      created_at: BASE_TIME,
+    });
+    const anchorMsg = await db
+      .query("messages")
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", conv),
+      )
+      .first();
+    await db.insert("conversation_read_anchors", {
+      conversation_id: conv,
+      user_id: f.outsider,
+      anchor: {
+        message_id: anchorMsg!._id,
+        offset: 0,
+        changed_at: BASE_TIME + 100,
+      },
+    });
+  });
+
+  const shared = await f.asOutsider.query(lateJoinSummary.get, {
+    conversation_id: conv,
+  });
+  expect(shared?.open_prompt).toBeNull();
 });
 
 test("skips non-permission tools in pending_permissions and suppresses expired or owned-closed questions", async () => {

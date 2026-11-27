@@ -71,8 +71,12 @@ function supportsPromptBaton(binding: Doc<"execution_bindings"> | undefined) {
 export async function sharedPromptPermissionsEnabled(
   ctx: Pick<QueryCtx, "db">,
   conversation: Doc<"conversations">,
+  preloadedBinding?: Doc<"execution_bindings"> | null,
 ) {
   if (!collaborativePromptAnswersEnabled()) return false;
+  if (preloadedBinding !== undefined) {
+    return supportsPromptBaton(preloadedBinding ?? undefined);
+  }
   return supportsPromptBaton(
     (await currentPromptBinding(ctx, conversation))?.binding,
   );
