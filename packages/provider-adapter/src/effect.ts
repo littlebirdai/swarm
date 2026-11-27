@@ -10,6 +10,7 @@ import * as Scope from "effect/Scope";
 import { openAcp } from "./acp-session";
 import { openClaudeSdk } from "./claude-sdk-session";
 import { openAppServer } from "./app-server-session";
+import type { AdapterError } from "./provider-process";
 import {
   inDoubt,
   providerOffer,
@@ -19,6 +20,10 @@ import {
 } from "./options";
 
 export { AdapterError } from "./provider-process";
+
+type OwnedProviderSession = Effect.Success<
+  ReturnType<typeof openAcp | typeof openAppServer | typeof openClaudeSdk>
+>;
 
 const ownedLayer = (
   options: ProviderAdapterOptions,
@@ -38,8 +43,10 @@ const ownedLayer = (
         return yield* Effect.uninterruptibleMask((restore) =>
           Effect.gen(function* () {
             const scope = yield* Scope.fork(parent);
+            const opening: Effect.Effect<OwnedProviderSession, AdapterError> =
+              open(options, spec, scope);
             const result = yield* Effect.result(
-              restore(open(options, spec, scope)).pipe(
+              restore(opening).pipe(
                 Effect.onExit((exit) =>
                   exit._tag === "Failure"
                     ? Scope.close(scope, exit)
@@ -90,11 +97,7 @@ interface Service {
   readonly own: (spec: StartSpec | ResumeSpec) => Effect.Effect<
     | {
         readonly status: "opened";
-        readonly session: Effect.Success<
-          ReturnType<
-            typeof openAcp | typeof openAppServer | typeof openClaudeSdk
-          >
-        >;
+        readonly session: OwnedProviderSession;
       }
     | ReturnType<typeof refused>
     | ReturnType<typeof unsupported>

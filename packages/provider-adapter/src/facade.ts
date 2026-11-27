@@ -62,6 +62,9 @@ export function createEffectAdapter(
             mode: owned.mode,
             getCheckpoint: owned.getCheckpoint,
             getUnknownPayloadCount: owned.getUnknownPayloadCount,
+            ...("getPendingPrompts" in owned && {
+              getPendingPrompts: owned.getPendingPrompts,
+            }),
             recoveredReceipts: owned.recoveredReceipts,
             events: {
               [Symbol.asyncIterator](): ProviderEventIterator {

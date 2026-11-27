@@ -3236,6 +3236,8 @@ export class SyncService {
     params: {
       conversation_id: string;
       session_id: string;
+      fenced_prompt_id?: string;
+      fenced_prompt_turn_id?: string;
       tool_name: string;
       arguments_preview: string;
       suggestions?: unknown[];
@@ -3246,6 +3248,10 @@ export class SyncService {
       const base = {
         conversation_id: params.conversation_id,
         session_id: params.session_id,
+        ...(params.fenced_prompt_id !== undefined && {
+          fenced_prompt_id: params.fenced_prompt_id,
+          fenced_prompt_turn_id: params.fenced_prompt_turn_id,
+        }),
         tool_name: params.tool_name,
         arguments_preview: params.arguments_preview,
         api_token: this.apiToken,

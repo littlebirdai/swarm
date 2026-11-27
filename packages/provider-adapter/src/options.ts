@@ -20,6 +20,7 @@ export interface ProviderAdapterOptions {
   readonly provider: ProviderIdentity;
   readonly command?: readonly [string, ...string[]];
   readonly receiptJournal?: DeliveryReceiptJournal;
+  readonly uniquePromptIds?: boolean;
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly retainRaw: (
     frame: RawProviderFrame,

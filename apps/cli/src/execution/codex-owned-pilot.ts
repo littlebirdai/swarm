@@ -14,10 +14,12 @@ import {
   type EdgeJson,
   type EdgeParseResult,
 } from "@codecast/edge-contract";
-import type { ProviderAdapterClient } from "@codecast/provider-adapter";
+import type {
+  ProviderAdapterClient,
+  ProviderOwnedSession,
+} from "@codecast/provider-adapter";
 import type {
   DeliveryReceiptJournal,
-  OwnedSession,
   ResumeSpec,
   StartSpec,
 } from "@codecast/provider-contract";
@@ -37,6 +39,7 @@ import {
   deliveryFence,
   readEdge,
 } from "./codex-pilot-delivery.js";
+import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
 import type {
@@ -135,14 +138,16 @@ export function createCodexOwnedPilot(
 
 export class CodexOwnedPilot {
   private readonly display = new CodexPilotDisplay();
+  private readonly promptCards = new CodexPilotPromptCards();
   private readonly delivery = new CodexPilotDelivery(
     this.edgeResponse.bind(this),
     (message) => this.options.log(message),
   );
   private deliveryReady = false;
   private adapter?: ProviderAdapterClient;
-  private session?: OwnedSession;
-  private opening?: Promise<OwnedSession>;
+  private session?: ProviderOwnedSession;
+  private opening?: Promise<ProviderOwnedSession>;
+  private eventWriter?: Promise<void>;
   private claim?: ClaimGrant;
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
@@ -238,13 +243,13 @@ export class CodexOwnedPilot {
     });
   }
 
-  private open(spec: StartSpec | ResumeSpec): Promise<OwnedSession> {
+  private open(spec: StartSpec | ResumeSpec): Promise<ProviderOwnedSession> {
     return (this.opening = this.openProvider(spec));
   }
 
   private async openProvider(
     spec: StartSpec | ResumeSpec,
-  ): Promise<OwnedSession> {
+  ): Promise<ProviderOwnedSession> {
     const { createProviderAdapter } =
       await import("@codecast/provider-adapter");
     this.controller.signal.throwIfAborted();
@@ -252,8 +257,12 @@ export class CodexOwnedPilot {
       provider,
       command: this.options.command(),
       env: { ...process.env, PATH: agentSpawnPath(), [STABLE_ENV_MODE]: "off" },
-      retainRaw: (frame) => this.display.retain(frame),
+      retainRaw: (frame) => {
+        this.display.retain(frame);
+        this.promptCards.retain(frame);
+      },
       receiptJournal: this.delivery.receiptJournal,
+      uniquePromptIds: true,
     });
     const result =
       "checkpoint" in spec
@@ -448,20 +457,32 @@ export class CodexOwnedPilot {
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
       });
     }
-    this.deliveryReady = true;
-    void this.writeEvents(
-      claim,
-      this.session,
-      binding,
-      request.configuration.model,
-    )
-      .then(() => this.close())
+    const session = this.session;
+    const recovery =
+      previous > 0 && this.options.bearer && session.getPendingPrompts
+        ? this.promptCards.recover(
+            claim.session,
+            this.options.bearer,
+            this.options.display.syncService,
+            session.getPendingPrompts,
+            this.controller.signal,
+          )
+        : Promise.resolve();
+    this.eventWriter = recovery
+      .then(() =>
+        this.writeEvents(claim, session, binding, request.configuration.model),
+      )
       .catch((error) => {
         this.options.log(
           `[owned-codex] event writer stopped: ${String(error)}`,
         );
-        void this.close().catch(() => {});
       });
+    void this.eventWriter.then(() => {
+      void this.close().catch(() => {});
+    });
+    await recovery;
+    this.controller.signal.throwIfAborted();
+    this.deliveryReady = true;
   }
 
   async drain(
@@ -492,7 +513,7 @@ export class CodexOwnedPilot {
 
   private async writeEvents(
     claim: ClaimGrant,
-    session: OwnedSession,
+    session: ProviderOwnedSession,
     binding: ReadyBinding,
     model: string | undefined,
   ): Promise<void> {
@@ -503,6 +524,20 @@ export class CodexOwnedPilot {
       if (event.kind === "message.delta") continue;
       await this.append(claim, event);
       await this.delivery.observe(event, session, this.controller.signal);
+      await this.promptCards
+        .publish(event, claim, session, syncService, () => {
+          display.sendAgentStatus(
+            syncService,
+            conversationId,
+            runtimeId,
+            "permission_blocked",
+          );
+        })
+        .catch((error) =>
+          this.options.log(
+            `[owned-codex] prompt card update failed: ${String(error)}`,
+          ),
+        );
       await this.display
         .publish(
           runtimeId,
@@ -616,7 +651,20 @@ export class CodexOwnedPilot {
     await this.renewalTask?.catch(() => {});
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
-    if (session && (await session.close()).status !== "closed")
+    const outcome = await session?.close();
+    await this.eventWriter;
+    await this.promptCards
+      .closeAll(
+        this.conversationId,
+        Date.now(),
+        this.options.display.syncService,
+      )
+      .catch((error) =>
+        this.options.log(
+          `[owned-codex] prompt card cleanup failed: ${String(error)}`,
+        ),
+      );
+    if (outcome && outcome.status !== "closed")
       throw new Error("Owned Codex cleanup could not be confirmed");
     await this.adapter?.dispose();
     await this.delivery.clearImages();

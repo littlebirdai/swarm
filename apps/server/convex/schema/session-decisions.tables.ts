@@ -7,6 +7,8 @@ export const pendingPermissionTables = {
   pending_permissions: defineTable({
     conversation_id: v.id("conversations"),
     session_id: v.string(),
+    fenced_prompt_id: v.optional(v.string()),
+    fenced_prompt_turn_id: v.optional(v.string()),
     tool_name: v.string(),
     arguments_preview: v.string(),
     status: v.union(

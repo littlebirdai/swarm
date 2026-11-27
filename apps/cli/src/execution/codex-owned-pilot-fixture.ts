@@ -212,6 +212,14 @@ export function fixture(
       actions.push(`legacy-quarantine:${binding.conversationId}`);
     },
   };
+  const promptMessages: Parameters<SyncService["addMessages"]>[0]["messages"] =
+    [];
+  const promptPermissions = new Map<string, { id: string; turn: string }>();
+  const cancelledPermissions: string[] = [];
+  let promptCleanupError = false;
+  let failedPermissionCleanup: string | undefined;
+  let questionWrite: Promise<void> | undefined;
+  let renewal: Promise<void> | undefined;
   function createPilot(flag = enabled) {
     return createCodexOwnedPilot(
       {
@@ -233,7 +241,74 @@ export function fixture(
         }),
         instructions: async () => undefined,
         display: {
-          syncService: strictStub<SyncService>("syncService"),
+          syncService: strictStub<SyncService>("syncService", {
+            async addMessages({ messages }) {
+              if (
+                messages.some((message) => message.toolResults) &&
+                promptCleanupError
+              )
+                throw new Error("Prompt sync failed");
+              promptMessages.push(...structuredClone(messages));
+              if (messages.some((message) => message.toolCalls))
+                await questionWrite;
+              return { inserted: messages.length, ids: [] };
+            },
+            async createPermissionRequest(request) {
+              const id = request.fenced_prompt_id!;
+              const rowId = `row-${id}`;
+              promptPermissions.set(rowId, {
+                id,
+                turn: request.fenced_prompt_turn_id!,
+              });
+              return rowId;
+            },
+            async cancelPermissionRequest(rowId) {
+              if (promptCleanupError || rowId === failedPermissionCleanup)
+                throw new Error("Prompt sync failed");
+              const removed = promptPermissions.delete(rowId);
+              if (removed) cancelledPermissions.push(rowId);
+              return removed;
+            },
+            getClient() {
+              return strictStub<ReturnType<SyncService["getClient"]>>(
+                "prompt query",
+                {
+                  async query() {
+                    const page = [
+                      ...Array.from(promptPermissions, ([rowId, card]) => ({
+                        kind: "permission",
+                        rowId,
+                        ...card,
+                      })),
+                      ...promptMessages.flatMap((message) => {
+                        const question = message.toolCalls?.find(
+                          ({ name }) => name === "AskUserQuestion",
+                        );
+                        if (
+                          !question ||
+                          promptMessages.some(
+                            ({ messageUuid }) =>
+                              messageUuid === `${message.messageUuid}-closed`,
+                          )
+                        )
+                          return [];
+                        return [
+                          {
+                            kind: "question",
+                            messageUuid: message.messageUuid,
+                            id: question.id,
+                            turn: (question.input as { fencedTurnId: string })
+                              .fencedTurnId,
+                          },
+                        ];
+                      }),
+                    ];
+                    return { page, isDone: true, continueCursor: "" } as never;
+                  },
+                },
+              );
+            },
+          }),
           retryQueue: strictStub<RetryQueue>("retryQueue"),
           conversationCache: {},
           mapCodexAppServerThreadStatusToAgentStatus: () => null,
@@ -377,11 +452,15 @@ export function fixture(
               session: "pilot",
               run: 1,
               fencing_token: lease,
-              lease_ms: 60_000,
+              lease_ms: renewal ? 10 : 60_000,
               last_pane_instance: 0,
               last_event_seq: lastSeq,
             })
           );
+        }
+        if (operation === "renew" && renewal) {
+          await renewal;
+          return Response.json({ v: 1, status: "stale" });
         }
         if (operation === "permits.next") {
           expect(body.fencing_token).toBe(lease);
@@ -474,6 +553,21 @@ export function fixture(
     pilot: pilot!,
     driver,
     appServer,
+    promptMessages,
+    promptPermissions,
+    cancelledPermissions,
+    rejectPromptCleanup(value: boolean) {
+      promptCleanupError = value;
+    },
+    rejectPermissionCleanup(rowId: string) {
+      failedPermissionCleanup = rowId;
+    },
+    pauseQuestionWrite(gate: Promise<void>) {
+      questionWrite = gate;
+    },
+    rejectRenewalAfter(gate: Promise<void>) {
+      renewal = gate;
+    },
     sendFrame,
     deliveryRequests,
     deliveryThread: "codex-fixture-thread",
@@ -530,8 +624,9 @@ export function fixture(
     pauseReceiptReplay(gate: Promise<void>) {
       receiptReplay = gate;
     },
-    async restart(activeTurn?: string) {
+    async restart(activeTurn?: string, afterStop?: () => void) {
       await runtime.stop();
+      afterStop?.();
       resumedTurn = activeTurn;
       const row = ledger.get("pilot:1")!;
       row[0] = { ...row[0], daemonBootId: "restarted-boot" };
