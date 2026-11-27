@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import { serverTest } from "../test-helpers/database.testkit";
 
 const env = {
+  CODECAST_SYNC_ALARMS: "1",
   POSTHOG_KEY: "fixture",
   POSTHOG_HOST: "https://metrics.invalid",
   VITE_POSTHOG_KEY: undefined,
@@ -27,11 +28,11 @@ test("samples the oldest pending age as a personless event and reports an empty 
     },
   );
   try {
-    const t = serverTest();
+    const t = serverTest({ bytesRead: 1_024 });
     const now = Date.now();
     const ids = await t.run(({ db }) =>
       Promise.all(
-        [60_000, 180_000].map((age) =>
+        Array.from({ length: 32 }, (_, i) => 149_000 + 1000 * i).map((age) =>
           db.insert("sync_outbox", {
             scope_key: "user:fixture",
             entity_type: "docs",
@@ -46,10 +47,11 @@ test("samples the oldest pending age as a personless event and reports an empty 
         ),
       ),
     );
+    await expect(t.query(internal.syncOutbox.status, {})).rejects.toThrow(
+      /limit/i,
+    );
     await t.action(internal.analytics.sampleSyncOutbox, {});
-    await t.run(async ({ db }) => {
-      for (const id of ids) await db.delete(id);
-    });
+    for (const id of ids) await t.run(({ db }) => db.delete(id));
     await t.action(internal.analytics.sampleSyncOutbox, {});
     expect(payloads).toHaveLength(2);
     expect(payloads[0]).toMatchObject({
@@ -72,6 +74,7 @@ test("samples the oldest pending age as a personless event and reports an empty 
 });
 
 test.each([
+  ["no flag", { CODECAST_SYNC_ALARMS: undefined }],
   ["no key", { POSTHOG_KEY: undefined }],
   ["telemetry opt-out", { DO_NOT_TRACK: "1" }],
 ] as const)(
@@ -96,9 +99,9 @@ test.each([
           op: "upsert",
         }),
       );
-      await expect(t.query(internal.syncOutbox.status, {})).rejects.toThrow(
-        /limit/i,
-      );
+      await expect(
+        t.query(internal.syncOutbox.oldestPendingAge, {}),
+      ).rejects.toThrow(/limit/i);
       await t.action(internal.analytics.sampleSyncOutbox, {});
       expect(fetch).not.toHaveBeenCalled();
     } finally {
