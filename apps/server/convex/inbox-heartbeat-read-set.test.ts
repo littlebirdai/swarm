@@ -423,3 +423,171 @@ test("re-enabling a lease with the same deadline leaves one pending renewal", as
     now + freshAt + HEARTBEAT_ALIVE_MS,
   ]);
 });
+
+test("user-wide CLI watch reads the inbox window and the filing of its result page", async () => {
+  const { t, viewer, user, working } = await seed();
+  const bucketId = await t.run(async ({ db }) => {
+    await db.patch(user, { daemon_last_seen: now });
+    const decision_id = await db.insert("session_decisions", {
+      user_id: user,
+      asked_user_ids: [user],
+      conversation_id: working.conversation,
+      session_id: "working-trace",
+      question: "Continue?",
+      options: [{ label: "Yes" }],
+      blocking: true,
+      status: "pending",
+      created_at: now,
+    });
+    await db.insert("decision_inbox", {
+      decision_id,
+      user_id: user,
+      status: "pending",
+      created_at: now,
+    });
+    const bucket = await db.insert("inbox_buckets", {
+      user_id: user,
+      name: "Current",
+      created_at: now,
+      updated_at: now,
+    });
+    await db.insert("bucket_assignments", {
+      user_id: user,
+      conversation_id: working.conversation,
+      bucket_id: bucket,
+      updated_at: now,
+    });
+    return bucket;
+  });
+  const read = (watch: boolean) =>
+    recordDocuments(() =>
+      viewer.query(api.conversations.inboxForCLI, { api_token: token, watch }),
+    );
+  const before = await read(true);
+  expect(before.result.sessions).toContainEqual(
+    expect.objectContaining({
+      id: working.conversation,
+      label: "Current",
+      bucket: "questions",
+    }),
+  );
+  const archivedAt = now - 90 * 24 * 60 * 60_000;
+  const archived = await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "cli watch archive");
+    const ids = [];
+    for (let i = 0; i < 2200; i++) {
+      const conversation_id = await fixtures.conversation(user, {
+        status: "completed",
+        started_at: archivedAt,
+        updated_at: archivedAt,
+      });
+      ids.push(
+        await fixtures.session(user, {
+          conversation_id,
+          last_heartbeat: archivedAt,
+        }),
+      );
+      ids.push(
+        await db.insert("session_decisions", {
+          user_id: user,
+          conversation_id,
+          session_id: `archived-${i}`,
+          question: "Continue?",
+          options: [{ label: "Yes" }],
+          blocking: true,
+          status: "pending",
+          created_at: archivedAt,
+        }),
+      );
+      ids.push(
+        await db.insert("bucket_assignments", {
+          user_id: user,
+          conversation_id,
+          bucket_id: bucketId,
+          updated_at: archivedAt,
+        }),
+      );
+    }
+    return ids;
+  });
+  const after = await read(true);
+  const legacy = await read(false);
+  expect(after.result.sessions).toEqual(legacy.result.sessions);
+  expect(after.result.counts).toEqual(legacy.result.counts);
+  expect(after.reads.size).toBe(before.reads.size);
+  expect(archived.some((id) => after.reads.has(id))).toBe(false);
+  expect(archived.every((id) => legacy.reads.has(id))).toBe(true);
+});
+
+test("a CLI watch stays scoped when the owner lookup window overflows", async () => {
+  const { t, viewer, user, working } = await seed();
+  const history = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "dense CLI ownership history");
+    const primary = await rows.user();
+    const archivedAt = now - 90 * 24 * 60 * 60_000;
+    await db.patch(user, { daemon_last_seen: now });
+    await db.patch(working.conversation, { owner_user_id: primary });
+    await rows.message(working.conversation, {
+      role: "assistant",
+      timestamp: now - 2000,
+      tool_calls: [{ id: "question", name: "AskUserQuestion", input: "{}" }],
+    });
+    await db.insert("session_owners", {
+      conversation_id: working.conversation,
+      user_id: user,
+      added_by: primary,
+      added_at: archivedAt - 1,
+    });
+    const owners = [];
+    for (let i = 0; i < 2020; i++) {
+      const conversation_id = await rows.conversation(primary, {
+        status: "completed",
+        message_count: 0,
+        started_at: archivedAt,
+        updated_at: archivedAt,
+        owner_user_id: user,
+      });
+      owners.push(
+        await db.insert("session_owners", {
+          conversation_id,
+          user_id: user,
+          added_by: primary,
+          added_at: archivedAt + i,
+        }),
+      );
+    }
+    return owners;
+  });
+
+  const read = (watch: boolean, session_ids?: string[]) =>
+    recordDocuments(() =>
+      viewer.query(api.conversations.inboxForCLI, {
+        api_token: token,
+        limit: 1,
+        watch,
+        session_ids,
+      }),
+    );
+  const scoped = await read(true);
+  const ordinary = await read(false);
+  expect(scoped.result.sessions).toEqual(ordinary.result.sessions);
+  expect(scoped.result.sessions).toEqual([
+    expect.objectContaining({
+      id: working.conversation,
+      owned_by_me: true,
+      work_state: "needs_input",
+    }),
+  ]);
+  expect(history.filter((id) => scoped.reads.has(id))).toHaveLength(201);
+  expect(scoped.reads.size).toBeLessThan(450);
+  expect(history.some((id) => !ordinary.reads.has(id))).toBe(true);
+  expect(ordinary.reads.size).toBeGreaterThan(2000);
+
+  const named = await read(true, [working.conversation]);
+  expect(named.result.sessions).toEqual(scoped.result.sessions);
+  expect(named.reads.size).toBeLessThan(20);
+
+  const missing = await read(true, ["missing-id"]);
+  expect(missing.result.sessions).toEqual([]);
+  expect(missing.reads.size).toBeLessThan(10);
+});
