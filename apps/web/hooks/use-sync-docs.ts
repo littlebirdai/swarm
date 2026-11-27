@@ -376,9 +376,21 @@ export function useSyncMentionDocs() {
 // recency is all the LRU retention needs.
 const CACHED_AT_GRAIN_MS = 6 * 60 * 60 * 1000;
 
-function syncAuthorizedDocDetail(id: string, data: Record<string, unknown>) {
+function syncAuthorizedDocDetail(
+  id: string,
+  data: Record<string, unknown>,
+  source: "feed" | "authority" = "feed",
+) {
   const store = useInboxStore.getState();
-  if (timedDocCapsEnabled() && store.pending[`docs:${id}`]?.type === "exclude")
+  if (
+    timedDocCapsEnabled() &&
+    store.pending[`docs:${id}`]?.type === "exclude" &&
+    !(
+      source === "authority" &&
+      data.archived_at === undefined &&
+      canHydrateDetail(id)
+    )
+  )
     return;
   const { embedding: _embedding, ...row } = data;
   const previous = store.docDetails[id]?._cachedAt ?? 0;
@@ -394,7 +406,7 @@ function refreshInvalidatedDocDetail(id: string) {
   void fetchFreshDocDetail(id)
     .then((detail) => {
       if (detail && detailReadIsCurrent(id, position))
-        syncAuthorizedDocDetail(id, detail);
+        syncAuthorizedDocDetail(id, detail, "authority");
     })
     .catch(() => {});
 }

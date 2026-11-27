@@ -1,5 +1,6 @@
 import { relayGrantAction } from "./relay-grant-action";
 import * as deferredCache from "./deferred-cache-policy";
+import { timedDocCapsEnabled } from "./cache-eviction";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -20748,6 +20749,13 @@ const inboxStoreConfig = (set: any, get: any) => ({
   }),
   archiveDoc: action(function (this: Draft, id: string) {
     deferredCache.noteDeferredDocEdit(id, "archive");
+    const key = `docs:${id}`;
+    if (
+      timedDocCapsEnabled() &&
+      !this.docs[id] &&
+      this.pending[key]?.type !== "exclude"
+    )
+      this.pending[key] = { type: "exclude", ts: Date.now() };
     delete this.docs[id];
     delete this.docDetails[id];
   }),

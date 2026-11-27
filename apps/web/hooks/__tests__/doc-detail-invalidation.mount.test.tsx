@@ -159,89 +159,184 @@ test("an optimistic archive reports authority only after dispatch confirms it", 
   expect(reports).toEqual([{ ids: [id], cause: "archive" }]);
 });
 
-test.each(["an unrelated invalidation", "a live push"] as const)(
-  "an optimistic archive stays hidden after %s",
-  async (event) => {
-    process.env[flag] = "1";
-    process.env.VITE_TIMED_DOC_CAPS = "1";
-    const accepted = Promise.withResolvers<null>();
-    const ui = await mountWeb(<Body />, {
-      authenticated: true,
-      dispatch: true,
-      setup(backend, store) {
-        if (event === "a live push")
-          store.syncRecord("docs", id, {
-            _id: id,
-            title: row.title,
-            updated_at: row.updated_at,
-          });
-        backend.set(api.taskMining.webGetDocDetail, row);
-        backend.mutation(api.dispatch.dispatch, () => accepted.promise);
-      },
-    });
-    try {
-      expect(ui.container.textContent).toBe(row.content);
-      await act(async () => {
-        if (event === "an unrelated invalidation")
-          hideInvalidatedDetails(["x".repeat(32)]);
-        void ui.store.getState().archiveDoc(id);
-        flushSyncPublishes();
-      });
-      if (event === "a live push") {
-        expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
-        await act(async () => {
-          ui.backend.set(api.taskMining.webGetDocDetail, {
-            ...row,
-            content: "A pre-archive update",
-          });
-          flushSyncPublishes();
-        });
-      }
-      expect(ui.container.textContent).toBe("No body");
-    } finally {
-      await act(async () => accepted.resolve(null));
-      await ui.close();
-    }
-  },
-);
-
-test("a confirmed archive undo reauthorizes the body for hydration and subsequent live pushes", async () => {
+test.each([
+  "an unrelated invalidation",
+  "a live push",
+  "a live push without a list row",
+] as const)("an optimistic archive stays hidden after %s", async (event) => {
   process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const accepted = Promise.withResolvers<null>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
     dispatch: true,
-    setup(backend) {
+    setup(backend, store) {
+      if (event === "a live push")
+        store.syncRecord("docs", id, {
+          _id: id,
+          title: row.title,
+          updated_at: row.updated_at,
+        });
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => accepted.promise);
+    },
+  });
+  try {
+    expect(ui.container.textContent).toBe(row.content);
+    if (event === "a live push without a list row")
+      expect(ui.store.getState().docs[id]).toBeUndefined();
+    await act(async () => {
+      if (event === "an unrelated invalidation")
+        hideInvalidatedDetails(["x".repeat(32)]);
+      void ui.store.getState().archiveDoc(id);
+      flushSyncPublishes();
+    });
+    if (event !== "an unrelated invalidation") {
+      await act(async () => {
+        ui.backend.set(api.taskMining.webGetDocDetail, {
+          ...row,
+          content: "A pre-archive update",
+        });
+        flushSyncPublishes();
+      });
+    }
+    expect(ui.container.textContent).toBe("No body");
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+  } finally {
+    await act(async () => accepted.resolve(null));
+    await ui.close();
+  }
+});
+
+test("a fresh authority read refills an unarchived doc while its exclude is pending", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const confirmed = Promise.withResolvers<typeof row>();
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend, store) {
+      store.syncRecord("docs", id, {
+        _id: id,
+        title: row.title,
+        updated_at: 1,
+      });
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => null);
+    },
+  });
+  try {
+    setDetailInvalidationReporter(
+      (evidence) => {
+        hideInvalidatedDetails(evidence.ids);
+        return true;
+      },
+      () => confirmed.promise,
+    );
+    await act(async () => {
+      await ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.container.textContent).toBe("No body");
+    expect(canHydrateDetail(id)).toBe(false);
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+
+    await act(async () =>
+      confirmed.resolve({ ...row, content: "Confirmed live body" }),
+    );
+    await act(async () => flushSyncPublishes());
+    expect(canHydrateDetail(id)).toBe(true);
+    expect(ui.container.textContent).toBe("Confirmed live body");
+  } finally {
+    await ui.close();
+  }
+});
+
+test("a direct restore lifts the archive exclude and lets later live pushes land", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend, store) {
+      store.syncRecord("docs", id, {
+        _id: id,
+        title: row.title,
+        updated_at: 1,
+      });
       backend.set(api.taskMining.webGetDocDetail, row);
       backend.mutation(api.dispatch.dispatch, () => null);
     },
   });
   const restored = Promise.withResolvers<typeof row>();
-  setDetailInvalidationReporter(
-    (evidence) => {
-      hideInvalidatedDetails(evidence.ids);
-      return true;
+  try {
+    setDetailInvalidationReporter(
+      (evidence) => {
+        hideInvalidatedDetails(evidence.ids);
+        return true;
+      },
+      () => restored.promise,
+    );
+    await act(async () => {
+      await ui.store.getState().archiveDoc(id);
+    });
+    expect(canHydrateDetail(id)).toBe(false);
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+
+    await act(async () => {
+      void ui.store.getState().restoreArchivedDoc(id);
+    });
+    await act(async () => restored.resolve({ ...row, content: "Restored" }));
+    await act(async () => flushSyncPublishes());
+    expect(canHydrateDetail(id)).toBe(true);
+    expect(ui.container.textContent).toBe("Restored");
+
+    await act(async () =>
+      ui.backend.set(api.taskMining.webGetDocDetail, {
+        ...row,
+        content: "Updated after restore",
+      }),
+    );
+    await act(async () => flushSyncPublishes());
+    expect(ui.container.textContent).toBe("Updated after restore");
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).not.toBe("exclude");
+  } finally {
+    await ui.close();
+  }
+});
+
+test("a refused detail-only archive releases the pending exclude", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const archive = Promise.withResolvers<null>();
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    expectedConsoleErrors: [
+      /^\[CONVEX M\(dispatch:dispatch\)\] Error: Uncaught Error: Not authorized$/,
+      /^\[sync\] dispatch failed after retries: archiveDoc/,
+    ],
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => archive.promise);
     },
-    () => restored.promise,
-  );
-  await act(async () => {
-    void ui.store.getState().archiveDoc(id);
   });
-  expect(canHydrateDetail(id)).toBe(false);
-  await act(async () => {
-    void ui.store.getState().restoreArchivedDoc(id);
-  });
-  await act(async () => restored.resolve({ ...row, content: "Restored" }));
-  await act(async () => flushSyncPublishes());
-  expect(canHydrateDetail(id)).toBe(true);
-  expect(ui.container.textContent).toBe("Restored");
-  await act(async () =>
-    ui.backend.set(api.taskMining.webGetDocDetail, {
-      ...row,
-      content: "Updated after undo",
-    }),
-  );
-  await act(async () => flushSyncPublishes());
-  expect(ui.container.textContent).toBe("Updated after undo");
+  try {
+    setDetailInvalidationReporter(undefined, async () => row);
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () => {
+      archive.reject(new Error("Uncaught Error: Not authorized"));
+      flushSyncPublishes();
+    });
+    await act(async () => flushSyncPublishes());
+    expect(ui.store.getState().pending[`docs:${id}`]).toBeUndefined();
+    expect(ui.container.textContent).toBe(row.content);
+  } finally {
+    await ui.close();
+  }
 });
 
 test("a declined invalidation uses the untagged legacy store drop", async () => {
