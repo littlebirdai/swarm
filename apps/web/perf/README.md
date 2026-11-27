@@ -82,6 +82,19 @@ Commits and layout reads in the switch case depend on wall time, because the tra
 
 The append case is the re-render memoization exists for: one row is new and nothing else on the page has anything new to show. Its commits (6 or 7), DOM mutation records and layout reads follow the transcript's timers like the switch's, so they are compared, not asserted.
 
+## Sync delivery budgets
+
+Run `bun perf/budgets.ts sync` from `apps/web`. The CI budget job runs this check in a fresh process.
+
+The save-to-screen fixture edits a short title on a cached personal document. Every measured edit must use one `syncLog:getHeads` query and one `syncLog:getRange` query. The fixture allows zero refetch queries and verifies that the client applies the edit.
+
+| Response           | Measured bytes | Limit in bytes |
+| ------------------ | -------------: | -------------: |
+| `syncLog:getHeads` |             88 |             96 |
+| `syncLog:getRange` |            446 |            480 |
+
+The test measures Convex JSON response bytes. The count excludes socket framing. The Convex outbox test limits the scheduled delay to 25 ms. The probe reports elapsed time separately because the machine load changes the latency.
+
 ## React Compiler
 
 The Vite build compiles the files on the allowlist in `plugins/reactCompiler.ts`; plain bun compiles nothing. `REACT_COMPILER=1` makes the harness load those files compiled (`test-helpers/reactCompiler.ts`, the same list and options), so every command below can be run with the compiler on, and `perf/compilerAB.ts` compares the two directly:

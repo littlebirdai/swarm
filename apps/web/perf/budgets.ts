@@ -14,12 +14,18 @@
 import { deepStrictEqual } from "node:assert/strict";
 import type { Report, Workload } from "./harness";
 
-const only = process.argv[2] as Workload | "store" | "boot" | undefined;
+const only = process.argv[2] as
+  | Workload
+  | "store"
+  | "boot"
+  | "sync"
+  | undefined;
 if (!only) {
   let failed = 0;
   for (const workload of [
     "store",
     "boot",
+    "sync",
     "switch",
     "append",
     "inbox-load",
@@ -42,6 +48,11 @@ if (only === "store") {
 }
 if (only === "boot") {
   await import("./boot-budgets");
+  process.exit(0);
+}
+
+if (only === "sync") {
+  await import("./sync-budgets");
   process.exit(0);
 }
 

@@ -327,6 +327,7 @@ describe("durable sync delivery through wrapped application saves", () => {
     for (let i = 0; i < 10; i++)
       await save(ctx, { fields: { title: `Session ${i}` } });
     expect(scheduled).toHaveLength(10);
+    for (const [delayMs] of scheduled) expect(delayMs).toBeLessThanOrEqual(25);
     expect(await runJobs()).toBe(1);
     expect(db._tables.sync_actions).toHaveLength(10);
     expect(
