@@ -9,6 +9,7 @@ export const cronSweepName = v.union(
 export type CronSweepName = Infer<typeof cronSweepName>;
 export const activitySweepPhase = v.union(
   v.literal("seen"),
+  v.literal("tail"),
   v.literal("created"),
 );
 

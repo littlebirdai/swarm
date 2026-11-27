@@ -3,7 +3,6 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
-import { searchMirrorBackoffEnabled } from "./lib/search-mirror-cron.rules";
 
 // Recent-window mirror for message content search (ct-37627).
 //
@@ -344,7 +343,11 @@ export const advance = internalMutation({
 export const advanceCron = internalMutation({
   args: { scheduledAt: v.optional(v.number()) },
   handler: async (ctx, { scheduledAt }): Promise<void> => {
-    if (!searchMirrorBackoffEnabled()) return;
+    if (process.env.SEARCH_MIRROR_CRON_BACKOFF !== "1") {
+      if (scheduledAt === undefined)
+        await performMirrorAdvance(ctx, { batch: MAX_BATCH_ROWS });
+      return;
+    }
     const now = Date.now();
     const state = await ctx.db.query("search_mirror_state").first();
     if (scheduledAt !== undefined) {

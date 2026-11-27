@@ -146,7 +146,7 @@ test("activity rollup reaches every eligible account without loading dormant use
   });
   jest.setSystemTime(NOW + 50_000);
   await t.run(async ({ db }) => {
-    for (const id of eligible.slice(2, 34))
+    for (const id of eligible.slice(0, 34))
       await db.patch(id, { daemon_last_seen: Date.now() });
   });
   const { cursor, startedAt, days, token } = next.args[0].page;
@@ -159,10 +159,35 @@ test("activity rollup reaches every eligible account without loading dormant use
       phase: "seen",
     }),
   ).toEqual({
+    users: 0,
+    rolled: 0,
+    failed: 0,
+  });
+  const tail = (await scheduledJobs(t, internal.cronSweep.continuePage)).find(
+    (job) => job.args[0].page.phase === "tail",
+  );
+  expect(tail).toBeDefined();
+  const { phase: tailPhase, cursor: tailCursor } = tail!.args[0].page;
+  expect(
+    await t.action(internal.activityDays.sweep, {
+      startedAt,
+      days,
+      token,
+      phase: tailPhase,
+      cursor: tailCursor,
+    }),
+  ).toEqual({
     users: 2,
     rolled: 2,
     failed: 0,
   });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  const accounts = await t.run(async ({ db }) =>
+    (await db.query("user_activity_daily").collect()).map(
+      ({ user_id }) => user_id,
+    ),
+  );
+  expect(accounts.sort()).toEqual(eligible.toSorted());
   await t.action(internal.activityDays.sweep, { days: 2 });
   expect(
     await t.action(internal.activityDays.sweep, {
@@ -178,12 +203,6 @@ test("activity rollup reaches every eligible account without loading dormant use
     failed: 0,
   });
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
-  const accounts = await t.run(async ({ db }) =>
-    (await db.query("user_activity_daily").collect()).map(
-      ({ user_id }) => user_id,
-    ),
-  );
-  expect(accounts.sort()).toEqual(eligible.sort());
 });
 
 test("a backlog larger than a cron run is drained after resuming its checkpoint", async () => {

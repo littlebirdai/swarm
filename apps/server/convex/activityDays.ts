@@ -25,13 +25,26 @@ import { dayStartUtc } from "./lib/userSend";
 const SWEEP_DAYS = ACTIVITY_LIVE_DAYS + 2;
 
 export const rollupDay = internalMutation({
-  args: { user_id: v.id("users"), day_start: v.number() },
-  handler: async (ctx, args) => {
-    return await rollupActivityDay(
+  args: {
+    user_id: v.id("users"),
+    day_start: v.number(),
+    sweep: v.optional(v.object({ token: v.number(), lastDay: v.boolean() })),
+  },
+  handler: async (ctx, { user_id, day_start, sweep }) => {
+    if (sweep) {
+      if (!(await isCurrentCronSweep(ctx.db, "activity", sweep.token)))
+        return null;
+      const user = await ctx.db.get(user_id);
+      if (!user || user.last_activity_rollup_run === sweep.token) return null;
+    }
+    const result = await rollupActivityDay(
       ctx,
-      args.user_id,
-      dayStartUtc(args.day_start),
+      user_id,
+      dayStartUtc(day_start),
     );
+    if (sweep?.lastDay)
+      await ctx.db.patch(user_id, { last_activity_rollup_run: sweep.token });
+    return result;
   },
 });
 
@@ -107,17 +120,21 @@ export const rollupCandidatePage = internalQuery({
         : ctx.db
             .query("users")
             .withIndex("by_daemon_last_seen", (q) =>
-              q
-                .gte("daemon_last_seen", since)
-                .lte("daemon_last_seen", startedAt),
+              phase === "tail"
+                ? q.gt("daemon_last_seen", startedAt)
+                : q
+                    .gte("daemon_last_seen", since)
+                    .lte("daemon_last_seen", startedAt),
             )
             .filter((q) => q.lt(q.field("_creationTime"), since));
-    const page = await candidates.paginate({
-      cursor: cursor ?? null,
-      numItems: 32,
-      maximumRowsRead: 64,
-      maximumBytesRead: 2 * 1024 ** 2,
-    });
+    const page = await candidates
+      .filter((q) => q.neq(q.field("last_activity_rollup_run"), token))
+      .paginate({
+        cursor: cursor ?? null,
+        numItems: 32,
+        maximumRowsRead: 64,
+        maximumBytesRead: 2 * 1024 ** 2,
+      });
     return {
       users: page.page.map(({ _id }) => _id),
       cursor: page.isDone ? null : page.continueCursor,
@@ -157,10 +174,15 @@ export const sweep = internalAction({
     for (const user_id of users) {
       for (let i = 1; i < days; i++) {
         try {
-          await ctx.runMutation(internal.activityDays.rollupDay, {
-            user_id,
-            day_start: today - i * ACTIVITY_DAY_MS,
-          });
+          const result = await ctx.runMutation(
+            internal.activityDays.rollupDay,
+            {
+              user_id,
+              day_start: today - i * ACTIVITY_DAY_MS,
+              sweep: { token, lastDay: i === days - 1 },
+            },
+          );
+          if (!result) break;
           rolled++;
         } catch (e) {
           failed++;
@@ -170,14 +192,16 @@ export const sweep = internalAction({
         }
       }
     }
-    if (cursor !== null || phase === "seen")
+    const nextPhase =
+      cursor !== null ? phase : phase === "seen" ? "tail" : "created";
+    if (cursor !== null || phase !== "created")
       await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
         page: {
           job: "activity",
           days,
           startedAt,
           token,
-          phase: cursor === null ? "created" : phase,
+          phase: nextPhase,
           cursor: cursor ?? undefined,
         },
       });

@@ -41,6 +41,7 @@ export const accountTables = {
     ),
     active_team_id: v.optional(v.id("teams")),
     daemon_last_seen: v.optional(v.number()),
+    last_activity_rollup_run: v.optional(v.number()),
     first_session_synced_at: v.optional(v.number()),
     last_message_sent_at: v.optional(v.number()),
     prev_message_sent_at: v.optional(v.number()),

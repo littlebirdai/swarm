@@ -1,5 +1,4 @@
 import { cronJobs } from "convex/server";
-import { registerSearchMirrorCron } from "./lib/search-mirror-cron.rules";
 import { internal } from "./_generated/api";
 
 const crons = cronJobs();
@@ -255,7 +254,12 @@ crons.interval(
   {},
 );
 
-registerSearchMirrorCron(crons);
+crons.interval(
+  "advance search mirror",
+  { seconds: 15 },
+  internal.searchMirror.advanceCron,
+  {},
+);
 
 crons.interval(
   // Kicks off the retention drain; pruneOldLogs self-reschedules to chew through
