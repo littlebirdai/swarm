@@ -21,7 +21,6 @@ const allowed: Record<string, string> = {
   "lib/sessionStatusWriter.ts": "session status writes",
   "managedSessions.ts": "wire shapes and registration heartbeats",
   "managedSessionsList.ts": "session projection",
-  "messages.ts": "transcript status projection",
   "pendingMessages.ts": "session readiness classification",
   "plans.ts": "session projection",
   "schema/accounts.tables.ts": "user heartbeat field",

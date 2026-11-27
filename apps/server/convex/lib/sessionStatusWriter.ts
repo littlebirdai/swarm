@@ -339,6 +339,17 @@ export async function writeAgentStatus(
   return patch;
 }
 
+export function writeInferredAgentStatus(
+  ctx: Pick<MutationCtx, "db">,
+  id: Id<"managed_sessions">,
+  status: AgentStatus,
+) {
+  return ctx.db.patch(id, {
+    agent_status: status,
+    agent_status_updated_at: Date.now(),
+  });
+}
+
 export async function ensureHostedManagedSession(
   ctx: MutationCtx,
   conversation: Doc<"conversations">,
@@ -422,8 +433,12 @@ export function patchConversationLifecycle(
   ctx: Pick<MutationCtx, "db">,
   id: Id<"conversations">,
   fields: Partial<ConversationFields>,
+  probe?: ConversationFields["agent_status_probe"],
 ) {
-  return ctx.db.patch(id, fields);
+  return ctx.db.patch(
+    id,
+    probe ? { ...fields, agent_status_probe: probe } : fields,
+  );
 }
 
 export function insertConversationWithStatus(

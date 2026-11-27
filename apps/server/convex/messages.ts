@@ -1,3 +1,7 @@
+import {
+  patchConversationLifecycle,
+  writeInferredAgentStatus,
+} from "./lib/sessionStatusWriter";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   DELIVERED_ECHO_ADOPTION_WINDOW_MS,
@@ -1869,10 +1873,7 @@ export const addMessage = mutation({
           )
         : null;
       if (session && nextStatus) {
-        await ctx.db.patch(session._id, {
-          agent_status: nextStatus,
-          agent_status_updated_at: Date.now(),
-        });
+        await writeInferredAgentStatus(ctx, session._id, nextStatus);
       }
     }
 
@@ -2866,8 +2867,12 @@ export async function writeMessageBatch(
     ) {
       agentStatusProbe = null;
     }
-    if (agentStatusProbe) convPatch.agent_status_probe = agentStatusProbe.probe;
-    await ctx.db.patch(args.conversation_id, convPatch);
+    await patchConversationLifecycle(
+      ctx,
+      args.conversation_id,
+      convPatch,
+      agentStatusProbe?.probe,
+    );
 
     if (agentStatusProbe?.schedule) {
       await ctx.scheduler.runAfter(
@@ -2998,10 +3003,7 @@ export const projectAgentStatusOnAddMessages = internalMutation({
     );
     if (!nextStatus) return;
 
-    await ctx.db.patch(session._id, {
-      agent_status: nextStatus,
-      agent_status_updated_at: Date.now(),
-    });
+    await writeInferredAgentStatus(ctx, session._id, nextStatus);
   },
 });
 
