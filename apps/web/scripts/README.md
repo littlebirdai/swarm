@@ -30,7 +30,8 @@ Each talks raw CDP over a WebSocket to a page on a Chrome started with `--remote
 ## Budgets and benches
 
 - `typing-guard.sh`: the typing budget. Runs before every ship that touches web, shared or platform code and in CI.
-- `perf-budgets.sh`: the exact counts behind the perf benches (`perf/README.md`): fetches, subscriptions, store writes, commits and layout reads on the hot paths.
+- `perf-budgets.sh`: the exact counts behind the perf benches (`perf/README.md`): fetches, subscriptions, store writes, commits, layout reads, synced collection bytes, persisted IndexedDB rows after replay, and scoped desktop window collection counts.
+- `heap-budgets.sh`: nightly-style JS heap check (`perf/heap-budgets.ts`) per desktop window and for the calibrated main-account store; prints measured heap bytes and exits non-zero past stated thresholds.
 - `perf-bench.sh`: A/B timing of the hot paths with strobe, base against this tree; every flag passes through to `strobe bench`.
 - `react-compiler-report.ts`: what React Compiler does with the files on its allowlist (`plugins/reactCompiler.ts`) or with the candidates named as arguments: each component it compiled or left as written, with its reason, and each read on a compiled render path that it would cache wrongly (the store, the clock, storage, a module-level table, directly, through a helper, or through a function a hook hands back). Exits 1 while such a read is neither fixed nor marked `"use no memo"`. Props called while rendering are listed for a look by hand; it cannot follow them.
 

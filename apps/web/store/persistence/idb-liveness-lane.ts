@@ -19,6 +19,7 @@ const livenessRows = new Map<string, Set<string>>();
 let livenessSyncMeta = false;
 let livenessState: any = null;
 let livenessTimer: ReturnType<typeof setTimeout> | null = null;
+let inFlightLivenessWrites = 0;
 // Meta keys with liveFields: what each last handed to disk, and which wait.
 const lastPersistedMeta = new Map<string, any>();
 const livenessMeta = new Set<string>();
@@ -202,12 +203,22 @@ export function flushLivenessWrites() {
   }
   if (!writes.length && !metaPuts.length && !writeSyncMeta) return;
   const { db } = lane;
-  db.transaction("rw", [...writes.map((w) => w.table), db.meta], async () => {
-    for (const { table, puts } of writes) await table.bulkPut(puts);
-    for (const row of metaPuts) await db.meta.put(row);
-    if (writeSyncMeta)
-      await db.meta.put({ key: "syncMeta", value: state.syncMeta });
-  }).catch(() => {});
+  const write = db.transaction(
+    "rw",
+    [...writes.map((w) => w.table), db.meta],
+    async () => {
+      for (const { table, puts } of writes) await table.bulkPut(puts);
+      for (const row of metaPuts) await db.meta.put(row);
+      if (writeSyncMeta)
+        await db.meta.put({ key: "syncMeta", value: state.syncMeta });
+    },
+  );
+  inFlightLivenessWrites++;
+  write
+    .catch(() => {})
+    .finally(() => {
+      inFlightLivenessWrites--;
+    });
 }
 
 /**
@@ -274,8 +285,22 @@ export function holdLiveMeta(key: string, state: any): boolean {
   return false;
 }
 
+export function hasPendingLivenessWrites(): boolean {
+  return (
+    livenessState !== null ||
+    livenessRows.size > 0 ||
+    livenessMeta.size > 0 ||
+    livenessSyncMeta ||
+    inFlightLivenessWrites > 0
+  );
+}
+
 /** Drop everything the lane holds: it belongs to the cache being purged. */
 export function resetLivenessLane() {
+  if (livenessTimer) {
+    clearTimeout(livenessTimer);
+    livenessTimer = null;
+  }
   livenessRows.clear();
   livenessSyncMeta = false;
   livenessState = null;

@@ -212,6 +212,11 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/persistence/message-cache.ts:_lastPruneAt": IDB,
   "store/persistence/purge.ts:purging": IDB,
   "store/persistence/collection-writer.ts:lastPersisted": IDB,
+  "store/persistence/collection-writer.ts:pendingMetaKeys": IDB,
+  "store/persistence/collection-writer.ts:inFlightMetaWrites": IDB,
+  "store/persistence/collection-writer.ts:inFlightCollectionWrites": IDB,
+  "store/persistence/idb-liveness-lane.ts:inFlightLivenessWrites": IDB,
+  "store/persistence/message-cache.ts:_pruningConversations": IDB,
   "store/persistence/message-cache.ts:_pendingMsgWrites": IDB,
   "store/persistence/message-cache.ts:_inFlightMsgWrites": IDB,
   "store/persistence/message-cache.ts:_touchedAt": IDB,
@@ -552,12 +557,6 @@ const INBOX_CONST_COLLECTIONS = [
   "retiredAckTs",
 ] as const;
 
-// inboxStore exports its live window bindings; the copying lives here. A
-// snapshot copies the const collections and both levels of _heldOverlayFacts
-// (a scope's hold is assigned, a landed id deleted from it, in place), so it
-// never aliases a live binding. Every other binding passes by reference, as a
-// production window holds it: a memo key may hold a draft mutative has
-// already revoked, which must not be touched.
 function inboxStoreSeam(b: InboxBindings): SlotSeam {
   const copy = (s: InboxSlots): InboxSlots => {
     const out: Record<string, unknown> = { ...s };

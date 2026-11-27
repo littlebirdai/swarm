@@ -4,7 +4,10 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
+import { deployDetailRows } from "../hooks/useDeployDetail";
+import { applyCollectionFeed } from "../hooks/useSyncCollection";
 import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
+import { resetDetailPins } from "../lib/detail-rows";
 import { loadCache } from "../store/persistence/boot-loader";
 import { writePatchesToIDB } from "../store/persistence/collection-writer";
 import {
@@ -28,6 +31,16 @@ import { measureIndexedDB } from "./measure-indexeddb";
 import {
   budgetMessages,
   budgetTail,
+  calibratedConversationRows,
+  calibratedDeployDetailRows,
+  calibratedDeployReachRows,
+  calibratedDocDetailRows,
+  calibratedDocRows,
+  calibratedExternalEventRows,
+  calibratedMySendRows,
+  calibratedRunGraphRows,
+  calibratedSessionRows,
+  calibratedSettingsDataRows,
   fixtureSizes,
   id,
   now,
@@ -73,9 +86,14 @@ async function measureRetention() {
     [...Object.keys(COLLECTION_RETENTION), "sessions", "conversations"].sort(),
   );
   for (const [key, size] of Object.entries(fixtureSizes)) {
-    await COLLECTION_TABLES[key].bulkPut(retainedRows(key, size));
+    const rows =
+      key === "docDetails"
+        ? calibratedDocDetailRows(size)
+        : retainedRows(key, size);
+    await COLLECTION_TABLES[key].bulkPut(rows);
   }
-  const retained = await loadCache(Object.keys(fixtureSizes));
+  await COLLECTION_TABLES.docs.bulkPut(calibratedDocRows(1000));
+  const retained = await loadCache([...Object.keys(fixtureSizes), "docs"]);
   assert(retained);
   for (const key of Object.keys(
     fixtureSizes,
@@ -85,6 +103,45 @@ async function measureRetention() {
       Object.keys(retained[key] ?? {}).length,
     );
   }
+  const jsonBytes = (value: unknown) =>
+    Buffer.byteLength(JSON.stringify(value ?? {}));
+  useInboxStore.setState({
+    sessions: {},
+    conversations: {},
+    externalEvents: {},
+    mySends: {},
+    deployReach: {},
+    runGraphs: {},
+    deployDetails: {},
+    settingsData: {},
+    pending: {},
+  } as any);
+  resetDetailPins();
+  state().syncTable("sessions", calibratedSessionRows(1200), { isDelta: true });
+  state().syncTable("conversations", calibratedConversationRows(1200), {
+    isDelta: true,
+  });
+  state().syncTable("externalEvents", calibratedExternalEventRows(2000));
+  state().syncTable("mySends", calibratedMySendRows(10000));
+  state().syncTable("deployReach", calibratedDeployReachRows(320));
+  state().syncTable("runGraphs", calibratedRunGraphRows(60));
+  for (const row of calibratedDeployDetailRows(70)) {
+    applyCollectionFeed("deployDetails", row, deployDetailRows);
+  }
+  state().syncTable("settingsData", calibratedSettingsDataRows());
+  checkStoreBudget("Session list bytes", jsonBytes(state().sessions));
+  checkStoreBudget("Conversation meta bytes", jsonBytes(state().conversations));
+  checkStoreBudget("Doc list bytes", jsonBytes(retained.docs));
+  checkStoreBudget("Doc detail bytes", jsonBytes(retained.docDetails));
+  checkStoreBudget(
+    "External event list bytes",
+    jsonBytes(state().externalEvents),
+  );
+  checkStoreBudget("My sends list bytes", jsonBytes(state().mySends));
+  checkStoreBudget("Deploy reach bytes", jsonBytes(state().deployReach));
+  checkStoreBudget("Run graph bytes", jsonBytes(state().runGraphs));
+  checkStoreBudget("Deploy detail bytes", jsonBytes(state().deployDetails));
+  checkStoreBudget("Settings data bytes", jsonBytes(state().settingsData));
 }
 
 async function measureWrites({
@@ -225,7 +282,9 @@ await measureFollower();
 useInboxStore.setState({ syncRole: "host" });
 const bytes = measureDetailRows();
 checkStoreBudget("Task list bytes", bytes.tasks);
+checkStoreBudget("Task comment detail bytes", bytes.taskComments);
 checkStoreBudget("Pull request list bytes", bytes.pullRequests);
+checkStoreBudget("Pull request detail bytes", bytes.pullRequestDetails);
 measureMessages();
 
 const measurement = measureIndexedDB(db, true);

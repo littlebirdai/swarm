@@ -46,8 +46,19 @@ export function _resetPersistedShadow() {
   lastPersisted.clear();
 }
 
+const pendingMetaKeys = new Set<string>();
+let inFlightMetaWrites = 0;
+let inFlightCollectionWrites = 0;
+
 const metaWriter = createCoalescedWriter((key, value) => {
-  db.meta.put({ key, value }).catch(() => {});
+  pendingMetaKeys.delete(key);
+  const write = db.meta.put({ key, value });
+  inFlightMetaWrites++;
+  write
+    .catch(() => {})
+    .finally(() => {
+      inFlightMetaWrites--;
+    });
 }, 250);
 connectLivenessLane({
   db,
@@ -144,16 +155,23 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           // One transaction so a row is never momentarily absent: removed rows
           // and changed rows commit together, and unchanged rows are never
           // touched. Replaces the old clear()+bulkPut full-table rewrite.
-          db.transaction("rw", table, async () => {
+          const write = db.transaction("rw", table, async () => {
             if (deletes.length) await table.bulkDelete(deletes);
             if (puts.length) await table.bulkPut(puts);
-          }).catch(() => {});
+          });
+          inFlightCollectionWrites++;
+          write
+            .catch(() => {})
+            .finally(() => {
+              inFlightCollectionWrites--;
+            });
         }
         // Followers also hydrate. Leave disk retention to the next host write.
         if (key === "conversations" && conversationRetentionDrops.size) {
           const queued = conversationRetentionDrops;
           const candidates = [...queued];
           queued.clear();
+          inFlightCollectionWrites++;
           void deleteInBatches(
             {
               bulkDelete: (batch) =>
@@ -186,21 +204,28 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
                 }),
             },
             candidates,
-          );
+          ).finally(() => {
+            inFlightCollectionWrites--;
+          });
         }
       }
     } else if (key === "pending") {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
       // waited for a quiet spell was lost with a page killed in between, and the reload showed a stale push
       // over its own parked write. (A big write plants a few hundred locks, never one per field it touches.)
-      pendingWrite = writePendingEntries(patches, state.pending).catch(
-        () => {},
-      );
+      const write = writePendingEntries(patches, state.pending);
+      inFlightCollectionWrites++;
+      pendingWrite = write
+        .catch(() => {})
+        .finally(() => {
+          inFlightCollectionWrites--;
+        });
     } else if (key === "syncMeta") {
       holdLivenessSyncMeta(state);
     } else if (META_KEYS.has(key)) {
       if (holdLiveMeta(key, state)) continue;
       // Any other meta blob: its latest value once per quiet spell, never once per action. Page hide flushes it.
+      pendingMetaKeys.add(key);
       metaWriter.write(key, state[key]);
     }
   }
@@ -245,9 +270,22 @@ export async function deleteInvalidatedDocDetails(
  *  back. The native engine schedules whole-blob writes and drains them here. */
 export async function flushPersistence(): Promise<void> {}
 
+export function flushPendingMetaWrites(): void {
+  metaWriter.flush();
+}
+
+export function hasPendingCollectionWrites(): boolean {
+  return (
+    pendingMetaKeys.size > 0 ||
+    inFlightMetaWrites > 0 ||
+    inFlightCollectionWrites > 0
+  );
+}
+
 export function resetCollectionWrites() {
   // A meta value still waiting to be written belongs to the cache being purged.
   metaWriter.drop();
+  pendingMetaKeys.clear();
   resetLivenessLane();
   lastPersisted.clear();
   conversationRetentionDrops = new Set();

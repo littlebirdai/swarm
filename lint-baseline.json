@@ -27763,7 +27763,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/store/__tests__/sim/window-slots.ts": {
-    "swarm/no-comments": 63
+    "swarm/no-comments": 57
   },
   "apps/web/store/__tests__/sim/window.ts": {
     "swarm/no-comments": 83

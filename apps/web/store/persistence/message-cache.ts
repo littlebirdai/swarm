@@ -17,6 +17,7 @@ type MessageSnapshot = { messages: any[]; pagination: any };
 let _pendingMsgWrites = new Map<string, MessageSnapshot>();
 const _inFlightMsgWrites = new Set<string>();
 let _msgWriteTimer: ReturnType<typeof setTimeout> | null = null;
+let _pruningConversations = false;
 const MSG_WRITE_DEBOUNCE_MS = 300;
 
 // Hold a few hot tails for exact, mostly referential comparisons without
@@ -163,6 +164,7 @@ function _scheduleMessageWrites(delay = MSG_WRITE_DEBOUNCE_MS) {
 // updates. Delete whole conversations in batches that bound the number of rows
 // in each transaction, rechecking touches and timestamps after the walk.
 async function _pruneConversations() {
+  _pruningConversations = true;
   try {
     const now = Date.now();
     const {
@@ -218,6 +220,8 @@ async function _pruneConversations() {
     );
   } catch {
     // Maintenance is best-effort — the durable cache tolerates skipped prunes.
+  } finally {
+    _pruningConversations = false;
   }
 }
 
@@ -226,6 +230,14 @@ function _maybePruneConversations() {
   if (now - _lastPruneAt < PRUNE_THROTTLE_MS) return;
   _lastPruneAt = now;
   void _pruneConversations();
+}
+
+export function hasPendingMessageWrites(): boolean {
+  return (
+    _pendingMsgWrites.size > 0 ||
+    _inFlightMsgWrites.size > 0 ||
+    _pruningConversations
+  );
 }
 
 // Flush any buffered conversation writes immediately (e.g. on page hide).
