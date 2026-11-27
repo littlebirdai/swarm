@@ -25,36 +25,56 @@ DOM mutations are counted under the mounted tree and inside every shadow root fr
 ## Store budgets
 
 The CI budget job runs these checks in fresh processes. Run only the store
-checks with `bun perf/budgets.ts store` and the first paint checks with
-`bun perf/budgets.ts boot`, from `apps/web`.
+checks with `bun perf/budgets.ts store`, the first paint checks with
+`bun perf/budgets.ts boot`, and the memory/replay/desktop-panel checks with
+`bun perf/budgets.ts memory`, from `apps/web`.
 
-| Budget                                 |   Measured |      Limit | Fixture                                                                                                               | Deliberate regression and failing value        |
-| -------------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Task list bytes                        | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                 | Keep comment threads on task rows → 32,019,997 |
-| Pull request list bytes                |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                    | Keep details on pull request rows → 34,354,946 |
-| Cached conversation message rows       |     22,750 |     22,750 | Load 400 conversations with 250 messages each                                                                         | Skip eviction → 100,000                        |
-| Cached conversation message bytes      | 27,910,610 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                 | Skip eviction → more than 33,554,432           |
-| Cached conversation message JSON bytes | 13,488,375 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                              | Undercount strings and admit all rows          |
-| Retained sessions                      |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip session retention → 1,300                 |
-| Retained conversations                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip conversation retention → 1,300            |
-| Retained docDetails                    |        200 |        200 | 220 recent rows                                                                                                       | Raise the cap by one → 201                     |
-| Retained taskComments                  |      1,500 |      1,500 | 1,600 recent rows                                                                                                     | Raise the cap by one → 1,501                   |
-| Retained pullRequestDetails            |         12 |         12 | 24 recent rows                                                                                                        | Raise the cap by one → 13                      |
-| Retained deployReach                   |        300 |        300 | 320 recent rows                                                                                                       | Raise the cap by one → 301                     |
-| Retained runGraphs                     |         40 |         40 | 60 recent rows                                                                                                        | Raise the cap by one → 41                      |
-| Retained deployDetails                 |         50 |         50 | 70 recent rows                                                                                                        | Raise the cap by one → 51                      |
-| Retained externalEvents                |      2,000 |      2,000 | 2,100 recent rows for one team                                                                                        | Raise the cap by one → 2,001                   |
-| Retained settingsData                  |          1 |          1 | One current row and one retired row                                                                                   | Keep the retired row → 2                       |
-| Retained mySends                       |     10,000 |     10,000 | 10,100 recent rows                                                                                                    | Raise the cap by one → 10,001                  |
-| First paint read groups                |         21 |         21 | Signed-in boot with a cached conversation in focus                                                                    | Move tasks to the critical phase → 22          |
-| First paint IndexedDB tables           |         20 |         20 | Same boot                                                                                                             | Read deferred tasks without timing → 21        |
-| First paint IndexedDB rows             |      2,822 |      2,822 | 1,300 sessions and their twins, a 200-message focused transcript, one row per other collection and system metadata    | Read sessions twice → 4,122                    |
-| Streamed batch row writes              |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write               | Rewrite all 200 messages → 202                 |
-| Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
-| Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
+| Budget                                 |   Measured |      Limit | Fixture                                                                                                                           | Deliberate regression and failing value        |
+| -------------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Task list bytes                        | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                             | Keep comment threads on task rows → 32,019,997 |
+| Task comment detail bytes              |  2,161,087 |  2,182,698 | 756 problem threads held in `taskComments` from `detail-rows-size.ts`                                                             | Hold all 4,467 threads or drop detail split    |
+| Pull request list bytes                |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                                | Keep details on pull request rows → 34,354,946 |
+| Pull request detail bytes              |  1,349,847 |  1,363,346 | First 12 opened pull requests held at `MAX_CACHED_PULL_REQUEST_DETAILS` from `detail-rows-size.ts`                                | Raise `DETAIL_ROW_CAPS.pullRequestDetails`     |
+| Doc list bytes                         |    470,671 |    475,378 | 1,000 calibrated docs with legacy `content`, `entries` and `embedding` hydrated through `loadCache`                               | Skip `docs.hydrateRow` → 9,042,561             |
+| Doc detail bytes                       |  1,639,891 |  1,656,290 | 220 doc details carrying `embedding` hydrated through `loadCache` (capped at 200)                                                 | Keep `embedding` or skip retention             |
+| Session list bytes                     |    188,491 |    190,376 | 1,200 calibrated sessions carrying `INBOX_PROJECTION_FIELDS` synced via `syncTable`                                               | Remove `stripFields` on `sessions` → 345,691   |
+| Conversation meta bytes                |    380,491 |    384,296 | 1,200 calibrated conversation meta rows synced via `syncTable`                                                                    | Add an unstripped diff or heavy field          |
+| External event list bytes              |    818,001 |    826,182 | 2,000 calibrated `externalEvents` rows synced via `syncTable`                                                                     | Add an unstripped heavy field                  |
+| My sends list bytes                    |  3,410,001 |  3,444,102 | 10,000 calibrated `mySends` rows synced via `syncTable`                                                                           | Keep full message payload on rows              |
+| Deploy reach bytes                     |     70,501 |     71,207 | 320 calibrated `deployReach` rows synced via `syncTable` (evicted to `DETAIL_ROW_CAPS.deployReach`, 300)                          | Skip detail cap eviction                       |
+| Run graph bytes                        |     20,921 |     21,131 | 60 calibrated `runGraphs` rows synced via `syncTable` (evicted to `DETAIL_ROW_CAPS.runGraphs`, 40)                                | Skip detail cap eviction                       |
+| Deploy detail bytes                    |     30,401 |     30,706 | 70 calibrated `deploys.get` answers fed through `deployDetailRows` (stripped and evicted to 50)                                   | Keep `commits` or skip cap eviction            |
+| Settings data bytes                    |        915 |        925 | Calibrated `settingsData` payloads synced via `syncTable`                                                                         | Keep oversized payload or heavy field          |
+| Cached conversation message rows       |     22,750 |     22,750 | Load 400 conversations with 250 messages each                                                                                     | Skip eviction → 100,000                        |
+| Cached conversation message bytes      | 27,910,610 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                             | Skip eviction → more than 33,554,432           |
+| Cached conversation message JSON bytes | 13,488,375 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                                          | Undercount strings and admit all rows          |
+| Retained sessions                      |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip session retention → 1,300                 |
+| Retained conversations                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip conversation retention → 1,300            |
+| Retained docDetails                    |        200 |        200 | 220 recent rows                                                                                                                   | Raise the cap by one → 201                     |
+| Retained taskComments                  |      1,500 |      1,500 | 1,600 recent rows                                                                                                                 | Raise the cap by one → 1,501                   |
+| Retained pullRequestDetails            |         12 |         12 | 24 recent rows                                                                                                                    | Raise the cap by one → 13                      |
+| Retained deployReach                   |        300 |        300 | 320 recent rows                                                                                                                   | Raise the cap by one → 301                     |
+| Retained runGraphs                     |         40 |         40 | 60 recent rows                                                                                                                    | Raise the cap by one → 41                      |
+| Retained deployDetails                 |         50 |         50 | 70 recent rows                                                                                                                    | Raise the cap by one → 51                      |
+| Retained externalEvents                |      2,000 |      2,000 | 2,100 recent rows for one team                                                                                                    | Raise the cap by one → 2,001                   |
+| Retained settingsData                  |          1 |          1 | One current row and one retired row                                                                                               | Keep the retired row → 2                       |
+| Retained mySends                       |     10,000 |     10,000 | 10,100 recent rows                                                                                                                | Raise the cap by one → 10,001                  |
+| First paint read groups                |         21 |         21 | Signed-in boot with a cached conversation in focus                                                                                | Move tasks to the critical phase → 22          |
+| First paint IndexedDB tables           |         20 |         20 | Same boot                                                                                                                         | Read deferred tasks without timing → 21        |
+| First paint IndexedDB rows             |      2,822 |      2,822 | 1,300 sessions and their twins, a 200-message focused transcript, one row per other collection and system metadata                | Read sessions twice → 4,122                    |
+| Streamed batch row writes              |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write                           | Rewrite all 200 messages → 202                 |
+| Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry             | Rewrite all 500 conversation rows → 503        |
+| Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                                  | Share the local repoBrowse map → 139           |
+| Main window populated collections      |        138 |        138 | Unscoped replication follower on the same 138-collection snapshot                                                                 | Share a local-only key → 139                   |
+| Palette populated collections          |         39 |         39 | Scoped palette follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                           | Disable panel scoping → 138                    |
+| People populated collections           |         16 |         16 | Scoped people follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                            | Disable panel scoping → 138                    |
+| Call panel populated collections       |         49 |         49 | Scoped call-panel follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
+| Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
+| Persisted IndexedDB rows after replay  |     18,186 |     18,186 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,436       |
 
-The byte limits for task and pull request rows add 1% for small changes to the
-row shape. The count limits add zero rows or tables. The retention fixture
+The byte limits for synced collections add 1% for small changes to the
+row shape. The count limits (retained rows, populated collections per window,
+and persisted IndexedDB rows after replay) add zero rows, collections, or tables. The retention fixture
 omits exceptions such as pinned sessions that can exceed a cap.
 
 The message cache uses 32 MiB per desktop window to leave room for other
@@ -96,6 +116,26 @@ The save-to-screen fixture edits a short title on a cached personal document. Ev
 | `syncLog:getRange` |            446 |            480 |
 
 The test measures Convex JSON response bytes. The count excludes socket framing. The Convex outbox test limits the scheduled delay to 25 ms. The probe reports elapsed time separately because the machine load changes the latency.
+
+## Nightly window JS heap check
+
+Real JS heap size depends on Bun/JSC GC layout and varies slightly across runs, so it stays outside CI's exact-count budgets and runs through the nightly check script from `apps/web`:
+
+```sh
+scripts/heap-budgets.sh          # human-readable table; exits non-zero past any threshold
+bun perf/heap-budgets.ts --json  # machine-readable JSON report
+```
+
+Each window runs in a fresh subprocess, triggers a full GC (`Bun.gc(true)`), and measures `heapStats().heapSize` delta (`heapBytes`) after populating its store. Small desktop windows (`palette`, `people`, `call-panel`, `agent-dock`) run with `VITE_DESKTOP_PANEL_SCOPE=1` on the same 80-row-per-collection replication fixture as `main` and must stay both under their own threshold and below `main`. `main-account` loads the calibrated fixture account (`detail-rows-size.ts`, 1,000 thin docs, retained collections from `store-budget-fixture.ts`, and 400 conversations bounded by the 32 MiB message cache budget).
+
+| Window         | Keys | Typical heap | Threshold | Deliberate regression and failing value |
+| -------------- | ---: | -----------: | --------: | --------------------------------------- |
+| `main`         |  138 |      9.2 MiB |  12.0 MiB | Unbounded replication payload           |
+| `palette`      |   39 |      3.1 MiB |   4.5 MiB | Disable panel scoping → ~9.2 MiB        |
+| `people`       |   16 |      1.8 MiB |   3.0 MiB | Disable panel scoping → ~9.2 MiB        |
+| `call-panel`   |   49 |      3.9 MiB |   5.5 MiB | Disable panel scoping → ~9.2 MiB        |
+| `agent-dock`   |   14 |      1.6 MiB |   3.0 MiB | Disable panel scoping → ~9.1 MiB        |
+| `main-account` |   14 |     54.0 MiB |  72.0 MiB | Skip message eviction → ~102.7 MiB      |
 
 ## React Compiler
 

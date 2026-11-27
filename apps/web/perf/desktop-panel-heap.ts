@@ -5,6 +5,7 @@ import { replaceGlobals } from "../test-helpers/globals";
 
 const panel = process.argv[2];
 const aliases = {
+  main: null,
   palette: "isPaletteWindow",
   people: "isPeopleWindow",
   "call-panel": "isCallPanelWindow",
@@ -56,7 +57,7 @@ const channel: ReplicationChannel = {
   },
 };
 const restore = replaceGlobals({
-  window: { __CODECAST_ELECTRON__: { [role]: true } },
+  window: { __CODECAST_ELECTRON__: role ? { [role]: true } : {} },
 });
 const keys = desktopWindowKeys()?.filter((key) =>
   REPLICATED_STORE_KEYS.includes(key),
@@ -84,7 +85,21 @@ const follower = replicationFollowerFor(
   keys,
 );
 try {
-  await ready.promise;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      ready.promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(new Error(`Heap worker replication timed out for ${panel}`)),
+          10_000,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
   Bun.gc(true);
   const state = useInboxStore.getState();
   const resident = Object.entries(state).filter(

@@ -19,6 +19,7 @@ const only = process.argv[2] as
   | "store"
   | "boot"
   | "sync"
+  | "memory"
   | undefined;
 if (!only) {
   let failed = 0;
@@ -26,6 +27,7 @@ if (!only) {
     "store",
     "boot",
     "sync",
+    "memory",
     "switch",
     "append",
     "inbox-load",
@@ -53,6 +55,11 @@ if (only === "boot") {
 
 if (only === "sync") {
   await import("./sync-budgets");
+  process.exit(0);
+}
+
+if (only === "memory") {
+  await import("./memory-budgets");
   process.exit(0);
 }
 

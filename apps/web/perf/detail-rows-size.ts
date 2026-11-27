@@ -408,8 +408,9 @@ export function measureDetailRows(report: (line: string) => void = () => {}) {
   );
   // The line app open: it reads the thread of every problem.
   holdTaskThreads(tasks.filter((t) => t.cause));
+  const taskCommentsBytes = collectionBytes("taskComments");
   report(
-    `  AFTER, with the line open (${MEASURED.tasks.causeRows} problems' threads): list rows ${mb(collectionBytes("tasks"))} + threads ${mb(collectionBytes("taskComments"))}`,
+    `  AFTER, with the line open (${MEASURED.tasks.causeRows} problems' threads): list rows ${mb(collectionBytes("tasks"))} + threads ${mb(taskCommentsBytes)}`,
   );
 
   // ── Pull requests ──
@@ -444,8 +445,9 @@ export function measureDetailRows(report: (line: string) => void = () => {}) {
   useInboxStore.setState({ pullRequestDetails: {} } as any);
   for (const p of full.slice(0, MAX_CACHED_PULL_REQUEST_DETAILS))
     applyPullRequestAnswer(p);
+  const pullRequestDetailsBytes = collectionBytes("pullRequestDetails");
   report(
-    `  AFTER, kept across a restart (the cap, ${MAX_CACHED_PULL_REQUEST_DETAILS} opened pull requests): detail held ${mb(collectionBytes("pullRequestDetails"))}`,
+    `  AFTER, kept across a restart (the cap, ${MAX_CACHED_PULL_REQUEST_DETAILS} opened pull requests): detail held ${mb(pullRequestDetailsBytes)}`,
   );
   useInboxStore.setState({ pullRequestDetails: {} } as any);
   const heaviest = [...full]
@@ -461,7 +463,12 @@ export function measureDetailRows(report: (line: string) => void = () => {}) {
   report(
     `\nboth lists, always loaded in every window: ${mb(before)} before, ${mb(after)} after (${Math.round((1 - after / before) * 100)}% less)`,
   );
-  return { tasks: taskThin, pullRequests: prThin };
+  return {
+    tasks: taskThin,
+    pullRequests: prThin,
+    taskComments: taskCommentsBytes,
+    pullRequestDetails: pullRequestDetailsBytes,
+  };
 }
 
 if (import.meta.main) {
