@@ -134,6 +134,63 @@ describe("auth principal tracker", () => {
     h.siblingWrite(JWT_KEY, fakeToken("userB"));
     expect(h.changes.length).toBe(1);
   });
+
+  test("resolves global localStorage dynamically when localStorage option is omitted", () => {
+    const hadDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    const storageListeners = new Set<(e: StorageEventLike) => void>();
+    const map = new Map<string, string>();
+    const changes: AuthPrincipalChange[] = [];
+    const target = {
+      addEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        storageListeners.add(l);
+      },
+      removeEventListener: (_t: "storage", l: (e: StorageEventLike) => void) => {
+        storageListeners.delete(l);
+      },
+    };
+    let tracker: ReturnType<typeof createAuthPrincipalTracker> | undefined;
+    try {
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+      tracker = createAuthPrincipalTracker({
+        jwtKey: JWT_KEY,
+        subscribeWrites: () => () => {},
+        readDurable: async () => null,
+        eventTarget: target,
+      });
+      tracker.subscribe((c) => changes.push(c));
+      expect(tracker.current()).toBeNull();
+
+      const dynamicStorage = { getItem: (k: string) => map.get(k) ?? null };
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        writable: true,
+        value: dynamicStorage,
+      });
+      map.set(JWT_KEY, fakeToken("userA"));
+      tracker.check();
+      expect(tracker.current()).toBe("userA");
+      expect(changes).toEqual([{ epoch: 1, previous: null, next: "userA" }]);
+
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+          throw new Error("storage blocked");
+        },
+      });
+      expect(() => {
+        for (const l of storageListeners) l({ key: JWT_KEY, storageArea: dynamicStorage });
+      }).not.toThrow();
+      expect(tracker.current()).toBeNull();
+    } finally {
+      tracker?.dispose();
+      if (hadDescriptor) Object.defineProperty(globalThis, "localStorage", hadDescriptor);
+      else delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
 });
 
 // A token that is present but does not parse is not a logout. The library

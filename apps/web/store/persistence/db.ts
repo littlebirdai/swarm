@@ -194,6 +194,34 @@ export function registerTestReopen(fn: () => void): void {
   testReopenListeners.push(fn);
 }
 
+export function bindWindowFlush(flush: () => void): void {
+  let boundWindow: Window | null = null;
+  const onVisibilityChange = () => {
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+    )
+      flush();
+  };
+  const rebind = () => {
+    if (boundWindow && typeof boundWindow.removeEventListener === "function") {
+      boundWindow.removeEventListener("pagehide", flush);
+      boundWindow.removeEventListener("visibilitychange", onVisibilityChange);
+    }
+    boundWindow = null;
+    if (
+      typeof window === "undefined" ||
+      typeof window.addEventListener !== "function"
+    )
+      return;
+    boundWindow = window;
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("visibilitychange", onVisibilityChange);
+  };
+  rebind();
+  registerTestReopen(rebind);
+}
+
 // Test hook: Dexie copies the IndexedDB API into the instance at construction
 // and remembers a failed open, so a test running after another file already
 // touched the singleton (no IndexedDB in the process then) must hand the

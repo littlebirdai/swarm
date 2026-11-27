@@ -96,6 +96,8 @@ const { CodecastAuthRoot } = await import("../authRoot");
 const { AUTH_JWT_STORAGE_KEY, CONVEX_URL } = await import("../localAuth");
 const { useInboxStore, ensureHydrated } =
   await import("../../store/inboxStore");
+const { installAuthPrincipalBoundary, uninstallAuthPrincipalBoundary } =
+  await import("../../store/principalBoundary");
 const store = useInboxStore;
 
 function b64url(value: object): string {
@@ -197,6 +199,7 @@ const inboxRows = () => Object.keys(store.getState().sessions).length;
 const tA1 = issue("userA", "sA1");
 let roots: Root[] = [];
 beforeEach(async () => {
+  installAuthPrincipalBoundary();
   for (const r of roots) act(() => r.unmount());
   roots = [];
   timeline.length = 0;
@@ -218,6 +221,7 @@ afterAll(async () => {
   await flush();
   for (let i = 0; i < 500 && !store.getState().clientStateInitialized; i++)
     await new Promise((r) => setTimeout(r, 10));
+  uninstallAuthPrincipalBoundary();
 });
 
 async function twoWindowsSignedInAsA() {

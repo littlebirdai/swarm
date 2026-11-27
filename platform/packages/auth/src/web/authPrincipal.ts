@@ -65,10 +65,15 @@ export function createAuthPrincipalTracker(opts: {
   nativeStorageArea?: unknown;
 }): AuthPrincipalTracker {
   const { jwtKey } = opts;
-  const getLocal = () =>
-    opts.localStorage === undefined
-      ? (typeof localStorage !== "undefined" ? localStorage : null)
-      : opts.localStorage;
+  const getLocal = () => {
+    try {
+      return opts.localStorage === undefined
+        ? (typeof localStorage !== "undefined" ? localStorage : null)
+        : opts.localStorage;
+    } catch {
+      return null;
+    }
+  };
   const target = opts.eventTarget === undefined
     ? (typeof window !== "undefined" ? (window as unknown as StorageEventTarget) : null)
     : opts.eventTarget;
