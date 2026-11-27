@@ -76,13 +76,13 @@ import {
 } from "@codecast/convex/convex/teamVisibility";
 import { bootInboxPersistence, hydrateConversation } from "./inbox-hydration";
 import {
-  MESSAGE_CACHE_BUDGET_BYTES,
   MESSAGE_CACHE_PAGE_OVERHEAD,
   adjustMessageCacheBytes,
   dropCachedMessages,
   evictDetailRows,
   evictInactiveMessages,
   hasEvictableMessagesOverBudget,
+  releasedInlineMessageIds,
   holdsUnsentComment,
   messageRowBytes,
   omitRedundantInlineImages,
@@ -8068,7 +8068,7 @@ export interface InboxStoreState
   userMessages: Record<string, UserMessage[]>;
   messageCacheBytes: number;
   messageCacheBytesByConversation: Record<string, number>;
-  trimMessageCache: () => void;
+  trimMessageCache: (releasedIds?: readonly string[]) => void;
 
   clientState: ClientState;
   clientStateInitialized: boolean;
@@ -13391,8 +13391,11 @@ const inboxStoreConfig = (set: any, get: any) => ({
   userMessages: {},
   messageCacheBytes: 0,
   messageCacheBytesByConversation: {},
-  trimMessageCache: sync(function (this: Draft) {
-    evictInactiveMessages(this);
+  trimMessageCache: sync(function (
+    this: Draft,
+    releasedIds?: readonly string[],
+  ) {
+    evictInactiveMessages(this, undefined, releasedIds);
   }),
   feedConversations: {},
   feedHasMore: {},
@@ -22428,21 +22431,24 @@ if (!survivingInboxStore) {
 // as the view moves off it (dropSessionInDraft deferred it).
 if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
-    if (
-      state.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES &&
-      (state.sessions !== prev.sessions ||
-        (state.pendingMessages !== prev.pendingMessages &&
-          state.messages === prev.messages) ||
-        state.queuedMessages !== prev.queuedMessages ||
-        state.pendingSessionCreates !== prev.pendingSessionCreates ||
-        state.currentSessionId !== prev.currentSessionId ||
-        state.currentConversation !== prev.currentConversation ||
-        state.sidePanelSessionId !== prev.sidePanelSessionId ||
-        state.viewingDismissedId !== prev.viewingDismissedId ||
-        state.pendingNavigateId !== prev.pendingNavigateId) &&
-      hasEvictableMessagesOverBudget(state)
-    )
-      queueMicrotask(() => useInboxStore.getState().trimMessageCache());
+    const protectionChanged =
+      state.sessions !== prev.sessions ||
+      (state.pendingMessages !== prev.pendingMessages &&
+        state.messages === prev.messages) ||
+      state.queuedMessages !== prev.queuedMessages ||
+      state.pendingSessionCreates !== prev.pendingSessionCreates ||
+      state.currentSessionId !== prev.currentSessionId ||
+      state.currentConversation !== prev.currentConversation ||
+      state.sidePanelSessionId !== prev.sidePanelSessionId ||
+      state.viewingDismissedId !== prev.viewingDismissedId ||
+      state.pendingNavigateId !== prev.pendingNavigateId;
+    if (protectionChanged) {
+      const released = releasedInlineMessageIds(state, prev);
+      if (released.length || hasEvictableMessagesOverBudget(state))
+        queueMicrotask(() =>
+          useInboxStore.getState().trimMessageCache(released),
+        );
+    }
     if (
       state.currentSessionId === prev.currentSessionId ||
       deferredDeletedSessions.size === 0

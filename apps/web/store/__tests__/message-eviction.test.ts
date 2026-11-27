@@ -28,6 +28,7 @@ import {
   MESSAGE_CACHE_BUDGET_BYTES,
   MESSAGE_CACHE_PAGE_OVERHEAD,
   messageRowBytes,
+  messageWarmState,
   retainOpenMessageView,
 } from "../store-eviction";
 
@@ -428,3 +429,85 @@ test("an oversized unobserved transcript cannot keep the cache above its byte bu
     expect(bytes).toBeGreaterThan(MESSAGE_CACHE_BUDGET_BYTES);
   }
 });
+
+test("warming stays available after inline eviction below the byte budget", () => {
+  const store = __createInboxStoreForTests();
+  const full = messageWarmState.full;
+  messageWarmState.full = false;
+  try {
+    const image = { media_type: "image/png", data: "aW1hZ2U=" };
+    store
+      .getState()
+      .setMessages("image", [{ ...row(1), images: [image] }], {}, "cache");
+    expect(Boolean(store.getState().messages.image)).toBe(
+      process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
+    );
+    expect(messageWarmState.full).toBe(false);
+    for (const id of ["first", "second", "third", "fourth"]) {
+      store.getState().setMessages(id, [row(1, large)], {}, "cache");
+    }
+    expect(messageWarmState.full).toBe(true);
+  } finally {
+    messageWarmState.full = full;
+  }
+});
+
+test.each(["stream", "send", "panel"] as const)(
+  "an inline transcript below the budget leaves memory when %s protection lifts",
+  async (protection) => {
+    const id = "held-image-chat";
+    const original = useInboxStore.getState();
+    const full = messageWarmState.full;
+    messageWarmState.full = false;
+    const now = Date.now();
+    const session = {
+      _id: id,
+      agent_status: "working",
+      agent_type: "codecast",
+      updated_at: now,
+      last_heartbeat: now,
+      message_count: 1,
+    } as InboxStoreState["sessions"][string];
+    useInboxStore.setState({
+      messages: {},
+      userMessages: {},
+      pagination: {},
+      messageCacheBytes: 0,
+      messageCacheBytesByConversation: {},
+      sessions: protection === "stream" ? { [id]: session } : {},
+      pendingMessages:
+        protection === "send"
+          ? { [id]: [{ ...row(now, "pending"), _isOptimistic: true }] }
+          : {},
+      queuedMessages: {},
+      sidePanelSessionId: protection === "panel" ? id : null,
+    });
+    try {
+      const image = { media_type: "image/png", data: "aW1hZ2U=" };
+      useInboxStore
+        .getState()
+        .setMessages(id, [{ ...row(1), images: [image] }], {}, "cache");
+      expect(useInboxStore.getState().messages[id]?.[0].images).toEqual([
+        image,
+      ]);
+      expect(useInboxStore.getState().messageCacheBytes).toBeLessThan(
+        MESSAGE_CACHE_BUDGET_BYTES,
+      );
+      if (protection === "stream")
+        useInboxStore.setState({
+          sessions: { [id]: { ...session, agent_status: "idle" } },
+        });
+      else if (protection === "send")
+        useInboxStore.setState({ pendingMessages: {} });
+      else useInboxStore.setState({ sidePanelSessionId: null });
+      await Promise.resolve();
+      expect(Boolean(useInboxStore.getState().messages[id])).toBe(
+        process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
+      );
+      expect(messageWarmState.full).toBe(false);
+    } finally {
+      useInboxStore.setState(original);
+      messageWarmState.full = full;
+    }
+  },
+);

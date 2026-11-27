@@ -196,21 +196,73 @@ export function hasEvictableMessagesOverBudget(
   );
 }
 
+export function releasedInlineMessageIds(
+  state: MessageCacheDraft,
+  previous: MessageCacheDraft,
+): string[] {
+  if (!messageMemoryBudgetEnabled() || !state.messageCacheBytes) return [];
+  const ids = new Set<string>();
+  const previousViews = [
+    previous.currentConversation?.conversationId,
+    previous.currentSessionId,
+    previous.sidePanelSessionId,
+    previous.viewingDismissedId,
+    previous.pendingNavigateId,
+  ];
+  const currentViews = [
+    state.currentConversation?.conversationId,
+    state.currentSessionId,
+    state.sidePanelSessionId,
+    state.viewingDismissedId,
+    state.pendingNavigateId,
+  ];
+  for (const [index, id] of previousViews.entries())
+    if (id && id !== currentViews[index]) ids.add(id);
+
+  if (
+    state.sessions !== previous.sessions ||
+    state.pendingMessages !== previous.pendingMessages ||
+    state.queuedMessages !== previous.queuedMessages ||
+    state.pendingSessionCreates !== previous.pendingSessionCreates
+  ) {
+    for (const id in state.messageCacheBytesByConversation)
+      if (
+        (state.sessions[id] !== previous.sessions[id] &&
+          previous.sessions[id]) ||
+        (previous.pendingMessages[id]?.length &&
+          !state.pendingMessages[id]?.length) ||
+        (previous.queuedMessages[id]?.length &&
+          !state.queuedMessages[id]?.length) ||
+        (Object.hasOwn(previous.pendingSessionCreates, id) &&
+          !Object.hasOwn(state.pendingSessionCreates, id))
+      )
+        ids.add(id);
+  }
+
+  if (!ids.size) return [];
+  const now = Date.now();
+  return [...ids].filter(
+    (id) => canEvictMessages(state, id, now) && hasInlineOnlyImages(state, id),
+  );
+}
+
 export function evictInactiveMessages(
   draft: MessageCacheDraft,
   writtenId?: string,
+  releasedIds?: readonly string[],
 ): void {
   const strict = messageMemoryBudgetEnabled();
-  if (!strict && draft.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return;
+  const overBudget = draft.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES;
+  if (!strict && !overBudget) return;
   const now = Date.now();
   if (strict) {
     const ids = writtenId
       ? [writtenId]
-      : Object.keys(draft.messageCacheBytesByConversation);
+      : (releasedIds ?? Object.keys(draft.messageCacheBytesByConversation));
     for (const id of ids) {
       if (canEvictMessages(draft, id, now) && hasInlineOnlyImages(draft, id)) {
         dropCachedMessages(draft, id);
-        messageWarmState.full = true;
+        if (overBudget) messageWarmState.full = true;
       }
     }
   }

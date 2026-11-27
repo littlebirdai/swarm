@@ -213,7 +213,7 @@ function finishWarm(inFlight: Set<string>, id: string): void {
       inFlight === messageWarmState.inFlight &&
       hasEvictableMessagesOverBudget(state, id)
     )
-      state.trimMessageCache();
+      state.trimMessageCache([id]);
   });
 }
 

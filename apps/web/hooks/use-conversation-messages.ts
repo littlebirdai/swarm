@@ -140,7 +140,7 @@ export function useConversationMessages(
         queueMicrotask(() => {
           const state = useInboxStore.getState();
           if (hasEvictableMessagesOverBudget(state, conversationId))
-            state.trimMessageCache();
+            state.trimMessageCache([conversationId]);
         });
       } else if (hasEvictableMessagesOverBudget(useInboxStore.getState())) {
         queueMicrotask(() => useInboxStore.getState().trimMessageCache());
