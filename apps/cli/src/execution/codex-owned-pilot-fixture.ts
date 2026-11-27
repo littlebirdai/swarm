@@ -155,7 +155,7 @@ export function fixture(
       "fake app-server consumes the frame",
     );
   }
-  function deliveryRequests() {
+  function providerRequests() {
     const effects = join(directory, "effects");
     if (!existsSync(effects)) return [];
     return readFileSync(effects, "utf8")
@@ -167,10 +167,12 @@ export function fixture(
         }: { message: { method: string; params: Record<string, unknown> } } =
           JSON.parse(line);
         return message;
-      })
-      .filter(
-        ({ method }) => method === "turn/start" || method === "turn/steer",
-      );
+      });
+  }
+  function deliveryRequests() {
+    return providerRequests().filter(
+      ({ method }) => method === "turn/start" || method === "turn/steer",
+    );
   }
   const actions: string[] = [];
   const logs: string[] = [];
@@ -220,6 +222,7 @@ export function fixture(
   let failedPermissionCleanup: string | undefined;
   let questionWrite: Promise<void> | undefined;
   let renewal: Promise<void> | undefined;
+  const statuses: string[] = [];
   function createPilot(flag = enabled) {
     return createCodexOwnedPilot(
       {
@@ -311,8 +314,14 @@ export function fixture(
           }),
           retryQueue: strictStub<RetryQueue>("retryQueue"),
           conversationCache: {},
-          mapCodexAppServerThreadStatusToAgentStatus: () => null,
-          sendAgentStatus: () => {},
+          mapCodexAppServerThreadStatusToAgentStatus: (status) => {
+            if (status?.type === "active") return "working";
+            if (status?.type === "systemError") return "stopped";
+            if (status?.type === "idle") return "idle";
+            return null;
+          },
+          sendAgentStatus: (_sync, _conversation, _runtime, status) =>
+            statuses.push(status),
           trackTmuxSpawns: async () => {},
           syncMessagesBatch: async () => {},
         },
@@ -458,9 +467,12 @@ export function fixture(
             })
           );
         }
-        if (operation === "renew" && renewal) {
-          await renewal;
-          return Response.json({ v: 1, status: "stale" });
+        if (operation === "renew") {
+          if (renewal) {
+            await renewal;
+            return Response.json({ v: 1, status: "stale" });
+          }
+          return Response.json({ v: 1, status: "renewed", lease_ms: 60_000 });
         }
         if (operation === "permits.next") {
           expect(body.fencing_token).toBe(lease);
@@ -570,6 +582,14 @@ export function fixture(
     },
     sendFrame,
     deliveryRequests,
+    providerRequests,
+    statuses,
+    exitProvider() {
+      process.kill(
+        Number(readFileSync(join(directory, "pid"), "utf8")),
+        "SIGTERM",
+      );
+    },
     deliveryThread: "codex-fixture-thread",
     pilotRequest,
     legacyRequest,

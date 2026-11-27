@@ -1,3 +1,5 @@
+import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
+import { applyHeartbeat } from "../sessionStatusWriter";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   TURN_PROJECTION_VERSION,
@@ -276,12 +278,26 @@ export async function renewRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
   const current = await currentClaim(ctx, args, now);
   if (!current) return stale;
-  const { lease } = current;
+  const { binding, lease } = current;
   const expiresAt = now + LEASE_MS;
   await ctx.db.patch(lease._id, {
     expires_at: expiresAt,
     retain_until: expiresAt + RECEIPT_MS,
   });
+  if (
+    binding.actual_agent === "codex" &&
+    binding.transport === "app-server" &&
+    binding.handle?.startsWith(OWNED_CODEX_CHECKPOINT_PREFIX)
+  ) {
+    const session = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", binding.conversation_id),
+      )
+      .first();
+    if (session?.user_id === binding.owner_user_id)
+      await applyHeartbeat(ctx, session, undefined, undefined, now);
+  }
   return {
     v: RUN_LEASE_VERSION,
     status: "renewed",

@@ -149,6 +149,8 @@ test.each(["poll", "wake"])(
     }) as typeof setTimeout);
     let unblock: (() => void) | undefined;
     try {
+      f.enqueue(0);
+      f.queue[0]!.state = "started";
       f.initial([item(f.pilotRequest)]);
       await f.runtime.start();
       const poll = polls.shift();
@@ -171,6 +173,7 @@ test.each(["poll", "wake"])(
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(reads()).toBe(before);
 
+      f.queue.shift();
       f.enqueue(1);
       const settled = f.runtime.processWorkUpdate([]);
       read.resume();
@@ -323,14 +326,12 @@ test("a missing receipt holds the slot until the server settles that delivery", 
     });
     await finishTurn(f, "actual-turn-1");
     await f.runtime.processWorkUpdate(work);
-    for (const status of ["stale", "takeover_fence"] as const) {
-      f.setPermitReadStatus(status);
-      await f.runtime.processWorkUpdate(work);
-      expect(f.runtime.coordinator.getActiveDelivery("pilot")?.attemptId).toBe(
-        "attempt-1",
-      );
-      expect(providerSends(f)).toHaveLength(1);
-    }
+    f.setPermitReadStatus("takeover_fence");
+    await f.runtime.processWorkUpdate(work);
+    expect(f.runtime.coordinator.getActiveDelivery("pilot")?.attemptId).toBe(
+      "attempt-1",
+    );
+    expect(providerSends(f)).toHaveLength(1);
     f.setPermitReadStatus();
     f.queue.shift();
 

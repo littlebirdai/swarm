@@ -36,6 +36,7 @@ import { agentSpawnPath } from "../agentSpawnPath.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
 import {
   CodexPilotDelivery,
+  CodexPilotLeaseLost,
   deliveryFence,
   readEdge,
 } from "./codex-pilot-delivery.js";
@@ -50,6 +51,7 @@ import type {
 import { structuredFailure } from "./types.js";
 
 const provider = { agent: "codex", version: "0.153.4" } as const;
+const maxConsecutiveLivenessMisses = 3;
 
 export function ownsCodexCheckpoint(handle: string): boolean {
   return handle.startsWith(handlePrefix);
@@ -155,6 +157,9 @@ export class CodexOwnedPilot {
   private closing?: Promise<void>;
   private renewal?: ReturnType<typeof setTimeout>;
   private renewalTask?: Promise<void>;
+  private streamProgress = 0;
+  private progressAtRenewal = 0;
+  private consecutiveLivenessMisses = 0;
   private controller = new AbortController();
 
   constructor(
@@ -164,6 +169,14 @@ export class CodexOwnedPilot {
 
   selects(conversationId: string, epoch = 1): boolean {
     return conversationId === this.conversationId && epoch === 1;
+  }
+
+  get closed(): boolean {
+    return this.stopping;
+  }
+
+  ownsThread(threadId: string): boolean {
+    return this.session?.getCheckpoint() === threadId;
   }
 
   owns(binding: ReadyBinding): boolean {
@@ -411,7 +424,11 @@ export class CodexOwnedPilot {
     try {
       pending = await this.delivery.nextPermit(claim, this.controller.signal);
     } catch (error) {
-      if (this.controller.signal.aborted) throw error;
+      if (
+        this.controller.signal.aborted ||
+        error instanceof CodexPilotLeaseLost
+      )
+        throw error;
       this.options.log(
         `[owned-codex] could not read the delivery head: ${String(error)}`,
       );
@@ -500,15 +517,20 @@ export class CodexOwnedPilot {
       !this.owns(binding)
     )
       return false;
-    return this.delivery.drain(
-      binding,
-      coordinator,
-      session,
-      claim,
-      prepareText,
-      this.controller.signal,
-      sendNew,
-    );
+    try {
+      return await this.delivery.drain(
+        binding,
+        coordinator,
+        session,
+        claim,
+        prepareText,
+        this.controller.signal,
+        sendNew,
+      );
+    } catch (error) {
+      if (error instanceof CodexPilotLeaseLost) await this.close();
+      throw error;
+    }
   }
 
   private async writeEvents(
@@ -521,6 +543,7 @@ export class CodexOwnedPilot {
       this.options.display;
     const { conversationId, runtimeId } = binding;
     for await (const event of session.events) {
+      this.streamProgress++;
       if (event.kind === "message.delta") continue;
       await this.append(claim, event);
       await this.delivery.observe(event, session, this.controller.signal);
@@ -620,15 +643,41 @@ export class CodexOwnedPilot {
   private scheduleRenewal(claim: ClaimGrant, duration: number): void {
     if (this.controller.signal.aborted) return;
     this.renewal = setTimeout(() => {
-      this.renewalTask = this.edge(
-        "renew",
-        { v, ...deliveryFence(claim) },
-        parseRenewResponse,
-      ).then((result) => {
+      this.renewalTask = (async () => {
+        const signal = this.controller.signal;
+        const session = this.deliveryReady ? this.session : undefined;
+        const progress = this.streamProgress;
+        const responsive =
+          progress !== this.progressAtRenewal ||
+          !session?.checkLiveness ||
+          (await session.checkLiveness(signal).catch(() => false));
+        signal.throwIfAborted();
+        if (responsive || progress !== this.streamProgress) {
+          this.consecutiveLivenessMisses = 0;
+        } else if (
+          ++this.consecutiveLivenessMisses >= maxConsecutiveLivenessMisses
+        ) {
+          const { display } = this.options;
+          if (session)
+            display.sendAgentStatus(
+              display.syncService,
+              claim.session,
+              session.getCheckpoint(),
+              "stopped",
+            );
+          throw new Error("Owned Codex app-server stopped responding");
+        }
+        const result = await this.edge(
+          "renew",
+          { v, ...deliveryFence(claim) },
+          parseRenewResponse,
+          signal,
+        );
         if (result.status !== "renewed")
           throw new Error("Owned Codex lease expired");
+        this.progressAtRenewal = progress;
         this.scheduleRenewal(claim, result.lease_ms);
-      });
+      })();
       void this.renewalTask.catch((error) => {
         this.options.log(
           `[owned-codex] lease renewal failed: ${String(error)}`,
@@ -651,6 +700,7 @@ export class CodexOwnedPilot {
     await this.renewalTask?.catch(() => {});
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
+    this.session = undefined;
     const outcome = await session?.close();
     await this.eventWriter;
     await this.promptCards

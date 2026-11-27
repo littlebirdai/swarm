@@ -257,6 +257,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     initialize: Initialize,
     "thread/start": ThreadReply,
     "thread/resume": ThreadReply,
+    "thread/read": ThreadReply,
     "turn/start": TurnReply,
     "turn/steer": SteerReply,
     "turn/interrupt": InterruptReply,
@@ -663,6 +664,25 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         );
   });
 
+  const checkLiveness = Effect.fn("app-server.check-liveness")(function* () {
+    if (!active && !starting && !unlocatedTurn) return true;
+    const response = yield* roundTrip("thread/read", {
+      threadId,
+      includeTurns: false,
+    }).pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(ThreadReply)),
+      Effect.match({
+        onFailure: () => false,
+        onSuccess: ({ thread }) => thread.id === threadId,
+      }),
+      Effect.timeoutOrElse({
+        duration: "5 seconds",
+        orElse: () => Effect.succeed(false),
+      }),
+    );
+    return response;
+  });
+
   const answer = makeAnswer(prompts, (prompt, answer) =>
     prepareAnswer(prompt.wire, answer).pipe(
       Effect.map(
@@ -678,6 +698,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   return {
     mode: "own" as const,
     getCheckpoint: () => threadId,
+    checkLiveness,
     getUnknownPayloadCount,
     recoveredReceipts: receipts.recovered,
     getPendingPrompts: () =>

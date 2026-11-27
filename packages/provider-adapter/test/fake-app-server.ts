@@ -15,6 +15,7 @@ const directory = process.argv[2]!;
 let threadId = "codex-fixture-thread";
 let turnId = "";
 let turns = 0;
+let holdLiveness = false;
 const held = new Map<string, number>();
 const inbox = createInterface({ input: process.stdin });
 
@@ -100,6 +101,10 @@ inbox.on("line", (line) => {
       });
       return;
     }
+    case "thread/read":
+      record("liveness", message);
+      if (!holdLiveness) send({ id, result: { thread: { id: threadId } } });
+      return;
     case "turn/start": {
       record("steer", message);
       if (process.env.FIXTURE_START_ERROR) {
@@ -192,6 +197,8 @@ watch(directory, () => {
           params: { threadId, threadName: String(index), fixtureBuffer: index },
         });
     }
+    if (typeof command.holdLiveness === "boolean")
+      holdLiveness = command.holdLiveness;
     if (command.frame) send(command.frame);
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.rejectStart) {

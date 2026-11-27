@@ -75,6 +75,8 @@ function permitIdentity(permit: Omit<DeliveryStartRequest, "v">) {
   };
 }
 
+export class CodexPilotLeaseLost extends Error {}
+
 export class CodexPilotDelivery {
   receiptJournal?: DeliveryReceiptJournal;
   private readonly appendedReceipts = new Set<string>();
@@ -171,7 +173,7 @@ export class CodexPilotDelivery {
       parsePermitsNextResponse,
     );
     if (next.status === "stale")
-      throw new Error("Owned Codex delivery lease is stale");
+      throw new CodexPilotLeaseLost("Owned Codex delivery lease is stale");
     if (next.status === "empty") {
       this.headDeliveryId = null;
       return;
