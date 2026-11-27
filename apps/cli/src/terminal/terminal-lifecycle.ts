@@ -13,6 +13,26 @@ export type TerminalEnd = (outcome: End["body"]["outcome"]) => Promise<void>;
 type Reservation = { run: number; instance: number };
 type Journal = { last: number; open?: Reservation };
 type Watch = { identity: string; viewers: number };
+type TerminalEvent = Extract<
+  CanonicalEvent,
+  { kind: "terminal.started" | "terminal.ended" }
+>;
+type PendingTerminal = {
+  event: TerminalEvent;
+  attempts: number;
+  abandoned?: "rejected" | "unconfirmed";
+};
+
+const MAX_TERMINAL_ATTEMPTS = 2;
+
+export class TerminalEventRejected extends Error {}
+
+export function isTerminalOwnerId(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.length <= 256 && value.trim().length > 0
+  );
+}
+
 type ObservePane = (
   identity: string,
   actor: string,
@@ -55,7 +75,7 @@ export function createTerminalEventWriter(
   claim: ClaimGrant,
   directory: string,
   write: (...events: [CanonicalEvent, ...CanonicalEvent[]]) => Promise<void>,
-  onJournalError?: (error: unknown) => void,
+  onTerminalError?: (error: unknown) => void,
 ) {
   const { session, run } = claim;
   const file = path.join(
@@ -66,7 +86,8 @@ export function createTerminalEventWriter(
   let seq = claim.last_event_seq ?? 0;
   let providerSeq = seq;
   let tail = Promise.resolve();
-  let pending: { event: CanonicalEvent; confirm: () => void } | undefined;
+  let pending: PendingTerminal | undefined;
+  let endOutcome: End["body"]["outcome"] | undefined;
   let watch: Watch | undefined;
   let closed = false;
   const persist = () => {
@@ -90,21 +111,58 @@ export function createTerminalEventWriter(
     turn: null,
     source: "observed",
   });
-  async function flushTerminal() {
-    if (!pending) return;
-    await write(pending.event);
-    confirmTerminal();
+  function writeable(terminal: PendingTerminal): CanonicalEvent {
+    return terminal.abandoned
+      ? { ...terminal.event, kind: "context", body: { data: null } }
+      : terminal.event;
   }
-  function confirmTerminal() {
-    if (!pending) return;
-    const { event, confirm } = pending;
+  function recordFailure(
+    terminal: PendingTerminal,
+    error: unknown,
+    providerWaiting = false,
+  ) {
+    terminal.attempts++;
+    if (error instanceof TerminalEventRejected && terminal.attempts === 1)
+      terminal.abandoned = "rejected";
+    else if (
+      error instanceof TerminalEventRejected ||
+      providerWaiting ||
+      terminal.attempts >= MAX_TERMINAL_ATTEMPTS
+    )
+      terminal.abandoned = "unconfirmed";
+  }
+  function confirmTerminal(terminal: PendingTerminal) {
     pending = undefined;
-    seq = event.seq;
-    confirm();
+    seq = terminal.event.seq;
+    if (
+      terminal.event.kind === "terminal.ended" ||
+      terminal.abandoned === "rejected"
+    ) {
+      journal.open = undefined;
+      try {
+        persist();
+      } catch (error) {
+        onTerminalError?.(error);
+      }
+    }
   }
-  async function end(outcome: End["body"]["outcome"]) {
+  async function flushTerminal() {
+    const terminal = pending;
+    if (!terminal) return;
+    try {
+      await write(writeable(terminal));
+    } catch (error) {
+      if (!terminal.abandoned) recordFailure(terminal, error);
+      throw error;
+    }
+    confirmTerminal(terminal);
+  }
+  async function drainTerminal() {
+    await flushTerminal();
     const pane = journal.open;
-    if (!pane) return;
+    const outcome = endOutcome;
+    endOutcome = undefined;
+    if (!pane || !outcome) return;
     if (pane.run > run)
       throw new Error("Terminal reservation belongs to a later run");
     pending = {
@@ -113,18 +171,18 @@ export function createTerminalEventWriter(
         kind: "terminal.ended",
         body: { pane_instance: pane.instance, started_run: pane.run, outcome },
       },
-      confirm: () => {
-        journal.open = undefined;
-        watch = undefined;
-        persist();
-      },
+      attempts: 0,
     };
     await flushTerminal();
   }
+  function end(outcome: End["body"]["outcome"]) {
+    watch = undefined;
+    if (journal.open) endOutcome ??= outcome;
+    return drainTerminal();
+  }
   const observe: ObservePane = (identity, actor) =>
     ordered(async () => {
-      if (writers.get(session) !== observe) return;
-      await flushTerminal();
+      if (writers.get(session) !== observe || !isTerminalOwnerId(actor)) return;
       if (watch?.identity !== identity) {
         await end({ kind: "replaced" });
         const last = Math.max(journal.last, claim.last_pane_instance);
@@ -134,6 +192,7 @@ export function createTerminalEventWriter(
         journal.last = reservation.instance;
         journal.open = reservation;
         persist();
+        watch = { identity, viewers: 0 };
         pending = {
           event: {
             ...envelope(),
@@ -143,13 +202,11 @@ export function createTerminalEventWriter(
               actor: { kind: "person", id: actor },
             },
           },
-          confirm: () => {
-            watch = { identity, viewers: 0 };
-          },
+          attempts: 0,
         };
-        await flushTerminal();
+        await flushTerminal().catch((error) => onTerminalError?.(error));
       }
-      const current = watch!;
+      const current = watch;
       current.viewers++;
       let released = false;
       return (outcome) =>
@@ -167,16 +224,21 @@ export function createTerminalEventWriter(
           throw new Error("Provider event sequence is not contiguous");
         const next = { ...event, seq: seq + (pending ? 2 : 1) };
         const terminal = pending;
-        if (terminal) await write(terminal.event, next);
-        else await write(next);
-        pending = undefined;
+        if (terminal) {
+          try {
+            await write(writeable(terminal), next);
+          } catch (error) {
+            if (terminal.abandoned) throw error;
+            recordFailure(terminal, error, true);
+            onTerminalError?.(error);
+            await write(writeable(terminal), next);
+          }
+          confirmTerminal(terminal);
+        } else await write(next);
         providerSeq = event.seq;
         seq = next.seq;
-        try {
-          terminal?.confirm();
-        } catch (error) {
-          onJournalError?.(error);
-        }
+        if (endOutcome)
+          await drainTerminal().catch((error) => onTerminalError?.(error));
       });
     },
     async startWatching() {
@@ -191,10 +253,7 @@ export function createTerminalEventWriter(
     close() {
       closed = true;
       if (writers.get(session) === observe) writers.delete(session);
-      return ordered(async () => {
-        await flushTerminal();
-        await end({ kind: "lost" });
-      });
+      return ordered(() => end({ kind: "lost" }));
     },
   };
 }

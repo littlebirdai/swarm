@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { defaultConfigDir } from "../config/configDir.js";
-import { createTerminalEventWriter } from "../terminal/terminal-lifecycle.js";
+import {
+  createTerminalEventWriter,
+  TerminalEventRejected,
+} from "../terminal/terminal-lifecycle.js";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
@@ -387,10 +390,17 @@ export class CodexOwnedPilot {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
       },
     );
-    if (!response.ok)
-      throw new Error(
-        `Owned Codex ${operation} failed with HTTP ${response.status}`,
-      );
+    if (!response.ok) {
+      const message = `Owned Codex ${operation} failed with HTTP ${response.status}`;
+      if (
+        operation === "events.append" &&
+        response.status >= 400 &&
+        response.status < 500 &&
+        ![408, 425, 429].includes(response.status)
+      )
+        throw new TerminalEventRejected(message);
+      throw new Error(message);
+    }
     return response;
   }
 
@@ -474,7 +484,7 @@ export class CodexOwnedPilot {
             this.append(claim, events, AbortSignal.timeout(10_000)),
           (error) =>
             this.options.log(
-              `[owned-codex] terminal journal update failed: ${String(error)}`,
+              `[owned-codex] terminal event update failed: ${String(error)}`,
             ),
         );
       } catch (error) {
@@ -666,6 +676,12 @@ export class CodexOwnedPilot {
       signal,
     );
     const result = "results" in response ? response.results[0] : undefined;
+    if (
+      result?.status === "conflict" &&
+      result.session === claim.session &&
+      result.seq === events[0].seq
+    )
+      throw new TerminalEventRejected("Owned Codex event append conflicted");
     if (
       result?.status !== "appended" ||
       result.session !== claim.session ||

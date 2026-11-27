@@ -242,55 +242,69 @@ test("a granted lease is retained if the provider never opened", async () => {
   }
 });
 
-test("owned Codex keeps its provider stream and ends the pane after a terminal write returns 503", async () => {
-  const f = fixture();
-  const original = process.env.CODECAST_DIR;
-  process.env.CODECAST_DIR = f.journalDirectory;
-  try {
-    f.failFirstTerminalStart();
-    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
-    await expect(
-      observeClaimedTerminal("pilot", "pane", "owner"),
-    ).rejects.toThrow("HTTP 503");
-    f.appServer.send({
-      frames: [
-        {
-          id: "terminal-recovery-question",
-          method: "item/tool/requestUserInput",
-          params: {
-            threadId: f.appServer.thread,
-            turnId: f.appServer.turn(3),
-            itemId: "ask-item",
-            questions: [question],
-          },
-        },
-      ],
-    });
-    await until(
-      () => f.promptMessages.length === 1,
-      "publish after recovering the terminal write",
-    );
-    expect(f.actions).not.toContain("edge:release");
-
-    await f.runtime.stop();
-    expect(f.events.map(({ seq, kind }) => [seq, kind])).toEqual([
-      [1, "session.started"],
-      [2, "terminal.started"],
-      [3, "turn.started"],
-      [4, "prompt.opened"],
-      [5, "context"],
-      [6, "terminal.ended"],
-    ]);
-    expect(f.events.at(-1)).toMatchObject({
-      body: { pane_instance: 1, outcome: { kind: "lost" } },
-    });
-    expect(f.actions).toContain("edge:release");
-  } finally {
+test.each([
+  ["once", 2],
+  ["conflict", 1],
+  ["400", 1],
+  ["503", 2],
+] as const)(
+  "owned Codex keeps its provider stream when terminal start fails with %s",
+  async (failure, attempts) => {
+    const f = fixture();
+    const original = process.env.CODECAST_DIR;
+    process.env.CODECAST_DIR = f.journalDirectory;
     try {
-      await f.dispose();
+      f.failTerminalStart(failure);
+      await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+      await observeClaimedTerminal("pilot", "pane", "owner")?.catch(() => {});
+      f.appServer.send({
+        frames: [
+          {
+            id: "terminal-recovery-question",
+            method: "item/tool/requestUserInput",
+            params: {
+              threadId: f.appServer.thread,
+              turnId: f.appServer.turn(3),
+              itemId: "ask-item",
+              questions: [question],
+            },
+          },
+        ],
+      });
+      await until(
+        () => f.promptMessages.length === 1,
+        "publish after recovering the terminal write",
+      );
+      expect(f.actions).not.toContain("edge:release");
+
+      await f.runtime.stop();
+      expect(f.terminalStartAttempts).toEqual(Array(attempts).fill(2));
+      expect(f.events.slice(0, 5).map(({ seq, kind }) => [seq, kind])).toEqual([
+        [1, "session.started"],
+        [2, failure === "once" ? "terminal.started" : "context"],
+        [3, "turn.started"],
+        [4, "prompt.opened"],
+        [5, "context"],
+      ]);
+      if (failure === "once") {
+        expect(f.events.at(-1)).toMatchObject({
+          seq: 6,
+          kind: "terminal.ended",
+          body: { pane_instance: 1, outcome: { kind: "lost" } },
+        });
+      }
+      if (failure === "conflict" || failure === "400")
+        expect(f.events.some(({ kind }) => kind.startsWith("terminal."))).toBe(
+          false,
+        );
+      expect(f.actions).toContain("edge:release");
     } finally {
-      if (original === undefined) delete process.env.CODECAST_DIR;
-      else process.env.CODECAST_DIR = original;
+      try {
+        await f.dispose();
+      } finally {
+        if (original === undefined) delete process.env.CODECAST_DIR;
+        else process.env.CODECAST_DIR = original;
+      }
     }
-  }
-});
+  },
+);

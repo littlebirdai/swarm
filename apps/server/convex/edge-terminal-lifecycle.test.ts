@@ -239,29 +239,34 @@ test("the terminal pane prune expires receipts in bounded pages and preserves fr
   expect(await f.rows()).toMatchObject([{ run: 503 }]);
 });
 
-test("a terminal receipt replay followed by a provider event advances both once", async () => {
-  const f = await setup();
-  expect(await f.append([f.started])).toMatchObject({
-    status: "appended",
-    through_seq: 1,
-  });
-  expect(
-    await f.append([
-      f.started,
-      {
-        ...f.stamp,
-        seq: 2,
-        turn: "provider-turn",
-        source: "provider",
-        kind: "turn.started",
-        body: {},
-      },
-    ]),
-  ).toMatchObject({ status: "appended", through_seq: 2 });
-  expect(await f.rows()).toMatchObject([
-    { pane_instance: 7, started: { seq: 1 } },
-  ]);
-  expect(
-    await f.t.run(({ db }) => db.query("run_turn_projections").unique()),
-  ).toMatchObject({ open_turn: { id: "provider-turn" } });
-});
+test.each(["replay", "skip"] as const)(
+  "a terminal receipt %s followed by a provider event advances both once",
+  async (mode) => {
+    const f = await setup();
+    expect(await f.append([f.started])).toMatchObject({
+      status: "appended",
+      through_seq: 1,
+    });
+    expect(
+      await f.append([
+        mode === "replay"
+          ? f.started
+          : { ...f.stamp, seq: 1, kind: "context", body: { data: null } },
+        {
+          ...f.stamp,
+          seq: 2,
+          turn: "provider-turn",
+          source: "provider",
+          kind: "turn.started",
+          body: {},
+        },
+      ]),
+    ).toMatchObject({ status: "appended", through_seq: 2 });
+    expect(await f.rows()).toMatchObject([
+      { pane_instance: 7, started: { seq: 1 } },
+    ]);
+    expect(
+      await f.t.run(({ db }) => db.query("run_turn_projections").unique()),
+    ).toMatchObject({ open_turn: { id: "provider-turn" } });
+  },
+);

@@ -15,6 +15,7 @@ import { redactTeamScreen } from "./team-pane-redaction.js";
 import { exactTypingTarget, WATCH_PANE_IDENTITY } from "./tmux-typing-pane.js";
 import {
   observeClaimedTerminal,
+  isTerminalOwnerId,
   type TerminalEnd,
 } from "./terminal-lifecycle.js";
 const MAX_PUSH_FAILURES = 6;
@@ -189,7 +190,7 @@ export async function startTeamPaneStream(
       ? args.conversation_id
       : undefined;
   const owner =
-    "owner_id" in args && typeof args.owner_id === "string"
+    "owner_id" in args && isTerminalOwnerId(args.owner_id)
       ? args.owner_id
       : undefined;
   const { stream_id, pane_instance } = args as {
