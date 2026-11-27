@@ -1,5 +1,10 @@
 import { createCacheOwnership } from "./cache-ownership";
-import { COLLECTION_TABLES, db, markCacheServed } from "./db";
+import {
+  COLLECTION_TABLES,
+  db,
+  markCacheServed,
+  registerTestReopen,
+} from "./db";
 import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "./schema";
 
 const ownershipApi = createCacheOwnership({
@@ -12,6 +17,7 @@ const ownershipApi = createCacheOwnership({
   ownedInputPrefixes: [PENDING_INPUT_PREFIX, COMPOSER_RETRY_PREFIX],
   onServed: markCacheServed,
 });
+registerTestReopen(ownershipApi.reset);
 export const {
   persistenceOwned,
   writeOwnerStamp,

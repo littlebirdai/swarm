@@ -188,6 +188,12 @@ if (MISSING_COLLECTION_TABLES.length > 0) {
   );
 }
 
+const testReopenListeners: Array<() => void> = [];
+
+export function registerTestReopen(fn: () => void): void {
+  testReopenListeners.push(fn);
+}
+
 // Test hook: Dexie copies the IndexedDB API into the instance at construction
 // and remembers a failed open, so a test running after another file already
 // touched the singleton (no IndexedDB in the process then) must hand the
@@ -196,6 +202,10 @@ export function _reopenForTests(deps: {
   indexedDB: unknown;
   IDBKeyRange: unknown;
 }): Promise<unknown> {
+  closeExpected = null;
+  cacheServed = false;
+  purgeInProgress = false;
+  for (const listener of testReopenListeners) listener();
   Object.assign((db as any)._deps, deps);
   db.close();
   return db.open();
