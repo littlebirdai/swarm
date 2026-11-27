@@ -1,3 +1,4 @@
+import { revalidateDroppedDocArchive } from "./doc-detail-cache";
 import { captureException } from "./pendingInputError";
 import { outboxAccountId, persistPendingMessageChanges } from "./idb-cache";
 // Codecast's binding of the @platform/engine middleware. The engine owns the
@@ -626,6 +627,22 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
+  onDroppedOutboxEntry(entry, pending) {
+    const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
+    if (entry.action !== "archiveDoc" || typeof id !== "string") return;
+    const key = `docs:${id}`;
+    const current = pending?.[key];
+    if (
+      current?.type === "exclude" &&
+      current.lock !== undefined &&
+      !entry.locks?.some(
+        ({ key: lockedKey, lock }) =>
+          lockedKey === key && lock === current.lock,
+      )
+    )
+      return;
+    revalidateDroppedDocArchive(id);
+  },
   outboxCoalesceKeys: OUTBOX_COALESCE_KEYS,
   transformReplayPatches: stripStalePointerFromReplay,
   viewGuard: VIEW_GUARD,

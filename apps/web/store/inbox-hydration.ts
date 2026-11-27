@@ -117,6 +117,7 @@ export function hydrateMergeValue(
   key: string,
   val: unknown,
   cur: unknown,
+  pending?: InboxStoreState["pending"],
 ): { apply: boolean; value?: unknown } {
   if (key === "pendingMessages" && val && typeof val === "object") {
     const merged = { ...(val as Record<string, Message[]>) };
@@ -152,7 +153,11 @@ export function hydrateMergeValue(
           key,
           key === "docDetails" && cacheEvictionEnabled()
             ? Object.fromEntries(
-                Object.entries(val).filter(([id]) => canHydrateDetail(id)),
+                Object.entries(val).filter(
+                  ([id]) =>
+                    pending?.[`docs:${id}`]?.type !== "exclude" &&
+                    canHydrateDetail(id),
+                ),
               )
             : (val as Record<string, unknown>),
           live,
@@ -381,7 +386,7 @@ async function hydrateInboxCacheFromIDB(
         updates[key] = merged;
         continue;
       }
-      const merge = hydrateMergeValue(key, val, cur);
+      const merge = hydrateMergeValue(key, val, cur, state.pending);
       if (merge.apply) updates[key] = merge.value;
     }
     if (updates.pendingMessages)

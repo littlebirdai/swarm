@@ -3,6 +3,7 @@ import {
   cacheEvictionEnabled,
   timedDocCapsEnabled,
 } from "../store/cache-eviction";
+import { persistDetailInvalidation } from "../store/doc-detail-authority";
 import {
   detailAccountIsCurrent,
   detailReadIsCurrent,
@@ -136,9 +137,15 @@ export function makeDispatchBinding(
             .settleCollabCommand(action, args, res, lockIds);
         if (detailWrite && detailAccountIsCurrent(detailWrite) && docId) {
           const id = docId;
-          if (action === "archiveDoc")
-            reportDetailInvalidation({ ids: [id], cause: "archive" });
-          else {
+          if (action === "archiveDoc") {
+            const ids = [id];
+            if (!reportDetailInvalidation({ ids, cause: "archive" }))
+              return persistDetailInvalidation(ids, () =>
+                detailAccountIsCurrent(detailWrite),
+              )
+                .catch(() => {})
+                .then(() => res);
+          } else {
             invalidateDetailReads([id]);
             clearUnchangedDocExclude(id, docExclude);
             const position = detailReadPosition();

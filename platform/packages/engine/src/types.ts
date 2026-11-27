@@ -471,6 +471,10 @@ export type PlatformConfig = {
   // Repeated writes that rewrite the same logical value each time. Only
   // register actions whose args carry the COMPLETE new value for the key.
   outboxAccountId?: () => string | null;
+  onDroppedOutboxEntry?: (
+    entry: OutboxEntry,
+    pending: Readonly<Record<string, PendingEntry | undefined>>,
+  ) => void;
   outboxCoalesceKeys?: Record<string, (args: any[]) => string | null>;
   // Rewrite a replayed patch payload (drop values that are stale by definition
   // once they survive a reload, e.g. a "where the user is right now" pointer).

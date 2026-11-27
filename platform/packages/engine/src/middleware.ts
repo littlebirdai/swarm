@@ -1549,6 +1549,7 @@ export function mutativeMiddleware(
               entry.args,
             );
             void retireOutboxEntry(entry.id, null);
+            platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
             return false;
           }
           return true;
@@ -1676,6 +1677,7 @@ export function mutativeMiddleware(
               const gaveUp = new OutboxGaveUpError(entry.action, e);
               forgetWriter(entry.ts, cellsOf(entry.patches));
               releaseRefusedLocks(entry.action, entry.locks ?? [], entry.id);
+              platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
               capturedError?.(entry.action, gaveUp, entry.args);
               rejectReceiptWaiter(entry.id, gaveUp);
               await capturedRemove?.(entry.id);
@@ -1994,6 +1996,7 @@ export function mutativeMiddleware(
           });
         }
         console.warn(`[sync] dispatch not wired; ${enqueued ? `enqueueing "${key}" for later delivery` : `"${key}" was dropped (no outbox)`}`);
+        if (!enqueued) platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
         // An asyncAction promises its caller the server result. Returning
         // the raw returnValue here (historically undefined) made callers'
         // `.then(...)` throw synchronously — a create flow lost its error
