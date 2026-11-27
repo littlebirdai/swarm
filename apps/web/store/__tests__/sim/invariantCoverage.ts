@@ -36,6 +36,8 @@ export const NOT_COMPARED: Readonly<Record<string, string>> = {
   _lastViewedAt: "client-only visit clock, no server truth",
   _seenUpToAt: "client-only read divider, no server truth",
   _seenMessageCount: "client-only unread baseline, no server truth",
+  relayInboxCards:
+    "window-local count of mounted inbox cards that the relay feeder watches, no server truth",
   teams:
     "fed by useSyncTeams, which the sim does not mount; membership is checked through cursors and workspace rows",
   teamMembers: "roster cache with no feeder the sim mounts",
