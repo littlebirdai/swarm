@@ -6,7 +6,10 @@ import {
   useInboxStore,
 } from "../../store/inboxStore";
 import { cacheStorage, type CachedConversation } from "../../store/idb-cache";
-import { MESSAGE_CACHE_BUDGET_BYTES } from "../../store/store-eviction";
+import {
+  MESSAGE_CACHE_BUDGET_BYTES,
+  messageWarmState,
+} from "../../store/store-eviction";
 import { mapStorage } from "../../store/__tests__/fixtures/fakeAuthToken";
 import { webBuilders } from "../../test-helpers/builders";
 import { replaceGlobals } from "../../test-helpers/globals";
@@ -695,3 +698,71 @@ test.each(["hit", "miss"] as const)(
     }
   },
 );
+
+test("an inline-only warm is tried once until the transcript changes", async () => {
+  const restore = resetFixture();
+  const clock = startTestClock();
+  const before = process.env.VITE_MESSAGE_MEMORY_BUDGET;
+  process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
+  const disk = spyOn(
+    cacheStorage,
+    "loadConversationMessages",
+  ).mockResolvedValue(null);
+  const asks: string[] = [];
+  const inline = id(1);
+  seed([1, 2]);
+  let hasInline = true;
+  const convex = {
+    query: async (
+      _fn: unknown,
+      { conversation_id }: { conversation_id: string },
+    ) => {
+      asks.push(conversation_id);
+      const newest = message(1024);
+      return {
+        isDone: true,
+        page: [
+          conversation_id === inline && hasInline
+            ? {
+                ...newest,
+                images: [{ media_type: "image/png", data: "aW1hZ2U=" }],
+              }
+            : newest,
+        ],
+      };
+    },
+  };
+  const stop = startWarmLoop(convex);
+  try {
+    await warm(convex);
+    expect(asks.filter((key) => key === inline)).toHaveLength(1);
+    expect(useInboxStore.getState().messages[inline]).toBeUndefined();
+    expect(messageWarmState.full).toBe(false);
+    seed([3]);
+    for (let i = 0; i < 8; i++) {
+      await clock.advance(750);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    expect(asks.filter((key) => key === inline)).toHaveLength(1);
+    expect(asks).toContain(id(3));
+
+    hasInline = false;
+    useInboxStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        [inline]: { ...state.sessions[inline], message_count: 2 },
+      },
+    }));
+    await clock.advance(750);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(asks.filter((key) => key === inline)).toHaveLength(2);
+    expect(useInboxStore.getState().messages[inline]).toHaveLength(1);
+  } finally {
+    stop();
+    disk.mockRestore();
+    clock.close();
+    if (before === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
+    else process.env.VITE_MESSAGE_MEMORY_BUDGET = before;
+    restore();
+  }
+});

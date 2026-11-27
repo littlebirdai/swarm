@@ -14,6 +14,7 @@ import {
 import {
   hasEvictableMessagesOverBudget,
   MESSAGE_CACHE_BUDGET_BYTES,
+  messageMemoryBudgetEnabled,
   messageWarmState,
 } from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
@@ -85,6 +86,7 @@ export type WarmRow = {
   /** Last message_count we synced up to, if any. */
   syncedCount: number | undefined;
   inFlight: boolean;
+  inlineEvictedAtCount?: number;
 };
 
 /** Target window for a row at rank `rank` in the rendered order. */
@@ -110,6 +112,7 @@ export function planWarm(
       return;
     }
     if (row.storedCount === 0) {
+      if (row.inlineEvictedAtCount === row.serverCount) return;
       if (coldWarmed && (rank >= 10 || coldWarmed.has(row.id))) return;
       if (cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
@@ -202,16 +205,17 @@ function finishWarm(inFlight: Set<string>, id: string): void {
   inFlight.delete(id);
   if (
     inFlight !== messageWarmState.inFlight ||
-    useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES
+    (!messageMemoryBudgetEnabled() &&
+      useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES)
   )
     return;
   queueMicrotask(() => {
     const state = useInboxStore.getState();
     if (
       inFlight === messageWarmState.inFlight &&
-      hasEvictableMessagesOverBudget(state)
+      hasEvictableMessagesOverBudget(state, id)
     )
-      state.trimMessageCache();
+      state.trimMessageCache([id]);
   });
 }
 
@@ -522,6 +526,7 @@ export function warmRowsFromState(
       ),
       syncedCount: messageWarmState.syncedCount.get(id),
       inFlight: messageWarmState.inFlight.has(id),
+      inlineEvictedAtCount: messageWarmState.inlineEvictedAtCount.get(id),
     });
   }
   return rows;

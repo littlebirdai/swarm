@@ -76,13 +76,12 @@ import {
 } from "@codecast/convex/convex/teamVisibility";
 import { bootInboxPersistence, hydrateConversation } from "./inbox-hydration";
 import {
-  MESSAGE_CACHE_BUDGET_BYTES,
   MESSAGE_CACHE_PAGE_OVERHEAD,
   adjustMessageCacheBytes,
   dropCachedMessages,
   evictDetailRows,
   evictInactiveMessages,
-  hasEvictableMessagesOverBudget,
+  queueMessageCacheTrim,
   holdsUnsentComment,
   messageRowBytes,
   omitRedundantInlineImages,
@@ -8068,7 +8067,8 @@ export interface InboxStoreState
   userMessages: Record<string, UserMessage[]>;
   messageCacheBytes: number;
   messageCacheBytesByConversation: Record<string, number>;
-  trimMessageCache: () => void;
+  inlineImageConversationIds: Record<string, true>;
+  trimMessageCache: (releasedIds?: readonly string[]) => void;
 
   clientState: ClientState;
   clientStateInitialized: boolean;
@@ -13391,8 +13391,12 @@ const inboxStoreConfig = (set: any, get: any) => ({
   userMessages: {},
   messageCacheBytes: 0,
   messageCacheBytesByConversation: {},
-  trimMessageCache: sync(function (this: Draft) {
-    evictInactiveMessages(this);
+  inlineImageConversationIds: {},
+  trimMessageCache: sync(function (
+    this: Draft,
+    releasedIds?: readonly string[],
+  ) {
+    evictInactiveMessages(this, undefined, releasedIds);
   }),
   feedConversations: {},
   feedHasMore: {},
@@ -22200,6 +22204,7 @@ export function clearProtectedInboxMemory(): void {
   resetDetailInvalidations();
   messageWarmState.full = false;
   messageWarmState.coldIds.clear();
+  messageWarmState.inlineEvictedAtCount.clear();
   messageWarmState.inFlight = new Set();
   messageWarmState.rowTried.clear();
   messageWarmState.syncedCount.clear();
@@ -22428,21 +22433,9 @@ if (!survivingInboxStore) {
 // as the view moves off it (dropSessionInDraft deferred it).
 if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
-    if (
-      state.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES &&
-      (state.sessions !== prev.sessions ||
-        (state.pendingMessages !== prev.pendingMessages &&
-          state.messages === prev.messages) ||
-        state.queuedMessages !== prev.queuedMessages ||
-        state.pendingSessionCreates !== prev.pendingSessionCreates ||
-        state.currentSessionId !== prev.currentSessionId ||
-        state.currentConversation !== prev.currentConversation ||
-        state.sidePanelSessionId !== prev.sidePanelSessionId ||
-        state.viewingDismissedId !== prev.viewingDismissedId ||
-        state.pendingNavigateId !== prev.pendingNavigateId) &&
-      hasEvictableMessagesOverBudget(state)
-    )
-      queueMicrotask(() => useInboxStore.getState().trimMessageCache());
+    queueMessageCacheTrim(state, prev, (released) =>
+      useInboxStore.getState().trimMessageCache(released),
+    );
     if (
       state.currentSessionId === prev.currentSessionId ||
       deferredDeletedSessions.size === 0
