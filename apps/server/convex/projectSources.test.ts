@@ -1,4 +1,11 @@
-import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
+import {
+  afterEach,
+  describe,
+  expect,
+  jest,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
@@ -397,21 +404,38 @@ describe("project sources", () => {
   });
 
   test("a line landing after the window's end but before its late firing joins that run", async () => {
-    const { t, as, channel, project, main } = await seed();
-    const { id } = await as.mutation(api.projectSources.webAddSource, {
-      project_id: project,
-      channel_id: String(channel),
-    });
-    await say(as, channel, "before the end");
-    const due = (await t.run((ctx) => ctx.db.get(id)))!.run_at!;
-    setSystemTime(new Date(due + 5_000));
-    // The window's firing never ran, so this line joins it and wakes it.
-    await say(as, channel, "after the end");
-    const runs = await pendingIn(t, main);
-    expect(runs).toHaveLength(1);
-    const [run] = runs;
-    expect(run.content).toContain("before the end");
-    expect(run.content).toContain("after the end");
+    jest.useFakeTimers();
+    try {
+      const { t, as, channel, project, main } = await seed();
+      const { id } = await as.mutation(api.projectSources.webAddSource, {
+        project_id: project,
+        channel_id: String(channel),
+      });
+      const sendAndMatch = async (content: string) => {
+        await as.mutation(api.chat.sendMessage, {
+          channel_id: channel,
+          content,
+        });
+        jest.advanceTimersByTime(0);
+        await as.finishInProgressScheduledFunctions();
+      };
+      await sendAndMatch("before the end");
+      const due = (await t.run((ctx) => ctx.db.get(id)))!.run_at!;
+      expect(due).toBeGreaterThan(Date.now());
+      jest.setSystemTime(due + 5_000);
+      expect(await pendingIn(t, main)).toEqual([]);
+      await sendAndMatch("after the end");
+      jest.advanceTimersByTime(0);
+      await as.finishInProgressScheduledFunctions();
+      const runs = await pendingIn(t, main);
+      expect(runs).toHaveLength(1);
+      const [run] = runs;
+      expect(run.content).toContain("before the end");
+      expect(run.content).toContain("after the end");
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
   });
 
   test("a project whose main session a teammate runs refuses an inline source", async () => {

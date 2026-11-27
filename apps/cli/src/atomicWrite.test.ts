@@ -58,9 +58,9 @@ const fillFor = (c) => { let f = fills.get(c); if (!f) { f = c.repeat(size); fil
 let reads = 0, missing = 0, partial = 0;
 const distinct = new Set();
 const sampleLengths = [];
-while (Date.now() < deadline) {
+function sample() {
   let content;
-  try { content = fs.readFileSync(file, "utf8"); } catch { missing++; continue; }
+  try { content = fs.readFileSync(file, "utf8"); } catch { missing++; return; }
   reads++;
   const head = content[0] ?? "";
   distinct.add(head);
@@ -70,7 +70,23 @@ while (Date.now() < deadline) {
     if (sampleLengths.length < 5) sampleLengths.push(content.length);
   }
 }
-process.stdout.write(JSON.stringify({ reads, missing, partial, distinct: [...distinct], sampleLengths }));
+const report = () => ({ reads, missing, partial, distinct: [...distinct], sampleLengths });
+if (process.send) {
+  process.on("message", (count) => {
+    for (let i = 0; i < count; i++) sample();
+    process.send(report());
+  });
+  const churn = () => {
+    for (let i = 0; i < 32; i++) sample();
+    setImmediate(churn);
+  };
+  sample();
+  process.send("ready");
+  churn();
+} else {
+  while (Date.now() < deadline) sample();
+  process.stdout.write(JSON.stringify(report()));
+}
 `;
 
 const HELPER = path.resolve(import.meta.dir, "atomicWrite.ts");
@@ -78,10 +94,13 @@ const HELPER = path.resolve(import.meta.dir, "atomicWrite.ts");
 /** Writers that publish whole files through the helper under test. */
 const WRITER = `
 import { atomicWriteFile } from "${HELPER}";
-const [file, char, sizeArg, msArg] = process.argv.slice(2);
+const [file, char, sizeArg] = process.argv.slice(2);
 const payload = char.repeat(Number(sizeArg));
-const deadline = Date.now() + Number(msArg);
-while (Date.now() < deadline) atomicWriteFile(file, payload);
+process.on("message", (count) => {
+  for (let i = 0; i < count; i++) atomicWriteFile(file, payload);
+  process.send("written");
+});
+process.send("ready");
 `;
 
 /**
@@ -154,6 +173,66 @@ async function observe(
   return JSON.parse(out) as ReaderReport;
 }
 
+function atomicPeer<T>(scriptPath: string, args: string[]) {
+  const ready = Promise.withResolvers<void>();
+  let reply: ((value: T) => void) | undefined;
+  const child = Bun.spawn([process.execPath, scriptPath, ...args], {
+    stdout: "ignore",
+    stderr: "inherit",
+    ipc(message) {
+      if (message === "ready") ready.resolve();
+      else reply?.(message as T);
+    },
+  });
+  const ended = child.exited.then((code) => {
+    throw new Error(
+      `${path.basename(scriptPath)} exited unexpectedly (${code})`,
+    );
+  });
+  return {
+    ready: Promise.race([ready.promise, ended]),
+    request(count: number) {
+      const response = Promise.withResolvers<T>();
+      reply = response.resolve;
+      child.send(count);
+      return Promise.race([response.promise, ended]);
+    },
+    async stop() {
+      child.kill();
+      await child.exited;
+    },
+  };
+}
+
+async function observeAtomicWriters() {
+  fs.writeFileSync(file, "a".repeat(SIZE));
+  const reader = atomicPeer<ReaderReport>(script("reader.mjs", READER), [
+    file,
+    String(SIZE),
+  ]);
+  const writerPath = script("writer.mjs", WRITER);
+  const writers = ["b", "c"].map((char) =>
+    atomicPeer<string>(writerPath, [file, char, String(SIZE)]),
+  );
+  try {
+    await Promise.all([reader.ready, ...writers.map((writer) => writer.ready)]);
+    const concurrentWrites = Promise.all(
+      writers.map((writer) => writer.request(32)),
+    );
+    await reader.request(128);
+    await concurrentWrites;
+    expect(await writers[0]!.request(1)).toBe("written");
+    expect((await reader.request(1)).distinct).toContain("b");
+    expect(await writers[1]!.request(1)).toBe("written");
+    return await reader.request(1);
+  } finally {
+    await Promise.all([
+      reader.stop(),
+      ...writers.map((writer) => writer.stop()),
+    ]);
+  }
+}
+
 /**
  * SIGKILL a writer until one dies mid write, the way an OOM kill would, and
  * return the temp files it stranded. Retried because where the kill lands is a
@@ -186,7 +265,8 @@ describe("atomicWriteFile — concurrency", () => {
   }, 20000);
 
   it("interleaved writers never let a reader observe a partial file", async () => {
-    const report = await observe(WRITER, ["a", "b", "c"], 1500);
+    const report = await observeAtomicWriters();
+    expect(report.distinct).toContain("c");
     console.log(
       "atomic writers:",
       JSON.stringify({ ...report, sampleLengths: report.sampleLengths }),

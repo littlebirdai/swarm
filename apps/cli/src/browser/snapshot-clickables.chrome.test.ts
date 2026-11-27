@@ -12,12 +12,12 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { spawn } from "node:child_process";
+import { connectTestChrome } from "./chrome-pipe.testkit.js";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as actions from "./actions.js";
-import { CdpConnection } from "./cdp.js";
+import { CdpConnection, type CdpEvent } from "./cdp.js";
 import { FakeExtension, testBridgeHost } from "./bridge/host.testutil.js";
 import { targetIdOfTab } from "./bridge/protocol.js";
 import { attachToTarget, type PageSession } from "./instance.js";
@@ -48,55 +48,6 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
       )
     ).result?.value;
 
-  const launchChrome = async (profile: string): Promise<string> => {
-    const proc = spawn(
-      chrome!,
-      [
-        "--headless=new",
-        "--remote-debugging-port=0",
-        `--user-data-dir=${path.join(userDataDir, profile)}`,
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--use-mock-keychain",
-        "about:blank",
-      ],
-      { stdio: ["ignore", "ignore", "pipe"] },
-    );
-    const ready = Promise.withResolvers<string>();
-    const exited = Promise.withResolvers<void>();
-    let stderr = "";
-    proc.once("error", (error) => {
-      ready.reject(error);
-      exited.resolve();
-    });
-    proc.once("exit", (code, signal) => {
-      ready.reject(new Error(`Chrome exited (${signal ?? code}): ${stderr}`));
-      exited.resolve();
-    });
-    stopChrome = async () => {
-      proc.kill("SIGKILL");
-      await exited.promise;
-      proc.stderr.destroy();
-    };
-    proc.stderr.setEncoding("utf8").on("data", (chunk: string) => {
-      stderr = (stderr + chunk).slice(-4096);
-      const endpoint = /DevTools listening on (ws:\/\/[^\s]+)\r?\n/.exec(
-        stderr,
-      );
-      if (endpoint) ready.resolve(endpoint[1]!);
-    });
-    const deadline = setTimeout(() => {
-      ready.reject(new Error(`Chrome did not announce CDP: ${stderr}`));
-    }, 20_000);
-    try {
-      return await ready.promise;
-    } finally {
-      clearTimeout(deadline);
-    }
-  };
-
   beforeAll(async () => {
     const html = fs.readFileSync(FIXTURE, "utf-8");
     server = Bun.serve({
@@ -110,31 +61,46 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
     pageUrl = server.url.href;
 
     userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-clickable-"));
-    const endpoint = await launchChrome("first").catch(async (error) => {
-      await stopChrome?.();
-      console.warn(`Chrome launch failed, trying once more: ${error}`);
-      return launchChrome("second");
-    });
-    conn = await CdpConnection.connect(endpoint);
+    const chromeProcess = await connectTestChrome(chrome!, userDataDir);
+    stopChrome = chromeProcess.stop;
+    conn = chromeProcess.conn;
 
     const { targetId } = await conn.send<{ targetId: string }>(
       "Target.createTarget",
       { url: "about:blank" },
     );
     page = await attachToTarget(conn, targetId);
-    await Promise.all([
-      conn.waitFor(
-        (event) =>
-          event.sessionId === page.sessionId &&
-          event.method === "Page.loadEventFired",
-        5_000,
-      ),
-      conn.send("Page.navigate", { url: pageUrl }, page.sessionId),
-    ]);
+    await conn.send(
+      "Page.setLifecycleEventsEnabled",
+      { enabled: true },
+      page.sessionId,
+    );
+    const loaded = new Set<unknown>();
+    const isLoad = (event: CdpEvent) =>
+      event.sessionId === page.sessionId &&
+      event.method === "Page.lifecycleEvent" &&
+      event.params.name === "load";
+    const unsubscribe = conn.on((event) => {
+      if (isLoad(event)) loaded.add(event.params.loaderId);
+    });
+    try {
+      const { loaderId, errorText } = await conn.send<{
+        loaderId?: string;
+        errorText?: string;
+      }>("Page.navigate", { url: pageUrl }, page.sessionId);
+      if (!loaderId || errorText)
+        throw new Error(errorText ?? "Navigation did not name a loader");
+      if (!loaded.has(loaderId))
+        await conn.waitFor(
+          (event) => isLoad(event) && event.params.loaderId === loaderId,
+          5_000,
+        );
+    } finally {
+      unsubscribe();
+    }
   }, 60_000);
 
   afterAll(async () => {
-    conn?.close();
     try {
       await stopChrome?.();
     } finally {
