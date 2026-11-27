@@ -17,6 +17,7 @@ import { providerOffer, type ProviderAdapterOptions } from "./options";
 export type { ProviderAdapterOptions, RawProviderFrame } from "./options";
 
 export interface ProviderOwnedSession extends OwnedSession {
+  getProcessId?(): number | undefined;
   getUnknownPayloadCount(): number;
   checkLiveness?(signal?: AbortSignal): Promise<boolean>;
   getPendingPrompts?(): readonly { id: string; turn: string }[];

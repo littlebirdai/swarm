@@ -53,9 +53,29 @@ async function readParkingRss() {
   return stdout;
 }
 
+type ParkingMemoryRoot = readonly [
+  sessionId: string | null,
+  process: { pid: number },
+];
+
+export type OwnedParkingProcess = {
+  ownsThread(id: string): boolean;
+  getProcessId(): number | undefined;
+};
+
+export function* parkingMemoryRoots(
+  sessions: ReadonlyMap<string, { pid: number }>,
+  owned?: OwnedParkingProcess,
+): Iterable<ParkingMemoryRoot> {
+  for (const [id, agent] of sessions)
+    yield [owned?.ownsThread(id) ? null : id, agent];
+  const pid = owned?.getProcessId();
+  if (pid !== undefined) yield [null, { pid }];
+}
+
 export async function sampleParkingMemory(
   budgetBytes: number,
-  sessions: ReadonlyMap<string, { pid: number }>,
+  sessions: Iterable<ParkingMemoryRoot>,
   report: (message: string) => void = () => {},
   read = readParkingRss,
 ): Promise<ParkingMemory | undefined> {

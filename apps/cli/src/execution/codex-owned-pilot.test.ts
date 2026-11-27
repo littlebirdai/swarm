@@ -8,6 +8,7 @@ import {
 } from "@codecast/agent-clients/executionBinding";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
+import { parkingMemoryRoots, sampleParkingMemory } from "../memory-parking.js";
 import type { RetryQueue } from "../retryQueue.js";
 import type { SyncService } from "../syncService.js";
 import { strictStub } from "../test-helpers/strictStub.js";
@@ -299,7 +300,14 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
       "active pilot renews its run lease",
     );
     expect(renewals).toEqual(["lease-boot-1"]);
+    const memory = await sampleParkingMemory(
+      1024,
+      parkingMemoryRoots(new Map(), first),
+    );
+    expect(memory?.usedBytes).toBeGreaterThan(0);
+    expect(memory?.rssBySession.size).toBe(0);
     await original.runtime.stop();
+    expect(first.getProcessId()).toBeUndefined();
     expect(releases).toEqual(["lease-boot-1"]);
     restarted = run("boot-2", resumed);
     await restarted.runtime.processWorkUpdate(restarted.work);

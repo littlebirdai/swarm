@@ -9,6 +9,7 @@ import {
 } from "./hibernation.js";
 import {
   PARKING_INTERLOCK_UNAVAILABLE,
+  parkingMemoryRoots,
   sampleParkingMemory,
 } from "./memory-parking.js";
 
@@ -141,6 +142,31 @@ test("counts descendants and credits overlapping roots only for exclusive RSS", 
   expect(logs).toEqual([
     "[HIBERNATE] RSS sample missed 1/4 registered agent roots",
   ]);
+});
+
+test("owned Codex RSS pushes the fleet over budget without making its thread parkable", async () => {
+  const memory = await sampleParkingMemory(
+    100 * 1024,
+    parkingMemoryRoots(
+      new Map([
+        ["legacy", { pid: 20 }],
+        ["owned", { pid: 40 }],
+      ]),
+      {
+        ownsThread: (id) => id === "owned",
+        getProcessId: () => 30,
+      },
+    ),
+    () => {},
+    async () => "20 2 20\n30 2 50\n31 30 30\n40 30 10",
+  );
+  expect(memory?.usedBytes).toBe(110 * 1024);
+  expect([...(memory?.rssBySession ?? [])]).toEqual([["legacy", 20 * 1024]]);
+  const { picked } = selectHibernationCandidates(
+    [idle("owned"), idle("legacy")],
+    { maxLive: 0, idleMs: 0, maxPerPass: 5, memory },
+  );
+  expect(picked.map(({ sessionId }) => sessionId)).toEqual(["legacy"]);
 });
 
 test("invalid agent PIDs never trigger a process scan", async () => {

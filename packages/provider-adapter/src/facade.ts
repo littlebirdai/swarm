@@ -61,6 +61,9 @@ export function createEffectAdapter(
           session: {
             mode: owned.mode,
             getCheckpoint: owned.getCheckpoint,
+            ...("getProcessId" in owned && {
+              getProcessId: owned.getProcessId,
+            }),
             getUnknownPayloadCount: owned.getUnknownPayloadCount,
             ...("getPendingPrompts" in owned && {
               getPendingPrompts: owned.getPendingPrompts,

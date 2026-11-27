@@ -184,6 +184,10 @@ export class CodexOwnedPilot {
     return this.session?.getCheckpoint() === threadId;
   }
 
+  getProcessId(): number | undefined {
+    return this.session?.getProcessId?.();
+  }
+
   owns(binding: ReadyBinding): boolean {
     return (
       this.selects(binding.conversationId, binding.epoch) &&

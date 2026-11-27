@@ -1,4 +1,5 @@
 import type { HibernationPolicy } from "./hibernation.js";
+import type { OwnedParkingProcess } from "./memory-parking.js";
 import type { ConversationLifecycle } from "./syncService.js";
 
 export type HibernationTarget = {
@@ -23,6 +24,7 @@ export type HibernationBoundary = {
 
 export type HibernationPassIo = {
   attemptTimeoutMs?: number;
+  ownedCodex?: OwnedParkingProcess;
   terminal(args: string[]): Promise<{ stdout: string }>;
   policy(): HibernationPolicy;
   parkingRefusal?(

@@ -29530,6 +29530,9 @@ async function parkHibernationTerminal(
 }
 
 const productionHibernationIo: HibernationPassIo = {
+  get ownedCodex() {
+    return codexOwnedPilot;
+  },
   terminal: (args) => tmuxExec(args, { timeout: 3000, killSignal: "SIGKILL" }),
   policy: () => ({
     // The cached config, never readConfig: that is a synchronous file read and
@@ -29697,7 +29700,7 @@ async function collectHibernationCandidates(
   for (const [sessionId, tmux] of resumeSessionCache) {
     if (
       !managedHeartbeatSessions.has(sessionId) ||
-      codexOwnedPilot?.ownsThread(sessionId)
+      io.ownedCodex?.ownsThread(sessionId)
     )
       continue;
     const attached = attachedByTmux.get(tmux);
@@ -29945,11 +29948,7 @@ export async function runHibernationPass(
   if (budget && !policy.memory)
     policy.memory = await memoryParking.sampleParkingMemory(
       budget,
-      new Map(
-        [...sessionProcessCache].filter(
-          ([id]) => !codexOwnedPilot?.ownsThread(id),
-        ),
-      ),
+      memoryParking.parkingMemoryRoots(sessionProcessCache, io.ownedCodex),
       log,
     );
   if (!memoryParking.underPressure(policy.memory)) delete policy.memory;
