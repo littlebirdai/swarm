@@ -4,14 +4,18 @@ import {
   TURN_PROJECTION_VERSION,
   TURN_STARTER_PROJECTION_VERSION,
 } from "@codecast/session-contract/turn-projection";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { canSendProductMessage } from "../pendingMessages";
+import { allowedAgentSteer } from "./agent-steer-grant.state";
+import type { SendAdmission } from "./pending-message-enqueue.rules";
 import { findClaim, takeoverForTurn } from "./claims";
 import { fail } from "./execution-binding.validators";
 import { byQueueOrder } from "./sessionQueue";
 import {
   advanceNonterminalHead,
+  executionBinding,
+  executionHead,
   clearPendingFlagIfQuiet,
 } from "./execution-binding.state";
 import { assertActiveRunLease } from "./edge/runLease";
@@ -136,33 +140,127 @@ async function allocateQueuedRows(
   return next;
 }
 
+export async function admitAgentSend(
+  ctx: Db,
+  conversation: Doc<"conversations">,
+  senderId: Id<"conversations">,
+  senderUserId: Id<"users">,
+  explicitlyQueued: boolean,
+): Promise<SendAdmission | undefined> {
+  const head = await executionHead(ctx, conversation._id);
+  const run = head?.current_epoch;
+  if (run === undefined) return;
+  const binding = (await executionBinding(
+    ctx,
+    conversation._id,
+    run,
+  )) as Doc<"execution_bindings"> | null;
+  if (!binding?.required_capabilities.includes(STEER_BATON_CAPABILITY)) return;
+  const queue = { delivery_intent: "queue" } as const;
+  if (
+    explicitlyQueued ||
+    !batonEnabled(binding) ||
+    head.device_move ||
+    (head.admission_epoch ?? run) !== run ||
+    binding.state !== "ready" ||
+    binding.claim_id === undefined ||
+    head.agent_steer_grant?.sender_id !== senderId
+  )
+    return queue;
+
+  const [turn, lease, claim] = await Promise.all([
+    readBatonTurn(ctx, binding),
+    ctx.db
+      .query("run_leases")
+      .withIndex("by_conversation_claim", (q) =>
+        q
+          .eq("conversation_id", conversation._id)
+          .eq("claim_id", binding.claim_id!),
+      )
+      .unique(),
+    findClaim(ctx.db, { id: conversation._id, kind: "steer" }),
+  ]);
+  const now = Date.now();
+  if (
+    !turn ||
+    turn.start_event_seq === undefined ||
+    takeoverForTurn(claim, run, turn)?.state === "pending" ||
+    lease?.binding_id !== binding._id ||
+    lease.boot !== binding.daemon_boot_id ||
+    lease.released_at !== undefined ||
+    lease.expires_at <= now
+  )
+    return queue;
+
+  const token = await allowedAgentSteer(
+    ctx,
+    conversation,
+    senderId,
+    senderUserId,
+    turn,
+    claim,
+    now,
+    head,
+  );
+  if (
+    token === undefined ||
+    !(await canSendProductMessage(ctx, senderUserId, conversation))
+  )
+    return queue;
+
+  return {
+    delivery_intent: "steer",
+    delivery_observed_turn: {
+      run,
+      id: turn.id,
+      start_event_seq: turn.start_event_seq,
+    },
+    delivery_baton_token: token,
+  };
+}
+
 export async function steerRefusal(
   ctx: Db,
   conversation: Doc<"conversations">,
-  run: number,
+  head: Doc<"conversation_execution_heads">,
   turn: Turn | null,
   activeClaim: Doc<"claims"> | null,
   message: Doc<"pending_messages">,
   now: number,
 ): Promise<string | undefined> {
+  const run = head.current_epoch;
   const expected = message.delivery_observed_turn;
   const baton = message.delivery_baton_token;
   if (
     !turn ||
     !expected ||
+    run === undefined ||
     expected.run !== run ||
     expected.id !== turn.id ||
     expected.start_event_seq !== turn.start_event_seq
   )
     return "stale-turn";
-  if (
-    !message.human ||
-    message.from_conversation_id !== undefined ||
-    message.origin !== undefined
-  )
-    return "stale-steer-sender";
+  if (message.origin !== undefined) return "stale-steer-sender";
   if (takeoverForTurn(activeClaim, run, turn)?.state === "pending")
     return "stale-baton";
+  if (!message.human && message.from_conversation_id !== undefined) {
+    const token = await allowedAgentSteer(
+      ctx,
+      conversation,
+      message.from_conversation_id,
+      message.from_user_id,
+      turn,
+      activeClaim,
+      now,
+      head,
+    );
+    if (token === undefined || token !== baton) return "stale-agent-grant";
+    if (!(await canSendProductMessage(ctx, message.from_user_id, conversation)))
+      return "stale-steer-sender";
+    return;
+  }
+  if (!message.human || message.from_conversation_id !== undefined)
+    return "stale-steer-sender";
   const held =
     activeClaim?.holder !== undefined && activeClaim.lease_until > now
       ? activeClaim
@@ -212,7 +310,7 @@ async function sweepPendingSteers(
     const reason = await steerRefusal(
       ctx,
       conversation,
-      run,
+      head,
       turn,
       claim,
       message,
