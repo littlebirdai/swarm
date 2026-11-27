@@ -10,7 +10,11 @@ import {
 import { recordDocuments } from "../test-helpers/document-reads.testkit";
 import { api } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
-import { makeSessionStartsDb, syncSessionStart } from "./lib/sessionStarts";
+import {
+  makeSessionStartsDb,
+  sessionStartOf,
+  syncSessionStart,
+} from "./lib/sessionStarts";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
 const originalFlag = process.env[flag];
@@ -193,3 +197,44 @@ test("the projected execution work feed ignores transcript writes and still trac
     else process.env[cardFlag] = prior;
   }
 });
+
+test.each([
+  ["a missing card", false],
+  ["a legacy card without a safety verdict", true],
+] as const)(
+  "execution work checks conversation safety with %s",
+  async (_label, legacyCard) => {
+    const cardFlag = "EXECUTION_WORK_SESSION_CARD";
+    const prior = process.env[cardFlag];
+    process.env[cardFlag] = "1";
+    try {
+      const f = await setupRunLease();
+      if (legacyCard) {
+        await f.t.run(async ({ db }) => {
+          await syncSessionStart(db, f.conversation);
+          const card = await sessionStartOf(db, f.conversation);
+          if (!card) throw new Error("Expected a session card");
+          await db.patch(card._id, { execution_safety_blocked: undefined });
+        });
+      }
+      expect(await listWork(f)).toHaveLength(1);
+
+      for (const block of [
+        { pending_api_error_kind: "safety" as const, session_error: undefined },
+        {
+          pending_api_error_kind: undefined,
+          session_error:
+            "Safety stop: This request was blocked by our safety systems.",
+        },
+      ]) {
+        await f.t.run(({ db }) => db.patch(f.conversation, block));
+        const work = await recordDocuments(() => listWork(f));
+        expect(work.result).toEqual([]);
+        expect(work.reads.has(f.conversation)).toBe(true);
+      }
+    } finally {
+      if (prior === undefined) delete process.env[cardFlag];
+      else process.env[cardFlag] = prior;
+    }
+  },
+);
