@@ -99,6 +99,7 @@ test("moved pending status patches go through the status writer", () => {
   const fields = /^(?:status|delivered_at|delivery_status)$/;
   expect(directPatches("managedSessions.ts", fields)).toEqual([]);
   expect(directPatches("pendingMessageWrites.ts", fields)).toEqual([]);
+  expect(directPatches("pendingMessages.ts", fields)).toEqual([]);
   expect(directPatches("orgRoles.ts", fields)).toEqual([
     "retiring._id: status",
     "role._id: status",
