@@ -84,6 +84,7 @@ import {
   hasEvictableMessagesOverBudget,
   releasedInlineMessageIds,
   holdsUnsentComment,
+  messageMemoryBudgetEnabled,
   messageRowBytes,
   omitRedundantInlineImages,
   rekeyCachedMessages,
@@ -22434,7 +22435,8 @@ if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
     const protectionChanged =
       state.sessions !== prev.sessions ||
-      state.pendingMessages !== prev.pendingMessages ||
+      (state.pendingMessages !== prev.pendingMessages &&
+        (state.messages === prev.messages || messageMemoryBudgetEnabled())) ||
       state.queuedMessages !== prev.queuedMessages ||
       state.pendingSessionCreates !== prev.pendingSessionCreates ||
       state.currentSessionId !== prev.currentSessionId ||

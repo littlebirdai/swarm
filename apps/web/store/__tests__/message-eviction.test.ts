@@ -1,4 +1,4 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, mock, spyOn, test } from "bun:test";
 import fc from "fast-check";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import {
@@ -354,35 +354,96 @@ test("session updates do not schedule a trim if only protected conversations are
   }
 });
 
-test("a tail write that clears its pending echo keeps the newly loaded transcript", async () => {
-  const original = useInboxStore.getState();
-  const id = "echoed-conversation";
-  const release = retainOpenMessageView(id);
-  const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
-  useInboxStore.setState({
-    currentUser: { _id: "echo-owner" },
+test.each(["off", "on"] as const)(
+  "a tail write that clears its pending echo keeps the newly loaded transcript with budget flag %s",
+  async (budget) => {
+    const enabled = budget === "on";
+    const original = useInboxStore.getState();
+    const id = "echoed-conversation";
+    const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
+    if (enabled) process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
+    else delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
+    const release = enabled ? retainOpenMessageView(id) : undefined;
+    const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
+    useInboxStore.setState({
+      currentUser: { _id: "echo-owner" },
+      messages: {},
+      userMessages: {},
+      pagination: {},
+      messageCacheBytes: 0,
+      messageCacheBytesByConversation: {},
+      pendingMessages: {
+        [id]: [
+          { ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true },
+        ],
+      },
+    });
+    try {
+      await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+      const echoed = { ...row(2, large.repeat(4)), client_id: "send-id" };
+      useInboxStore.getState().applyTailMessages(id, 0, [echoed], 2);
+      expect(useInboxStore.getState().pendingMessages[id]).toEqual([]);
+      expect(useInboxStore.getState().messageCacheBytes).toBeGreaterThan(
+        MESSAGE_CACHE_BUDGET_BYTES,
+      );
+      await Promise.resolve();
+      expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
+      await flushPendingMessageJournal();
+    } finally {
+      release?.();
+      if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
+      else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
+      useInboxStore.setState(original);
+      db.close();
+      restoreGlobals();
+    }
+  },
+);
+
+test("an idle session heartbeat leaves cached transcript rows unread", async () => {
+  const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
+  process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
+  const store = useInboxStore;
+  const original = store.getState();
+  const now = Date.now();
+  const id = "heartbeat-chat";
+  const { session } = webBuilders("message-cache-heartbeat");
+  const idle = session.build({
+    _id: id,
+    agent_status: "idle",
+    agent_status_updated_at: now - 300_000,
+    last_heartbeat: now - 1,
+    updated_at: now - 300_000,
+  });
+  store.setState({
     messages: {},
     userMessages: {},
     pagination: {},
     messageCacheBytes: 0,
     messageCacheBytesByConversation: {},
-    pendingMessages: {
-      [id]: [{ ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true }],
-    },
+    sessions: { [id]: idle },
   });
   try {
-    await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-    const echoed = { ...row(2, large.repeat(4)), client_id: "send-id" };
-    useInboxStore.getState().applyTailMessages(id, 0, [echoed], 2);
-    expect(useInboxStore.getState().pendingMessages[id]).toEqual([]);
+    store.getState().setMessages(id, [row(1)], {}, "cache");
+    const readRow = mock(() => {});
+    const transcript = new Proxy(store.getState().messages[id], {
+      get(rows, key, receiver) {
+        if (key === "0") readRow();
+        return Reflect.get(rows, key, receiver);
+      },
+    });
+    store.setState({ messages: { [id]: transcript } });
+    expect(readRow).not.toHaveBeenCalled();
+    store.setState({
+      sessions: { [id]: { ...idle, last_heartbeat: now } },
+    });
     await Promise.resolve();
-    expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
-    await flushPendingMessageJournal();
+    expect(readRow).not.toHaveBeenCalled();
+    expect(store.getState().messages[id]).toBe(transcript);
   } finally {
-    release();
-    useInboxStore.setState(original);
-    db.close();
-    restoreGlobals();
+    store.setState(original);
+    if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
+    else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
   }
 });
 

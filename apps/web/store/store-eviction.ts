@@ -143,6 +143,13 @@ export function rekeyCachedMessages(
   }
 }
 
+function sessionProtectsMessages(
+  session: MessageCacheDraft["sessions"][string] | undefined,
+  now: number,
+): boolean {
+  return !!session && (session.has_pending || !sessionIdleAt(session, now));
+}
+
 function canEvictMessages(
   state: MessageCacheDraft,
   id: string,
@@ -161,8 +168,7 @@ function canEvictMessages(
     Object.hasOwn(state.pendingSessionCreates, id)
   )
     return false;
-  const session = state.sessions[id];
-  return !session || (!session.has_pending && sessionIdleAt(session, now));
+  return !sessionProtectsMessages(state.sessions[id], now);
 }
 
 function hasInlineOnlyImages(state: MessageCacheDraft, id: string): boolean {
@@ -202,6 +208,7 @@ export function releasedInlineMessageIds(
   previous: MessageCacheDraft,
 ): string[] {
   if (!messageMemoryBudgetEnabled() || !state.messageCacheBytes) return [];
+  const now = Date.now();
   const ids = new Set<string>();
   const previousViews = [
     previous.currentConversation?.conversationId,
@@ -226,10 +233,11 @@ export function releasedInlineMessageIds(
     state.queuedMessages !== previous.queuedMessages ||
     state.pendingSessionCreates !== previous.pendingSessionCreates
   ) {
-    for (const id in state.messageCacheBytesByConversation)
+    for (const id in state.messageCacheBytesByConversation) {
+      const previousSession = previous.sessions[id];
       if (
-        (state.sessions[id] !== previous.sessions[id] &&
-          previous.sessions[id]) ||
+        (state.sessions[id] !== previousSession &&
+          sessionProtectsMessages(previousSession, now)) ||
         (previous.pendingMessages[id]?.length &&
           !state.pendingMessages[id]?.length) ||
         (previous.queuedMessages[id]?.length &&
@@ -238,10 +246,10 @@ export function releasedInlineMessageIds(
           !Object.hasOwn(state.pendingSessionCreates, id))
       )
         ids.add(id);
+    }
   }
 
   if (!ids.size) return [];
-  const now = Date.now();
   return [...ids].filter(
     (id) => canEvictMessages(state, id, now) && hasInlineOnlyImages(state, id),
   );
