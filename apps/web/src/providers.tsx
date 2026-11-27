@@ -1,7 +1,4 @@
-import { ConvexReactClient } from "convex/react";
-import { recoveringWebSocket } from "@codecast/network";
 import { ReactNode, useRef } from "react";
-import { toast } from "sonner";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { subscribeGestures } from "../store/gestureBridge";
 import { applyBridgedGesture } from "../store/sync-replication";
@@ -22,9 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDesktopStoreReady } from "@/hooks/useDesktopStoreReady";
 import { identifyUser, keepReplay, resetUser } from "@/lib/analytics";
 import { ClientResourceTelemetry } from "@/lib/telemetry/client-resource-telemetry";
-import { CodecastAuthRoot } from "@/lib/authRoot";
-import { CONVEX_URL } from "@/lib/localAuth";
-import { DOCS_SHOTS, docsShotsConvex } from "@/lib/docsShots/flag";
+import { DOCS_SHOTS } from "@/lib/docsShots/flag";
 import { AgentTabOverride } from "@/lib/agentTabGuard";
 import { RelayPresenceProvider } from "@/components/relay-presence-provider";
 
@@ -103,54 +98,31 @@ function AnalyticsIdentify() {
   return null;
 }
 
-const convex: ConvexReactClient = DOCS_SHOTS
-  ? docsShotsConvex()
-  : (import.meta.hot?.data?.convexClient ??
-    new ConvexReactClient(CONVEX_URL, {
-      unsavedChangesWarning: false,
-      webSocketConstructor: recoveringWebSocket(),
-    }));
-
-if (import.meta.hot) {
-  import.meta.hot.data.convexClient = convex;
-}
-
-// Dev-only introspection, next to `window.__inboxStore`: the perf harness
-// (scripts/perf/ws-bytes.mjs) names socket traffic by asking the client which
-// query id maps to which function, instead of waiting for Add frames.
-if (import.meta.env.DEV && typeof window !== "undefined") {
-  (window as any).__convexClient = convex;
-  // Fire any toast from the console to check its face: __toast.success("Saved").
-  (window as any).__toast = toast;
-}
-
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <CodecastAuthRoot client={convex}>
-      <ThemeProvider>
-        <ShortcutProvider>
-          <TipProvider>
-            {/* Docs shots capture what a person sees from an agent's tab, on an
+    <ThemeProvider>
+      <ShortcutProvider>
+        <TipProvider>
+          {/* Docs shots capture what a person sees from an agent's tab, on an
             origin holding only the fixture world; elsewhere no override. */}
-            <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
-              <RelayPresenceProvider>{children}</RelayPresenceProvider>
-            </AgentTabOverride.Provider>
-            <ErrorBoundary name="DesktopProvider" level="inline">
-              <DesktopProvider />
-              <DesktopBadge />
-            </ErrorBoundary>
-            <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
-              <OpenInDesktopHandoff />
-            </ErrorBoundary>
-            <KeyBindingsSync />
-            <GestureBridge />
-            <AnalyticsIdentify />
-            <ClientResourceTelemetry />
-            <DispatchFailureToast />
-            <Toaster position="bottom-right" />
-          </TipProvider>
-        </ShortcutProvider>
-      </ThemeProvider>
-    </CodecastAuthRoot>
+          <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
+            <RelayPresenceProvider>{children}</RelayPresenceProvider>
+          </AgentTabOverride.Provider>
+          <ErrorBoundary name="DesktopProvider" level="inline">
+            <DesktopProvider />
+            <DesktopBadge />
+          </ErrorBoundary>
+          <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
+            <OpenInDesktopHandoff />
+          </ErrorBoundary>
+          <KeyBindingsSync />
+          <GestureBridge />
+          <AnalyticsIdentify />
+          <ClientResourceTelemetry />
+          <DispatchFailureToast />
+          <Toaster position="bottom-right" />
+        </TipProvider>
+      </ShortcutProvider>
+    </ThemeProvider>
   );
 }

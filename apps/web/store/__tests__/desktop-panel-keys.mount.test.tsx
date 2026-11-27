@@ -1,3 +1,4 @@
+import "./fixtures/signedInPrincipal";
 import { expect, test } from "bun:test";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { useConvex } from "convex/react";
@@ -214,6 +215,11 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
             .sort(),
         ).toEqual([]);
       };
+      expect(
+        web.backend.queryRequests.some(
+          ({ name }) => name === "notifications:list",
+        ),
+      ).toBe(true);
       const declared = DESKTOP_WINDOW_KEYS[windowKind];
       await checkReads(declared);
       if (windowKind === "palette") {
