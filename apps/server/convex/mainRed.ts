@@ -274,9 +274,11 @@ export async function noteMainCiRun(
   }
   let id: Id<"main_ci_runs">;
   if (existing) {
-    // A later attempt: the row keeps its state (rerunning) and the first attempt's failures until it settles.
     await ctx.db.patch(existing._id, {
       attempt,
+      ...(existing.state === "rerunning"
+        ? {}
+        : { state: "judging", judge_error: undefined }),
       ...(ci.url ? { url: ci.url } : {}),
       updated_at: now,
     });
@@ -412,6 +414,10 @@ async function tokenFor(
 /** Backoff before each retry of a judge that threw: a token mint or GitHub blip should not lose a red. */
 export const JUDGE_RETRY_MS = [60_000, 5 * MINUTE];
 
+const judgeable = (row: Doc<"main_ci_runs">, attempt: number) =>
+  row.attempt === attempt &&
+  (row.state === "judging" || (row.state === "rerunning" && attempt > 1));
+
 /** Read one claimed attempt's jobs and failures, rerun the failed jobs of a first red attempt, and settle it. */
 export const judge = internalAction({
   args: {
@@ -425,7 +431,7 @@ export const judge = internalAction({
       internal.mainRed.runRow,
       { run: args.run },
     );
-    if (!row || row.attempt !== args.attempt) return "stale";
+    if (!row || !judgeable(row, args.attempt)) return "stale";
     try {
       return await judgeAttempt(ctx, row, args.ok);
     } catch (err) {
@@ -456,7 +462,7 @@ export const judgeFailed = internalMutation({
   },
   handler: async (ctx, args): Promise<void> => {
     const row = await ctx.db.get(args.run);
-    if (!row || row.attempt !== args.attempt) return;
+    if (!row || !judgeable(row, args.attempt)) return;
     const now = Date.now();
     await ctx.db.patch(row._id, { judge_error: args.error, updated_at: now });
     if (args.tries < JUDGE_RETRY_MS.length) {
@@ -678,7 +684,6 @@ export const recheck = internalAction({
     return await lost();
   },
 });
-
 /** A newer attempt the webhook never delivered, found by `recheck`. */
 export const reclaim = internalMutation({
   args: {
@@ -692,6 +697,8 @@ export const reclaim = internalMutation({
     if (!row || row.attempt !== args.from) return;
     await ctx.db.patch(row._id, {
       attempt: args.attempt,
+      state: row.state === "rerunning" ? row.state : "judging",
+      judge_error: row.state === "rerunning" ? row.judge_error : undefined,
       updated_at: Date.now(),
     });
     await claimAttempt(ctx, row._id, args.attempt, args.ok);

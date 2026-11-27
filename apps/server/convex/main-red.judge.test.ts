@@ -1,12 +1,14 @@
 // Red main's judge, run against the responses GitHub gave for two real runs
 // (docs/architecture/main-red.md): what it reads decides the verdict settle records.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
+import { isolateScheduledFunctions } from "../test-helpers/scheduled-functions.testkit";
 import { internal } from "./_generated/api";
 import { noteMainCiRun } from "./mainRed";
 import * as recorded from "./mainRed.recorded.testkit";
 import { REPO, sha, failure, world } from "./mainRed.testkit";
 
 describe("judge, on what GitHub said about two real runs", () => {
+  const trackBackend = isolateScheduledFunctions();
   /** codecast's CI shape: test jobs, and `verify`, which needs them all. */
   const WORKFLOW = [
     "name: CI",
@@ -38,7 +40,7 @@ describe("judge, on what GitHub said about two real runs", () => {
     jobs: (run: string) => any;
     logs: Record<string, string>;
     rerun?: Response;
-    run?: any;
+    run?: Record<string, unknown> | (() => Promise<Response>);
     file?: string | null;
   }) {
     const calls: string[] = [];
@@ -59,7 +61,9 @@ describe("judge, on what GitHub said about two real runs", () => {
       )
         return responses.rerun?.clone() ?? new Response(null, { status: 201 });
       if (responses.run && /\/actions\/runs\/\d+$/.test(url.pathname))
-        return Response.json(responses.run);
+        return typeof responses.run === "function"
+          ? responses.run()
+          : Response.json(responses.run);
       if (
         url.pathname.endsWith("/contents/.github/workflows/ci.yml") &&
         responses.file !== null
@@ -82,6 +86,7 @@ describe("judge, on what GitHub said about two real runs", () => {
 
   async function connected(permissions?: Record<string, string>) {
     const w = await world();
+    trackBackend(w.t);
     await w.t.run(async (ctx) => {
       await ctx.db.insert("github_app_installations", {
         team_id: w.team,
@@ -128,7 +133,7 @@ describe("judge, on what GitHub said about two real runs", () => {
           },
         });
       });
-      await new Promise((r) => setTimeout(r, 5));
+      jest.advanceTimersByTime(0);
       await w.t.finishInProgressScheduledFunctions();
       return await w.t.run(
         async (ctx) =>
@@ -442,7 +447,7 @@ describe("judge, on what GitHub said about two real runs", () => {
           attempt: 1,
         }),
       ).toBe("reclaimed");
-      await new Promise((r) => setTimeout(r, 5));
+      jest.advanceTimersByTime(0);
       await w.t.finishInProgressScheduledFunctions();
       expect(
         await w.t.run(async (ctx) => await ctx.db.get(first!._id)),
@@ -454,12 +459,72 @@ describe("judge, on what GitHub said about two real runs", () => {
     expect(await w.events("main_red")).toHaveLength(0);
   });
 
-  test("a judge that throws is logged and retried twice with backoff, then the run is lost", async () => {
+  test("a recheck reclaims a failed rerun after the old attempt settles during its GitHub request", async () => {
     const w = await connected();
-    const real = globalThis.fetch;
-    globalThis.fetch = (async () => {
-      throw new Error("fetch failed: ECONNRESET");
-    }) as unknown as typeof fetch;
+    const { RED_RUN, RED_SHA } = recorded;
+    const requested = Promise.withResolvers<void>();
+    const response = Promise.withResolvers<Response>();
+    let attempt = 1;
+    const gh = github({
+      jobs: () => {
+        if (attempt === 1) throw new Error("fetch failed: ECONNRESET");
+        return recorded.RED_JOBS_A2;
+      },
+      logs: recorded.RED_LOGS,
+      run: () => {
+        requested.resolve();
+        return response.promise;
+      },
+    });
+    try {
+      const first = await w.finish(RED_RUN, RED_SHA, attempt, "failure");
+      expect(first?.judge_error).toBe("fetch failed: ECONNRESET");
+      const run = first!._id;
+      const readRun = () => w.t.run((ctx) => ctx.db.get(run));
+      const recheck = w.t.action(internal.mainRed.recheck, { run, attempt });
+      await Promise.race([requested.promise, recheck]);
+      try {
+        await w.t.mutation(internal.mainRed.judgeFailed, {
+          run,
+          attempt,
+          ok: false,
+          tries: 2,
+          error: "fetch failed: ECONNRESET",
+        });
+        expect(await w.t.query(internal.mainRed.runRow, { run })).toMatchObject(
+          { state: "lost" },
+        );
+      } finally {
+        attempt = 2;
+        response.resolve(
+          Response.json({
+            status: "completed",
+            conclusion: "failure",
+            run_attempt: attempt,
+          }),
+        );
+      }
+      expect(await recheck).toBe("reclaimed");
+      expect(await readRun()).toMatchObject({ state: "judging" });
+      expect((await readRun())?.judge_error).toBeUndefined();
+      jest.advanceTimersByTime(0);
+      await w.t.finishInProgressScheduledFunctions();
+      expect(await readRun()).toMatchObject({ state: "red", attempt: 2 });
+    } finally {
+      gh.restore();
+    }
+  });
+
+  test("a judge retries twice before marking the run lost, then judges a manual rerun", async () => {
+    const w = await connected();
+    let available = false;
+    const gh = github({
+      jobs: () => {
+        if (!available) throw new Error("fetch failed: ECONNRESET");
+        return recorded.FLAKE_JOBS_A2;
+      },
+      logs: {},
+    });
     try {
       const row = await w.finish(
         recorded.FLAKE_RUN,
@@ -471,33 +536,132 @@ describe("judge, on what GitHub said about two real runs", () => {
         state: "judging",
         judge_error: "fetch failed: ECONNRESET",
       });
-      const retries = await w.t.run(async (ctx) =>
-        (await ctx.db.system.query("_scheduled_functions").collect()).filter(
-          (f) => f.name.endsWith("mainRed:judge") && f.state.kind === "pending",
-        ),
-      );
+      const retries = () =>
+        w.t.run(async (ctx) =>
+          (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+            (f) =>
+              f.name.endsWith("mainRed:judge") && f.state.kind === "pending",
+          ),
+        );
       expect(
-        retries.map((f) => [
+        (await retries()).map((f) => [
           f.args[0].tries,
-          Math.round((f.scheduledTime - Date.now()) / 60_000),
+          f.scheduledTime - Date.now(),
         ]),
-      ).toEqual([[1, 1]]);
-      // The last retry throws too.
+      ).toEqual([[1, 60_000]]);
+      jest.advanceTimersByTime(60_000);
+      await w.t.finishInProgressScheduledFunctions();
       expect(
-        await w.t.action(internal.mainRed.judge, {
-          run: row!._id,
-          attempt: 1,
-          ok: false,
-          tries: 2,
-        }),
-      ).toBe("failed");
+        (await retries()).map((f) => [
+          f.args[0].tries,
+          f.scheduledTime - Date.now(),
+        ]),
+      ).toEqual([[2, 5 * 60_000]]);
+      jest.advanceTimersByTime(5 * 60_000);
+      await w.t.finishInProgressScheduledFunctions();
+      expect(await retries()).toEqual([]);
       expect(
         await w.t.run(async (ctx) => (await ctx.db.get(row!._id))?.state),
       ).toBe("lost");
+      available = true;
+      const calls = gh.calls.length;
+      const rerun = await w.finish(
+        recorded.FLAKE_RUN,
+        recorded.FLAKE_SHA,
+        2,
+        "success",
+      );
+      expect(rerun).toMatchObject({
+        _id: row!._id,
+        attempt: 2,
+        state: "green",
+      });
+      expect(rerun?.judge_error).toBeUndefined();
+      expect(
+        gh.calls
+          .slice(calls)
+          .some((call) =>
+            call.startsWith(
+              `GET /repos/${REPO}/actions/runs/${recorded.FLAKE_RUN}/jobs?`,
+            ),
+          ),
+      ).toBe(true);
     } finally {
-      globalThis.fetch = real;
+      gh.restore();
     }
   });
+
+  test.each([
+    "green",
+    "red",
+    "unproven",
+    "recovered",
+    "lost",
+    "rerunning",
+  ] as const)(
+    "a scheduled retry leaves a settled first attempt in %s alone",
+    async (state) => {
+      const w = await connected();
+      let throwOnJobs = true;
+      const gh = github({
+        jobs: () => {
+          if (throwOnJobs) throw new Error("temporary GitHub failure");
+          return recorded.FLAKE_JOBS_A1;
+        },
+        logs: recorded.FLAKE_LOGS_A1,
+      });
+      try {
+        const row = await w.finish(
+          recorded.FLAKE_RUN,
+          recorded.FLAKE_SHA,
+          1,
+          "failure",
+        );
+        if (!row) throw new Error("Expected a claimed CI run");
+        expect(row).toMatchObject({ judge_error: "temporary GitHub failure" });
+        await w.t.run((ctx) => ctx.db.patch(row._id, { state }));
+        const settled = await w.t.run((ctx) => ctx.db.get(row._id));
+        const retry = await w.t.run(async (ctx) =>
+          (await ctx.db.system.query("_scheduled_functions").collect()).find(
+            (job) =>
+              job.name.endsWith("mainRed:judge") &&
+              job.state.kind === "pending",
+          ),
+        );
+        if (!retry) throw new Error("Expected a scheduled judge retry");
+        const calls = gh.calls.length;
+        throwOnJobs = false;
+
+        jest.advanceTimersByTime(60_000);
+        await w.t.finishInProgressScheduledFunctions();
+
+        expect(
+          await w.t.run(
+            async (ctx) => (await ctx.db.system.get(retry._id))?.state,
+          ),
+        ).toEqual({ kind: "success" });
+        expect(gh.calls.slice(calls)).toEqual([]);
+        const jobs = () =>
+          w.t.run((ctx) =>
+            ctx.db.system.query("_scheduled_functions").collect(),
+          );
+        const afterRetry = await jobs();
+        for (const tries of [0, 2]) {
+          await w.t.mutation(internal.mainRed.judgeFailed, {
+            run: row._id,
+            attempt: row.attempt,
+            ok: false,
+            tries,
+            error: "late failure",
+          });
+        }
+        expect(await jobs()).toEqual(afterRetry);
+        expect(await w.t.run((ctx) => ctx.db.get(row._id))).toEqual(settled);
+      } finally {
+        gh.restore();
+      }
+    },
+  );
 
   test("a finished attempt whose judge never settled it is judged again by the recheck", async () => {
     const w = await connected();
@@ -535,7 +699,7 @@ describe("judge, on what GitHub said about two real runs", () => {
       expect(
         await w.t.action(internal.mainRed.recheck, { run: row, attempt: 1 }),
       ).toBe("rejudged");
-      await new Promise((r) => setTimeout(r, 5));
+      jest.advanceTimersByTime(0);
       await w.t.finishInProgressScheduledFunctions();
     } finally {
       gh.restore();

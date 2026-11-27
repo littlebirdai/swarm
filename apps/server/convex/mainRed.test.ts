@@ -1,7 +1,7 @@
 // Red main routes to its culprit (docs/architecture/main-red.md): a run
 // claimed from the webhook, settled with what GitHub said, raises main_red once
 // per culprit and main_green on recovery, and briefs the culprit's session.
-// These drive `settle` with the verdict `judge` reads; mainRed.judge.test.ts
+// These drive `settle` with the verdict `judge` reads; main-red.judge.test.ts
 // runs `judge` itself against responses GitHub gave for two real runs.
 import { describe, expect, test } from "bun:test";
 import { api, internal } from "./_generated/api";
