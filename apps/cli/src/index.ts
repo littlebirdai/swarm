@@ -885,10 +885,10 @@ async function autoBindFromEnv(): Promise<void> {
   const planShortId = process.env.CODECAST_PLAN_ID;
   if (!taskShortId && !planShortId) return;
 
-  const sessionId = detectCurrentSessionId();
-  if (!sessionId) return;
-
   try {
+    if (!readCliEndpoint()) return;
+    const sessionId = detectCurrentSessionId();
+    if (!sessionId) return;
     if (taskShortId) {
       await cliPost("/cli/work/update", {
         short_id: taskShortId,
