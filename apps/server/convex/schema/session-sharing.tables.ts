@@ -12,6 +12,24 @@ export const sessionSharingTables = {
     lease_until: v.number(),
     request_id: v.optional(v.string()),
     request_holder: v.optional(v.id("users")),
+    takeover: v.optional(
+      v.object({
+        id: v.string(),
+        run: v.number(),
+        turn: v.string(),
+        start_event_seq: v.number(),
+        baton_token: v.union(v.number(), v.null()),
+        new_baton_token: v.number(),
+        owner: v.optional(v.id("users")),
+        previous_holder: v.optional(v.id("users")),
+        handed_out: v.optional(v.boolean()),
+        state: v.union(
+          v.literal("pending"),
+          v.literal("granted"),
+          v.literal("recorded"),
+        ),
+      }),
+    ),
     terminal: v.optional(
       v.object({
         device: v.id("devices"),
@@ -34,6 +52,8 @@ export const sessionSharingTables = {
     .index("by_conversation_kind", ["conversation_id", "kind"])
     .index("by_holder", ["holder"])
     .index("by_request_holder", ["request_holder"])
+    .index("by_takeover_owner", ["takeover.owner"])
+    .index("by_takeover_previous_holder", ["takeover.previous_holder"])
     .index("by_live_terminal_device", [
       "terminal.device",
       "terminal.open",

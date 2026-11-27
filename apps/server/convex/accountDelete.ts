@@ -112,6 +112,32 @@ export async function purgeAccountPass(
   }
   budget -= receipts.length;
   if (budget <= 0) return true;
+  for (const [index, field] of [
+    ["by_takeover_owner", "takeover.owner"],
+    ["by_takeover_previous_holder", "takeover.previous_holder"],
+  ] as const) {
+    const claims = await ctx.db
+      .query("claims")
+      .withIndex(index, (q) => q.eq(field, userId))
+      .take(budget);
+    for (const claim of claims) {
+      const takeover = claim.takeover;
+      if (!takeover) continue;
+      await ctx.db.patch(claim._id, {
+        takeover: {
+          ...takeover,
+          owner: takeover.owner === userId ? undefined : takeover.owner,
+          previous_holder:
+            takeover.previous_holder === userId
+              ? undefined
+              : takeover.previous_holder,
+        },
+      });
+    }
+    budget -= claims.length;
+    if (budget <= 0) return true;
+  }
+
   const shares = await ctx.db
     .query("terminal_watch_shares")
     .withIndex("by_owner_team", (q) => q.eq("owner_id", userId))

@@ -1,5 +1,6 @@
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { applyHeartbeat } from "../sessionStatusWriter";
+import { steerBatonEnabled } from "./baton-capabilities.rules";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   TURN_PROJECTION_VERSION,
@@ -36,7 +37,7 @@ type Address = { bearer: string; conversation_id: string };
 type Fence = Address & { run: number; fencing_token: string };
 
 export function loadRunLeaseClaim(
-  ctx: Pick<MutationCtx, "db">,
+  ctx: Pick<QueryCtx, "db">,
   conversationId: Id<"conversations">,
   claimId: string,
 ) {
@@ -184,17 +185,19 @@ export async function claimRunLease(
     return stale;
 
   const { binding, head } = owned;
-  if (binding.requires_run_lease) {
-    const registration = await ctx.db
-      .query("execution_daemon_boots")
-      .withIndex("by_user_device", (q) =>
-        q
-          .eq("user_id", binding.owner_user_id)
-          .eq("owner_device_id", binding.owner_device_id),
-      )
-      .unique();
-    if (registration && registration.daemon_boot_id !== args.boot) return stale;
-  }
+  const baton = steerBatonEnabled();
+  const registration =
+    baton || binding.requires_run_lease
+      ? await ctx.db
+          .query("execution_daemon_boots")
+          .withIndex("by_user_device", (q) =>
+            q
+              .eq("user_id", binding.owner_user_id)
+              .eq("owner_device_id", binding.owner_device_id),
+          )
+          .unique()
+      : null;
+  if (registration && registration.daemon_boot_id !== args.boot) return stale;
   const now = Date.now();
   const requested = await loadRunLeaseClaim(
     ctx,
@@ -237,6 +240,17 @@ export async function claimRunLease(
     });
     if (binding.claim_id !== undefined) await clearEventTurn(ctx, binding, now);
     await ctx.db.patch(binding._id, { claim_id: args.claim_id });
+  }
+  const hello = registration?.edge_baton_hello;
+  if (
+    baton &&
+    (hello?.boot === args.boot || binding.edge_capabilities !== undefined)
+  ) {
+    const capabilities = hello?.boot === args.boot ? hello.capabilities : [];
+    if (
+      JSON.stringify(binding.edge_capabilities) !== JSON.stringify(capabilities)
+    )
+      await ctx.db.patch(binding._id, { edge_capabilities: capabilities });
   }
   return {
     v: RUN_LEASE_VERSION,

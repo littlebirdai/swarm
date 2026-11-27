@@ -23,7 +23,7 @@ import {
   requireNoDeviceMove,
 } from "./edge/device-move.state";
 import { assertActiveRunLease } from "./edge/runLease";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { isConversationSafetyBlocked } from "../conversationSafety";
 import { findClaim } from "./claims";
 import {
@@ -69,6 +69,44 @@ export async function assertReadyFence(
   await assertActiveRunLease(ctx, binding, fence.fencingToken, fence.now);
 }
 
+async function claimedSteerRefusal(
+  ctx: DbCtx,
+  conversation: Doc<"conversations">,
+  binding: Doc<"execution_bindings">,
+  turn: Awaited<ReturnType<typeof readBatonTurn>>,
+  message: Doc<"pending_messages">,
+  fence: Pick<ReadyBindingFence, "fencingToken"> & { now: number },
+) {
+  if (turn === undefined || !fence.fencingToken) return "stale-turn";
+  return steerRefusal(
+    ctx,
+    conversation,
+    binding.epoch,
+    turn,
+    turn
+      ? await findClaim(ctx.db, { id: conversation._id, kind: "steer" })
+      : null,
+    message,
+    fence.now,
+  );
+}
+
+export function rejectClaimedSteer(
+  ctx: DbCtx,
+  head: Doc<"conversation_execution_heads">,
+  message: Doc<"pending_messages">,
+  attempt: Doc<"delivery_attempts">,
+  reason: string,
+  now: number,
+) {
+  return finishTerminalDelivery(ctx, head, message, attempt, {
+    attemptState: "failed-before-effect",
+    messageState: "rejected",
+    rejection: { code: deliveryRejectionCodes.rejected, reason },
+    now,
+  });
+}
+
 export async function claimNextDeliveryInDb(
   ctx: DbCtx,
   userId: Id<"users">,
@@ -108,6 +146,30 @@ export async function claimNextDeliveryInDb(
         String(activeAttempt.message_id) === String(args.expectedMessageId))
     ) {
       const activeMessage = await ctx.db.get(activeAttempt.message_id);
+      if (activeMessage?.delivery_intent === "steer") {
+        const turn = batonEnabled(binding)
+          ? await readBatonTurn(ctx, binding)
+          : undefined;
+        const reason = await claimedSteerRefusal(
+          ctx,
+          conversation,
+          binding,
+          turn,
+          activeMessage,
+          args,
+        );
+        if (reason) {
+          await rejectClaimedSteer(
+            ctx,
+            head,
+            activeMessage,
+            activeAttempt,
+            reason,
+            args.now,
+          );
+          return { state: "empty" as const };
+        }
+      }
       return {
         state: "claimed" as const,
         recovered: true,
@@ -372,27 +434,16 @@ export async function startDeliveryInDb(
   const enabled = batonEnabled(binding);
   const turn = enabled ? await readBatonTurn(ctx, binding) : undefined;
   if (message.delivery_intent === "steer") {
-    const reason =
-      turn === undefined || !fence.fencingToken
-        ? "stale-turn"
-        : await steerRefusal(
-            ctx,
-            conversation,
-            binding.epoch,
-            turn,
-            turn
-              ? await findClaim(ctx.db, { id: conversation._id, kind: "steer" })
-              : null,
-            message,
-            fence.now,
-          );
+    const reason = await claimedSteerRefusal(
+      ctx,
+      conversation,
+      binding,
+      turn,
+      message,
+      fence,
+    );
     if (reason) {
-      await finishTerminalDelivery(ctx, head, message, attempt, {
-        attemptState: "failed-before-effect",
-        messageState: "rejected",
-        rejection: { code: deliveryRejectionCodes.rejected, reason },
-        now: fence.now,
-      });
+      await rejectClaimedSteer(ctx, head, message, attempt, reason, fence.now);
       return { state: "stale-steer", reason };
     }
   } else if (enabled && turn !== null) {

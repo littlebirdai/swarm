@@ -1,3 +1,4 @@
+import { bindingHasBatonCapability } from "./baton-capabilities.rules";
 import {
   EDGE_PROTOCOL_VERSION as v1,
   STEER_BATON_CAPABILITY,
@@ -244,7 +245,7 @@ export async function answerablePromptAddresses(
     conversation.user_id === actor &&
     admitting &&
     projectionVersion === TURN_STARTER_PROJECTION_VERSION &&
-    binding.capabilities?.includes(STEER_BATON_CAPABILITY) &&
+    bindingHasBatonCapability(binding, STEER_BATON_CAPABILITY) &&
     turn.starter &&
     turn.start_event_seq !== undefined
       ? {

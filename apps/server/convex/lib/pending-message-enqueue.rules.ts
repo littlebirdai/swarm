@@ -1,10 +1,11 @@
+import { bindingHasBatonCapability } from "./edge/baton-capabilities.rules";
 import type { WakeCause } from "@codecast/hosted-assistant/assistant";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { claim, findClaim } from "./claims";
+import { claim, findClaim, takeoverForTurn } from "./claims";
 
 export const observedTurnValidator = v.object({
   id: v.string(),
@@ -108,7 +109,8 @@ export async function admitFencedHumanSend(
       q.eq("conversation_id", conversationId).eq("epoch", run),
     )
     .unique();
-  if (!binding?.capabilities?.includes(STEER_BATON_CAPABILITY)) return;
+  if (!binding || !bindingHasBatonCapability(binding, STEER_BATON_CAPABILITY))
+    return;
   if (!observed) return queue;
 
   const claimId = binding.claim_id;
@@ -147,6 +149,7 @@ export async function admitFencedHumanSend(
 
   const resource = { id: conversationId, kind: "steer" } as const;
   const current = await findClaim(ctx.db, resource);
+  if (takeoverForTurn(current, run, turn)?.state === "pending") return queue;
   const starter =
     turn.starter.kind === "person"
       ? ctx.db.normalizeId("users", turn.starter.id)

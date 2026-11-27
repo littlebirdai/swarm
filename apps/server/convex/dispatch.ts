@@ -1,4 +1,9 @@
 import {
+  dispatchCollabGrant,
+  dispatchSteerComposer,
+  type CollabGrantCommand,
+} from "./collab";
+import {
   forceSessionMove,
   moveSessionToDevice,
 } from "./lib/device-move-dispatch.effects";
@@ -2389,6 +2394,13 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       messageId,
       intoId,
     }),
+  changeCollabGrant: (ctx, _userId, [command]: [CollabGrantCommand]) =>
+    dispatchCollabGrant(ctx.runMutation!, command),
+  controlSteerComposer: (ctx, _userId, args) =>
+    dispatchSteerComposer(
+      ctx.runMutation!,
+      args as Parameters<typeof dispatchSteerComposer>[1],
+    ),
   queueMessage: async (
     ctx,
     userId,

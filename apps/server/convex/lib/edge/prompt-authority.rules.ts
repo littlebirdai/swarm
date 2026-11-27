@@ -1,3 +1,4 @@
+import { bindingHasBatonCapability } from "./baton-capabilities.rules";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -64,7 +65,7 @@ export async function currentPromptBinding(
 }
 
 function supportsPromptBaton(binding: Doc<"execution_bindings"> | undefined) {
-  return binding?.capabilities?.includes(STEER_BATON_CAPABILITY) === true;
+  return bindingHasBatonCapability(binding, STEER_BATON_CAPABILITY);
 }
 
 export async function sharedPromptPermissionsEnabled(
