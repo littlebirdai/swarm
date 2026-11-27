@@ -8,7 +8,8 @@ import {
   RELAY_SESSION_LIVENESS_CAPABILITY,
 } from "@codecast/edge-contract";
 import { parseRelayGrantClaims } from "@codecast/relay-contract";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
   boot,
@@ -19,6 +20,7 @@ import {
 } from "../test-helpers/run-lease.testkit";
 
 const flags = {
+  INBOX_LIVENESS_LEASES: "1",
   CODECAST_EDGE_V1: "1",
   CODECAST_EDGE_DELIVERY_V1: "1",
   CODECAST_EDGE_RELAY_LIVENESS_V1: "1",
@@ -368,4 +370,74 @@ test("a prior epoch cannot mint after the execution head advances to epoch two",
   expect(
     await (await f.post("relay-grant", { v: 1, sessions: [next] })).json(),
   ).toMatchObject({ status: "ok" });
+});
+
+test("inbox relay targets follow conversation access and the current fenced binding", async () => {
+  const f = await fixture();
+  const { teammate, outsider, membership, unfenced } = await f.t.run(
+    async ({ db }) => {
+      const rows = fixtureRows(db, "relay-inbox-access");
+      const teammate = await rows.user();
+      const outsider = await rows.user();
+      const team = await rows.team();
+      await rows.membership(f.owner, team, { visibility: "full" });
+      const membership = await rows.membership(teammate, team, {
+        visibility: "full",
+      });
+      await db.patch(f.conversation, {
+        team_id: team,
+        team_visibility: "full",
+      });
+      const unfenced = await rows.conversation(f.owner, {
+        agent_type: "codex",
+        owner_device_id: machine,
+      });
+      return { teammate, outsider, membership, unfenced };
+    },
+  );
+  const query = api.relayGrants.inboxTargets;
+  const args = { ids: [f.conversation, unfenced] };
+  const expected = [{ id: f.conversation, run: 1, machine }];
+  const owner = asUser(f.t, f.owner);
+  const member = asUser(f.t, teammate);
+  expect(await f.t.query(query, args)).toBeNull();
+  expect(await owner.query(query, args)).toEqual({
+    viewer: f.owner,
+    targets: expected,
+  });
+  expect(await member.query(query, args)).toEqual({
+    viewer: teammate,
+    targets: expected,
+  });
+  expect(await asUser(f.t, outsider).query(query, args)).toEqual({
+    viewer: outsider,
+    targets: [],
+  });
+
+  await f.t.run(({ db }) =>
+    db.patch(f.conversation, { team_visibility: "summary" }),
+  );
+  expect(await member.query(query, args)).toEqual({
+    viewer: teammate,
+    targets: [],
+  });
+  await f.t.run(({ db }) =>
+    db.patch(f.conversation, { team_visibility: "full" }),
+  );
+  await f.t.run(({ db }) => db.delete(membership));
+  expect(await member.query(query, args)).toEqual({
+    viewer: teammate,
+    targets: [],
+  });
+
+  await f.t.run(({ db }) => db.patch(f.head, { current_epoch: 2 }));
+  expect(await owner.query(query, args)).toEqual({
+    viewer: f.owner,
+    targets: [],
+  });
+  expect(
+    await owner.query(query, { ids: Array(65).fill(f.conversation) }),
+  ).toBeNull();
+  delete process.env.INBOX_LIVENESS_LEASES;
+  expect(await owner.query(query, args)).toBeNull();
 });

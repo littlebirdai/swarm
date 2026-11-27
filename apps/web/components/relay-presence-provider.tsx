@@ -1,6 +1,6 @@
-import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex, useConvexAuth } from "convex/react";
 import { useMemo, useState, type ReactNode } from "react";
+import { useIsSyncHost } from "../hooks/use-sync-role";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
   RelayPresenceContext,
@@ -11,9 +11,11 @@ import { useInboxStore } from "../store/inboxStore";
 
 function ActiveRelayPresence({
   url,
+  inboxLiveness,
   children,
 }: {
   url: string;
+  inboxLiveness: boolean;
   children: ReactNode;
 }) {
   const convex = useConvex();
@@ -21,8 +23,8 @@ function ActiveRelayPresence({
   const viewerId = useInboxStore((store) => store.currentUser?._id);
   const account = isAuthenticated ? viewerId : undefined;
   const scope = useMemo(
-    () => (account ? { account, url, convex } : null),
-    [account, url, convex],
+    () => (account ? { account, url, convex, inboxLiveness } : null),
+    [account, url, convex, inboxLiveness],
   );
   const [connection, setConnection] = useState<{
     scope: NonNullable<typeof scope>;
@@ -31,35 +33,18 @@ function ActiveRelayPresence({
 
   useWatchEffect(() => {
     if (!scope || typeof window.WebSocket !== "function") return;
-    const { account, url, convex } = scope;
+    const { account, url, convex, inboxLiveness } = scope;
     const lifetime = new AbortController();
     const load = async () => {
       const { createRelayClient } = await import("@codecast/relay-client");
       if (lifetime.signal.aborted) return;
       const client = createRelayClient({
-        async getToken(hubs, signal) {
-          if (
-            signal.aborted ||
-            useInboxStore.getState().currentUser?._id !== account
-          )
-            return { status: "unauthenticated" };
-          try {
-            const result = await convex.mutation(api.relayGrants.mint, {
-              hubs: hubs.flatMap((hub) =>
-                hub.kind === "session" ? [{ kind: hub.kind, id: hub.id }] : [],
-              ),
-            });
-            if (
-              signal.aborted ||
-              useInboxStore.getState().currentUser?._id !== account
-            )
-              return { status: "unauthenticated" };
-            return result.status === "ok" ? { ...result, url } : result;
-          } catch {
-            return { status: "unavailable" };
-          }
-        },
+        getToken: (hubs, signal) =>
+          useInboxStore
+            .getState()
+            .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
+        sessionLiveness: inboxLiveness,
         now: () => performance.now(),
         setTimer(callback, delayMs) {
           const timer = setTimeout(callback, delayMs);
@@ -88,6 +73,7 @@ function ActiveRelayPresence({
       setConnection({
         scope,
         client: {
+          ...(inboxLiveness && { inboxViewer: account }),
           subscribe(sessionId, handler) {
             try {
               return client.subscribe(
@@ -115,12 +101,20 @@ function ActiveRelayPresence({
 }
 
 export function RelayPresenceProvider({ children }: { children: ReactNode }) {
+  const isSyncHost = useIsSyncHost();
   const url = relayPresenceUrl(
     import.meta.env.VITE_RELAY_PRESENCE,
     import.meta.env.VITE_RELAY_URL,
   );
   return url ? (
-    <ActiveRelayPresence url={url.href}>{children}</ActiveRelayPresence>
+    <ActiveRelayPresence
+      url={url.href}
+      inboxLiveness={
+        isSyncHost && import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"
+      }
+    >
+      {children}
+    </ActiveRelayPresence>
   ) : (
     children
   );

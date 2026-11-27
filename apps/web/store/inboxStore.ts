@@ -1,3 +1,4 @@
+import { relayGrantAction } from "./relay-grant-action";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -3113,6 +3114,14 @@ export type ClientState = {
   sidebar_collapsed?: boolean;
   zen_mode?: boolean;
   layout?: { sidebar: number; main: number };
+};
+
+type InboxRelayContact = {
+  viewer: string;
+  machine: string;
+  connection: string;
+  sequence: number;
+  deadline: number;
 };
 
 type Draft = InboxStoreState;
@@ -7935,6 +7944,11 @@ export interface InboxStoreState
   // Leaving this set is when this client asks byIds whether a
   // foreign row it owns was disowned (settleDisownClaims).
   liveInboxIds: Set<string>;
+  relayInboxCards: Record<string, number>;
+  relayInboxContacts: Record<string, InboxRelayContact | undefined>;
+  countRelayInboxCard: (id: string, delta: 1 | -1) => void;
+  mintRelayGrant: ReturnType<typeof relayGrantAction>;
+  setInboxRelayContact: (id: string, contact?: InboxRelayContact) => void;
   // ── The projection stamp buffer (sync-convergence C1/C6) ──
   // Per-scope checking data from the liveness overlay: the server's run of the
   // shared module over canonical state. Keyed "mine" | `team:<teamId>` so the
@@ -13276,6 +13290,31 @@ const inboxStoreConfig = (set: any, get: any) => ({
       // The lock is the one this window held, acknowledgement included: a
       // re-plant without it waits for an echo a killed row never sends.
       this.pending[`${key}:${id}:${field}`] = fieldLockEntry(value, ts, ack);
+    }
+  }),
+  mintRelayGrant: relayGrantAction(
+    () => useInboxStore.getState().currentUser?._id,
+  ),
+  countRelayInboxCard: sync(function (this: Draft, id: string, delta: 1 | -1) {
+    const count = (this.relayInboxCards[id] ?? 0) + delta;
+    if (count > 0) this.relayInboxCards[id] = count;
+    else if (id in this.relayInboxCards) delete this.relayInboxCards[id];
+  }),
+  setInboxRelayContact: sync(function (
+    this: Draft,
+    id: string,
+    contact?: InboxRelayContact,
+  ) {
+    const current = this.relayInboxContacts[id];
+    if (!contact) {
+      if (current) delete this.relayInboxContacts[id];
+    } else if (
+      current?.viewer !== contact.viewer ||
+      current.machine !== contact.machine ||
+      current.connection !== contact.connection ||
+      current.sequence < contact.sequence
+    ) {
+      this.relayInboxContacts[id] = contact;
     }
   }),
   // sync(): the id set is server truth (or its persisted snapshot) — persist to

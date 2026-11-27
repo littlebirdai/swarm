@@ -13,7 +13,9 @@ import {
 } from "@codecast/edge-contract";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { internalMutation, mutation } from "./functions";
+import { internalMutation, mutation, query } from "./functions";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import { inboxLeaseWritesEnabled } from "./lib/sessionHeartbeat";
 import { currentClaim } from "./lib/edge/runLease";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { checkRateLimit, RateLimitError } from "./rateLimit";
@@ -132,6 +134,58 @@ export const mint = mutation({
         return { status: "rate_limited" } as const;
       throw new ConvexError("unavailable");
     }
+  },
+});
+
+export const inboxTargets = query({
+  args: { ids: v.array(v.id("conversations")) },
+  handler: async (ctx, { ids }) => {
+    if (
+      !inboxLeaseWritesEnabled() ||
+      !machineRelayGrantConfig() ||
+      ids.length > 4 * RELAY_MAX_GRANTS_PER_TOKEN
+    )
+      return null;
+    const viewer = await getAuthUserId(ctx);
+    if (!viewer || !(await ctx.db.get(viewer))) return null;
+    const targets = await Promise.all(
+      [...new Set(ids)].map(async (id) => {
+        const session = await ctx.db.get(id);
+        if (
+          !session?.owner_device_id ||
+          session.execution_protocol_state !== "fenced" ||
+          isHostedAgentType(session.agent_type) ||
+          !(await canOwnerOrTeamAccess(ctx, viewer, session))
+        )
+          return null;
+        const head = await ctx.db
+          .query("conversation_execution_heads")
+          .withIndex("by_conversation", (q) => q.eq("conversation_id", id))
+          .unique();
+        const run = head?.current_epoch;
+        if (
+          head?.protocol_state !== "fenced" ||
+          head.owner_user_id !== session.user_id ||
+          head.device_move ||
+          run === undefined
+        )
+          return null;
+        const binding = await ctx.db
+          .query("execution_bindings")
+          .withIndex("by_conversation_epoch", (q) =>
+            q.eq("conversation_id", id).eq("epoch", run),
+          )
+          .unique();
+        if (
+          binding?.state !== "ready" ||
+          binding.owner_user_id !== session.user_id ||
+          binding.owner_device_id !== session.owner_device_id
+        )
+          return null;
+        return { id, run, machine: binding.owner_device_id };
+      }),
+    );
+    return { viewer, targets: targets.filter((target) => target !== null) };
   },
 });
 

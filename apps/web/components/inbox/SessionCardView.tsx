@@ -51,7 +51,7 @@ import type { LinkedPr } from "../../lib/sessionPullRequests";
 import { SessionShipChip } from "../ship/SessionShipChip";
 import type { SessionCardViewProps } from "./sessionCardTypes";
 import { ACTIVE_CARD_CLASS } from "./sessionCardTypes";
-import { BrowserPaneOfferGlyph } from "../browser/BrowserPaneOfferChip";
+import { InboxCardIndicators } from "./relay-inbox-contact";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { useSessionCardDrag } from "../../hooks/useSessionCardDrag";
 import {
@@ -1118,7 +1118,7 @@ export function SessionCardView({
                   shepherdedId={session.pr_status?.pr_id}
                   max={session.pr_status ? 0 : 1}
                 />
-                <BrowserPaneOfferGlyph offer={session.browser_pane_offer} />
+                <InboxCardIndicators session={session} />
                 {isFork(session) && (
                   <span
                     data-simple-hide

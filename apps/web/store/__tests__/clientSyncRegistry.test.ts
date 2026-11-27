@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
   CLIENT_SYNC_REGISTRY,
+  DATA_SCOPE,
+  REPLICATED_STORE_KEYS,
   COLLECTION_INDEXES,
   COLLECTION_STORE_KEYS,
   DISPATCH_FIELD_TABLE_MAP,
@@ -50,6 +52,43 @@ describe("client sync registry", () => {
 
     expect(isPersistedClientStoreKey("pendingMessages")).toBe(true);
     expect(isPersistedClientStoreKey("messages")).toBe(false);
+  });
+
+  it("keeps relay visibility and contact viewer-local and applies an unchanged contact without a new map", () => {
+    const { countRelayInboxCard, setInboxRelayContact } =
+      useInboxStore.getState();
+    const id = "relay-fixture";
+    const contact = {
+      viewer: "viewer",
+      machine: "machine",
+      connection: "connection",
+      sequence: 1,
+      deadline: 1200,
+    };
+    for (const key of ["relayInboxCards", "relayInboxContacts"] as const) {
+      expect(CLIENT_SYNC_REGISTRY).toHaveProperty(key);
+      expect(DATA_SCOPE[key]).toBe("viewer");
+      expect(isPersistedClientStoreKey(key)).toBe(false);
+      expect(REPLICATED_STORE_KEYS).not.toContain(key);
+    }
+    expect(CLIENT_SYNC_REGISTRY.relayInboxContacts.feeds).toEqual([
+      "relayGrants.inboxTargets",
+    ]);
+    countRelayInboxCard(id, 1);
+    setInboxRelayContact(id, contact);
+    try {
+      const original = useInboxStore.getState();
+      expect(original.relayInboxCards[id]).toBe(1);
+      expect(original.relayInboxContacts[id]).toEqual(contact);
+      setInboxRelayContact(id, { ...contact, deadline: 2400 });
+      expect(useInboxStore.getState().relayInboxContacts).toBe(
+        original.relayInboxContacts,
+      );
+    } finally {
+      countRelayInboxCard(id, -1);
+      setInboxRelayContact(id);
+    }
+    expect(useInboxStore.getState().relayInboxContacts[id]).toBeUndefined();
   });
 
   it("drives local-first protection metadata", () => {

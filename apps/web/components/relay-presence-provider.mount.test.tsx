@@ -1,14 +1,6 @@
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  expect,
-  spyOn,
-  test,
-} from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { ConvexProviderWithAuth, useConvex } from "convex/react";
-import type { FunctionReturnType } from "convex/server";
 import {
   act,
   StrictMode,
@@ -18,6 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import { mountWeb } from "../test-helpers/mountWeb";
+import {
+  hub,
+  ok,
+  relayMountFixture,
+  relayUrl,
+  SessionPresenceReader as Session,
+} from "../test-helpers/relay-presence-testkit";
 import { useDocPresence } from "../hooks/useDocPresence";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
@@ -26,114 +25,7 @@ import {
 } from "../lib/relay-presence-context";
 import { RelayPresenceProvider } from "./relay-presence-provider";
 
-const relayUrl = "wss://relay.test/relay";
-const hub = { kind: "session", id: "conversation" } as const;
-const ok = {
-  status: "ok",
-  token: "v1.claims.signature",
-  ttl_ms: 60_000,
-  omitted: [],
-} satisfies FunctionReturnType<typeof api.relayGrants.mint>;
-const sockets: RelaySocket[] = [];
-
-class RelaySocket {
-  private readonly events = new window.EventTarget();
-  readonly frames: Record<string, unknown>[] = [];
-  closed = false;
-
-  constructor(readonly url: string) {
-    sockets.push(this);
-  }
-
-  addEventListener(type: string, listener: EventListener) {
-    this.events.addEventListener(type, listener);
-  }
-
-  send(text: string) {
-    this.frames.push(JSON.parse(text));
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  message(frame: object) {
-    this.events.dispatchEvent(
-      new window.MessageEvent("message", { data: JSON.stringify(frame) }),
-    );
-  }
-
-  join() {
-    this.events.dispatchEvent(new window.Event("open"));
-    this.message({
-      type: "hello",
-      status: "ok",
-      version: 1,
-      capabilities: ["presence"],
-      connection_id: "viewer",
-      ttl_ms: 60_000,
-    });
-    this.message({ v: 1, type: "subscription", status: "subscribed", hub });
-  }
-
-  fail() {
-    this.events.dispatchEvent(new window.CloseEvent("close", { code: 1006 }));
-  }
-
-  peer(seq: number, state: "active" | "left", ttl_ms = 0) {
-    this.message({
-      v: 1,
-      type: "presence",
-      hub,
-      seq,
-      state,
-      ttl_ms,
-      user_id: "peer",
-      connection_id: "other",
-      in_draft: false,
-    });
-  }
-}
-
-const keys = ["VITE_RELAY_PRESENCE", "VITE_RELAY_URL"] as const;
-let env: (string | undefined)[];
-
-beforeAll(async () => {
-  await import("@codecast/relay-client");
-});
-
-beforeEach(() => {
-  env = keys.map((key) => process.env[key]);
-  process.env.VITE_RELAY_PRESENCE = "1";
-  process.env.VITE_RELAY_URL = relayUrl;
-  sockets.length = 0;
-});
-
-afterEach(() => {
-  keys.forEach((key, index) => {
-    const value = env[index];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  });
-});
-
-function Session({ paired }: { paired: boolean }) {
-  const client = useContext(RelayPresenceContext);
-  const [peer, setPeer] = useState<string>();
-  useWatchEffect(() => {
-    setPeer(undefined);
-    if (!paired) return;
-    return client?.subscribe(hub.id, ({ type, signal }) => {
-      if (signal.type !== "presence") return;
-      setPeer(
-        type === "removed" || signal.state === "left"
-          ? undefined
-          : signal.user_id,
-      );
-    });
-  }, [client, paired]);
-  return <output>{peer ?? "Alone"}</output>;
-}
+const { sockets, WebSocket: TestSocket } = relayMountFixture();
 
 function view(paired: boolean) {
   return (
@@ -163,7 +55,7 @@ function mountRelay(
       reply instanceof Error ? [/relayGrants:mint.*relay unavailable/] : [],
     setup(backend, store) {
       store.currentUser = { _id: "viewer" };
-      window.WebSocket = RelaySocket as unknown as typeof WebSocket;
+      window.WebSocket = TestSocket;
       Object.defineProperty(document, "hidden", {
         get: () => visibility.hidden,
       });
@@ -282,6 +174,7 @@ test("two readers share one grant and socket, and both see arrival, departure, a
     expect(sockets.map(({ url }) => url)).toEqual([relayUrl]);
     const [socket] = sockets;
     await act(() => socket.join());
+    expect(socket.frames[0].capabilities).not.toContain("session_liveness");
     expect(socket.frames.filter((frame) => frame.type === "subscribe")).toEqual(
       [{ type: "subscribe", v: 1, hub }],
     );

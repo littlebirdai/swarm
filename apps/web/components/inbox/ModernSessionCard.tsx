@@ -40,7 +40,7 @@ import { AnchorScopePill, HeadOfPeopleFace } from "../anchor/AnchorIdentity";
 import { IdentityFace, SessionIdentityLine } from "../identity";
 import { WorkspaceTile } from "../identity/WorkspaceTile";
 import { SessionTaskChip } from "../work/SessionTaskChip";
-import { BrowserPaneOfferGlyph } from "../browser/BrowserPaneOfferChip";
+import { InboxCardIndicators } from "./relay-inbox-contact";
 import { LinkedPrChips } from "../PrStatusChip";
 import { badgeVariants } from "../ui/badge";
 import {
@@ -606,7 +606,7 @@ export function ModernSessionCardView({
                 {line.reason}
               </span>
             )}
-            <BrowserPaneOfferGlyph offer={session.browser_pane_offer} />
+            <InboxCardIndicators session={session} />
             {isFavorite && (
               <button
                 type="button"
