@@ -26834,10 +26834,12 @@ async function runHeartbeatMaintenance(): Promise<void> {
     heartbeatHealthCheck(sessionId, reverse).catch(() => {}),
   );
 
-  if (memoryParking.enabled() && tick % REAP_EVERY_N_FLUSHES !== 0)
-    await runHibernationPass({}, true).catch((e) =>
-      log(`[HIBERNATE] pass error: ${String(e)}`),
-    );
+  if (Number.isFinite(REAP_EVERY_N_FLUSHES)) {
+    if (memoryParking.enabled() && tick % REAP_EVERY_N_FLUSHES !== 0)
+      await runHibernationPass({}, true).catch((e) =>
+        log(`[HIBERNATE] pass error: ${String(e)}`),
+      );
+  }
   // Conservative reap of long-idle orphan terminals — gentle (capped per pass)
   // and logged to a dedicated reaper.log. See reapIdleOrphanTerminals.
   if (tick % REAP_EVERY_N_FLUSHES === 0) {
@@ -29693,7 +29695,11 @@ async function collectHibernationCandidates(
   const convCache = io.conversationIds();
   const candidates: HibernationCandidate[] = [];
   for (const [sessionId, tmux] of resumeSessionCache) {
-    if (!managedHeartbeatSessions.has(sessionId)) continue;
+    if (
+      !managedHeartbeatSessions.has(sessionId) ||
+      codexOwnedPilot?.ownsThread(sessionId)
+    )
+      continue;
     const attached = attachedByTmux.get(tmux);
     if (attached === undefined) continue; // no live pane: nothing to park
     const convId = convCache[sessionId];
@@ -29939,7 +29945,11 @@ export async function runHibernationPass(
   if (budget && !policy.memory)
     policy.memory = await memoryParking.sampleParkingMemory(
       budget,
-      sessionProcessCache,
+      new Map(
+        [...sessionProcessCache].filter(
+          ([id]) => !codexOwnedPilot?.ownsThread(id),
+        ),
+      ),
       log,
     );
   if (!memoryParking.underPressure(policy.memory)) delete policy.memory;
@@ -31586,6 +31596,13 @@ export async function reconcileSessionLiveness(
   const catalog = await syncServiceRef.listManagedSessions();
   if (!catalog || catalog.length === 0) return;
 
+  const pending = catalog.filter(
+    ({ session_id }) =>
+      !sessionProcessCache.has(session_id) &&
+      !codexOwnedPilot?.ownsThread(session_id),
+  );
+  if (!pending.length) return;
+
   // session_name -> pane_pid for every live pane, in one call.
   const paneByTmux = new Map<string, { pid: number; tty: string }>();
   if (hasTmux()) {
@@ -31602,11 +31619,6 @@ export async function reconcileSessionLiveness(
       }
     } catch {}
   }
-
-  // Rows needing resolution (skip ones collectResourceSnapshot already tracks).
-  const pending = catalog.filter(
-    (row) => !sessionProcessCache.has(row.session_id),
-  );
 
   // Resolve agent pids with bounded concurrency — each resolution is a
   // process-tree walk (pgrep), and doing ~160 sequentially stalls for tens of
@@ -32239,11 +32251,8 @@ async function autoResumeSession(
       resumeOpts,
     );
     if (resumed && resumeInFlight.get(sessionId) === promise) {
-      const pane = resumeSessionCache.get(sessionId);
-      if (pane && memoryParking.enabled())
-        await tmuxAgentLiveness(pane, sessionId).catch(() => {});
-      if (resumeInFlight.get(sessionId) === promise)
-        clearHibernationPark(sessionId, conversationId);
+      const refresh = clearHibernationPark(sessionId, conversationId, true);
+      if (refresh) await refresh;
     }
     return resumed;
   });
@@ -32505,7 +32514,17 @@ function retryHibernationStamps(): void {
 export function clearHibernationPark(
   sessionId: string,
   conversationId?: string,
-): void {
+  resumed = false,
+): Promise<boolean | null | void> | void {
+  const pane =
+    resumed &&
+    memoryParking.enabled() &&
+    !codexOwnedPilot?.ownsThread(sessionId)
+      ? resumeSessionCache.get(sessionId)
+      : undefined;
+  const refresh = pane
+    ? tmuxAgentLiveness(pane, sessionId).catch(() => {})
+    : undefined;
   expectedHibernationExits.delete(sessionId);
   const parking = hibernationInFlight.get(sessionId);
   if (parking) parking.cancel();
@@ -32516,7 +32535,7 @@ export function clearHibernationPark(
   );
   const convId = conversationId ?? readConversationCache()[sessionId];
   if (!wasParked && convId && hibernationStampCleared.get(sessionId) === convId)
-    return;
+    return refresh;
   const pending = pendingHibernationStamps.get(sessionId);
   if (
     pending?.at === null &&
@@ -32530,6 +32549,7 @@ export function clearHibernationPark(
     reaperLog(
       `WOKE session=${sessionId.slice(0, 8)} conv=${(convId || "?").slice(0, 12)}`,
     );
+  return refresh;
 }
 
 /**
