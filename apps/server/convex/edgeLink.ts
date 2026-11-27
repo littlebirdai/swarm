@@ -1,4 +1,5 @@
 import { hasDeliverableMessage } from "./lib/closeAside";
+import type { ParkingInterlockResult } from "@codecast/edge-contract";
 import { v } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { internalMutation, internalQuery, query } from "./functions";
@@ -100,18 +101,19 @@ export const canParkSession = query({
     conversation_id: v.id("conversations"),
     session_id: v.string(),
   },
-  handler: async (ctx, args): Promise<boolean> => {
+  handler: async (ctx, args): Promise<ParkingInterlockResult> => {
     const auth = await verifyDeviceApiToken(ctx, args.bearer);
-    if (!auth) return false;
+    if (!auth) return { status: "refused", reason: "ownership" };
     const conversation = await ctx.db.get(args.conversation_id);
     if (
       !conversation ||
       conversation.user_id !== auth.userId ||
       (conversation.owner_device_id &&
-        conversation.owner_device_id !== auth.deviceId) ||
-      conversation.execution_protocol_state
+        conversation.owner_device_id !== auth.deviceId)
     )
-      return false;
+      return { status: "refused", reason: "ownership" };
+    if (conversation.execution_protocol_state)
+      return { status: "refused", reason: "protocol" };
     const session = await ctx.db
       .query("managed_sessions")
       .withIndex("by_conversation_id", (q) =>
@@ -121,20 +123,23 @@ export const canParkSession = query({
     if (
       !session ||
       session.user_id !== auth.userId ||
-      session.session_id !== args.session_id ||
-      !["idle", "done", "dormant"].includes(session.agent_status ?? "")
+      session.session_id !== args.session_id
     )
-      return false;
+      return { status: "refused", reason: "session" };
+    if (!["idle", "done", "dormant"].includes(session.agent_status ?? ""))
+      return { status: "refused", reason: "turn" };
     const prompt = await ctx.db
       .query("pending_permissions")
       .withIndex("by_conversation_status", (q) =>
         q.eq("conversation_id", conversation._id).eq("status", "pending"),
       )
       .first();
-    return (
-      !prompt &&
-      !conversation.has_pending_messages &&
-      !(await hasDeliverableMessage(ctx, conversation._id))
-    );
+    if (prompt) return { status: "refused", reason: "prompt" };
+    if (
+      conversation.has_pending_messages ||
+      (await hasDeliverableMessage(ctx, conversation._id))
+    )
+      return { status: "refused", reason: "delivery" };
+    return { status: "allowed" };
   },
 });

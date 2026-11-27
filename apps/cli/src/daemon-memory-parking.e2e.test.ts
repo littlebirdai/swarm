@@ -11,6 +11,7 @@ import {
   inspectHibernationTarget,
   reconcileSessionLiveness,
   runHibernationPass,
+  sessionParkStateForTests,
   setActiveConfigForTests,
   setSyncServiceForTests,
   trackSessionPaneForTests,
@@ -176,8 +177,10 @@ test.skipIf(!hasTmux())(
           args: unknown,
         ) => {
           queries.push([getFunctionName(ref), args]);
-          if (networkDown) throw new Error("network unavailable");
-          return permitted;
+          if (networkDown) throw new TypeError("fetch failed");
+          return permitted
+            ? { status: "allowed" }
+            : { status: "refused", reason: "prompt" };
         },
       }),
     } as unknown as SyncService);
@@ -228,7 +231,7 @@ test.skipIf(!hasTmux())(
       internals.openPermissionDialogs.delete(f.id);
       networkDown = true;
       permitted = false;
-      now += 30_000;
+      now += 3_600_000;
       expect(await pass()).toBe(0);
       expect(queries).toHaveLength(1);
       expect(queries[0]).toEqual([
@@ -240,14 +243,21 @@ test.skipIf(!hasTmux())(
       expect(queries).toHaveLength(1);
 
       now += 30_000;
+      expect(await pass()).toBe(0);
+      expect(queries).toHaveLength(1);
+      now += 30_000;
       networkDown = false;
       dryRun = false;
       expect(await pass()).toBe(0);
       expect(queries).toHaveLength(2);
       expect(alive(f.h)).toBe(true);
 
-      now += 30_000;
+      now += 60_000;
       permitted = true;
+      expect(await pass()).toBe(0);
+      expect(queries).toHaveLength(2);
+      expect(alive(f.h)).toBe(true);
+      now += 3_540_000;
       expect(await pass()).toBe(1);
       expect(inspected).toBeGreaterThan(0);
       expect(alive(f.h)).toBe(false);
@@ -267,7 +277,7 @@ test.skipIf(!hasTmux())(
 );
 
 test.skipIf(!hasTmux())(
-  "the enabled Linux liveness pass and a confirmed wake both track a quiet agent",
+  "Linux liveness and a confirmed wake with an empty park cache track a quiet agent",
   async () => {
     const id = crypto.randomUUID();
     const h = spawnHarness({
@@ -305,10 +315,8 @@ test.skipIf(!hasTmux())(
       expect(internals.agentProcessPid(id)).toBe(pid);
 
       trackSessionPaneForTests(id, null);
-      trackSessionPaneForTests(id, h.tmuxSession, {
-        parked: true,
-        status: "hibernated",
-      });
+      trackSessionPaneForTests(id, h.tmuxSession, { status: "idle" });
+      expect(sessionParkStateForTests(id).parked).toBe(false);
       expect(internals.agentProcessPid(id)).toBeUndefined();
       internals.setResumeInner(async () => true);
       expect(

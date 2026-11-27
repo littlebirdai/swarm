@@ -1,4 +1,10 @@
-import { memoryParkingPicks, type ParkingMemory } from "./memory-parking.js";
+import {
+  memoryParkingPicks,
+  memoryParkingTarget,
+  parkingEvidenceFailure,
+  PARKING_INTERLOCK_UNAVAILABLE,
+  type ParkingMemory,
+} from "./memory-parking.js";
 // Which live sessions the daemon parks to keep the fleet under its cap.
 //
 // Hibernation is the reaper's teardown applied for a different reason. The
@@ -159,6 +165,7 @@ export function selectHibernationCandidates(
   candidates: HibernationCandidate[],
   policy: HibernationPolicy,
   refusedRecently: ReadonlySet<string> = new Set(),
+  memoryTarget?: number,
 ): { picked: HibernationCandidate[]; skips: string[] } {
   const skips: string[] = [];
   const eligible: HibernationCandidate[] = [];
@@ -181,7 +188,12 @@ export function selectHibernationCandidates(
 
   const over =
     policy.maxLive > 0 ? Math.max(0, candidates.length - policy.maxLive) : 0;
-  const picked = memoryParkingPicks(eligible, policy.memory, policy.maxPerPass);
+  const picked = memoryParkingPicks(
+    eligible,
+    policy.memory,
+    policy.maxPerPass,
+    memoryTarget,
+  );
   const memoryPicks = new Set(picked);
   let remainingOverage = over - picked.length;
   for (const c of eligible) {
@@ -278,44 +290,48 @@ export function parkTargetsBeyondAgent(
   });
 }
 
-const durableRefusals = new Set([
-  "pinned",
-  "bad-tmux-name",
-  "codex-owned",
-  "multi-pane",
-  "stamp-mismatch",
-  "process-not-ours",
-  "argv-session-mismatch",
-  "process-not-owned",
-  "process-claimed-by-other",
-  "borrowed-process",
-  "not-a-claude-transcript",
-  "has-subagent-history",
-]);
+export type HibernationRetry = {
+  retryAt: number;
+  transportDelayMs: number;
+};
 
 export function rememberHibernationRefusal(
-  refused: Map<string, number>,
+  refused: Map<string, HibernationRetry>,
   sessionId: string,
   reason: string,
   now: number,
+  memoryEnabled = false,
 ): void {
-  refused.set(
-    sessionId,
-    now + (durableRefusals.has(reason) ? HIBERNATE_REFUSAL_BACKOFF_MS : 30_000),
-  );
+  const transportDelayMs =
+    memoryEnabled && reason === PARKING_INTERLOCK_UNAVAILABLE
+      ? Math.min(
+          15 * 60_000,
+          Math.max(60_000, (refused.get(sessionId)?.transportDelayMs ?? 0) * 2),
+        )
+      : 0;
+  refused.set(sessionId, {
+    transportDelayMs,
+    retryAt: now + (transportDelayMs || HIBERNATE_REFUSAL_BACKOFF_MS),
+  });
 }
 
 export function pruneHibernationRefusals(
-  refused: Map<string, number>,
+  refused: Map<string, HibernationRetry>,
   now: number,
-): void {
-  for (const [id, retryAt] of refused) if (now >= retryAt) refused.delete(id);
+): Set<string> {
+  const blocked = new Set<string>();
+  for (const [id, { retryAt, transportDelayMs }] of refused) {
+    if (now < retryAt) blocked.add(id);
+    else if (!transportDelayMs || now - retryAt >= HIBERNATE_REFUSAL_BACKOFF_MS)
+      refused.delete(id);
+  }
+  return blocked;
 }
 
 export async function runHibernationSelection(
   candidates: HibernationCandidate[],
   policy: HibernationPolicy,
-  refused: Map<string, number>,
+  refused: Map<string, HibernationRetry>,
   io: {
     now(): number;
     preview(candidate: HibernationCandidate): Promise<string | null>;
@@ -323,33 +339,60 @@ export async function runHibernationSelection(
     report(message: string, skips: string[]): void;
   },
 ): Promise<number> {
-  pruneHibernationRefusals(refused, io.now());
-  const { picked, skips } = selectHibernationCandidates(
-    candidates,
-    policy,
-    new Set(refused.keys()),
-  );
+  const blocked = pruneHibernationRefusals(refused, io.now());
+  const memoryEnabled = policy.memory !== undefined;
   const cap = `${candidates.length} live, cap=${policy.maxLive}`;
   const would: string[] = [];
-  let hibernated = 0;
-  for (const candidate of picked) {
-    const refusal = policy.dryRun
-      ? await io.preview(candidate).catch(() => "evidence-unavailable")
-      : await io.attempt(candidate);
-    if (refusal) {
-      skips.push(refusal);
-      rememberHibernationRefusal(
-        refused,
-        candidate.sessionId,
-        refusal,
-        io.now(),
-      );
-    } else if (policy.dryRun) {
-      would.push(
-        `${candidate.sessionId.slice(0, 8)}@${Math.round(candidate.awakeIdleMs / 3600000)}h`,
-      );
-    } else hibernated++;
+  const succeeded = new Set<string>();
+  let memoryTarget = memoryParkingTarget(policy.memory);
+  let attemptsLeft = policy.maxPerPass * (memoryEnabled ? 2 : 1);
+  const skips: string[] = [];
+  for (
+    let first = true;
+    attemptsLeft > 0 && succeeded.size < policy.maxPerPass;
+    first = false
+  ) {
+    const { picked, skips: reasons } = selectHibernationCandidates(
+      succeeded.size
+        ? candidates.filter(({ sessionId }) => !succeeded.has(sessionId))
+        : candidates,
+      {
+        ...policy,
+        maxPerPass: Math.min(attemptsLeft, policy.maxPerPass - succeeded.size),
+      },
+      blocked,
+      memoryTarget,
+    );
+    if (first) skips.push(...reasons);
+    if (!picked.length) break;
+    for (const candidate of picked) {
+      attemptsLeft--;
+      const refusal = policy.dryRun
+        ? await io.preview(candidate).catch(parkingEvidenceFailure)
+        : await io.attempt(candidate);
+      if (refusal) {
+        skips.push(refusal);
+        blocked.add(candidate.sessionId);
+        rememberHibernationRefusal(
+          refused,
+          candidate.sessionId,
+          refusal,
+          io.now(),
+          memoryEnabled,
+        );
+        continue;
+      }
+      succeeded.add(candidate.sessionId);
+      refused.delete(candidate.sessionId);
+      memoryTarget -= policy.memory?.rssBySession.get(candidate.sessionId) ?? 0;
+      if (policy.dryRun)
+        would.push(
+          `${candidate.sessionId.slice(0, 8)}@${Math.round(candidate.awakeIdleMs / 3600000)}h`,
+        );
+    }
+    if (!memoryEnabled) break;
   }
+  const hibernated = policy.dryRun ? 0 : succeeded.size;
   io.report(
     policy.dryRun
       ? `hibernation DRY RUN: ${cap}, would park ${would.length}${would.length ? ` (${would.join(", ")})` : ""}`

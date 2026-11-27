@@ -1,4 +1,5 @@
 import { makeFunctionReference } from "convex/server";
+import type { ParkingInterlockResult } from "@codecast/edge-contract";
 import { execFileAsync } from "./proc.js";
 import { getSubtreePids, indexProcessChildren } from "./resourceMonitor.js";
 import type { SyncService } from "./syncService.js";
@@ -9,7 +10,7 @@ export const enabled = () => process.env.CODECAST_MEMORY_PARKING_V1 === "1";
 const canParkSession = makeFunctionReference<
   "query",
   { bearer: string; conversation_id: string; session_id: string },
-  boolean
+  ParkingInterlockResult
 >("edgeLink:canParkSession");
 
 export type ParkingMemory = {
@@ -22,6 +23,22 @@ export function underPressure(
   memory: ParkingMemory | undefined,
 ): memory is ParkingMemory {
   return !!memory && memory.usedBytes >= memory.budgetBytes * 0.9;
+}
+
+export function memoryParkingTarget(memory: ParkingMemory | undefined) {
+  return underPressure(memory)
+    ? memory.usedBytes - Math.floor(memory.budgetBytes * 0.85)
+    : 0;
+}
+
+class ParkingInterlockUnavailable extends Error {}
+
+export const PARKING_INTERLOCK_UNAVAILABLE = "parking-interlock-unavailable";
+
+export function parkingEvidenceFailure(error: unknown): string {
+  return error instanceof ParkingInterlockUnavailable
+    ? PARKING_INTERLOCK_UNAVAILABLE
+    : "evidence-unavailable";
 }
 
 const validPid = (pid: number) => Number.isSafeInteger(pid) && pid > 1;
@@ -99,15 +116,15 @@ export function memoryParkingPicks(
   eligible: HibernationCandidate[],
   memory: ParkingMemory | undefined,
   limit: number,
+  remaining = memoryParkingTarget(memory),
 ): HibernationCandidate[] {
-  if (!underPressure(memory)) return [];
+  if (!memory || remaining <= 0) return [];
   const ranked = eligible.flatMap((candidate) => {
     const rss = memory.rssBySession.get(candidate.sessionId);
     return rss && rss > 0 ? [{ candidate, rss }] : [];
   });
   ranked.sort((a, b) => b.rss - a.rss);
   const picked: HibernationCandidate[] = [];
-  let remaining = memory.usedBytes - Math.floor(memory.budgetBytes * 0.85);
   for (const { candidate, rss } of ranked) {
     if (picked.length >= limit || remaining <= 0) break;
     picked.push(candidate);
@@ -123,16 +140,32 @@ export function interlock(
   return async (
     conversation_id: string,
     session_id: string,
-  ): Promise<boolean> => {
+  ): Promise<string | null> => {
     const bearer = token();
-    return !!(
-      sync &&
-      bearer &&
-      (await sync.getClient().query(canParkSession, {
+    if (!sync || !bearer) return "server-parking-ownership";
+    let result: ParkingInterlockResult;
+    try {
+      result = await sync.getClient().query(canParkSession, {
         bearer,
         conversation_id,
         session_id,
-      })) === true
-    );
+      });
+    } catch (cause) {
+      if (
+        !(cause instanceof TypeError) &&
+        !(
+          cause instanceof DOMException &&
+          ["AbortError", "TimeoutError"].includes(cause.name)
+        )
+      )
+        throw cause;
+      throw new ParkingInterlockUnavailable("Parking interlock unavailable", {
+        cause,
+      });
+    }
+    if (result?.status === "allowed") return null;
+    return result?.status === "refused"
+      ? `server-parking-${result.reason}`
+      : "server-parking-interlock";
   };
 }

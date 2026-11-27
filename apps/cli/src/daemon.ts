@@ -273,6 +273,7 @@ import {
   runHibernationSelection,
   type HibernationCandidate,
   type HibernationPolicy,
+  type HibernationRetry,
 } from "./hibernation.js";
 import {
   scanOpenBackgroundTasksInto,
@@ -29365,7 +29366,7 @@ async function attemptHibernation(
     )
     .catch((err) => {
       log(`[HIBERNATE] refused ${cand.sessionId}: ${String(err)}`);
-      return "evidence-unavailable";
+      return memoryParking.parkingEvidenceFailure(err);
     })
     .finally(() => {
       abandonedEvidenceJobs.delete(work);
@@ -29545,7 +29546,10 @@ export type HibernationPassIo = {
   attemptTimeoutMs?: number;
   terminal(args: string[]): Promise<{ stdout: string }>;
   policy(): HibernationPolicy;
-  parkingSafe?(conversationId: string, sessionId: string): Promise<boolean>;
+  parkingRefusal?(
+    conversationId: string,
+    sessionId: string,
+  ): Promise<string | null>;
   promptOpen?(sessionId: string): boolean;
   /** tmux session name to the number of clients attached to it. */
   tmuxSessions(): Promise<Map<string, number>>;
@@ -29802,11 +29806,13 @@ async function hibernationRefusalReason(
   }
   if (!cand.conversationId) return "conversation-unknown";
   const lifecycle = await io.lifecycle(cand.conversationId, cand.sessionId);
-  if (
-    io.parkingSafe &&
-    !(await io.parkingSafe(cand.conversationId, cand.sessionId))
-  )
-    return "server-parking-interlock";
+  if (io.parkingRefusal) {
+    const refusal = await io.parkingRefusal(
+      cand.conversationId,
+      cand.sessionId,
+    );
+    if (refusal) return refusal;
+  }
   if (!lifecycle) return "lifecycle-unknown";
   if (lifecycle.hideStateKnown !== true || lifecycle.source !== "lifecycle")
     return "lifecycle-degraded";
@@ -29891,7 +29897,7 @@ async function migrateLegacyPanesToFleet(
   const candidates = await collectHibernationCandidates(io);
   if (!candidates) return 0;
   const now = Date.now();
-  pruneHibernationRefusals(hibernationRetryAt, now);
+  const refusedRecently = pruneHibernationRefusals(hibernationRetryAt, now);
   const skips: string[] = [];
   const known = new Set(candidates.map((c) => c.tmux));
   for (const id of legacy) if (!known.has(id)) skips.push("no-candidate");
@@ -29926,7 +29932,7 @@ async function migrateLegacyPanesToFleet(
         ? "no-transcript"
         : ago < FLEET_MIGRATE_IDLE_MS
           ? "turn-within-1h"
-          : hibernationRetryAt.has(c.sessionId)
+          : refusedRecently.has(c.sessionId)
             ? "refused-recently"
             : hibernationBlockReason(c);
     if (reason) skips.push(reason);
@@ -29955,6 +29961,7 @@ async function migrateLegacyPanesToFleet(
       );
       continue;
     }
+    hibernationRetryAt.delete(cand.sessionId);
     const resumed = await autoResumeSession(
       cand.sessionId,
       "",
@@ -29976,7 +29983,7 @@ async function migrateLegacyPanesToFleet(
   return moved;
 }
 
-const hibernationRetryAt = new Map<string, number>();
+const hibernationRetryAt = new Map<string, HibernationRetry>();
 
 // `io` overrides only the parts a test needs; everything else stays real, so
 // the end-to-end test runs the actual tmux listing and the actual teardown.
@@ -29997,7 +30004,7 @@ export async function runHibernationPass(
     );
   if (!memoryParking.underPressure(policy.memory)) delete policy.memory;
   if (policy.memory) {
-    io.parkingSafe ??= memoryParking.interlock(syncServiceRef, getAuthToken);
+    io.parkingRefusal ??= memoryParking.interlock(syncServiceRef, getAuthToken);
     io.promptOpen ??= (id) =>
       [
         openPermissionDialogs,
@@ -32293,7 +32300,7 @@ async function autoResumeSession(
     );
     if (resumed && resumeInFlight.get(sessionId) === promise) {
       const pane = resumeSessionCache.get(sessionId);
-      if (pane && memoryParking.enabled() && hibernatedSessions.has(sessionId))
+      if (pane && memoryParking.enabled())
         await tmuxAgentLiveness(pane, sessionId).catch(() => {});
       if (resumeInFlight.get(sessionId) === promise)
         clearHibernationPark(sessionId, conversationId);

@@ -306,15 +306,19 @@ test("the parking interlock refuses turns, prompts, delivery and a different dev
     });
     return { conversation, session };
   });
-  const canPark = () =>
+  const canPark = (sessionId = "session") =>
     t.query(api.edgeLink.canParkSession, {
       bearer,
       conversation_id: conversation,
-      session_id: "session",
+      session_id: sessionId,
     });
-  expect(await canPark()).toBe(true);
+  expect(await canPark()).toEqual({ status: "allowed" });
+  expect(await canPark("other")).toEqual({
+    status: "refused",
+    reason: "session",
+  });
   await t.run(({ db }) => db.patch(session, { agent_status: "working" }));
-  expect(await canPark()).toBe(false);
+  expect(await canPark()).toEqual({ status: "refused", reason: "turn" });
   const prompt = await t.run(async ({ db }) => {
     await db.patch(session, { agent_status: "idle" });
     return db.insert("pending_permissions", {
@@ -326,7 +330,7 @@ test("the parking interlock refuses turns, prompts, delivery and a different dev
       created_at: start,
     });
   });
-  expect(await canPark()).toBe(false);
+  expect(await canPark()).toEqual({ status: "refused", reason: "prompt" });
   const delivery = await t.run(async ({ db }) => {
     await db.patch(prompt, { status: "approved" });
     return db.insert("pending_messages", {
@@ -338,17 +342,17 @@ test("the parking interlock refuses turns, prompts, delivery and a different dev
       retry_count: 0,
     });
   });
-  expect(await canPark()).toBe(false);
+  expect(await canPark()).toEqual({ status: "refused", reason: "delivery" });
   await t.run(async ({ db }) => {
     await db.delete(delivery);
     await db.patch(conversation, { owner_device_id: "different-device" });
   });
-  expect(await canPark()).toBe(false);
+  expect(await canPark()).toEqual({ status: "refused", reason: "ownership" });
   await t.run(({ db }) =>
     db.patch(conversation, {
       owner_device_id: machine,
       execution_protocol_state: "fenced",
     }),
   );
-  expect(await canPark()).toBe(false);
+  expect(await canPark()).toEqual({ status: "refused", reason: "protocol" });
 });

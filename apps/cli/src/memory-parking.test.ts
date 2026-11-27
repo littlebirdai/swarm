@@ -2,10 +2,15 @@ import { expect, test } from "bun:test";
 import {
   pruneHibernationRefusals,
   rememberHibernationRefusal,
+  runHibernationSelection,
   selectHibernationCandidates,
   type HibernationCandidate,
+  type HibernationRetry,
 } from "./hibernation.js";
-import { sampleParkingMemory } from "./memory-parking.js";
+import {
+  PARKING_INTERLOCK_UNAVAILABLE,
+  sampleParkingMemory,
+} from "./memory-parking.js";
 
 function idle(
   sessionId: string,
@@ -187,19 +192,59 @@ test("the maintenance tick runs a memory-only pass between scheduled reaps", asy
   );
 });
 
-test("a durable refusal keeps its hour while missing evidence retries after 30 seconds", () => {
-  const refusals = new Map<string, number>();
-  rememberHibernationRefusal(refusals, "pinned", "pinned", 0);
+test("only opted-in transport failures retry early and successive delays grow", () => {
+  const refusals = new Map<string, HibernationRetry>();
   rememberHibernationRefusal(
     refusals,
-    "unavailable",
+    "local-evidence",
     "evidence-unavailable",
     0,
+    true,
   );
-  pruneHibernationRefusals(refusals, 30_000);
-  expect([...refusals]).toEqual([["pinned", 3_600_000]]);
-  pruneHibernationRefusals(refusals, 3_600_000);
-  expect(refusals.size).toBe(0);
+  rememberHibernationRefusal(
+    refusals,
+    "server-prompt",
+    "server-parking-prompt",
+    0,
+    true,
+  );
+  rememberHibernationRefusal(
+    refusals,
+    "legacy",
+    PARKING_INTERLOCK_UNAVAILABLE,
+    0,
+  );
+  rememberHibernationRefusal(
+    refusals,
+    "network",
+    PARKING_INTERLOCK_UNAVAILABLE,
+    0,
+    true,
+  );
+  expect([...pruneHibernationRefusals(refusals, 30_000)]).toEqual([
+    "local-evidence",
+    "server-prompt",
+    "legacy",
+    "network",
+  ]);
+  expect([...pruneHibernationRefusals(refusals, 60_000)]).toEqual([
+    "local-evidence",
+    "server-prompt",
+    "legacy",
+  ]);
+  rememberHibernationRefusal(
+    refusals,
+    "network",
+    PARKING_INTERLOCK_UNAVAILABLE,
+    60_000,
+    true,
+  );
+  expect(pruneHibernationRefusals(refusals, 179_999).has("network")).toBe(true);
+  expect(pruneHibernationRefusals(refusals, 180_000).has("network")).toBe(
+    false,
+  );
+  expect(pruneHibernationRefusals(refusals, 3_599_999).size).toBe(3);
+  expect(pruneHibernationRefusals(refusals, 3_600_000).size).toBe(0);
 });
 
 test("the parking ps snapshot requests only PID, parent PID and RSS", async () => {
@@ -208,3 +253,52 @@ test("the parking ps snapshot requests only PID, parent PID and RSS", async () =
   ).text();
   expect(source).toMatch(/execFileAsync\("ps", \["-eo", "pid=,ppid=,rss="\]/);
 });
+
+for (const memoryEnabled of [false, true]) {
+  test(`refusing fleet heads do not starve smaller sessions with memory parking ${memoryEnabled ? "on" : "off"}`, async () => {
+    const fleet = Array.from({ length: 8 }, (_, index) => ({
+      ...idle(`s${index}`),
+      awakeIdleMs: 30_000 + 8 - index,
+    }));
+    let now = 0;
+    const tried: string[] = [];
+    const parked = new Set<string>();
+    const refusals = new Map<string, HibernationRetry>();
+    const pass = () =>
+      runHibernationSelection(
+        fleet.filter(({ sessionId }) => !parked.has(sessionId)),
+        {
+          maxLive: 0,
+          idleMs: memoryEnabled ? 0 : 1,
+          maxPerPass: 5,
+          ...(memoryEnabled && {
+            memory: {
+              budgetBytes: 100,
+              usedBytes: 800,
+              rssBySession: new Map(
+                fleet.map(({ sessionId }, index) => [sessionId, 100 - index]),
+              ),
+            },
+          }),
+        },
+        refusals,
+        {
+          now: () => now,
+          preview: async () => null,
+          attempt: async ({ sessionId }) => {
+            tried.push(sessionId);
+            if (sessionId < "s5") return "agent-has-children";
+            parked.add(sessionId);
+            return null;
+          },
+          report: () => {},
+        },
+      );
+
+    expect(await pass()).toBe(memoryEnabled ? 3 : 0);
+    now += memoryEnabled ? 30_000 : 300_000;
+    expect(await pass()).toBe(memoryEnabled ? 0 : 3);
+    expect(tried).toEqual(fleet.map(({ sessionId }) => sessionId));
+    expect([...parked]).toEqual(["s5", "s6", "s7"]);
+  });
+}

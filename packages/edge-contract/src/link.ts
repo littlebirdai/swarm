@@ -70,6 +70,18 @@ const policyGetRequest = object(linkedDaemon);
 const policyGetResponse = response(responseObject({ v: readV1, policy }));
 
 export type HelloRequest = ReturnType<typeof helloRequest>;
+export type ParkingInterlockResult =
+  | { status: "allowed" }
+  | {
+      status: "refused";
+      reason:
+        | "ownership"
+        | "protocol"
+        | "session"
+        | "turn"
+        | "prompt"
+        | "delivery";
+    };
 export type HelloResponse = ReturnType<typeof helloResponse>;
 export type HeartbeatRequest = ReturnType<typeof heartbeatRequest>;
 export type HeartbeatResponse = ReturnType<typeof heartbeatResponse>;

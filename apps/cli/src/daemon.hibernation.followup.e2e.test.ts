@@ -681,7 +681,7 @@ test.skipIf(!hasTmux())(
         rssBySession: new Map([[f.id, 45]]),
       },
     });
-    f.io.parkingSafe = async () => true;
+    f.io.parkingRefusal = async () => null;
     const prior = fs.readFileSync(f.h.jsonlPath, "utf8");
     expect(prior.length).toBeGreaterThan(0);
     expect(await runHibernationPass(f.io)).toBe(1);
