@@ -1,3 +1,8 @@
+import { desktopWindowKeys } from "./desktop-panel-keys";
+import {
+  panelReplicationTransport,
+  scopedSnapshotSource,
+} from "./desktop-panel-transport";
 import type { Patch } from "mutative";
 import {
   cacheEvictionEnabled,
@@ -59,7 +64,6 @@ import {
   replicationChannelName,
   replicationLock,
   replicationPersistence,
-  replicationTransport,
   transportAvailable,
 } from "./storage-transport";
 import { syncTransaction } from "./syncTransaction";
@@ -291,8 +295,7 @@ export function replicationHostFor(
 ): ReplicationHost {
   return createReplicationHost({
     hostId,
-    channel,
-    getState,
+    ...scopedSnapshotSource(channel, getState),
     replicatedKeys: REPLICATED_STORE_KEYS,
     isCollectionKey: isReplicatedCollectionKey,
     applyUpdates: (updates) =>
@@ -332,13 +335,16 @@ export function replicationFollowerFor(
   channel: ReplicationChannel,
   onSynced: (synced: boolean) => void,
   details?: ReturnType<typeof createDetailInvalidationTransport>,
+  keys: readonly string[] = REPLICATED_STORE_KEYS,
 ): ReplicationFollower {
+  const scope = keys === REPLICATED_STORE_KEYS ? undefined : new Set(keys);
   return createReplicationFollower({
     selfId,
     channel,
-    replicatedKeys: REPLICATED_STORE_KEYS,
+    replicatedKeys: keys,
     isCollectionKey: isReplicatedCollectionKey,
-    applyUpdates: (updates, origin, hostCommit) => {
+    applyUpdates: (batch, origin, hostCommit) => {
+      const updates = scope ? batch.filter(({ key }) => scope.has(key)) : batch;
       for (const update of updates) {
         if (
           update.key === "docDetails" &&
@@ -641,9 +647,12 @@ export function startSyncReplication(opts: {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const transport = replicationTransport(
+  const keys = desktopWindowKeys()?.filter(isReplicated);
+  const transport = panelReplicationTransport(
     replicationChannelName(opts.principalId),
     selfId,
+    opts.eligible,
+    keys,
   );
   let stopped = false;
   let elected = false;
@@ -690,8 +699,11 @@ export function startSyncReplication(opts: {
         // snapshot demotes us again.
         const internals = useInboxStore.getState() as any;
         setActionTee(null);
-        internals._setIDBWrite(persistence.hostWrite);
-        persistence.persistSkipped();
+        internals._setIDBWrite(
+          keys ? persistence.followerWrite : persistence.hostWrite,
+        );
+        if (keys) persistence.discardSkipped();
+        else persistence.persistSkipped();
         details?.enterSolo();
         setRole("host");
       }
@@ -719,6 +731,7 @@ export function startSyncReplication(opts: {
         }
       },
       details,
+      keys,
     );
     armSoloFallback();
   };
@@ -727,6 +740,7 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     elected = true;
     if (soloTimer) clearTimeout(soloTimer);
+    transport.activateHost();
     host = promoteToHost(follower, () =>
       replicationHostFor(selfId, channel, () => useInboxStore.getState()),
     );
@@ -746,7 +760,7 @@ export function startSyncReplication(opts: {
 
   startFollower();
 
-  if (opts.eligible) lock.request(() => stopped, becomeElectedHost);
+  if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);
 
   const stop = () => {
     if (stopped) return;
@@ -761,7 +775,9 @@ export function startSyncReplication(opts: {
     setActionTee(null);
     // Whatever role we were in, leave the window as a self-sufficient host
     // (today's behavior): write-through restored, feeders gate open.
-    internals._setIDBWrite(persistence.hostWrite);
+    internals._setIDBWrite(
+      keys ? persistence.followerWrite : persistence.hostWrite,
+    );
     setRole("host");
     running = null;
   };

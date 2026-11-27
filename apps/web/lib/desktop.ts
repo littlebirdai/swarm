@@ -124,6 +124,8 @@ declare global {
       // window, so any other window gets false back. Absent on older builds —
       // gate on them (isPeopleWindow is then undefined, i.e. not one).
       isPeopleWindow?: boolean;
+      isPaletteWindow?: boolean;
+      isAgentDockWindow?: boolean;
       openPeopleWindow?: () => Promise<void>;
       // With a voice host the buddy list is the WALL, a shape of that window;
       // this puts it away. Absent on older builds — gate on it.

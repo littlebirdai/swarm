@@ -668,3 +668,32 @@ test.each(["elected", "follower", "solo"] as const)(
     }
   },
 );
+
+test.each(["0", "1"])(
+  "palette IndexedDB hydration respects the desktop scope flag %s",
+  async (flag) => {
+    const before = process.env.VITE_DESKTOP_PANEL_SCOPE;
+    process.env.VITE_DESKTOP_PANEL_SCOPE = flag;
+    Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
+      configurable: true,
+      value: { isPaletteWindow: true },
+    });
+    const id = sessionId(42);
+    const doc = { _id: id, title: "Cached document", updated_at: Date.now() };
+    const details = { ...doc, content: "Full cached body" };
+    try {
+      await docs.put(doc);
+      await COLLECTION_TABLES.docDetails.put(details);
+      await bootCache();
+      expect(state().docs[id]?.title).toBe(doc.title);
+      expect(state().docDetails[id]?.content).toBe(
+        flag === "1" ? undefined : details.content,
+      );
+      expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(details);
+    } finally {
+      Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
+      if (before === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
+      else process.env.VITE_DESKTOP_PANEL_SCOPE = before;
+    }
+  },
+);
