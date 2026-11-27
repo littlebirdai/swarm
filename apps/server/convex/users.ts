@@ -1,3 +1,8 @@
+import { enqueuePendingMessage } from "./pendingMessages";
+import {
+  enrollLocalCodexLaunch,
+  launchPromptId,
+} from "./lib/fenced-session-launch.state";
 import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { lineSlotsValidator } from "./lib/lineSlotsValidator";
 import { currentMembershipVisibility } from "./teamVisibility";
@@ -4529,6 +4534,23 @@ export const startSession = mutation({
       short_id: conversationId.toString().slice(0, 7),
     });
 
+    if (
+      await enrollLocalCodexLaunch(ctx, userId, {
+        conversationId,
+        agentType: fromConvexAgentType(args.agent_type),
+        projectPath: args.project_path,
+      })
+    ) {
+      if (args.prompt?.trim()) {
+        const conversation = await ctx.db.get(conversationId);
+        await enqueuePendingMessage(ctx, conversation, userId, {
+          content: args.prompt,
+          client_id: launchPromptId(conversation, "start"),
+          human: true,
+        });
+      }
+      return { command_id: null, conversation_id: conversationId };
+    }
     const commandId = await enqueueStartSession(ctx, userId, {
       conversationId,
       // opencode/pi are first-class daemon clients; fromConvexAgentType maps each

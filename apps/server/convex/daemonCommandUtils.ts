@@ -1,3 +1,4 @@
+import { requestOwnedCodexResume } from "./lib/fenced-session-resume.state";
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import type { Doc, Id } from "./_generated/dataModel";
 import { commandsSession } from "@codecast/inbox/inboxProjection";
@@ -182,8 +183,15 @@ export async function enqueueResumeSession(
     | "git_root"
     | "agent_type"
     | "owner_device_id"
+    | "execution_protocol_state"
   >,
-): Promise<{ deduplicated: boolean; command_id?: Id<"daemon_commands"> }> {
+): Promise<{
+  deduplicated: boolean;
+  command_id?: Id<"daemon_commands">;
+  fenced?: true;
+}> {
+  if (await requestOwnedCodexResume(ctx, conv))
+    return { deduplicated: true, fenced: true };
   // Throws for a hosted conversation: no daemon resumes it.
   const agentType = localAgentTypeOf(conv.agent_type);
   const pendingCommands = await ctx.db
@@ -456,6 +464,12 @@ export async function resumeConversationSession(
 
   if (!conversation.session_id) {
     throw new Error("No session ID on this conversation");
+  }
+
+  if (await requestOwnedCodexResume(ctx, conversation)) {
+    if (isClosedSession(conversation))
+      await ctx.db.patch(conversationId, { inbox_dismissed_at: undefined });
+    return { deduplicated: true };
   }
 
   // Skip resume for fresh 0-message sessions. The inline new-session flow

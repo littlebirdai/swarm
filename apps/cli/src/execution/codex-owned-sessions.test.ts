@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { parkingMemoryRoots, sampleParkingMemory } from "../memory-parking.js";
@@ -136,3 +136,75 @@ test("memory parking counts every live owned Codex child process without marking
     await f.dispose();
   }
 });
+
+test.each(["online", "offline"])(
+  "an explicit resume reattaches the ready checkpoint once without restarting a sibling after an %s release",
+  async (network) => {
+    const f = fixture("pilot", true, "receipt", true);
+    const retryAfterMs = 1_337;
+    const schedule = globalThis.setTimeout;
+    const retries: (() => void)[] = [];
+    const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const handle = schedule(callback, delay, ...args);
+      if (delay === retryAfterMs) {
+        clearTimeout(handle);
+        retries.push(() => callback(...args));
+      }
+      return handle;
+    }) as typeof setTimeout);
+    try {
+      f.initial([item(f.newRequest), item(f.pilotRequest)]);
+      await f.runtime.start();
+      const ready = f.ready(f.newRequest);
+      const sibling = f.ready(f.pilotRequest);
+      if (network === "offline") {
+        const release = Promise.withResolvers<void>();
+        f.pauseRelease(release.promise);
+        const stopped = f.driver.stop(ready);
+        await f.releasing.promise;
+        release.reject(new Error("offline"));
+        await stopped;
+        expect(f.logs).toContain(
+          "[owned-codex] lease release failed: Error: offline",
+        );
+        f.pauseRelease(Promise.resolve());
+        f.claimResponses.push(
+          Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+        );
+      } else {
+        await f.driver.stop(ready);
+      }
+      f.permitSessions.length = 0;
+      await f.runtime.processWorkUpdate([item(f.newRequest, ready)]);
+      expect(f.permitSessions).toEqual([]);
+
+      const resumed = { ...item(f.newRequest, ready), resumeGeneration: 1 };
+      await f.runtime.processWorkUpdate([resumed]);
+      if (network === "offline") {
+        expect(f.permitSessions).toEqual([]);
+        expect(retries).toHaveLength(1);
+        retries[0]!();
+        await f.runtime.processWorkUpdate([]);
+      }
+      expect(f.permitSessions).toEqual(["new", "new"]);
+      expect(f.ready(f.newRequest)).toEqual(ready);
+      expect(f.ready(f.pilotRequest)).toEqual(sibling);
+
+      await f.driver.stop(ready);
+      f.permitSessions.length = 0;
+      await f.runtime.processWorkUpdate([
+        resumed,
+        item(f.pilotRequest, sibling),
+      ]);
+      expect(f.permitSessions).toEqual(["pilot"]);
+      expect(f.releasedSessions).toEqual(["new", "new"]);
+    } finally {
+      timer.mockRestore();
+      await f.dispose();
+    }
+  },
+);

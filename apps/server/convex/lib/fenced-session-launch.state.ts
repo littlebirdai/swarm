@@ -4,7 +4,7 @@ import {
 } from "@codecast/cloud-hosts/cloudPlacement";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { findModelOption } from "@codecast/agent-clients/agentClients";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { DEVICE_ONLINE_MS } from "../deviceRouting";
 import { enqueueStartSession, ownDevice, resolveOwnerDevice } from "../devices";
@@ -154,4 +154,56 @@ export async function launchDispatchedSession(
       : {}),
     ...(definition ? { definition } : {}),
   });
+}
+
+type FreshLaunch = Parameters<typeof enqueueStartSession>[2];
+
+export async function enrollLocalCodexLaunch(
+  ctx: Pick<MutationCtx, "db">,
+  runner: Id<"users">,
+  start: FreshLaunch,
+): Promise<boolean> {
+  if (
+    start.agentType !== "codex" ||
+    (start.callerUserId && start.callerUserId !== runner) ||
+    start.definition ||
+    start.prompt
+  )
+    return false;
+
+  return await enrollFreshOwnedCodex(
+    ctx,
+    runner,
+    start.conversationId,
+    {
+      project_path: start.projectPath || start.gitRoot || undefined,
+      git_root: start.gitRoot || undefined,
+      target_device_id: start.targetDeviceId ?? undefined,
+      isolated: start.isolated,
+      worktree_name: start.worktreeName,
+      stable_mode: start.stableMode,
+      stable_exclude: start.stableExclude,
+      model: start.model,
+      effort: start.effort,
+    },
+    Date.now(),
+  );
+}
+
+export async function enqueueFreshLocalSession(
+  ctx: Pick<MutationCtx, "db">,
+  runner: Id<"users">,
+  start: FreshLaunch,
+): Promise<void> {
+  if (await enrollLocalCodexLaunch(ctx, runner, start)) return;
+  await enqueueStartSession(ctx, runner, start);
+}
+
+export function launchPromptId(
+  conversation: Doc<"conversations"> | null,
+  source: string,
+) {
+  return conversation?.execution_protocol_state === "fenced"
+    ? `launch:${source}:${conversation._id}`
+    : undefined;
 }

@@ -225,6 +225,7 @@ export const sessionDeliveryTables = {
     protocol_version: v.number(),
     last_pane_instance: v.optional(v.number()),
     current_epoch: v.optional(v.number()),
+    resume_generation: v.optional(v.number()),
     agent_steer_grant: v.optional(
       v.object({
         sender_id: v.union(v.id("conversations"), v.null()),

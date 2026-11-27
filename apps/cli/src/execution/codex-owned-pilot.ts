@@ -53,6 +53,12 @@ import { structuredFailure } from "./types.js";
 const provider = { agent: "codex", version: "0.153.4" } as const;
 const maxConsecutiveLivenessMisses = 3;
 
+export class CodexPilotLeaseBusy extends Error {
+  constructor(readonly retryAfterMs: number) {
+    super("Owned Codex pilot could not claim the run: busy");
+  }
+}
+
 export function ownsCodexCheckpoint(handle: string): boolean {
   return handle.startsWith(handlePrefix);
 }
@@ -423,6 +429,8 @@ export class CodexOwnedPilot {
       },
       parseClaimResponse,
     ).then((claim) => {
+      if (claim.status === "busy")
+        throw new CodexPilotLeaseBusy(claim.retry_after_ms);
       if (claim.status !== "granted")
         throw new Error(
           `Owned Codex pilot could not claim the run: ${claim.status}`,
@@ -766,6 +774,10 @@ export class CodexOwnedPilot {
         { v, ...deliveryFence(this.claim) },
         parseReleaseResponse,
         AbortSignal.timeout(10_000),
+      ).catch((error) =>
+        this.options.log(
+          `[owned-codex] lease release failed: ${String(error)}`,
+        ),
       );
     }
   }

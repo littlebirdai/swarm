@@ -1,3 +1,4 @@
+import { enqueueFreshLocalSession } from "./lib/fenced-session-launch.state";
 import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import {
   hasLiveInboxLease,
@@ -2381,10 +2382,9 @@ export const createQuickSession = mutation({
       return conversationId;
     }
 
-    const daemonAgentType = fromConvexAgentType(agentType);
-    await enqueueStartSession(ctx, userId, {
+    await enqueueFreshLocalSession(ctx, userId, {
       conversationId,
-      agentType: daemonAgentType,
+      agentType: fromConvexAgentType(agentType),
       projectPath: args.project_path || args.git_root,
       sessionId,
       isolated: args.isolated,
@@ -15028,15 +15028,13 @@ export const cliResumeSession = mutation({
       conv,
       userId,
     );
-    const { deduplicated, command_id } = await enqueueResumeSession(ctx, conv);
-    // Re-queue stranded messages so the resume actually delivers them — the
-    // same reason users.resumeSession does it.
-    await resetConversationPendingMessages(ctx, conv._id);
+    const resume = await enqueueResumeSession(ctx, conv);
+    if (!resume.fenced) await resetConversationPendingMessages(ctx, conv._id);
 
     return {
       ...sessionCommandResult(conv),
-      deduplicated,
-      command_id,
+      deduplicated: resume.deduplicated,
+      command_id: resume.command_id,
       was_hidden: wasHidden,
       rearmed_schedules: rearmed,
     };

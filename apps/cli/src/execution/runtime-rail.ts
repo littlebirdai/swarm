@@ -27,6 +27,7 @@ import {
 } from "@codecast/daemon/fileAttachment";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import {
+  CodexPilotLeaseBusy,
   ownsCodexCheckpoint,
   type CodexOwnedPilot,
 } from "./codex-owned-pilot.js";
@@ -204,6 +205,7 @@ interface BindingWork {
 interface ExecutionWorkItem {
   conversationId: string;
   currentEpoch: number;
+  resumeGeneration?: number;
   pendingEpoch?: number;
   pendingPolicy?: "drain-current" | "cancel-unstarted";
   bindings: BindingWork[];
@@ -270,6 +272,14 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
     return {
       conversationId: string(item.conversationId, "work conversation id"),
       currentEpoch: integer(item.currentEpoch, "current epoch"),
+      ...(item.resumeGeneration === undefined
+        ? {}
+        : {
+            resumeGeneration: integer(
+              item.resumeGeneration,
+              "resume generation",
+            ),
+          }),
       ...(item.pendingEpoch === undefined
         ? {}
         : { pendingEpoch: integer(item.pendingEpoch, "pending epoch") }),
@@ -498,7 +508,10 @@ export class DaemonExecutionRuntime {
 
     const pilot =
       currentOwned && current
-        ? await this.codexOwnedPilot?.resumePilotFor(current.request)
+        ? await this.codexOwnedPilot?.resumePilotFor(
+            current.request,
+            item.resumeGeneration,
+          )
         : undefined;
     if (current?.state === "ready" && pilot?.owns(current.binding)) {
       const { conversationId } = current.binding;
@@ -525,6 +538,16 @@ export class DaemonExecutionRuntime {
           sendNew,
         );
       } catch (error) {
+        if (item.resumeGeneration && error instanceof CodexPilotLeaseBusy) {
+          if (!poll.timer)
+            this.schedulePilotPoll(
+              pilot,
+              poll.binding,
+              current.request,
+              error.retryAfterMs,
+            );
+          return;
+        }
         this.stopPilotPoll(conversationId);
         throw error;
       }
@@ -584,6 +607,7 @@ export class DaemonExecutionRuntime {
     pilot: CodexOwnedPilot,
     binding: ReadyBinding,
     request: EnsureBindingRequest,
+    delay = 2_000,
   ): void {
     const { conversationId } = binding;
     const poll = this.pilotPolls.get(conversationId);
@@ -626,7 +650,7 @@ export class DaemonExecutionRuntime {
       void this.workChain.then(() =>
         this.schedulePilotPoll(pilot, binding, request),
       );
-    }, 2_000);
+    }, delay);
     poll.timer.unref();
   }
 
