@@ -166,6 +166,10 @@ export class CodexOwnedPilot {
     return conversationId === this.conversationId && epoch === 1;
   }
 
+  ownsThread(threadId: string): boolean {
+    return this.session?.getCheckpoint() === threadId;
+  }
+
   owns(binding: ReadyBinding): boolean {
     return (
       this.selects(binding.conversationId, binding.epoch) &&

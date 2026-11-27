@@ -24945,6 +24945,7 @@ let codexRecoveryQueue: CodexRecoveryQueue | null = null;
 const appServerRecoveryRetryAt = new Map<string, number>();
 const appServerRecoveringThreads = new Set<string>();
 let appServerShuttingDown = false;
+let codexOwnedPilot: ReturnType<typeof createCodexOwnedPilot>;
 
 /** New threads and turns must use the login currently on disk. Codex keeps
  * the account identity it started with in memory, so a browser login for a
@@ -25025,9 +25026,13 @@ export function currentHeartbeatSessions(
   reverse: Readonly<Record<string, string>> = cache
     ? buildReverseConversationCache(cache)
     : {},
+  ownedPilot:
+    | Pick<NonNullable<typeof codexOwnedPilot>, "ownsThread">
+    | undefined = codexOwnedPilot,
 ): string[] {
   return [...sessions].filter(
     (id) =>
+      !ownedPilot?.ownsThread(id) &&
       !isSupersededAppServerSession(
         id,
         cache?.[id],
@@ -26579,7 +26584,12 @@ function ensureManagedSessionHeartbeat(
   sessionId: string,
   source?: "transcript",
 ): void {
-  if (!syncServiceRef || isSupersededAppServerSession(sessionId)) return;
+  if (
+    !syncServiceRef ||
+    codexOwnedPilot?.ownsThread(sessionId) ||
+    isSupersededAppServerSession(sessionId)
+  )
+    return;
   if (source !== "transcript") transcriptHeartbeatSessions.delete(sessionId);
   else if (!managedHeartbeatSessions.has(sessionId))
     transcriptHeartbeatSessions.add(sessionId);
@@ -43814,7 +43824,7 @@ async function main(): Promise<void> {
       `[codex-app-server] failed to start: ${err?.message ?? err} -- codex features disabled`,
     );
   }
-  const codexOwnedPilot = fencedExecutionEnabled()
+  codexOwnedPilot = fencedExecutionEnabled()
     ? createCodexOwnedPilot({
         siteUrl: convexUrl.replace(".cloud", ".site"),
         bearer: config.auth_token,

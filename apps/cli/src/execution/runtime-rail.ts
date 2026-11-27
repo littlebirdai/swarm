@@ -372,8 +372,7 @@ export class DaemonExecutionRuntime {
   async stop(): Promise<void> {
     this.unsubscribe?.();
     this.unsubscribe = undefined;
-    clearTimeout(this.pilotPoll);
-    this.pollingPilot = undefined;
+    this.stopPilotPoll();
     await this.codexOwnedPilot
       ?.close()
       .catch((error) => this.onLog(String(error)));
@@ -490,24 +489,26 @@ export class DaemonExecutionRuntime {
       this.pilotSendNew =
         !this.pilotAwaitingSuccessor || policy === "drain-current";
       await this.codexOwnedPilot.activate(current.binding, current.request);
-      if (!this.pollingPilot) {
-        this.pollingPilot = current.binding;
-        this.schedulePilotPoll(current.binding, current.request);
+      const alreadyPolling = this.pollingPilot !== undefined;
+      this.pollingPilot ??= current.binding;
+      let idle = false;
+      try {
+        idle = await this.codexOwnedPilot.drain(
+          current.binding,
+          this.coordinator,
+          (text) => this.prepareText(text),
+          this.pilotSendNew,
+        );
+      } finally {
+        if (idle) this.stopPilotPoll();
+        else if (!alreadyPolling)
+          this.schedulePilotPoll(current.binding, current.request);
       }
-      const idle = await this.codexOwnedPilot.drain(
-        current.binding,
-        this.coordinator,
-        (text) => this.prepareText(text),
-        this.pilotSendNew,
-      );
       if (!this.pilotAwaitingSuccessor || !idle) return;
     }
 
     if (current && successor && policy) {
-      if (currentOwned) {
-        clearTimeout(this.pilotPoll);
-        this.pollingPilot = undefined;
-      }
+      if (currentOwned) this.stopPilotPoll();
       if (current.state === "ready") {
         if (policy === "drain-current" && !currentOwned)
           await this.drain(current.binding, current.request);
@@ -544,6 +545,11 @@ export class DaemonExecutionRuntime {
     await this.drain(current.binding, current.request);
   }
 
+  private stopPilotPoll(): void {
+    clearTimeout(this.pilotPoll);
+    this.pollingPilot = undefined;
+  }
+
   private schedulePilotPoll(
     binding: ReadyBinding,
     request: EnsureBindingRequest,
@@ -559,15 +565,17 @@ export class DaemonExecutionRuntime {
           (text) => this.prepareText(text),
           this.pilotSendNew,
         );
-        if (idle && this.pilotAwaitingSuccessor) {
+        if (!idle) return;
+        if (this.pilotAwaitingSuccessor) {
           const work = parseWork(
             await this.controlPlane.listExecutionWork(this.handshake()),
           );
           const item = work.find(
             ({ conversationId }) => conversationId === binding.conversationId,
           );
-          if (item) await this.processItem(item);
+          if (item) return this.processItem(item);
         }
+        this.stopPilotPoll();
       });
       this.workChain = next.catch((error) => {
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
