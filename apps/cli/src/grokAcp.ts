@@ -1,6 +1,6 @@
 // grok's ACP transport client — `grok agent stdio` driven over JSON-RPC on stdio.
 //
-// This is the codex app-server analogue for grok (codexAppServer.ts): a process
+// This is the codex app-server analogue for grok (codex-app-server.ts): a process
 // the daemon owns that starts, loads and prompts sessions without a tmux pane,
 // receives structured turn events instead of pane scrapes, and answers
 // permission requests in-process. Verified live 2026-09-06 against grok 1.0.13:

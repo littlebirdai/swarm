@@ -474,7 +474,7 @@
     "src/execCommand.test.ts": 262,
     "src/execution/convexControlPlane.test.ts": 252,
     "src/execution/coordinator.test.ts": 272,
-    "src/execution/drivers/codexAppServer.test.ts": 263,
+    "src/execution/drivers/codex-app-server.test.ts": 263,
     "src/execution/drivers/managedTmux.test.ts": 252,
     "src/execution/externalEffectsBoundary.test.ts": 255,
     "src/execution/localJournal.test.ts": 301,

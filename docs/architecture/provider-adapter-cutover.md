@@ -107,7 +107,7 @@ conversation to select it for this pilot. The ready binding keeps the provider
 checkpoint and the launch policy. The event writer claims the run after the
 binding is ready and resumes at the last sequence confirmed by the server.
 The owned binding drains its inbox through the edge delivery routes.
-[Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtime-rail.ts#L275-L327)
+[Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codex-app-server.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtime-rail.ts#L275-L327)
 
 Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
 Use one event writer. Save the checkpoint and last durable sequence. Renew

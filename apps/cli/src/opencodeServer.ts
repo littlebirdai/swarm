@@ -1,5 +1,5 @@
 // OpenCode's optional RICH transport — a daemon-owned `opencode serve` sidecar
-// reached over HTTP + SSE. This is to opencode what codexAppServer.ts is to codex:
+// reached over HTTP + SSE. This is to opencode what codex-app-server.ts is to codex:
 // an opt-in richer channel that ADDS to the plain path, never replaces it. When no
 // server is attachable the wave-3 DB-polling path (OpencodeStorageWatcher) keeps
 // working unchanged — every capability here degrades away cleanly.

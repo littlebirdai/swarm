@@ -84,7 +84,7 @@ exports[`legacy Codex and the owned adapter replay one recorded turn schedule 1`
     },
     "legacy": {
       "api": [
-        "ambiguous",
+        "failed-before-effect",
       ],
       "events": [],
     },
