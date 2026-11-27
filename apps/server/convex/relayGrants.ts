@@ -13,11 +13,12 @@ import {
 } from "@codecast/edge-contract";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./functions";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { inboxLeaseWritesEnabled } from "./lib/sessionHeartbeat";
 import { currentClaim } from "./lib/edge/runLease";
-import { presenceIdentity } from "./lib/presence-identity";
+import { presenceIdentity } from "./lib/presenceIdentity";
 import { canOwnerOrTeamAccess, checkConversationAccess } from "./privacy";
 import { checkRateLimit, isRateLimited, RateLimitError } from "./rateLimit";
 
@@ -83,7 +84,6 @@ export const mint = mutation({
       ? ctx.db.normalizeId("authSessions", rawSessionId)
       : null;
     const session = sessionId ? await ctx.db.get(sessionId) : null;
-    const now = Date.now();
     const jwtDeadlineMs =
       typeof identity?.exp === "number" ? identity.exp * 1000 : undefined;
     if (
@@ -154,6 +154,7 @@ export const mint = mutation({
           omitted.push({ id: rawId, reason: "inaccessible" });
         }
       }
+      const now = Date.now();
       const expiresAtMs = Math.floor(
         Math.min(
           now + (hasSharedTier ? SHARED_TTL_MS : TTL_MS),
@@ -169,6 +170,7 @@ export const mint = mutation({
         REQUESTS_PER_MINUTE,
         1,
         expiresAtMs,
+        now,
       );
       if (!issuance) return { status: "unavailable" } as const;
       if (!grants.length) return { status: "denied", omitted } as const;
@@ -447,6 +449,7 @@ export const mintMachineLiveness = internalMutation({
         REQUESTS_PER_MINUTE,
         1,
         expires,
+        now,
       );
       if (!issuance) return { v, status: "unavailable" } as const;
       return {
@@ -467,5 +470,27 @@ export const mintMachineLiveness = internalMutation({
         return { v, status: "rate_limited" } as const;
       throw new ConvexError("unavailable");
     }
+  },
+});
+
+const VIEWER_GRANT_PRUNE_LIMIT = 500;
+
+export const pruneExpiredViewerGrants = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<number> => {
+    const now = Date.now();
+    const rows = await ctx.db
+      .query("relay_viewer_grants")
+      .withIndex("by_expiry", (q) => q.lte("expires_at", now))
+      .take(VIEWER_GRANT_PRUNE_LIMIT);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length === VIEWER_GRANT_PRUNE_LIMIT) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.relayGrants.pruneExpiredViewerGrants,
+        {},
+      );
+    }
+    return rows.length;
   },
 });

@@ -14,7 +14,7 @@ import { checkConversationAccess } from "./privacy";
 import { notFound } from "./lib/auth";
 import { afterRoleDocWrite } from "./orgRoles";
 import { canSendProductMessage } from "./pendingMessages";
-import { presenceIdentity } from "./lib/presence-identity";
+import { presenceIdentity } from "./lib/presenceIdentity";
 import {
   readAnchorsEnabled,
   saveLegacyReadAnchor,

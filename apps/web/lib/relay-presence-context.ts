@@ -17,10 +17,6 @@ export type RelayPresenceClient = {
     options?: RelaySubscribeOptions,
   ): () => void;
   status(sessionId: string): RelayHubStatus | undefined;
-  retainViewerFeed?: (
-    conversationId: string,
-    onRelease: () => void,
-  ) => () => void;
   publish: ReturnType<typeof createRelayClient>["publish"];
 };
 

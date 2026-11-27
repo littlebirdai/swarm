@@ -195,6 +195,33 @@ async function mergeLocalViewHead(
   }
 }
 
+async function mergeRelayViewerGrant(
+  ctx: { db: any },
+  source: { _id: any; conversation_id: any; expires_at: number },
+  toUserId: Id<"users">,
+): Promise<void> {
+  const matches = await ctx.db
+    .query("relay_viewer_grants")
+    .withIndex("by_conversation_user", (q: any) =>
+      q.eq("conversation_id", source.conversation_id).eq("user_id", toUserId),
+    )
+    .collect();
+  if (matches.length === 0) {
+    await ctx.db.patch(source._id, { user_id: toUserId });
+    return;
+  }
+  const [survivor, ...duplicates] = matches;
+  const maxExpires = Math.max(
+    source.expires_at,
+    ...matches.map((row: { expires_at: number }) => row.expires_at),
+  );
+  if (survivor.expires_at !== maxExpires) {
+    await ctx.db.patch(survivor._id, { expires_at: maxExpires });
+  }
+  for (const duplicate of duplicates) await ctx.db.delete(duplicate._id);
+  await ctx.db.delete(source._id);
+}
+
 export const mergeDuplicateUser = internalMutation({
   args: {
     from_user_id: v.id("users"),
@@ -299,6 +326,8 @@ export const mergeDuplicateUser = internalMutation({
             await mergeLocalViewHead(ctx, row as any, args.to_user_id);
           } else if (table === "conversation_read_anchors") {
             await mergeReadAnchor(ctx, row, args.to_user_id);
+          } else if (table === "relay_viewer_grants") {
+            await mergeRelayViewerGrant(ctx, row, args.to_user_id);
           } else if (table === "rate_limits") {
             const matches = await ctx.db
               .query("rate_limits")

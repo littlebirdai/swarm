@@ -49,7 +49,6 @@ function ActiveRelayPresence({
         string,
         Set<(status: RelayHubStatus, meta?: RelayHubStatusMeta) => void>
       >();
-      const viewerFeedCounts = new Map<string, number>();
       const client = createRelayClient({
         getToken: (hubs, signal) =>
           useInboxStore
@@ -134,21 +133,6 @@ function ActiveRelayPresence({
           },
           status(sessionId) {
             return client.status({ kind: "session", id: sessionId });
-          },
-          retainViewerFeed(conversationId, onRelease) {
-            viewerFeedCounts.set(
-              conversationId,
-              (viewerFeedCounts.get(conversationId) ?? 0) + 1,
-            );
-            return () => {
-              const next = (viewerFeedCounts.get(conversationId) ?? 1) - 1;
-              if (next > 0) {
-                viewerFeedCounts.set(conversationId, next);
-                return;
-              }
-              viewerFeedCounts.delete(conversationId);
-              onRelease();
-            };
           },
           publish: client.publish,
         },

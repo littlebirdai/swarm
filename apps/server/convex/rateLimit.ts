@@ -59,8 +59,9 @@ export async function checkRateLimit(
   limit: number = WRITE_LIMIT,
   count: number = 1,
   grantDeadlineMs?: number,
+  nowMs?: number,
 ): Promise<{ issuedAtMs: number; sequence: number } | null> {
-  const now = Date.now();
+  const now = nowMs ?? Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
   const sequenced = grantDeadlineMs !== undefined;
   const shards = sequenced ? 1 : rateLimitShards(limit);

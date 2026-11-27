@@ -235,11 +235,14 @@ for (const [name, handler] of [
 ] as const)
   crons.interval(`prune stale remote ${name} frames`, { hours: 6 }, handler);
 
-crons.interval(
-  "prune expired team terminal viewers",
-  { minutes: 5 },
-  internal.terminalWatch.pruneExpired,
-);
+for (const [name, handler] of [
+  ["prune expired team terminal viewers", internal.terminalWatch.pruneExpired],
+  [
+    "prune expired relay viewer grants",
+    internal.relayGrants.pruneExpiredViewerGrants,
+  ],
+] as const)
+  crons.interval(name, { minutes: 5 }, handler);
 
 crons.interval(
   "refresh plan timestamps from session insights",

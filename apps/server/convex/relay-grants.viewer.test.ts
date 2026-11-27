@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, spyOn, test } from "bun:test";
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const key = Buffer.alloc(32, 51).toString("base64url");
 const audience = "cell-A";
@@ -23,6 +23,9 @@ const env = {
 beforeEach(() => {
   process.env.RELAY_HMAC_KEY = key;
   process.env.RELAY_AUDIENCE = audience;
+  delete process.env.RELAY_HMAC_PREVIOUS_KEY;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
 });
 
 afterEach(() => {
@@ -310,4 +313,126 @@ test("viewer grants support mention grants, revoke on share rotation, and cap mi
   } finally {
     clock.mockRestore();
   }
+});
+
+test("pruneExpiredViewerGrants deletes expired rows in bounded pages and preserves active grants", async () => {
+  const t = serverTest();
+  const now = 1_800_000_000_000;
+  jest.useFakeTimers();
+  jest.setSystemTime(now);
+  try {
+    const { activeId } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "viewer-prune-sweep");
+      const user = await rows.user();
+      const conv = await rows.conversation(user);
+      for (let i = 0; i < 502; i++) {
+        await db.insert("relay_viewer_grants", {
+          conversation_id: conv,
+          user_id: user,
+          expires_at: now - i,
+        });
+      }
+      const activeId = await db.insert("relay_viewer_grants", {
+        conversation_id: conv,
+        user_id: user,
+        expires_at: now + 60_000,
+      });
+      return { activeId };
+    });
+
+    const firstPass = await t.mutation(
+      internal.relayGrants.pruneExpiredViewerGrants,
+      {},
+    );
+    expect(firstPass).toBe(500);
+    expect(
+      await t.run(({ db }) => db.query("relay_viewer_grants").collect()),
+    ).toHaveLength(3);
+
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+
+    const remaining = await t.run(({ db }) =>
+      db.query("relay_viewer_grants").collect(),
+    );
+    expect(remaining.map((row) => row._id)).toEqual([activeId]);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("mergeDuplicateUser deduplicates relay_viewer_grants by (conversation_id, user_id) keeping the later expires_at", async () => {
+  const t = serverTest();
+  const now = 1_800_000_000_000;
+  const { fromUser, toUser, sourceNewerConv, destNewerConv, movedOnlyConv } =
+    await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "viewer-grant-user-merge");
+      const fromUser = await rows.user({ email: "same-viewer@example.com" });
+      const toUser = await rows.user({ email: "same-viewer@example.com" });
+      const owner = await rows.user();
+      const sourceNewerConv = await rows.conversation(owner);
+      const destNewerConv = await rows.conversation(owner);
+      const movedOnlyConv = await rows.conversation(owner);
+
+      await db.insert("relay_viewer_grants", {
+        conversation_id: sourceNewerConv,
+        user_id: fromUser,
+        expires_at: now + 50_000,
+      });
+      await db.insert("relay_viewer_grants", {
+        conversation_id: sourceNewerConv,
+        user_id: toUser,
+        expires_at: now + 10_000,
+      });
+
+      await db.insert("relay_viewer_grants", {
+        conversation_id: destNewerConv,
+        user_id: fromUser,
+        expires_at: now + 20_000,
+      });
+      await db.insert("relay_viewer_grants", {
+        conversation_id: destNewerConv,
+        user_id: toUser,
+        expires_at: now + 40_000,
+      });
+
+      await db.insert("relay_viewer_grants", {
+        conversation_id: movedOnlyConv,
+        user_id: fromUser,
+        expires_at: now + 30_000,
+      });
+
+      return {
+        fromUser,
+        toUser,
+        sourceNewerConv,
+        destNewerConv,
+        movedOnlyConv,
+      };
+    });
+
+  const merged = await t.mutation(internal.admin_mergeUser.mergeDuplicateUser, {
+    from_user_id: fromUser,
+    to_user_id: toUser,
+    dry_run: false,
+    delete_source: true,
+  });
+  expect(merged.source_deleted).toBe(true);
+
+  const grants = await t.run(({ db }) =>
+    db.query("relay_viewer_grants").collect(),
+  );
+  expect(grants).toHaveLength(3);
+  const byConv = new Map(grants.map((grant) => [grant.conversation_id, grant]));
+  expect(byConv.get(sourceNewerConv)).toMatchObject({
+    user_id: toUser,
+    expires_at: now + 50_000,
+  });
+  expect(byConv.get(destNewerConv)).toMatchObject({
+    user_id: toUser,
+    expires_at: now + 40_000,
+  });
+  expect(byConv.get(movedOnlyConv)).toMatchObject({
+    user_id: toUser,
+    expires_at: now + 30_000,
+  });
 });

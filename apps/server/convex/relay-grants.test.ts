@@ -24,6 +24,9 @@ const env = {
 beforeEach(() => {
   process.env.RELAY_HMAC_KEY = key;
   process.env.RELAY_AUDIENCE = audience;
+  delete process.env.RELAY_HMAC_PREVIOUS_KEY;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
 });
 
 afterEach(() => {
@@ -671,4 +674,23 @@ test("viewer hub grants require CODECAST_RELAY_VIEWER_PRESENCE and enforce acces
       user_ids: [teammate],
     }),
   ).toEqual([]);
+});
+
+test("mint uses one timestamp after hub checks so advancing Date.now does not drift ttl_ms", async () => {
+  const t = serverTest();
+  const { owner, hub } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "grant-single-instant");
+    const owner = await rows.user();
+    return { owner, hub: session(await rows.conversation(owner)) };
+  });
+  let current = 1_800_000_000_000;
+  const clock = spyOn(Date, "now").mockImplementation(() => current++);
+  try {
+    const result = await asUser(t, owner).mutation(mint, { hubs: [hub] });
+    expect(result).toMatchObject({ status: "ok", ttl_ms: 60_000 });
+    const parsed = claims(result);
+    expect(parsed.expires_at_ms - parsed.issued_at_ms).toBe(60_000);
+  } finally {
+    clock.mockRestore();
+  }
 });

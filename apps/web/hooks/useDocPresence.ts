@@ -158,9 +158,12 @@ export function useDocPresence(opts: {
   const relayClient = viewerState.client;
   const viewerAccount = relayClient?.viewerAccount;
   const targetHub = viewerState.activeTarget?.hub;
-  const relayStatus = useInboxStore((s) =>
-    convId ? s.relayViewerPresence[convId]?.status : undefined,
-  );
+  const relayStatus = useInboxStore((s) => {
+    const entry = convId ? s.relayViewerPresence[convId] : undefined;
+    return viewerAccount && entry?.viewer === viewerAccount
+      ? entry.status
+      : undefined;
+  });
   const hasRelayPeers = useInboxStore((s) =>
     convId
       ? relayViewerHasPeers(s.relayViewerPresence[convId], viewerAccount)
@@ -202,13 +205,19 @@ export function useDocPresence(opts: {
       hasRelayPeers,
     };
   }, [anchor, hasRelayPeers]);
+  const relayHandlesAnchorRef = useRef(relayHandlesAnchor);
+  useWatchEffect(() => {
+    relayHandlesAnchorRef.current = relayHandlesAnchor;
+  }, [relayHandlesAnchor]);
   const sentReadingRef = useRef(false);
 
   const push = () =>
     update({
       doc_id: docId,
       draft_text: draftRef.current,
-      anchor: relayHandlesAnchor ? undefined : (anchorRef.current ?? undefined),
+      anchor: relayHandlesAnchorRef.current
+        ? undefined
+        : (anchorRef.current ?? undefined),
       cursor_pos: cursorRef.current ?? undefined,
       in_draft: inDraftRef.current || undefined,
     }).catch(() => {});

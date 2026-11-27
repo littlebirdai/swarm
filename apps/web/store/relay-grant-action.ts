@@ -72,8 +72,9 @@ export function relayGrantAction(viewerId: () => string | undefined) {
       });
       if (!stillCurrent()) return { status: "unauthenticated" };
       return result.status === "ok" ? { ...result, url } : result;
-    } catch {
-      return { status: "unavailable" };
+    } catch (error) {
+      if (!stillCurrent()) return { status: "unauthenticated" };
+      throw error;
     }
   };
 }

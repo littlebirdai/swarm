@@ -272,12 +272,17 @@ test("multiple viewer surfaces share one ref-counted subscription without connec
   process.env.VITE_RELAY_PRESENCE = "1";
   process.env.VITE_RELAY_URL = "wss://relay.test/relay";
 
+  function ExtraSubscriber() {
+    useSyncRelayViewerPresence(conversationId, true);
+    return null;
+  }
+
   function MultiSurface({
     showSession = true,
-    showExtraReader = false,
+    showExtraSubscriber = false,
   }: {
     showSession?: boolean;
-    showExtraReader?: boolean;
+    showExtraSubscriber?: boolean;
   }) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     return (
@@ -289,12 +294,7 @@ test("multiple viewer surfaces share one ref-counted subscription without connec
               conversationId={conversationId}
               messageId={firstMessageId}
             />
-            {showExtraReader ? (
-              <ReaderFaces
-                conversationId={conversationId}
-                messageId={secondMessageId}
-              />
-            ) : null}
+            {showExtraSubscriber ? <ExtraSubscriber /> : null}
             <div ref={scrollRef} />
             <ReadingMarks
               conversationId={conversationId}
@@ -366,7 +366,7 @@ test("multiple viewer surfaces share one ref-counted subscription without connec
     statuses.push(state.relayViewerPresence[conversationId]?.status);
   });
 
-  await ui.rerender(<MultiSurface showSession showExtraReader />);
+  await ui.rerender(<MultiSurface showSession showExtraSubscriber />);
   expect(
     socket.frames.filter(
       (f) =>
@@ -377,7 +377,7 @@ test("multiple viewer surfaces share one ref-counted subscription without connec
   expect(statuses.includes("connecting")).toBe(false);
   unsub();
 
-  await ui.rerender(<MultiSurface showSession showExtraReader={false} />);
+  await ui.rerender(<MultiSurface showSession showExtraSubscriber={false} />);
   expect(socket.frames.some((f) => f.type === "unsubscribe")).toBe(false);
   expect(ui.store.getState().relayViewerPresence[conversationId]?.status).toBe(
     "ready",

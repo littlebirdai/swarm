@@ -13,7 +13,10 @@ import { hubKey, observations, type RelayHandler } from "./observations";
 export type { RelayEvent, RelayHandler, RelaySignal } from "./observations";
 export type RelayHubStatus = "connecting" | "ready" | "unavailable" | "denied";
 export type RelayHubStatusMeta = { terminal?: boolean };
-export type RelaySubscribeOptions = { batchKey?: string };
+export type RelaySubscribeOptions = {
+  batchKey?: string;
+  terminalUnavailable?: boolean;
+};
 export type RelayPublication = Exclude<
   Extract<RelayClientFrame, { hub: RelayHub }>,
   { type: "subscribe" | "unsubscribe" }
@@ -89,6 +92,7 @@ type Subscription = {
   statusState: RelayHubStatus;
   terminal: boolean;
   batchKey: string;
+  terminalUnavailable: boolean;
 };
 type Grant = { hub: RelayHub; expires: number; renew: number };
 type Request = {
@@ -206,10 +210,8 @@ export function createRelayClient(options: RelayClientOptions) {
   function stop() {
     stopped = true;
     queued.clear();
-    for (const sub of subscriptions.values()) {
-      if (sub.retryAt !== Infinity) sub.retryAt = Infinity;
-    }
     disconnect(true);
+    for (const sub of subscriptions.values()) sub.retryAt = Infinity;
   }
 
   function write(wire: string) {
@@ -259,7 +261,7 @@ export function createRelayClient(options: RelayClientOptions) {
       const sub = subscriptions.get(key);
       return !sub || sub.retryAt === Infinity;
     });
-    if (unused.length === grants.size && unused.length) {
+    if (unused.length === grants.size) {
       if (!keepLast) disconnect();
       return;
     }
@@ -398,8 +400,14 @@ export function createRelayClient(options: RelayClientOptions) {
     }
     if (pending !== request) return;
     if (result.status === "unavailable" || result.status === "rate_limited") {
-      pending = undefined;
-      for (const sub of request.hubs) {
+      const terminalHubs = request.hubs.filter(
+        (sub) => sub.terminalUnavailable,
+      );
+      if (terminalHubs.length === 0) {
+        return failBatch(request);
+      }
+      const retryHubs = request.hubs.filter((sub) => !sub.terminalUnavailable);
+      for (const sub of terminalHubs) {
         const key = hubKey(sub.hub);
         if (subscriptions.get(key) === sub) {
           sub.retryAt = Infinity;
@@ -408,6 +416,11 @@ export function createRelayClient(options: RelayClientOptions) {
           setStatus(sub, "unavailable", true);
         }
       }
+      if (retryHubs.length > 0) {
+        failBatch({ ...request, hubs: retryHubs });
+        return;
+      }
+      pending = undefined;
       request.controller.abort();
       drive();
       return;
@@ -554,6 +567,7 @@ export function createRelayClient(options: RelayClientOptions) {
           statusState: paused || stopped ? "unavailable" : "connecting",
           terminal: stopped,
           batchKey: subscribeOptions?.batchKey ?? "default",
+          terminalUnavailable: Boolean(subscribeOptions?.terminalUnavailable),
         };
         subscriptions.set(key, sub);
         options.onStatus?.(
@@ -561,8 +575,13 @@ export function createRelayClient(options: RelayClientOptions) {
           sub.statusState,
           sub.terminal ? { terminal: true } : undefined,
         );
-      } else if (subscribeOptions?.batchKey && !grants.has(key)) {
-        sub.batchKey = subscribeOptions.batchKey;
+      } else {
+        if (subscribeOptions?.batchKey && !grants.has(key)) {
+          sub.batchKey = subscribeOptions.batchKey;
+        }
+        if (subscribeOptions?.terminalUnavailable) {
+          sub.terminalUnavailable = true;
+        }
       }
       const own: RelayHandler = (event) => handler(event);
       sub.handlers.add(own);

@@ -167,7 +167,7 @@ export function useSubscribeRelayViewer(
               .getState()
               .setRelayViewerStatus(validId, targetViewer, targetHub, mapped);
           },
-          { batchKey: targetTier },
+          { batchKey: targetTier, terminalUnavailable: true },
         );
       } catch {
         useInboxStore
