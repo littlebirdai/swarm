@@ -536,7 +536,7 @@ export class CodexOwnedPilot {
     const { bearer, siteUrl, log } = this.options;
     if (!this.relayEnabled || !bearer) return;
     const { signal } = this.controller;
-    setImmediate(() => {
+    const launchRelayPublisher = () => {
       void Promise.all([
         import("@codecast/edge-client"),
         import("@codecast/edge-client/relay-liveness"),
@@ -573,7 +573,8 @@ export class CodexOwnedPilot {
         .catch(() => {
           if (!signal.aborted) log("[owned-codex] relay liveness stopped");
         });
-    }).unref();
+    };
+    setImmediate(launchRelayPublisher).unref();
   }
 
   async drain(

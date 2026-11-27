@@ -452,6 +452,7 @@ test.each([undefined, "1"])(
       return outage.promise;
     });
     const f = fixture("pilot", true, "receipt", { flag, grant });
+    const immediate = spyOn(globalThis, "setImmediate");
     const timers = fakeTimers(30_000);
     const write = mock(
       async (
@@ -467,9 +468,13 @@ test.each([undefined, "1"])(
     try {
       f.initial([item(f.pilotRequest)]);
       await f.runtime.start();
+      expect(
+        immediate.mock.calls.filter(
+          ([callback]) => callback.name === "launchRelayPublisher",
+        ),
+      ).toHaveLength(flag ? 1 : 0);
       if (flag)
         await until(() => grant.mock.calls.length === 1, "relay grant begins");
-      else await new Promise<void>((resolve) => setImmediate(resolve));
 
       timers.tick(30_000);
       await until(
@@ -487,6 +492,7 @@ test.each([undefined, "1"])(
       ).toHaveLength(flag ? 1 : 0);
       expect(grant).toHaveBeenCalledTimes(flag ? 1 : 0);
     } finally {
+      immediate.mockRestore();
       trackSessionPaneForTests("legacy-pane", null);
       setSyncServiceForTests(null);
       timers.restore();
