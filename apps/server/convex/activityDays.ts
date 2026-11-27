@@ -81,24 +81,58 @@ export const rollupCandidates = internalQuery({
   },
 });
 
-/**
- * Re-roll the days around the live window for everyone active in them. One
- * mutation per (user, day) keeps each transaction small; the users table is
- * small enough to walk in one read. Today is skipped (no read takes it from a
- * row); yesterday is rolled so its row is ready the moment it leaves the live
- * window. A day that keeps losing its write conflict (a busy account's
- * conversations change under the read) is left for the next hour's run rather
- * than stopping every account after it.
- */
+const sweepPhase = v.union(v.literal("seen"), v.literal("created"));
+type SweepPage = { users: Id<"users">[]; cursor: string | null };
+
+export const rollupCandidatePage = internalQuery({
+  args: {
+    since: v.number(),
+    phase: sweepPhase,
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, { since, phase, cursor }): Promise<SweepPage> => {
+    const candidates =
+      phase === "created"
+        ? ctx.db
+            .query("users")
+            .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+        : ctx.db
+            .query("users")
+            .withIndex("by_daemon_last_seen", (q) =>
+              q.gte("daemon_last_seen", since),
+            )
+            .filter((q) => q.lt(q.field("_creationTime"), since));
+    const page = await candidates.paginate({
+      cursor: cursor ?? null,
+      numItems: 32,
+      maximumRowsRead: 64,
+      maximumBytesRead: 2 * 1024 ** 2,
+    });
+    return {
+      users: page.page.map(({ _id }) => _id),
+      cursor: page.isDone ? null : page.continueCursor,
+    };
+  },
+});
+
 export const sweep = internalAction({
-  args: { days: v.optional(v.number()) },
-  handler: async (ctx, args) => {
+  args: {
+    days: v.optional(v.number()),
+    today: v.optional(v.number()),
+    phase: v.optional(sweepPhase),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ users: number; rolled: number; failed: number }> => {
     const days = args.days ?? SWEEP_DAYS;
-    const today = dayStartUtc(Date.now());
+    const today = args.today ?? dayStartUtc(Date.now());
     const since = today - days * ACTIVITY_DAY_MS;
-    const users: Id<"users">[] = await ctx.runQuery(
-      internal.activityDays.rollupCandidates,
-      { since },
+    const phase = args.phase ?? "seen";
+    const { users, cursor }: SweepPage = await ctx.runQuery(
+      internal.activityDays.rollupCandidatePage,
+      { since, phase, cursor: args.cursor },
     );
     let rolled = 0;
     let failed = 0;
@@ -118,6 +152,13 @@ export const sweep = internalAction({
         }
       }
     }
+    if (cursor !== null || phase === "seen")
+      await ctx.scheduler.runAfter(0, internal.activityDays.sweep, {
+        days,
+        today,
+        phase: cursor === null ? "created" : phase,
+        cursor: cursor ?? undefined,
+      });
     return { users: users.length, rolled, failed };
   },
 });

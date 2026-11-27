@@ -372,10 +372,6 @@ export const adminGetStats = query({
 // Only care about daemons that beat inside the last 24h.
 const RECENTLY_ACTIVE_MS = 24 * 60 * 60 * 1000;
 
-// Range-scan only the daemons that beat inside the window via the
-// by_last_heartbeat index, instead of loading the whole (growing) users table
-// on every 5 minute cron tick. Both health crons read the same set, so the
-// query and the window live here rather than in each handler.
 async function recentlyActiveDaemonUsers(
   ctx: MutationCtx,
   now: number,
@@ -390,18 +386,31 @@ async function recentlyActiveDaemonUsers(
 }
 
 export const checkDaemonHealth = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
+  args: { cursor: v.optional(v.string()), now: v.optional(v.number()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ checked: number; alertsCreated: number }> => {
+    const now = args.now ?? Date.now();
     const OFFLINE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min no heartbeat = offline
 
-    const activeUsers = await recentlyActiveDaemonUsers(ctx, now);
+    const page = await ctx.db
+      .query("users")
+      .withIndex("by_last_heartbeat", (q) =>
+        q
+          .gte("last_heartbeat", now - RECENTLY_ACTIVE_MS)
+          .lte("last_heartbeat", now - OFFLINE_THRESHOLD_MS),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: 64,
+        maximumBytesRead: 2 * 1024 ** 2,
+      });
 
     let alertsCreated = 0;
 
-    for (const user of activeUsers) {
+    for (const user of page.page) {
       const silenceDuration = now - (user.last_heartbeat ?? 0);
-      if (silenceDuration < OFFLINE_THRESHOLD_MS) continue;
 
       // Only alert once per offline episode: check if the most recent log for this
       // user is already an offline alert (meaning we already noticed this outage)
@@ -431,7 +440,12 @@ export const checkDaemonHealth = internalMutation({
       alertsCreated++;
     }
 
-    return { checked: activeUsers.length, alertsCreated };
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.daemonLogs.checkDaemonHealth, {
+        now,
+        cursor: page.continueCursor,
+      });
+    return { checked: page.page.length, alertsCreated };
   },
 });
 

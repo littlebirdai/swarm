@@ -288,6 +288,7 @@ export const accountTables = {
     .index("by_username", ["username"])
     .index("by_team_id", ["team_id"])
     .index("by_last_heartbeat", ["last_heartbeat"])
+    .index("by_daemon_last_seen", ["daemon_last_seen"])
     // The Monday weekly card sweep reads only the people who turned it on.
     .index("by_weekly_card", ["weekly_card_enabled"])
     // One phone, one account: storePushToken takes the token off any other user.

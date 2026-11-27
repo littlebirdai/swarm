@@ -1,4 +1,6 @@
 import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
 
@@ -58,6 +60,9 @@ const LOOKAHEAD_READ_BYTES = 1024 ** 2;
 const MAX_UPSERTS_PER_RUN = 600;
 const MAX_BATCH_ROWS = 1000;
 const GC_BATCH = 200;
+const CRON_BATCH_ROWS = 400;
+const TICK_MS = 15_000;
+const MAX_TICK_MS = 120_000;
 
 type MirrorDb = Pick<
   import("./_generated/server").MutationCtx["db"],
@@ -187,10 +192,14 @@ async function walkMessages(
 export async function performMirrorAdvance(
   ctx: { db: MirrorDb },
   args: { batch?: number; now?: number },
+  previous?: Doc<"search_mirror_state"> | null,
 ) {
   {
     const now = args.now ?? Date.now();
-    let state = await ctx.db.query("search_mirror_state").first();
+    let state =
+      previous === undefined
+        ? await ctx.db.query("search_mirror_state").first()
+        : previous;
     if (!state) {
       const id = await ctx.db.insert("search_mirror_state", {
         cursor: now - MIRROR_WINDOW_MS,
@@ -329,6 +338,41 @@ export async function dropMirroredMessage(
 export const advance = internalMutation({
   args: { batch: v.optional(v.number()) },
   handler: async (ctx, args) => performMirrorAdvance(ctx, args),
+});
+
+export const advanceCron = internalMutation({
+  args: { scheduledAt: v.optional(v.number()) },
+  handler: async (ctx, { scheduledAt }): Promise<void> => {
+    const now = Date.now();
+    const state = await ctx.db.query("search_mirror_state").first();
+    if (scheduledAt !== undefined) {
+      if (state?.next_tick_at !== scheduledAt) return;
+    } else if ((state?.next_tick_at ?? 0) > now - TICK_MS) {
+      return;
+    }
+
+    const result = await performMirrorAdvance(
+      ctx,
+      { batch: CRON_BATCH_ROWS, now },
+      state,
+    );
+    const idle =
+      result.caught_up &&
+      result.fresh_scanned === 0 &&
+      result.scanned === 0 &&
+      result.expired === 0;
+    const delay =
+      process.env.SEARCH_MIRROR_CRON_BACKOFF === "1" && idle
+        ? Math.min(MAX_TICK_MS, (state?.tick_delay_ms ?? TICK_MS) * 2)
+        : TICK_MS;
+    const next = now + delay;
+    const id =
+      state?._id ?? (await ctx.db.query("search_mirror_state").first())!._id;
+    await ctx.db.patch(id, { next_tick_at: next, tick_delay_ms: delay });
+    await ctx.scheduler.runAt(next, internal.searchMirror.advanceCron, {
+      scheduledAt: next,
+    });
+  },
 });
 
 // One-shot migration: stamp user_id/team_id onto mirror rows written before

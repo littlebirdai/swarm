@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { asUser, serverTest } from "../test-helpers/database.testkit";
+import {
+  asUser,
+  scheduledJobs,
+  serverTest,
+} from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import crons from "./crons";
@@ -10,7 +14,7 @@ const TICK_MS = 15_000;
 const SETTLE_MS = 10 * 60_000;
 const WINDOW_MS = 30 * 86_400_000;
 const NOW = Date.UTC(2026, 10, 25);
-const BATCH = JOB.args[0] as { batch: number };
+const BATCH = { batch: 1000 };
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -42,10 +46,6 @@ test("quiet ticks read one document and leave maintenance to the fourth tick", a
 });
 
 test("the next eligible tick exposes a new message to search after a quiet period", async () => {
-  expect(JOB.schedule).toEqual({ type: "interval", seconds: 15 });
-  expect(JOB.name).toBe(getFunctionName(internal.searchMirror.advance));
-  expect(BATCH.batch).toBe(1000);
-
   const t = serverTest(true);
   await t.mutation(internal.searchMirror.advance, BATCH);
   jest.setSystemTime(NOW + TICK_MS - 4_000);
@@ -302,4 +302,106 @@ test("maintenance drains a large expiry backlog within its read budget", async (
   expect(
     await t.run(({ db }) => db.query("message_search_recent").first()),
   ).toBeNull();
+});
+
+test("the idle mirror schedules fewer ticks and resets to the base delay when work arrives", async () => {
+  expect(JOB.schedule).toEqual({ type: "interval", minutes: 2 });
+  expect(JOB.name).toBe(getFunctionName(internal.searchMirror.advanceCron));
+  const t = serverTest(true);
+  const flag = "SEARCH_MIRROR_CRON_BACKOFF";
+  const previous = process.env[flag];
+  process.env[flag] = "1";
+  const tick = internal.searchMirror.advanceCron;
+  const nextTick = async () => {
+    const [job, extra] = (await scheduledJobs(t, tick)).filter(
+      ({ state }) => state.kind === "pending",
+    );
+    expect(extra).toBeUndefined();
+    return job.scheduledTime;
+  };
+  const advance = async (ms: number) => {
+    jest.advanceTimersByTime(ms);
+    await t.finishInProgressScheduledFunctions();
+  };
+  try {
+    await t.mutation(tick, {});
+    await t.mutation(tick, {});
+    for (const delay of [30_000, 60_000, 120_000, 120_000]) {
+      expect(await nextTick()).toBe(Date.now() + delay);
+      await advance(delay);
+    }
+    const message = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "backed-off-mirror");
+      return rows.message(await rows.conversation(await rows.user()));
+    });
+    await advance(119_999);
+    expect(
+      await t.run(({ db }) => db.query("message_search_recent").first()),
+    ).toBeNull();
+    await advance(1);
+    expect(
+      await t.run(({ db }) => db.query("message_search_recent").first()),
+    ).toMatchObject({
+      message_id: message,
+    });
+    expect(await nextTick()).toBe(Date.now() + TICK_MS);
+  } finally {
+    jest.clearAllTimers();
+    if (previous === undefined) delete process.env[flag];
+    else process.env[flag] = previous;
+  }
+});
+
+test("without backoff a lost mirror tick is restarted once at the base cadence", async () => {
+  const flag = "SEARCH_MIRROR_CRON_BACKOFF";
+  const previous = process.env[flag];
+  delete process.env[flag];
+  const t = serverTest(true);
+  const tick = internal.searchMirror.advanceCron;
+  const pending = async () =>
+    (await scheduledJobs(t, tick)).filter(
+      ({ state }) => state.kind === "pending",
+    );
+  try {
+    await t.mutation(tick, {});
+    const [lost] = await pending();
+    expect(lost.scheduledTime).toBe(NOW + TICK_MS);
+    await t.run(({ scheduler }) => scheduler.cancel(lost._id));
+    jest.setSystemTime(NOW + 120_000);
+    await t.mutation(tick, {});
+    const pendingTimes = async () =>
+      (await pending()).map(({ scheduledTime }) => scheduledTime);
+    const due = NOW + 120_000 + TICK_MS;
+    expect(await pendingTimes()).toEqual([due]);
+    await t.mutation(tick, { scheduledAt: lost.scheduledTime });
+    expect(await pendingTimes()).toEqual([due]);
+  } finally {
+    jest.clearAllTimers();
+    if (previous !== undefined) process.env[flag] = previous;
+  }
+});
+
+test("the scheduled mirror leaves room in its transaction and finishes the tail on its next tick", async () => {
+  const t = serverTest(true);
+  const last = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "scheduled-mirror-batch");
+    const conversation = await rows.conversation(await rows.user());
+    for (let i = 0; i < 400; i++) await rows.message(conversation);
+    return rows.message(conversation);
+  });
+  jest.setSystemTime(NOW + SETTLE_MS + TICK_MS);
+  const tick = internal.searchMirror.advanceCron;
+  try {
+    await t.mutation(tick, {});
+    const read = () =>
+      t.run(({ db }) => db.query("message_search_recent").collect());
+    expect(await read()).toHaveLength(400);
+    jest.advanceTimersByTime(TICK_MS);
+    await t.finishInProgressScheduledFunctions();
+    const mirrored = await read();
+    expect(mirrored).toHaveLength(401);
+    expect(mirrored.some(({ message_id }) => message_id === last)).toBe(true);
+  } finally {
+    jest.clearAllTimers();
+  }
 });

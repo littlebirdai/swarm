@@ -417,11 +417,11 @@ async function latestRunConversation(
   task: Doc<"agent_tasks">,
 ): Promise<Doc<"conversations"> | null> {
   if (task.originating_conversation_id) return null;
-  const runs: Doc<"conversations">[] = await ctx.db
+  const latest: Doc<"conversations"> | null = await ctx.db
     .query("conversations")
     .withIndex("by_agent_task", (q: any) => q.eq("agent_task_id", task._id))
-    .collect();
-  const latest = runs.sort((a, b) => b._creationTime - a._creationTime)[0];
+    .order("desc")
+    .first();
   // Through the stamp, so the run nests under its owner like every other path.
   return latest
     ? stampRunConversation(ctx, task.user_id, task, latest.session_id)
@@ -4346,27 +4346,27 @@ export const matchTaskTriggers = internalMutation({
 });
 
 export const reclaimStaleTasks = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-    const runningTasks = await ctx.db
+  args: { cursor: v.optional(v.string()), through: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<number> => {
+    const now = args.through ?? Date.now();
+    const batch = await ctx.db
       .query("agent_tasks")
-      .withIndex("by_status_run_at", (q) => q.eq("status", "running"))
-      .collect();
+      .withIndex("by_status_lease_expiration", (q) =>
+        q
+          .eq("status", "running")
+          .gt("lease_expires_at", undefined)
+          .lt("lease_expires_at", now),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: 16,
+        maximumBytesRead: 2 * 1024 ** 2,
+      });
 
     let reclaimed = 0;
-    for (const task of runningTasks) {
+    for (const task of batch.page) {
       if (task.lease_expires_at && task.lease_expires_at < now) {
-        // The device the trigger is bound to stopped beating (a laptop asleep, a machine offline): its daemon holds
-        // the run and renews the lease when it wakes, and nothing else may serve the trigger. Wait for it; a re-fire
-        // would duplicate the run on wake, and counting the lapse retired healthy triggers (ct-92447).
         if (await boundDeviceAway(ctx, task, now)) continue;
-        // A lease lapses when the daemon that held it stopped renewing, most
-        // often because it restarted mid-run and lost the run's monitor. The
-        // run itself may be over: its agent exited (stopped) or parked at a
-        // limit. Re-firing then spends a whole fresh session on finished
-        // work, so a finished run settles as an unreported exit (its owner is
-        // told, runOwnerWakeOf) and a parked one re-arms at the reset.
         const runConv = await firingRunConversation(ctx, task);
         // No run of this firing: its lease lapsed during the claim or the precheck (a lost response on a bad link, a
         // daemon restart). That firing is lost, not failed: it fires again and never counts toward retiring the
@@ -4452,6 +4452,11 @@ export const reclaimStaleTasks = internalMutation({
       }
     }
 
+    if (!batch.isDone)
+      await ctx.scheduler.runAfter(0, internal.agentTasks.reclaimStaleTasks, {
+        through: now,
+        cursor: batch.continueCursor,
+      });
     return reclaimed;
   },
 });

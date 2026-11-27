@@ -213,6 +213,7 @@ export const scheduleTables = {
     .index("by_user_status", ["user_id", "status"])
     .index("by_user_run_at", ["user_id", "run_at"])
     .index("by_status_run_at", ["status", "run_at"])
+    .index("by_status_lease_expiration", ["status", "lease_expires_at"])
     // The hosted routines a deployment with no cloud wake host still fires.
     .index("by_hosted_status_run_at", ["hosted_home", "status", "run_at"])
     // A firing reads only the triggers armed on its name (matchTaskTriggers).

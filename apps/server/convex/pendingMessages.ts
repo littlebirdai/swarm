@@ -104,6 +104,7 @@ import {
   relinkPendingQueue,
 } from "./lib/pending-queue-relink.state";
 import type { MutationCtx } from "./_generated/server";
+import { stuckSessionRanges } from "./lib/pending-message-liveness.rules";
 import { sessionRunnerOf, sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
@@ -3082,7 +3083,14 @@ const retryUpdate = v.object({
   reason: v.optional(retryReason),
 });
 type RetryUpdate = Infer<typeof retryUpdate>;
-type ApplyStuckResult = Awaited<ReturnType<typeof healAndNotifyStuckMessages>>;
+type ApplyStuckResult = Awaited<ReturnType<typeof healStuckCandidates>>;
+type ApplyStuckArgs = {
+  ids: Id<"pending_messages">[];
+  now: number;
+  deadRevivesRemaining: number;
+  allowHostedWake: boolean;
+  sessionCursor?: string;
+};
 
 export const retryStuckMessages = internalAction({
   args: {},
@@ -3405,9 +3413,26 @@ async function planStuckMessageGroups(
   candidates: Doc<"pending_messages">[],
 ): Promise<StuckGroup[]> {
   const sessionsByConversation = await Promise.all(
-    queryStuckSessions(ctx.db, candidates, now).map((query) =>
-      query.take(STUCK_SESSIONS_PER_CONVERSATION),
-    ),
+    stuckConversationIds(candidates).map(async (id) => {
+      const sample = STUCK_SESSIONS_PER_CONVERSATION;
+      if (process.env.BOUNDED_PENDING_MESSAGE_SESSIONS !== "1")
+        return conversationSessionsBeatingSince(
+          ctx,
+          id,
+          now - HEARTBEAT_ALIVE_MS,
+        ).take(sample);
+      const rows = (
+        await Promise.all(
+          stuckSessionRanges(ctx.db, id, now).map((range) =>
+            range.take(sample),
+          ),
+        )
+      ).flat();
+      return [...new Map(rows.map((row) => [row._id, row])).values()].slice(
+        0,
+        sample,
+      );
+    }),
   );
   const sampled = sessionsByConversation.flat();
   const readiness = liveAndReadyConversationIds(
@@ -3431,8 +3456,6 @@ async function planStuckMessageGroups(
     async () => true,
   );
 
-  // Treat a full session sample as inconclusive. The apply mutation checks
-  // all live sessions for that conversation before it can revive anything.
   const actedIds = new Set(acted);
   return groupStuckMessages(
     candidates
@@ -3469,12 +3492,7 @@ function groupStuckMessages(
 
 export const applyStuckMessages: RegisteredMutation<
   "internal",
-  {
-    ids: Id<"pending_messages">[];
-    now: number;
-    deadRevivesRemaining: number;
-    allowHostedWake: boolean;
-  },
+  ApplyStuckArgs,
   Promise<ApplyStuckResult>
 > = internalMutation({
   args: {
@@ -3482,69 +3500,96 @@ export const applyStuckMessages: RegisteredMutation<
     now: v.number(),
     deadRevivesRemaining: v.number(),
     allowHostedWake: v.boolean(),
+    sessionCursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:retryStuckMessages");
-    return healAndNotifyStuckMessages(
-      ctx,
-      args.now,
-      args.ids,
-      args.deadRevivesRemaining,
-      args.allowHostedWake,
-    );
+    return healAndNotifyStuckMessages(ctx, args);
   },
 });
 
 async function healAndNotifyStuckMessages(
-  ctx: { db: QueryCtx["db"]; scheduler?: WakeScheduler },
-  now: number,
-  ids: Id<"pending_messages">[],
-  deadRevivesRemaining: number,
-  allowHostedWake: boolean,
+  ctx: MutationCtx,
+  args: ApplyStuckArgs,
 ) {
-  const candidates = (
-    await Promise.all(ids.map((id) => ctx.db.get(id)))
+  let candidates = (
+    await Promise.all(args.ids.map((id) => ctx.db.get(id)))
   ).filter(
     (row): row is Doc<"pending_messages"> =>
       row !== null &&
       NON_TERMINAL_STATUSES.some((status) => status === row.status),
   );
-  const sessions = (
-    await Promise.all(
-      queryStuckSessions(ctx.db, candidates, now).map((query) =>
-        query.collect(),
-      ),
-    )
-  ).flat();
+  const now = args.sessionCursor ? Math.max(args.now, Date.now()) : args.now;
+  const ids = stuckConversationIds(candidates);
+  const queries = ids.map((id) =>
+    conversationSessionsBeatingSince(ctx, id, args.now - HEARTBEAT_ALIVE_MS),
+  );
+  const bounded =
+    queries.length === 1 &&
+    (args.sessionCursor ||
+      process.env.BOUNDED_PENDING_MESSAGE_SESSIONS === "1");
+  const page = bounded
+    ? await queries[0].paginate({
+        cursor: args.sessionCursor ?? null,
+        numItems: 32,
+        maximumRowsRead: 64,
+        maximumBytesRead: 2 * 1024 ** 2,
+      })
+    : null;
+  const sessions =
+    page?.page ??
+    (await Promise.all(queries.map((query) => query.collect()))).flat();
   const readiness = liveAndReadyConversationIds(
     sessions,
     await heartbeatsFor(ctx, sessions),
     now,
   );
+  if (page && !readiness.ready.size) {
+    const conversation = ids[0];
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.pendingMessages.applyStuckMessages,
+        {
+          ...args,
+          deadRevivesRemaining: 0,
+          sessionCursor: page.continueCursor,
+        },
+      );
+      candidates = [];
+    } else if (
+      args.sessionCursor &&
+      !readiness.live.size &&
+      (
+        await Promise.all(
+          stuckSessionRanges(ctx.db, conversation, now).map((range) =>
+            range.first(),
+          ),
+        )
+      ).some(Boolean)
+    ) {
+      readiness.live.add(conversation);
+    }
+  }
   return healStuckCandidates(
     ctx,
     now,
     candidates,
     readiness,
-    deadRevivesRemaining,
-    allowHostedWake,
+    args.deadRevivesRemaining,
+    args.allowHostedWake,
     (effect) => effect(),
   );
 }
 
-function queryStuckSessions(
-  db: QueryCtx["db"],
-  candidates: Doc<"pending_messages">[],
-  now: number,
-) {
-  const conversations = new Set(
-    candidates
-      .filter((msg) => !isFencedPendingMessage(msg))
-      .map((msg) => msg.conversation_id),
-  );
-  return [...conversations].map((id) =>
-    conversationSessionsBeatingSince({ db }, id, now - HEARTBEAT_ALIVE_MS),
-  );
+function stuckConversationIds(candidates: Doc<"pending_messages">[]) {
+  return [
+    ...new Set(
+      candidates
+        .filter((msg) => !isFencedPendingMessage(msg))
+        .map((msg) => msg.conversation_id),
+    ),
+  ];
 }
 
 // A plan records eligible effects without running them. Receipts and hosted
