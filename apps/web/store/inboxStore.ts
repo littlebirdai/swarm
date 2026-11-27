@@ -7880,7 +7880,11 @@ export interface InboxStoreState
     ComposeSliceState,
     Omit<
       RegisteredCollectionSlots,
-      keyof ChatSliceState | keyof OrgSliceState | "fencedSteerClaims"
+      | keyof ChatSliceState
+      | keyof OrgSliceState
+      | "fencedSteerClaims"
+      | "collabAccess"
+      | "collabRequests"
     > {
   sessions: Record<string, InboxSession>;
   pending: Record<string, PendingEntry>;
@@ -14882,7 +14886,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // -- Session unread --
   sessionReads: {},
   ...createReadingAnchorsSlice(),
-  ...createSteerComposerSlice(),
+  ...createSteerComposerSlice(get),
   // Plain, not an action: an action() always dispatches, and the ack fires on
   // every presence change and every re-render of the open session. The guard
   // here is what makes "the agent re-reported the same state" literally free —

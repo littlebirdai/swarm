@@ -120,7 +120,11 @@ export function SessionControlStrip({
               disabled={control.submitting}
               onClick={() => void control.retryDraft(retry)}
             >
-              {control.canQueue ? "Queue" : "Suggest"}
+              {retry.command?.kind === "send"
+                ? "Retry"
+                : control.canQueue
+                  ? "Queue"
+                  : "Suggest"}
             </button>
           )}
           <button

@@ -25,6 +25,7 @@ export type ComposerControlFacts = {
   expected?: TurnExpectation;
   canSteer?: boolean;
   canTakeOver?: boolean;
+  canInterrupt?: boolean;
   canCancelTakeover?: boolean;
   live?: true;
 };
@@ -34,6 +35,7 @@ export type ComposerPayload = {
   imageIds?: string[];
   quoteIds?: string[];
   typedWords?: string;
+  clientId?: string;
 };
 
 export type ComposerControlCommand =
@@ -123,7 +125,8 @@ export function composerControlModel(facts: ComposerControlFacts) {
     request: !canQueue ? (facts.driveRequested ? "requested" : "ask") : null,
     canQueue,
     interrupt:
-      !facts.live && facts.turn !== null && (owner || (canQueue && mine)),
+      facts.turn !== null &&
+      (facts.canInterrupt ?? (owner || (canQueue && mine))),
     takeover: takingOver
       ? facts.canCancelTakeover === false
         ? null

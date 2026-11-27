@@ -1,5 +1,11 @@
-import { useCallback, useSyncExternalStore } from "react";
-import { createStore } from "zustand/vanilla";
+import { useInboxStore } from "../../store/inboxStore";
+import type {
+  ComposerControlCommandKey as CommandKey,
+  ComposerObservation as Observation,
+  ComposerOperation as Operations,
+  ComposerOutcome as Outcome,
+  ComposerRetry as Retry,
+} from "../../store/steer-composer-state";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   composerControlModel,
@@ -13,30 +19,13 @@ import {
 
 type SendKind = "send" | "queue" | "suggest";
 type ControlCommand = Exclude<ComposerControlCommand, ComposerPayload>;
-type CommandKey = ControlCommand["kind"] | "submit";
-type Retry = { id: number; payload: ComposerPayload };
-type Observation = { key: string };
-type Outcome = {
-  observation: Observation;
-  completed: ReadonlySet<CommandKey>;
-  send?: { receipt: Observation; state: SendState };
-  controlError?: "refused" | "in-doubt";
-};
-
-type Operations = {
-  observation?: Observation;
-  receipt?: Observation;
-  pending: ReadonlyMap<CommandKey, Observation>;
-  outcome?: Outcome;
-  retries: Retry[];
-};
-
 const empty: Operations = { pending: new Map(), retries: [] };
-const operations = createStore<Record<string, Operations>>(() => ({}));
-let retryId = 0;
+const operations = () => useInboxStore.getState().composerOperations;
 
 function update(id: string, apply: (record: Operations) => Operations) {
-  operations.setState((state) => ({ [id]: apply(state[id] ?? empty) }));
+  useInboxStore
+    .getState()
+    .updateComposerOperation(id, apply(operations()[id] ?? empty));
 }
 
 function claim(
@@ -45,7 +34,7 @@ function claim(
   key: CommandKey,
   receipt?: Observation,
 ) {
-  const record = operations.getState()[id] ?? empty;
+  const record = operations()[id] ?? empty;
   const outcome =
     record.outcome?.observation === observation
       ? record.outcome
@@ -98,20 +87,9 @@ export function useComposerControl(
 ) {
   const shared = selectComposerControl(flag, conversationId);
   const scopedId = shared ? conversationId : null;
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      if (!scopedId) return () => {};
-      return operations.subscribe((next, prev) => {
-        if (next[scopedId] !== prev[scopedId]) listener();
-      });
-    },
-    [scopedId],
+  const record = useInboxStore((state) =>
+    scopedId ? (state.composerOperations[scopedId] ?? empty) : empty,
   );
-  const snapshot = useCallback(
-    () => (scopedId ? (operations.getState()[scopedId] ?? empty) : empty),
-    [scopedId],
-  );
-  const record = useSyncExternalStore(subscribe, snapshot, snapshot);
   const facts = shared?.facts;
   const observed = facts
     ? JSON.stringify([
@@ -123,6 +101,8 @@ export function useComposerControl(
         facts.role,
         facts.driveRequested,
         facts.takeoverPending,
+        facts.canSteer,
+        facts.canTakeOver,
       ])
     : null;
   const receiptKey = facts
@@ -135,7 +115,7 @@ export function useComposerControl(
       ])
     : null;
   useWatchEffect(() => {
-    const current = operations.getState()[conversationId];
+    const current = operations()[conversationId];
     if (observed === null || receiptKey === null) {
       if (current?.observation || current?.receipt)
         update(conversationId, (record) => ({
@@ -200,13 +180,17 @@ export function useComposerControl(
     ) => {
       let payload = fallback;
       let sendState: SendState | undefined;
+      let attempted = retry?.command;
       try {
         payload = await prepare();
-        const command =
+        const content = currentFacts.live
+          ? { ...payload, clientId: payload.clientId ?? crypto.randomUUID() }
+          : payload;
+        attempted ??=
           kind === "send"
-            ? ({ ...payload, kind, expected } as const)
-            : ({ ...payload, kind } as const);
-        const result = await baton.run(command);
+            ? { ...content, kind, expected }
+            : { ...content, kind };
+        const result = await baton.run(attempted);
         if (result === "accepted") {
           if (retry) dismissRetry(retry);
           if (currentFacts.live && !currentFacts.sendState)
@@ -214,10 +198,18 @@ export function useComposerControl(
           return true;
         }
         sendState = { kind: result === "stale" ? "stale" : "refused" };
-        if (!restore(payload)) addRetry(payload);
+        if (retry) {
+          update(conversationId, (current) => ({
+            ...current,
+            retries: current.retries.map((row) =>
+              row.id === retry.id ? { id: row.id, payload: row.payload } : row,
+            ),
+          }));
+        } else if (!restore(payload)) addRetry(payload);
       } catch {
         sendState = { kind: "in-doubt" };
-        if (payload && !retry) addRetry(payload);
+        if (payload && !retry)
+          addRetry(payload, currentFacts.live ? attempted : undefined);
       } finally {
         settle(
           conversationId,
@@ -234,10 +226,16 @@ export function useComposerControl(
     };
   }
 
-  function addRetry(payload: ComposerPayload) {
+  function addRetry(
+    payload: ComposerPayload,
+    command?: ComposerControlCommand,
+  ) {
     update(conversationId, (current) => ({
       ...current,
-      retries: [...current.retries, { id: ++retryId, payload }],
+      retries: [
+        ...current.retries,
+        { id: crypto.randomUUID(), payload, command },
+      ],
     }));
   }
 
@@ -254,7 +252,7 @@ export function useComposerControl(
       : view.send === "suggest"
         ? "suggest"
         : null;
-    const current = operations.getState()[conversationId];
+    const current = operations()[conversationId];
     if (!kind || !current?.retries.some((row) => row.id === retry.id)) return;
     const complete = begin(kind, retry);
     if (complete)
@@ -266,6 +264,27 @@ export function useComposerControl(
 
   async function act(command: ControlCommand) {
     const key = command.kind;
+    if (currentFacts.live && key !== "interrupt") {
+      if (!observation) return;
+      let controlError: Outcome["controlError"];
+      try {
+        if ((await baton.run(command)) !== "accepted") controlError = "refused";
+      } catch {
+        controlError = "in-doubt";
+      }
+      if (controlError) {
+        update(conversationId, (current) => {
+          const observed = current.observation;
+          if (!observed) return current;
+          const outcome =
+            current.outcome?.observation === observed
+              ? current.outcome
+              : { observation: observed, completed: new Set<CommandKey>() };
+          return { ...current, outcome: { ...outcome, controlError } };
+        });
+      }
+      return;
+    }
     if (!observation || !claim(conversationId, observation, key)) return;
     let error: Outcome["controlError"];
     try {
@@ -293,8 +312,7 @@ export function useComposerControl(
     expected,
     begin,
     isSubmitting: () =>
-      view.submitting ||
-      operations.getState()[conversationId]?.pending.has("submit"),
+      view.submitting || operations()[conversationId]?.pending.has("submit"),
     act,
     retryDraft,
     dismissRetry,

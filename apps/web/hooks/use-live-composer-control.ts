@@ -1,6 +1,8 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { useCallback, useMemo } from "react";
+import { createElement, useCallback, useMemo, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
+import { commandsSession } from "@codecast/inbox/inboxProjection";
 import {
   selectComposerControl,
   type ComposerControlCommand,
@@ -9,27 +11,28 @@ import {
   type TurnExpectation,
 } from "../components/conversation/composer-control-model";
 import { useInboxStore } from "../store/inboxStore";
-import type {
-  SteerClaimState,
-  SteerComposerCommand,
+import {
+  canStopSteerCommand,
+  type SteerClaimState,
+  type SteerComposerCommand,
 } from "../store/steer-composer-state";
 import { entityIdArgs, useSyncCollection } from "./useSyncCollection";
 
-const select = (row: SteerClaimState | null | undefined) =>
-  row === undefined ? undefined : row === null ? [] : [row];
-
-function sendState(row: SteerClaimState): SendState | null {
-  if (row.delivery === "ambiguous") return { kind: "in-doubt" };
-  if (row.delivery === "delivery-started") return { kind: "with-agent" };
-  if (!row.queue.items.some((item) => item.sender === row.viewer)) return null;
-  if (row.holder && row.holder.id !== row.viewer)
-    return { kind: "waiting-for-driver", driver: row.holder.name };
-  return { kind: "waiting-for-machine" };
+function sendState(
+  kind: string | null,
+  driver: string | undefined,
+): SendState | null {
+  if (kind === "ambiguous") return { kind: "in-doubt" };
+  if (kind === "delivery-started") return { kind: "with-agent" };
+  if (kind !== "queued") return null;
+  return driver
+    ? { kind: "waiting-for-driver", driver }
+    : { kind: "waiting-for-machine" };
 }
 
 function toStoreCommand(
   command: ComposerControlCommand,
-  row: SteerClaimState,
+  fenceId: string | null,
 ): SteerComposerCommand | undefined {
   switch (command.kind) {
     case "send":
@@ -42,7 +45,7 @@ function toStoreCommand(
         return;
       return {
         kind: "send",
-        clientId: crypto.randomUUID(),
+        clientId: command.clientId ?? crypto.randomUUID(),
         text: command.text,
         ...(command.imageIds && { imageIds: command.imageIds }),
         ...(command.quoteIds && { quoteIds: command.quoteIds }),
@@ -62,40 +65,108 @@ function toStoreCommand(
         };
       return;
     case "cancel-takeover":
-      return row.fence_id
-        ? { kind: "cancel", fenceId: row.fence_id }
-        : undefined;
+      return fenceId ? { kind: "cancel", fenceId } : undefined;
   }
 }
 
-export function useLiveComposerControl(
-  conversationId: string | undefined,
-  viewerId: string | undefined,
-  enabled: boolean,
-): ComposerControlFlag | undefined {
-  const scope = enabled && viewerId ? conversationId : undefined;
+export function SteerClaimFeeder({
+  scope,
+  viewerId,
+}: {
+  scope: string;
+  viewerId: string;
+}) {
+  const prior = useRef<{ scope: string; signature: string } | undefined>(
+    undefined,
+  );
+  const select = useCallback(
+    (row: SteerClaimState | null | undefined) => {
+      if (
+        row === undefined ||
+        (row && (row._id !== scope || row.viewer !== viewerId))
+      )
+        return;
+      if (!row) {
+        prior.current = undefined;
+        return [];
+      }
+      const { fresh_for_ms: _fresh, ...facts } = row;
+      const signature = JSON.stringify(facts);
+      if (
+        prior.current?.scope === scope &&
+        prior.current.signature === signature &&
+        useInboxStore.getState().fencedSteerClaims[scope]?.viewer === viewerId
+      )
+        return;
+      prior.current = { scope, signature };
+      return [{ ...row, feedVersion: crypto.randomUUID() }];
+    },
+    [scope, viewerId],
+  );
   const dropAbsent = useCallback(
     (row: SteerClaimState) => row._id === scope,
     [scope],
   );
-  const args = entityIdArgs("conversation_id", scope);
   useSyncCollection(
     "fencedSteerClaims",
     api.collab.steerClaimState,
-    args === "skip"
-      ? "skip"
-      : { conversation_id: args.conversation_id as Id<"conversations"> },
+    { conversation_id: scope as Id<"conversations"> },
     { select, dropAbsent },
   );
-  const row = useInboxStore((state) =>
-    scope ? state.fencedSteerClaims?.[scope] : undefined,
+  return null;
+}
+
+export function useLiveComposerControl(
+  scope: string | undefined,
+  viewerId: string | undefined,
+): ComposerControlFlag | undefined {
+  const row = useInboxStore(
+    useShallow((state) => {
+      const row = scope ? state.fencedSteerClaims[scope] : undefined;
+      if (!row || row.viewer !== viewerId || !scope) return null;
+      return {
+        owner: row.owner,
+        turn: row.turn?.id ?? null,
+        run: row.turn?.run,
+        startEvent: row.turn?.start_event_seq,
+        holderId: row.holder?.id,
+        holderName: row.holder?.name,
+        baton_token: row.baton_token,
+        can_steer: row.can_steer,
+        can_take_over: row.can_take_over,
+        canInterrupt:
+          row.owner ||
+          commandsSession(
+            state.conversations[scope] ?? state.sessions[scope] ?? {},
+            viewerId,
+          ),
+        fence_id: row.fence_id,
+        takeover_pending: row.takeover_pending,
+        drive_requested: row.drive_requested,
+        can_send: row.can_send,
+        delivery:
+          row.delivery ??
+          (row.queue.items.some((item) => item.sender === viewerId)
+            ? "queued"
+            : null),
+      };
+    }),
   );
   return useMemo(() => {
-    if (!scope || !row || row.viewer !== viewerId) return;
+    if (!scope || !row || !viewerId) return;
     const expected: TurnExpectation = {
       kind: "turn",
-      turn: row.turn?.id ?? null,
-      ...(row.turn && { address: row.turn, batonToken: row.baton_token }),
+      turn: row.turn,
+      ...(row.turn !== null &&
+        row.run !== undefined &&
+        row.startEvent !== undefined && {
+          address: {
+            id: row.turn,
+            run: row.run,
+            start_event_seq: row.startEvent,
+          },
+          batonToken: row.baton_token,
+        }),
     };
     return {
       enabled: true,
@@ -104,20 +175,47 @@ export function useLiveComposerControl(
         facts: {
           viewerId,
           role: row.owner ? "owner" : row.can_send ? "sender" : "viewer",
-          driver: row.holder,
+          driver:
+            row.holderId && row.holderName !== undefined
+              ? { id: row.holderId, name: row.holderName }
+              : null,
           turn: expected.turn,
           expected,
           canSteer: row.can_steer,
+          canInterrupt: row.canInterrupt,
           canTakeOver: row.can_take_over,
           canCancelTakeover: row.fence_id !== null,
           takeoverPending: row.takeover_pending,
           driveRequested: row.drive_requested,
-          sendState: sendState(row),
+          sendState: sendState(
+            row.delivery,
+            row.holderId !== viewerId ? row.holderName : undefined,
+          ),
           live: true,
         },
         baton: {
           async run(command) {
-            const call = toStoreCommand(command, row);
+            if (command.kind === "interrupt") {
+              const store = useInboxStore.getState();
+              const current = store.fencedSteerClaims[scope];
+              if (
+                !current ||
+                current.viewer !== viewerId ||
+                !command.expected.address ||
+                !canStopSteerCommand(current, command.expected.address) ||
+                !(
+                  current.owner ||
+                  commandsSession(
+                    store.conversations[scope] ?? store.sessions[scope] ?? {},
+                    viewerId,
+                  )
+                )
+              )
+                return "refused";
+              await store.sendEscape(scope);
+              return "accepted";
+            }
+            const call = toStoreCommand(command, row.fence_id);
             if (!call) return "refused";
             const result = await useInboxStore
               .getState()
@@ -148,13 +246,26 @@ export function useSessionComposerControl(
   fallback: ComposerControlFlag | undefined,
   enabled: boolean,
 ) {
-  const live = useLiveComposerControl(
-    conversationId,
-    viewerId,
-    enabled && !fallback && import.meta.env.VITE_SWARM_TURN_BATON === "1",
+  const args = entityIdArgs(
+    "conversation_id",
+    enabled &&
+      !fallback &&
+      viewerId &&
+      import.meta.env.VITE_SWARM_TURN_BATON === "1"
+      ? conversationId
+      : undefined,
   );
+  const scope = args === "skip" ? undefined : args.conversation_id;
+  const live = useLiveComposerControl(scope, viewerId);
   const control = enabled ? (fallback ?? live) : undefined;
-  return conversationId && selectComposerControl(control, conversationId)
-    ? control
-    : undefined;
+  return {
+    control:
+      conversationId && selectComposerControl(control, conversationId)
+        ? control
+        : undefined,
+    feeder:
+      scope && viewerId
+        ? createElement(SteerClaimFeeder, { scope, viewerId })
+        : null,
+  };
 }

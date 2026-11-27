@@ -6816,13 +6816,14 @@ const ConversationViewInner = function ConversationView(
     [roleSend.wakeRole, roleSend.setRecipient],
   );
   const feedObservedTurn = showMessageInput && !guest && effectiveIsOwner;
-  const scopedComposerControl = useSessionComposerControl(
-    conversation?._id,
-    currentUser?._id,
-    composerControl,
-    showMessageInput &&
-      !(guest || newSessionPage || onSendOverride || onSubmitWithIntent),
-  );
+  const { control: scopedComposerControl, feeder: steerClaimFeeder } =
+    useSessionComposerControl(
+      conversation?._id,
+      currentUser?._id,
+      composerControl,
+      showMessageInput &&
+        !(guest || newSessionPage || onSendOverride || onSubmitWithIntent),
+    );
   const ownerComposerMounted = !!(
     showMessageInput &&
     conversation &&
@@ -6925,6 +6926,7 @@ const ConversationViewInner = function ConversationView(
                                       conversationId={conversation?._id}
                                     />
                                   )}
+                                  {steerClaimFeeder}
                                   {isDragging &&
                                     !isHostedAgentType(
                                       conversation?.agent_type,
