@@ -1,5 +1,8 @@
 import { test } from "bun:test";
-import { parseEventsAppendRequest } from "@codecast/edge-contract";
+import {
+  parseClaimResponse,
+  parseEventsAppendRequest,
+} from "@codecast/edge-contract";
 import { expectParsed, expectParseError } from "./assertions";
 import fixture from "./fixtures/events.append.json";
 
@@ -231,4 +234,39 @@ test.each([
     batches: [{ ...batch, events: [{ ...event, body }] }],
   });
   expectParseError(result, code, `$.batches[0].events[0].body.${path}`);
+});
+
+test("the run grant negotiates terminal events without requiring a field from old servers", () => {
+  const grant = {
+    v: 1,
+    status: "granted",
+    session: "session",
+    run: 3,
+    fencing_token: "token",
+    lease_ms: 5000,
+    last_pane_instance: 4,
+  };
+  expectParsed(parseClaimResponse(grant), grant);
+  const capable = { ...grant, terminal_lifecycle: true };
+  expectParsed(parseClaimResponse(capable), capable);
+  expectParseError(
+    parseClaimResponse({ ...grant, terminal_lifecycle: "true" }),
+    "invalid_type",
+    "$.terminal_lifecycle",
+  );
+});
+
+test("an event batch from an old daemon needs no terminal lifecycle records", () => {
+  const legacy = {
+    v: 1,
+    batches: [
+      {
+        ...batch,
+        events: batch.events.filter(
+          (event) => event.kind === "session.started",
+        ),
+      },
+    ],
+  };
+  expectParsed(parseEventsAppendRequest(legacy), legacy);
 });
