@@ -108,7 +108,10 @@ export function fixtureHooks(executable: string) {
       }
       function wait<T>(
         label: string,
-        subscribe: (resolve: (value: T) => void) => () => void,
+        subscribe: (
+          resolve: (value: T) => void,
+          onCleanup: (fn: () => void) => void,
+        ) => (() => void) | void,
         timeoutMs = DEFAULT_WAIT_MS,
       ): Promise<T> {
         if (aborted)
@@ -117,13 +120,14 @@ export function fixtureHooks(executable: string) {
           );
         return new Promise<T>((resolve, reject) => {
           let done = false;
+          let cleanup: (() => void) | undefined;
           let unsubscribe: (() => void) | undefined;
           const finish = (complete: () => void) => {
             if (done) return;
             done = true;
             clearTimeout(timer);
             abortListeners.delete(onAbort);
-            unsubscribe?.();
+            (unsubscribe ?? cleanup)?.();
             complete();
           };
           const onAbort = (error: Error) =>
@@ -143,7 +147,13 @@ export function fixtureHooks(executable: string) {
           );
           abortListeners.add(onAbort);
           try {
-            unsubscribe = subscribe((value) => finish(() => resolve(value)));
+            const returned = subscribe(
+              (value) => finish(() => resolve(value)),
+              (fn) => {
+                cleanup = fn;
+              },
+            );
+            if (returned) unsubscribe = returned;
           } catch (error) {
             finish(() => reject(error));
           }
@@ -281,10 +291,10 @@ export function ipcCommands(
       const id = `barrier:${String(++counter).padStart(6, "0")}`;
       await attachHandle.wait<void>(
         id,
-        (resolve) => {
+        (resolve, onCleanup) => {
+          onCleanup(() => barriers.delete(id));
           barriers.set(id, resolve);
           attachHandle.send({ ...command, barrier: id });
-          return () => barriers.delete(id);
         },
         timeoutMs,
       );
