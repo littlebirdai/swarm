@@ -48,7 +48,7 @@ Set `VITE_RELAY_INBOX_LIVENESS=1` to enable the web inbox contact indicator. The
 
 The sync host watches up to 64 mounted inbox sessions. The target query checks full conversation access and the current fenced binding. Relay subscription grants repeat the conversation access check. A run or binding change removes the old observation. Followers use the replicated Convex facts.
 
-The contact indicator reads a separate memory-only store. Each relay heartbeat makes zero IndexedDB writes, including when the liveness lane flushes. The legacy Convex heartbeat fixture writes one row for a changed lease deadline. Convex still owns expiry, status, placement, and the digest. Relay contact can add an indicator while the durable lease is live. It cannot extend that lease. The machine publisher and durable epoch contract remain separate steps.
+The contact indicator reads window-local inbox store slices that are not persisted or replicated. Each relay heartbeat makes zero IndexedDB writes, including when the liveness lane flushes. The legacy Convex heartbeat fixture writes one row for a changed lease deadline. Convex still owns expiry, status, placement, and the digest. Relay contact can add an indicator while the durable lease is live. It cannot extend that lease. The machine publisher and durable epoch contract remain separate steps.
 
 ## Inbox contract and field ownership
 
