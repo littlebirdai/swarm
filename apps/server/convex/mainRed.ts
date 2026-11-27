@@ -684,7 +684,6 @@ export const recheck = internalAction({
     return await lost();
   },
 });
-
 /** A newer attempt the webhook never delivered, found by `recheck`. */
 export const reclaim = internalMutation({
   args: {
@@ -698,6 +697,8 @@ export const reclaim = internalMutation({
     if (!row || row.attempt !== args.from) return;
     await ctx.db.patch(row._id, {
       attempt: args.attempt,
+      state: row.state === "rerunning" ? row.state : "judging",
+      judge_error: row.state === "rerunning" ? row.judge_error : undefined,
       updated_at: Date.now(),
     });
     await claimAttempt(ctx, row._id, args.attempt, args.ok);

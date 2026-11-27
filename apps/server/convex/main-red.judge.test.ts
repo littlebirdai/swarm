@@ -40,7 +40,7 @@ describe("judge, on what GitHub said about two real runs", () => {
     jobs: (run: string) => any;
     logs: Record<string, string>;
     rerun?: Response;
-    run?: any;
+    run?: Record<string, unknown> | (() => Promise<Response>);
     file?: string | null;
   }) {
     const calls: string[] = [];
@@ -61,7 +61,9 @@ describe("judge, on what GitHub said about two real runs", () => {
       )
         return responses.rerun?.clone() ?? new Response(null, { status: 201 });
       if (responses.run && /\/actions\/runs\/\d+$/.test(url.pathname))
-        return Response.json(responses.run);
+        return typeof responses.run === "function"
+          ? responses.run()
+          : Response.json(responses.run);
       if (
         url.pathname.endsWith("/contents/.github/workflows/ci.yml") &&
         responses.file !== null
@@ -455,6 +457,62 @@ describe("judge, on what GitHub said about two real runs", () => {
     }
     expect(await w.events("ci_flake")).toHaveLength(1);
     expect(await w.events("main_red")).toHaveLength(0);
+  });
+
+  test("a recheck reclaims a failed rerun after the old attempt settles during its GitHub request", async () => {
+    const w = await connected();
+    const { RED_RUN, RED_SHA } = recorded;
+    const requested = Promise.withResolvers<void>();
+    const response = Promise.withResolvers<Response>();
+    let attempt = 1;
+    const gh = github({
+      jobs: () => {
+        if (attempt === 1) throw new Error("fetch failed: ECONNRESET");
+        return recorded.RED_JOBS_A2;
+      },
+      logs: recorded.RED_LOGS,
+      run: () => {
+        requested.resolve();
+        return response.promise;
+      },
+    });
+    try {
+      const first = await w.finish(RED_RUN, RED_SHA, attempt, "failure");
+      expect(first?.judge_error).toBe("fetch failed: ECONNRESET");
+      const run = first!._id;
+      const readRun = () => w.t.run((ctx) => ctx.db.get(run));
+      const recheck = w.t.action(internal.mainRed.recheck, { run, attempt });
+      await Promise.race([requested.promise, recheck]);
+      try {
+        await w.t.mutation(internal.mainRed.judgeFailed, {
+          run,
+          attempt,
+          ok: false,
+          tries: 2,
+          error: "fetch failed: ECONNRESET",
+        });
+        expect(await w.t.query(internal.mainRed.runRow, { run })).toMatchObject(
+          { state: "lost" },
+        );
+      } finally {
+        attempt = 2;
+        response.resolve(
+          Response.json({
+            status: "completed",
+            conclusion: "failure",
+            run_attempt: attempt,
+          }),
+        );
+      }
+      expect(await recheck).toBe("reclaimed");
+      expect(await readRun()).toMatchObject({ state: "judging" });
+      expect((await readRun())?.judge_error).toBeUndefined();
+      jest.advanceTimersByTime(0);
+      await w.t.finishInProgressScheduledFunctions();
+      expect(await readRun()).toMatchObject({ state: "red", attempt: 2 });
+    } finally {
+      gh.restore();
+    }
   });
 
   test("a judge retries twice before marking the run lost, then judges a manual rerun", async () => {
