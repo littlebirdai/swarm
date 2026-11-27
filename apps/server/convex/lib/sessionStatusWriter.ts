@@ -12,6 +12,7 @@ import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { pendingQueueRelinkOwner } from "./pending-queue-relink.state";
 import { statusWriteIsStale, type StatusStamps } from "./heartbeatPatch";
 import {
   heartbeatRow,
@@ -453,10 +454,24 @@ type PendingMessageFields = Omit<
   "_id" | "_creationTime"
 >;
 
-export function writePendingStatus(
+type PendingStatusTarget = Pick<
+  Doc<"pending_messages">,
+  "_id" | "conversation_id" | "delivery_protocol_version"
+> & { status: string; _creationTime?: number };
+
+export async function writePendingStatus(
   ctx: Pick<MutationCtx, "db">,
-  id: Id<"pending_messages">,
+  target: Id<"pending_messages"> | PendingStatusTarget,
   fields: Pick<PendingMessageFields, "status"> & Partial<PendingMessageFields>,
 ) {
+  const id = typeof target === "string" ? target : target._id;
+  if (fields.status === "delivered" || fields.status === "cancelled") {
+    const row =
+      typeof target === "string" || target._creationTime === undefined
+        ? await ctx.db.get(id)
+        : target;
+    const owner = row && (await pendingQueueRelinkOwner(ctx.db, row));
+    if (owner) return ctx.db.patch(id, { ...fields, owner_user_id: owner });
+  }
   return ctx.db.patch(id, fields);
 }

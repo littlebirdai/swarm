@@ -587,3 +587,57 @@ test("deleting a conversation during relink clears the marker without touching i
   expect(await f.t.run(({ db }) => db.get(ids[1000]!))).toEqual(tail);
   expect(await lastContinuation(f)).toEqual(last);
 });
+
+test.each(["markMessageDelivered", "updateAgentStatus"] as const)(
+  "%s transfers ownership when it settles a row before the relink cursor",
+  async (path) => {
+    jest.useFakeTimers();
+    const f = await claimFixture();
+    const target = (await insertMessages(f, 1030)).at(-1)!;
+    await f.t.run(({ db }) =>
+      db.patch(target, { status: "injected", paste_verified_at: Date.now() }),
+    );
+    expect(await f.claim()).toEqual({ moved: 1, more: false });
+    const first = await lastContinuation(f);
+    await f.t.mutation(continueRelink, first.args);
+    expect(await f.t.run(({ db }) => db.get(target))).toMatchObject({
+      status: "injected",
+      owner_user_id: f.previous,
+    });
+
+    await f.t.run(({ db }) =>
+      fixtureRows(db, "next runner daemon").session(f.next, {
+        conversation_id: f.conversation,
+        agent_status: "idle",
+      }),
+    );
+    if (path === "markMessageDelivered") {
+      expect(
+        await f.t.mutation(api.managedSessions.markMessageDelivered, {
+          api_token: f.apiToken,
+          message_id: target,
+        }),
+      ).toEqual({ success: true });
+    } else {
+      expect(
+        await f.t.mutation(api.managedSessions.updateAgentStatus, {
+          api_token: f.apiToken,
+          conversation_id: f.conversation,
+          agent_status: "working",
+        }),
+      ).toEqual({ applied: true });
+    }
+    await f.t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    expect(await f.t.run(({ db }) => db.get(first.args.jobId))).toBeNull();
+    expect(await f.t.run(({ db }) => db.get(target))).toMatchObject({
+      status: "delivered",
+      owner_user_id: f.next,
+    });
+    const status = (user: Id<"users">) =>
+      asUser(f.t, user).query(api.pendingMessages.getMessageStatus, {
+        message_id: target,
+      });
+    await expect(status(f.previous)).rejects.toThrow("Unauthorized");
+    expect(await status(f.next)).toMatchObject({ status: "delivered" });
+  },
+);

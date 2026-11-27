@@ -897,7 +897,7 @@ export const markMessageDelivered = mutation({
       return { success: true, skipped: true };
     }
 
-    await writePendingStatus(ctx, args.message_id, {
+    await writePendingStatus(ctx, message, {
       status: "delivered" as const,
       delivered_at: Date.now(),
     });
@@ -1145,7 +1145,7 @@ async function applyAgentStatus(
     ).filter((msg: any) => ackableInjectedRow(msg));
     const now = Date.now();
     for (const msg of injected) {
-      await writePendingStatus(ctx, msg._id, {
+      await writePendingStatus(ctx, msg, {
         status: "delivered" as const,
         delivered_at: now,
       });

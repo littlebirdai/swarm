@@ -258,14 +258,13 @@ export async function patchPendingMessageStatus(
   // Leaving the unconfirmed state (a late echo, a cancel) drops the reason with it.
   const leavesUnconfirmed =
     isUnconfirmedRow(message) && patch.status !== "failed";
-  const owner = isTerminalPendingStatus(patch.status)
-    ? await pendingQueueRelinkOwner(ctx.db, message)
-    : undefined;
-  await writePendingStatus(ctx, message._id, {
-    ...patch,
-    ...(leavesUnconfirmed ? { delivery_disposition_reason: undefined } : {}),
-    ...(owner ? { owner_user_id: owner } : {}),
-  });
+  await writePendingStatus(
+    ctx,
+    message,
+    leavesUnconfirmed
+      ? { ...patch, delivery_disposition_reason: undefined }
+      : patch,
+  );
   if (patch.status === "delivered")
     await clearPaneRefused(ctx, message.conversation_id);
   if (patch.status === "delivered" || patch.status === "cancelled") {
@@ -1922,15 +1921,9 @@ export async function mergeQueuedForUser(
     channel: undefined,
     typed_text: undefined,
   });
-  const owner = await pendingQueueRelinkOwner(
-    ctx.db,
-    absorb,
-    conversation.user_id,
-  );
-  await writePendingStatus(ctx, absorb._id, {
+  await writePendingStatus(ctx, absorb, {
     status: "cancelled" as const,
     merged_into: keep._id,
-    ...(owner ? { owner_user_id: owner } : {}),
   });
   return "merged";
 }
@@ -3828,13 +3821,8 @@ export const cancelOldPendingMessages = internalMutation({
     const affectedConvs = new Set<Id<"conversations">>();
     for (const row of selected) {
       affectedConvs.add(row.conversation_id);
-      if (!args.dry_run) {
-        const owner = await pendingQueueRelinkOwner(ctx.db, row);
-        await writePendingStatus(ctx, row._id, {
-          status: "cancelled",
-          ...(owner ? { owner_user_id: owner } : {}),
-        });
-      }
+      if (!args.dry_run)
+        await writePendingStatus(ctx, row, { status: "cancelled" });
     }
     if (!args.dry_run) {
       for (const convId of affectedConvs) {
