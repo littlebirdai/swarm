@@ -443,6 +443,9 @@ export function fixture(
   const releasing = Promise.withResolvers<void>();
   let release: Promise<void> | undefined;
   let lastSeq = 0;
+  let terminalLifecycle = false;
+  let terminalStartFailure: "once" | "400" | "conflict" | "503" | undefined;
+  const terminalStartAttempts: number[] = [];
   const network = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
       async (
@@ -464,6 +467,7 @@ export function fixture(
               lease_ms: renewal ? 10 : 60_000,
               last_pane_instance: 0,
               last_event_seq: lastSeq,
+              ...(terminalLifecycle && { terminal_lifecycle: true }),
             })
           );
         }
@@ -536,9 +540,33 @@ export function fixture(
           if (lease === "renewed-lease" && batch.events[0].kind === "receipt")
             await receiptReplay;
           expect(batch.fencing_token).toBe(lease);
-          expect(batch.events[0].seq).toBe(lastSeq + 1);
-          events.push(...batch.events);
-          lastSeq = batch.events[0].seq;
+          const first = batch.events[0];
+          if (first.kind === "terminal.started") {
+            terminalStartAttempts.push(first.seq);
+            if (terminalStartFailure === "conflict")
+              return Response.json({
+                v: 1,
+                results: [
+                  { session: "pilot", status: "conflict", seq: first.seq },
+                ],
+              });
+            if (terminalStartFailure) {
+              const status = terminalStartFailure === "400" ? 400 : 503;
+              if (terminalStartFailure === "once")
+                terminalStartFailure = undefined;
+              return new Response(null, { status });
+            }
+          }
+          if (batch.abandon_terminal_seq === lastSeq + 1) {
+            expect(batch.events).toHaveLength(1);
+            expect(first.kind).not.toStartWith("terminal.");
+            lastSeq++;
+          }
+          for (const event of batch.events) {
+            expect(event.seq).toBe(lastSeq + 1);
+            events.push(event);
+            lastSeq = event.seq;
+          }
           return Response.json({
             v: 1,
             results: [
@@ -634,6 +662,11 @@ export function fixture(
       const resume = Promise.withResolvers<void>();
       permitRead = { started: started.resolve, resume: resume.promise };
       return { started: started.promise, resume: resume.resolve };
+    },
+    terminalStartAttempts,
+    failTerminalStart(mode: typeof terminalStartFailure) {
+      terminalLifecycle = true;
+      terminalStartFailure = mode;
     },
     rejectSettlements(value: boolean) {
       refuseSettlement = value;

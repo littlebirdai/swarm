@@ -47,6 +47,7 @@ export const CONVERSATION_ROW_TABLES: ReadonlyArray<readonly [string, string]> =
     ["delivery_attempts", "by_conversation_sequence"],
     ["edge_prompt_answers", "by_conversation_prompt"],
     ["run_event_cursors", "by_conversation_run"],
+    ["run_terminal_panes", "by_conversation_run_pane"],
     ["run_turn_projections", "by_conversation_run"],
     ["execution_bindings", "by_conversation_epoch"],
     ["conversation_execution_heads", "by_conversation"],

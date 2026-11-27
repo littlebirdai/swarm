@@ -1,6 +1,7 @@
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { applyHeartbeat } from "../sessionStatusWriter";
 import { steerBatonEnabled } from "./baton-capabilities.rules";
+import { terminalEventsEnabled } from "./terminal-events.state";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   TURN_PROJECTION_VERSION,
@@ -260,6 +261,7 @@ export async function claimRunLease(
     fencing_token: fencingToken,
     lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
+    ...(terminalEventsEnabled() && { terminal_lifecycle: true }),
     last_event_seq: await activateEventRun(ctx, binding, now),
   } as const;
 }
@@ -331,11 +333,17 @@ export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
 
 export async function appendClaimedEvents(
   ctx: MutationCtx,
-  args: Fence & { events_json: string },
+  args: Fence & { events_json: string; abandon_terminal_seq?: number },
 ): Promise<AppendResult> {
   const now = Date.now();
   const current = await currentClaim(ctx, args, now);
   if (!current) return { session: args.conversation_id, status: "stale" };
   const events = JSON.parse(args.events_json) as readonly CanonicalEvent[];
-  return appendRunEvents(ctx, current.binding, events, now);
+  return appendRunEvents(
+    ctx,
+    current.binding,
+    events,
+    now,
+    args.abandon_terminal_seq,
+  );
 }

@@ -1,4 +1,8 @@
 import { bindingHasBatonCapability } from "./baton-capabilities.rules";
+import {
+  retainTerminalEvents,
+  terminalEventsEnabled,
+} from "./terminal-events.state";
 import type {
   CanonicalEvent,
   EdgeJson,
@@ -312,6 +316,7 @@ export async function appendRunEvents(
   binding: Doc<"execution_bindings">,
   events: readonly CanonicalEvent[],
   now: number,
+  abandonTerminalSeq?: number,
 ): Promise<AppendResult> {
   const session = String(binding.conversation_id);
   const cursor = await eventCursor(ctx, binding.conversation_id, binding.epoch);
@@ -319,8 +324,24 @@ export async function appendRunEvents(
   const suffix = events.filter(({ seq }) => seq > base);
   const first = suffix[0];
   if (!first) return { session, status: "appended", through_seq: base };
-  if (first.seq !== base + 1)
-    return { session, status: "gap", expected_seq: base + 1 };
+  if (first.seq !== base + 1) {
+    if (abandonTerminalSeq !== base + 1 || first.seq !== base + 2)
+      return { session, status: "gap", expected_seq: base + 1 };
+    suffix.unshift({
+      ...first,
+      seq: abandonTerminalSeq,
+      kind: "context",
+      body: { data: null },
+      source: "observed",
+      turn: null,
+    });
+  }
+
+  if (terminalEventsEnabled()) {
+    const conflict = await retainTerminalEvents(ctx, binding, suffix, now);
+    if (conflict !== undefined)
+      return { session, status: "conflict", seq: conflict };
+  }
 
   const row = await turnProjection(ctx, binding);
   if (

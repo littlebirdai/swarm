@@ -1,6 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { question } from "../../../../tests/codex-driver-parity/recording.js";
+import { observeClaimedTerminal } from "../terminal/terminal-lifecycle.js";
 import {
   bindingFor,
   fixture,
@@ -240,3 +241,74 @@ test("a granted lease is retained if the provider never opened", async () => {
     await f.dispose();
   }
 });
+
+test.each([
+  ["once", 2],
+  ["conflict", 1],
+  ["400", 1],
+  ["503", 2],
+] as const)(
+  "owned Codex keeps its provider stream when terminal start fails with %s",
+  async (failure, attempts) => {
+    const f = fixture();
+    const original = process.env.CODECAST_DIR;
+    process.env.CODECAST_DIR = f.journalDirectory;
+    try {
+      f.failTerminalStart(failure);
+      await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+      await observeClaimedTerminal("pilot", "pane", "owner")?.catch(() => {});
+      f.appServer.send({
+        frames: [
+          {
+            id: "terminal-recovery-question",
+            method: "item/tool/requestUserInput",
+            params: {
+              threadId: f.appServer.thread,
+              turnId: f.appServer.turn(3),
+              itemId: "ask-item",
+              questions: [question],
+            },
+          },
+        ],
+      });
+      await until(
+        () => f.promptMessages.length === 1,
+        "publish after recovering the terminal write",
+      );
+      expect(f.actions).not.toContain("edge:release");
+
+      await f.runtime.stop();
+      expect(f.terminalStartAttempts).toEqual(Array(attempts).fill(2));
+      expect(
+        f.events
+          .filter(({ seq }) => seq <= 5)
+          .map(({ seq, kind }) => [seq, kind]),
+      ).toEqual([
+        [1, "session.started"],
+        ...(failure === "once" ? [[2, "terminal.started" as const]] : []),
+        [3, "turn.started"],
+        [4, "prompt.opened"],
+        [5, "context"],
+      ]);
+      if (failure === "once") {
+        expect(f.events.at(-1)).toMatchObject({
+          seq: 6,
+          kind: "terminal.ended",
+          body: { pane_instance: 1, outcome: { kind: "lost" } },
+        });
+      }
+      if (failure === "conflict" || failure === "400")
+        expect(f.events.some(({ kind }) => kind.startsWith("terminal."))).toBe(
+          false,
+        );
+      expect(f.actions).toContain("edge:release");
+    } finally {
+      try {
+        await f.dispose();
+      } finally {
+        if (original === undefined) delete process.env.CODECAST_DIR;
+        else process.env.CODECAST_DIR = original;
+      }
+    }
+  },
+);

@@ -39,6 +39,7 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "claims", field: "holder", index: "by_holder" },
     { table: "claims", field: "request_holder", index: "by_request_holder" },
     { table: "run_event_cursors", field: "owner_user_id", index: "by_owner" },
+    { table: "run_terminal_panes", field: "owner_user_id", index: "by_owner" },
     {
       table: "run_turn_projections",
       field: "owner_user_id",

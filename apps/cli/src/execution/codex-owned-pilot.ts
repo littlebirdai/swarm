@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { TerminalEventRejected } from "../terminal/terminal-lifecycle.js";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
@@ -7,7 +8,6 @@ import type { ClaimGrant } from "@codecast/edge-client";
 import {
   EDGE_PROTOCOL_VERSION as v,
   parseClaimResponse,
-  parseEventsAppendResponse,
   parseReleaseResponse,
   parseRenewResponse,
   type CanonicalEvent,
@@ -40,6 +40,7 @@ import {
   deliveryFence,
   readEdge,
 } from "./codex-pilot-delivery.js";
+import { CodexPilotEvents } from "./codex-pilot-events.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
@@ -150,6 +151,10 @@ export class CodexOwnedPilot {
   private session?: ProviderOwnedSession;
   private opening?: Promise<ProviderOwnedSession>;
   private eventWriter?: Promise<void>;
+  private readonly events = new CodexPilotEvents(
+    this.edge.bind(this),
+    (message) => this.options.log(message),
+  );
   private claim?: ClaimGrant;
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
@@ -383,10 +388,17 @@ export class CodexOwnedPilot {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
       },
     );
-    if (!response.ok)
-      throw new Error(
-        `Owned Codex ${operation} failed with HTTP ${response.status}`,
-      );
+    if (!response.ok) {
+      const message = `Owned Codex ${operation} failed with HTTP ${response.status}`;
+      if (
+        operation === "events.append" &&
+        response.status >= 400 &&
+        response.status < 500 &&
+        ![408, 425, 429].includes(response.status)
+      )
+        throw new TerminalEventRejected(message);
+      throw new Error(message);
+    }
     return response;
   }
 
@@ -461,8 +473,9 @@ export class CodexOwnedPilot {
       checkpoint: checkpoint.threadId,
       inDoubtDeliveryIds: pending ? [pending.delivery_id] : [],
     });
+    this.events.prepare(claim);
     if (previous === 0) {
-      await this.append(claim, {
+      const event: CanonicalEvent = {
         v,
         session: claim.session,
         run: claim.run,
@@ -472,8 +485,10 @@ export class CodexOwnedPilot {
         turn: null,
         kind: "session.started",
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
-      });
+      };
+      await this.events.appendEvent(claim, event);
     }
+    await this.events.startWatching();
     const session = this.session;
     const recovery =
       previous > 0 && this.options.bearer && session.getPendingPrompts
@@ -545,7 +560,7 @@ export class CodexOwnedPilot {
     for await (const event of session.events) {
       this.streamProgress++;
       if (event.kind === "message.delta") continue;
-      await this.append(claim, event);
+      await this.events.appendEvent(claim, event);
       await this.delivery.observe(event, session, this.controller.signal);
       await this.promptCards
         .publish(event, claim, session, syncService, () => {
@@ -619,27 +634,6 @@ export class CodexOwnedPilot {
     }
   }
 
-  private async append(
-    claim: ClaimGrant,
-    event: CanonicalEvent,
-  ): Promise<void> {
-    const response = await this.edge(
-      "events.append",
-      {
-        v,
-        batches: [{ ...deliveryFence(claim), events: [event] }],
-      },
-      parseEventsAppendResponse,
-    );
-    const result = "results" in response ? response.results[0] : undefined;
-    if (
-      result?.status !== "appended" ||
-      result.session !== claim.session ||
-      result.through_seq !== event.seq
-    )
-      throw new Error("Owned Codex event sequence was not confirmed");
-  }
-
   private scheduleRenewal(claim: ClaimGrant, duration: number): void {
     if (this.controller.signal.aborted) return;
     this.renewal = setTimeout(() => {
@@ -703,6 +697,7 @@ export class CodexOwnedPilot {
     this.session = undefined;
     const outcome = await session?.close();
     await this.eventWriter;
+    await this.events.close();
     await this.promptCards
       .closeAll(
         this.conversationId,

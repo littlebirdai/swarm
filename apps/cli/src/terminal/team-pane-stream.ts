@@ -13,6 +13,11 @@ import { tmuxRunAsync } from "../tmux.js";
 import { redactTeamScreen } from "./team-pane-redaction.js";
 
 import { exactTypingTarget, WATCH_PANE_IDENTITY } from "./tmux-typing-pane.js";
+import {
+  observeClaimedTerminal,
+  isTerminalOwnerId,
+  type TerminalEnd,
+} from "./terminal-lifecycle.js";
 const MAX_PUSH_FAILURES = 6;
 
 export async function captureTeamPane(target: string) {
@@ -70,6 +75,9 @@ type StreamDeps = {
     | ReturnType<typeof captureTeamPane>
     | Awaited<ReturnType<typeof captureTeamPane>>;
   redactionReady?: () => boolean;
+  observePane?: (
+    identity: string,
+  ) => Promise<TerminalEnd | undefined> | undefined;
   push: (frame: Frame) => Promise<boolean | null>;
   now: () => number;
   sleep: (ms: number) => Promise<void>;
@@ -83,32 +91,41 @@ export async function streamTeamPane(
   let lastFrame: string | undefined;
   let lastPushAt = 0;
   let failures = 0;
-  for (;;) {
-    if (deps.redactionReady?.() === false) return;
-    const pane = await deps.capture(target);
-    if (deps.redactionReady?.() === false) return;
-    if (!pane || (paneInstance && pane.identity !== paneInstance)) {
-      await deps.push({});
-      return;
-    }
-    paneInstance = pane.identity;
-    const frame = redactTeamScreen(pane.text).slice(0, PANE_MAX_FRAME_BYTES);
-    const changed = frame !== lastFrame;
-    if (changed || deps.now() - lastPushAt >= PANE_HEARTBEAT_MS) {
-      const stop = await deps.push({
-        pane_instance: pane.identity,
-        ...(changed ? { frame } : {}),
-      });
-      if (stop === true) return;
-      if (stop === null) {
-        if (++failures >= MAX_PUSH_FAILURES) return;
-      } else {
-        failures = 0;
-        lastFrame = frame;
-        lastPushAt = deps.now();
+  let end: TerminalEnd | undefined;
+  let outcome: Parameters<TerminalEnd>[0] = { kind: "lost" };
+  try {
+    for (;;) {
+      if (deps.redactionReady?.() === false) return;
+      const pane = await deps.capture(target);
+      if (deps.redactionReady?.() === false) return;
+      if (!pane || (paneInstance && pane.identity !== paneInstance)) {
+        if (pane) outcome = { kind: "replaced" };
+        await deps.push({});
+        return;
       }
+      paneInstance = pane.identity;
+      if (!end)
+        end = await deps.observePane?.(pane.identity)?.catch(() => undefined);
+      const frame = redactTeamScreen(pane.text).slice(0, PANE_MAX_FRAME_BYTES);
+      const changed = frame !== lastFrame;
+      if (changed || deps.now() - lastPushAt >= PANE_HEARTBEAT_MS) {
+        const stop = await deps.push({
+          pane_instance: pane.identity,
+          ...(changed ? { frame } : {}),
+        });
+        if (stop === true) return;
+        if (stop === null) {
+          if (++failures >= MAX_PUSH_FAILURES) return;
+        } else {
+          failures = 0;
+          lastFrame = frame;
+          lastPushAt = deps.now();
+        }
+      }
+      await deps.sleep(PANE_CAPTURE_INTERVAL_MS);
     }
-    await deps.sleep(PANE_CAPTURE_INTERVAL_MS);
+  } finally {
+    await end?.(outcome).catch(() => {});
   }
 }
 
@@ -168,6 +185,14 @@ export async function startTeamPaneStream(
     );
   }
 
+  const conversation =
+    "conversation_id" in args && typeof args.conversation_id === "string"
+      ? args.conversation_id
+      : undefined;
+  const owner =
+    "owner_id" in args && isTerminalOwnerId(args.owner_id)
+      ? args.owner_id
+      : undefined;
   const { stream_id, pane_instance } = args as {
     stream_id: string;
     pane_instance: string;
@@ -182,6 +207,11 @@ export async function startTeamPaneStream(
         {
           capture: captureTeamPane,
           redactionReady: terminalRedactionReady,
+          observePane:
+            conversation && owner
+              ? (identity) =>
+                  observeClaimedTerminal(conversation, identity, owner)
+              : undefined,
           now: Date.now,
           sleep: Bun.sleep,
           push: async (frame) => {

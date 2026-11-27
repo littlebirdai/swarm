@@ -48,3 +48,25 @@ Deploy the Convex server changes before the web client that calls the team termi
 ## Simulation of the turn baton and relay
 
 The multiplayer simulator covers the proposed turn baton, takeover fence, relay outage, and late join. It checks who drives, which messages reach the agent, and what stays in the composer. It also checks a budget of zero extra writes for a solo session. The scenarios run against an in-memory contract. See the [collaboration scenarios](multiplayer-sim-harness.md#collaboration-contracts).
+
+### Terminal lifecycle events
+
+When `CODECAST_EDGE_TERMINAL_EVENTS=1` on the server, a run grant
+advertises terminal lifecycle support. The machine appends a start and an
+end for a watched pane through the run's ordered event writer. Convex
+retains the latest 128 pane instances per run for up to seven days from
+each pane's last recorded transition. Screen content and input are outside
+those records. The writer retries an unconfirmed terminal event once
+with its original sequence, at least one second after the first failure.
+If the server rejects it or the retry fails, the writer sends the
+provider event on its own with the abandoned sequence number. Convex
+advances past the abandoned slot in the same write as the provider event
+and preserves any terminal event it already recorded there. A pane can
+still end if its first start request lost its response. Once Convex
+records an end, it refuses new starts for that run and pane instance.
+The feature is off by default.
+
+Existing daemons and legacy terminal watches keep their current frame
+protocol. Legacy watched sessions have no canonical run claim and emit no
+durable terminal events. Coverage expands as the fenced execution rollout
+gives those sessions a run and an event writer.

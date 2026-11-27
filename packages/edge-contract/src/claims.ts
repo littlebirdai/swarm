@@ -1,6 +1,7 @@
 import { RELAY_MAX_GRANTS_PER_TOKEN } from "@codecast/relay-contract";
 import {
   array,
+  boolean,
   count,
   EdgeParseError,
   nonEmptyString,
@@ -36,6 +37,7 @@ const claimResponse = response(
       lease_ms: positiveInteger,
       last_pane_instance: count,
       last_event_seq: optional(count),
+      terminal_lifecycle: optional(boolean),
     }),
     busy: responseObject({
       v: readV1,
