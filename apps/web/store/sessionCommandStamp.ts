@@ -1,4 +1,4 @@
-// The one writer of a painted sessionCommands row (lib/sessionCommands). A new
+// The one writer of a painted sessionCommands row (lib/session-commands). A new
 // request for the same target replaces the last (a conversation, or a machine
 // for a switch), and rows age out after a day. A line edit's target is one
 // project's keys: an edit replaces a settled one on the same keys, and edits
@@ -55,7 +55,12 @@ function sameTarget(
 // Each rewind step stands beside the others: a put back in flight must not
 // erase the stage row the review is waiting on.
 function laneOf(row: Record<string, any>): string {
-  if (row.kind === "interrupt" || row.kind === "backend") return row.kind;
+  if (
+    row.kind === "interrupt" ||
+    row.kind === "backend" ||
+    row.kind === "force-move"
+  )
+    return row.kind;
   if (row.kind === "rewind") return `rewind:${row.op}`;
   return "session";
 }

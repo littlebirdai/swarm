@@ -187,7 +187,7 @@ import {
   latestSessionCommand,
   requestAccountSwitchCommand,
   switchPending,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import {
   X,

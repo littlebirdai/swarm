@@ -650,6 +650,7 @@ import {
   createLineWorkflowSlice,
   type LineWorkflowSliceActions,
 } from "./lineWorkflowSlice";
+import { forcedMoveActions, type ForcedMoveActions } from "./forced-move-slice";
 import { createLineSlice, type LineSliceActions } from "./lineSlice";
 import { createTrialSlice, type TrialSliceActions } from "./trialSlice";
 import { taskCreateStub, taskStubId } from "./taskStub";
@@ -7849,6 +7850,7 @@ export interface InboxStoreState
     ProjectUpdatesSliceActions,
     LineWorkflowSliceActions,
     LineSliceActions,
+    ForcedMoveActions,
     TrialSliceActions,
     ExpectationsSliceActions,
     OpsSliceActions,
@@ -8485,7 +8487,7 @@ export interface InboxStoreState
     sessionId: string,
     ownerDeviceId: string,
   ) => Promise<any>;
-  /** Move a Claude conversation between tmux and the Agent SDK (lib/sessionCommands requestBackendSwitch). */
+  /** Move a Claude conversation between tmux and the Agent SDK (lib/session-commands requestBackendSwitch). */
   switchClaudeBackend: (
     requestId: string,
     convId: string,
@@ -8493,7 +8495,7 @@ export interface InboxStoreState
     interrupt?: boolean,
   ) => Promise<any>;
   // Daemon commands tracked as sessionCommands rows keyed by requestId (see
-  // lib/sessionCommands): the row paints on the call and the echo settles it.
+  // lib/session-commands): the row paints on the call and the echo settles it.
   restartSession: (
     requestId: string,
     convId: string,
@@ -16334,7 +16336,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // The press time rides along so the daemon can tell an Escape aimed at the
   // previous turn from one for the turn a queued message started after it.
   // The request id binds the press to a sessionCommands row, which the
-  // header reads to say when no daemon took the stop (lib/sessionCommands).
+  // header reads to say when no daemon took the stop (lib/session-commands).
   sendEscape: (convId: string) =>
     get().convCommand(convId, "sendEscapeToSession", {
       pressed_at: Date.now(),
@@ -21881,6 +21883,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
 
   // Line profile edits (store/lineSlice.ts): paint projects.line_profile, ride to the daemon.
   ...createLineSlice(),
+  ...forcedMoveActions,
   // Trial cards (store/trialSlice.ts): a trial run's gate, answered on /trial.
   ...createTrialSlice(),
   ...createExpectationsSlice(answerDecisionDraft),

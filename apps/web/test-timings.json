@@ -934,7 +934,7 @@
     "lib/__tests__/staleDraft.test.ts": 250,
     "lib/__tests__/staleMachines.test.ts": 251,
     "lib/__tests__/standaloneBootGraph.guard.test.ts": 351,
-    "lib/__tests__/storeActionMutations.guard.test.ts": 931,
+    "lib/__tests__/store-action-mutations.guard.test.ts": 931,
     "lib/__tests__/stylePreloads.test.ts": 400,
     "lib/__tests__/supersededReaders.guard.test.ts": 506,
     "lib/__tests__/syncCoreParity.guard.test.ts": 366,

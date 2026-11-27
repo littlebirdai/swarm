@@ -512,7 +512,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   },
   "lib/syncLogCargo.ts:FACT_FIELDS": CONSTANT,
   "lib/tabRoutes.ts:NON_TAB_EXACT": CONSTANT,
-  "lib/sessionCommands.ts:SESSION_COMMAND_ACTIONS": CONSTANT,
+  "lib/session-commands.ts:SESSION_COMMAND_ACTIONS": CONSTANT,
 };
 
 /** One window's `window` bindings, by file. Detached: nothing in it aliases a live binding. */

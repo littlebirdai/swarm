@@ -1,4 +1,4 @@
-// Feeders and readers for the sessionCommands collection (lib/sessionCommands).
+// Feeders and readers for the sessionCommands collection (lib/session-commands).
 import { useMemo } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
@@ -15,7 +15,7 @@ import {
   INTERRUPT_VERDICT_LINGER_MS,
   sessionCommandDeadline,
   type SessionCommandRow,
-} from "../lib/sessionCommands";
+} from "../lib/session-commands";
 
 // A row still waiting on its daemon, keyed by a request id (a row keyed by its
 // command id came from forConversation and is already the server's). A line
@@ -26,7 +26,9 @@ const republishing = (row: any) =>
   typeof row.result === "string" &&
   row.result.includes('"ok":"pending"');
 const awaitingResult = (row: any) =>
-  (!row.executed_at || republishing(row)) && row._id !== row.command_id;
+  row.kind !== "force-move" &&
+  (!row.executed_at || republishing(row)) &&
+  row._id !== row.command_id;
 const unsettledSig = makeCollectionSig((row: any) =>
   awaitingResult(row) ? row._id : "",
 );
@@ -98,7 +100,7 @@ export function useConversationCommands(
 }
 
 /**
- * The verdict on this window's latest stop of a conversation (lib/sessionCommands
+ * The verdict on this window's latest stop of a conversation (lib/session-commands
  * interruptVerdict), with the row it judges. Ticks only while a stop is recent.
  */
 export function useInterruptVerdict(conversationId: string | undefined) {

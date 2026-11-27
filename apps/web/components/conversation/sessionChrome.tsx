@@ -39,6 +39,7 @@ import {
   Loader2,
   ArrowRightLeft,
 } from "lucide-react";
+import { ForcedMoveControl } from "./forced-move-control";
 import { useDevices, useDeviceMoveStatus } from "../DeviceBadge";
 import {
   useProviderKeyCommand,
@@ -1256,15 +1257,23 @@ export function DeviceMoveStatusStrip({
   const { phase, stage, failure, startedAt, restoredLabel, retry, cancel } =
     useDeviceMoveStatus(conversationId);
   return (
-    <RestartStatusStrip
-      phase={phase}
-      stage={stage}
-      failure={failure}
-      startedAt={startedAt}
-      onRetry={retry}
-      onCancel={cancel}
-      restoredLabel={restoredLabel}
-    />
+    <>
+      <RestartStatusStrip
+        phase={phase}
+        stage={stage}
+        failure={failure}
+        startedAt={startedAt}
+        onRetry={retry}
+        onCancel={cancel}
+        restoredLabel={restoredLabel}
+      />
+      {import.meta.env.VITE_CODECAST_FORCED_DEVICE_MOVE_V1 === "1" && (
+        <ForcedMoveControl
+          key={conversationId}
+          conversationId={conversationId}
+        />
+      )}
+    </>
   );
 }
 

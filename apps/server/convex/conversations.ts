@@ -16825,7 +16825,7 @@ export { requireSessionCommandTarget };
 //
 // `request_id` binds the row to the web's sessionCommands row for the press, so
 // a stop no daemon picks up, or one it could not deliver, shows in the header
-// (lib/sessionCommands interruptVerdict). Routed to the owning device like a
+// (lib/session-commands interruptVerdict). Routed to the owning device like a
 // resume: on a broadcast row the first daemon to answer settles it, and a
 // machine without the session answers "No session found" while the owner
 // never sends the keys.

@@ -39,7 +39,7 @@ import {
 } from "../../store/inboxStore";
 import { promptTitle } from "@codecast/hosted-assistant/assistant";
 import { useNowWhen } from "../../hooks/useCoarseNow";
-import { latestRestartRow, restartPending } from "../../lib/sessionCommands";
+import { latestRestartRow, restartPending } from "../../lib/session-commands";
 import { useAckAssignment } from "../../hooks/useAckAssignment";
 import { memberListSig, rosterIdentity } from "../../hooks/useTeamRoster";
 import {

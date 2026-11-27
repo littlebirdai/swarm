@@ -1,9 +1,15 @@
+import type { Doc } from "./_generated/dataModel";
+import { DEVICE_ONLINE_MS } from "./deviceRouting";
+import { listTeamMachines } from "./sessionLaunch";
+import { isConversationSafetyBlocked } from "./conversationSafety";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { internalMutation, mutation } from "./functions";
+import { internalMutation, mutation, query } from "./functions";
 import {
   expireMoveSettlement,
+  findForceFencedDeviceBinding,
+  forcedDeviceMoveEnabled,
   recordDeviceMove,
 } from "./lib/edge/device-move.state";
 import {
@@ -67,6 +73,119 @@ export const recordMove = internalMutation({
       });
     }
     return moveId;
+  },
+});
+
+export const forcedMoveOptions = query({
+  args: { conversation_id: v.id("conversations") },
+  handler: async (ctx, { conversation_id }) => {
+    if (!forcedDeviceMoveEnabled()) return [];
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const conversation = await ctx.db.get(conversation_id);
+    if (
+      conversation?.user_id !== userId ||
+      conversation.execution_protocol_state !== "fenced" ||
+      !conversation.owner_device_id ||
+      isConversationSafetyBlocked(conversation)
+    )
+      return [];
+    const sourceId = conversation.owner_device_id;
+    const [head, own] = await Promise.all([
+      ctx.db
+        .query("conversation_execution_heads")
+        .withIndex("by_conversation", (q) =>
+          q.eq("conversation_id", conversation_id),
+        )
+        .unique(),
+      ctx.db
+        .query("devices")
+        .withIndex("by_user_device", (q) => q.eq("user_id", userId))
+        .collect(),
+    ]);
+    if (
+      head?.owner_user_id !== userId ||
+      head.protocol_state !== "fenced" ||
+      head.current_epoch === undefined ||
+      head.device_move?.phase === "aborting"
+    )
+      return [];
+    const move = head.device_move;
+    if (
+      !move &&
+      (head.pending_epoch !== undefined ||
+        head.successor_intent?.status === "pending")
+    )
+      return [];
+    const shared = await listTeamMachines(ctx, userId);
+    const ownIds = new Set(own.map(({ device_id }) => device_id));
+    const sharedCounts = new Map<string, number>();
+    for (const { device } of shared)
+      sharedCounts.set(
+        device.device_id,
+        (sharedCounts.get(device.device_id) ?? 0) + 1,
+      );
+    const eligible: Doc<"devices">[] = [
+      ...own,
+      ...shared
+        .filter(
+          ({ device }) =>
+            !ownIds.has(device.device_id) &&
+            sharedCounts.get(device.device_id) === 1,
+        )
+        .map(({ device }) => device),
+    ];
+    const candidates = move?.forced
+      ? []
+      : eligible.filter(
+          (device) =>
+            device.device_id !== sourceId &&
+            device.device_id.length > 0 &&
+            device.device_id.trim() === device.device_id &&
+            (!move ||
+              (device.device_id === move.destination_device_id &&
+                device.user_id === move.destination_runner_id)),
+        );
+    const destinations = (
+      await Promise.all(
+        candidates.map(async (device) => {
+          if (
+            await findForceFencedDeviceBinding(
+              ctx,
+              conversation_id,
+              device.device_id,
+            )
+          )
+            return null;
+          return {
+            id: device.device_id,
+            label: device.display_name || device.label,
+          };
+        }),
+      )
+    ).filter((device) => device !== null);
+    const requested = move?.forced
+      ? eligible.find(
+          (device) =>
+            device.device_id === move.destination_device_id &&
+            device.user_id === move.destination_runner_id,
+        )
+      : undefined;
+    const source = own.find(({ device_id }) => device_id === sourceId);
+    return [
+      {
+        _id: conversation_id,
+        epoch: head.current_epoch,
+        sourceLabel: source?.display_name || source?.label || "Old computer",
+        offlineAfter: source ? source.last_seen + DEVICE_ONLINE_MS : 0,
+        requestedDestination: move?.forced
+          ? requested?.display_name ||
+            requested?.label ||
+            move.destination_device_id
+          : null,
+        destinations,
+      },
+    ];
   },
 });
 

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { entityRoute } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { SESSION_STATUS } from "../../lib/sessionStatus";
-import { requestSessionRestart } from "../../lib/sessionCommands";
+import { requestSessionRestart } from "../../lib/session-commands";
 import { getLabelColor } from "../../lib/labelColors";
 import { formatModel } from "../../lib/conversationProcessor";
 import { ghostRestartContextFor } from "../../hooks/useSessionRestart";

@@ -5,7 +5,7 @@ import {
   backendSwitchState,
   BACKEND_SWITCH_GIVE_UP_MS,
   type SessionCommandRow,
-} from "../sessionCommands";
+} from "../session-commands";
 
 const row = (o: Partial<SessionCommandRow>): SessionCommandRow => ({
   _id: "r",

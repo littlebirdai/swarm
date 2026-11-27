@@ -4,7 +4,7 @@
 # fix. Add a store action for the gesture (draft write + named dispatch side effect in convex/dispatch.ts), classify it in store/undo/policy.ts, and call it.
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
-#   cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/storeActionMutations.guard.test.ts
+#   cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/store-action-mutations.guard.test.ts
 app/artifacts/auth/page.tsx 1
 app/calls/page.tsx 1
 app/conversation/[id]/ConversationPageClient.tsx 1

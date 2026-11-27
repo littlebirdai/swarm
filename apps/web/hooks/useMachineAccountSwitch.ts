@@ -14,7 +14,7 @@ import {
   machineSwitchSuccessCopy,
   type MachineSwitchPhase,
 } from "../lib/machineAccountSwitch";
-import { DISPATCH_REFUSED } from "../lib/sessionCommands";
+import { DISPATCH_REFUSED } from "../lib/session-commands";
 import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
 import {

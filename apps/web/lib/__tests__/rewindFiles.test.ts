@@ -6,7 +6,7 @@ import {
   splitRewindDiff,
   stagedRewindOf,
 } from "../rewindFiles";
-import type { SessionCommandRow } from "../sessionCommands";
+import type { SessionCommandRow } from "../session-commands";
 
 const row = (
   over: Partial<SessionCommandRow> & { reply?: unknown },

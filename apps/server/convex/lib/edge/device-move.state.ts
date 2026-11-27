@@ -19,18 +19,21 @@ type Destination = Pick<
   "destination_device_id" | "destination_runner_id"
 >;
 
+export function forcedDeviceMoveEnabled() {
+  return process.env[FORCED_MOVE_FLAG] === "1";
+}
+
 export function requireForcedDeviceMoveEnabled() {
-  if (process.env[FORCED_MOVE_FLAG] !== "1")
+  if (!forcedDeviceMoveEnabled())
     throw new ConvexError("Forced device moves are disabled");
 }
 
-export async function requireDeviceNotForceFenced(
+export function findForceFencedDeviceBinding(
   ctx: Pick<QueryCtx, "db">,
   conversationId: Id<"conversations">,
   deviceId: string,
-  callerId?: Id<"users">,
 ) {
-  const retired = await ctx.db
+  return ctx.db
     .query("execution_bindings")
     .withIndex("by_conversation_device_forced_at", (q) =>
       q
@@ -39,6 +42,19 @@ export async function requireDeviceNotForceFenced(
         .gt("forced_device_move.at", undefined),
     )
     .first();
+}
+
+export async function requireDeviceNotForceFenced(
+  ctx: Pick<QueryCtx, "db">,
+  conversationId: Id<"conversations">,
+  deviceId: string,
+  callerId?: Id<"users">,
+) {
+  const retired = await findForceFencedDeviceBinding(
+    ctx,
+    conversationId,
+    deviceId,
+  );
   if (retired && callerId && callerId !== retired.owner_user_id) {
     const conversation = await ctx.db.get(conversationId);
     if (conversation?.user_id !== callerId) return;

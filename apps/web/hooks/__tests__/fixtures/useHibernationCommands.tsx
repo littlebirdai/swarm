@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { ConvexProvider } from "convex/react";
 import { useHibernationCommands } from "../../useHibernationCommands";
 import { useEnsureDispatch } from "../../useEnsureDispatch";
-import { recordSessionCommandDispatchError } from "../../../lib/sessionCommands";
+import { recordSessionCommandDispatchError } from "../../../lib/session-commands";
 import { useInboxStore } from "../../../store/inboxStore";
 import { hibernate } from "../../../../../apps/server/convex/sessionCommands";
 import { makeFakeDb } from "../../../../../apps/server/convex/testDb";

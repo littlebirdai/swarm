@@ -11,7 +11,7 @@ import {
   useDevices,
   type Device,
 } from "../components/DeviceBadge";
-import { requestSessionMove } from "../lib/sessionCommands";
+import { requestSessionMove } from "../lib/session-commands";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 import { planBulkMove } from "../lib/bulkMovePlan";
 import { useSettingsData } from "./useSyncSettings";

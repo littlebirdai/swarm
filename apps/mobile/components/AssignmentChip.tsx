@@ -26,7 +26,7 @@ import {
 } from "@codecast/web/hooks/useOwnersStoreEnv";
 import { useSyncOrgTreeFeeder } from "@codecast/web/hooks/useSyncOrgTree";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
-import { requestSessionMove } from "@codecast/web/lib/sessionCommands";
+import { requestSessionMove } from "@codecast/web/lib/session-commands";
 import {
   Theme,
   Spacing,

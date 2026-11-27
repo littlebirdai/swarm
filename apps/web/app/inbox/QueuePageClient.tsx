@@ -74,7 +74,7 @@ import {
   settleSessionViewAsk,
   useSessionViewAsk,
 } from "../../lib/sessionViewVisit";
-import { requestSessionRestart } from "../../lib/sessionCommands";
+import { requestSessionRestart } from "../../lib/session-commands";
 import {
   SeatHeadState,
   RolePageControl,

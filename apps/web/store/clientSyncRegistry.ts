@@ -6,6 +6,7 @@ import { LIVE_SYNC_COLLECTIONS } from "./clientSyncRegistry.live";
 import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
+import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
 import { thinPullRequestRow, thinTaskRow } from "../lib/detailRows";
 export {
@@ -79,7 +80,7 @@ export type ClientSyncRegistryEntry = {
   // Convex modules whose public mutations write the server rows this key
   // mirrors, beyond the modules of its feeds ("teams", "orgSplit"). A
   // localFirst key declares feeds or writers: the store-action guard
-  // (lib/__tests__/storeActionMutations.guard.test.ts) reads both, and fails a
+  // (lib/__tests__/store-action-mutations.guard.test.ts) reads both, and fails a
   // surface that calls such a mutation past the store action owning the write.
   writtenBy?: readonly string[];
   // Boot hydration is automatic for every persisted key — registering a
@@ -1736,20 +1737,7 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { isDelta: true },
     feeds: ["machineResources.getMine"],
   },
-  migrationCandidates: {
-    persistence: { kind: "meta", key: "migrationCandidates" },
-    hydration: { phase: "deferred", merge: "fill" },
-    sync: { kind: "list" },
-    feeds: ["sessionMigrations.candidates"],
-  },
-  migrationBatches: {
-    persistence: { kind: "meta", key: "migrationBatches" },
-    hydration: { phase: "deferred", merge: "fill" },
-    sync: { kind: "list", rowKey: "batch_id" },
-    localFirst: true,
-    unprotectedFields: ["rows", "queued", "cancelled", "state"],
-    feeds: ["sessionMigrations.listBatches"],
-  },
+  ...MOVE_SYNC_COLLECTIONS,
   // Dry runs of session moves the offload review asked for, the last few
   // minutes of them (convex/moveRehearsals.ts). The whole recent set each push.
   moveRehearsals: {
@@ -2767,6 +2755,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   migrationBatches: "shared",
   moveRehearsals: "shared",
   sessionCommands: "local",
+  forcedMoveOptions: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
   fencedPromptAddresses: "local",

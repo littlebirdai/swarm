@@ -19,7 +19,7 @@ import {
 import { commitModelChange } from "./modelSwitch";
 import { useInboxStore } from "../store/inboxStore";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";
-import { requestAccountSwitchCommand } from "./sessionCommands";
+import { requestAccountSwitchCommand } from "./session-commands";
 
 export type LimitProfile = {
   name: string;

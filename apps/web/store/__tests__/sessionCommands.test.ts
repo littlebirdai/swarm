@@ -19,7 +19,7 @@ import {
   requestSessionRestart,
   restartPending,
   switchPending,
-} from "../../lib/sessionCommands";
+} from "../../lib/session-commands";
 import { restartPhaseOf } from "../../hooks/useSessionRestart";
 import { machineSwitchStatus } from "../../hooks/useMachineAccountSwitch";
 
