@@ -1,4 +1,5 @@
-import "./fixtures/signedInPrincipal";
+import { installSignedInPrincipal } from "./fixtures/signedInPrincipal";
+import { authPrincipal } from "../../lib/authPrincipal";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import {
@@ -29,6 +30,9 @@ const settle = () => new Promise((r) => setTimeout(r, 20));
 
 describe("a tab action's args reach the outbox and the dispatch call in their storable form", () => {
   beforeEach(async () => {
+    installSignedInPrincipal();
+    authPrincipal.check();
+    await _reopenForTests({ indexedDB, IDBKeyRange });
     for (const e of await loadOutbox()) await removeDispatch(e.id);
     sent.length = 0;
     useInboxStore.setState({
@@ -49,7 +53,7 @@ describe("a tab action's args reach the outbox and the dispatch call in their st
 
   afterAll(() => {
     const store = useInboxStore.getState() as any;
-    store._setOutbox(null, null, null);
+    store._clearRuntimeBindings();
   });
 
   it("openTab, updateTab and the split actions", async () => {
