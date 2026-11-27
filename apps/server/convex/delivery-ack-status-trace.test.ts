@@ -381,61 +381,67 @@ for (const choice of ["keep", "retire"] as const) {
     });
     const held = await message({ status: "held" });
     const queued = await message({ status: "held", queued: true });
-    const run = () =>
+    const { result, writes } = await recordWrites(() =>
       viewer.mutation(api.orgRoles.retire, {
         role_id: role,
         standing_session: choice,
-      });
-    const { result, writes } = await recordWrites(async () => {
-      try {
-        const result = await run();
-        return {
-          status: result.status,
-          standing_session: result.standing_session,
-        };
-      } catch (error) {
-        return { error: String(error) };
-      }
-    });
+      }),
+    );
 
-    if (choice === "retire") {
-      expect(result).toEqual({
-        error: expect.stringContaining("cancelled_at"),
-      });
-      expect(writes).toEqual([
-        patch("pending_messages", held, {
-          status: "cancelled",
-          cancelled_at: now,
-        }),
-      ]);
-    } else {
-      expect(result).toEqual({ status: "retired", standing_session: "kept" });
-      expect(writes).toEqual([
-        patch("pending_messages", held, ready),
-        patch("pending_messages", queued, ready),
-        patch("anchors", anchor, {
-          org_role_id: { $undefined: null },
-          updated_at: now,
-        }),
-        patch("conversations", conversation, {
-          standing_role_id: { $undefined: null },
-          updated_at: now,
-        }),
-        expect.objectContaining({
-          table: "org_roles",
-          id: role,
-          fields: expect.objectContaining({ status: "retired" }),
-        }),
-      ]);
-    }
+    const kept = choice === "keep";
+    const status = kept ? "pending" : "cancelled";
+    expect(result).toMatchObject({
+      status: "retired",
+      standing_session: kept ? "kept" : "retired",
+    });
+    expect(writes).toEqual([
+      patch("pending_messages", held, { status }),
+      patch("pending_messages", queued, { status }),
+      ...(kept
+        ? [
+            patch("anchors", anchor, {
+              org_role_id: { $undefined: null },
+              updated_at: now,
+            }),
+            patch("conversations", conversation, {
+              standing_role_id: { $undefined: null },
+              updated_at: now,
+            }),
+          ]
+        : [
+            patch("conversations", conversation, {
+              inbox_pinned_at: { $undefined: null },
+              persistent: false,
+            }),
+            patch("conversations", conversation, {
+              inbox_killed_at: now,
+              status: "completed",
+            }),
+            patch("conversations", conversation, {
+              pending_kill_generation: 8,
+            }),
+            patch("conversations", conversation, {
+              has_pending_messages: false,
+            }),
+            patch("anchors", anchor, {
+              status: "decommissioned",
+              updated_at: now,
+            }),
+            patch("conversations", conversation, {
+              acting_user_id: { $undefined: null },
+              anchor_id: { $undefined: null },
+              standing_role_id: { $undefined: null },
+              updated_at: now,
+            }),
+          ]),
+      patch("org_roles", role, { status: "retired", updated_at: now }),
+    ]);
 
     const rows = await t.run(async ({ db }) => [
       await db.get(held),
       await db.get(queued),
     ]);
-    expect(rows.map((row) => row?.status)).toEqual(
-      choice === "keep" ? ["pending", "pending"] : ["held", "held"],
-    );
+    expect(rows.map((row) => row?.status)).toEqual([status, status]);
   });
 }
 

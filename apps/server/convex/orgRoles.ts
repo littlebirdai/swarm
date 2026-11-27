@@ -1325,10 +1325,10 @@ async function performRetireRoleCore(
       )
       .collect();
     for (const p of held) {
-      const patch = keepStanding
-        ? { status: "pending" as const }
-        : { status: "cancelled" as const, cancelled_at: now };
-      await writePendingStatus(ctx, p._id, patch);
+      if (!keepStanding && isFencedPendingMessage(p)) continue;
+      await writePendingStatus(ctx, p._id, {
+        status: keepStanding ? "pending" : "cancelled",
+      });
     }
   }
   const pendingTriggerCancellation = stopped === null;
