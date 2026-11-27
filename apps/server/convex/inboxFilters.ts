@@ -150,7 +150,7 @@ export async function bringNestedThreadToInbox(
     ? null
     : await ctx.db.get(conv.parent_conversation_id);
   if (parent && !isRunLog(parent)) return restoreToInbox(ctx, parent);
-  await ctx.db.patch(conv._id, { inbox_adopted_at: now });
+  await patchConversationLifecycle(ctx, conv._id, { inbox_adopted_at: now });
   return true;
 }
 

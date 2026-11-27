@@ -97,6 +97,45 @@ function patchScope(node: ts.Node): string {
   return "";
 }
 
+function isNonConversationDispatchFallback(
+  file: string,
+  call: ts.CallExpression,
+): boolean {
+  if (file !== "dispatch.ts" || patchScope(call) !== "applyPatches")
+    return false;
+  if (
+    call.arguments[0]?.getText() !== "documentId" ||
+    call.arguments[1]?.getText() !== "finalSafe"
+  )
+    return false;
+  const statement = call.parent.parent;
+  const block = statement.parent;
+  const branch = block.parent;
+  if (
+    !ts.isBlock(block) ||
+    !ts.isIfStatement(branch) ||
+    branch.elseStatement !== block ||
+    branch.expression.getText() !== 'table === "conversations"' ||
+    !ts.isBlock(branch.thenStatement)
+  )
+    return false;
+  const write = branch.thenStatement.statements[0];
+  if (
+    branch.thenStatement.statements.length !== 1 ||
+    !ts.isExpressionStatement(write) ||
+    !ts.isAwaitExpression(write.expression)
+  )
+    return false;
+  const writer = write.expression.expression;
+  return (
+    ts.isCallExpression(writer) &&
+    writer.expression.getText() === "patchConversationLifecycle" &&
+    writer.arguments[0]?.getText() === "ctx" &&
+    writer.arguments[1]?.getText() === 'documentId as Id<"conversations">' &&
+    writer.arguments[2]?.getText() === "finalSafe"
+  );
+}
+
 function directPatches(file: string, fields: RegExp) {
   const source = ts.createSourceFile(
     file,
@@ -111,7 +150,8 @@ function directPatches(file: string, fields: RegExp) {
       ts.isPropertyAccessExpression(node.expression) &&
       node.expression.name.text === "patch" &&
       ts.isPropertyAccessExpression(node.expression.expression) &&
-      node.expression.expression.name.text === "db"
+      node.expression.expression.name.text === "db" &&
+      !isNonConversationDispatchFallback(file, node)
     ) {
       const payload = node.arguments.at(-1);
       if (payload) {
@@ -188,9 +228,7 @@ test("moved inbox placement and thread pin patches go through the status writer"
     "conversations.ts updateProjectPath conversation._id: dynamic(patch)",
     "conversations.ts updateSessionId args.conversation_id: dynamic(patch)",
     "dispatch.ts SIDE_EFFECTS doc._id: dynamic(updates)",
-    "dispatch.ts applyPatches documentId: dynamic(finalSafe)",
     "dispatch.ts applyPatches existing._id: dynamic(merged)",
-    "inboxFilters.ts bringNestedThreadToInbox conv._id: inbox_adopted_at",
     "lib/agentTaskRows.ts patchTask task._id: dynamic(patch)",
     "migrations.ts canonicalizeRepositoryNames row._id: dynamic([field])",
     "sessionGoals.ts performGoalControl goal._id: dynamic(GOAL_RESUME_RESET)",
