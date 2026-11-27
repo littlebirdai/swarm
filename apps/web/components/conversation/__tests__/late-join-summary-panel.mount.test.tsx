@@ -562,7 +562,7 @@ test("clears pending_permission prompt on empty pendingPermissions without clear
         tool_name: "AskUserQuestion",
         arguments_preview: "{}",
         status: "pending",
-        created_at: 10,
+        created_at: Date.now(),
       },
     ]);
   });
