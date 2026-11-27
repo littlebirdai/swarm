@@ -161,6 +161,7 @@ export function fixture(
   let promptCleanupError = false;
   let failedPermissionCleanup: string | undefined;
   let questionWrite: Promise<void> | undefined;
+  let errorClearPause: { started(): void; resume: Promise<void> } | undefined;
   let renewal: Promise<void> | undefined;
   const statuses: string[] = [];
   const sessionErrors: Array<{
@@ -218,6 +219,12 @@ export function fixture(
               return removed;
             },
             async setSessionError(conversationId, error, opts) {
+              if (error === undefined && errorClearPause) {
+                const pause = errorClearPause;
+                errorClearPause = undefined;
+                pause.started();
+                await pause.resume;
+              }
               sessionErrors.push({
                 conversationId,
                 error,
@@ -605,6 +612,15 @@ export function fixture(
     },
     pauseQuestionWrite(gate: Promise<void>) {
       questionWrite = gate;
+    },
+    pauseErrorClear() {
+      const started = Promise.withResolvers<void>();
+      const resume = Promise.withResolvers<void>();
+      errorClearPause = { started: started.resolve, resume: resume.promise };
+      return { started: started.promise, release: resume.resolve };
+    },
+    setResumedTurn(turnId?: string) {
+      resumedTurn = turnId;
     },
     rejectRenewalAfter(gate: Promise<void>) {
       renewal = gate;
