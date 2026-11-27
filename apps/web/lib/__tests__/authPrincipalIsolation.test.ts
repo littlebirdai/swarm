@@ -17,6 +17,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://codecast.test",
   pretendToBeVisual: true,
 });
+const savedGlobals: Array<[string, PropertyDescriptor | undefined]> = [];
 for (const key of [
   "window",
   "document",
@@ -31,6 +32,7 @@ for (const key of [
   "sessionStorage",
   "BroadcastChannel",
 ]) {
+  savedGlobals.push([key, Object.getOwnPropertyDescriptor(globalThis, key)]);
   const value = (dom.window as any)[key];
   if (value !== undefined)
     Object.defineProperty(globalThis, key, {
@@ -39,6 +41,10 @@ for (const key of [
       writable: true,
     });
 }
+const savedActEnv = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "IS_REACT_ACT_ENVIRONMENT",
+);
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 // The profile relay. A browser fires a storage event in every OTHER window of
@@ -236,7 +242,16 @@ afterAll(async () => {
   await flush();
   for (let i = 0; i < 500 && !store.getState().clientStateInitialized; i++)
     await new Promise((r) => setTimeout(r, 10));
+  (store.getState() as any)._setOutbox?.(null, null, null);
+  (store.getState() as any)._setIDBWrite?.(null);
   uninstallAuthPrincipalBoundary();
+  for (const [key, descriptor] of savedGlobals) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+    else delete (globalThis as Record<string, unknown>)[key];
+  }
+  if (savedActEnv)
+    Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", savedActEnv);
+  else delete (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
 });
 
 async function twoWindowsSignedInAsA() {
