@@ -150,6 +150,7 @@ crons.interval(
   "reclaim stale agent tasks",
   { minutes: 5 },
   internal.agentTasks.reclaimStaleTasks,
+  {},
 );
 
 // Decision stacks with an auto default policy: answer advisory members whose
@@ -178,9 +179,6 @@ crons.interval(
   // retryStuckMessages). As one long mutation it failed OCC on every retry, so its
   // schedule never advanced and it re-ran back to back without committing.
   "heal stuck pending messages",
-  // Backstop only — the daemon drives live delivery via getPendingMessages. 30s was
-  // needlessly aggressive and (with the old full-table scan) drove a scheduler
-  // pileup. 60s keeps just-idle messages responsive while halving revive churn.
   { seconds: 60 },
   internal.pendingMessages.retryStuckMessages,
 );
@@ -194,6 +192,7 @@ crons.interval(
   "check daemon health",
   { minutes: 5 },
   internal.daemonLogs.checkDaemonHealth,
+  {},
 );
 // Separate entry from "check daemon health" so a failure in one alert never
 // stops the other. The 5 minute cadence is also this alert's debounce.
@@ -255,14 +254,10 @@ crons.interval(
 );
 
 crons.interval(
-  // Recent-window content-search mirror (searchMirror.ts, ct-37627): walks
-  // messages forward by _creationTime — backfill, tail sync, and window GC in
-  // one step. Content search cuts over to the mirror automatically once the
-  // cursor is fresh (see fetchMessageSearchPool).
   "advance search mirror",
   { seconds: 15 },
-  internal.searchMirror.advance,
-  { batch: 1000 },
+  internal.searchMirror.advanceCron,
+  {},
 );
 
 crons.interval(

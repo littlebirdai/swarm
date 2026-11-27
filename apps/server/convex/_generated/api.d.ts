@@ -133,6 +133,7 @@ import type * as conversationSafety from "../conversationSafety.js";
 import type * as conversationSessionLookup from "../conversationSessionLookup.js";
 import type * as conversations from "../conversations.js";
 import type * as counters from "../counters.js";
+import type * as cronSweep from "../cronSweep.js";
 import type * as crons from "../crons.js";
 import type * as daemonCommandUtils from "../daemonCommandUtils.js";
 import type * as daemonLogs from "../daemonLogs.js";
@@ -993,6 +994,7 @@ declare const fullApi: ApiFromModules<{
   conversationSessionLookup: typeof conversationSessionLookup;
   conversations: typeof conversations;
   counters: typeof counters;
+  cronSweep: typeof cronSweep;
   crons: typeof crons;
   daemonCommandUtils: typeof daemonCommandUtils;
   daemonLogs: typeof daemonLogs;

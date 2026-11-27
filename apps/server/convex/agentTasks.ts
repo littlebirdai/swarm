@@ -1,3 +1,4 @@
+import { cronSweepToken } from "./lib/cron-sweep.rules";
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 import { paginationOptsValidator } from "convex/server";
@@ -417,11 +418,11 @@ async function latestRunConversation(
   task: Doc<"agent_tasks">,
 ): Promise<Doc<"conversations"> | null> {
   if (task.originating_conversation_id) return null;
-  const runs: Doc<"conversations">[] = await ctx.db
+  const latest: Doc<"conversations"> | null = await ctx.db
     .query("conversations")
     .withIndex("by_agent_task", (q: any) => q.eq("agent_task_id", task._id))
-    .collect();
-  const latest = runs.sort((a, b) => b._creationTime - a._creationTime)[0];
+    .order("desc")
+    .first();
   // Through the stamp, so the run nests under its owner like every other path.
   return latest
     ? stampRunConversation(ctx, task.user_id, task, latest.session_id)
@@ -4346,31 +4347,34 @@ export const matchTaskTriggers = internalMutation({
 });
 
 export const reclaimStaleTasks = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-    const runningTasks = await ctx.db
+  args: {
+    cursor: v.optional(v.string()),
+    token: v.optional(v.number()),
+    through: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<number> => {
+    const token = await cronSweepToken(ctx.db, "reclaim", args.token);
+    if (token === null) return 0;
+    const now = args.through ?? Date.now();
+    const batch = await ctx.db
       .query("agent_tasks")
-      .withIndex("by_status_run_at", (q) => q.eq("status", "running"))
-      .collect();
+      .withIndex("by_status_lease_expiration", (q) =>
+        q
+          .eq("status", "running")
+          .gt("lease_expires_at", undefined)
+          .lt("lease_expires_at", now),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: 16,
+        maximumBytesRead: 2 * 1024 ** 2,
+      });
 
     let reclaimed = 0;
-    for (const task of runningTasks) {
+    for (const task of batch.page) {
       if (task.lease_expires_at && task.lease_expires_at < now) {
-        // The device the trigger is bound to stopped beating (a laptop asleep, a machine offline): its daemon holds
-        // the run and renews the lease when it wakes, and nothing else may serve the trigger. Wait for it; a re-fire
-        // would duplicate the run on wake, and counting the lapse retired healthy triggers (ct-92447).
         if (await boundDeviceAway(ctx, task, now)) continue;
-        // A lease lapses when the daemon that held it stopped renewing, most
-        // often because it restarted mid-run and lost the run's monitor. The
-        // run itself may be over: its agent exited (stopped) or parked at a
-        // limit. Re-firing then spends a whole fresh session on finished
-        // work, so a finished run settles as an unreported exit (its owner is
-        // told, runOwnerWakeOf) and a parked one re-arms at the reset.
         const runConv = await firingRunConversation(ctx, task);
-        // No run of this firing: its lease lapsed during the claim or the precheck (a lost response on a bad link, a
-        // daemon restart). That firing is lost, not failed: it fires again and never counts toward retiring the
-        // trigger (ct-92447: tr-4693 and tr-4820 retired while their prechecks ran fine).
         if (!runConv) {
           await patchTask(ctx, task, {
             status: "scheduled",
@@ -4452,24 +4456,19 @@ export const reclaimStaleTasks = internalMutation({
       }
     }
 
+    if (!batch.isDone)
+      await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
+        page: {
+          job: "reclaim",
+          startedAt: now,
+          token,
+          cursor: batch.continueCursor,
+        },
+      });
     return reclaimed;
   },
 });
 
-// --- Haiku-distilled presentation fields (display_title / display_summary) ---
-//
-// A schedule's stored title is usually just prompt.slice(0, 60), so every row
-// surface was showing a truncated wall of prompt text. These functions turn
-// the prompt into a short display_title (2-5 words) and a display_summary (one
-// plain sentence: what the agent does each run). Same idiom as
-// titleGeneration.ts: an internalAction calls the cheap model and an
-// internalMutation patches the result; extractTitleJson is reused for the
-// {"title","subtitle"} parse. Triggered from insertTask and from webUpdate on
-// prompt change; backfillDisplaySummaries sweeps pre-existing schedules.
-
-// A title that is just the leading slice of the prompt carries no signal — it's
-// the CLI/web default, not a human choice. Only such titles get replaced by the
-// generated display_title; an explicit human title always wins in the UI.
 export function isPromptDerivedTitle(title: string, prompt: string): boolean {
   const t = title.trim();
   return (

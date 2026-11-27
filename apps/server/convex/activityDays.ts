@@ -1,3 +1,4 @@
+import { activitySweepPhase, isCurrentCronSweep } from "./lib/cron-sweep.rules";
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
@@ -22,15 +23,32 @@ import { dayStartUtc } from "./lib/userSend";
 
 /** Days the sweep re-rolls each run: the live window plus a day of slack. */
 const SWEEP_DAYS = ACTIVITY_LIVE_DAYS + 2;
+const TAIL_PAGE_CAP = 4;
+
+export const claimSweepUser = internalMutation({
+  args: { user_id: v.id("users"), token: v.number() },
+  handler: async (ctx, { user_id, token }) => {
+    if (!(await isCurrentCronSweep(ctx.db, "activity", token))) return false;
+    const user = await ctx.db.get(user_id);
+    if (!user || user.last_activity_rollup_run === token) return false;
+    await ctx.db.patch(user_id, { last_activity_rollup_run: token });
+    return true;
+  },
+});
 
 export const rollupDay = internalMutation({
-  args: { user_id: v.id("users"), day_start: v.number() },
-  handler: async (ctx, args) => {
-    return await rollupActivityDay(
-      ctx,
-      args.user_id,
-      dayStartUtc(args.day_start),
-    );
+  args: {
+    user_id: v.id("users"),
+    day_start: v.number(),
+    sweepToken: v.optional(v.number()),
+  },
+  handler: async (ctx, { user_id, day_start, sweepToken }) => {
+    if (
+      sweepToken !== undefined &&
+      !(await isCurrentCronSweep(ctx.db, "activity", sweepToken))
+    )
+      return null;
+    return rollupActivityDay(ctx, user_id, dayStartUtc(day_start));
   },
 });
 
@@ -81,43 +99,147 @@ export const rollupCandidates = internalQuery({
   },
 });
 
-/**
- * Re-roll the days around the live window for everyone active in them. One
- * mutation per (user, day) keeps each transaction small; the users table is
- * small enough to walk in one read. Today is skipped (no read takes it from a
- * row); yesterday is rolled so its row is ready the moment it leaves the live
- * window. A day that keeps losing its write conflict (a busy account's
- * conversations change under the read) is left for the next hour's run rather
- * than stopping every account after it.
- */
+type SweepPage = { users: Id<"users">[]; cursor: string | null };
+
+export const rollupCandidatePage = internalQuery({
+  args: {
+    since: v.number(),
+    phase: activitySweepPhase,
+    tailEnd: v.optional(v.number()),
+    startedAt: v.number(),
+    token: v.number(),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    { since, phase, cursor, startedAt, token, tailEnd },
+  ): Promise<SweepPage | null> => {
+    if (!(await isCurrentCronSweep(ctx.db, "activity", token))) return null;
+    const candidates =
+      phase === "created"
+        ? ctx.db
+            .query("users")
+            .withIndex("by_creation_time", (q) =>
+              q.gte("_creationTime", since).lte("_creationTime", startedAt),
+            )
+        : ctx.db
+            .query("users")
+            .withIndex("by_daemon_last_seen", (q) =>
+              phase === "tail"
+                ? q
+                    .gt("daemon_last_seen", startedAt)
+                    .lte("daemon_last_seen", tailEnd ?? startedAt)
+                : q
+                    .gte("daemon_last_seen", since)
+                    .lte("daemon_last_seen", startedAt),
+            )
+            .filter((q) => q.lt(q.field("_creationTime"), since));
+    const page = await candidates
+      .filter((q) => q.neq(q.field("last_activity_rollup_run"), token))
+      .paginate({
+        cursor: cursor ?? null,
+        numItems: 32,
+        maximumRowsRead: 64,
+        maximumBytesRead: 2 * 1024 ** 2,
+      });
+    return {
+      users: page.page.map(({ _id }) => _id),
+      cursor: page.isDone ? null : page.continueCursor,
+    };
+  },
+});
+
 export const sweep = internalAction({
-  args: { days: v.optional(v.number()) },
-  handler: async (ctx, args) => {
+  args: {
+    days: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    token: v.optional(v.number()),
+    phase: v.optional(activitySweepPhase),
+    tailEnd: v.optional(v.number()),
+    tailPagesRemaining: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ users: number; rolled: number; failed: number }> => {
     const days = args.days ?? SWEEP_DAYS;
-    const today = dayStartUtc(Date.now());
+    const startedAt = args.startedAt ?? Date.now();
+    const today = dayStartUtc(startedAt);
+    const token: number | null =
+      args.token ??
+      (await ctx.runMutation(internal.cronSweep.begin, { job: "activity" }));
+    if (token === null) return { users: 0, rolled: 0, failed: 0 };
     const since = today - days * ACTIVITY_DAY_MS;
-    const users: Id<"users">[] = await ctx.runQuery(
-      internal.activityDays.rollupCandidates,
-      { since },
+    const phase = args.phase ?? "seen";
+    const tailPagesRemaining = args.tailPagesRemaining ?? TAIL_PAGE_CAP;
+    const page: SweepPage | null = await ctx.runQuery(
+      internal.activityDays.rollupCandidatePage,
+      {
+        since,
+        phase,
+        cursor: args.cursor,
+        startedAt,
+        token,
+        tailEnd: args.tailEnd,
+      },
     );
+    if (!page) return { users: 0, rolled: 0, failed: 0 };
+    const { users, cursor } = page;
     let rolled = 0;
     let failed = 0;
     for (const user_id of users) {
+      const claimed = await ctx.runMutation(
+        internal.activityDays.claimSweepUser,
+        { user_id, token },
+      );
+      if (!claimed) continue;
       for (let i = 1; i < days; i++) {
+        const day_start = today - i * ACTIVITY_DAY_MS;
         try {
-          await ctx.runMutation(internal.activityDays.rollupDay, {
-            user_id,
-            day_start: today - i * ACTIVITY_DAY_MS,
-          });
+          const result = await ctx.runMutation(
+            internal.activityDays.rollupDay,
+            {
+              user_id,
+              day_start,
+              sweepToken: token,
+            },
+          );
+          if (!result) break;
           rolled++;
         } catch (e) {
           failed++;
           console.warn(
-            `activity sweep: ${user_id} day ${today - i * ACTIVITY_DAY_MS} left for the next run: ${e}`,
+            `activity sweep: retrying ${user_id} day ${day_start}: ${e}`,
           );
+          await ctx.scheduler.runAfter(1000, internal.activityDays.rollupDay, {
+            user_id,
+            day_start,
+            sweepToken: token,
+          });
         }
       }
     }
+    const nextCursor =
+      phase === "tail" && tailPagesRemaining <= 1 ? null : cursor;
+    const nextPhase =
+      nextCursor !== null ? phase : phase === "seen" ? "tail" : "created";
+    if (nextCursor !== null || phase !== "created")
+      await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
+        page: {
+          job: "activity",
+          days,
+          startedAt,
+          token,
+          phase: nextPhase,
+          cursor: nextCursor ?? undefined,
+          ...(nextPhase === "tail" && {
+            tailEnd: phase === "seen" ? Date.now() : args.tailEnd,
+            tailPagesRemaining:
+              phase === "seen" ? TAIL_PAGE_CAP : tailPagesRemaining - 1,
+          }),
+        },
+      });
     return { users: users.length, rolled, failed };
   },
 });

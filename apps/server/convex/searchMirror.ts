@@ -1,4 +1,5 @@
 import { internalMutation, internalQuery } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
 
@@ -58,6 +59,9 @@ const LOOKAHEAD_READ_BYTES = 1024 ** 2;
 const MAX_UPSERTS_PER_RUN = 600;
 const MAX_BATCH_ROWS = 1000;
 const GC_BATCH = 200;
+const CRON_BATCH_ROWS = 400;
+const TICK_MS = 15_000;
+const MAX_TICK_MS = 30_000;
 
 type MirrorDb = Pick<
   import("./_generated/server").MutationCtx["db"],
@@ -186,11 +190,15 @@ async function walkMessages(
 // and it owns the backfill and the liveness cursor.
 export async function performMirrorAdvance(
   ctx: { db: MirrorDb },
-  args: { batch?: number; now?: number },
+  args: { batch?: number; now?: number; cronBackoff?: boolean },
+  previous?: Doc<"search_mirror_state"> | null,
 ) {
   {
     const now = args.now ?? Date.now();
-    let state = await ctx.db.query("search_mirror_state").first();
+    let state =
+      previous === undefined
+        ? await ctx.db.query("search_mirror_state").first()
+        : previous;
     if (!state) {
       const id = await ctx.db.insert("search_mirror_state", {
         cursor: now - MIRROR_WINDOW_MS,
@@ -239,6 +247,11 @@ export async function performMirrorAdvance(
     );
     const newCursor = settle.cursor;
     const caughtUp = settle.drained && fresh.drained;
+    const cronTiming = (idle: boolean) => {
+      if (!args.cronBackoff) return {};
+      const delay = idle ? MAX_TICK_MS : TICK_MS;
+      return { next_tick_at: now + delay, tick_delay_ms: delay };
+    };
     if (
       fresh.scanned === 0 &&
       settle.scanned === 0 &&
@@ -246,6 +259,12 @@ export async function performMirrorAdvance(
       state.cursor >= state.updated_at - SWEEP_LAG_MS - 1 &&
       now - state.updated_at < IDLE_MAINTENANCE_MS
     ) {
+      if (
+        args.cronBackoff &&
+        (state.tick_delay_ms !== MAX_TICK_MS ||
+          state.next_tick_at === undefined)
+      )
+        await ctx.db.patch(state._id, cronTiming(true));
       return {
         scanned: 0,
         fresh_scanned: 0,
@@ -279,6 +298,12 @@ export async function performMirrorAdvance(
       cursor: newCursor,
       fresh_cursor: fresh.cursor,
       updated_at: now,
+      ...cronTiming(
+        caughtUp &&
+          fresh.scanned === 0 &&
+          settle.scanned === 0 &&
+          expiredCount === 0,
+      ),
     });
 
     // Liveness flag lives in its OWN row and is written only on transitions —
@@ -329,6 +354,31 @@ export async function dropMirroredMessage(
 export const advance = internalMutation({
   args: { batch: v.optional(v.number()) },
   handler: async (ctx, args) => performMirrorAdvance(ctx, args),
+});
+
+export const advanceCron = internalMutation({
+  args: { scheduledAt: v.optional(v.number()) },
+  handler: async (ctx, { scheduledAt }): Promise<void> => {
+    if (scheduledAt !== undefined) return;
+    if (process.env.SEARCH_MIRROR_CRON_BACKOFF !== "1") {
+      await performMirrorAdvance(ctx, { batch: MAX_BATCH_ROWS });
+      return;
+    }
+    const now = Date.now();
+    const state = await ctx.db.query("search_mirror_state").first();
+    if (
+      state?.tick_delay_ms === MAX_TICK_MS &&
+      state.next_tick_at !== undefined
+    ) {
+      const elapsed = now - state.next_tick_at + TICK_MS / 2;
+      if (elapsed < 0 || elapsed % MAX_TICK_MS >= TICK_MS) return;
+    }
+    await performMirrorAdvance(
+      ctx,
+      { batch: CRON_BATCH_ROWS, now, cronBackoff: true },
+      state,
+    );
+  },
 });
 
 // One-shot migration: stamp user_id/team_id onto mirror rows written before

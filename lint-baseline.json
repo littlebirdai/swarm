@@ -8267,7 +8267,7 @@
     "swarm/no-comments": 13
   },
   "apps/server/convex/activityDays.ts": {
-    "swarm/no-comments": 15
+    "swarm/no-comments": 14
   },
   "apps/server/convex/admin_mergeUser.test.ts": {
     "swarm/no-comments": 2
@@ -8339,7 +8339,7 @@
     "swarm/no-comments": 35
   },
   "apps/server/convex/agentTasks.ts": {
-    "swarm/no-comments": 640
+    "swarm/no-comments": 615
   },
   "apps/server/convex/agentTasks.verbHistory.test.ts": {
     "swarm/no-comments": 2
@@ -9056,7 +9056,7 @@
     "swarm/no-comments": 15
   },
   "apps/server/convex/crons.ts": {
-    "swarm/no-comments": 188
+    "swarm/no-comments": 181
   },
   "apps/server/convex/daemonCommandClaim.test.ts": {
     "swarm/no-comments": 13
@@ -9071,7 +9071,7 @@
     "swarm/no-comments": 23
   },
   "apps/server/convex/daemonLogs.ts": {
-    "swarm/no-comments": 111
+    "swarm/no-comments": 107
   },
   "apps/server/convex/data.test.ts": {
     "swarm/no-comments": 17
@@ -11564,7 +11564,7 @@
     "swarm/no-comments": 48
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 580
+    "swarm/no-comments": 548
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6

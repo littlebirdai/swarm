@@ -214,6 +214,8 @@ export const transcriptTables = {
     // seconds after they land, ahead of the settle walk at `cursor`.
     fresh_cursor: v.optional(v.number()),
     updated_at: v.number(),
+    next_tick_at: v.optional(v.number()),
+    tick_delay_ms: v.optional(v.number()),
   }),
 
   // Singleton: _creationTime position of the daemon_logs retention sweep
