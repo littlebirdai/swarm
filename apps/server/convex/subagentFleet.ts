@@ -351,7 +351,13 @@ async function recordMergeBack(
   status: MergeBackStatus,
   outcome: SubagentOutcome,
 ): Promise<void> {
-  await ctx.db.patch(worker._id, { merge_back: status });
+  const prior: MergeBackStatus | undefined = worker.merge_back;
+  const sameReport =
+    prior?.state === status.state &&
+    prior.reason === status.reason &&
+    JSON.stringify(prior.files) === JSON.stringify(status.files);
+  const at = sameReport ? prior.at : Math.max(status.at, (prior?.at ?? 0) + 1);
+  await ctx.db.patch(worker._id, { merge_back: { ...status, at } });
   const note = mergeBackNote(
     {
       short_id: worker.short_id ?? String(worker._id).slice(0, 7),
@@ -375,6 +381,7 @@ async function recordMergeBack(
       note,
     ),
     from_conversation_id: worker._id,
+    client_id: `merge-back:${worker._id}:${at}:${outcome}`,
   });
 }
 

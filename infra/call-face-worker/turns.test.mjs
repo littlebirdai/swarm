@@ -1,7 +1,12 @@
 // When the voice speaks, over the lines of real huddles: `node turns.test.mjs`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nameMatchers, turnIsForVoice, turnVerdict } from "./turns.mjs";
+import {
+  forwardVoiceAsk,
+  nameMatchers,
+  turnIsForVoice,
+  turnVerdict,
+} from "./turns.mjs";
 
 const named = nameMatchers(["Rufus", "Claude"]);
 const room = { named, quiet: false, alone: false };
@@ -88,4 +93,17 @@ test("an empty name list matches nothing", () => {
     }).answer,
     false,
   );
+});
+
+test("the tool call ID survives repeated execution and distinguishes identical asks", async () => {
+  const ids = [];
+  const execute = forwardVoiceAsk(
+    async (ask) => ids.push(ask.client_id),
+    () => "Ada",
+  );
+  const args = { request: "Inspect the cache" };
+  await execute(args, { toolCallId: "ask-1" });
+  await execute(args, { toolCallId: "ask-1" });
+  await execute(args, { toolCallId: "ask-2" });
+  assert.deepEqual(ids, ["ask-1", "ask-1", "ask-2"]);
 });

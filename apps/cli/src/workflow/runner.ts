@@ -1189,7 +1189,7 @@ async function waitOnStation(
     const sent = await cliCall(options, "/cli/messages/send", {
       to: presenter,
       ...(options.runSession ? { from: options.runSession } : {}),
-      client_id: `${subjectSendKey(options, context, `resume:${node.id}`)}:${crypto.randomUUID()}`,
+      client_id: `${subjectSendKey(options, context, `resume:${node.id}`)}:${presenter}:${before?.at ?? "unanswered"}`,
       body: `The run is back at this station, with you. Your brief as it stands now:\n\n${buildNodePrompt(node, graph, context)}`,
       wake: true,
     });
@@ -1672,7 +1672,7 @@ async function waitOnStation(
         await cliCall(options, "/cli/messages/send", {
           to: conversationId,
           ...(options.runSession ? { from: options.runSession } : {}),
-          client_id: `${subjectSendKey(options, context, `handoff:${node.id}`)}:${crypto.randomUUID()}`,
+          client_id: `${subjectSendKey(options, context, `handoff:${node.id}`)}:${conversationId}:${pinned?.at ?? row.message_count ?? 0}`,
           body: `The run reads this session as finished, but ${options.taskId} has no handoff from it, and this station's next step routes on the handoff. If work you started is still running (a backgrounded check, a replay), pin \`cast state --status dormant\` naming what you wait on and end your turn: the run waits for your wake. When the work is done, or cannot be done, end with \`cast task handoff ${options.taskId} --status done|blocked|needs_context\` as your brief says.`,
           wake: true,
         });

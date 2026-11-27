@@ -176,3 +176,22 @@ test("a queued draft drains without observing the active turn", async () => {
     await ui.close();
   }
 });
+
+test("store sends without caller IDs get distinct client IDs even without outbox metadata", async () => {
+  const ui = await mountComposer(owner(conversation));
+  await act(async () => {
+    ui.store.getState().sendMessage(conversation, "Repeat these words");
+    ui.store.getState().sendMessage(conversation, "Repeat these words");
+  });
+  const calls = ui.backend.mutations
+    .filter((entry) => entry.name === "dispatch:dispatch")
+    .map((entry) => entry.args as FunctionArgs<typeof api.dispatch.dispatch>)
+    .filter((args) => args.action === "sendMessage");
+  expect(calls).toHaveLength(2);
+  expect(calls.every((call) => !call.outbox)).toBe(true);
+  expect(calls.map((call) => call.args[3])).toEqual([
+    expect.any(String),
+    expect.any(String),
+  ]);
+  expect(calls[0].args[3]).not.toBe(calls[1].args[3]);
+});

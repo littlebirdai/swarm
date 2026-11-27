@@ -2,7 +2,9 @@ import { expect, test } from "bun:test";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { setupRunLease } from "../test-helpers/run-lease.testkit";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { applyMergeBackReport } from "./subagentFleet";
+import { provisionStandingAgent } from "./anchors";
 import { notifyStuckSend } from "./pendingMessages";
 
 test("legacy send requests require an identity on fenced sessions and replay by that identity", async () => {
@@ -26,32 +28,39 @@ test("legacy send requests require an identity on fenced sessions and replay by 
   });
 });
 
-test("legacy dispatch can use its durable outbox identity on a fenced session", async () => {
-  const f = await setupRunLease();
-  const viewer = asUser(f.t, f.owner);
-  const outbox = {
-    id: `${Date.now()}:${crypto.randomUUID()}`,
-    owner: f.owner,
-    age_ms: 0,
-  };
-  const request = {
-    action: "sendMessage",
-    args: [f.conversation, "Legacy outbox message"],
-    outbox,
-  };
-  const message = await viewer.mutation(api.dispatch.dispatch, request);
-  expect(await viewer.mutation(api.dispatch.dispatch, request)).toBe(message);
-  expect(await f.t.run(({ db }) => db.get(message))).toMatchObject({
-    delivery_id: `dispatch:${f.owner}:${outbox.id}`,
-    execution_epoch: 1,
-  });
-  await expect(
-    viewer.mutation(api.dispatch.dispatch, {
-      action: "queueMessage",
-      args: [f.conversation, "Queue without an identity"],
-    }),
-  ).rejects.toThrow("FENCED_DELIVERY_ID_REQUIRED");
-});
+test.each(["sendMessage", "queueMessage"])(
+  "legacy %s uses its outbox identity when the client ID is blank",
+  async (action) => {
+    const f = await setupRunLease();
+    const viewer = asUser(f.t, f.owner);
+    const outbox = {
+      id: `${Date.now()}:${crypto.randomUUID()}`,
+      owner: f.owner,
+      age_ms: 0,
+    };
+    const request = {
+      action,
+      args: [
+        f.conversation,
+        "Legacy outbox message",
+        ...(action === "sendMessage" ? [null, ""] : [" "]),
+      ],
+      outbox,
+    };
+    const message = await viewer.mutation(api.dispatch.dispatch, request);
+    expect(await viewer.mutation(api.dispatch.dispatch, request)).toBe(message);
+    expect(await f.t.run(({ db }) => db.get(message))).toMatchObject({
+      client_id: `dispatch:${f.owner}:${outbox.id}`,
+      ...(action === "sendMessage" && { execution_epoch: 1 }),
+    });
+    await expect(
+      viewer.mutation(api.dispatch.dispatch, {
+        action: "queueMessage",
+        args: [f.conversation, "Queue without an identity"],
+      }),
+    ).rejects.toThrow("FENCED_DELIVERY_ID_REQUIRED");
+  },
+);
 
 test("a failure notice replays once and revised evidence does not rewrite a fenced notice", async () => {
   const f = await setupRunLease();
@@ -92,4 +101,144 @@ test("a failure notice replays once and revised evidence does not rewrite a fenc
   await notify("gone");
   expect(await rows()).toHaveLength(3);
   expect(await f.t.run(({ db }) => db.get(first!._id))).toEqual(first);
+});
+
+test("queued dispatch falls back to the receipt when the client ID is blank", async () => {
+  const f = await setupRunLease();
+  const viewer = asUser(f.t, f.owner);
+  const message = await viewer.mutation(api.dispatch.dispatch, {
+    action: "queueMessage",
+    args: [f.conversation, "Queued by receipt", ""],
+    result: { receiptActionVersion: 1, commandId: "queue-receipt" },
+  });
+  expect(await f.t.run(({ db }) => db.get(message))).toMatchObject({
+    client_id: "queue-receipt",
+  });
+});
+
+async function fencedAnchor() {
+  const f = await setupRunLease();
+  const anchor = await f.t.run(async ({ db }) => {
+    const id = await db.insert("anchors", {
+      scope_type: "user",
+      scope_user_id: f.owner,
+      bot_user_id: f.owner,
+      host_user_id: f.owner,
+      conversation_id: f.conversation,
+      name: "Workspace agent",
+      status: "active",
+      created_at: 1,
+    });
+    await db.patch(f.conversation, { anchor_id: id });
+    await db.insert("anchor_channels", {
+      surface: "slack",
+      anchor_id: id,
+      channel_key: "test-channel",
+      workspace_key: "test-workspace",
+      created_at: 1,
+    });
+    return id;
+  });
+  const deliveryIds = () =>
+    f.t.run(async ({ db }) =>
+      (await db.query("pending_messages").collect())
+        .filter((row) => row.delivery_id !== "delivery")
+        .map((row) => row.delivery_id),
+    );
+  return { ...f, anchor, deliveryIds };
+}
+
+test("a CLI anchor wake reaches a fenced anchor and replays by request ID", async () => {
+  const f = await fencedAnchor();
+  const wake = () =>
+    f.t.mutation(api.anchors.wakeAnchor, {
+      api_token: f.bearer,
+      anchor_id: f.anchor,
+      message: "Wake the anchor",
+      client_id: "wake-1",
+    });
+  await wake();
+  await wake();
+  expect(await f.deliveryIds()).toEqual([`anchor-wake:${f.owner}:wake-1`]);
+});
+
+test("a Slack event wakes a fenced anchor only once", async () => {
+  const f = await fencedAnchor();
+  const wake = () =>
+    f.t.mutation(internal.slack.wakeFromSlackEvent, {
+      event_id: "event-1",
+      channel: "test-channel",
+      workspace: "test-workspace",
+      text: "Wake the anchor",
+    });
+  await wake();
+  expect(await wake()).toEqual({ status: "duplicate" });
+  expect(await f.deliveryIds()).toEqual(["slack-anchor:event-1"]);
+});
+
+test("an adopted fenced anchor receives its role bootstrap", async () => {
+  const f = await fencedAnchor();
+  const role = await f.t.run(async (ctx) => {
+    const roleId = await ctx.db.insert("org_roles", {
+      short_id: "or-1",
+      scope_type: "user",
+      scope_user_id: f.owner,
+      host_user_id: f.owner,
+      name: "Role",
+      handle: "role",
+      scope: { project_ids: [], plan_ids: [] },
+      reports_to: { kind: "user", user_id: f.owner },
+      status: "active",
+      created_by: f.owner,
+      created_at: 1,
+      updated_at: 1,
+    });
+    await provisionStandingAgent(ctx, f.owner, {
+      scope_type: "user",
+      role: {
+        _id: roleId,
+        bootstrap: {
+          handle: "role",
+          scopeNames: [],
+          parentName: "Owner",
+          startsOnItsOwn: false,
+        },
+        adopt: await ctx.db.get(f.conversation),
+      },
+    });
+    return roleId;
+  });
+  expect(await f.deliveryIds()).toEqual([`anchor-adopt:${f.anchor}:${role}`]);
+});
+
+test("a repeated merge-back report does not send twice to a fenced parent", async () => {
+  const f = await setupRunLease();
+  const worker = await f.t.run(async ({ db }) => {
+    const id = await fixtureRows(db, "merge back").conversation(f.owner);
+    await db.patch(id, { parent_conversation_id: f.conversation });
+    return id;
+  });
+  const report = (state: "merged" | "conflict") =>
+    f.t.run((ctx) =>
+      applyMergeBackReport(ctx, f.owner, {
+        conversation_id: worker,
+        state,
+        files: ["README.md"],
+      }),
+    );
+  await report("merged");
+  await report("merged");
+  await report("conflict");
+  const rows = await f.t.run(({ db }) =>
+    db.query("pending_messages").collect(),
+  );
+  const notices = rows.filter((row) => row.from_conversation_id === worker);
+  expect(notices.map((row) => row.conversation_sequence)).toEqual([2, 3]);
+  expect(
+    notices.every(
+      (row) =>
+        row.execution_epoch === 1 &&
+        row.delivery_id?.startsWith(`merge-back:${worker}:`),
+    ),
+  ).toBe(true);
 });

@@ -1937,6 +1937,9 @@ describe("workflow/runner (a station whose edges route on the handoff)", () => {
     const asks = calls.filter((c) => c.route === "/cli/messages/send");
     expect(asks.length).toBe(1);
     expect(asks[0]!.body.to).toBe("conv_hand");
+    expect(asks[0]!.body.client_id).toBe(
+      "run:run-1:handoff:implement:conv_hand:22",
+    );
     expect(asks[0]!.body.body).toContain("cast task handoff ct-9");
   }, 30000);
 

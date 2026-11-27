@@ -2812,12 +2812,12 @@ const cloudAgents = new CloudAgentRegistry(
         })
         .catch(logConvexFailure);
     },
-    enqueueMessage: async (conversationId, content) => {
+    enqueueMessage: async (conversationId, content, clientId) => {
       if (!syncServiceRef) throw new Error("not connected");
       await syncServiceRef.enqueueUserMessage(
         conversationId,
         content,
-        undefined,
+        clientId,
         { human: true },
       );
     },

@@ -82,7 +82,11 @@ export interface CloudAgentRegistryDeps extends Omit<
     line: CloudAgentThreadLine,
   ) => Promise<void>;
   /** Put a message the person wrote on the conversation's delivery rail (pending messages), as the composer does. */
-  enqueueMessage: (conversationId: string, content: string) => Promise<void>;
+  enqueueMessage: (
+    conversationId: string,
+    content: string,
+    clientId: string,
+  ) => Promise<void>;
   /**
    * Host a session this daemon runs without a process of its own (register it
    * and heartbeat it): "not_owner" when another live device hosts it,
@@ -251,6 +255,7 @@ export class CloudAgentRegistry {
     projectPath: string | undefined,
     modelKey: string | undefined,
     prompt: unknown,
+    launchId = conversationId,
   ): Promise<{ error?: string } | null> {
     const runtime = this.runtimeOf(
       cloudAgentProviderForLaunch(agentType, modelKey)?.id,
@@ -259,7 +264,11 @@ export class CloudAgentRegistry {
     await runtime.sessions.start(conversationId, projectPath, modelKey);
     if (typeof prompt !== "string" || !prompt.trim()) return {};
     try {
-      await this.deps.enqueueMessage(conversationId, prompt);
+      await this.deps.enqueueMessage(
+        conversationId,
+        prompt,
+        `cloud-launch:${launchId}`,
+      );
       return {};
     } catch (err) {
       this.deps.log(

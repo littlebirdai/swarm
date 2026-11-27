@@ -35,3 +35,14 @@ export function turnVerdict({ transcript, named, quiet, alone }) {
     return { answer: true, quiet: false };
   return { answer: turnIsForVoice({ quiet, alone }), quiet };
 }
+
+export function forwardVoiceAsk(send, speakerName) {
+  return async ({ request }, { toolCallId }) => {
+    await send({
+      text: request,
+      speaker: speakerName() || "",
+      client_id: toolCallId,
+    });
+    return "Handed to your session. Tell the room briefly that you are on it.";
+  };
+}

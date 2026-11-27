@@ -16316,13 +16316,18 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (target && hasThreadState(target))
         Object.assign(target, answeredThreadStateFields());
     }
+    const clientId = _clientId?.trim() ? undefined : crypto.randomUUID();
     const turn = this.fencedObservedTurns[_convId];
     if (
       observeTurn &&
       turn?.observed_turn &&
       turn.local_lease_deadline > performance.now()
     )
-      return { observed_turn: { ...turn.observed_turn } };
+      return {
+        ...(clientId && { clientId }),
+        observed_turn: { ...turn.observed_turn },
+      };
+    if (clientId) return { clientId };
   }),
   // A real id sends now. A stub waits for its create (awaitConvexId heals a
   // stranded one), because the server cannot address a stub id. A create that

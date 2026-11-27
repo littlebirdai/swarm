@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { act } from "react";
 import { armJointSend, setJointCandidates } from "../../lib/joint-send";
@@ -405,4 +406,50 @@ test("a collaborator draft survives both flag changes and a session switch", asy
   expect(ui.box().value).toBe("");
   await ui.rerender(collaborator(conversationId, shared));
   expect(ui.box().value).toBe("Draft from the collaborator");
+});
+
+test("a direct collaborator send retries with the same identity and gets a new one on the next send", async () => {
+  const conversationId = "jx7abcdefghijklmnopqrstuvwxyz012";
+  const ids: string[] = [];
+  const mountCollaborator = createComposerMount((node, options) =>
+    mountWeb(node, {
+      ...options,
+      expectedConsoleErrors: [
+        /pendingMessages:sendSessionMessage.*response lost/,
+      ],
+    }),
+  );
+  const ui = await mountCollaborator(
+    collaborator(conversationId, { enabled: false }),
+    {
+      setup(backend) {
+        backend.set(api.collab.mySendAccess, { level: "team" });
+        backend.set(api.devices.getConversationMachine, null);
+        backend.mutation(api.pendingMessages.sendSessionMessage, (args) => {
+          ids.push(args.client_id!);
+          if (ids.length === 1) throw new Error("response lost");
+          return {
+            message_id: null,
+            target_live: true,
+            to_short_id: "jx7",
+            from_short_id: "unknown",
+            cross_user: true,
+            arrives: "now" as const,
+            auto_owned: false,
+          };
+        });
+      },
+    },
+  );
+  await ui.type("Repeat these words");
+  await ui.press("Enter");
+  expect(ui.box().value).toBe("Repeat these words");
+  expect(ids).toEqual([expect.any(String)]);
+  await ui.press("Enter");
+  expect(ui.box().value).toBe("");
+  expect(ids).toEqual([ids[0], ids[0]]);
+  await ui.type("Repeat these words");
+  await ui.press("Enter");
+  expect(ids).toHaveLength(3);
+  expect(ids[2]).not.toBe(ids[0]);
 });

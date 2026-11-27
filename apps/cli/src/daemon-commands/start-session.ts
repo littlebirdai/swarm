@@ -102,6 +102,7 @@ export async function handleStartSessionCommand(
     | "writeGrokStableRulesFile"
   >,
   commandOutcome: CommandOutcome,
+  commandId: string,
   command: string,
   config: Config,
   commandArgs: string | undefined,
@@ -232,6 +233,7 @@ export async function handleStartSessionCommand(
             parsed.project_path,
             requestedModelKey,
             parsed.prompt,
+            commandId,
           )
         : null;
       startSteps.mark("cloud");

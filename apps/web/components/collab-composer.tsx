@@ -422,8 +422,16 @@ export const CollabComposer = memo(function CollabComposer({
       : "",
   );
   const draft = useRef(message);
+  const directAttempt = useRef<{
+    scope: string;
+    body: string;
+    queue: boolean;
+    id: string;
+  } | null>(null);
+  const directSending = useRef(false);
   const setMessage = useCallback(
     (text: string) => {
+      if (draft.current !== text) directAttempt.current = null;
       draft.current = text;
       setLocalMessage(text);
       if (draftScope.current !== convKey) return;
@@ -591,8 +599,6 @@ export const CollabComposer = memo(function CollabComposer({
   }
 
   async function handleSend(together = false, queue = false) {
-    // Together: one turn, my words and the others' live drafts each under
-    // their author's name; the server checks each part against its draft.
     if (
       busy ||
       (together && !canSendTogether) ||
@@ -640,18 +646,33 @@ export const CollabComposer = memo(function CollabComposer({
       if (accepted && together) claimSent(candidates);
       return;
     }
+    if (directSending.current) return;
+    const previous = directAttempt.current;
+    const attempt =
+      previous?.scope === convKey &&
+      previous.body === body &&
+      previous.queue === queue
+        ? previous
+        : { scope: convKey, body, queue, id: crypto.randomUUID() };
+    directAttempt.current = attempt;
+    directSending.current = true;
     setBusy(true);
     try {
-      // direct: a person typed this, not a session — the agent sees
-      // <user-message from="Name">, never an unknown-session relay.
       const res = await sendToSession({
         to: convId,
         body,
         direct: true,
+        client_id: attempt.id,
         ...(queue ? { queue: true } : {}),
       });
       if (together) claimSent(candidates);
-      setMessage("");
+      if (
+        visibleScope.current === convKey &&
+        directAttempt.current === attempt
+      ) {
+        setMessage("");
+        directAttempt.current = null;
+      }
       setHintFailed(false);
       setSentHint(
         res?.suggestion_id
@@ -664,8 +685,13 @@ export const CollabComposer = memo(function CollabComposer({
       );
       setTimeout(() => setSentHint(null), 4000);
     } catch (e: any) {
-      // The batch was already taken out of the tray; keep it as text in the box.
-      setMessage(mine);
+      if (
+        visibleScope.current === convKey &&
+        directAttempt.current === attempt
+      ) {
+        setMessage(mine);
+        directAttempt.current = attempt;
+      }
       setHintFailed(true);
       setSentHint(
         e?.message?.includes("granted")
@@ -676,6 +702,7 @@ export const CollabComposer = memo(function CollabComposer({
       );
       setTimeout(() => setSentHint(null), 4000);
     } finally {
+      directSending.current = false;
       setBusy(false);
     }
   }

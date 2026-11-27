@@ -48,6 +48,7 @@ import {
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { agentFaceIdentity } from "@codecast/calls/callRoomKeys";
 import {
   agentSpokenNames,
@@ -61,6 +62,7 @@ import { signLivekitJwt } from "./lib/livekitJwt";
 import { timingSafeEqualHex } from "./lib/hmac";
 import { teamHasFeature } from "./lib/teamFeatureGuard";
 import { agentLineText, liveTranscriptFor } from "./callChat";
+import { sha256Hex } from "./lib/hash";
 import { writeSegments } from "./transcripts";
 import { authorizeRoom } from "./callRooms";
 import { featureVendorRefusal } from "./lib/vendorGuard";
@@ -276,6 +278,19 @@ export const brief = internalQuery({
   },
 });
 
+async function legacyVoiceTurnId(
+  ctx: MutationCtx,
+  transcriptId: Id<"transcripts">,
+  args: { speaker?: string; text: string },
+): Promise<string> {
+  const turn = await ctx.db
+    .query("transcript_segments")
+    .withIndex("by_transcript_seq", (q) => q.eq("transcript_id", transcriptId))
+    .order("desc")
+    .first();
+  return `legacy:${turn?._id ?? transcriptId}:${await sha256Hex(JSON.stringify([args.speaker, args.text]))}`;
+}
+
 export const ask = internalMutation({
   args: {
     conversation_id: v.string(),
@@ -292,7 +307,7 @@ export const ask = internalMutation({
     await ctx.scheduler.runAfter(0, internal.transcripts.deliverToSession, {
       as_user: feed.added_by,
       to: String(feed.conversation_id),
-      client_id: args.client_id ? `huddle-voice:${args.client_id}` : undefined,
+      client_id: `huddle-voice:${args.client_id?.trim() || `${feed._id}:${await legacyVoiceTurnId(ctx, feed.transcript_id, args)}`}`,
       body: `${huddleVoiceAskHeader(who.character.name, args.speaker ?? null)}\n\n${args.text}`,
     });
     return true;

@@ -2406,12 +2406,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   queueMessage: async (
     ctx,
     userId,
-    [convId, content, clientId, typed]: [
-      string,
-      string,
-      string,
-      string | undefined,
-    ],
+    [convId, content, clientId, typed]: [string, string, string, string?],
     result,
     outboxId,
   ) => {
@@ -2423,10 +2418,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       content,
       client_id: requireFencedClientId(
         conversation,
-        clientId ??
-          (hasReceiptCommandId(result)
+        clientId?.trim()
+          ? clientId
+          : hasReceiptCommandId(result)
             ? receiptCommandId("queueMessage", result)
-            : outboxId && `dispatch:${userId}:${outboxId}`),
+            : outboxId && `dispatch:${userId}:${outboxId}`,
       ),
       human: true,
       ...composerChannel(typed),
@@ -2487,7 +2483,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       throw new Error("Unauthorized");
     const deliveryClientId = requireFencedClientId(
       conversation,
-      clientId ?? (outboxId && `dispatch:${userId}:${outboxId}`),
+      clientId?.trim()
+        ? clientId
+        : outboxId && `dispatch:${userId}:${outboxId}`,
     );
     const stampQuotes = deliveryClientId ? quoteClientIds : undefined;
     const waiting = await quotesWaiting(ctx, conversation._id, stampQuotes);

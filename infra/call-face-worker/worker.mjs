@@ -25,7 +25,6 @@
 // TAVUS_PAL_ID (an echo PAL on LiveKit transport), and for realtime
 // OPENAI_API_KEY, CONVEX_SITE_URL, FACE_WORKER_SECRET. FACE_AGENT_NAME
 // registers a test instance under another name, out of prod's dispatches.
-import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   AutoSubscribe,
@@ -43,7 +42,12 @@ import {
   TrackKind,
 } from "@livekit/rtc-node";
 import { AccessToken } from "livekit-server-sdk";
-import { nameMatchers, turnIsForVoice, turnVerdict } from "./turns.mjs";
+import {
+  forwardVoiceAsk,
+  nameMatchers,
+  turnIsForVoice,
+  turnVerdict,
+} from "./turns.mjs";
 import { eachTrack, isPerson, people, watchVideo } from "./vision.mjs";
 
 const AGENT_NAME = process.env.FACE_AGENT_NAME || "codecast-face";
@@ -292,14 +296,10 @@ async function runRealtime(ctx, meta, face) {
           },
           required: ["request"],
         },
-        execute: async ({ request }) => {
-          await convex("ask", meta, room, {
-            text: request,
-            speaker: speaker?.name || "",
-            client_id: randomUUID(),
-          });
-          return "Handed to your session. Tell the room briefly that you are on it.";
-        },
+        execute: forwardVoiceAsk(
+          (args) => convex("ask", meta, room, args),
+          () => speaker?.name,
+        ),
       }),
     },
   });

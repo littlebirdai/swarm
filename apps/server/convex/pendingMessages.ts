@@ -1571,7 +1571,10 @@ export const sendSessionMessage = mutation({
     if (!authUserId) {
       throw new Error("Authentication failed: invalid token or session");
     }
-    return await performSessionSend(ctx, authUserId, args);
+    return await performSessionSend(ctx, authUserId, {
+      ...args,
+      client_id: args.client_id,
+    });
   },
 });
 

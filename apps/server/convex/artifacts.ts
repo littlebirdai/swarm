@@ -1820,12 +1820,10 @@ async function emitCommentNotifications(
 // request claims: unauthenticated text must never message a live session.
 export const submitComments = mutation({
   args: {
-    // The page, by slug or (web reply path) by id. One of the two.
     slug: v.optional(v.string()),
     artifact_id: v.optional(v.id("artifacts")),
     author_name: v.string(),
     author_email: v.optional(v.string()),
-    // Defaults to the artifact's current version (web replies don't track it).
     version: v.optional(v.number()),
     deliver: v.optional(v.boolean()),
     owner_key: v.optional(v.string()),
@@ -1833,11 +1831,7 @@ export const submitComments = mutation({
     // author is the ACCOUNT's name/avatar — the viewer-typed name is ignored.
     // Without a token, a signed-in web caller resolves through their session.
     identity_token: v.optional(v.string()),
-    // Reply target: an artifact_comments id string. Replies thread one level
-    // deep — replying to a reply attaches to its top-level comment.
     parent_id: v.optional(v.string()),
-    // Idempotency key for the web outbox: a retry with the same client_id
-    // returns the row already inserted.
     client_id: v.optional(v.string()),
     // A reply from inside the app (Threads, a page's discussion panel), sent
     // by dispatch addPageComment with no page keys in hand. See commentAdmission.
@@ -1885,10 +1879,16 @@ export const submitComments = mutation({
         )
         .first();
       if (dupe) {
+        const batch = await ctx.db
+          .query("artifact_comments")
+          .withIndex("by_artifact_batch", (q) =>
+            q.eq("artifact_id", artifact._id).eq("batch_id", dupe.batch_id),
+          )
+          .take(MAX_COMMENT_BATCH);
         return {
-          delivered: dupe.delivered,
-          count: 1,
-          ids: [dupe._id],
+          delivered: batch.some((row) => row.delivered),
+          count: batch.length,
+          ids: batch.map((row) => row._id),
           as: identity
             ? { name: identity.name, avatar: identity.avatar ?? null }
             : null,
@@ -1938,12 +1938,28 @@ export const submitComments = mutation({
       ? identity.user.email?.toLowerCase()
       : args.author_email?.trim().toLowerCase().slice(0, 254);
     const now = Date.now();
-    const batchId = newSlug(10);
-    const version = args.version ?? artifact.version;
-
-    // Deliver first (as one message), then store rows stamped with the
-    // outcome. A failed delivery still stores the comments — the owner sees
-    // them in the discussion and can re-send via "send all".
+    const batchId = args.client_id ? `request:${args.client_id}` : newSlug(10);
+    const insertedIds = await Promise.all(
+      list.map((c, i) =>
+        ctx.db.insert("artifact_comments", {
+          artifact_id: artifact._id,
+          batch_id: batchId,
+          author_name: author,
+          author_email: email,
+          author_user_id: identity?.user._id,
+          author_avatar: identity?.avatar,
+          parent_comment_id: parent?._id,
+          text: c.text,
+          anchor: c.anchor,
+          client_id: i === 0 ? args.client_id : undefined,
+          version: args.version ?? artifact.version,
+          status: "open",
+          delivered: false,
+          author_role: role,
+          created_at: now,
+        }),
+      ),
+    );
     const outgoing = role ? list.filter((c) => c.toAgent) : [];
     const delivered =
       !!role &&
@@ -1957,36 +1973,20 @@ export const submitComments = mutation({
           author_email: email,
           author_role: role,
         })),
-        `artifact-comment-batch:${artifact._id}:${batchId}`,
+        `artifact-comment-batch:${artifact._id}:${args.client_id ? batchId : insertedIds[0]}`,
       ));
-
-    const insertedIds: Id<"artifact_comments">[] = [];
-    for (const c of list) {
-      const sent = delivered && c.toAgent;
-      insertedIds.push(
-        await ctx.db.insert("artifact_comments", {
-          artifact_id: artifact._id,
-          batch_id: batchId,
-          author_name: author,
-          author_email: email,
-          author_user_id: identity?.user._id,
-          author_avatar: identity?.avatar,
-          parent_comment_id: parent?._id,
-          text: c.text,
-          anchor: c.anchor,
-          // The idempotency key marks the batch's first row: the web reply
-          // path submits one comment at a time.
-          client_id: insertedIds.length === 0 ? args.client_id : undefined,
-          version,
-          status: "open",
-          delivered: sent,
-          delivered_at: sent ? now : undefined,
-          delivered_version: sent ? artifact.version : undefined,
-          author_role: role,
-          created_at: now,
-        }),
+    if (delivered)
+      await Promise.all(
+        list.map(
+          (c, i) =>
+            c.toAgent &&
+            ctx.db.patch(insertedIds[i], {
+              delivered: true,
+              delivered_at: now,
+              delivered_version: artifact.version,
+            }),
+        ),
       );
-    }
     const mentioned = await emitCommentNotifications(ctx, artifact, {
       firstCommentId: parent?._id ?? insertedIds[0],
       texts: list.map((c) => c.text),

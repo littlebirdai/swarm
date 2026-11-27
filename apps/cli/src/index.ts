@@ -19128,6 +19128,7 @@ anchor
         api_token: config.auth_token,
         anchor_id: anchorRow._id,
         message,
+        client_id: randomUUID(),
       }),
     });
     if (!resp.ok) {
@@ -19141,7 +19142,6 @@ anchor
       `${c.green}✓${c.reset} woke ${c.cyan}${anchorRow.name}${c.reset}`,
     );
   });
-
 anchor
   .command("brief")
   .description(

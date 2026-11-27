@@ -1459,8 +1459,8 @@ describe("Codex Cloud launch options (the composer's ask mode and attempts)", ()
         agentForConversation: () => undefined,
         setStatus: () => {},
         addLine: async () => {},
-        enqueueMessage: async (c, content) => {
-          queued.push(`${c} ${content}`);
+        enqueueMessage: async (c, content, clientId) => {
+          queued.push(`${c} ${content} ${clientId}`);
         },
         hostSession: async () => "hosted",
         releaseSession: () => {},
@@ -1478,9 +1478,12 @@ describe("Codex Cloud launch options (the composer's ask mode and attempts)", ()
         repo,
         "cloud:ask+x2",
         "explain the repo",
+        "start-command",
       ),
     ).toEqual({});
-    expect(queued).toEqual(["conv-1 explain the repo"]);
+    expect(queued).toEqual([
+      "conv-1 explain the repo cloud-launch:start-command",
+    ]);
     expect(
       await reg.start("codex", "conv-local", repo, "gpt-5.5", "hi"),
     ).toBeNull();
