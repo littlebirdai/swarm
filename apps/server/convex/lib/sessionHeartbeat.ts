@@ -80,6 +80,87 @@ export async function inboxUserHeartbeatRows(
   };
 }
 
+export function indexedInboxLivenessEnabled(): boolean {
+  return (
+    process.env.INBOX_INDEXED_LIVENESS === "1" && inboxLeaseWritesEnabled()
+  );
+}
+
+export async function indexedInboxSessionRows(
+  ctx: Reader,
+  userId: Id<"users">,
+  now: number,
+) {
+  const recentWithoutLiveLease = (expired: true | undefined) =>
+    ctx.db
+      .query("managed_sessions")
+      .withIndex("by_user_inbox_lease_heartbeat", (q) =>
+        q
+          .eq("user_id", userId)
+          .eq("liveness_lease.expired", expired)
+          .gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS),
+      )
+      .collect();
+
+  const [leased, legacy, recentlyExpired] = await Promise.all([
+    ctx.db
+      .query("managed_sessions")
+      .withIndex("by_user_inbox_lease_heartbeat", (q) =>
+        q.eq("user_id", userId).eq("liveness_lease.expired", false),
+      )
+      .collect(),
+    recentWithoutLiveLease(undefined),
+    recentWithoutLiveLease(true),
+  ]);
+
+  const hot = [...leased, ...legacy, ...recentlyExpired];
+  const newestDaemon = hot.some((row) => row.hosted === undefined)
+    ? null
+    : await ctx.db
+        .query("managed_sessions")
+        .withIndex("by_user_daemon_heartbeat", (q) =>
+          q.eq("user_id", userId).eq("hosted", undefined),
+        )
+        .order("desc")
+        .first();
+  const rows = new Map(hot.map((row) => [row._id, row]));
+  const loaded = new Set<Id<"conversations">>();
+  async function snapshot() {
+    const sessions = [...rows.values()].sort(
+      (a, b) =>
+        a._creationTime - b._creationTime ||
+        (a._id < b._id ? -1 : Number(a._id > b._id)),
+    );
+    return {
+      sessions,
+      beats: await inboxHeartbeatsFor(ctx, sessions),
+      latestDaemonHeartbeat: newestDaemon?.last_heartbeat,
+    };
+  }
+
+  async function withHistory(conversationIds: Id<"conversations">[]) {
+    const missing = [...new Set(conversationIds)].filter(
+      (id) => !loaded.has(id),
+    );
+    const historical = await Promise.all(
+      missing.map((id) =>
+        ctx.db
+          .query("managed_sessions")
+          .withIndex("by_conversation_user", (q) =>
+            q.eq("conversation_id", id).eq("user_id", userId),
+          )
+          .order("desc")
+          .take(8),
+      ),
+    );
+    for (const id of missing) loaded.add(id);
+    for (const row of historical.flat()) rows.set(row._id, row);
+    return snapshot();
+  }
+
+  return { ...(await snapshot()), withHistory };
+}
+
 export async function heartbeatOf(
   ctx: Reader,
   session: ManagedHeartbeat | null | undefined,
