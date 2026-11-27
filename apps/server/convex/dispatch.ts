@@ -1,4 +1,4 @@
-import { enrollFreshOwnedCodex } from "./lib/fenced-session-launch.state";
+import { launchDispatchedSession } from "./lib/fenced-session-launch.state";
 import {
   dispatchCollabGrant,
   dispatchSteerComposer,
@@ -2309,52 +2309,19 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       }
       return conversationId;
     }
-    if (
-      daemonType === "codex" &&
-      runnerUserId === userId &&
-      !asDef.definition &&
-      !handThread &&
-      (await enrollFreshOwnedCodex(
-        ctx,
-        userId,
-        conversationId,
-        {
-          ...opts,
-          project_path: resolvedProjectPath || resolvedGitRoot,
-          git_root: resolvedGitRoot,
-          model: requestedModel,
-          effort: effortOk ? opts.effort : undefined,
-        },
-        now,
-      ))
-    )
-      return conversationId;
-    await enqueueStartSession(ctx, runnerUserId, {
+    await launchDispatchedSession(ctx, {
+      userId,
+      runnerUserId,
       conversationId,
-      agentType: daemonType,
+      daemonType,
       projectPath: resolvedProjectPath || resolvedGitRoot,
       gitRoot: resolvedGitRoot,
       createdAt: now,
-      // The human behind the create: lets the chokepoint upgrade a dropdown
-      // pick of the runner's own cloud host to placement (mobile has no cloud
-      // toggle; it sends target_device_id alone).
-      callerUserId: userId,
-      ...(opts.isolated ? { isolated: true } : {}),
-      ...(opts.worktree_name ? { worktreeName: opts.worktree_name } : {}),
-      // The machine picked on the new-session page. Web creates are deferred to
-      // the first send, so the pick rides the create itself — there is no blank
-      // conversation to reconfigure beforehand (reconfigureSession serves the
-      // eager-create surfaces, e.g. mobile).
-      ...(opts.target_device_id
-        ? { targetDeviceId: opts.target_device_id }
-        : {}),
-      ...(requestedModel ? { model: requestedModel } : {}),
-      ...(effortOk ? { effort: opts.effort } : {}),
-      ...(opts.stable_mode ? { stableMode: opts.stable_mode } : {}),
-      ...(opts.stable_exclude?.length
-        ? { stableExclude: opts.stable_exclude }
-        : {}),
-      ...(asDef.definition ? { definition: asDef.definition } : {}),
+      model: requestedModel,
+      effort: effortOk ? opts.effort : undefined,
+      definition: asDef.definition,
+      handThread: Boolean(handThread),
+      opts,
     });
     return conversationId;
   },

@@ -7,7 +7,7 @@ import { findModelOption } from "@codecast/agent-clients/agentClients";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { DEVICE_ONLINE_MS } from "../deviceRouting";
-import { ownDevice, resolveOwnerDevice } from "../devices";
+import { enqueueStartSession, ownDevice, resolveOwnerDevice } from "../devices";
 import { initializeFencedExecutionInDb } from "../executionBindings";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./execution-binding.validators";
 import { registeredDaemonBoot } from "./execution-daemon.state";
@@ -83,4 +83,75 @@ export async function enrollFreshOwnedCodex(
     },
   });
   return true;
+}
+
+export async function launchDispatchedSession(
+  ctx: Pick<MutationCtx, "db">,
+  args: {
+    userId: Id<"users">;
+    runnerUserId: Id<"users">;
+    conversationId: Id<"conversations">;
+    daemonType: Parameters<typeof enqueueStartSession>[2]["agentType"];
+    projectPath?: string;
+    gitRoot?: string;
+    createdAt: number;
+    model?: string;
+    effort?: string;
+    definition?: Parameters<typeof enqueueStartSession>[2]["definition"];
+    handThread: boolean;
+    opts: {
+      isolated?: boolean;
+      worktree_name?: string;
+      target_device_id?: string;
+      stable_mode?: string;
+      stable_exclude?: string[];
+    };
+  },
+): Promise<void> {
+  const {
+    userId,
+    runnerUserId,
+    conversationId,
+    daemonType,
+    projectPath,
+    gitRoot,
+    createdAt,
+    model,
+    effort,
+    definition,
+    handThread,
+    opts,
+  } = args;
+  if (
+    daemonType === "codex" &&
+    runnerUserId === userId &&
+    !definition &&
+    !handThread &&
+    (await enrollFreshOwnedCodex(
+      ctx,
+      userId,
+      conversationId,
+      { ...opts, project_path: projectPath, git_root: gitRoot, model, effort },
+      createdAt,
+    ))
+  )
+    return;
+  await enqueueStartSession(ctx, runnerUserId, {
+    conversationId,
+    agentType: daemonType,
+    projectPath,
+    gitRoot,
+    createdAt,
+    callerUserId: userId,
+    ...(opts.isolated ? { isolated: true } : {}),
+    ...(opts.worktree_name ? { worktreeName: opts.worktree_name } : {}),
+    ...(opts.target_device_id ? { targetDeviceId: opts.target_device_id } : {}),
+    ...(model ? { model } : {}),
+    ...(effort ? { effort } : {}),
+    ...(opts.stable_mode ? { stableMode: opts.stable_mode } : {}),
+    ...(opts.stable_exclude?.length
+      ? { stableExclude: opts.stable_exclude }
+      : {}),
+    ...(definition ? { definition } : {}),
+  });
 }

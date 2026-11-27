@@ -647,6 +647,8 @@ export async function enqueuePendingMessage(
           fields.queue ? undefined : fields.observed_turn,
         )
       : !held &&
+          process.env.SWARM_TURN_BATON === "1" &&
+          fields.client_id &&
           !fields.human &&
           fields.from_conversation_id &&
           !fields.origin &&
