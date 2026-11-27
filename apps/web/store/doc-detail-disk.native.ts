@@ -11,6 +11,10 @@ export async function readCachedDocDetails(): Promise<
   return [];
 }
 
+export async function readCachedDocDetailIds(): Promise<string[]> {
+  return [];
+}
+
 export function persistedDocDetailWorkspace(_id: string): string | undefined {
   return undefined;
 }

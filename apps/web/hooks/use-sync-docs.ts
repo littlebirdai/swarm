@@ -14,6 +14,7 @@ import {
   reportDetailInvalidation,
   reportCompleteDocCrawl,
   subscribeDetailInvalidations,
+  retainDocDetailReader,
 } from "../store/doc-detail-cache";
 import { pinDetailRows } from "../lib/detail-rows";
 import { useServerAuthenticated } from "./useServerAuthSettled";
@@ -403,6 +404,10 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const pin = timedDocCapsEnabled();
   const { account } = detailReadPosition();
   const authenticated = useServerAuthenticated();
+  useWatchEffect(() => {
+    if (subscribe && enabled && authenticated && id)
+      return retainDocDetailReader(id);
+  }, [subscribe, enabled, authenticated, id]);
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
     () =>

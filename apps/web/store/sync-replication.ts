@@ -26,6 +26,7 @@ import {
   hideInvalidatedDetails,
   persistDetailInvalidation,
   verifyDetailInvalidation,
+  watchArchivedDocs,
   collectCompleteDocCrawlAbsences,
   type DetailAuthorityReader,
 } from "./doc-detail-authority";
@@ -102,6 +103,13 @@ let running: { stop: () => void; status: () => SyncReplicationStatus } | null =
  *  synchronously so no further message is sent or accepted for the old account. */
 export function stopSyncReplication(): void {
   running?.stop();
+}
+
+export function canWriteSharedDocDetails(principalId: string): boolean {
+  if (useInboxStore.getState().syncRole !== "host") return false;
+  if (!transportAvailable()) return true;
+  const status = running?.status();
+  return status?.holdsLock === true && status.principalId === principalId;
 }
 
 const SYNCLOG_META_PREFIX = syncLogScopeMetaKey("");
@@ -616,6 +624,7 @@ export function startSyncReplication(opts: {
   let follower: ReplicationFollower | null = null;
   let host: ReplicationHost | null = null;
   let soloTimer: ReturnType<typeof setTimeout> | null = null;
+  let stopArchivedDocs: (() => void) | undefined;
   const lock = replicationLock(opts.principalId);
 
   const persistence = replicationPersistence(() => useInboxStore.getState());
@@ -720,6 +729,7 @@ export function startSyncReplication(opts: {
     details?.promote();
     setDeferredSharedCacheSource("disk");
     retention.soon();
+    if (details) stopArchivedDocs = watchArchivedDocs(details.report);
   };
 
   const retention = startTimedDocRetention(
@@ -736,6 +746,7 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     stopped = true;
     retention.stop();
+    stopArchivedDocs?.();
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();
     host?.stop();

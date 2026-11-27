@@ -1,13 +1,16 @@
 import { afterEach, expect, test } from "bun:test";
 import { act, useLayoutEffect } from "react";
+import { _resetUndoStacks, performUndo } from "@platform/engine";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { hideInvalidatedDetails } from "../../store/doc-detail-authority";
 import {
   canHydrateDetail,
+  detailInvalidationRevision,
   resetDetailInvalidations,
   setDetailInvalidationReporter,
+  subscribeDetailInvalidations,
 } from "../../store/doc-detail-cache";
 import { isDetailPinned } from "../../lib/detail-rows";
 import { useDocDetail } from "../use-sync-docs";
@@ -19,6 +22,7 @@ const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
 afterEach(() => {
+  _resetUndoStacks();
   resetDetailInvalidations();
   if (original === undefined) delete process.env[flag];
   else process.env[flag] = original;
@@ -338,3 +342,169 @@ test.each([true, false])(
     expect(isDetailPinned("docDetails", id)).toBe(false);
   },
 );
+
+test("a permanent refusal of an overtaken archive does not refill while a newer archive is pending", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const archive1 = Promise.withResolvers<null>();
+  const restore = Promise.withResolvers<null>();
+  const archive2 = Promise.withResolvers<null>();
+  let archives = 0;
+  let reads = 0;
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    expectedConsoleErrors: [
+      /^\[CONVEX M\(dispatch:dispatch\)\] Error: Uncaught Error: Not authorized$/,
+      /^\[sync\] dispatch failed after retries: archiveDoc/,
+    ],
+    setup(backend, store) {
+      store.syncRecord("docs", id, {
+        _id: id,
+        title: row.title,
+        updated_at: 1,
+      });
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, ({ action }) => {
+        if (action === "restoreArchivedDoc") return restore.promise;
+        archives++;
+        return archives === 1 ? archive1.promise : archive2.promise;
+      });
+    },
+  });
+  try {
+    setDetailInvalidationReporter(undefined, async () => {
+      reads++;
+      return row;
+    });
+    expect(ui.container.textContent).toBe(row.content);
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () => {
+      expect(performUndo()).toBe(true);
+      flushSyncPublishes();
+    });
+    expect(ui.container.textContent).toBe(row.content);
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () => {
+      archive1.reject(new Error("Uncaught Error: Not authorized"));
+      flushSyncPublishes();
+    });
+    await act(async () => flushSyncPublishes());
+    expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+    expect(ui.store.getState().docDetails[id]).toBeUndefined();
+    expect(ui.container.textContent).toBe("No body");
+    expect(reads).toBe(0);
+  } finally {
+    await act(async () => {
+      restore.resolve(null);
+      archive2.resolve(null);
+    });
+    await ui.close();
+  }
+});
+
+test("a single permanent archive refusal invalidates and reads fresh once for a mounted reader", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const archive = Promise.withResolvers<null>();
+  let reads = 0;
+  let invalidations = 0;
+  let lastRevision = detailInvalidationRevision(id);
+  const unsubscribe = subscribeDetailInvalidations(() => {
+    const revision = detailInvalidationRevision(id);
+    if (revision > lastRevision) {
+      lastRevision = revision;
+      invalidations++;
+    }
+  });
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    expectedConsoleErrors: [
+      /^\[CONVEX M\(dispatch:dispatch\)\] Error: Uncaught Error: Not authorized$/,
+      /^\[sync\] dispatch failed after retries: archiveDoc/,
+    ],
+    setup(backend, store) {
+      store.syncRecord("docs", id, {
+        _id: id,
+        title: row.title,
+        updated_at: 1,
+      });
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => archive.promise);
+    },
+  });
+  try {
+    setDetailInvalidationReporter(undefined, async () => {
+      reads++;
+      return { ...row, content: "Revalidated once" };
+    });
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () => {
+      archive.reject(new Error("Uncaught Error: Not authorized"));
+      flushSyncPublishes();
+    });
+    await act(async () => flushSyncPublishes());
+    expect(invalidations).toBe(1);
+    expect(reads).toBe(1);
+    expect(ui.container.textContent).toBe("Revalidated once");
+  } finally {
+    unsubscribe();
+    await ui.close();
+  }
+});
+
+test("a non-subscribing useDocDetail caller does not strand hydration after a dropped archive", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const archive = Promise.withResolvers<null>();
+  function PassiveBody() {
+    const { detail } = useDocDetail(id, false);
+    return <p>{detail?.content ?? "No body"}</p>;
+  }
+  const ui = await mountWeb(<PassiveBody />, {
+    authenticated: true,
+    dispatch: true,
+    expectedConsoleErrors: [
+      /^\[CONVEX M\(dispatch:dispatch\)\] Error: Uncaught Error: Not authorized$/,
+      /^\[sync\] dispatch failed after retries: archiveDoc/,
+    ],
+    setup(backend, store) {
+      store.syncRecord("docs", id, {
+        _id: id,
+        title: row.title,
+        updated_at: 1,
+      });
+      store.syncRecord("docDetails", id, row);
+      backend.mutation(api.dispatch.dispatch, () => archive.promise);
+    },
+  });
+  try {
+    setDetailInvalidationReporter(undefined, async () => row);
+    expect(ui.container.textContent).toBe(row.content);
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () => {
+      archive.reject(new Error("Uncaught Error: Not authorized"));
+      flushSyncPublishes();
+    });
+    await act(async () => flushSyncPublishes());
+    expect(ui.store.getState().pending[`docs:${id}`]).toBeUndefined();
+    expect(canHydrateDetail(id)).toBe(true);
+  } finally {
+    await ui.close();
+  }
+});

@@ -57,6 +57,12 @@ export async function pruneCachedDocDetails(
     if (shadow?.get(id) === previous.get(id)) shadow?.delete(id);
 }
 
+export function readCachedDocDetailIds(): Promise<string[]> {
+  return persistenceOwned()
+    ? COLLECTION_TABLES.docDetails.toCollection().primaryKeys()
+    : Promise.resolve([]);
+}
+
 export function persistedDocDetailWorkspace(id: string): string | undefined {
   return lastPersisted.get("docDetails")?.get(id)?.workspace;
 }

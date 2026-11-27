@@ -3,12 +3,12 @@ import {
   cacheEvictionEnabled,
   timedDocCapsEnabled,
 } from "../store/cache-eviction";
+import { removeVerifiedArchivedBody } from "./archive-detail-fallback";
 import {
   detailAccountIsCurrent,
   detailReadIsCurrent,
   detailReadPosition,
   fetchFreshDocDetail,
-  hasFreshDocDetailReader,
   invalidateDetailReads,
   reportDetailInvalidation,
 } from "../store/doc-detail-cache";
@@ -109,6 +109,12 @@ export function makeDispatchBinding(
       action === "restoreArchivedDoc" && docId && timedDocCapsEnabled()
         ? useInboxStore.getState().pending[`docs:${docId}`]
         : undefined;
+    const detailOwner = detailWrite
+      ? (meta?.outbox?.accountId ?? outboxAccountId())
+      : null;
+    const dispatchedAt = detailWrite
+      ? (meta?.outbox?.queuedAt ?? Date.now())
+      : 0;
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
@@ -134,11 +140,28 @@ export function makeDispatchBinding(
           useInboxStore
             .getState()
             .settleCollabCommand(action, args, res, lockIds);
-        if (detailWrite && detailAccountIsCurrent(detailWrite) && docId) {
+        if (
+          detailWrite &&
+          detailAccountIsCurrent(detailWrite) &&
+          detailOwner === outboxAccountId() &&
+          docId
+        ) {
           const id = docId;
-          if (action === "archiveDoc")
-            reportDetailInvalidation({ ids: [id], cause: "archive" });
-          else {
+          if (action === "archiveDoc") {
+            if (
+              detailReadIsCurrent(id, detailWrite) &&
+              !reportDetailInvalidation({ ids: [id], cause: "archive" }) &&
+              detailOwner
+            )
+              return removeVerifiedArchivedBody(
+                id,
+                detailOwner,
+                dispatchedAt,
+                detailWrite,
+              )
+                .catch(() => {})
+                .then(() => res);
+          } else {
             invalidateDetailReads([id]);
             clearUnchangedDocExclude(id, docExclude);
             const position = detailReadPosition();
@@ -164,16 +187,6 @@ export function makeDispatchBinding(
       },
       (err) => {
         settle({ err });
-        if (
-          action === "archiveDoc" &&
-          detailWrite &&
-          detailAccountIsCurrent(detailWrite) &&
-          docId &&
-          timedDocCapsEnabled() &&
-          isPermanentDispatchError(err) &&
-          hasFreshDocDetailReader()
-        )
-          invalidateDetailReads([docId]);
         throw err;
       },
     );

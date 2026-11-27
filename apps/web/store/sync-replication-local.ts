@@ -1,15 +1,8 @@
 import {
-  collectCompleteDocCrawlAbsences,
-  hideInvalidatedDetails,
-  persistDetailInvalidation,
-  verifyDetailInvalidation,
+  startLocalDocAuthority,
   type DetailAuthorityReader,
 } from "./doc-detail-authority";
-import {
-  detailAccountIsCurrent,
-  detailReadPosition,
-  setDetailInvalidationReporter,
-} from "./doc-detail-cache";
+import { detailAccountIsCurrent, detailReadPosition } from "./doc-detail-cache";
 import { useInboxStore } from "./inboxStore";
 import type { SyncReplicationStatus } from "./sync-replication";
 import { startTimedDocRetention } from "./timed-doc-retention";
@@ -22,18 +15,7 @@ export function startLocalDocReplication(
   const account = detailReadPosition();
   let active = true;
   const current = () => active && detailAccountIsCurrent(account);
-  setDetailInvalidationReporter(
-    (evidence) => {
-      if (!current()) return false;
-      if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
-      void verifyDetailInvalidation(authority, evidence, current)
-        .then((ids) => persistDetailInvalidation(ids, current))
-        .catch(() => {});
-      return true;
-    },
-    authority.detail,
-    collectCompleteDocCrawlAbsences,
-  );
+  const stopAuthority = startLocalDocAuthority(authority);
   const retention = startTimedDocRetention(
     useInboxStore.getState,
     current,
@@ -43,7 +25,7 @@ export function startLocalDocReplication(
     stop() {
       active = false;
       retention.stop();
-      setDetailInvalidationReporter();
+      stopAuthority();
       onStop();
     },
     status: () => ({

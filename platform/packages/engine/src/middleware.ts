@@ -1548,7 +1548,12 @@ export function mutativeMiddleware(
               `[store] dropping ${Math.round((Date.now() - entry.ts) / 86_400_000)}d-old parked "${entry.action}" — too stale to replay`,
               entry.args,
             );
+            if (platformConfig.rollbackDroppedOutboxEntry?.(entry)) {
+              forgetWriter(entry.ts, cellsOf(entry.patches));
+              releaseRefusedLocks(entry.action, entry.locks ?? [], entry.id);
+            }
             void retireOutboxEntry(entry.id, null);
+            platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
             return false;
           }
           return true;
@@ -1662,6 +1667,7 @@ export function mutativeMiddleware(
             if (isPermanentDispatchError(e)) {
               forgetWriter(entry.ts, cellsOf(entry.patches));
               releaseRefusedLocks(entry.action, entry.locks ?? [], entry.id);
+              platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
               rejectReceiptWaiter(entry.id, e);
               await capturedRemove?.(entry.id);
               continue;
@@ -1676,6 +1682,7 @@ export function mutativeMiddleware(
               const gaveUp = new OutboxGaveUpError(entry.action, e);
               forgetWriter(entry.ts, cellsOf(entry.patches));
               releaseRefusedLocks(entry.action, entry.locks ?? [], entry.id);
+              platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
               capturedError?.(entry.action, gaveUp, entry.args);
               rejectReceiptWaiter(entry.id, gaveUp);
               await capturedRemove?.(entry.id);
@@ -1962,6 +1969,7 @@ export function mutativeMiddleware(
           if (isPermanentDispatchError(e)) {
             forgetWriter(entry.ts, writes);
             releaseRefusedLocks(key, fieldLocks, outboxId);
+            platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
             await retireOutboxEntry(outboxId, enqueued);
             void drainOutbox(false);
           }
@@ -1994,6 +2002,13 @@ export function mutativeMiddleware(
           });
         }
         console.warn(`[sync] dispatch not wired; ${enqueued ? `enqueueing "${key}" for later delivery` : `"${key}" was dropped (no outbox)`}`);
+        if (!enqueued) {
+          if (platformConfig.rollbackDroppedOutboxEntry?.(entry)) {
+            forgetWriter(entry.ts, writes);
+            releaseRefusedLocks(key, fieldLocks, outboxId);
+          }
+          platformConfig.onDroppedOutboxEntry?.(entry, get().pending);
+        }
         // An asyncAction promises its caller the server result. Returning
         // the raw returnValue here (historically undefined) made callers'
         // `.then(...)` throw synchronously — a create flow lost its error

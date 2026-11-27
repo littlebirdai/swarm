@@ -2464,8 +2464,8 @@ export type DocItem = {
   linked_doc_ids?: string[];
   created_at: number;
   updated_at: number;
+  archived_at?: number;
 };
-
 export type DocDetail = DocItem & {
   conversation?: any;
   related_tasks?: any[];

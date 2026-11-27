@@ -1,8 +1,17 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
+import { registerArchiveFallbackCases } from "./fixtures/archive-fallback-cases";
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
-import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  expect,
+  jest,
+  spyOn,
+  test,
+} from "bun:test";
 import {
   createReplicationFollower,
   createReplicationHost,
@@ -718,4 +727,59 @@ registerTimedDocReplicationCases({
     mutations = [];
   },
   readMutations: () => mutations,
+});
+
+await registerArchiveFallbackCases({ bootCache, waitFor, holdHostLock });
+
+test("deferred hydration does not restore the body of an archive in flight", async () => {
+  const before = process.env.VITE_CACHE_EVICTION_METADATA;
+  const beforeDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
+  process.env.VITE_CACHE_EVICTION_METADATA = "1";
+  delete process.env.VITE_DEFERRED_CACHE_BOOT;
+  const { cacheStorage } = await import("../idb-cache");
+  const { makeDispatchBinding } = await import("../../lib/dispatch-binding");
+  const { resetDetailInvalidations } = await import("../doc-detail-cache");
+  const id = sessionId(44);
+  const doc = { _id: id, title: "Doc", updated_at: Date.now() };
+  const detail = { ...doc, content: "Before archive" };
+  const captured = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<null>();
+  const read = cacheStorage.loadCache.bind(cacheStorage);
+  const spy = spyOn(cacheStorage, "loadCache").mockImplementation(
+    async (...args) => {
+      const snapshot = await read(...args);
+      if (snapshot?.docDetails?.[id]) {
+        captured.resolve();
+        await release.promise;
+      }
+      return snapshot;
+    },
+  );
+  resetDetailInvalidations();
+  try {
+    await docs.put(doc);
+    await COLLECTION_TABLES.docDetails.put(detail);
+    const boot = bootCache();
+    await captured.promise;
+    state().syncRecord("docs", id, doc);
+    state().syncRecord("docDetails", id, detail);
+    state()._setDispatch(makeDispatchBinding(async () => response.promise));
+    void state().archiveDoc(id);
+    expect(state().pending[`docs:${id}`]?.type).toBe("exclude");
+    release.resolve();
+    await boot;
+    expect(state().docDetails[id]).toBeUndefined();
+  } finally {
+    release.resolve();
+    response.resolve(null);
+    state()._setDispatch(null);
+    spy.mockRestore();
+    resetDetailInvalidations();
+    if (before === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
+    else process.env.VITE_CACHE_EVICTION_METADATA = before;
+    if (beforeDeferred === undefined)
+      delete process.env.VITE_DEFERRED_CACHE_BOOT;
+    else process.env.VITE_DEFERRED_CACHE_BOOT = beforeDeferred;
+  }
 });

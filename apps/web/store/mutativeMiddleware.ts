@@ -1,3 +1,5 @@
+import { cacheEvictionEnabled } from "./cache-eviction";
+import { revalidateDroppedDocArchive } from "./doc-detail-cache";
 import { captureException } from "./pendingInputError";
 import { outboxAccountId, persistPendingMessageChanges } from "./idb-cache";
 // Codecast's binding of the @platform/engine middleware. The engine owns the
@@ -626,6 +628,17 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
+  rollbackDroppedOutboxEntry: (entry) =>
+    entry.action === "archiveDoc" && cacheEvictionEnabled(),
+  onDroppedOutboxEntry(entry, pending) {
+    const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
+    if (
+      entry.action === "archiveDoc" &&
+      typeof id === "string" &&
+      pending?.[`docs:${id}`]?.type !== "exclude"
+    )
+      revalidateDroppedDocArchive(id);
+  },
   outboxCoalesceKeys: OUTBOX_COALESCE_KEYS,
   transformReplayPatches: stripStalePointerFromReplay,
   viewGuard: VIEW_GUARD,
