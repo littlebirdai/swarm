@@ -110,19 +110,19 @@ export function deviceId(): string {
   };
   let binding = readDeviceBinding();
   let identity = resolveDeviceIdentity({ ...inputs, binding: binding ?? null });
+  if (typeof seed === "string") return identity.id;
   if (identity.persist && !binding) {
     try {
       if (
         !publishPrivateFile(
           DEVICE_BINDING_FILE,
           JSON.stringify(identity.persist),
+          binding === null
+            ? (target) => readDeviceBinding(target) === null
+            : undefined,
         )
       ) {
         binding = readPublishedFile(readDeviceBinding);
-        if (binding === null) {
-          writeDeviceBinding(identity.persist);
-          binding = readDeviceBinding();
-        }
         identity = resolveDeviceIdentity({
           ...inputs,
           binding: binding ?? null,
@@ -164,11 +164,13 @@ export function previousDeviceId(): string | undefined {
   }
 }
 
-function readDeviceBinding(): DeviceBinding | null | undefined {
+function readDeviceBinding(
+  file = DEVICE_BINDING_FILE,
+): DeviceBinding | null | undefined {
   let contents: string;
   try {
-    if (!fs.statSync(DEVICE_BINDING_FILE).isFile()) return undefined;
-    contents = fs.readFileSync(DEVICE_BINDING_FILE, "utf8");
+    if (!fs.statSync(file).isFile()) return undefined;
+    contents = fs.readFileSync(file, "utf8");
   } catch {
     return undefined;
   }
