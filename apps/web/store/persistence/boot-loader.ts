@@ -141,45 +141,48 @@ export async function loadCache(
     const shadowAtRead = onRead
       ? new Map(lastPersisted.get(keys[0]))
       : undefined;
-    const [collectionResults, metaRows, pending, pendingArchives] = await Promise.all([
-      Promise.all(
-        collectionEntries.map(([key, table]) =>
-          timeBootRead(phase, key, () =>
-            key === "mySends" && deferredCacheReadsEnabled()
-              ? readRetainedMySends()
-              : table.toArray(),
+    const [collectionResults, metaRows, pending, pendingArchives] =
+      await Promise.all([
+        Promise.all(
+          collectionEntries.map(([key, table]) =>
+            timeBootRead(phase, key, () =>
+              key === "mySends" && deferredCacheReadsEnabled()
+                ? readRetainedMySends()
+                : table.toArray(),
+            ),
           ),
         ),
-      ),
-      timeBootRead(phase, "meta", () =>
-        db.meta.bulkGet(metaKeys.filter((key) => key !== "pending")),
-      ),
-      !wanted || wanted.has("pending")
-        ? timeBootRead(phase, "meta", async () =>
-            Object.fromEntries(
-              (await db.pendingEntries.toArray()).map(({ key, value }) => [
-                key,
-                value,
-              ]),
-            ),
-          )
-        : undefined,
-      timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
-        ? timeBootRead(phase, "archiveOutbox", async () => {
-            const rows = await db.dispatchOutbox.toArray();
-            const archives = new Set<string>();
-            for (const entry of rows.sort((a, b) => a.ts - b.ts)) {
-              if (entry.accountId !== undefined && entry.accountId !== owner)
-                continue;
-              const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
-              if (typeof id !== "string") continue;
-              if (entry.action === "archiveDoc") archives.add(id);
-              if (entry.action === "restoreArchivedDoc") archives.delete(id);
-            }
-            return archives;
-          })
-        : undefined,
-    ]);
+        timeBootRead(phase, "meta", () =>
+          db.meta.bulkGet(metaKeys.filter((key) => key !== "pending")),
+        ),
+        !wanted || wanted.has("pending")
+          ? timeBootRead(phase, "meta", async () =>
+              Object.fromEntries(
+                (await db.pendingEntries.toArray()).map(({ key, value }) => [
+                  key,
+                  value,
+                ]),
+              ),
+            )
+          : undefined,
+        timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
+          ? timeBootRead(phase, "archiveOutbox", async () => {
+              const rows = await db.dispatchOutbox.toArray();
+              const archives = new Set<string>();
+              for (const entry of rows.sort((a, b) => a.ts - b.ts)) {
+                if (entry.accountId !== undefined && entry.accountId !== owner)
+                  continue;
+                const id = Array.isArray(entry.args)
+                  ? entry.args[0]
+                  : undefined;
+                if (typeof id !== "string") continue;
+                if (entry.action === "archiveDoc") archives.add(id);
+                if (entry.action === "restoreArchivedDoc") archives.delete(id);
+              }
+              return archives;
+            })
+          : undefined,
+      ]);
     if (
       epoch !== authPrincipal.epoch() ||
       (onRead &&

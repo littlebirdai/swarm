@@ -388,9 +388,9 @@ test.each([false, true])(
       await act(async () => {
         void ui.store.getState().archiveDoc(id);
       });
-      expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe(
-        hasListRow ? "exclude" : undefined,
-      );
+      const archiveLock = ui.store.getState().pending[`docs:${id}`];
+      if (hasListRow) expect(archiveLock?.type).toBe("exclude");
+      else expect(archiveLock).toBeUndefined();
       expect(ui.container.textContent).toBe("No body");
       await act(async () => {
         archive.reject(new Error("Uncaught Error: Not authorized"));

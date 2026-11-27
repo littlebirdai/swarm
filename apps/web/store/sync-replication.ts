@@ -19,6 +19,7 @@ import {
   detailReadPosition,
   setDetailInvalidationReporter,
 } from "./doc-detail-cache";
+import { startLocalDocReplication } from "./sync-replication-local";
 import { startTimedDocRetention } from "./timed-doc-retention";
 import { createDetailInvalidationTransport } from "./detail-invalidation-transport";
 import {
@@ -577,55 +578,27 @@ export function startSyncReplication(opts: {
 }): () => void {
   if (running) return running.stop;
   setRole("host");
-  const account = detailReadPosition();
   const authority =
     cacheEvictionEnabled() && opts.principalId
       ? opts.detailAuthority
       : undefined;
   if (!transportAvailable() || !opts.principalId) {
     if (authority) {
-      let active = true;
-      const current = () => active && detailAccountIsCurrent(account);
-      setDetailInvalidationReporter(
-        (evidence) => {
-          if (!current()) return false;
-          if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
-          void verifyDetailInvalidation(authority, evidence, current)
-            .then((ids) => persistDetailInvalidation(ids, current))
-            .catch(() => {});
-          return true;
+      const local = startLocalDocReplication(
+        opts.principalId,
+        authority,
+        () => {
+          running = null;
         },
-        authority.detail,
-        collectCompleteDocCrawlAbsences,
       );
-      const retention = startTimedDocRetention(
-        useInboxStore.getState,
-        current,
-        current,
-      );
-      const stop = () => {
-        active = false;
-        retention.stop();
-        setDetailInvalidationReporter();
-        running = null;
-      };
-      running = {
-        stop,
-        status: () => ({
-          principalId: opts.principalId,
-          role: "host",
-          elected: false,
-          holdsLock: false,
-          synced: false,
-          selfId: "",
-        }),
-      };
-      return stop;
+      running = local;
+      return local.stop;
     }
     // No transport (React Native, SSR, ancient browser) or no account: stay
     // host, changed nothing. Share pages and tests land here too.
     return () => {};
   }
+  const account = detailReadPosition();
   const selfId =
     typeof crypto !== "undefined" && (crypto as any).randomUUID
       ? crypto.randomUUID()
