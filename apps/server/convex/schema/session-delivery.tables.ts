@@ -568,6 +568,47 @@ export const sessionDeliveryTables = {
     .index("by_conversation_run", ["conversation_id", "run"])
     .index("by_owner", ["owner_user_id"]),
 
+  run_terminal_panes: defineTable({
+    conversation_id: v.id("conversations"),
+    owner_user_id: v.id("users"),
+    run: v.number(),
+    pane_instance: v.number(),
+    started: v.optional(
+      v.object({
+        at: v.number(),
+        seq: v.number(),
+        source: v.union(v.literal("observed"), v.literal("provider")),
+        turn: v.union(v.string(), v.null()),
+        actor: v.object({
+          id: v.string(),
+          kind: v.union(v.literal("person"), v.literal("agent")),
+        }),
+        tool_call_id: v.optional(v.string()),
+      }),
+    ),
+    ended: v.optional(
+      v.object({
+        at: v.number(),
+        seq: v.number(),
+        source: v.union(v.literal("observed"), v.literal("provider")),
+        turn: v.union(v.string(), v.null()),
+        run: v.number(),
+        outcome: v.union(
+          v.object({ kind: v.literal("exit"), code: v.number() }),
+          v.object({ kind: v.literal("signal"), signal: v.string() }),
+          v.object({ kind: v.literal("replaced") }),
+          v.object({ kind: v.literal("lost") }),
+        ),
+      }),
+    ),
+  })
+    .index("by_conversation_run_pane", [
+      "conversation_id",
+      "run",
+      "pane_instance",
+    ])
+    .index("by_owner", ["owner_user_id"]),
+
   run_turn_projections: defineTable({
     conversation_id: v.id("conversations"),
     owner_user_id: v.id("users"),

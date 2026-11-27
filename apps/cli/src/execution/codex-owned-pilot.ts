@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { defaultConfigDir } from "../config/configDir.js";
+import { createTerminalEventWriter } from "../terminal/terminal-lifecycle.js";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
@@ -150,6 +153,7 @@ export class CodexOwnedPilot {
   private session?: ProviderOwnedSession;
   private opening?: Promise<ProviderOwnedSession>;
   private eventWriter?: Promise<void>;
+  private terminalEvents?: ReturnType<typeof createTerminalEventWriter>;
   private claim?: ClaimGrant;
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
@@ -461,8 +465,15 @@ export class CodexOwnedPilot {
       checkpoint: checkpoint.threadId,
       inDoubtDeliveryIds: pending ? [pending.delivery_id] : [],
     });
+    if (claim.terminal_lifecycle && !this.terminalEvents) {
+      this.terminalEvents = createTerminalEventWriter(
+        claim,
+        path.join(defaultConfigDir(), "terminal-lifecycle"),
+        (event) => this.append(claim, event, AbortSignal.timeout(10_000)),
+      );
+    }
     if (previous === 0) {
-      await this.append(claim, {
+      const event: CanonicalEvent = {
         v,
         session: claim.session,
         run: claim.run,
@@ -472,8 +483,11 @@ export class CodexOwnedPilot {
         turn: null,
         kind: "session.started",
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
-      });
+      };
+      if (this.terminalEvents) await this.terminalEvents.append(event);
+      else await this.append(claim, event);
     }
+    await this.terminalEvents?.startWatching();
     const session = this.session;
     const recovery =
       previous > 0 && this.options.bearer && session.getPendingPrompts
@@ -545,7 +559,8 @@ export class CodexOwnedPilot {
     for await (const event of session.events) {
       this.streamProgress++;
       if (event.kind === "message.delta") continue;
-      await this.append(claim, event);
+      if (this.terminalEvents) await this.terminalEvents.append(event);
+      else await this.append(claim, event);
       await this.delivery.observe(event, session, this.controller.signal);
       await this.promptCards
         .publish(event, claim, session, syncService, () => {
@@ -622,6 +637,7 @@ export class CodexOwnedPilot {
   private async append(
     claim: ClaimGrant,
     event: CanonicalEvent,
+    signal?: AbortSignal,
   ): Promise<void> {
     const response = await this.edge(
       "events.append",
@@ -630,6 +646,7 @@ export class CodexOwnedPilot {
         batches: [{ ...deliveryFence(claim), events: [event] }],
       },
       parseEventsAppendResponse,
+      signal,
     );
     const result = "results" in response ? response.results[0] : undefined;
     if (
@@ -703,6 +720,13 @@ export class CodexOwnedPilot {
     this.session = undefined;
     const outcome = await session?.close();
     await this.eventWriter;
+    await this.terminalEvents
+      ?.close()
+      .catch((error) =>
+        this.options.log(
+          `[owned-codex] terminal event cleanup failed: ${String(error)}`,
+        ),
+      );
     await this.promptCards
       .closeAll(
         this.conversationId,

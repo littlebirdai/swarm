@@ -1,4 +1,5 @@
 import { teamTerminalWatchEnabled } from "./lib/terminal-watch.flags";
+import { terminalEventsEnabled } from "./lib/edge/terminal-events.state";
 import { v } from "convex/values";
 import {
   isValidPaneTarget,
@@ -420,6 +421,10 @@ export const watch = mutation({
             share: share._id,
             stream_id,
             pane_instance: share.pane_instance,
+            ...(terminalEventsEnabled() && {
+              conversation_id: share.conversation_id,
+              owner_id: share.owner_id,
+            }),
           },
         }),
         created_at: now,

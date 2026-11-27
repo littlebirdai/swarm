@@ -1,4 +1,8 @@
 import { bindingHasBatonCapability } from "./baton-capabilities.rules";
+import {
+  retainTerminalEvents,
+  terminalEventsEnabled,
+} from "./terminal-events.state";
 import type {
   CanonicalEvent,
   EdgeJson,
@@ -321,6 +325,12 @@ export async function appendRunEvents(
   if (!first) return { session, status: "appended", through_seq: base };
   if (first.seq !== base + 1)
     return { session, status: "gap", expected_seq: base + 1 };
+
+  if (terminalEventsEnabled()) {
+    const conflict = await retainTerminalEvents(ctx, binding, suffix);
+    if (conflict !== undefined)
+      return { session, status: "conflict", seq: conflict };
+  }
 
   const row = await turnProjection(ctx, binding);
   if (

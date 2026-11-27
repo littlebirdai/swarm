@@ -1,6 +1,7 @@
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { applyHeartbeat } from "../sessionStatusWriter";
 import { steerBatonEnabled } from "./baton-capabilities.rules";
+import { terminalEventsEnabled } from "./terminal-events.state";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   TURN_PROJECTION_VERSION,
@@ -260,6 +261,7 @@ export async function claimRunLease(
     fencing_token: fencingToken,
     lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
+    ...(terminalEventsEnabled() && { terminal_lifecycle: true }),
     last_event_seq: await activateEventRun(ctx, binding, now),
   } as const;
 }
