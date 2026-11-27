@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { heartbeatOf } from "./lib/sessionHeartbeat";
 // TEMPORARY debug query — safe to delete. Inspects why a conversation keeps
 // reappearing after dismiss: dumps dismiss-relevant fields + recent activity.
@@ -177,7 +178,7 @@ export const unnestSelfParented = internalMutation({
       if (!conv || conv.parent_conversation_id !== id) continue;
       fixed.push(id);
       if (!args.dryRun) {
-        await ctx.db.patch(id, {
+        await patchConversationLifecycle(ctx, id, {
           parent_conversation_id: undefined,
           is_subagent: undefined,
           subagent_description: undefined,

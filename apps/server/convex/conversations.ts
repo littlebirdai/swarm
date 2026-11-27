@@ -74,6 +74,7 @@ import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   insertConversationWithStatus,
+  clearThreadState,
   patchConversationLifecycle,
   writeThreadState,
 } from "./lib/sessionStatusWriter";
@@ -178,7 +179,6 @@ import { formatAgentSwitchNotice } from "@codecast/agent-clients/agentSwitch";
 import {
   normalizeThreadState,
   parseThreadStateStatus,
-  clearedThreadStateFields,
   THREAD_STATE_RESULT_MAX_CHARS,
 } from "@codecast/sessions/threadState";
 import {
@@ -14631,7 +14631,7 @@ export const dismissFromInbox = mutation({
     if (!userId) throw new Error("Not authenticated");
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv || conv.user_id !== userId) throw new Error("Not found");
-    await ctx.db.patch(args.conversation_id, {
+    await patchConversationLifecycle(ctx, args.conversation_id, {
       inbox_dismissed_at: Date.now(),
     });
   },
@@ -15321,7 +15321,7 @@ export const setThreadState = mutation({
     const text = normalizeThreadState(args.text ?? "");
 
     if (!text) {
-      await ctx.db.patch(conv._id, clearedThreadStateFields());
+      await clearThreadState(ctx, conv._id);
       await scheduleLiveActivityRefresh(ctx, conv.user_id, {});
       return {
         ok: true as const,
@@ -15562,7 +15562,9 @@ export const drainStaleDismiss = internalMutation({
       for (const conv of result.page) {
         if (conv.inbox_dismissed_at) continue;
         if (conv.inbox_pinned_at || conv.inbox_snoozed_until) continue;
-        await ctx.db.patch(conv._id, { inbox_dismissed_at: now });
+        await patchConversationLifecycle(ctx, conv._id, {
+          inbox_dismissed_at: now,
+        });
       }
 
       if (!result.isDone) {
@@ -15619,7 +15621,7 @@ export const patchConversation = mutation({
     if (await pinCapExceeded(ctx, userId, conv, patch))
       throw new Error(PIN_CAP_ERROR);
     if (Object.keys(patch).length > 0) {
-      await ctx.db.patch(args.id, patch);
+      await patchConversationLifecycle(ctx, args.id, patch);
     }
   },
 });
@@ -15682,7 +15684,7 @@ export const healHistoricalUpdatedAt = mutation({
       }
 
       if (Object.keys(patch).length > 0) {
-        await ctx.db.patch(conv._id, patch);
+        await patchConversationLifecycle(ctx, conv._id, patch);
       }
     }
 
@@ -16303,7 +16305,7 @@ export const linkSessions = mutation({
 
     if (child.parent_conversation_id) return;
 
-    await ctx.db.patch(args.child_conversation_id, {
+    await patchConversationLifecycle(ctx, args.child_conversation_id, {
       parent_conversation_id: args.parent_conversation_id,
       is_subagent: true,
       inbox_dismissed_at: Date.now(),
@@ -16500,7 +16502,7 @@ export const adminLinkChildrenBySessionId = mutation({
         });
         continue;
       }
-      await ctx.db.patch(child._id, {
+      await patchConversationLifecycle(ctx, child._id, {
         parent_conversation_id: parent._id,
         is_subagent: true,
         inbox_dismissed_at: Date.now(),
@@ -16533,7 +16535,7 @@ export const adminUnlinkSession = mutation({
       .filter((q) => q.eq(q.field("user_id"), userId))
       .first();
     if (!conv) throw new Error("Not found");
-    await ctx.db.patch(conv._id, {
+    await patchConversationLifecycle(ctx, conv._id, {
       parent_conversation_id: undefined,
       is_subagent: undefined,
       inbox_dismissed_at: undefined,

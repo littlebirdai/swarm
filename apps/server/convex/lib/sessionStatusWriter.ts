@@ -8,7 +8,10 @@ import {
 
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
-import type { ThreadStateStatus } from "@codecast/sessions/threadState";
+import {
+  clearedThreadStateFields,
+  type ThreadStateStatus,
+} from "@codecast/sessions/threadState";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -427,10 +430,24 @@ export async function writeThreadState(
   return at;
 }
 
+export function clearThreadState(
+  ctx: Pick<MutationCtx, "db">,
+  id: Id<"conversations">,
+) {
+  return ctx.db.patch(id, clearedThreadStateFields());
+}
+
 type ConversationFields = Omit<Doc<"conversations">, "_id" | "_creationTime">;
 
 export function patchConversationLifecycle(
-  ctx: Pick<MutationCtx, "db">,
+  ctx: {
+    db: {
+      patch(
+        id: Id<"conversations">,
+        fields: Partial<ConversationFields>,
+      ): Promise<void>;
+    };
+  },
   id: Id<"conversations">,
   fields: Partial<ConversationFields>,
   probe?: ConversationFields["agent_status_probe"],

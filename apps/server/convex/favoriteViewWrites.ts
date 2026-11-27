@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import {
@@ -56,7 +57,7 @@ export async function patchConversationThroughFavoriteView(
   const afterFavorite =
     "is_favorite" in patch ? !!patch.is_favorite : beforeFavorite;
   const favoriteChanged = beforeFavorite !== afterFavorite;
-  if (changes) await ctx.db.patch(conversation._id, patch);
+  if (changes) await patchConversationLifecycle(ctx, conversation._id, patch);
 
   const coverageTarget = favoriteChanged
     ? favoritesCoverageTarget(conversation.user_id)

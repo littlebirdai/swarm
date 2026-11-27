@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./sessionStatusWriter";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { DatabaseReader } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -205,12 +206,11 @@ export async function stampRunConversation(
     }
   }
   if (Object.keys(patch).length > 0) {
-    await ctx.db.patch(conv._id, patch);
+    await patchConversationLifecycle(ctx, conv._id, patch);
     Object.assign(conv, patch);
   }
   return conv;
 }
-
 // Kill is the strongest triage gesture — "make this stop". Any armed schedule
 // that INJECTS into the killed conversation (originating_conversation_id, the
 // `--context current` kind) would resurrect it on its next fire — the

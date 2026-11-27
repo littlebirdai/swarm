@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./sessionStatusWriter";
 import { Id } from "../_generated/dataModel";
 import {
   labelsOf,
@@ -120,7 +121,9 @@ export async function applyFileSession(
   if (to.kind === "done") {
     if (conv.inbox_dismissed_at)
       return { status: "applied", note: `${named} is already done` };
-    await ctx.db.patch(conv._id, { inbox_dismissed_at: Date.now() });
+    await patchConversationLifecycle(ctx, conv._id, {
+      inbox_dismissed_at: Date.now(),
+    });
     await noteOrgChange(ctx, userId, whereOfSession(conv), {
       kind: "file_session",
       subject: sessionSubject(conv),

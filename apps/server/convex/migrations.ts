@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -1075,7 +1076,7 @@ async function clearCopiedStashPage(
     }
     by_reason[reason]++;
     if (!dryRun)
-      await ctx.db.patch(row._id, {
+      await patchConversationLifecycle(ctx, row._id, {
         inbox_stashed_at: undefined,
         inbox_stash_hidden: undefined,
       });

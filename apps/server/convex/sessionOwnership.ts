@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { mutation, query, internalMutation, internalAction } from "./functions";
 import { roleRunner } from "./lib/seatPlace";
 import { v } from "convex/values";
@@ -384,7 +385,7 @@ async function unhide(ctx: { db: any }, conversation: any): Promise<void> {
   }
   if (conversation.inbox_snoozed_until) hidden.inbox_snoozed_until = undefined;
   if (Object.keys(hidden).length > 0)
-    await ctx.db.patch(conversation._id, hidden);
+    await patchConversationLifecycle(ctx, conversation._id, hidden);
 }
 
 // What many reparents to ONE role resolve once (the takeover moves up to 100
