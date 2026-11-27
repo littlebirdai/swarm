@@ -9,6 +9,15 @@ import {
 import { api } from "@codecast/convex/convex/_generated/api";
 import { ConvexProviderWithAuth, useConvex } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { rowHeartbeatAliveAt } from "@codecast/inbox/inboxProjection";
+import { RelayInboxContact } from "./inbox/relay-inbox-contact";
+import { useSyncInboxRelayLiveness } from "../hooks/use-sync-inbox-relay-liveness";
+import { useInboxStore, type InboxSession } from "../store/inboxStore";
+import { webBuilders } from "../test-helpers/builders";
+import { measureIndexedDB } from "../perf/measure-indexeddb";
+import { replaceGlobals } from "../test-helpers/globals";
+import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import {
   act,
   StrictMode,
@@ -63,17 +72,25 @@ class RelaySocket {
     );
   }
 
-  join() {
+  join(
+    capabilities = ["presence"],
+    joined: { kind: "session"; id: string } = hub,
+  ) {
     this.events.dispatchEvent(new window.Event("open"));
     this.message({
       type: "hello",
       status: "ok",
       version: 1,
-      capabilities: ["presence"],
+      capabilities,
       connection_id: "viewer",
       ttl_ms: 60_000,
     });
-    this.message({ v: 1, type: "subscription", status: "subscribed", hub });
+    this.message({
+      v: 1,
+      type: "subscription",
+      status: "subscribed",
+      hub: joined,
+    });
   }
 
   fail() {
@@ -95,7 +112,11 @@ class RelaySocket {
   }
 }
 
-const keys = ["VITE_RELAY_PRESENCE", "VITE_RELAY_URL"] as const;
+const keys = [
+  "VITE_RELAY_PRESENCE",
+  "VITE_RELAY_URL",
+  "VITE_RELAY_INBOX_LIVENESS",
+] as const;
 let env: (string | undefined)[];
 
 beforeAll(async () => {
@@ -106,6 +127,7 @@ beforeEach(() => {
   env = keys.map((key) => process.env[key]);
   process.env.VITE_RELAY_PRESENCE = "1";
   process.env.VITE_RELAY_URL = relayUrl;
+  delete process.env.VITE_RELAY_INBOX_LIVENESS;
   sockets.length = 0;
 });
 
@@ -282,6 +304,7 @@ test("two readers share one grant and socket, and both see arrival, departure, a
     expect(sockets.map(({ url }) => url)).toEqual([relayUrl]);
     const [socket] = sockets;
     await act(() => socket.join());
+    expect(socket.frames[0].capabilities).not.toContain("session_liveness");
     expect(socket.frames.filter((frame) => frame.type === "subscribe")).toEqual(
       [{ type: "subscribe", v: 1, hub }],
     );
@@ -511,4 +534,187 @@ test("an invalid session ID leaves the consumer mounted and sends no grant", asy
   expect(ui.container.textContent).toBe("Ready");
   expect(ui.backend.mutations).toHaveLength(0);
   expect(sockets).toHaveLength(0);
+});
+
+const inboxNow = 1_790_000_000_000;
+const inboxRowId = "j7relay".padEnd(32, "0") as Id<"conversations">;
+const inboxHub = { kind: "session", id: inboxRowId } as const;
+const viewerId = "viewer" as Id<"users">;
+const device = "fixture-machine";
+
+function InboxRelayView() {
+  useSyncInboxRelayLiveness();
+  const session = useInboxStore(
+    (state) => state.sessions[inboxRowId] as InboxSession,
+  );
+  return (
+    <div>
+      <output>
+        {rowHeartbeatAliveAt(session, inboxNow) ? "Live" : "Disconnected"}
+      </output>
+      <RelayInboxContact session={session} now={inboxNow} />
+    </div>
+  );
+}
+
+function mountInboxRelay() {
+  return mountWeb(
+    <RelayPresenceProvider>
+      <InboxRelayView />
+    </RelayPresenceProvider>,
+    {
+      authenticated: true,
+      clock: true,
+      setup(backend, store) {
+        store.currentUser = { _id: viewerId };
+        window.WebSocket = RelaySocket as unknown as typeof WebSocket;
+        Object.defineProperty(navigator, "onLine", { value: true });
+        const row = webBuilders("relay-inbox").session.build();
+        store.syncTable("sessions", [
+          {
+            ...row,
+            _id: inboxRowId,
+            agent_type: "codex",
+            owner_device_id: device,
+            liveness_lease_end: inboxNow + 120_000,
+          },
+        ]);
+        backend.set(api.relayGrants.inboxTargets, {
+          viewer: viewerId,
+          targets: [{ id: inboxRowId, run: 2, machine: device }],
+        });
+        backend.mutation(api.relayGrants.mint, ok);
+      },
+    },
+  );
+}
+
+test("the inbox relay flag defaults off", async () => {
+  delete process.env.VITE_RELAY_INBOX_LIVENESS;
+  const ui = await mountInboxRelay();
+  expect(ui.backend.queryRequests).toHaveLength(0);
+  expect(ui.backend.writeRequests).toHaveLength(0);
+  expect(sockets).toHaveLength(0);
+});
+
+test("only current-run relay contact lands and loss falls back to Convex without cache writes", async () => {
+  process.env.VITE_RELAY_INBOX_LIVENESS = "1";
+  const ui = await mountInboxRelay();
+  const [socket] = sockets;
+  expect(socket).toBeDefined();
+  await act(() => socket.join(["session_liveness"], inboxHub));
+  expect(socket.frames[0].capabilities).toContain("session_liveness");
+  const indication = () =>
+    ui.container.querySelector('[aria-label="Recent machine contact"]');
+  const row = ui.store.getState().sessions[inboxRowId];
+
+  const { authPrincipal } = await import("../lib/authPrincipal");
+  const { db } = await import("../store/persistence/db");
+  const {
+    _reopenForTests,
+    _resetPersistedShadow,
+    flushLivenessWrites,
+    setHydrating,
+    writePatchesToIDB,
+  } = await import("../store/idb-cache");
+  const restoreDispatch = replaceGlobals({
+    dispatchEvent: window.dispatchEvent.bind(window),
+  });
+  const principal = spyOn(authPrincipal, "current").mockReturnValue(viewerId);
+  try {
+    const { writes } = measureIndexedDB(db);
+    await _reopenForTests({ indexedDB, IDBKeyRange });
+    _resetPersistedShadow();
+    setHydrating(false);
+    const writeRow = (value: InboxSession) =>
+      writePatchesToIDB(
+        [{ op: "replace", path: ["sessions", inboxRowId], value }],
+        { sessions: { [inboxRowId]: value }, pending: {} },
+      );
+    writeRow(row);
+    await db.table("sessions").get(inboxRowId);
+    expect(writes.get("sessions")).toBeGreaterThan(0);
+    writes.clear();
+    writeRow({
+      ...row,
+      liveness_lease_end: (row.liveness_lease_end ?? 0) + 1000,
+    });
+    flushLivenessWrites();
+    await db.table("sessions").get(inboxRowId);
+    expect(writes.get("sessions")).toBe(1);
+    writes.clear();
+
+    const signal = (seq: number, run: number, machine_id = device) =>
+      socket.message({
+        v: 1,
+        hub: inboxHub,
+        type: "session_liveness",
+        connection_id: "machine-connection",
+        ttl_ms: 15_000,
+        seq,
+        run,
+        machine_id,
+      });
+    await act(() => signal(1, 1));
+    await act(() => signal(2, 2, "different-machine"));
+    expect(indication()).toBeNull();
+    await act(() => signal(3, 2));
+    expect(indication()).not.toBeNull();
+    for (let seq = 4; seq < 10; seq++) await act(() => signal(seq, 2));
+    flushLivenessWrites();
+    await db.table("sessions").get(inboxRowId);
+    expect(writes.get("sessions") ?? 0).toBe(0);
+    expect(ui.store.getState().sessions[inboxRowId]).toBe(row);
+    await act(() => signal(10, 1));
+    expect(indication()).toBeNull();
+    await act(() => signal(11, 2));
+    expect(indication()).not.toBeNull();
+    await act(() =>
+      ui.backend.set(api.relayGrants.inboxTargets, {
+        viewer: viewerId,
+        targets: [{ id: inboxRowId, run: 3, machine: device }],
+      }),
+    );
+    expect(indication()).toBeNull();
+    await act(() =>
+      socket.message({
+        v: 1,
+        type: "subscription",
+        status: "subscribed",
+        hub: inboxHub,
+      }),
+    );
+    await act(() => signal(12, 2));
+    expect(indication()).toBeNull();
+    await act(() => signal(13, 3));
+    expect(indication()).not.toBeNull();
+    expect(ui.container.querySelector("output")?.textContent).toBe("Live");
+
+    const setLeaseEnd = (end: number) =>
+      act(() =>
+        ui.store.getState().applyInboxLivenessPayload("mine", {
+          liveness: { [inboxRowId]: { liveness_lease_end: end } },
+        }),
+      );
+    await setLeaseEnd(inboxNow - 1);
+    expect(indication()).toBeNull();
+    expect(ui.container.querySelector("output")?.textContent).toBe(
+      "Disconnected",
+    );
+    await setLeaseEnd(inboxNow + 120_000);
+    expect(indication()).not.toBeNull();
+
+    await act(() => socket.fail());
+    expect(indication()).toBeNull();
+    expect(ui.container.querySelector("output")?.textContent).toBe("Live");
+    await setLeaseEnd(inboxNow - 1);
+    expect(indication()).toBeNull();
+    expect(ui.container.querySelector("output")?.textContent).toBe(
+      "Disconnected",
+    );
+  } finally {
+    db.close();
+    restoreDispatch();
+    principal.mockRestore();
+  }
 });

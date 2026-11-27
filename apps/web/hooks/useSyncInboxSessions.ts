@@ -1,3 +1,4 @@
+import { useSyncInboxRelayLiveness } from "./use-sync-inbox-relay-liveness";
 import { useRef, useCallback, useState } from "react";
 import { useMutation, useConvex, type ConvexReactClient } from "convex/react";
 import { captureError } from "../lib/analytics";
@@ -352,6 +353,7 @@ export function useSyncInboxSessions() {
   // Wire the store's server dispatch (split out so a screen can ensure dispatch
   // without these inbox subscriptions — see useEnsureDispatch).
   useEnsureDispatch();
+  useSyncInboxRelayLiveness();
 
   const convex = useConvex();
   // Favorites as full inbox rows, force-loaded regardless of the 30d window so the

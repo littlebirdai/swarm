@@ -2,6 +2,7 @@ import type { createRelayClient, RelayHandler } from "@codecast/relay-client";
 import { createContext } from "react";
 
 export type RelayPresenceClient = {
+  inboxViewer?: string;
   subscribe(sessionId: string, handler: RelayHandler): () => void;
   publish: ReturnType<typeof createRelayClient>["publish"];
 };

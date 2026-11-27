@@ -11,9 +11,11 @@ import { useInboxStore } from "../store/inboxStore";
 
 function ActiveRelayPresence({
   url,
+  inboxLiveness,
   children,
 }: {
   url: string;
+  inboxLiveness: boolean;
   children: ReactNode;
 }) {
   const convex = useConvex();
@@ -60,6 +62,7 @@ function ActiveRelayPresence({
           }
         },
         WebSocket: window.WebSocket,
+        sessionLiveness: inboxLiveness,
         now: () => performance.now(),
         setTimer(callback, delayMs) {
           const timer = setTimeout(callback, delayMs);
@@ -88,6 +91,7 @@ function ActiveRelayPresence({
       setConnection({
         scope,
         client: {
+          ...(inboxLiveness && { inboxViewer: account }),
           subscribe(sessionId, handler) {
             try {
               return client.subscribe(
@@ -107,7 +111,7 @@ function ActiveRelayPresence({
       lifetime.abort();
       setConnection(null);
     };
-  }, [scope]);
+  }, [scope, inboxLiveness]);
 
   const client =
     scope && connection?.scope === scope ? connection.client : null;
@@ -120,7 +124,12 @@ export function RelayPresenceProvider({ children }: { children: ReactNode }) {
     import.meta.env.VITE_RELAY_URL,
   );
   return url ? (
-    <ActiveRelayPresence url={url.href}>{children}</ActiveRelayPresence>
+    <ActiveRelayPresence
+      url={url.href}
+      inboxLiveness={import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"}
+    >
+      {children}
+    </ActiveRelayPresence>
   ) : (
     children
   );

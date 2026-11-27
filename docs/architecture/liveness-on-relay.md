@@ -32,7 +32,7 @@ Return the public relay WebSocket URL with the grant from server deployment conf
 
 The machine publisher uses an Effect runtime in `packages/edge-client`. Its relay handshake offers only `capabilities: ["session_liveness"]`, which excludes fan-out of viewer presence, cursors, and baton signals. Publish after the relay accepts the hub subscription and publish again after reconnect.
 
-The current `@codecast/relay-client` offers a fixed capability list. It lacks a readiness hook and a queue for `session_liveness` before the subscription is ready. Add capability selection and readiness if the publisher reuses that client. `machine_liveness` is deferred. [Relay client](../../packages/relay-client/src/index.ts) · [Relay fan-out](../../packages/relay/src/connection.ts).
+The viewer can exclude `session_liveness` from the relay handshake. The client still needs a readiness hook or a queue for machine publications before the subscription is ready. `machine_liveness` is deferred. [Relay client](../../packages/relay-client/src/index.ts) · [Relay fan-out](../../packages/relay/src/connection.ts).
 
 The relay keeps no signal store or replay buffer, so a new subscriber needs a fresh signal. The default lifetime is 15 seconds, and grant deadlines can shorten it. Publish often enough to refresh the signal before it expires. `HEARTBEAT_FLUSH_INTERVAL_MS` is 30 seconds, so the Convex heartbeat cannot provide that cadence. [Relay defaults](../../apps/relay/src/config.ts) · [Heartbeat constants](../../packages/sessions/src/agentStatus.ts).
 
@@ -41,6 +41,14 @@ The web presence provider mounts in every window. Run inbox-wide subscriptions o
 The relay permits 256 hubs per connection, 16 grants per token, and by default 8 connections per subject. The viewer grant endpoint permits 120 mints per minute. Batch grants, budget refresh and reconnect requests with ordinary presence, and keep the combined load well below those limits. [Provider mount](../../apps/web/src/providers.tsx) · [Grant limits](../../packages/relay-contract/src/authorization.ts) · [Viewer grant rate](../../apps/server/convex/relayGrants.ts) · [Connection limits](../../apps/relay/src/config.ts).
 
 The viewer accepts an observation only for the current run and expected machine. It removes the observation on a run change, signal expiry, or socket close. While the durable lease is live, show **Live** whether the relay is up or down. Show **Disconnected** at the durable expiry time. A relay observation cannot revive an expired lease or change status or placement. [Observation lifetime](../../packages/relay-client/src/observations.ts) · [Shared inbox projection](../../packages/inbox/src/inboxProjection.ts).
+
+## Viewer rollout
+
+Set `VITE_RELAY_INBOX_LIVENESS=1` to enable the web inbox contact indicator. The flag defaults off and requires the existing relay presence configuration. The server also requires lease writes and machine liveness grants to be enabled.
+
+The sync host watches up to 64 mounted inbox sessions. The target query checks full conversation access and the current fenced binding. Relay subscription grants repeat the conversation access check. A run or binding change removes the old observation. Followers use the replicated Convex facts.
+
+The contact indicator reads a separate memory-only store. Each relay heartbeat makes zero IndexedDB writes, including when the liveness lane flushes. The legacy Convex heartbeat fixture writes one row for a changed lease deadline. Convex still owns expiry, status, placement, and the digest. Relay contact can add an indicator while the durable lease is live. It cannot extend that lease. The machine publisher and durable epoch contract remain separate steps.
 
 ## Inbox contract and field ownership
 

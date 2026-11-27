@@ -53,6 +53,7 @@ export type RelayClientOptions = {
     signal: AbortSignal,
   ): Promise<TokenResult>;
   WebSocket: new (url: string) => RelaySocket;
+  sessionLiveness?: boolean;
   now(): number;
   setTimer(callback: () => void, delayMs: number): () => void;
   random(): number;
@@ -86,6 +87,10 @@ type Request = {
 };
 
 export function createRelayClient(options: RelayClientOptions) {
+  const offeredCapabilities =
+    options.sessionLiveness === false
+      ? CAPABILITIES.filter((name) => name !== "session_liveness")
+      : CAPABILITIES;
   const subscriptions = new Map<string, Subscription>();
   const grants = new Map<string, Grant>();
   const queued = new Map<string, { wire: string; expires: number }>();
@@ -286,7 +291,7 @@ export function createRelayClient(options: RelayClientOptions) {
         capabilities ||
         !pending ||
         frame.version !== v ||
-        frame.capabilities.some((name) => !CAPABILITIES.includes(name))
+        frame.capabilities.some((name) => !offeredCapabilities.includes(name))
       )
         return stop();
       capabilities = new Set(frame.capabilities);
@@ -400,7 +405,7 @@ export function createRelayClient(options: RelayClientOptions) {
       let connect: RelayClientFrame | undefined = {
         type: "connect",
         versions: [v],
-        capabilities: CAPABILITIES,
+        capabilities: offeredCapabilities,
         token: result.token,
       };
       opened.addEventListener("open", () => {
