@@ -40,17 +40,17 @@ function applyDeferredRows(
     const edit = deferredDocEdit(id);
     const thin = state.docs[id] as Record<string, unknown> | undefined;
     if (
-      edit === "denied" ||
-      (edit === "archive" && !thin) ||
+      edit?.block === "denied" ||
+      (edit?.block === "archive" && !thin) ||
       detailInvalidationRevision(id) !== 0 ||
       state.pending[`docs:${id}`]?.type === "exclude" ||
       thin?.archived_at != null
     )
       return [];
-    if (!edit || edit === "archive") return [row];
+    if (!edit?.fields.length) return [row];
     if (!thin) return [];
     const fields = Object.fromEntries(
-      edit.flatMap((field) =>
+      edit.fields.flatMap((field) =>
         thin[field] === undefined ? [] : [[field, thin[field]]],
       ),
     );

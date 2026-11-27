@@ -23,7 +23,11 @@ export function deferredCacheReadsEnabled(): boolean {
 }
 
 type SharedCacheSource = "disk" | "joining" | "replica";
-type DeferredDocEdit = readonly string[] | "archive" | "denied";
+type DeferredDocBlock = "archive" | "denied";
+type DeferredDocEdit = {
+  fields: readonly string[];
+  block?: DeferredDocBlock;
+};
 
 function newDeferredWindow(listeners = new Set<() => void>()) {
   return {
@@ -56,13 +60,22 @@ export function resetDeferredCacheWindow(): void {
   deferredWindow.docEdits.clear();
 }
 
-export function noteDeferredDocEdit(id: string, edit: DeferredDocEdit): void {
+export function noteDeferredDocEdit(
+  id: string,
+  edit: readonly string[] | DeferredDocBlock,
+): void {
   if (!deferredCacheReadsEnabled()) return;
   const previous = deferredWindow.docEdits.get(id);
-  if (typeof edit === "string" || !previous) {
-    deferredWindow.docEdits.set(id, edit);
-  } else if (typeof previous !== "string") {
-    deferredWindow.docEdits.set(id, [...new Set([...previous, ...edit])]);
+  if (typeof edit === "string") {
+    deferredWindow.docEdits.set(id, {
+      fields: previous?.fields ?? [],
+      block: previous?.block === "denied" ? "denied" : edit,
+    });
+  } else {
+    deferredWindow.docEdits.set(id, {
+      fields: [...new Set([...(previous?.fields ?? []), ...edit])],
+      block: previous?.block,
+    });
   }
 }
 

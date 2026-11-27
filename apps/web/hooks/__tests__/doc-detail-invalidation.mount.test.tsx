@@ -9,6 +9,7 @@ import { _reopenForTests, db } from "../../store/persistence/db";
 import { writeOwnerStamp } from "../../store/persistence/ownership";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { pending } from "../../test-helpers/testConvex";
+import { performUndo } from "../../store/undoStack";
 import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import { act } from "react";
 import { StagePinTile } from "../../components/calls/StagePinTile";
@@ -40,6 +41,7 @@ const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
 afterEach(() => {
+  authPrincipal.check();
   resetDetailInvalidations();
   if (original === undefined) delete process.env[flag];
   else process.env[flag] = original;
@@ -527,7 +529,7 @@ test("doc body prefetch waits for cached bodies and fetches only the missing one
   }
 });
 
-test.each(["archive", "pin", "update"] as const)(
+test.each(["archive", "pin", "update", "archive and undo"] as const)(
   "a local %s wins over the deferred document snapshot",
   async (action) => {
     process.env.VITE_DEFERRED_CACHE_BOOT = "1";
@@ -547,7 +549,16 @@ test.each(["archive", "pin", "update"] as const)(
       await ui.rerender(<Body />);
       await act(async () => {
         const store = ui.store.getState();
-        if (action === "archive") await store.archiveDoc(id);
+        if (action === "archive" || action === "archive and undo") {
+          if (action === "archive and undo")
+            await store.updateDoc(id, {
+              content: "Edited body",
+              title: "Edited title",
+            });
+          await store.archiveDoc(id);
+          expect(ui.store.getState().docs[id]).toBeUndefined();
+          if (action === "archive and undo") expect(performUndo()).toBe(true);
+        }
         if (action === "pin") await store.pinDoc(id, true);
         if (action === "update")
           await store.updateDoc(id, { content: "Edited body" });
@@ -559,6 +570,11 @@ test.each(["archive", "pin", "update"] as const)(
       if (action === "pin")
         expect(detail).toMatchObject({ pinned: true, content: row.content });
       if (action === "update") expect(detail?.content).toBe("Edited body");
+      if (action === "archive and undo")
+        expect(detail).toMatchObject({
+          content: "Edited body",
+          title: "Edited title",
+        });
     } finally {
       input.mockRestore();
       await ui.close();
