@@ -408,6 +408,7 @@ export function useSyncDocDetail(id?: string) {
       (detail: any) => {
         if (!id) return;
         if (detail === null || (enabled && detail?.archived_at !== undefined)) {
+          denyDeferredDoc(id);
           const reported =
             enabled &&
             authenticated &&
@@ -415,10 +416,7 @@ export function useSyncDocDetail(id?: string) {
               ids: [id],
               cause: detail === null ? "access" : "archive",
             });
-          if (!reported) {
-            denyDeferredDoc(id);
-            useInboxStore.getState().dropDocDetail(id);
-          }
+          if (!reported) useInboxStore.getState().dropDocDetail(id);
         } else if (detail) {
           if (enabled && !canHydrateDetail(id)) refreshInvalidatedDocDetail(id);
           else syncAuthorizedDocDetail(id, detail);

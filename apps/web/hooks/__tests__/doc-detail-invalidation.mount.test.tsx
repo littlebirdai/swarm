@@ -9,7 +9,7 @@ import { _reopenForTests, db } from "../../store/persistence/db";
 import { writeOwnerStamp } from "../../store/persistence/ownership";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { pending } from "../../test-helpers/testConvex";
-import { afterEach, expect, spyOn, test } from "bun:test";
+import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import { act } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -298,41 +298,47 @@ test.each(["cold", "warm"] as const)(
   },
 );
 
-test("a late deferred cache read cannot restore a refused document", async () => {
-  delete process.env[flag];
-  const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
-  const disk = Promise.withResolvers<Record<string, unknown>>();
-  const input = spyOn(cacheStorage, "loadCache").mockImplementation(
-    async (keys) =>
-      keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
-  );
-  const ui = await mountWeb(null, {
-    authenticated: true,
-    setup(backend) {
-      localStorage.setItem(
-        AUTH_JWT_STORAGE_KEY,
-        issueFakeToken("deferred-denied"),
-      );
-      backend.set(api.taskMining.webGetDocDetail, pending);
-    },
-  });
-  try {
-    authPrincipal.check();
-    expect(await authPrincipal.resolve()).toBe("deferred-denied");
-    await ui.rerender(<Body />);
-    expect(
-      input.mock.calls.filter(
-        ([keys]) => keys?.length === 1 && keys[0] === "docDetails",
-      ),
-    ).toHaveLength(enabled ? 1 : 0);
-    await act(async () => {
-      ui.backend.set(api.taskMining.webGetDocDetail, null);
-      flushSyncPublishes();
+test.each(["0", "1"])(
+  "a late deferred cache read cannot restore a refused document with eviction metadata %s",
+  async (metadata) => {
+    process.env[flag] = metadata;
+    const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
+    const disk = Promise.withResolvers<Record<string, unknown>>();
+    const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+      async (keys) =>
+        keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
+    );
+    const ui = await mountWeb(null, {
+      authenticated: true,
+      setup(backend) {
+        localStorage.setItem(
+          AUTH_JWT_STORAGE_KEY,
+          issueFakeToken("deferred-denied"),
+        );
+        backend.set(api.taskMining.webGetDocDetail, pending);
+      },
     });
-    await act(async () => disk.resolve({ docDetails: { [id]: row } }));
-    expect(ui.container.textContent).toBe("No body");
-  } finally {
-    input.mockRestore();
-    await ui.close();
-  }
-});
+    try {
+      authPrincipal.check();
+      expect(await authPrincipal.resolve()).toBe("deferred-denied");
+      const report = mock(() => true);
+      setDetailInvalidationReporter(report);
+      await ui.rerender(<Body />);
+      expect(
+        input.mock.calls.filter(
+          ([keys]) => keys?.length === 1 && keys[0] === "docDetails",
+        ),
+      ).toHaveLength(enabled ? 1 : 0);
+      await act(async () => {
+        ui.backend.set(api.taskMining.webGetDocDetail, null);
+        flushSyncPublishes();
+      });
+      expect(report).toHaveBeenCalledTimes(metadata === "1" ? 1 : 0);
+      await act(async () => disk.resolve({ docDetails: { [id]: row } }));
+      expect(ui.container.textContent).toBe("No body");
+    } finally {
+      input.mockRestore();
+      await ui.close();
+    }
+  },
+);

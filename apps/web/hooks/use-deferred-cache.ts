@@ -12,7 +12,7 @@ import { useWatchEffect } from "./useWatchEffect";
 
 const deferred = {
   epoch: -1,
-  reads: new Set<string>(),
+  reads: new Map<string, Promise<void>>(),
   deniedDocs: new Set<string>(),
 };
 
@@ -30,6 +30,12 @@ export function denyDeferredDoc(id: string): void {
     forEpoch(authPrincipal.epoch()).deniedDocs.add(id);
 }
 
+export function deferredCacheRead(
+  key: ClientSyncStoreKey,
+): Promise<void> | undefined {
+  return forEpoch(authPrincipal.epoch()).reads.get(key);
+}
+
 export function useDeferredCache(key: ClientSyncStoreKey, wanted = true): void {
   const { principalId, epoch } = useAuthPrincipal();
   useWatchEffect(() => {
@@ -42,10 +48,10 @@ export function useDeferredCache(key: ClientSyncStoreKey, wanted = true): void {
       return;
     const { reads, deniedDocs } = forEpoch(epoch);
     if (reads.has(key)) return;
-    reads.add(key);
     const pending = useInboxStore.getState().pending;
-    void cacheStorage.loadCache([key], { pending }).then(
-      (cached) => {
+    const read = cacheStorage
+      .loadCache([key], { pending })
+      .then((cached) => {
         if (authPrincipal.epoch() !== epoch) return;
         if (!cached?.[key]) {
           reads.delete(key);
@@ -67,10 +73,10 @@ export function useDeferredCache(key: ClientSyncStoreKey, wanted = true): void {
           state[key as keyof typeof state],
         );
         if (merge.apply) useInboxStore.setState({ [key]: merge.value });
-      },
-      () => {
+      })
+      .catch(() => {
         if (authPrincipal.epoch() === epoch) reads.delete(key);
-      },
-    );
+      });
+    reads.set(key, read);
   }, [key, wanted, principalId, epoch]);
 }

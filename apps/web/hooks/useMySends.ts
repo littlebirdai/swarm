@@ -1,4 +1,4 @@
-import { useDeferredCache } from "./use-deferred-cache";
+import { deferredCacheRead, useDeferredCache } from "./use-deferred-cache";
 // What the viewer typed into sessions, newest first: the Messages feed's data.
 //
 // The rows live in `mySends` (store/clientSyncRegistry), persisted, and the
@@ -138,9 +138,8 @@ export function useMySends(): {
     useInboxStore.getState().setFeedCursor(END_KEY, null);
     let cancelled = false;
     const run = async () => {
-      // Deferred hydration lands a tick after boot; let it, so the walk
-      // knows what is already held.
-      await sleep(50);
+      await (deferredCacheRead("mySends") ?? sleep(50));
+      if (cancelled) return;
       const st = useInboxStore.getState();
       const heldBefore = new Set(heldRows().map((r) => r._id));
       const sweep = !(
