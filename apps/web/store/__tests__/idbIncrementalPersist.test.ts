@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { stampCacheOwner } from "./fixtures/signedInPrincipal";
-import { indexedDB, IDBKeyRange } from "fake-indexeddb";
-import { describe, expect, it } from "bun:test";
+import { indexedDB, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
+import { describe, expect, it, spyOn } from "bun:test";
 import Dexie from "dexie";
 import {
   _reopenForTests,
@@ -81,18 +81,85 @@ describe("incremental persistence", () => {
     expect(await db().liveElements.count()).toBe(1999);
   });
 
-  it("writes the pending blob with every action, so a page killed right after a write keeps its lock", async () => {
-    // The outbox row reaches disk at once; a lock that waited for the 250 ms
-    // quiet spell was lost with a page killed in between (no flush), and the
-    // reloaded page showed a stale push over its own parked write.
-    writePatchesToIDB(
-      [{ op: "replace", path: ["pending"], value: {} } as any],
-      { pending: { "liveElements:k:v": { type: "field", value: 1 } } },
+  it("commits only the two changed pending keys from a whole-map action", async () => {
+    const pending = Object.fromEntries(
+      Array.from({ length: 400 }, (_, i) => [
+        `liveElements:${i}:v`,
+        { type: "field", value: i, ts: 1 },
+      ]),
     );
-    await settle();
-    expect((await db().meta.get("pending"))?.value).toEqual({
-      "liveElements:k:v": { type: "field", value: 1 },
+    const before = await writePatchesToIDB(
+      [{ op: "replace", path: ["pending"], value: pending }],
+      { pending },
+    );
+    expect(before).toBeUndefined();
+    const changed = { ...pending };
+    changed["liveElements:7:v"] = { type: "field", value: -7, ts: 2 };
+    delete changed["liveElements:8:v"];
+    const puts: string[] = [];
+    const deletes: string[] = [];
+    const put = IDBObjectStore.prototype.put;
+    const remove = IDBObjectStore.prototype.delete;
+    const putSpy = spyOn(IDBObjectStore.prototype, "put").mockImplementation(
+      function (this: IDBObjectStore, value, key) {
+        if (this.name === "pendingEntries") puts.push(value.key);
+        return put.call(this, value, key);
+      },
+    );
+    const deleteSpy = spyOn(
+      IDBObjectStore.prototype,
+      "delete",
+    ).mockImplementation(function (this: IDBObjectStore, key) {
+      if (this.name === "pendingEntries") deletes.push(String(key));
+      return remove.call(this, key);
     });
+    try {
+      await writePatchesToIDB(
+        [{ op: "replace", path: ["pending"], value: changed }],
+        { pending: changed },
+      );
+      expect(puts).toEqual(["liveElements:7:v"]);
+      expect(deletes).toEqual(["liveElements:8:v"]);
+      expect(await db().pendingEntries.count()).toBe(399);
+      expect((await db().pendingEntries.get("liveElements:7:v")).value).toEqual(
+        changed["liveElements:7:v"],
+      );
+      const narrow = new Proxy(changed, {
+        ownKeys() {
+          throw new Error("walked all pending entries for a narrow patch");
+        },
+      });
+      await writePatchesToIDB(
+        [
+          {
+            op: "replace",
+            path: ["pending", "liveElements:7:v", "ts"],
+            value: 2,
+          },
+        ],
+        { pending: narrow },
+      );
+      expect(puts).toEqual(["liveElements:7:v", "liveElements:7:v"]);
+      expect(await db().meta.get("pending")).toBeUndefined();
+
+      const { __createInboxStoreForTests } = await import("../inboxStore");
+      const store = __createInboxStoreForTests();
+      store.setState({ pending: changed as any });
+      let persisted: ReturnType<typeof writePatchesToIDB>;
+      (store.getState() as any)._setIDBWrite(
+        (...args: Parameters<typeof writePatchesToIDB>) =>
+          (persisted = writePatchesToIDB(...args)),
+      );
+      store.getState().syncRecord("liveElements", "7", { _id: "7", v: -7 });
+      expect(store.getState().pending["liveElements:7:v"]).toBeUndefined();
+      await persisted;
+      expect(await db().pendingEntries.count()).toBe(398);
+      expect(puts).toEqual(["liveElements:7:v", "liveElements:7:v"]);
+      expect(deletes).toEqual(["liveElements:8:v", "liveElements:7:v"]);
+    } finally {
+      deleteSpy.mockRestore();
+      putSpy.mockRestore();
+    }
   });
 
   it("still writes other meta blobs once for a run of actions, with their last value", async () => {

@@ -1,5 +1,6 @@
 import { cacheEvictionsFor, withoutEvictionPatches } from "../cache-eviction";
 import type { Patch } from "mutative";
+import { writePendingEntries } from "./pending-entries";
 import { partitionSessionRetention } from "../cacheRetention";
 import {
   createCoalescedWriter,
@@ -77,6 +78,7 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
     if (path.length > 0) affectedKeys.add(String(path[0]));
   }
 
+  let pendingWrite: Promise<void> | undefined;
   for (const key of affectedKeys) {
     if (key === "pendingMessages" || key === "queuedMessages") continue;
     const table = COLLECTION_TABLES[key];
@@ -190,7 +192,7 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
       // waited for a quiet spell was lost with a page killed in between, and the reload showed a stale push
       // over its own parked write. (A big write plants a few hundred locks, never one per field it touches.)
-      db.meta.put({ key, value: state[key] }).catch(() => {});
+      pendingWrite = writePendingEntries(patches, state.pending);
     } else if (key === "syncMeta") {
       holdLivenessSyncMeta(state);
     } else if (META_KEYS.has(key)) {
@@ -199,6 +201,7 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
       metaWriter.write(key, state[key]);
     }
   }
+  return pendingWrite;
 }
 
 export async function deleteInvalidatedDocDetails(
