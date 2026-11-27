@@ -4,6 +4,8 @@ import {
   scopedSnapshotSource,
 } from "./desktop-panel-transport";
 import { setDeferredSharedCacheSource } from "./deferred-cache-policy";
+import { forgetSeenBeforeOwnEcho } from "./replication-lock-echo";
+export { forgetSeenBeforeOwnEcho } from "./replication-lock-echo";
 import type { Patch } from "mutative";
 import {
   cacheEvictionEnabled,
@@ -302,32 +304,6 @@ export function replicationHostFor(
     applyUpdates: (updates) =>
       applyUpdatesToStore(updates, { optimistic: true }),
   });
-}
-
-/**
- * The host's echo of this follower's own write. A lock records the host rows
- * that reached it while it held (its `seen`), and its acknowledgement lands
- * the newest of them (retireAckedLockInDraft). Rows the host sent before it
- * applied this window's write predate that write: they can carry this
- * window's own previous step (an undo just before a redo), and nothing sends
- * the row again at the acknowledged position, because the server's echo
- * changes nothing on a host that already holds the write. From the echo on,
- * the host holds the cell and tells this window anything newer, so what the
- * lock recorded before is forgotten.
- */
-export function forgetSeenBeforeOwnEcho(updates: MutUpdate[]): void {
-  const keys: string[] = [];
-  const rowPrefixes: string[] = [];
-  for (const u of updates) {
-    for (const [id, fields] of Object.entries(u.fields ?? {})) {
-      for (const field of Object.keys(fields ?? {}))
-        keys.push(`${u.key}:${id}:${field}`);
-    }
-    for (const row of u.upserts ?? [])
-      if (row?._id != null) rowPrefixes.push(`${u.key}:${String(row._id)}:`);
-  }
-  if (keys.length > 0 || rowPrefixes.length > 0)
-    useInboxStore.getState().forgetLockSeen(keys, rowPrefixes);
 }
 
 /** The follower runtime. The host's rows land through applyUpdatesToStore, authoritative for this window. */
