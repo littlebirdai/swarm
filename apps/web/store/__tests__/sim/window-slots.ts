@@ -228,6 +228,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/idb-collection-diff.ts:snapshotDrops": DISK_LEDGER,
   "store/idb-collection-diff.ts:landedSnapshots": DISK_LEDGER,
   "store/idb-collection-diff.ts:persistedCollections": CONSTANT,
+  "store/deferred-cache-policy.ts:HYDRATION_ON_READ_KEYS": CONSTANT,
+  "store/deferred-cache-policy.ts:deferredWindow": "window",
   "store/clientSyncRegistry.ts:REPLICATED_COLLECTION_SET": CONSTANT,
   "store/clientSyncRegistry.ts:REPLICATED_TABLE_SET": CONSTANT,
   "store/meetingBotsSlice.ts:MEETING_BOT_FINAL": CONSTANT,
@@ -609,6 +611,10 @@ function inboxStoreSeam(b: InboxBindings): SlotSeam {
 }
 
 const SEAMS: Record<string, () => SlotSeam> = {
+  "store/deferred-cache-policy.ts": () =>
+    load<typeof import("../../deferred-cache-policy")>(
+      "../../deferred-cache-policy",
+    ).__deferredCacheSimSlots() as SlotSeam,
   "store/doc-detail-cache.ts": () =>
     load<typeof import("../../doc-detail-cache")>(
       "../../doc-detail-cache",

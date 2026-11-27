@@ -71,6 +71,9 @@ export default defineConfig(({ mode, command }) => ({
     "process.env.VITE_THIN_PULL_REQUEST_ROWS": JSON.stringify(
       process.env.VITE_THIN_PULL_REQUEST_ROWS ?? "",
     ),
+    "process.env.VITE_DEFERRED_CACHE_BOOT": JSON.stringify(
+      process.env.VITE_DEFERRED_CACHE_BOOT ?? "",
+    ),
     "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
       process.env.VITE_CACHE_EVICTION_METADATA ?? "",
     ),

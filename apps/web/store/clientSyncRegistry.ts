@@ -99,7 +99,9 @@ export type ClientSyncRegistryEntry = {
   //     a stale cache must never clobber).
   //   "manual" — the hydration block consumes the cached value with bespoke
   //     logic (excluded from the derived apply lists).
-  hydration?: { phase?: HydrationPhase; merge?: HydrationMerge } | "manual";
+  hydration?:
+    | { phase?: HydrationPhase; merge?: HydrationMerge; onRead?: true }
+    | "manual";
   localFirst?: boolean;
   dispatchTable?: {
     table: string;
@@ -382,7 +384,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // a paint cache the live detail query reconciles.
   docDetails: {
     persistence: { kind: "collection", key: "docDetails" },
-    hydration: { phase: "deferred" },
+    hydration: { phase: "deferred", onRead: true },
     localFirst: false,
     feeds: ["taskMining.webGetDocDetail"],
     // The detail query spreads the whole doc row, which includes the vector
@@ -1245,7 +1247,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // than the names.
   deployDetails: {
     persistence: { kind: "collection", key: "deployDetails" },
-    hydration: { phase: "deferred" },
+    hydration: { phase: "deferred", onRead: true },
     sync: { isDelta: true, deepFields: ["adds", "drops"] },
   },
   // The flows view's collections (live flows, session flows) live beside this file.
@@ -1846,7 +1848,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // paging resumes below the oldest held row.
   mySends: {
     persistence: { kind: "collection", key: "mySends" },
-    hydration: { phase: "deferred" },
+    hydration: { phase: "deferred", onRead: true },
     indexes: "_id, timestamp",
     sync: { isDelta: true },
     feeds: ["userSends.mine"],

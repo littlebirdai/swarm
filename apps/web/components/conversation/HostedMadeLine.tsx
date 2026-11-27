@@ -1,3 +1,4 @@
+import { useDeferredCache } from "../../hooks/use-deferred-cache";
 // A hosted receipt whose one step made one thing ("Set up the routine
 // Morning stretch"), as one line: the step's words with the thing's live name
 // as the link, and the thing's state now when it has changed since (a routine
@@ -31,6 +32,7 @@ export function HostedNoteCard({
 }) {
   const r = useEntityResolution(refId);
   const docId = refId.replace(/^doc:/i, "");
+  useDeferredCache("docDetails", !!docId);
   const cached = useInboxStore(
     (s) =>
       (s.docDetails as Record<string, { content?: string } | undefined>)[docId]

@@ -12,6 +12,7 @@ const { COLLECTION_TABLES, db } = await import("../store/persistence/db");
 const { writeOwnerStamp } = await import("../store/persistence/ownership");
 const { storageTimings } = await import("../store/persistence/storage-timings");
 const { reads } = measureIndexedDB(db);
+const reportTiming = process.env.PERF_CACHE_BOOT_SAMPLE === "1";
 const now = Date.now();
 const sessions = Array.from({ length: 1300 }, (_, i) => ({
   _id: `j${String(i).padStart(31, "0")}`,
@@ -27,6 +28,23 @@ await db.open();
 for (const [key, table] of Object.entries(COLLECTION_TABLES)) {
   if (key === "sessions" || key === "conversations") {
     await table.bulkPut(sessions);
+  } else if (reportTiming && key === "docDetails") {
+    await table.bulkPut(
+      Array.from({ length: 200 }, (_, i) => ({
+        _id: `j${String(i).padStart(31, "0")}`,
+        title: "Cached doc",
+        content: `${i} ${"Cached body ".repeat(1_365)}`,
+        _cachedAt: now - i,
+      })),
+    );
+  } else if (reportTiming && key === "mySends") {
+    await table.bulkPut(
+      Array.from({ length: 8000 }, (_, i) => ({
+        _id: `send-${i}`,
+        timestamp: now - i,
+        content: `Cached message ${i}`,
+      })),
+    );
   } else {
     await table.put({ _id: key, short_id: "ct-1", _cachedAt: now });
   }
@@ -61,16 +79,19 @@ for (const { _id: convId } of [focus, alternate]) {
 }
 
 reads.clear();
+const bootStarted = performance.now();
 const { useInboxStore } = await import("../store/inboxStore");
 const firstPaint = Promise.withResolvers<{
   groups: string[];
   reads: Map<string, number>;
+  paintMs: number;
 }>();
 const unsubscribe = useInboxStore.subscribe((state, before) => {
   if (!state.clientStateInitialized || before.clientStateInitialized) return;
   firstPaint.resolve({
     groups: Object.keys(storageTimings.take().criticalBootMs ?? {}),
     reads: new Map(reads),
+    paintMs: performance.now() - bootStarted,
   });
 });
 try {
@@ -89,6 +110,17 @@ try {
     assert(
       sample.groups.includes(group),
       `First paint read group missing: ${group}`,
+    );
+  }
+  if (reportTiming) {
+    const hydration = await import("../store/persistence/hydration");
+    while (hydration._hydrating) await Bun.sleep(1);
+    console.log(
+      JSON.stringify({
+        firstPaintMs: sample.paintMs,
+        bootMs: performance.now() - bootStarted,
+        readRows: [...reads.values()].reduce((sum, rows) => sum + rows, 0),
+      }),
     );
   }
   checkStoreBudget("First paint read groups", sample.groups.length);

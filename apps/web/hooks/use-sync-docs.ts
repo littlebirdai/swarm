@@ -1,3 +1,5 @@
+import { useDeferredCache } from "./use-deferred-cache";
+import { noteDeferredDocEdit } from "../store/deferred-cache-policy";
 import { cacheEvictionEnabled } from "../store/cache-eviction";
 import {
   acceptRecoveryFeed,
@@ -126,8 +128,13 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
   const attemptedRef = useRef(new Map<string, number>());
   const prefetchHydrated = useInboxStore((s) => s.clientStateInitialized);
   const wsSkip = wsArgs === "skip";
+  const bodyCacheReady = useDeferredCache(
+    "docDetails",
+    prefetchHydrated && !wsSkip && !!results?.length,
+  );
   useWatchEffect(() => {
-    if (!prefetchHydrated || wsSkip || !results?.length) return;
+    if (!prefetchHydrated || !bodyCacheReady || wsSkip || !results?.length)
+      return;
     const { docDetails } = useInboxStore.getState();
     const rowById = new Map<string, any>();
     for (const row of results as any[]) {
@@ -180,7 +187,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
     return () => {
       cancelled = true;
     };
-  }, [convex, results, prefetchHydrated, wsSkip]);
+  }, [convex, results, prefetchHydrated, bodyCacheReady, wsSkip]);
 
   // 2) BACKGROUND RECONCILE: crawl every page once (one-shot queries, NOT live
   //    subscriptions), then sync the full set with a workspace-scoped
@@ -380,7 +387,8 @@ function refreshInvalidatedDocDetail(id: string) {
     .catch(() => {});
 }
 
-export function useSyncDocDetail(id?: string) {
+export function useSyncDocDetailWithCache(id?: string) {
+  const cacheReady = useDeferredCache("docDetails", !!id);
   const enabled = cacheEvictionEnabled();
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
@@ -406,6 +414,7 @@ export function useSyncDocDetail(id?: string) {
       (detail: any) => {
         if (!id) return;
         if (detail === null || (enabled && detail?.archived_at !== undefined)) {
+          noteDeferredDocEdit(id, "denied");
           const reported =
             enabled &&
             authenticated &&
@@ -423,5 +432,9 @@ export function useSyncDocDetail(id?: string) {
     ),
   );
 
-  return data as DocDetail | null | undefined;
+  return { detailResult: data as DocDetail | null | undefined, cacheReady };
+}
+
+export function useSyncDocDetail(id?: string) {
+  return useSyncDocDetailWithCache(id).detailResult;
 }

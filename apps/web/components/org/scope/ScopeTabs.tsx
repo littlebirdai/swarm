@@ -18,7 +18,7 @@ import { useOrgSessionsUnder } from "../../../hooks/useOrgSessionsUnder";
 import type { ScopeRef } from "../../../hooks/useScopeQueries";
 import { ScopeFeed } from "./ScopeFeed";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
-import { useSyncDocDetail } from "../../../hooks/use-sync-docs";
+import { useSyncDocDetailWithCache } from "../../../hooks/use-sync-docs";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   useInboxStore,
@@ -857,11 +857,11 @@ function RoleDoc({
   editable: boolean;
   backHref: string;
 }) {
-  useSyncDocDetail(docId);
+  const { cacheReady } = useSyncDocDetailWithCache(docId);
   const detail = useInboxStore((s) => s.docDetails[docId]) as any;
   const listItem = useInboxStore((s) => s.docs[docId]) as any;
   const doc = detail || listItem;
-  if (!doc)
+  if (!doc || (!detail && !cacheReady))
     return (
       <div
         className="h-40 rounded-xl animate-pulse"

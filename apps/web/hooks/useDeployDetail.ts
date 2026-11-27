@@ -1,3 +1,4 @@
+import { useDeferredCache } from "./use-deferred-cache";
 // The names a deploy's push added and dropped (deploys.get `adds`, `drops`),
 // fed into the `deployDetails` detail collection by the surface that opens the
 // deploy and read back from the store. A teamDeploys row carries only their
@@ -52,6 +53,7 @@ export function useSyncDeployDetail(shortId: string | null | undefined) {
 export function useDeployDetail(
   id: string | undefined,
 ): DeployDetailRow | undefined {
+  useDeferredCache("deployDetails", !!id);
   useWatchEffect(
     () => (id ? pinDetailRows("deployDetails", [id]) : undefined),
     [id],
