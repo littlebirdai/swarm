@@ -4,6 +4,23 @@ import { v } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { internalMutation, internalQuery, query } from "./functions";
 import { bumpWindow, takeFromWindow } from "./ipRateLimit";
+import { messageValidator } from "./messages";
+import { appendDeviceTranscripts } from "./lib/edge/transcript-appends.route";
+
+export const appendTranscripts = internalMutation({
+  args: {
+    bearer: v.string(),
+    batch_id: v.string(),
+    writes: v.array(
+      v.object({
+        conversation_id: v.string(),
+        messages: v.array(messageValidator),
+        echo_ids: v.optional(v.boolean()),
+      }),
+    ),
+  },
+  handler: appendDeviceTranscripts,
+});
 
 export const isDeviceBearer = internalQuery({
   args: { bearer: v.string() },
@@ -24,7 +41,12 @@ export const admit = internalMutation({
       }),
     ),
     operation: v.optional(
-      v.union(v.literal("renew"), v.literal("blob"), v.literal("relay_grant")),
+      v.union(
+        v.literal("renew"),
+        v.literal("blob"),
+        v.literal("relay_grant"),
+        v.literal("transcript"),
+      ),
     ),
   },
   handler: async (ctx, { bearer, machine, operation, batonHello }) => {
@@ -40,9 +62,11 @@ export const admit = internalMutation({
           ? { scope: "edge/v1/blobs", limit: 120 }
           : operation === "relay_grant"
             ? { scope: "edge/v1/relay-grant", limit: 120 }
-            : machine === undefined
-              ? { scope: "edge/v1/work", limit: 120 }
-              : { scope: "edge/v1", limit: 12 };
+            : operation === "transcript"
+              ? { scope: "edge/v1/transcripts", limit: 240 }
+              : machine === undefined
+                ? { scope: "edge/v1/work", limit: 120 }
+                : { scope: "edge/v1", limit: 12 };
     const result = await bumpWindow(
       ctx.db,
       `${budget.scope}:${auth.userId}:${auth.deviceId}`,

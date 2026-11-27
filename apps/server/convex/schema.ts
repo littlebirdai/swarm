@@ -32,6 +32,7 @@ import { passkeyTables } from "./passkeysSchema";
 import { accessLogTables } from "./accessLogSchema";
 import { teamReadKeyTables } from "./teamReadKeysSchema";
 import { edgePromptAnswerTables } from "./schema/edge-prompt-answers.tables";
+import { edgeTranscriptReceiptTables } from "./schema/edge-transcript-receipts.tables";
 import { dataDeletionTables } from "./dataDeletionsSchema";
 import {
   accountTables,
@@ -177,6 +178,7 @@ export default defineSchema(
     ...accountTables,
     ...daemonCommandTables,
     ...edgePromptAnswerTables,
+    ...edgeTranscriptReceiptTables,
     ...teamTables,
     ...subscriptionTables,
     ...teamMembershipTables,

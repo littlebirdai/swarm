@@ -27,7 +27,7 @@
 import * as fsp from "fs/promises";
 import * as path from "path";
 import { CachedJsonStore } from "../cachedJsonStore.js";
-import { chunkMessagesBySize } from "../syncService.js";
+import { chunkMessagesBySize } from "../transcript-batches.js";
 import { cliFetch } from "../cliHttp.js";
 import { mapLimit } from "@codecast/async";
 import { parseNote } from "@codecast/vault/parseNote";

@@ -40266,6 +40266,31 @@ async function main(): Promise<void> {
   // Every echo this daemon uploads names the delivery it settles. Nothing
   // above has awaited since syncService was built, so no upload precedes it.
   syncService.setDeliveryEchoes(deliveryEchoLedger());
+  const transcriptUplink =
+    process.env.CODECAST_EDGE_TRANSCRIPT_UPLINK_V1 === "1" && config.user_id
+      ? import("@codecast/edge-client").then(({ createTranscriptUplink }) =>
+          createTranscriptUplink({
+            siteUrl: convexUrl.replace(".cloud", ".site"),
+            spoolPath: path.join(
+              CONFIG_DIR,
+              "transcript-uplink",
+              createHash("sha256")
+                .update(JSON.stringify([convexUrl, config.user_id, deviceId()]))
+                .digest("hex") + ".json",
+            ),
+            bearer: () =>
+              activeConfig?.user_id === config.user_id ? getAuthToken() : null,
+          }),
+        )
+      : undefined;
+  if (transcriptUplink) {
+    syncService.setTranscriptUplink({
+      submit: async (...args) => (await transcriptUplink).submit(...args),
+    });
+    void transcriptUplink
+      .then((uplink) => uplink.start())
+      .catch((error) => logError("Transcript uplink startup failed", error));
+  }
 
   // Open the Convex WebSocket now, before the tmux warm restart. That scan
   // awaits every managed pane (133s for 135 sessions on 2026-09-15) and used
@@ -45291,6 +45316,7 @@ async function main(): Promise<void> {
       unsubscribe();
     }
     await fencedRuntime?.stop();
+    await (await transcriptUplink?.catch(() => undefined))?.close();
 
     if (permissionUnsubscribe) {
       permissionUnsubscribe();

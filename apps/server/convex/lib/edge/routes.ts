@@ -1,6 +1,8 @@
 import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION,
+  TRANSCRIPT_APPEND_MAX_BYTES,
+  TRANSCRIPT_APPEND_OPERATION,
   RELAY_SESSION_LIVENESS_CAPABILITY,
   STEER_BATON_CAPABILITY,
   TAKEOVER_FENCE_CAPABILITY,
@@ -19,6 +21,7 @@ import {
   parseRelayGrantRequest,
   parseReleaseRequest,
   parseRenewRequest,
+  parseTranscriptAppendRequest,
   type EdgeErrorResponse,
   type EdgeParseResult,
   type EventsAppendRequest,
@@ -26,7 +29,7 @@ import {
   type HeartbeatResponse,
   type HelloResponse,
 } from "@codecast/edge-contract";
-import type { HttpRouter } from "convex/server";
+import type { FunctionArgs, HttpRouter } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
@@ -153,14 +156,16 @@ function workAction<T>(
     | EventsAppendResponse
   >,
   options?: {
-    operation?: "renew" | "blob" | "relay_grant";
+    operation?: "renew" | "blob" | "relay_grant" | "transcript";
+    maxBodyBytes?: number;
     batches?: (body: T) => number;
     enabled?: () => boolean;
+    flag?: "CODECAST_EDGE_TRANSCRIPT_UPLINK_V1";
   },
 ) {
   return httpAction(async (ctx, request) => {
     if (
-      process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
+      process.env[options?.flag ?? "CODECAST_EDGE_DELIVERY_V1"] !== "1" ||
       options?.enabled?.() === false
     ) {
       const { pathname } = new URL(request.url);
@@ -177,7 +182,8 @@ function workAction<T>(
     try {
       const bytes = await readBodyCapped(
         request,
-        options?.batches ? policy.limits.max_batch_bytes : 64 * 1024,
+        options?.maxBodyBytes ??
+          (options?.batches ? policy.limits.max_batch_bytes : 64 * 1024),
       );
       if (!bytes) return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
       body = JSON.parse(
@@ -261,6 +267,35 @@ async function appendEvents(
 }
 
 export function registerEdgeRoutes(http: HttpRouter) {
+  http.route({
+    path: `/edge/v1/${TRANSCRIPT_APPEND_OPERATION}`,
+    method: "POST",
+    handler: workAction(
+      parseTranscriptAppendRequest,
+      async (ctx, bearer, { batch_id, writes }): Promise<Response> => {
+        const result = await ctx.runMutation(
+          internal.edgeLink.appendTranscripts,
+          {
+            bearer,
+            batch_id,
+            writes: writes as FunctionArgs<
+              typeof internal.edgeLink.appendTranscripts
+            >["writes"],
+          },
+        );
+        if (result === "unauthorized")
+          return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
+        if (result === "conflict")
+          return edgeError(409, EDGE_ERROR_CODES.INVALID);
+        return Response.json(result);
+      },
+      {
+        operation: "transcript",
+        maxBodyBytes: TRANSCRIPT_APPEND_MAX_BYTES,
+        flag: "CODECAST_EDGE_TRANSCRIPT_UPLINK_V1",
+      },
+    ),
+  });
   http.route({
     path: "/edge/v1/hello",
     method: "POST",

@@ -150,3 +150,8 @@ ${caller}`,
     },
   };
 }
+
+export {
+  createTranscriptUplink,
+  type TranscriptUplinkClient,
+} from "./transcript-uplink-client";

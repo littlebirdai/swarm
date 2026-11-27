@@ -1,3 +1,12 @@
+import {
+  ADD_MESSAGES_BATCH_SIZE,
+  chunkMessagesBySize,
+} from "./transcript-batches.js";
+import type { TranscriptUplinkClient } from "@codecast/edge-client";
+import {
+  fitsTranscriptUplink,
+  type TranscriptAppendWrite,
+} from "@codecast/edge-contract";
 import { ConvexHttpClient, ConvexClient } from "convex/browser";
 import {
   WriteBudgetBackoff,
@@ -56,9 +65,6 @@ const fetchWithIngestDeadline = ((input, init) => {
 
 const MAX_CONTENT_SIZE = 100_000;
 const MAX_TOOL_RESULT_SIZE = 50_000;
-// Max serialized bytes of one addMessages batch (~0.9MB, well under the 5MB
-// that triggered isolate OOM/timeouts in the 2026-05-13 stuck-sync incident).
-const MAX_BATCH_BYTES = 900_000;
 import { MAX_IMAGE_SIZE } from "./imageDownscale.js";
 export { MAX_IMAGE_SIZE };
 
@@ -101,7 +107,6 @@ const MIN_REQUEST_INTERVAL_MS = 100;
 // batch that would have landed — those are already split by MAX_BATCH_BYTES.
 // Image uploads keep their own (separate) UPLOAD_IMAGE_TIMEOUT_MS budget.
 const ADD_MESSAGES_BATCH_TIMEOUT_MS = 28_000;
-const ADD_MESSAGES_BATCH_SIZE = 25;
 // uploadImage runs *before* the timed addMessages batch, so an un-timed upload
 // hang (slow network / contended backend) wedges the whole chunk: the file-watcher
 // can't advance its position past the image message and every later turn stops
@@ -157,39 +162,6 @@ function truncate(str: string, maxLen: number): string {
   return (
     str.slice(0, maxLen) + `\n... [truncated ${str.length - maxLen} chars]`
   );
-}
-
-/**
- * Split prepared messages into mutation-sized batches, bounded by BOTH message
- * count and serialized byte size. The byte bound is what stops a handful of
- * image-heavy messages (large inline base64) from forming a multi-MB mutation
- * that can't commit within the timeout/isolate budget. A single message that
- * alone exceeds the byte cap is emitted in its own batch — one message can't be
- * split, and one ~MAX_INLINE_IMAGE_SIZE message commits fine on its own.
- */
-export function chunkMessagesBySize<T>(
-  messages: T[],
-  maxCount: number = ADD_MESSAGES_BATCH_SIZE,
-  maxBytes: number = MAX_BATCH_BYTES,
-): T[][] {
-  const batches: T[][] = [];
-  let current: T[] = [];
-  let currentBytes = 0;
-  for (const msg of messages) {
-    const bytes = Buffer.byteLength(JSON.stringify(msg));
-    if (
-      current.length > 0 &&
-      (current.length >= maxCount || currentBytes + bytes > maxBytes)
-    ) {
-      batches.push(current);
-      current = [];
-      currentBytes = 0;
-    }
-    current.push(msg);
-    currentBytes += bytes;
-  }
-  if (current.length > 0) batches.push(current);
-  return batches;
 }
 
 function isAuthError(error: any): boolean {
@@ -483,6 +455,11 @@ export class SyncService {
   // pairs echoes itself, so the ids are left off rather than the batch. Asked
   // again after a while, since the deployment catches up without a restart.
   private echoIdsRefusedAt: number | null = null;
+  private transcriptUplink?: Pick<TranscriptUplinkClient, "submit">;
+
+  setTranscriptUplink(uplink: Pick<TranscriptUplinkClient, "submit">): void {
+    this.transcriptUplink = uplink;
+  }
 
   setDeliveryEchoes(ledger: Pick<DeliveryEchoLedger, "stamp"> | null): void {
     this.deliveryEchoes = ledger;
@@ -2048,8 +2025,30 @@ export class SyncService {
               ADD_MESSAGES_BATCH_TIMEOUT_MS,
               `addMessages batch (${batch.length} msgs)`,
             );
+          const uplink = this.transcriptUplink;
+          const write: TranscriptAppendWrite | null =
+            uplink && batch.every((message) => message.message_uuid)
+              ? {
+                  conversation_id: params.conversationId,
+                  messages: JSON.parse(
+                    JSON.stringify(
+                      echoes ? batch : batch.map(withoutDeliveryIds),
+                    ),
+                  ),
+                  ...(echoes ? { echo_ids: true } : {}),
+                }
+              : null;
           let result: unknown;
-          if (
+          if (uplink && write && fitsTranscriptUplink(write)) {
+            const uplinkResult = await uplink.submit(
+              write,
+              currentTranscriptDeadline()?.signal,
+            );
+            if (uplinkResult.status === "refused") {
+              throw new Error("Transcript write refused for this conversation");
+            }
+            result = uplinkResult;
+          } else if (
             echoes &&
             (this.echoIdsRefusedAt === null ||
               Date.now() - this.echoIdsRefusedAt > ECHO_IDS_RECHECK_MS)
