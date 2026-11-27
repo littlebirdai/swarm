@@ -167,15 +167,20 @@ const WATCH_COLD_SESSIONS = 256;
 export async function readCliWatchLiveness(
   db: Reader["db"],
   userId: Id<"users">,
-  rows: readonly Pick<
+  parents: readonly Pick<
     Doc<"conversations">,
     "_id" | "user_id" | "updated_at" | "inbox_pinned_at"
   >[],
+  children: readonly Pick<Doc<"conversations">, "_id" | "user_id">[],
   now: number,
 ) {
   const leases = inboxLeaseWritesEnabled();
-  const local = rows.filter((row) => row.user_id === userId);
-  const visible = new Set(local.map((row) => row._id));
+  const local = parents.filter((row) => row.user_id === userId);
+  const visible = new Set(
+    [...local, ...children.filter((row) => row.user_id === userId)].map(
+      (row) => row._id,
+    ),
+  );
   const [user, recent, leased, sideBeats] = await Promise.all([
     db.get(userId),
     visible.size
@@ -220,7 +225,8 @@ export async function readCliWatchLiveness(
       .sort(
         (a, b) =>
           Number(!!b.inbox_pinned_at) - Number(!!a.inbox_pinned_at) ||
-          b.updated_at - a.updated_at,
+          b.updated_at - a.updated_at ||
+          a._id.localeCompare(b._id),
       )
       .slice(0, WATCH_COLD_SESSIONS)
       .map((row) => row._id)

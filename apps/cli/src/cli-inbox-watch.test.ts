@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import type { ConvexClient } from "convex/browser";
 import { subscribeCliInboxWatch } from "./cli-inbox-watch.js";
 
@@ -44,3 +44,42 @@ test.each([
     expect(frames).toEqual([[{ title: "Current" }]]);
   },
 );
+
+test("reports a truncated watch once per episode and still delivers every frame", () => {
+  let receive!: (frame: unknown) => void;
+  const client = {
+    onUpdate(_query: unknown, _args: unknown, callback: typeof receive) {
+      receive = callback;
+      return () => {};
+    },
+  } as unknown as Pick<ConvexClient, "onUpdate">;
+  const stderr = spyOn(process.stderr, "write").mockImplementation(() => true);
+  const frames: unknown[] = [];
+  try {
+    subscribeCliInboxWatch(client, { api_token: "fixture" }, (rows) =>
+      frames.push(rows),
+    );
+    const sessions = [{ id: "work" }];
+    const truncated = {
+      sessions,
+      watch_truncation: { shown: 1, matching: 3, windows: [] },
+    };
+    receive(truncated);
+    receive(truncated);
+    expect(stderr.mock.calls.map(([line]) => line)).toEqual([
+      "cast sessions: watch truncated to 1 of 3 matching sessions.\n",
+    ]);
+    receive({ sessions });
+    receive({
+      ...truncated,
+      watch_truncation: { shown: 1, matching: 1, windows: ["owned"] },
+    });
+    expect(stderr.mock.calls.map(([line]) => line)).toHaveLength(2);
+    expect(stderr.mock.calls[1][0]).toContain(
+      "watch windows also reached their limits",
+    );
+    expect(frames).toEqual([sessions, sessions, sessions, sessions]);
+  } finally {
+    stderr.mockRestore();
+  }
+});

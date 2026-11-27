@@ -517,7 +517,7 @@ test.each([false, true])(
   },
 );
 
-test("a pinned killed row keeps its plan and task references in the CLI watch", async () => {
+test("a pinned killed row keeps its plan and task references in an explicit CLI watch", async () => {
   const t = serverTest({});
   const { user, conversation, plan, task } = await t.run(async ({ db }) => {
     const rows = fixtureRows(db, "pinned killed CLI watch");
@@ -539,6 +539,8 @@ test("a pinned killed row keeps its plan and task references in the CLI watch", 
   const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
     api_token: token,
     watch: true,
+    include_killed: true,
+    session_ids: [conversation],
   });
   expect(result.sessions).toEqual([
     expect.objectContaining({

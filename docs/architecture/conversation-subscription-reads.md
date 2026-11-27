@@ -52,23 +52,22 @@ on transcript changes.
 
 ## CLI watch reads
 
-The unfiltered personal subscription used by `cast sessions -w` ranks the
-existing inbox windows before selecting up to 200 rows. Plan, task, role,
-and owner details are read only for those rows. It loads status
-and decisions for eligible rows and for children that can change a visible
-parent's status, including a child's pending decision. Dismissed and
-stashed rows skip those reads unless requested
-with `--all` or retained as a killed pin. Foreign-run sessions use one
-liveness lookup per visible row.
+The unfiltered personal subscription used by `cast sessions -w` ranks waiting
+and working sessions ahead of idle pins, leaves out killed rows, and returns
+at most 200 rows. It reports when the page or an inbox window was cut. The
+CLI prints one warning when a watch starts returning a partial result.
+Plan, task, role, owner, and label lookups apply to the returned page.
 
-The watch returns each displayed row's label. Its `labels` summary is empty
-because the stream does not show counts for archived conversations. For
-daemon-wide liveness it reads `users.daemon_last_seen` and considers the
-managed rows it covers. An unrelated legacy heartbeat can keep a row live
-in the ordinary inbox until the user-wide daemon heartbeat catches up
-with it. The watch reads bounded recent heartbeat ranges, at most 256
-cold session lookups in pinned-first and then recent order, and at most
-128 child transcript probes on a run. Pending decisions use bounded
-indexes, with a batched viewer lookup for large candidate sets. On accounts
-that exceed those bounds, older facts can affect the ordinary inbox
-without appearing in the watch.
+To classify the inbox, the watch reads at most 192 parent transcripts and
+128 child transcripts. It takes children from the recent subagent window
+and up to 128 indexed parent lookups, excluding dismissed, stashed, snoozed,
+and overflow pinned parents from those lookups. Priority and ID determine
+the probe order on every run. A child's pending decision can still lift its
+parent. The watch checks up to 64 additional secondary-owner records when
+the owner window is full.
+
+Recent heartbeat ranges cover top-level rows and their children. The
+256 cold-history lookups cover top-level rows in pinned-first, recent order.
+For daemon-wide liveness, the watch reads `users.daemon_last_seen` and
+considers the managed rows it covers. The label summary is empty because the
+stream shows each row's label and does not count archived conversations.

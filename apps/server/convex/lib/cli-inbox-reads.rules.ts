@@ -2,6 +2,55 @@ import { isStackedAsk } from "@codecast/inbox/inboxMembership";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { DatabaseReader } from "../_generated/server";
 
+type WatchCandidate = Pick<
+  Doc<"conversations">,
+  "_id" | "updated_at" | "inbox_pinned_at" | "has_pending_messages"
+>;
+
+export function orderCliWatchCandidates<T extends WatchCandidate>(
+  rows: readonly T[],
+  priority: (row: T) => number = (row) => Number(!!row.has_pending_messages),
+): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      priority(b) - priority(a) ||
+      Number(!!b.inbox_pinned_at) - Number(!!a.inbox_pinned_at) ||
+      b.updated_at - a.updated_at ||
+      a._id.localeCompare(b._id),
+  );
+}
+
+export function canProbeCliWatchTranscript(
+  row: Pick<
+    Doc<"conversations">,
+    | "inbox_stashed_at"
+    | "inbox_dismissed_at"
+    | "inbox_snoozed_until"
+    | "inbox_killed_at"
+    | "message_count"
+  >,
+  now: number,
+) {
+  return (
+    (row.message_count ?? 0) > 0 &&
+    !row.inbox_killed_at &&
+    !row.inbox_stashed_at &&
+    !row.inbox_dismissed_at &&
+    (row.inbox_snoozed_until ?? 0) <= now
+  );
+}
+
+export function cliWatchPageOrder(
+  a: { work_state: string; bucket?: string },
+  b: { work_state: string; bucket?: string },
+) {
+  const actionable = (row: typeof a) =>
+    row.bucket === "questions" ||
+    row.work_state === "needs_input" ||
+    row.work_state === "working";
+  return Number(actionable(b)) - Number(actionable(a));
+}
+
 export function readInboxChildren(
   db: DatabaseReader,
   parent: Id<"conversations">,

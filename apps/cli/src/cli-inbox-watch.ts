@@ -13,7 +13,11 @@ type WatchArgs = {
   watch?: boolean;
 };
 
-type WatchResult = { error?: string; sessions?: Record<string, unknown>[] };
+type WatchResult = {
+  error?: string;
+  sessions?: Record<string, unknown>[];
+  watch_truncation?: { shown: number; matching: number; windows: string[] };
+};
 
 const query = makeFunctionReference<"query", WatchArgs, WatchResult>(
   "conversations:inboxForCLI",
@@ -24,8 +28,24 @@ export function subscribeCliInboxWatch(
   args: Omit<WatchArgs, "watch">,
   onSessions: (sessions: Record<string, unknown>[]) => void,
 ) {
+  let warned = false;
   const onFrame = (result: WatchResult) => {
-    if (result && !result.error) onSessions(result.sessions ?? []);
+    if (!result || result.error) return;
+    const truncated = result.watch_truncation;
+    if (truncated && !warned) {
+      const omitted = truncated.windows.length
+        ? " Some watch windows also reached their limits."
+        : "";
+      const portion =
+        truncated.shown < truncated.matching
+          ? ` to ${truncated.shown} of ${truncated.matching} matching sessions`
+          : "";
+      process.stderr.write(
+        `cast sessions: watch truncated${portion}.${omitted}\n`,
+      );
+    }
+    warned = truncated !== undefined;
+    onSessions(result.sessions ?? []);
   };
   if (args.label || args.project_path) {
     client.onUpdate(query, args, onFrame);
