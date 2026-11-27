@@ -1,5 +1,5 @@
 import {
-  commands,
+  ipcCommands,
   fixtureAdapter,
   readWrites,
   fixtureHooks,
@@ -83,13 +83,6 @@ export function fixture(env: Record<string, string> = {}) {
   const raw: RawProviderFrame[] = [];
   const stderr: string[] = [];
   let intercept: Intercept | undefined;
-  const wrote = commands(directory);
-  const gate = writeGate('"id":"fixture-write-gate"', () => {
-    void wrote(
-      { frame: { id: "fixture-write-gate", method: "fixture/hold-write" } },
-      false,
-    );
-  });
   let fault: Error | undefined;
   const atBackpressure = Promise.withResolvers<void>();
   const options = {
@@ -113,6 +106,14 @@ export function fixture(env: Record<string, string> = {}) {
   const owned = hooks.attach(directory, async () => {
     gate.release();
     await client.dispose();
+  });
+  const channel = ipcCommands(owned);
+  const wrote = channel.send;
+  const gate = writeGate('"id":"fixture-write-gate"', () => {
+    void wrote(
+      { frame: { id: "fixture-write-gate", method: "fixture/hold-write" } },
+      false,
+    );
   });
   owned.spawn((child) =>
     interceptInput(child, (data, write) =>
@@ -144,6 +145,7 @@ export function fixture(env: Record<string, string> = {}) {
       () => {
         running = false;
       },
+      channel.waitObserved,
     ),
     mode: "own",
     scope,
@@ -193,9 +195,7 @@ export function fixture(env: Record<string, string> = {}) {
       bootstrap++;
       const before = observed().length;
       expect(await session?.steer(steer)).toEqual(bestEffort);
-      expect(await waitFor(() => observed().length > before, 2500, 5)).toBe(
-        true,
-      );
+      await channel.waitObserved(() => observed().length > before);
       return run();
     },
     async atPendingPrompt(run) {
@@ -241,6 +241,8 @@ export function fixture(env: Record<string, string> = {}) {
     raw,
     observed,
     wrote,
+    waitObserved: (check: (items: ReturnType<typeof observed>) => boolean) =>
+      channel.waitObserved(() => check(observed())),
     directory,
     stderr,
     interceptWrite: (write: Intercept) => {

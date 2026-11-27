@@ -4,7 +4,6 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { it } from "@codecast/effect-kit/effect/testing";
 import { providerConformance } from "@codecast/provider-contract/test";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
@@ -134,9 +133,8 @@ it.effect(
         code: "output-overflow",
       });
       expect(await session.interrupt(interrupt)).toEqual({ status: "closed" });
-      expect(await waitFor(() => fake.contract.releases() === 1, 2500, 5)).toBe(
-        true,
-      );
+      await fake.waitRelease();
+      expect(fake.contract.releases()).toBe(1);
       await expect(Array.fromAsync(session.events)).rejects.toMatchObject({
         code: "output-overflow",
       });
@@ -155,22 +153,14 @@ it.effect(
       yield* Effect.sync(() => fake.send({ frames: [runningFrame] }));
       yield* Effect.promise(() => fake.retained(runningFrame.uuid));
       const first = yield* Effect.forkChild(session.interrupt(interrupt));
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 1, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() => fake.wrote(1));
       yield* TestClock.adjust("31 seconds");
       expect(yield* Fiber.join(first)).toMatchObject({
         status: "in-doubt",
         code: "timeout",
       });
       const second = yield* Effect.forkChild(session.interrupt(interrupt));
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 2, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() => fake.wrote(2));
       const [old, next] = fake.observed();
       yield* Effect.sync(() =>
         fake.send({

@@ -1,13 +1,4 @@
-import {
-  appendFileSync,
-  closeSync,
-  readdirSync,
-  readFileSync,
-  unlinkSync,
-  watch,
-  writeFileSync,
-  writeSync,
-} from "node:fs";
+import { appendFileSync, closeSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -30,6 +21,7 @@ function record(action: string, message: object) {
     join(directory, "effects"),
     JSON.stringify({ action, message }) + "\n",
   );
+  process.send?.({ type: "observed" });
 }
 
 function burst(method: string) {
@@ -169,7 +161,7 @@ inbox.on("line", (line) => {
       return;
   }
   if (typeof id === "string" && id.startsWith("barrier:")) {
-    writeFileSync(join(directory, id), "");
+    process.send?.({ type: "barrier", id });
   } else if (id === "hold-write" && error) {
     writeFileSync(join(directory, "hold-drained"), "");
   } else if (result) {
@@ -179,47 +171,40 @@ inbox.on("line", (line) => {
   }
 });
 
-watch(directory, () => {
-  for (const name of readdirSync(directory)
-    .filter((file) => file.endsWith(".command"))
-    .sort()) {
-    const path = join(directory, name);
-    const command = JSON.parse(readFileSync(path, "utf8"));
-    unlinkSync(path);
-    if (command.exit) process.exit(0);
-    if (command.closeStdout) closeSync(1);
-    if (command.stderr) process.stderr.write(command.stderr + "\n");
-    if (command.largeFrames) largeFrames(command.largeFrames);
-    if (command.fill) {
-      for (let index = 0; index <= 32; index++)
-        send({
-          method: "thread/name/updated",
-          params: { threadId, threadName: String(index), fixtureBuffer: index },
-        });
-    }
-    if (typeof command.holdLiveness === "boolean")
-      holdLiveness = command.holdLiveness;
-    if (command.frame) send(command.frame);
-    if (command.raw) process.stdout.write(command.raw + "\n");
-    if (command.rejectStart) {
-      const id = held.get("turn/start");
-      send({ id, error: { code: -32000, message: "Delayed refusal" } });
-    }
-    if (command.rejectSteer) {
+process.on("message", (command: any) => {
+  if (!command || typeof command !== "object") return;
+  if (command.exit) process.exit(0);
+  if (command.closeStdout) closeSync(1);
+  if (command.stderr) process.stderr.write(command.stderr + "\n");
+  if (command.largeFrames) largeFrames(command.largeFrames);
+  if (command.fill) {
+    for (let index = 0; index <= 32; index++)
       send({
-        id: held.get("turn/steer"),
-        error: { code: -32000, message: "Delayed steer refusal" },
+        method: "thread/name/updated",
+        params: { threadId, threadName: String(index), fixtureBuffer: index },
       });
-    }
-    if (command.ackStart) {
-      send({
-        id: held.get("turn/start"),
-        result: { turn: { id: turnId, status: "inProgress", items: [] } },
-      });
-    }
-    if (command.barrier)
-      send({ id: command.barrier, method: "fixture/barrier" });
   }
+  if (typeof command.holdLiveness === "boolean")
+    holdLiveness = command.holdLiveness;
+  if (command.frame) send(command.frame);
+  if (command.raw) process.stdout.write(command.raw + "\n");
+  if (command.rejectStart) {
+    const id = held.get("turn/start");
+    send({ id, error: { code: -32000, message: "Delayed refusal" } });
+  }
+  if (command.rejectSteer) {
+    send({
+      id: held.get("turn/steer"),
+      error: { code: -32000, message: "Delayed steer refusal" },
+    });
+  }
+  if (command.ackStart) {
+    send({
+      id: held.get("turn/start"),
+      result: { turn: { id: turnId, status: "inProgress", items: [] } },
+    });
+  }
+  if (command.barrier) send({ id: command.barrier, method: "fixture/barrier" });
 });
 
 writeFileSync(join(directory, "pid"), String(process.pid));

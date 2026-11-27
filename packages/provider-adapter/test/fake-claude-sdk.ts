@@ -1,11 +1,4 @@
-import {
-  appendFileSync,
-  readdirSync,
-  readFileSync,
-  unlinkSync,
-  watch,
-  writeFileSync,
-} from "node:fs";
+import { appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -25,6 +18,15 @@ function response(id: string, payload: object) {
     response: { subtype: "success", request_id: id, response: payload },
   });
 }
+
+process.on("message", (command: any) => {
+  if (!command || typeof command !== "object") return;
+  for (const frame of command.frames ?? [])
+    send({ session_id: checkpoint, ...frame });
+  if (command.stderr) process.stderr.write(command.stderr + "\n");
+  if (command.raw) process.stdout.write(command.raw + "\n");
+  if (command.exit) process.stdout.write("", () => process.exit(command.exit));
+});
 
 createInterface({ input: process.stdin }).on("line", (line) => {
   const frame = JSON.parse(line);
@@ -49,28 +51,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   }
   if (frame.response?.request_id === "hold-write") return;
   appendFileSync(join(directory, "writes"), line + "\n");
+  process.send?.({ type: "observed" });
   if (
     frame.type === "control_request" &&
     frame.request.subtype === "interrupt" &&
     !process.env.FIXTURE_HOLD_INTERRUPTS
   ) {
     response(frame.request_id, { still_queued: [] });
-  }
-});
-
-watch(directory, () => {
-  for (const file of readdirSync(directory)
-    .filter((name) => name.endsWith(".command"))
-    .sort()) {
-    const path = join(directory, file);
-    const command = JSON.parse(readFileSync(path, "utf8"));
-    unlinkSync(path);
-    for (const frame of command.frames ?? [])
-      send({ session_id: checkpoint, ...frame });
-    if (command.stderr) process.stderr.write(command.stderr + "\n");
-    if (command.raw) process.stdout.write(command.raw + "\n");
-    if (command.exit)
-      process.stdout.write("", () => process.exit(command.exit));
   }
 });
 

@@ -1,14 +1,5 @@
 import { spawn } from "node:child_process";
-import {
-  appendFileSync,
-  closeSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  watch,
-  writeFileSync,
-} from "node:fs";
+import { appendFileSync, closeSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -26,6 +17,7 @@ function record(action: string, message: object) {
     join(directory, "effects"),
     JSON.stringify({ action, message }) + "\n",
   );
+  process.send?.({ type: "observed" });
 }
 
 function reply(id: number | string, result: object | null = {}) {
@@ -118,35 +110,28 @@ rpc.on("line", (line) => {
         writeFileSync(temporary, JSON.stringify(message.error));
         renameSync(temporary, join(directory, "unsupported-seen"));
       } else if (String(id).startsWith("barrier:"))
-        writeFileSync(join(directory, String(id)), "");
+        process.send?.({ type: "barrier", id: String(id) });
   }
 });
 
-watch(directory, () => {
-  for (const file of readdirSync(directory)
-    .filter((name) => name.endsWith(".command"))
-    .sort()) {
-    const path = join(directory, file);
-    const command = JSON.parse(readFileSync(path, "utf8"));
-    unlinkSync(path);
-    if (command.exit) process.exit(0);
-    for (const frame of command.frames ?? []) send(frame);
-    if (command.complete && promptId !== undefined)
-      reply(
-        promptId,
-        command.complete === "malformed" ? {} : { stopReason: "end_turn" },
-      );
-    if (command.promptError && promptId !== undefined)
-      send({
-        id: promptId,
-        error: { code: -32000, message: command.promptError },
-      });
-    if (command.stderr) process.stderr.write(command.stderr);
-    if (command.frame) send(command.frame);
-    if (command.raw) process.stdout.write(command.raw + "\n");
-    if (command.barrier)
-      send({ id: command.barrier, method: "fixture/barrier" });
-    if (command.exitAfter) process.stdout.write("", () => process.exit(0));
-  }
+process.on("message", (command: any) => {
+  if (!command || typeof command !== "object") return;
+  if (command.exit) process.exit(0);
+  for (const frame of command.frames ?? []) send(frame);
+  if (command.complete && promptId !== undefined)
+    reply(
+      promptId,
+      command.complete === "malformed" ? {} : { stopReason: "end_turn" },
+    );
+  if (command.promptError && promptId !== undefined)
+    send({
+      id: promptId,
+      error: { code: -32000, message: command.promptError },
+    });
+  if (command.stderr) process.stderr.write(command.stderr);
+  if (command.frame) send(command.frame);
+  if (command.raw) process.stdout.write(command.raw + "\n");
+  if (command.barrier) send({ id: command.barrier, method: "fixture/barrier" });
+  if (command.exitAfter) process.stdout.write("", () => process.exit(0));
 });
 writeFileSync(join(directory, "pid"), String(process.pid));

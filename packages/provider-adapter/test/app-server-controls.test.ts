@@ -4,7 +4,6 @@ import { expect } from "bun:test";
 import { parseCanonicalEvent } from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
 import type { SteerRequest } from "@codecast/provider-contract";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Stream from "effect/Stream";
@@ -47,11 +46,6 @@ for (const method of ["turn/start", "turn/steer", "turn/interrupt"]) {
                 turn: method === "turn/start" ? null : turn,
               },
             });
-      let settled = false;
-      void pending.then(() => {
-        settled = true;
-      });
-      expect(await waitFor(() => settled, 1500, 5)).toBe(true);
       expect(await pending).toEqual(
         method === "turn/interrupt" ? { status: "applied" } : bestEffort,
       );
@@ -119,11 +113,9 @@ it.effect(
             authors: [{ kind: "person", id: "first-author" }],
           }),
         );
-        expect(
-          yield* Effect.promise(() =>
-            waitFor(() => fake.observed().length === 2, 2500, 5),
-          ),
-        ).toBe(true);
+        yield* Effect.promise(() =>
+          fake.waitObserved((items) => items.length === 2),
+        );
         yield* TestClock.adjust("31 seconds");
         expect(yield* Fiber.join(first)).toMatchObject({
           status: "in-doubt",
@@ -262,13 +254,9 @@ appServerCase(
     expect(await session.answer({ ...answer, answer: null })).toEqual(
       answerOutcome,
     );
-    expect(
-      await waitFor(
-        () => fake.observed().some(({ action }) => action === "answer"),
-        1500,
-        5,
-      ),
-    ).toBe(true);
+    await fake.waitObserved((items) =>
+      items.some(({ action }) => action === "answer"),
+    );
     expect(fake.observed().at(-1)?.message.result).toEqual({
       decision: "cancel",
     });
@@ -339,11 +327,9 @@ it.effect("forgotten turn RPC IDs retain only a bounded recent history", () =>
           { concurrency: "unbounded" },
         ),
       );
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 131, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() =>
+        fake.waitObserved((items) => items.length === 131),
+      );
       yield* TestClock.adjust("31 seconds");
       expect(
         (yield* Fiber.join(sending)).every(

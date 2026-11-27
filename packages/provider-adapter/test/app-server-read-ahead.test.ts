@@ -3,7 +3,6 @@ import { appServerCase } from "./app-server-fixture";
 import { expect, spyOn } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
 import type { ProviderOwnedSession } from "../src";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import {
   answer,
@@ -20,17 +19,7 @@ import {
 
 installAppServerFixtureHooks();
 
-async function settled<A>(pending: Promise<A>) {
-  let done = false;
-  void pending.then(
-    () => {
-      done = true;
-    },
-    () => {
-      done = true;
-    },
-  );
-  expect(await waitFor(() => done, 1500, 5)).toBe(true);
+function settled<A>(pending: Promise<A>) {
   return pending;
 }
 
@@ -55,9 +44,7 @@ for (const [label, command, code] of [
       await fill(fake);
       const request = { ...steer, expected: { ...steer.expected, turn } };
       const calls = [session.steer(request), session.steer(request)];
-      expect(await waitFor(() => fake.observed().length === 3, 1500, 5)).toBe(
-        true,
-      );
+      await fake.waitObserved((items) => items.length === 3);
       await fake.wrote(command, false);
       expect(await settled(Promise.all(calls))).toEqual([
         expect.objectContaining({ status: "in-doubt", code }),
@@ -116,18 +103,14 @@ appServerCase(
   async (session, fake) => {
     await fill(fake);
     const first = session.steer(steer);
-    expect(await waitFor(() => fake.observed().length === 1, 1500, 5)).toBe(
-      true,
-    );
+    await fake.waitObserved((items) => items.length === 1);
     await fake.wrote({ rejectStart: true }, false);
     expect(await settled(first)).toMatchObject({
       status: "refused",
       code: "rpc-rejected",
     });
     const retry = session.steer(steer);
-    expect(await waitFor(() => fake.observed().length === 2, 1500, 5)).toBe(
-      true,
-    );
+    await fake.waitObserved((items) => items.length === 2);
     await fake.wrote({ ackStart: true }, false);
     expect(await settled(retry)).toEqual(bestEffort);
   },

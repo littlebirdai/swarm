@@ -9,7 +9,6 @@ import {
 } from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
 import { providerConformance } from "@codecast/provider-contract/test";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
@@ -40,11 +39,9 @@ it.effect("a late rejection clears an ambiguous turn start after timeout", () =>
     const { session } = requireOpened(yield* adapter.own(fake.spec));
     try {
       const first = yield* Effect.forkChild(session.steer(steer));
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 1, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() =>
+        fake.waitObserved((items) => items.length === 1),
+      );
       yield* TestClock.adjust("31 seconds");
       expect(yield* Fiber.join(first)).toMatchObject({
         status: "in-doubt",
@@ -53,11 +50,9 @@ it.effect("a late rejection clears an ambiguous turn start after timeout", () =>
       });
       yield* Effect.promise(() => fake.wrote({ rejectStart: true }));
       const retry = yield* Effect.forkChild(session.steer(steer));
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 2, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() =>
+        fake.waitObserved((items) => items.length === 2),
+      );
       yield* Effect.promise(() => fake.wrote({ rejectStart: true }));
       expect(yield* Fiber.join(retry)).toMatchObject({
         status: "refused",
@@ -162,9 +157,7 @@ appServerCase(
     });
     expect(fake.raw.some(({ line }) => line.includes("clientId"))).toBe(true);
     const next = session.steer(steer);
-    expect(await waitFor(() => fake.observed().length === 2, 2500, 5)).toBe(
-      true,
-    );
+    await fake.waitObserved((items) => items.length === 2);
     await fake.wrote({
       frame: {
         method: "turn/started",
@@ -254,13 +247,9 @@ appServerCase(
       body: { summary: "Use [redacted:stripe-secret-key]" },
     });
     expect(await session.answer(answer)).toEqual(answerOutcome);
-    expect(
-      await waitFor(
-        () => fake.observed().some((entry) => entry.action === "answer"),
-        2500,
-        5,
-      ),
-    ).toBe(true);
+    await fake.waitObserved((items) =>
+      items.some((entry) => entry.action === "answer"),
+    );
     expect(fake.observed().at(-1)?.message.result).toEqual({
       permissions: { network: { enabled: true } },
       scope: "turn",
@@ -432,13 +421,9 @@ appServerCase(
     expect(await session.answer({ ...answer, answer: response })).toEqual(
       answerOutcome,
     );
-    expect(
-      await waitFor(
-        () => fake.observed().some((entry) => entry.action === "answer"),
-        2500,
-        5,
-      ),
-    ).toBe(true);
+    await fake.waitObserved((items) =>
+      items.some((entry) => entry.action === "answer"),
+    );
     expect(fake.observed().at(-1)?.message.result).toEqual(response);
     expect((await events.next()).value).toMatchObject({
       kind: "prompt.settled",
@@ -458,9 +443,7 @@ appServerCase(
   "a pending turn start keeps concurrent delivery in doubt until its refusal",
   async (session, fake) => {
     const first = session.steer(steer);
-    expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-      true,
-    );
+    await fake.waitObserved((items) => items.length === 1);
     expect(await session.steer(steer)).toMatchObject({
       status: "in-doubt",
       reason: "unknown",
@@ -473,9 +456,7 @@ appServerCase(
       code: "rpc-rejected",
     });
     const retry = session.steer(steer);
-    expect(await waitFor(() => fake.observed().length === 2, 2500, 5)).toBe(
-      true,
-    );
+    await fake.waitObserved((items) => items.length === 2);
     await fake.wrote({ rejectStart: true });
     expect(await retry).toMatchObject({
       status: "refused",
