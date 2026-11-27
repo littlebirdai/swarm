@@ -1,3 +1,4 @@
+import { hashToken } from "@codecast/convex/convex/apiTokens";
 import {
   makeSimBackend,
   type ScheduledJob,
@@ -63,8 +64,10 @@ export async function runPopulation(config: {
   devices: number;
   seed: number;
   mode?: PopulationMode;
+  realistic?: boolean;
 }) {
   const mode: PopulationMode = config.mode ?? "team";
+  const realistic = !!config.realistic;
   const model = population(config.seed, config.people);
   const previousInterestScopes = process.env.SWARM_INTEREST_SCOPES;
   if (mode === "interest") process.env.SWARM_INTEREST_SCOPES = "1";
@@ -87,7 +90,10 @@ export async function runPopulation(config: {
     let headWrites = 0;
     let drainTransactions = 0;
     const backend = makeSimBackend({
-      tables: populationTables(model, T0),
+      tables: populationTables(model, T0, {
+        realistic,
+        includeConversationAccess: mode === "interest",
+      }),
       now,
       mintId: (table, n) =>
         `popsim${table.replaceAll("_", "")}${n.toString(36).padStart(5, "0")}`.padEnd(
@@ -167,10 +173,37 @@ export async function runPopulation(config: {
     });
     attachRealm({ timers: net, serverCall: backend.activeCall });
 
+    const tokens = new Map<number, string>();
+    if (realistic) {
+      for (const person of model.people) {
+        const token = `popsimtok-${person.id}`;
+        tokens.set(person.id, token);
+        await backend.db.insert("api_tokens", {
+          user_id: fixtureId("users", person.id),
+          token_hash: await hashToken(token),
+          name: `sim-${person.id}`,
+          created_at: T0,
+          last_used_at: T0,
+        });
+      }
+    }
+
     const sampledPeople = model.deviceOrder.slice(0, config.devices);
-    const devices = sampledPeople.map((person) =>
-      populationReplica(backend, person, mode),
-    );
+    const devices = sampledPeople.map((person) => {
+      const deniedScopes: string[] = [];
+      if (realistic && mode === "interest" && model.people.length >= 2) {
+        const peerId = (person.id + 1) % model.people.length;
+        deniedScopes.push(
+          `session:${fixtureId("conversations", peerId * 2 + 1)}`,
+          `project:${fixtureId("projects", model.projects.length)}`,
+          `dir:${fixtureId("teams", 1)}`,
+        );
+      }
+      return populationReplica(backend, person, {
+        mode,
+        extraDeniedScopes: deniedScopes,
+      });
+    });
     const clients = model.people.map(({ id }) =>
       backend.clientFor({ kind: "user", userId: fixtureId("users", id) }),
     );
@@ -210,6 +243,9 @@ export async function runPopulation(config: {
       });
     }
     const tasks = new Map<number, string>();
+    const taskUpdateCounts = new Map<number, number>();
+    const projectsByShortId = new Map<string, Set<string>>();
+    let crossProjectMoves = 0;
     for (const event of model.activity) {
       net.enqueue("save", {
         due: T0 + event.at,
@@ -217,12 +253,41 @@ export async function runPopulation(config: {
         producer: "agent",
         run: () =>
           measureWrite(async () => {
+            const existingShortId = tasks.get(event.agent);
+            const updateNumber = (taskUpdateCounts.get(event.agent) ?? 0) + 1;
+            taskUpdateCounts.set(event.agent, updateNumber);
+            const shouldMove =
+              realistic &&
+              !!existingShortId &&
+              !event.privateTask &&
+              event.agent % 4 === 0 &&
+              model.projects.length > 1 &&
+              updateNumber === 2;
+            const nextProject = shouldMove
+              ? (event.project + 1) % model.projects.length
+              : undefined;
+            if (shouldMove) crossProjectMoves++;
             const shortId = await saveTask(
               clients[event.person.id],
               event,
-              tasks.get(event.agent),
+              existingShortId,
+              {
+                realistic,
+                apiToken: tokens.get(event.person.id),
+                nextProject,
+              },
             );
             tasks.set(event.agent, shortId);
+            if (!event.privateTask && (!realistic || event.agent % 4 !== 1)) {
+              let seen = projectsByShortId.get(shortId);
+              if (!seen) {
+                seen = new Set<string>();
+                projectsByShortId.set(shortId, seen);
+              }
+              seen.add(
+                String(fixtureId("projects", nextProject ?? event.project)),
+              );
+            }
           }),
       });
     }
@@ -244,11 +309,16 @@ export async function runPopulation(config: {
       throw new Error("Population simulation left undelivered work");
     const taskRows: {
       _id: string;
+      short_id: string;
       title: string;
       user_id: string;
+      team_id?: string;
       project_id?: string;
       workspace: string;
+      home_scope?: string;
     }[] = await backend.db.query("tasks").collect();
+    const team0 = String(fixtureId("teams", 0));
+    const teamWorkspace = `team:${team0}`;
     const expectedTitles = new Map(
       taskRows.map(({ _id, title }) => [_id, title]),
     );
@@ -263,24 +333,52 @@ export async function runPopulation(config: {
         docUpdateAuthors.set(event.project, event.person.id);
       }
     }
-    const teamWorkspace = `team:${fixtureId("teams", 0)}`;
     const measurements = devices.map((device, index) => {
-      if (mode !== "interest")
-        return device.result(expectedTitles, expectedDocTitles);
       const person = sampledPeople[index];
       const userId = String(fixtureId("users", person.id));
       const followedProjects = new Set(
         person.follows.map((project) => String(fixtureId("projects", project))),
       );
+      const followedSessionScopes = new Set(
+        person.followsSessions.map(
+          (session) => `session:${fixtureId("conversations", session)}`,
+        ),
+      );
+      if (mode !== "interest") {
+        if (!realistic) return device.result(expectedTitles, expectedDocTitles);
+        const visibleTasks = new Set(
+          taskRows
+            .filter(
+              (task) =>
+                task.workspace === teamWorkspace || task.user_id === userId,
+            )
+            .map(({ _id }) => _id),
+        );
+        return device.result(expectedTitles, expectedDocTitles, visibleTasks);
+      }
       const expectedTaskIds = new Set(
         taskRows
-          .filter(
-            (task) =>
-              task.user_id === userId ||
-              (task.workspace === teamWorkspace &&
-                task.project_id !== undefined &&
-                followedProjects.has(String(task.project_id))),
-          )
+          .filter((task) => {
+            if (task.user_id === userId) return true;
+            if (task.workspace !== teamWorkspace) return false;
+            if (
+              task.home_scope &&
+              followedSessionScopes.has(String(task.home_scope))
+            )
+              return true;
+            if (
+              task.project_id !== undefined &&
+              followedProjects.has(String(task.project_id))
+            )
+              return true;
+            const visitedProjects = projectsByShortId.get(task.short_id);
+            if (visitedProjects) {
+              for (const pid of visitedProjects) {
+                if (followedProjects.has(pid)) return true;
+              }
+            }
+            return false;
+          })
           .map(({ _id }) => _id),
       );
       const followedDocs = new Map(
@@ -336,17 +434,23 @@ export async function runPopulation(config: {
           }
         : {}),
     };
+    const deniedTasks = taskRows.filter(
+      (task) => task.workspace !== teamWorkspace,
+    ).length;
     return {
       ...config,
       mode,
+      realistic,
       devices: devices.length,
       durationMs: DURATION_MS,
       peakStartMs: PEAK_START_MS,
       pollMs: POLL_MS,
       contentionWindowMs: CONTENTION_WINDOW_MS,
-      teams: 1,
+      teams: realistic && model.people.length >= 2 ? 2 : 1,
       sessions: model.sessions.length,
       writes,
+      crossProjectMoves,
+      deniedTasks,
       projects: model.projects.length,
       workingAgents: model.workingAgents,
       saves,
@@ -364,6 +468,9 @@ export async function runPopulation(config: {
       ),
       interestEventsPerDevice: distribution(
         measurements.map(({ interestEvents }) => interestEvents),
+      ),
+      sessionEventsPerDevice: distribution(
+        measurements.map(({ sessionEvents }) => sessionEvents),
       ),
       bytesPerDevice: distribution(measurements.map(({ bytes }) => bytes)),
       rowsPerDevice: distribution(measurements.map(({ rows }) => rows)),

@@ -99,3 +99,39 @@ test.each([1, 50])(
     }
   },
 );
+
+test.each([1, 50])(
+  "realistic simulation exercises multi-team denied rows, cross-project moves, and session-linked traffic at %i people",
+  async (people) => {
+    const seed = 42;
+    const baseline = await runPopulation({
+      people,
+      devices: people,
+      seed,
+      realistic: true,
+    });
+    const report = await runPopulation({
+      people,
+      devices: people,
+      seed,
+      mode: "interest",
+      realistic: true,
+    });
+    expect(report.teams).toBe(people >= 2 ? 2 : 1);
+    expect(report.deniedTasks).toBeGreaterThan(0);
+    expect(report.scopeWrites.interest).toBeGreaterThan(0);
+    for (const device of report.measurements) {
+      expect(device.teamEvents).toBe(0);
+      expect(device.staleTaskTitles).toBe(0);
+      expect(device.staleDocTitles).toBe(0);
+      expect(device.unexpectedTasks).toBe(0);
+    }
+    if (people > 1) {
+      expect(report.crossProjectMoves).toBeGreaterThan(0);
+      expect(report.sessionEventsPerDevice.mean).toBeGreaterThan(0);
+      expect(report.eventsPerDevice.mean).toBeLessThan(
+        baseline.eventsPerDevice.mean,
+      );
+    }
+  },
+);

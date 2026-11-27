@@ -291,6 +291,9 @@ export async function computeHomeScopeDb(
   record: any,
 ): Promise<HomeScopeKey> {
   if (record.channel_id) return `channel:${record.channel_id}`;
+  if (typeof record.workspace === "string" && record.workspace) {
+    return computeHomeScope(record, null);
+  }
   const cid = linkedConversationId(record);
   const conv = cid ? await ctx.db.get(cid) : null;
   return computeHomeScope(record, conv);

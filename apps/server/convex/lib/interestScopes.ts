@@ -9,6 +9,8 @@ import {
 } from "./accessKeys";
 import { teamHasFeature } from "./teamFeatureGuard";
 
+export const MAX_HEADS_SCOPES = 64;
+
 export function addHomeScope(
   scopes: string[],
   scope: ChangeScope,
@@ -34,12 +36,16 @@ export async function canReadSyncScope(
   userId: Id<"users">,
   heldKeys: ReadonlySet<string>,
   scopeKey: string,
+  options?: { allowHotConversationRead?: boolean },
 ): Promise<boolean> {
+  if (!scopeKey) return false;
   if (heldKeys.has(scopeKey)) return true;
   if (!interestScopesEnabled()) return false;
   const uid = String(userId);
   if (scopeKey.startsWith("dir:")) {
-    return heldKeys.has(`team:${scopeKey.slice(4)}`);
+    const dirTeamId = ctx.db.normalizeId("teams", scopeKey.slice(4));
+    if (!dirTeamId) return false;
+    return heldKeys.has(`team:${dirTeamId}`);
   }
   if (scopeKey.startsWith("project:")) {
     const pid = ctx.db.normalizeId("projects", scopeKey.slice(8));
@@ -53,18 +59,51 @@ export async function canReadSyncScope(
   }
   if (scopeKey.startsWith("session:")) {
     const cid = ctx.db.normalizeId("conversations", scopeKey.slice(8));
-    const conv = cid ? await ctx.db.get(cid) : null;
-    if (!conv) return false;
-    return await canOwnerOrTeamAccess(ctx, userId, conv);
+    if (!cid) return false;
+    const access = await ctx.db
+      .query("conversation_access")
+      .withIndex("by_conversation", (q: any) => q.eq("conversation_id", cid))
+      .first();
+    if (access) {
+      const convShape = {
+        _id: access.conversation_id,
+        user_id: access.user_id,
+        owner_user_id: access.owner_user_id,
+        team_id: access.team_id,
+        is_private: access.is_private,
+        auto_shared: access.auto_shared,
+        team_visibility: access.team_visibility,
+        started_at: access.started_at,
+      };
+      return await canOwnerOrTeamAccess(ctx, userId, convShape);
+    }
+    if (options?.allowHotConversationRead) {
+      const conv = await ctx.db.get(cid);
+      if (!conv) return false;
+      return await canOwnerOrTeamAccess(ctx, userId, conv);
+    }
+    const owner = await ctx.db
+      .query("session_owners")
+      .withIndex("by_conversation_user", (q: any) =>
+        q.eq("conversation_id", cid).eq("user_id", userId),
+      )
+      .first();
+    return !!owner;
   }
   if (scopeKey.startsWith("channel:")) {
     const chId = ctx.db.normalizeId("chat_channels", scopeKey.slice(8));
     const channel = chId ? await ctx.db.get(chId) : null;
     if (!channel) return false;
-    if (channel.kind === "community") return true;
-    if (!heldKeys.has(`team:${String(channel.team_id)}`)) return false;
-    if (!(await teamHasFeature(ctx, channel.team_id, "chat"))) return false;
-    if (channel.kind === "private" || channel.kind === "dm") {
+    const ws = channel.workspace;
+    if (typeof ws !== "string" || !ws) return false;
+    if (channel.kind === "community") {
+      return ws === "public";
+    }
+    if (ws.startsWith("restricted:")) {
+      if (channel.kind !== "private" && channel.kind !== "dm") return false;
+      const teamId = ctx.db.normalizeId("teams", String(channel.team_id));
+      if (!teamId || !heldKeys.has(`team:${teamId}`)) return false;
+      if (!(await teamHasFeature(ctx, teamId, "chat"))) return false;
       const member = await ctx.db
         .query("chat_channel_members")
         .withIndex("by_channel_user", (q: any) =>
@@ -73,7 +112,18 @@ export async function canReadSyncScope(
         .first();
       return !!member;
     }
-    return true;
+    if (!ws.startsWith("team:")) return false;
+    if (!heldKeys.has(ws)) return false;
+    if (
+      channel.kind !== undefined &&
+      channel.kind !== "public" &&
+      channel.kind !== "agents"
+    ) {
+      return false;
+    }
+    const wsTeamId = ctx.db.normalizeId("teams", ws.slice(5));
+    if (!wsTeamId) return false;
+    return await teamHasFeature(ctx, wsTeamId, "chat");
   }
   return false;
 }
@@ -83,6 +133,9 @@ export async function resolveHeadsScopes(
   userId: Id<"users">,
   requestedScopes?: string[],
 ): Promise<{ heldKeys: Set<string>; scopes: Iterable<string> }> {
+  if (requestedScopes && requestedScopes.length > MAX_HEADS_SCOPES) {
+    throw new Error(`Too many sync scopes requested (max ${MAX_HEADS_SCOPES})`);
+  }
   const heldKeys = await heldKeysFor(ctx, userId);
   if (!requestedScopes || !interestScopesEnabled()) {
     return { heldKeys, scopes: heldKeys };
@@ -92,7 +145,11 @@ export async function resolveHeadsScopes(
   for (const scopeKey of requestedScopes) {
     if (seen.has(scopeKey)) continue;
     seen.add(scopeKey);
-    if (await canReadSyncScope(ctx, userId, heldKeys, scopeKey)) {
+    if (
+      await canReadSyncScope(ctx, userId, heldKeys, scopeKey, {
+        allowHotConversationRead: false,
+      })
+    ) {
       allowed.push(scopeKey);
     }
   }

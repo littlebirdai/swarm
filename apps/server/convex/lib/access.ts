@@ -328,7 +328,10 @@ export async function recomputeWorkspaceForConversation(
       ? computeHomeScope({ ...row, workspace: key }, conv)
       : row.home_scope;
     const workspaceChanged = row.workspace !== key;
-    const homeChanged = trackHome && row.home_scope !== nextHome;
+    const homeChanged =
+      trackHome &&
+      (workspaceChanged || typeof row.home_scope === "string") &&
+      row.home_scope !== nextHome;
     if (workspaceChanged || homeChanged) {
       const patch: Record<string, any> = {};
       if (workspaceChanged) patch.workspace = key;

@@ -32,7 +32,7 @@ import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { resolveActor } from "./lib/actor";
-import { nextChatStamp, patchChat } from "./lib/chatRows";
+import { insertChatMessage, nextChatStamp, patchChat } from "./lib/chatRows";
 import { chatWaitClientId, parseChatWaitClientId } from "./lib/chatWakeIds";
 import { sessionLineTitle } from "./chatText";
 import { grantSessionRoom, grantTargetOf } from "./chatAccess";
@@ -143,7 +143,7 @@ export async function openSessionReply(
   // identity on the row. A private session's title stays off the row.
   const actor = await resolveActor(ctx, conversation.user_id, conversation);
   const asRole = actor.kind === "role" && !!actor.anchor;
-  const id = await ctx.db.insert("chat_messages", {
+  const id = await insertChatMessage(ctx, {
     team_id: opts.channel.team_id,
     channel_id: opts.channel._id,
     thread_root_id: opts.threadRootId,

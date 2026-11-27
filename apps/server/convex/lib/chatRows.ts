@@ -4,6 +4,20 @@
 
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { computeHomeScope, interestScopesEnabled } from "./accessKeys";
+
+export async function insertChatMessage(
+  ctx: MutationCtx,
+  doc: any,
+): Promise<Id<"chat_messages">> {
+  const row =
+    interestScopesEnabled() &&
+    doc?.channel_id &&
+    !(typeof doc.home_scope === "string" && doc.home_scope)
+      ? { ...doc, home_scope: computeHomeScope(doc, null) }
+      : doc;
+  return await ctx.db.insert("chat_messages", row);
+}
 
 // EVERY chat patch goes through here. The store keeps the previous row identity
 // when no scalar changed, so a patch that only touched an array would never

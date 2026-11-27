@@ -7,6 +7,7 @@ const { values } = parseArgs({
     devices: { type: "string" },
     seed: { type: "string", default: "42" },
     mode: { type: "string", default: "team" },
+    realistic: { type: "boolean" },
     compare: { type: "boolean" },
     json: { type: "boolean" },
   },
@@ -40,6 +41,7 @@ if (
 )
   throw new Error("--mode must be team, interest, or both");
 
+const realistic = !!values.compare || !!values.realistic;
 const runs: { people: number; devices: number; mode: PopulationMode }[] =
   values.compare
     ? (["team", "interest"] as const).flatMap((mode) =>
@@ -55,7 +57,7 @@ const runs: { people: number; devices: number; mode: PopulationMode }[] =
 
 const results = [];
 for (const entry of runs) {
-  results.push(await runPopulation({ ...entry, seed }));
+  results.push(await runPopulation({ ...entry, seed, realistic }));
 }
 
 if (values.json) {
@@ -73,10 +75,18 @@ if (values.json) {
       "head writes/drain": result.headWritesPerDrain,
       "heuristic retries/team write": result.heuristicRetriesPerScopeWrite.team,
       "heuristic retries/user write": result.heuristicRetriesPerScopeWrite.user,
+      "heuristic retries/interest write":
+        result.heuristicRetriesPerScopeWrite.interest ?? 0,
+      "session events/device mean": Number(
+        result.sessionEventsPerDevice.mean.toFixed(2),
+      ),
       "events/device mean": result.eventsPerDevice.mean,
       "events/device p95": result.eventsPerDevice.p95,
       "bytes/device mean": result.bytesPerDevice.mean.toFixed(0),
       "rows/device mean": result.rowsPerDevice.mean.toFixed(1),
     })),
+  );
+  console.log(
+    "Note: population simulation uses polling; reactive getHeads re-run cost (no re-run on flush/heartbeat) is measured separately.",
   );
 }

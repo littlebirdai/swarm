@@ -23,13 +23,17 @@ import {
 } from "./syncLog";
 import {
   accessStampFor,
-  computeHomeScope,
   computeHomeScopeDb,
   computeWorkspaceKeyDb,
   firstLinkedConversationStamp,
   interestScopesEnabled,
   type AccessStamp,
 } from "./lib/accessKeys";
+import {
+  deleteConversationAccess,
+  ensureConversationAccessById,
+  syncConversationAccess,
+} from "./lib/conversationAccess";
 import {
   countBucket,
   moveProjectCount,
@@ -94,6 +98,14 @@ const SCOPE_FIELDS = new Set([
   "home_scope",
 ]);
 const HOME_SCOPE_WORK_TABLES = new Set(["tasks", "plans", "docs"]);
+const CONV_ACCESS_FIELDS = new Set([
+  "user_id",
+  "owner_user_id",
+  "team_id",
+  "is_private",
+  "auto_shared",
+  "team_visibility",
+]);
 const HOME_SCOPE_FIELDS = new Set([
   "user_id",
   "team_id",
@@ -293,13 +305,6 @@ export function makeChangeTrackedDb(
       if (link) doc = { ...doc, ...link };
       if (
         interestScopesEnabled() &&
-        table === "chat_messages" &&
-        doc?.channel_id &&
-        !(typeof doc.home_scope === "string" && doc.home_scope)
-      ) {
-        doc = { ...doc, home_scope: computeHomeScope(doc, null) };
-      } else if (
-        interestScopesEnabled() &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
         doc?.user_id &&
         typeof doc.workspace === "string" &&
@@ -322,6 +327,9 @@ export function makeChangeTrackedDb(
           scope,
           null,
         );
+        if (table === "conversations") {
+          await syncConversationAccess(rawDb, { _id: id, ...doc });
+        }
         // Stamp the stored ACCESS key at the one chokepoint every tracked insert
         // passes through (review): raw insert sites (doc/project/template task
         // creates) still mint rows without `workspace`, and every such row would
@@ -351,6 +359,13 @@ export function makeChangeTrackedDb(
             await rawDb.patch(id, stampPatch);
             doc = { ...doc, ...stampPatch };
           }
+        }
+        if (
+          interestScopesEnabled() &&
+          typeof doc?.home_scope === "string" &&
+          doc.home_scope.startsWith("session:")
+        ) {
+          await ensureConversationAccessById(rawDb, doc.home_scope.slice(8));
         }
         if (table === "tasks" && countBucket(doc))
           await moveProjectCount({ db: rawDb }, null, await rawDb.get(id));
@@ -408,13 +423,19 @@ export function makeChangeTrackedDb(
         !!table &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
         Object.keys(fields).some((k) => HOME_SCOPE_FIELDS.has(k));
+      const updatesConvAccess =
+        interestScopesEnabled() &&
+        table === "conversations" &&
+        Object.keys(fields).some((k) => CONV_ACCESS_FIELDS.has(k));
       const movesScope =
         !!table &&
         (Object.keys(fields).some((k) => SCOPE_FIELDS.has(k)) || updatesHome);
       const movesAgent = table === "conversations" && "agent_type" in fields;
       const movesCount = table === "tasks" && touchesProjectCount(fields);
       const preDoc =
-        movesScope || movesAgent || movesCount ? await rawDb.get(id) : null;
+        movesScope || movesAgent || movesCount || updatesConvAccess
+          ? await rawDb.get(id)
+          : null;
       // Every writer passes here, so a conversation can never cross between
       // hosted and local, whichever mutation writes agent_type first.
       if (movesAgent) assertAgentTypeKept(preDoc, fields.agent_type);
@@ -435,6 +456,13 @@ export function makeChangeTrackedDb(
         }
       }
       const res = await rawDb.patch(id, fields);
+      if (updatesConvAccess && preDoc) {
+        await syncConversationAccess(rawDb, {
+          ...preDoc,
+          ...fields,
+          _id: id,
+        });
+      }
       if (movesCount)
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
@@ -464,7 +492,7 @@ export function makeChangeTrackedDb(
           // The sync log's scopes and stamp come from the POST-write document
           // (one memoized read; the D1 cost note anticipated it) — never from
           // the change_log row, which knows only owner/team_id.
-          const extra = syncExtra(
+          let extra = syncExtra(
             rawDb,
             table,
             postWriteDoc(rawDb, id),
@@ -475,8 +503,7 @@ export function makeChangeTrackedDb(
             let fullDoc = await extra.fullDoc!();
             if (
               interestScopesEnabled() &&
-              (HOME_SCOPE_WORK_TABLES.has(table) ||
-                (table === "chat_messages" && fullDoc?.channel_id)) &&
+              HOME_SCOPE_WORK_TABLES.has(table) &&
               fullDoc?.user_id &&
               !(typeof fullDoc.home_scope === "string" && fullDoc.home_scope)
             ) {
@@ -485,7 +512,27 @@ export function makeChangeTrackedDb(
                 fullDoc,
               );
               await rawDb.patch(id, { home_scope: homeScope });
-              fullDoc = { ...fullDoc, home_scope: homeScope };
+              fullDoc = await rawDb.get(id);
+              extra = syncExtra(
+                rawDb,
+                table,
+                postWriteDoc(rawDb, id, fullDoc),
+                buildCargo(
+                  table,
+                  { ...fields, home_scope: homeScope },
+                  { full: false },
+                ),
+              );
+            }
+            if (
+              interestScopesEnabled() &&
+              typeof fullDoc?.home_scope === "string" &&
+              fullDoc.home_scope.startsWith("session:")
+            ) {
+              await ensureConversationAccessById(
+                rawDb,
+                fullDoc.home_scope.slice(8),
+              );
             }
             const syncScope = syncScopeFromStamp(stamp, fullDoc);
             await emitSyncActions(
@@ -533,8 +580,7 @@ export function makeChangeTrackedDb(
         interestScopesEnabled() &&
         table &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
-        doc?.user_id &&
-        !(typeof doc.home_scope === "string" && doc.home_scope)
+        doc?.user_id
       ) {
         doc = {
           ...doc,
@@ -542,6 +588,16 @@ export function makeChangeTrackedDb(
         };
       }
       const res = await rawDb.replace(id, doc);
+      if (table === "conversations") {
+        await syncConversationAccess(rawDb, { ...doc, _id: id });
+      }
+      if (
+        interestScopesEnabled() &&
+        typeof doc?.home_scope === "string" &&
+        doc.home_scope.startsWith("session:")
+      ) {
+        await ensureConversationAccessById(rawDb, doc.home_scope.slice(8));
+      }
       if (table === "tasks")
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
@@ -600,8 +656,10 @@ export function makeChangeTrackedDb(
       if (table === "tasks" && preDoc)
         await moveProjectCount({ db: rawDb }, preDoc, null);
       // Changes stories built from a deleted session lose it in this transaction.
-      if (table === "conversations")
+      if (table === "conversations") {
+        await deleteConversationAccess(rawDb, id);
         await withdrawDeletedConversation({ db: rawDb }, id);
+      }
       if (table && scope) {
         // `undefined`: find the entity's existing upsert row and flip it to a
         // delete tombstone, rather than inserting a duplicate.

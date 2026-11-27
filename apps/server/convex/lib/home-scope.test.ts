@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { makeChangeTrackedDb } from "../changeLog";
 import { patchConversationVisibility } from "../lib/conversationVisibility";
 import { scopesForChange } from "../syncLog";
 import { asUser, serverTest } from "../../test-helpers/database.testkit";
@@ -148,6 +149,26 @@ describe("computeHomeScope", () => {
           created_from_conversation_id: sharedConv,
         }),
       ).toBe(`session:${sharedConv}`);
+
+      let gets = 0;
+      const countingCtx = {
+        db: {
+          ...ctx.db,
+          get: async (...args: any[]) => {
+            gets++;
+            return await (ctx.db.get as any)(...args);
+          },
+        },
+      };
+      expect(
+        await computeHomeScopeDb(countingCtx, {
+          user_id: owner,
+          team_id: team,
+          workspace: `team:${team}`,
+          created_from_conversation_id: sharedConv,
+        }),
+      ).toBe(`session:${sharedConv}`);
+      expect(gets).toBe(0);
     });
   });
 });
@@ -448,7 +469,8 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
           (a) =>
             a.scope_key === `project:${setup.p1}` &&
             a.entity_id === String(setup.preFlagDoc) &&
-            a.op === "upsert",
+            a.op === "upsert" &&
+            a.patch?.home_scope === `project:${setup.p1}`,
         ),
       ).toBe(true);
       expect(
@@ -467,6 +489,35 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       const recomputedTask = await ctx.db.get(setup.convTask);
       expect(recomputedTask?.workspace).toBe(`team:${setup.team}`);
       expect(recomputedTask?.home_scope).toBe(`session:${setup.privConv}`);
+
+      const trackedDb = makeChangeTrackedDb(ctx.db);
+      const replaceSource = await ctx.db.get(teamTask.id);
+      const { _id, _creationTime, ...rest } = replaceSource!;
+      await trackedDb.replace(teamTask.id, {
+        ...rest,
+        project_id: setup.p1,
+        home_scope: `project:${setup.p2}`,
+      });
+      const replacedTask = await ctx.db.get(teamTask.id);
+      expect(replacedTask?.home_scope).toBe(`project:${setup.p1}`);
+      const actionsAfterReplace = await ctx.db.query("sync_actions").collect();
+      expect(
+        actionsAfterReplace.some(
+          (a) =>
+            a.scope_key === `project:${setup.p2}` &&
+            a.entity_id === String(teamTask.id) &&
+            a.op === "delete",
+        ),
+      ).toBe(true);
+      expect(
+        actionsAfterReplace.some(
+          (a) =>
+            a.scope_key === `project:${setup.p1}` &&
+            a.entity_id === String(teamTask.id) &&
+            a.op === "upsert" &&
+            a.patch?.home_scope === `project:${setup.p1}`,
+        ),
+      ).toBe(true);
     });
   });
 });

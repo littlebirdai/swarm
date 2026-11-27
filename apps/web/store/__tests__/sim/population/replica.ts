@@ -32,8 +32,13 @@ export function interestScopesForPerson(person: Person): string[] {
 export function populationReplica(
   backend: SimBackend,
   person: Person,
-  mode: PopulationMode = "team",
+  options:
+    | PopulationMode
+    | { mode?: PopulationMode; extraDeniedScopes?: string[] } = "team",
 ) {
+  const mode = typeof options === "string" ? options : (options.mode ?? "team");
+  const extraDeniedScopes =
+    typeof options === "string" ? [] : (options.extraDeniedScopes ?? []);
   const name = `population-${person.id}`;
   const window = { name, store: createWindowStore(name) };
   const client = backend.clientFor({
@@ -41,7 +46,9 @@ export function populationReplica(
     userId: fixtureId("users", person.id),
   });
   const subscribedScopes =
-    mode === "interest" ? interestScopesForPerson(person) : undefined;
+    mode === "interest"
+      ? [...interestScopesForPerson(person), ...extraDeniedScopes]
+      : undefined;
   const encoder = new TextEncoder();
   const totals = {
     person: person.id,
@@ -49,6 +56,7 @@ export function populationReplica(
     events: 0,
     teamEvents: 0,
     interestEvents: 0,
+    sessionEvents: 0,
     bytes: 0,
     rangeBytes: 0,
     taskIdsRefetched: 0,
@@ -74,8 +82,11 @@ export function populationReplica(
         const scope = String(args.scope_key);
         if (scope.startsWith("team:"))
           totals.teamEvents += result.actions.length;
-        else if (!scope.startsWith("user:"))
+        else if (!scope.startsWith("user:")) {
           totals.interestEvents += result.actions.length;
+          if (scope.startsWith("session:"))
+            totals.sessionEvents += result.actions.length;
+        }
       }
       return result;
     },
