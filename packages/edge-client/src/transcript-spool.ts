@@ -7,6 +7,7 @@ import {
 } from "@codecast/edge-contract";
 
 export interface TranscriptSpool {
+  readonly path?: string;
   read(): Promise<TranscriptAppendRequest | null>;
   save(batch: TranscriptAppendRequest): Promise<void>;
   clear(): Promise<void>;
@@ -26,6 +27,7 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
   };
 
   return {
+    path,
     async read() {
       const fd = await open(path, "r").catch((error: NodeJS.ErrnoException) => {
         if (error.code === "ENOENT") return null;
@@ -50,13 +52,17 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
       }
       if (length > TRANSCRIPT_APPEND_MAX_BYTES)
         throw new Error("Transcript spool exceeds byte limit");
-      const parsed = parseTranscriptSpoolRequest(
-        JSON.parse(
+      let decoded: unknown;
+      try {
+        decoded = JSON.parse(
           new TextDecoder("utf-8", { fatal: true }).decode(
             bytes.subarray(0, length),
           ),
-        ),
-      );
+        );
+      } catch (cause) {
+        throw new Error("Invalid transcript spool JSON or UTF-8", { cause });
+      }
+      const parsed = parseTranscriptSpoolRequest(decoded);
       if (!parsed.ok) throw parsed.error;
       return parsed.value;
     },

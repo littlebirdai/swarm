@@ -688,7 +688,7 @@ it.effect(
             yield* adjust(0);
             yield* Deferred.succeed(failRead, undefined);
             const error = yield* Effect.flip(uplink.ready);
-            expect(error.message).toBe("Transcript spool I/O failed");
+            expect(error.message).toContain("Transcript spool read failed");
             expect(yield* join(waiting)).toMatchObject({
               _tag: "Failure",
               failure: error,

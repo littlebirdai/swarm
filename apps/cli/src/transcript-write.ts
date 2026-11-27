@@ -15,6 +15,50 @@ export type SyncTranscriptUplink = Pick<
   "submit" | "waitForReplay"
 >;
 
+export function attachTranscriptUplink(
+  sync: {
+    setTranscriptUplink(
+      uplink: SyncTranscriptUplink | undefined,
+      expected?: SyncTranscriptUplink,
+    ): void;
+  },
+  opening: Promise<TranscriptUplinkClient>,
+  report: (error: Error) => void,
+): void {
+  const started = opening
+    .then(async (uplink) => {
+      await uplink.start();
+      return true;
+    })
+    .catch((error: unknown) => {
+      sync.setTranscriptUplink(undefined, binding);
+      report(error instanceof Error ? error : new Error(String(error)));
+      void opening.then((uplink) => uplink.close()).catch(() => {});
+      return false;
+    });
+  const run = async <T>(
+    call: (uplink: TranscriptUplinkClient) => Promise<T>,
+    legacy: T,
+  ) => {
+    try {
+      return await call(await opening);
+    } catch (error) {
+      if (
+        !(error as { retryable?: boolean } | null)?.retryable &&
+        !(await started)
+      )
+        return legacy;
+      throw error;
+    }
+  };
+  const binding: SyncTranscriptUplink = {
+    submit: (write) =>
+      run((uplink) => uplink.submit(write), { status: "legacy" }),
+    waitForReplay: (id) => run((uplink) => uplink.waitForReplay(id), undefined),
+  };
+  sync.setTranscriptUplink(binding);
+}
+
 export function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(
   message: T,
 ): Omit<T, "delivery_ids"> {

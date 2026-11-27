@@ -768,6 +768,7 @@ import {
   type ConversationLifecycle,
   type CreateConversationParams,
 } from "./syncService.js";
+import { attachTranscriptUplink } from "./transcript-write.js";
 import { subagentPromptParent } from "./agentPromptOrigin.js";
 import { declaredSpawnParent } from "./spawnParents.js";
 import { redactSecrets, maskToken } from "./redact.js";
@@ -40289,15 +40290,10 @@ async function main(): Promise<void> {
             }),
         )
       : undefined;
-  if (transcriptUplink) {
-    syncService.setTranscriptUplink({
-      submit: async (...args) => (await transcriptUplink).submit(...args),
-      waitForReplay: async (id) => (await transcriptUplink).waitForReplay(id),
-    });
-    void transcriptUplink
-      .then((uplink) => uplink.start())
-      .catch((error) => logError("Transcript uplink startup failed", error));
-  }
+  if (transcriptUplink)
+    attachTranscriptUplink(syncService, transcriptUplink, (error) =>
+      logError("Transcript uplink startup failed", error),
+    );
 
   // Open the Convex WebSocket now, before the tmux warm restart. That scan
   // awaits every managed pane (133s for 135 sessions on 2026-09-15) and used

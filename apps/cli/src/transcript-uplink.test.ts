@@ -4,11 +4,12 @@ import {
   type TranscriptUplinkClient,
 } from "@codecast/edge-client";
 import type { TranscriptAppendRequest } from "@codecast/edge-contract";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { withTranscriptDeadline } from "./workers/ingestDeadline";
 import { SyncService } from "./syncService";
+import { attachTranscriptUplink } from "./transcript-write";
 
 const input = {
   conversationId: "conversation",
@@ -130,8 +131,7 @@ async function localUplink(
     bearer: () => "pilot-token",
     fallback: (write) => sync.replayTranscriptWrite(write, "pilot-token"),
   });
-  sync.setTranscriptUplink(uplink);
-  void uplink.start().catch(() => {});
+  attachTranscriptUplink(sync, Promise.resolve(uplink), () => {});
   return {
     uplink,
     async dispose() {
@@ -371,3 +371,42 @@ test("repeated 401s wait for different bearers and replay the same batch", async
     await rm(tmp, { recursive: true, force: true });
   }
 }, 12_000);
+
+test("an unreadable spool stays intact while startup detaches uplink and resumes legacy writes", async () => {
+  const tmp = await mkdtemp(join(tmpdir(), "cli-unreadable-spool-"));
+  const spoolPath = join(tmp, "spool.json");
+  const corrupt = "{corrupt json";
+  const { sync, legacy } = syncFixture();
+  const reported = Promise.withResolvers<Error>();
+  const binding = spyOn(sync, "setTranscriptUplink");
+  await writeFile(spoolPath, corrupt, { mode: 0o600 });
+  const uplink = createTranscriptUplink({
+    spoolPath,
+    siteUrl: "http://localhost:0",
+    bearer: () => "fixture-token",
+    fallback: async () => {
+      throw new Error("must use legacy through SyncService");
+    },
+  });
+  try {
+    attachTranscriptUplink(sync, Promise.resolve(uplink), reported.resolve);
+    const write = sync.addMessages(input);
+    const error = await reported.promise;
+    expect(error.message).toContain(spoolPath);
+    expect(error.message).toContain("Invalid transcript spool JSON or UTF-8");
+    expect(error.cause).toBeInstanceOf(Error);
+    expect(binding).toHaveBeenLastCalledWith(undefined, expect.any(Object));
+    expect(await write).toEqual({ inserted: 1, ids: ["legacy-id"] });
+    await sync.deleteMessagesByUuid(input.conversationId, ["message"]);
+    expect(legacy.map(({ name }) => name)).toEqual([
+      "messages:addMessages",
+      "messages:deleteMessagesByUuid",
+    ]);
+    expect(await readFile(spoolPath, "utf8")).toBe(corrupt);
+    expect(await readdir(tmp)).toEqual(["spool.json"]);
+  } finally {
+    binding.mockRestore();
+    await uplink.close();
+    await rm(tmp, { recursive: true, force: true });
+  }
+});

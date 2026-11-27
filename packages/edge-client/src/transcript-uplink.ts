@@ -41,6 +41,8 @@ export class TranscriptUplinkError extends Data.TaggedError(
   retryAfterMs?: number;
   fallbackAllowed?: boolean;
   credentialRejected?: boolean;
+  cause?: unknown;
+  spoolPath?: string;
 }> {}
 
 const retryDelay = (minimum: number, hint?: number) =>
@@ -63,14 +65,36 @@ export interface TranscriptUplinkOptions {
   fallback?(write: TranscriptAppendWrite): Promise<TranscriptAppendResult>;
 }
 
-function spoolIo<A>(operation: () => Promise<A>) {
+const retryableSpoolReadErrors = new Set([
+  "EACCES",
+  "EAGAIN",
+  "EBUSY",
+  "EINTR",
+  "EIO",
+  "EMFILE",
+  "ENFILE",
+  "ESTALE",
+  "ETIMEDOUT",
+]);
+
+function spoolIo<A>(
+  operation: () => Promise<A>,
+  action: "read" | "save" | "clear",
+  spoolPath: string | undefined,
+) {
   return Effect.tryPromise({
     try: operation,
-    catch: () =>
-      new TranscriptUplinkError({
-        message: "Transcript spool I/O failed",
-        retryable: false,
-      }),
+    catch: (cause) => {
+      const code = (cause as NodeJS.ErrnoException | null)?.code;
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      return new TranscriptUplinkError({
+        message: `Transcript spool ${action} failed${spoolPath ? ` at ${spoolPath}` : ""}: ${code ? `[${code}] ` : ""}${detail}`,
+        retryable:
+          action === "read" && retryableSpoolReadErrors.has(code ?? ""),
+        cause,
+        spoolPath,
+      });
+    },
   }).pipe(Effect.uninterruptible);
 }
 
@@ -188,7 +212,11 @@ export class TranscriptUplink extends Context.Service<
             for (;;) {
               const attempt = yield* Effect.result(transmit(batch));
               if (attempt._tag === "Success") {
-                yield* spoolIo(options.spool.clear);
+                yield* spoolIo(
+                  options.spool.clear,
+                  "clear",
+                  options.spool.path,
+                );
                 activeBatch = null;
                 heldFailure = undefined;
                 for (const [index, entry] of entries.entries())
@@ -210,7 +238,28 @@ export class TranscriptUplink extends Context.Service<
         );
 
         yield* Effect.gen(function* () {
-          activeBatch = yield* spoolIo(options.spool.read);
+          activeBatch = yield* spoolIo(
+            options.spool.read,
+            "read",
+            options.spool.path,
+          ).pipe(
+            Effect.retry({
+              schedule: Schedule.spaced("1 second").pipe(
+                Schedule.upTo({ times: 3 }),
+              ),
+              while: (error) => error.retryable,
+            }),
+            Effect.mapError((error) =>
+              error.retryable
+                ? new TranscriptUplinkError({
+                    message: error.message,
+                    cause: error.cause,
+                    spoolPath: error.spoolPath,
+                    retryable: false,
+                  })
+                : error,
+            ),
+          );
           yield* Deferred.succeed(
             discovered,
             new Set(
@@ -242,7 +291,11 @@ export class TranscriptUplink extends Context.Service<
               writes,
             };
             activeBatch = batch;
-            yield* spoolIo(() => options.spool.save(batch));
+            yield* spoolIo(
+              () => options.spool.save(batch),
+              "save",
+              options.spool.path,
+            );
             yield* sendHeldBatch(batch, entries);
           }
         }).pipe(

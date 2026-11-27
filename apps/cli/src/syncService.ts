@@ -455,8 +455,12 @@ export class SyncService {
   private echoIdsRefusedAt: number | null = null;
   private transcriptUplink?: SyncTranscriptUplink;
 
-  setTranscriptUplink(uplink: SyncTranscriptUplink): void {
-    this.transcriptUplink = uplink;
+  setTranscriptUplink(
+    uplink: SyncTranscriptUplink | undefined,
+    expected?: SyncTranscriptUplink,
+  ): void {
+    if (!expected || this.transcriptUplink === expected)
+      this.transcriptUplink = uplink;
   }
 
   replayTranscriptWrite(
