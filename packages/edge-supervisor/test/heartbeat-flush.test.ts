@@ -290,3 +290,49 @@ it.effect(
       }).pipe(Effect.provide(HeartbeatFlush.layer(host)));
     }),
 );
+
+it.effect(
+  "keeps fixed 30s start-to-start cadence when a flush hangs for 35s and still runs maintenance",
+  () =>
+    Effect.gen(function* () {
+      let releaseFirstFlush!: () => void;
+      let flushCalls = 0;
+      let maintenanceCalls = 0;
+      const host = makeHost({
+        sendBatch: () => {
+          flushCalls++;
+          if (flushCalls === 1) {
+            return new Promise<void>((resolve) => {
+              releaseFirstFlush = resolve;
+            });
+          }
+          return Promise.resolve();
+        },
+        onTick: async () => {
+          maintenanceCalls++;
+        },
+      });
+
+      yield* Effect.gen(function* () {
+        const service = yield* HeartbeatFlush;
+        yield* service.ensureSession("s1");
+        yield* adjust(0);
+
+        yield* adjust(HEARTBEAT_FLUSH_INTERVAL_MS);
+        expect(flushCalls).toBe(1);
+        expect(maintenanceCalls).toBe(1);
+
+        yield* adjust(HEARTBEAT_FLUSH_INTERVAL_MS);
+        expect(flushCalls).toBe(1);
+        expect(maintenanceCalls).toBe(2);
+
+        yield* adjust(5_000);
+        releaseFirstFlush();
+        yield* Effect.promise(() => new Promise<void>((r) => setTimeout(r, 0)));
+
+        yield* adjust(HEARTBEAT_FLUSH_INTERVAL_MS - 5_000);
+        expect(flushCalls).toBe(2);
+        expect(maintenanceCalls).toBe(3);
+      }).pipe(Effect.provide(HeartbeatFlush.layer(host)));
+    }),
+);

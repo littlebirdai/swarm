@@ -237,9 +237,6 @@ it.effect(
         yield* machine.ensureSessionHeartbeat("session-a");
         yield* adjust(30_000);
         expect(batches).toEqual([[{ session_id: "session-a" }]]);
-        yield* machine.stopSessionHeartbeat("session-a");
-        yield* adjust(30_000);
-        expect(batches).toHaveLength(1);
       }).pipe(
         Effect.provide(
           MachineLive({
@@ -261,6 +258,7 @@ it.effect(
           }),
         ),
       );
+      expect(sessions.has("session-a")).toBe(true);
       yield* adjust(60_000);
       expect(batches).toHaveLength(1);
     }),

@@ -9,6 +9,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
+import * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 
 export type HeartbeatSessionPayload =
@@ -21,6 +22,10 @@ export type HeartbeatLogEntry = {
   since: number;
 };
 
+export type HeartbeatBatchSender = (
+  payload: ReadonlyArray<HeartbeatSessionPayload>,
+) => Promise<{ unknown?: readonly string[] } | void>;
+
 export interface HeartbeatFlushHost {
   log(message: string): void;
   isReady(): boolean;
@@ -31,9 +36,8 @@ export interface HeartbeatFlushHost {
   hasPane(sessionId: string): boolean;
   isProcessAlive(sessionId: string): boolean;
   isOwnedOrSuperseded(sessionId: string): boolean;
-  sendBatch(
-    payload: ReadonlyArray<HeartbeatSessionPayload>,
-  ): Promise<{ unknown?: readonly string[] } | void>;
+  sendBatch: HeartbeatBatchSender;
+  prepareBatchSender?: () => HeartbeatBatchSender | null;
   beforeFlush?(): void;
   onTick?(): Promise<void>;
   lastLogged?: Map<string, HeartbeatLogEntry>;
@@ -80,8 +84,8 @@ export class HeartbeatFlush extends Context.Service<
     return Layer.effect(
       HeartbeatFlush,
       Effect.gen(function* () {
-        const scope = yield* Effect.scope;
         const flushLock = yield* Semaphore.make(1);
+        const membershipLock = yield* Semaphore.make(1);
         const armed = yield* Latch.make(
           host.isReady() && host.sessions.size > 0,
         );
@@ -94,6 +98,7 @@ export class HeartbeatFlush extends Context.Service<
           host.flushIntervalMs ?? HEARTBEAT_FLUSH_INTERVAL_MS;
         const logThrottleMs = host.logThrottleMs ?? DEFAULT_LOG_THROTTLE_MS;
         let lastSendAt: number | undefined;
+        let flushInProgress = false;
         let maintenanceInProgress = false;
 
         const logStatus = Effect.fn("HeartbeatFlush.logStatus")(function* (
@@ -113,12 +118,18 @@ export class HeartbeatFlush extends Context.Service<
           );
         });
 
+        const deleteSession = Effect.fn("HeartbeatFlush.deleteSession")(
+          function* (sessionId: string | undefined) {
+            if (!sessionId) return;
+            host.sessions.delete(sessionId);
+            transcriptSessions.delete(sessionId);
+          },
+        );
+
         const stopSession = Effect.fn("HeartbeatFlush.stopSession")(function* (
           sessionId: string | undefined,
         ) {
-          if (!sessionId) return;
-          host.sessions.delete(sessionId);
-          transcriptSessions.delete(sessionId);
+          yield* membershipLock.withPermit(deleteSession(sessionId));
         });
 
         const arm = Effect.fn("HeartbeatFlush.arm")(function* () {
@@ -128,17 +139,28 @@ export class HeartbeatFlush extends Context.Service<
 
         const ensureSession = Effect.fn("HeartbeatFlush.ensureSession")(
           function* (sessionId: string, source?: "transcript") {
-            if (!host.isReady() || host.isOwnedOrSuperseded(sessionId)) return;
-            if (source !== "transcript") transcriptSessions.delete(sessionId);
-            else if (!host.sessions.has(sessionId))
-              transcriptSessions.add(sessionId);
-            host.sessions.add(sessionId);
-            yield* arm();
+            yield* membershipLock.withPermit(
+              Effect.gen(function* () {
+                if (!host.isReady() || host.isOwnedOrSuperseded(sessionId))
+                  return;
+                if (source !== "transcript")
+                  transcriptSessions.delete(sessionId);
+                else if (!host.sessions.has(sessionId))
+                  transcriptSessions.add(sessionId);
+                host.sessions.add(sessionId);
+                yield* arm();
+              }),
+            );
           },
         );
 
         const runFlush = Effect.fn("HeartbeatFlush.runFlush")(function* () {
-          if (!host.isReady()) return;
+          const sendBatch = host.prepareBatchSender
+            ? host.prepareBatchSender()
+            : host.isReady()
+              ? host.sendBatch
+              : null;
+          if (!sendBatch) return;
           host.beforeFlush?.();
           const dead = deadTranscriptBeats(transcriptSessions, {
             hasPane: host.hasPane,
@@ -182,7 +204,7 @@ export class HeartbeatFlush extends Context.Service<
             }
             const outcome = yield* Effect.result(
               Effect.tryPromise({
-                try: () => host.sendBatch(payload),
+                try: () => sendBatch(payload),
                 catch: (error) => error,
               }),
             );
@@ -216,10 +238,22 @@ export class HeartbeatFlush extends Context.Service<
 
         const tick = Effect.fn("HeartbeatFlush.tick")(function* () {
           if (!host.isReady() || host.sessions.size === 0) return;
-          yield* flushLock.withPermitsIfAvailable(1)(runFlush());
+          if (!flushInProgress) {
+            flushInProgress = true;
+            yield* Effect.forkChild(
+              flushLock.withPermit(runFlush()).pipe(
+                Effect.ensuring(
+                  Effect.sync(() => {
+                    flushInProgress = false;
+                  }),
+                ),
+              ),
+              { startImmediately: true },
+            );
+          }
           if (host.onTick && !maintenanceInProgress) {
             maintenanceInProgress = true;
-            yield* Effect.forkIn(
+            yield* Effect.forkChild(
               Effect.tryPromise(() => host.onTick!()).pipe(
                 Effect.catch(() => Effect.void),
                 Effect.ensuring(
@@ -228,7 +262,7 @@ export class HeartbeatFlush extends Context.Service<
                   }),
                 ),
               ),
-              scope,
+              { startImmediately: true },
             );
           }
         });
@@ -236,10 +270,8 @@ export class HeartbeatFlush extends Context.Service<
         yield* Effect.forkScoped(
           Effect.gen(function* () {
             yield* armed.await;
-            for (;;) {
-              yield* Effect.sleep(flushIntervalMs);
-              yield* tick();
-            }
+            yield* Effect.sleep(flushIntervalMs);
+            yield* Effect.repeat(tick(), Schedule.fixed(flushIntervalMs));
           }),
           { startImmediately: true },
         );

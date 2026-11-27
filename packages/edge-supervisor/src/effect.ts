@@ -1,5 +1,6 @@
 export {
   HeartbeatFlush,
+  type HeartbeatBatchSender,
   type HeartbeatFlushHost,
   type HeartbeatLogEntry,
   type HeartbeatSessionPayload,

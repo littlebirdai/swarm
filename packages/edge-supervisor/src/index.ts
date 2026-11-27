@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import { Machine, MachineLive, type MachineOptions } from "./machine";
 
 export type {
+  HeartbeatBatchSender,
   HeartbeatFlushHost,
   HeartbeatLogEntry,
   HeartbeatSessionPayload,
@@ -45,6 +46,12 @@ export async function startMachine(
   }
   const lifetime = new AbortController();
   let closing: Promise<void> | undefined;
+  let membershipChain: Promise<void> = Promise.resolve();
+  const serializeMembership = (fn: () => Promise<void>): Promise<void> => {
+    const next = membershipChain.then(fn, fn);
+    membershipChain = next.catch(() => {});
+    return next;
+  };
   const runSignal = (callerSignal?: AbortSignal) =>
     callerSignal
       ? AbortSignal.any([callerSignal, lifetime.signal])
@@ -74,23 +81,29 @@ export async function startMachine(
         runSignal(signal),
       ),
     ensureSessionHeartbeat: (sessionId, source) =>
-      facade.run(
-        Effect.flatMap(Machine, (service) =>
-          service.ensureSessionHeartbeat(sessionId, source),
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) =>
+            service.ensureSessionHeartbeat(sessionId, source),
+          ),
+          lifetime.signal,
         ),
-        lifetime.signal,
       ),
     stopSessionHeartbeat: (sessionId) =>
-      facade.run(
-        Effect.flatMap(Machine, (service) =>
-          service.stopSessionHeartbeat(sessionId),
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) =>
+            service.stopSessionHeartbeat(sessionId),
+          ),
+          lifetime.signal,
         ),
-        lifetime.signal,
       ),
     armHeartbeatFlush: () =>
-      facade.run(
-        Effect.flatMap(Machine, (service) => service.armHeartbeatFlush()),
-        lifetime.signal,
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) => service.armHeartbeatFlush()),
+          lifetime.signal,
+        ),
       ),
     flushHeartbeats: () =>
       facade.run(

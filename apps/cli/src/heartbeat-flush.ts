@@ -102,7 +102,12 @@ export function createHeartbeatFlushController(host: LegacyHeartbeatFlushHost) {
   }
 
   async function runHeartbeatFlush(): Promise<void> {
-    if (!host.isReady()) return;
+    const sendBatch = host.prepareBatchSender
+      ? host.prepareBatchSender()
+      : host.isReady()
+        ? host.sendBatch
+        : null;
+    if (!sendBatch) return;
     host.beforeFlush?.();
     pruneDeadTranscriptHeartbeats();
     const ids = host.currentSessions();
@@ -128,7 +133,7 @@ export function createHeartbeatFlushController(host: LegacyHeartbeatFlushHost) {
             : { session_id: sessionId };
         });
       try {
-        const answer = await host.sendBatch(payload);
+        const answer = await sendBatch(payload);
         const disowned = strikeUnknownBeats(
           unknownBeatStrikes,
           payload.map((p) => p.session_id),
