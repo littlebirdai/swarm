@@ -64,6 +64,7 @@ export async function retainTerminalEvents(
     }
     const { at, seq, source, turn } = event;
     if (event.kind === "terminal.started") {
+      if (change.fields.ended) return seq;
       const { actor, tool_call_id } = event.body;
       const old = change.fields.started;
       if (

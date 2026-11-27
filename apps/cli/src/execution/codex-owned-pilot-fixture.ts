@@ -557,6 +557,11 @@ export function fixture(
               return new Response(null, { status });
             }
           }
+          if (batch.abandon_terminal_seq === lastSeq + 1) {
+            expect(batch.events).toHaveLength(1);
+            expect(first.kind).not.toStartWith("terminal.");
+            lastSeq++;
+          }
           for (const event of batch.events) {
             expect(event.seq).toBe(lastSeq + 1);
             events.push(event);

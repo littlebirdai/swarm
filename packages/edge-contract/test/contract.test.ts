@@ -467,6 +467,42 @@ describe("canonical events", () => {
     );
   });
 
+  test("an abandoned terminal slot must be immediately before a provider-only append", () => {
+    const request = (events: unknown[], abandon_terminal_seq: number) => ({
+      v: 1,
+      batches: [{ ...batch, events, abandon_terminal_seq }],
+    });
+    const event = { ...first, seq: 2 };
+    const allowed = request([event], 1);
+    expectParsed(edge.parseEventsAppendRequest(allowed), allowed);
+    const marker = "$.batches[0].abandon_terminal_seq";
+    expectParseError(
+      edge.parseEventsAppendRequest(request([{ ...event, seq: 3 }], 1)),
+      "invalid_value",
+      marker,
+    );
+    expectParseError(
+      edge.parseEventsAppendRequest(
+        request(
+          [
+            {
+              ...event,
+              kind: "terminal.ended",
+              body: {
+                pane_instance: 1,
+                started_run: event.run,
+                outcome: { kind: "lost" },
+              },
+            },
+          ],
+          1,
+        ),
+      ),
+      "invalid_value",
+      marker,
+    );
+  });
+
   test("distinguishes inline JSON containing blob_id from a blob reference", () => {
     expectParsed(edge.parseCanonicalEvent(inlineToolResult), inlineToolResult);
     expectParseError(

@@ -333,11 +333,17 @@ export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
 
 export async function appendClaimedEvents(
   ctx: MutationCtx,
-  args: Fence & { events_json: string },
+  args: Fence & { events_json: string; abandon_terminal_seq?: number },
 ): Promise<AppendResult> {
   const now = Date.now();
   const current = await currentClaim(ctx, args, now);
   if (!current) return { session: args.conversation_id, status: "stale" };
   const events = JSON.parse(args.events_json) as readonly CanonicalEvent[];
-  return appendRunEvents(ctx, current.binding, events, now);
+  return appendRunEvents(
+    ctx,
+    current.binding,
+    events,
+    now,
+    args.abandon_terminal_seq,
+  );
 }

@@ -480,8 +480,13 @@ export class CodexOwnedPilot {
         this.terminalEvents = createTerminalEventWriter(
           claim,
           path.join(defaultConfigDir(), "terminal-lifecycle"),
-          (...events) =>
-            this.append(claim, events, AbortSignal.timeout(10_000)),
+          (events, abandonTerminalSeq) =>
+            this.append(
+              claim,
+              events,
+              AbortSignal.timeout(10_000),
+              abandonTerminalSeq,
+            ),
           (error) =>
             this.options.log(
               `[owned-codex] terminal event update failed: ${String(error)}`,
@@ -665,12 +670,21 @@ export class CodexOwnedPilot {
     claim: ClaimGrant,
     events: readonly [CanonicalEvent, ...CanonicalEvent[]],
     signal?: AbortSignal,
+    abandonTerminalSeq?: number,
   ): Promise<void> {
     const response = await this.edge(
       "events.append",
       {
         v,
-        batches: [{ ...deliveryFence(claim), events }],
+        batches: [
+          {
+            ...deliveryFence(claim),
+            events,
+            ...(abandonTerminalSeq === undefined
+              ? {}
+              : { abandon_terminal_seq: abandonTerminalSeq }),
+          },
+        ],
       },
       parseEventsAppendResponse,
       signal,

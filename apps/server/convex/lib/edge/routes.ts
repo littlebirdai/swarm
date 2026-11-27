@@ -243,6 +243,7 @@ async function appendEvents(
         run: batch.run,
         fencing_token: batch.fencing_token,
         events_json: JSON.stringify(batch.events),
+        abandon_terminal_seq: batch.abandon_terminal_seq,
       }),
     );
   }

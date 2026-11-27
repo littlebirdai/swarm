@@ -279,9 +279,13 @@ test.each([
 
       await f.runtime.stop();
       expect(f.terminalStartAttempts).toEqual(Array(attempts).fill(2));
-      expect(f.events.slice(0, 5).map(({ seq, kind }) => [seq, kind])).toEqual([
+      expect(
+        f.events
+          .filter(({ seq }) => seq <= 5)
+          .map(({ seq, kind }) => [seq, kind]),
+      ).toEqual([
         [1, "session.started"],
-        [2, failure === "once" ? "terminal.started" : "context"],
+        ...(failure === "once" ? [[2, "terminal.started" as const]] : []),
         [3, "turn.started"],
         [4, "prompt.opened"],
         [5, "context"],

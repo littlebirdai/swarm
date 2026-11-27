@@ -20,10 +20,12 @@ type TerminalEvent = Extract<
 type PendingTerminal = {
   event: TerminalEvent;
   attempts: number;
+  retryAt?: number;
   abandoned?: "rejected" | "unconfirmed";
 };
 
 const MAX_TERMINAL_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 1_000;
 
 export class TerminalEventRejected extends Error {}
 
@@ -74,7 +76,10 @@ function loadJournal(file: string): Journal {
 export function createTerminalEventWriter(
   claim: ClaimGrant,
   directory: string,
-  write: (...events: [CanonicalEvent, ...CanonicalEvent[]]) => Promise<void>,
+  write: (
+    events: [CanonicalEvent, ...CanonicalEvent[]],
+    abandonTerminalSeq?: number,
+  ) => Promise<void>,
   onTerminalError?: (error: unknown) => void,
 ) {
   const { session, run } = claim;
@@ -116,20 +121,16 @@ export function createTerminalEventWriter(
       ? { ...terminal.event, kind: "context", body: { data: null } }
       : terminal.event;
   }
-  function recordFailure(
-    terminal: PendingTerminal,
-    error: unknown,
-    providerWaiting = false,
-  ) {
+  function recordFailure(terminal: PendingTerminal, error: unknown) {
     terminal.attempts++;
     if (error instanceof TerminalEventRejected && terminal.attempts === 1)
       terminal.abandoned = "rejected";
     else if (
       error instanceof TerminalEventRejected ||
-      providerWaiting ||
       terminal.attempts >= MAX_TERMINAL_ATTEMPTS
     )
       terminal.abandoned = "unconfirmed";
+    else terminal.retryAt = Date.now() + RETRY_DELAY_MS;
   }
   function confirmTerminal(terminal: PendingTerminal) {
     pending = undefined;
@@ -149,8 +150,11 @@ export function createTerminalEventWriter(
   async function flushTerminal() {
     const terminal = pending;
     if (!terminal) return;
+    const delay = (terminal.retryAt ?? 0) - Date.now();
+    if (delay > 0)
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
     try {
-      await write(writeable(terminal));
+      await write([writeable(terminal)]);
     } catch (error) {
       if (!terminal.abandoned) recordFailure(terminal, error);
       throw error;
@@ -222,19 +226,13 @@ export function createTerminalEventWriter(
       return ordered(async () => {
         if (event.seq !== providerSeq + 1)
           throw new Error("Provider event sequence is not contiguous");
-        const next = { ...event, seq: seq + (pending ? 2 : 1) };
-        const terminal = pending;
-        if (terminal) {
-          try {
-            await write(writeable(terminal), next);
-          } catch (error) {
-            if (terminal.abandoned) throw error;
-            recordFailure(terminal, error, true);
-            onTerminalError?.(error);
-            await write(writeable(terminal), next);
-          }
-          confirmTerminal(terminal);
-        } else await write(next);
+        if (pending && !pending.abandoned)
+          await flushTerminal().catch((error) => onTerminalError?.(error));
+        const abandoned = pending;
+        if (abandoned) abandoned.abandoned ??= "unconfirmed";
+        const next = { ...event, seq: seq + (abandoned ? 2 : 1) };
+        await write([next], abandoned?.event.seq);
+        if (abandoned) confirmTerminal(abandoned);
         providerSeq = event.seq;
         seq = next.seq;
         if (endOutcome)

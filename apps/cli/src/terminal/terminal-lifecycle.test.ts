@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -34,7 +34,7 @@ test.each([
     const writer = createTerminalEventWriter(
       grant,
       directory,
-      async (...batch) => {
+      async (batch) => {
         if (failStart) {
           failStart = false;
           throw new Error("HTTP 503");
@@ -106,7 +106,7 @@ test.each([
 
 test("a subsequent claim recovers an unconfirmed pane and reserves a higher instance", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "terminal-lifecycle-"));
-  const first = createTerminalEventWriter(grant, directory, async (event) => {
+  const first = createTerminalEventWriter(grant, directory, async ([event]) => {
     if (event.kind === "terminal.ended") throw new Error("transport lost");
   });
   try {
@@ -119,7 +119,7 @@ test("a subsequent claim recovers an unconfirmed pane and reserves a higher inst
     const second = createTerminalEventWriter(
       { ...grant, run: 4 },
       directory,
-      async (event) => {
+      async ([event]) => {
         events.push(event);
       },
     );
@@ -171,12 +171,13 @@ test.each([
     const writer = createTerminalEventWriter(
       grant,
       directory,
-      async (...batch) => {
+      async (batch, abandoned) => {
         attempts.push(batch);
         const first = attempts.length === 1;
         const refused =
           first || (capped && batch[0].kind === "terminal.started");
         if (!refused || (first && committed)) {
+          if (abandoned === through + 1) through = abandoned;
           for (const event of batch) {
             if (event.seq <= through) continue;
             expect(event.seq).toBe(through + 1);
@@ -206,13 +207,12 @@ test.each([
       expect(attempts[1][0]).toEqual(attempts[0][0]);
       if (capped) {
         expect(attempts[2].map(({ kind, seq }) => [kind, seq])).toEqual([
-          ["context", 9],
           ["context", 10],
         ]);
       }
       await writer.close();
       expect(events.map(({ seq, kind }) => [seq, kind])).toEqual([
-        [9, capped && !committed ? "context" : "terminal.started"],
+        ...(capped && !committed ? [] : [[9, "terminal.started" as const]]),
         [10, "context"],
         [11, "terminal.ended"],
       ]);
@@ -229,13 +229,9 @@ test.each([
 test("blank and oversized owner IDs never reach the terminal event transport", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "terminal-lifecycle-"));
   const events: CanonicalEvent[] = [];
-  const writer = createTerminalEventWriter(
-    grant,
-    directory,
-    async (...batch) => {
-      events.push(...batch);
-    },
-  );
+  const writer = createTerminalEventWriter(grant, directory, async (batch) => {
+    events.push(...batch);
+  });
   try {
     await writer.startWatching();
     for (const owner of ["", " ", "x".repeat(257)])
@@ -263,14 +259,10 @@ test("blank and oversized owner IDs never reach the terminal event transport", a
 test("a pane that disappears before any provider event exhausts only one start retry", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "terminal-lifecycle-"));
   const attempts: CanonicalEvent[][] = [];
-  const writer = createTerminalEventWriter(
-    grant,
-    directory,
-    async (...batch) => {
-      attempts.push(batch);
-      if (batch[0].kind === "terminal.started") throw new Error("HTTP 503");
-    },
-  );
+  const writer = createTerminalEventWriter(grant, directory, async (batch) => {
+    attempts.push(batch);
+    if (batch[0].kind === "terminal.started") throw new Error("HTTP 503");
+  });
   try {
     await writer.startWatching();
     const end = await observeClaimedTerminal(grant.session, "pane", "owner");
@@ -292,7 +284,8 @@ test("a pane that disappears before any provider event exhausts only one start r
       "context",
       "terminal.ended",
     ]);
-    expect(attempts[2][1]).toMatchObject({
+    expect(attempts[2]).toHaveLength(1);
+    expect(attempts[2][0]).toMatchObject({
       seq: 10,
       body: { data: "provider event" },
     });
@@ -303,6 +296,68 @@ test("a pane that disappears before any provider event exhausts only one start r
     });
   } finally {
     await writer.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("waits one second before a terminal retry and then sends only the provider event", async () => {
+  jest.useFakeTimers();
+  const start = Date.now();
+  const directory = mkdtempSync(path.join(tmpdir(), "terminal-lifecycle-"));
+  const writes: { at: number; batch: CanonicalEvent[]; abandoned?: number }[] =
+    [];
+  const writer = createTerminalEventWriter(
+    grant,
+    directory,
+    async (batch, abandoned) => {
+      writes.push({ at: Date.now(), batch, abandoned });
+      if (batch.length > 1 || batch[0].kind === "terminal.started")
+        throw new Error("Terminal write rejected with HTTP 503");
+    },
+  );
+  const context: CanonicalEvent = {
+    v: 1,
+    session: grant.session,
+    run: grant.run,
+    seq: 9,
+    at: start,
+    source: "provider",
+    turn: null,
+    kind: "context",
+    body: { data: "provider event" },
+  };
+  try {
+    await writer.startWatching();
+    const end = await observeClaimedTerminal(grant.session, "pane", "owner");
+    expect(end).toEqual(expect.any(Function));
+    const append = writer.append(context);
+    void append.catch(() => {});
+    await Promise.resolve();
+    jest.advanceTimersByTime(999);
+    await Promise.resolve();
+    expect(writes).toHaveLength(1);
+    jest.advanceTimersByTime(1);
+    await append;
+    expect(writes.slice(0, 3)).toEqual([
+      {
+        at: start,
+        batch: [expect.objectContaining({ kind: "terminal.started", seq: 9 })],
+      },
+      {
+        at: start + 1000,
+        batch: [expect.objectContaining({ kind: "terminal.started", seq: 9 })],
+      },
+      { at: start + 1000, batch: [{ ...context, seq: 10 }], abandoned: 9 },
+    ]);
+    await writer.append({ ...context, seq: 10 });
+    expect(writes[3]).toEqual({
+      at: start + 1000,
+      batch: [{ ...context, seq: 11 }],
+    });
+  } finally {
+    jest.runAllTimers();
+    await writer.close().catch(() => {});
+    jest.useRealTimers();
     rmSync(directory, { recursive: true, force: true });
   }
 });

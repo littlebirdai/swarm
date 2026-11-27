@@ -53,7 +53,11 @@ export const release = internalMutation({
 });
 
 export const append = internalMutation({
-  args: { ...fence, events_json: v.string() },
+  args: {
+    ...fence,
+    events_json: v.string(),
+    abandon_terminal_seq: v.optional(v.number()),
+  },
   handler: appendClaimedEvents,
 });
 

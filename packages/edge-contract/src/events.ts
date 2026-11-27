@@ -5,6 +5,7 @@ import {
   nonEmptyString,
   object,
   oneOf,
+  optional,
   parser,
   positiveInteger,
   responseObject,
@@ -17,7 +18,11 @@ import { fence } from "./claims";
 import { readCanonicalEvent } from "./envelope";
 import { daemon } from "./link";
 
-const batch = object({ ...fence, events: array(readCanonicalEvent) });
+const batch = object({
+  ...fence,
+  events: array(readCanonicalEvent),
+  abandon_terminal_seq: optional(positiveInteger),
+});
 const eventsAppendRequest = object({
   v: readV1,
   batches: array((value, path) => {
@@ -29,6 +34,19 @@ const eventsAppendRequest = object({
         "expected at least one event",
       );
     }
+    if (
+      group.abandon_terminal_seq !== undefined &&
+      (group.events[0].seq - 1 !== group.abandon_terminal_seq ||
+        group.events.some(
+          ({ kind }) =>
+            kind === "terminal.started" || kind === "terminal.ended",
+        ))
+    )
+      throw new EdgeParseError(
+        "invalid_value",
+        `${path}.abandon_terminal_seq`,
+        "expected the slot immediately before a provider-only batch",
+      );
     for (const [index, event] of group.events.entries()) {
       const eventPath = `${path}.events[${index}]`;
       if (event.session !== group.session || event.run !== group.run) {

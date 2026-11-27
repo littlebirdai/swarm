@@ -61,6 +61,7 @@ async function setup() {
   const append = async (
     events: CanonicalEvent[],
     token = lease.fencing_token,
+    abandon_terminal_seq?: number,
   ) => {
     const parsed = parseEventsAppendResponse(
       await post("events.append", {
@@ -71,6 +72,7 @@ async function setup() {
             run: lease.run,
             fencing_token: token,
             events,
+            abandon_terminal_seq,
           },
         ],
       }),
@@ -157,6 +159,69 @@ test("a live claim retains terminal event bodies and fences replay by pane insta
   });
   expect(await f.rows()).toEqual([]);
 });
+
+test.each(["stored", "same batch"] as const)(
+  "a start is refused after an end in %s",
+  async (mode) => {
+    const f = await setup();
+    const ended = { ...f.ended, seq: 1 };
+    const started = { ...f.started, seq: 2 };
+    if (mode === "stored")
+      expect(await f.append([ended])).toMatchObject({ through_seq: 1 });
+    expect(
+      await f.append(mode === "stored" ? [started] : [ended, started]),
+    ).toMatchObject({ status: "conflict", seq: 2 });
+    if (mode === "stored") {
+      const [pane] = await f.rows();
+      expect(pane.started).toBeUndefined();
+      expect(pane.ended?.seq).toBe(1);
+    } else expect(await f.rows()).toEqual([]);
+    expect((await f.grant()).last_event_seq).toBe(mode === "stored" ? 1 : 0);
+  },
+);
+
+test.each(["uncommitted", "committed", "flag disabled after claim"] as const)(
+  "an isolated provider fallback preserves its turn with the abandoned slot %s",
+  async (state) => {
+    const f = await setup();
+    const committed = state === "committed";
+    if (committed)
+      expect(await f.append([f.started])).toMatchObject({ through_seq: 1 });
+    const turn = {
+      ...f.stamp,
+      seq: 2,
+      source: "provider",
+      kind: "turn.started",
+      turn: "provider-only",
+      body: {},
+    } as const;
+    const providerOnly = () => f.append([turn], f.lease.fencing_token, 1);
+    if (!committed)
+      expect(await f.append([turn])).toMatchObject({
+        status: "gap",
+        expected_seq: 1,
+      });
+    if (state === "flag disabled after claim") delete process.env[terminalFlag];
+    expect(await providerOnly()).toMatchObject({
+      status: "appended",
+      through_seq: 2,
+    });
+    expect(await providerOnly()).toMatchObject({
+      status: "appended",
+      through_seq: 2,
+    });
+    expect(await f.append([f.started])).toMatchObject({
+      status: "appended",
+      through_seq: 2,
+    });
+    expect(await f.rows()).toHaveLength(committed ? 1 : 0);
+    expect(
+      await f.t.run(({ db }) => db.query("run_turn_projections").unique()),
+    ).toMatchObject({
+      open_turn: { id: "provider-only" },
+    });
+  },
+);
 
 test("the default-off grant leaves an old daemon's cursor and turn events working", async () => {
   delete process.env[terminalFlag];
