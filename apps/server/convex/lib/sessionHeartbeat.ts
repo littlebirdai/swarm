@@ -80,6 +80,78 @@ export async function inboxUserHeartbeatRows(
   };
 }
 
+export function indexedInboxLivenessEnabled(): boolean {
+  return (
+    process.env.INBOX_INDEXED_LIVENESS === "1" && inboxLeaseWritesEnabled()
+  );
+}
+
+export async function indexedInboxSessionRows(
+  ctx: Reader,
+  userId: Id<"users">,
+  now: number,
+  conversationIds: Id<"conversations">[],
+) {
+  const recentWithoutLiveLease = (expired: true | undefined) =>
+    ctx.db
+      .query("managed_sessions")
+      .withIndex("by_user_inbox_lease_heartbeat", (q) =>
+        q
+          .eq("user_id", userId)
+          .eq("liveness_lease.expired", expired)
+          .gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS),
+      )
+      .collect();
+
+  const [leased, legacy, recentlyExpired] = await Promise.all([
+    ctx.db
+      .query("managed_sessions")
+      .withIndex("by_user_inbox_lease_heartbeat", (q) =>
+        q.eq("user_id", userId).eq("liveness_lease.expired", false),
+      )
+      .collect(),
+    recentWithoutLiveLease(undefined),
+    recentWithoutLiveLease(true),
+  ]);
+
+  const hot = [...leased, ...legacy, ...recentlyExpired];
+  const newestDaemon = hot.some((row) => row.hosted === undefined)
+    ? null
+    : await ctx.db
+        .query("managed_sessions")
+        .withIndex("by_user_daemon_heartbeat", (q) =>
+          q.eq("user_id", userId).eq("hosted", undefined),
+        )
+        .order("desc")
+        .first();
+  const covered = new Set(hot.map((row) => row.conversation_id));
+  const historical = await Promise.all(
+    [...new Set(conversationIds)]
+      .filter((id) => !covered.has(id))
+      .map((id) =>
+        ctx.db
+          .query("managed_sessions")
+          .withIndex("by_conversation_user", (q) =>
+            q.eq("conversation_id", id).eq("user_id", userId),
+          )
+          .order("desc")
+          .first(),
+      ),
+  );
+
+  const sessions = [...hot, ...historical.filter((row) => row !== null)].sort(
+    (a, b) =>
+      a._creationTime - b._creationTime ||
+      (a._id < b._id ? -1 : Number(a._id > b._id)),
+  );
+  const beats = await inboxHeartbeatsFor(ctx, sessions);
+  return {
+    sessions,
+    beats,
+    latestDaemonHeartbeat: newestDaemon?.last_heartbeat,
+  };
+}
+
 export async function heartbeatOf(
   ctx: Reader,
   session: ManagedHeartbeat | null | undefined,

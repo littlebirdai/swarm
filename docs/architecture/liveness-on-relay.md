@@ -76,6 +76,8 @@ The read-set test proves that routine writes miss inbox documents. Use the socke
 
 Keep `INBOX_LIVENESS_LEASES` off by default. With the flag off, Convex keeps the heartbeat timestamps that old web and mobile clients require. Old daemons use the same heartbeat requests with the flag on. Enable it only after recovery passes and client version data shows that all active web and mobile clients understand leases. Turn it off if an older client must connect again. Use a separate flag for relay display.
 
+The personal overlay uses indexed session reads when both `INBOX_INDEXED_LIVENESS=1` and `INBOX_LIVENESS_LEASES=1` are set. It reads all live leases and recent heartbeat stamps, plus at most one historical managed session per displayed conversation without a live row. It reads the latest daemon heartbeat separately when the live ranges contain no daemon row. Read cost scales with the live set and the inbox windows. Unrelated session history has no effect on that cost.
+
 ## Tests and PR order
 
 1. Ship the server lease and lease-aware readers with the flag off. Keep tests for both flag modes, expiry after the last beat, the stale status fence, and disjoint inbox reads and writes.
