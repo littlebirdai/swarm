@@ -58,9 +58,8 @@ export function useCommits(where?: (c: any) => boolean): any[] {
   });
 }
 
-// A row only the inbox's chip feed has written lacks the body and authorship
-// the timeline and the PR page draw: they treat it as not loaded rather than
-// paint it half empty.
+// The timeline and PR page wait for a full list projection because the
+// inbox chip feed omits authorship and change statistics.
 const fullRow = (p: any) => isFullPullRequest(p);
 
 export function usePullRequests(where?: (p: any) => boolean): any[] {

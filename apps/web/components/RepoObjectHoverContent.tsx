@@ -2,7 +2,7 @@
 // what the object is, where it stands in production once it is on main, and
 // how big it is. Each card is links around its production rows, which are
 // links of their own.
-import React from "react";
+import React, { useContext } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -10,12 +10,17 @@ import {
   GitPullRequest,
 } from "lucide-react";
 import { DiffStat } from "./entityDisplay";
-import { relativeTime } from "../lib/entityDisplay";
+import { EntityFixtureContext, relativeTime } from "../lib/entityDisplay";
 import { parseRepoObjectId } from "../lib/entityLinks";
 import { repoObjectRefOf } from "../lib/repoObjects";
 import { PR_STATE_META, prStateKey } from "../lib/prView";
 import { accentVar } from "../lib/externalEvents";
 import { stripMarkdown } from "../lib/notificationText";
+import { pullRequestBodyDetailEnabled } from "../lib/detail-rows";
+import {
+  usePullRequestDetail,
+  useSyncPullRequestDetail,
+} from "../hooks/useSyncTimeline";
 
 /** The parts of a repository object's card that open it: each its own link, so the production rows between them can be links too. */
 export type RepoCardLink = {
@@ -36,6 +41,11 @@ export function PullRequestHoverContent({
   production,
   showOpen,
 }: { pr: any } & RepoCardLink) {
+  const fixtures = useContext(EntityFixtureContext);
+  const id = pullRequestBodyDetailEnabled() && !fixtures ? pr._id : undefined;
+  useSyncPullRequestDetail(id);
+  const detail = usePullRequestDetail(id);
+  const body = pr.body ?? detail?.body;
   const state = PR_STATE_META[prStateKey(pr)];
   const ink = { color: accentVar(state.accent) };
   const when = relativeTime(pr.merged_at ?? pr.updated_at);
@@ -75,9 +85,9 @@ export function PullRequestHoverContent({
       </Link>
       {production}
       <Link href={href} onClick={onOpen} className={CARD_LINK}>
-        {pr.body && (
+        {body && (
           <p className="text-meta text-sol-text-muted line-clamp-2 leading-relaxed pl-[22px]">
-            {stripMarkdown(pr.body).slice(0, 200)}
+            {stripMarkdown(body).slice(0, 200)}
           </p>
         )}
 

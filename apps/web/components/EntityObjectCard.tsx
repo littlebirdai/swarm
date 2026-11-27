@@ -74,7 +74,7 @@ import { PR_STATE_META, prStateKey } from "../lib/prView";
 import { accentVar } from "../lib/externalEvents";
 import { DocDates } from "./DocDates";
 import { FileDiffList } from "./FileDiffView";
-import { PullRequestFiles } from "./pr/PullRequestFiles";
+import { PullRequestObjectContent } from "./pr/pull-request-object-content";
 import {
   RevealButton,
   RevealOpenLink,
@@ -696,12 +696,7 @@ function CardSnippet({
     );
   }
   if (type === "pr") {
-    if (!entity.body) return null;
-    return (
-      <p className={`text-[12px] leading-relaxed text-sol-text-muted ${clamp}`}>
-        {stripMarkdown(entity.body).slice(0, 400)}
-      </p>
-    );
+    return <PullRequestObjectContent entity={entity} compact={compact} />;
   }
   if (type === "call" && entity.turns) {
     return (
@@ -841,21 +836,7 @@ function CardDetail({ type, entity }: { type: EntityType; entity: any }) {
     );
   }
   if (type === "pr") {
-    return (
-      <div className="space-y-2.5">
-        {entity.body ? (
-          <CardMarkdown content={entity.body} />
-        ) : (
-          <p className="text-meta italic text-sol-text-dim">No description.</p>
-        )}
-        <PullRequestFiles
-          id={entity._id}
-          files={entity.files}
-          emptyText="No file changes synced yet"
-          className="overflow-hidden rounded border border-sol-border/40"
-        />
-      </div>
-    );
+    return <PullRequestObjectContent entity={entity} expanded />;
   }
   if (type === "commit") {
     const body = commitBody(entity);
