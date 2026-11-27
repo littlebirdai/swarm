@@ -403,30 +403,86 @@ export async function finishPromptAnswer(
   return { v: v1, status: "recorded" };
 }
 
-export async function firstUnansweredOpenTurnPrompt(
+export type FencedPromptState = {
+  run: number;
+  leaseId: Id<"run_leases">;
+  hasOpenTurn: boolean;
+  openPrompt: { kind: "question" | "permission"; prompt_id: string } | null;
+  allOpenTurnPromptsAnswered: boolean;
+  isAnswered: (turnId: string, promptId: string) => Promise<boolean>;
+};
+
+export async function readFencedPromptState(
   ctx: Reader,
   conversation: Doc<"conversations">,
-): Promise<{ kind: "question" | "permission"; prompt_id: string } | null> {
+): Promise<FencedPromptState | null> {
   const opened = await openPromptTurn(ctx, conversation);
-  if (!opened) return null;
-  const { binding, lease, turn } = opened;
-  const details = new Map(
-    (turn.prompt_details ?? []).map((detail) => [detail.prompt_id, detail]),
-  );
-  for (const promptId of turn.prompt_ids) {
-    const answer = await recordedAnswer(ctx, {
-      conversation_id: conversation._id,
-      run: binding.epoch,
-      lease_id: lease._id,
-      turn_id: turn.id,
-      prompt_id: promptId,
-    });
-    if (answer) continue;
-    const detail = details.get(promptId);
+  const current = opened
+    ? { binding: opened.binding, lease: opened.lease }
+    : await (async () => {
+        const bound = await currentPromptBinding(ctx, conversation);
+        if (!bound) return null;
+        const lease = await ctx.db
+          .query("run_leases")
+          .withIndex("by_conversation_claim", (q) =>
+            q
+              .eq("conversation_id", conversation._id)
+              .eq("claim_id", bound.claimId),
+          )
+          .unique();
+        return lease ? { binding: bound.binding, lease } : null;
+      })();
+  if (!current) return null;
+
+  const { binding, lease } = current;
+  const isAnswered = async (turnId: string, promptId: string) =>
+    Boolean(
+      await recordedAnswer(ctx, {
+        conversation_id: conversation._id,
+        run: binding.epoch,
+        lease_id: lease._id,
+        turn_id: turnId,
+        prompt_id: promptId,
+      }),
+    );
+
+  if (!opened || opened.turn.prompt_ids.length === 0) {
     return {
+      run: binding.epoch,
+      leaseId: lease._id,
+      hasOpenTurn: Boolean(opened),
+      openPrompt: null,
+      allOpenTurnPromptsAnswered: false,
+      isAnswered,
+    };
+  }
+
+  const details = new Map(
+    (opened.turn.prompt_details ?? []).map((detail) => [
+      detail.prompt_id,
+      detail,
+    ]),
+  );
+  let openPrompt: {
+    kind: "question" | "permission";
+    prompt_id: string;
+  } | null = null;
+  for (const promptId of opened.turn.prompt_ids) {
+    if (await isAnswered(opened.turn.id, promptId)) continue;
+    const detail = details.get(promptId);
+    openPrompt = {
       kind: detail?.kind ?? "question",
       prompt_id: promptId,
     };
+    break;
   }
-  return null;
+
+  return {
+    run: binding.epoch,
+    leaseId: lease._id,
+    hasOpenTurn: true,
+    openPrompt,
+    allOpenTurnPromptsAnswered: openPrompt === null,
+    isAnswered,
+  };
 }

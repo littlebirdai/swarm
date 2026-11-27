@@ -8,8 +8,14 @@ import {
   readAnchorRow,
 } from "./lib/conversationReadAnchors";
 import { answerLabel } from "./lib/decisionVerdict";
-import { firstUnansweredOpenTurnPrompt } from "./lib/edge/prompt-answers.route";
-import { checkConversationAccess } from "./privacy";
+import {
+  fencedPromptAnswersEnabled,
+  readFencedPromptState,
+} from "./lib/edge/prompt-answers.route";
+import { sharedPromptPermissionsEnabled } from "./lib/edge/prompt-authority.rules";
+import { checkConversationAccess, type AccessLevel } from "./privacy";
+import { redactSecrets } from "./redact";
+import { answerOnItsWay, viewerSeesDetail } from "./teamSuggestions";
 import {
   approxMessageBytes,
   isNavigableUserMessage,
@@ -26,8 +32,7 @@ const DECISIONS_SCAN_CAP = 50;
 const MAX_DECISIONS = 10;
 const STALE_PENDING_MS = 2 * 60 * 60 * 1000;
 
-const DECISION_STATUSES = [
-  "pending",
+const RESOLVED_DECISION_STATUSES = [
   "answered",
   "dismissed",
   "withdrawn",
@@ -51,6 +56,8 @@ type OpenPromptSummary = {
   label: string;
   tool_name?: string;
   created_at: number;
+  message_id?: Id<"messages">;
+  timestamp?: number;
 };
 
 async function countTurnsSince(
@@ -131,30 +138,39 @@ async function readChangedFilesSince(
 ): Promise<{
   files: ChangedFileSummary[];
   total: number;
+  truncated: boolean;
   snapshotTurnCount: number;
+  snapshotsTruncated: boolean;
 }> {
-  const [snapshots, fileChanges] = await Promise.all([
+  const [rawSnapshots, rawFileChanges] = await Promise.all([
     ctx.db
       .query("tree_snapshots")
       .withIndex("by_conversation_taken", (q) =>
         q.eq("conversation_id", conversationId).gt("taken_at", since),
       )
       .order("desc")
-      .take(SNAPSHOT_SCAN_CAP),
+      .take(SNAPSHOT_SCAN_CAP + 1),
     ctx.db
       .query("file_changes")
       .withIndex("by_conversation_timestamp", (q) =>
         q.eq("conversation_id", conversationId).gt("timestamp", since),
       )
       .order("desc")
-      .take(FILE_CHANGES_SCAN_CAP),
+      .take(FILE_CHANGES_SCAN_CAP + 1),
   ]);
 
+  const snapshotsTruncated = rawSnapshots.length > SNAPSHOT_SCAN_CAP;
+  const fileChangesTruncated = rawFileChanges.length > FILE_CHANGES_SCAN_CAP;
+  const snapshots = rawSnapshots.slice(0, SNAPSHOT_SCAN_CAP);
+  const fileChanges = rawFileChanges.slice(0, FILE_CHANGES_SCAN_CAP);
+
   let snapshotTurnCount = 0;
+  let pathsClipped = false;
   const snapshotCounts = new Map<string, number>();
   for (const snap of snapshots) {
     if (snap.source === "turn") snapshotTurnCount++;
     if (snap.source === "prompt") continue;
+    if (snap.changed_count > snap.changed_paths.length) pathsClipped = true;
     for (const path of snap.changed_paths) {
       snapshotCounts.set(path, (snapshotCounts.get(path) ?? 0) + 1);
     }
@@ -182,7 +198,9 @@ async function readChangedFilesSince(
   return {
     files: merged.slice(0, MAX_CHANGED_FILES),
     total: merged.length,
+    truncated: snapshotsTruncated || fileChangesTruncated || pathsClipped,
     snapshotTurnCount,
+    snapshotsTruncated,
   };
 }
 
@@ -190,30 +208,58 @@ async function readDecisionsSince(
   ctx: QueryCtx,
   conversationId: Id<"conversations">,
   since: number,
-): Promise<{ items: DecisionSummary[]; total: number }> {
-  const buckets = await Promise.all(
-    DECISION_STATUSES.map((status) =>
+): Promise<{ items: DecisionSummary[]; total: number; truncated: boolean }> {
+  const [pendingRaw, ...resolvedBuckets] = await Promise.all([
+    ctx.db
+      .query("session_decisions")
+      .withIndex("by_conversation_status", (q) =>
+        q.eq("conversation_id", conversationId).eq("status", "pending"),
+      )
+      .order("desc")
+      .take(DECISIONS_SCAN_CAP + 1),
+    ...RESOLVED_DECISION_STATUSES.flatMap((status) => [
+      ctx.db
+        .query("session_decisions")
+        .withIndex("by_conversation_status_resolved", (q) =>
+          q
+            .eq("conversation_id", conversationId)
+            .eq("status", status)
+            .gt("resolved_at", since),
+        )
+        .order("desc")
+        .take(DECISIONS_SCAN_CAP + 1),
       ctx.db
         .query("session_decisions")
         .withIndex("by_conversation_status", (q) =>
           q.eq("conversation_id", conversationId).eq("status", status),
         )
         .order("desc")
-        .take(DECISIONS_SCAN_CAP),
-    ),
-  );
+        .take(DECISIONS_SCAN_CAP + 1),
+    ]),
+  ]);
 
-  const matched = buckets
-    .flat()
-    .filter(
-      (d) =>
+  let truncated = pendingRaw.length > DECISIONS_SCAN_CAP;
+  const byId = new Map<string, Doc<"session_decisions">>();
+  for (const d of pendingRaw.slice(0, DECISIONS_SCAN_CAP)) {
+    if (d.created_at > since) {
+      byId.set(String(d._id), d);
+    }
+  }
+  for (const bucket of resolvedBuckets) {
+    if (bucket.length > DECISIONS_SCAN_CAP) truncated = true;
+    for (const d of bucket.slice(0, DECISIONS_SCAN_CAP)) {
+      if (
         d.created_at > since ||
-        (d.resolved_at !== undefined && d.resolved_at > since),
-    )
-    .sort(
-      (a, b) =>
-        (b.resolved_at ?? b.created_at) - (a.resolved_at ?? a.created_at),
-    );
+        (d.resolved_at !== undefined && d.resolved_at > since)
+      ) {
+        byId.set(String(d._id), d);
+      }
+    }
+  }
+
+  const matched = [...byId.values()].sort(
+    (a, b) => (b.resolved_at ?? b.created_at) - (a.resolved_at ?? a.created_at),
+  );
 
   const items: DecisionSummary[] = matched.slice(0, MAX_DECISIONS).map((d) => {
     const answer =
@@ -234,59 +280,143 @@ async function readDecisionsSince(
     };
   });
 
-  return { items, total: matched.length };
+  return { items, total: matched.length, truncated };
 }
 
-function askUserQuestionLabel(toolInput: string): string {
+function parseAskUserQuestionInput(toolInput: string): {
+  label: string;
+  expired: boolean;
+  fencedTurnId?: string;
+} {
   try {
     const parsed = JSON.parse(toolInput) as {
+      deniesAt?: unknown;
+      fencedTurnId?: unknown;
       questions?: Array<{ question?: unknown; header?: unknown }>;
     };
+    const expired =
+      typeof parsed.deniesAt === "number" && parsed.deniesAt <= Date.now();
+    const fencedTurnId =
+      typeof parsed.fencedTurnId === "string" ? parsed.fencedTurnId : undefined;
     const first = parsed.questions?.[0];
-    if (typeof first?.question === "string" && first.question.trim()) {
-      return first.question.trim();
-    }
-    if (typeof first?.header === "string" && first.header.trim()) {
-      return first.header.trim();
-    }
+    const label =
+      typeof first?.question === "string" && first.question.trim()
+        ? first.question.trim()
+        : typeof first?.header === "string" && first.header.trim()
+          ? first.header.trim()
+          : "Question";
+    return { label, expired, fencedTurnId };
   } catch {
-    return "Question";
+    return { label: "Question", expired: false };
   }
-  return "Question";
+}
+
+async function resolvePermissionViewer(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  conversation: Doc<"conversations">,
+  access: AccessLevel,
+): Promise<{
+  runner: boolean;
+  proposer: boolean;
+  sharedFenced: boolean;
+}> {
+  const runner = conversation.user_id.toString() === userId.toString();
+  if (runner) {
+    return { runner: true, proposer: false, sharedFenced: false };
+  }
+  if (access === "shared") {
+    return { runner: false, proposer: false, sharedFenced: false };
+  }
+  const ownerDoc = await ctx.db.get(conversation.user_id);
+  const proposer =
+    !ownerDoc?.is_bot && (await viewerSeesDetail(ctx, userId, conversation));
+  const sharedFenced =
+    fencedPromptAnswersEnabled() &&
+    (await sharedPromptPermissionsEnabled(ctx, conversation));
+  return { runner: false, proposer, sharedFenced };
 }
 
 async function readOpenPrompt(
   ctx: QueryCtx,
+  userId: Id<"users">,
   conversation: Doc<"conversations">,
+  access: AccessLevel,
 ): Promise<OpenPromptSummary | null> {
-  const cutoff = Date.now() - STALE_PENDING_MS;
-  const pending = await ctx.db
-    .query("pending_permissions")
-    .withIndex("by_conversation_status", (q) =>
-      q.eq("conversation_id", conversation._id).eq("status", "pending"),
-    )
-    .order("desc")
-    .take(10);
+  const fencedState =
+    conversation.execution_protocol_state === "fenced"
+      ? await readFencedPromptState(ctx, conversation)
+      : null;
 
-  const activePermission = pending.find((p) => p.created_at > cutoff);
-  if (activePermission) {
-    return {
-      kind: "permission",
-      label: activePermission.intent?.trim() || activePermission.tool_name,
-      tool_name: activePermission.tool_name,
-      created_at: activePermission.created_at,
-    };
+  const permViewer = await resolvePermissionViewer(
+    ctx,
+    userId,
+    conversation,
+    access,
+  );
+  const canReadPermission =
+    permViewer.runner || permViewer.proposer || permViewer.sharedFenced;
+
+  if (canReadPermission) {
+    const cutoff = Date.now() - STALE_PENDING_MS;
+    const pending = await ctx.db
+      .query("pending_permissions")
+      .withIndex("by_conversation_status", (q) =>
+        q.eq("conversation_id", conversation._id).eq("status", "pending"),
+      )
+      .order("desc")
+      .take(10);
+
+    for (const p of pending) {
+      if (p.created_at <= cutoff) continue;
+      if (
+        !permViewer.runner &&
+        !permViewer.proposer &&
+        !(permViewer.sharedFenced && p.fenced_prompt_id)
+      ) {
+        continue;
+      }
+      if (
+        fencedState &&
+        p.fenced_prompt_id &&
+        p.fenced_prompt_turn_id &&
+        (await fencedState.isAnswered(
+          p.fenced_prompt_turn_id,
+          p.fenced_prompt_id,
+        ))
+      ) {
+        continue;
+      }
+      const intent = permViewer.runner
+        ? p.intent?.trim()
+        : permViewer.proposer && p.intent?.trim()
+          ? redactSecrets(p.intent.trim())
+          : undefined;
+      return {
+        kind: "permission",
+        label: intent || p.tool_name,
+        tool_name: p.tool_name,
+        created_at: p.created_at,
+      };
+    }
   }
 
-  if (conversation.execution_protocol_state === "fenced") {
-    const fencedPrompt = await firstUnansweredOpenTurnPrompt(ctx, conversation);
-    if (fencedPrompt) {
+  if (fencedState?.openPrompt) {
+    if (fencedState.openPrompt.kind !== "permission" || canReadPermission) {
       return {
-        kind: fencedPrompt.kind,
-        label: fencedPrompt.kind === "permission" ? "Permission" : "Question",
+        kind: fencedState.openPrompt.kind,
+        label:
+          fencedState.openPrompt.kind === "permission"
+            ? "Permission"
+            : "Question",
         created_at: conversation.updated_at,
       };
     }
+    return null;
+  }
+
+  if (fencedState?.allOpenTurnPromptsAnswered) {
+    return null;
   }
 
   const latestMessage = await ctx.db
@@ -299,13 +429,44 @@ async function readOpenPrompt(
 
   if (latestMessage?.role === "assistant") {
     const askCall = latestMessage.tool_calls?.find(
-      (tc) => tc.name === "AskUserQuestion",
+      (tc) => tc.name === "AskUserQuestion" || tc.name === "ask_user_question",
     );
     if (askCall) {
+      const parsed = parseAskUserQuestionInput(askCall.input);
+      if (parsed.expired) return null;
+      if (latestMessage.message_uuid?.startsWith("owned-prompt:")) {
+        const closed = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_uuid", (q) =>
+            q
+              .eq("conversation_id", conversation._id)
+              .eq("message_uuid", `${latestMessage.message_uuid}-closed`),
+          )
+          .first();
+        if (closed) return null;
+        if (
+          fencedState &&
+          parsed.fencedTurnId &&
+          (await fencedState.isAnswered(parsed.fencedTurnId, askCall.id))
+        ) {
+          return null;
+        }
+      }
+      if (
+        await answerOnItsWay(
+          ctx,
+          conversation._id,
+          latestMessage._creationTime ?? 0,
+        )
+      ) {
+        return null;
+      }
       return {
         kind: "question",
-        label: askUserQuestionLabel(askCall.input),
+        label: parsed.label,
         created_at: latestMessage.timestamp,
+        message_id: latestMessage._id,
+        timestamp: latestMessage.timestamp,
       };
     }
   }
@@ -319,12 +480,9 @@ export const get = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const conversation = await ctx.db.get(conversation_id);
-    if (
-      !conversation ||
-      (await checkConversationAccess(ctx, userId, conversation)) === "denied"
-    ) {
-      return null;
-    }
+    if (!conversation) return null;
+    const access = await checkConversationAccess(ctx, userId, conversation);
+    if (access === "denied") return null;
 
     const anchorRow = await readAnchorRow(ctx, userId, conversation_id);
     if (!anchorRow?.anchor) return null;
@@ -340,8 +498,13 @@ export const get = query({
       countTurnsSince(ctx, conversation, since),
       readChangedFilesSince(ctx, conversation_id, since),
       readDecisionsSince(ctx, conversation_id, since),
-      readOpenPrompt(ctx, conversation),
+      readOpenPrompt(ctx, userId, conversation, access),
     ]);
+
+    const rawTurns = Math.max(turns.count, files.snapshotTurnCount);
+    const newTurns = Math.min(rawTurns, TURN_COUNT_CAP);
+    const turnsTruncated =
+      turns.truncated || files.snapshotsTruncated || rawTurns > TURN_COUNT_CAP;
 
     return {
       anchor: {
@@ -350,12 +513,14 @@ export const get = query({
         timestamp: anchorMessage.timestamp,
         changed_at: anchorRow.anchor.changed_at,
       },
-      new_turns: Math.max(turns.count, files.snapshotTurnCount),
-      turns_truncated: turns.truncated,
+      new_turns: newTurns,
+      turns_truncated: turnsTruncated,
       changed_files: files.files,
       changed_files_total: files.total,
+      changed_files_truncated: files.truncated,
       decisions: decisions.items,
       decisions_total: decisions.total,
+      decisions_truncated: decisions.truncated,
       open_prompt: openPrompt,
     };
   },

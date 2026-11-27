@@ -1,5 +1,8 @@
+import Link from "next/link";
 import {
+  ArrowDownRight,
   ArrowUp,
+  ChevronRight,
   FileCode2,
   GitCommitHorizontal,
   MessageCircleQuestion,
@@ -9,6 +12,7 @@ import {
   hasLateJoinUpdates,
   type LateJoinSummary,
 } from "../../hooks/use-late-join-summary";
+import { decisionHref } from "../../lib/decisionLinks";
 import { formatRelative } from "../../lib/utils";
 import { Button } from "../ui/button";
 
@@ -27,21 +31,48 @@ function fileBasename(path: string): string {
   return parts.length > 2 ? parts.slice(-2).join("/") : path;
 }
 
+function formatCountLabel(
+  count: number,
+  truncated: boolean,
+  singular: string,
+  plural: string,
+): string {
+  const suffix = count === 1 && !truncated ? singular : plural;
+  return `${count}${truncated ? "+" : ""} ${suffix}`;
+}
+
 export function LateJoinSummaryPanel({
   summary,
   onJump,
+  onJumpPrompt,
 }: {
   summary: LateJoinSummary;
   onJump: (messageId: string, timestamp: number) => void;
+  onJumpPrompt: (prompt: NonNullable<LateJoinSummary["open_prompt"]>) => void;
 }) {
   const now = useCoarseNow(60_000);
   if (!hasLateJoinUpdates(summary)) return null;
 
   const extraFiles = summary.changed_files_total - summary.changed_files.length;
   const extraDecisions = summary.decisions_total - summary.decisions.length;
-  const turnLabel = summary.turns_truncated
-    ? `${summary.new_turns}+ turns`
-    : `${summary.new_turns} ${summary.new_turns === 1 ? "turn" : "turns"}`;
+  const turnLabel = formatCountLabel(
+    summary.new_turns,
+    summary.turns_truncated,
+    "turn",
+    "turns",
+  );
+  const filesLabel = formatCountLabel(
+    summary.changed_files_total,
+    summary.changed_files_truncated,
+    "file",
+    "files",
+  );
+  const decisionsLabel = formatCountLabel(
+    summary.decisions_total,
+    summary.decisions_truncated,
+    "decision",
+    "decisions",
+  );
 
   return (
     <section
@@ -69,8 +100,7 @@ export function LateJoinSummaryPanel({
                 className="inline-flex items-center gap-1 rounded border border-sol-border/70 bg-sol-bg px-1.5 py-0.5 text-mark tabular-nums text-sol-text-muted"
               >
                 <FileCode2 className="h-3 w-3" />
-                {summary.changed_files_total}{" "}
-                {summary.changed_files_total === 1 ? "file" : "files"}
+                {filesLabel}
               </span>
             )}
             {summary.decisions_total > 0 && (
@@ -79,18 +109,19 @@ export function LateJoinSummaryPanel({
                 className="inline-flex items-center gap-1 rounded border border-sol-border/70 bg-sol-bg px-1.5 py-0.5 text-mark tabular-nums text-sol-text-muted"
               >
                 <GitCommitHorizontal className="h-3 w-3" />
-                {summary.decisions_total}{" "}
-                {summary.decisions_total === 1 ? "decision" : "decisions"}
+                {decisionsLabel}
               </span>
             )}
             {summary.open_prompt && (
-              <span
+              <button
+                type="button"
                 data-cc-late-join-prompt-badge
-                className="inline-flex items-center gap-1 rounded border border-sol-orange/40 bg-sol-orange/10 px-1.5 py-0.5 text-mark text-sol-orange"
+                onClick={() => onJumpPrompt(summary.open_prompt!)}
+                className="inline-flex items-center gap-1 rounded border border-sol-orange/40 bg-sol-orange/10 px-1.5 py-0.5 text-mark text-sol-orange hover:bg-sol-orange/20 transition-colors"
               >
                 <MessageCircleQuestion className="h-3 w-3" />
                 {summary.open_prompt.kind}
-              </span>
+              </button>
             )}
           </div>
           <Button
@@ -128,11 +159,13 @@ export function LateJoinSummaryPanel({
               {summary.changed_files.length > 6 && (
                 <span className="text-meta tabular-nums text-sol-text-dim">
                   +{summary.changed_files.length - 6 + Math.max(0, extraFiles)}
+                  {summary.changed_files_truncated ? "+" : ""}
                 </span>
               )}
               {summary.changed_files.length <= 6 && extraFiles > 0 && (
                 <span className="text-meta tabular-nums text-sol-text-dim">
                   +{extraFiles}
+                  {summary.changed_files_truncated ? "+" : ""}
                 </span>
               )}
             </div>
@@ -146,16 +179,18 @@ export function LateJoinSummaryPanel({
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               {summary.decisions.slice(0, 4).map((decision) => (
-                <div
+                <Link
                   key={decision._id}
-                  className="flex min-w-0 items-center gap-1.5"
+                  href={decisionHref(decision)}
+                  data-cc-late-join-decision={decision._id}
+                  className="group flex min-w-0 items-center gap-1.5 rounded hover:bg-sol-bg/60"
                 >
                   <span
                     className={`shrink-0 rounded border px-1.5 py-0.5 text-mark ${decisionTone(decision.state)}`}
                   >
                     {decision.state}
                   </span>
-                  <span className="truncate text-sol-text">
+                  <span className="truncate text-sol-text group-hover:underline">
                     {decision.title}
                   </span>
                   {decision.answer && (
@@ -163,11 +198,13 @@ export function LateJoinSummaryPanel({
                       · {decision.answer}
                     </span>
                   )}
-                </div>
+                  <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-sol-text-dim opacity-0 group-hover:opacity-100" />
+                </Link>
               ))}
               {(summary.decisions.length > 4 || extraDecisions > 0) && (
                 <span className="text-meta tabular-nums text-sol-text-dim">
                   +{Math.max(0, summary.decisions.length - 4) + extraDecisions}
+                  {summary.decisions_truncated ? "+" : ""}
                 </span>
               )}
             </div>
@@ -180,12 +217,20 @@ export function LateJoinSummaryPanel({
             className="flex items-center gap-2 text-meta"
           >
             <span className="w-16 shrink-0 text-sol-text-dim">Prompt</span>
-            <span className="shrink-0 rounded border border-sol-orange/40 bg-sol-orange/10 px-1.5 py-0.5 text-mark text-sol-orange">
-              {summary.open_prompt.kind}
-            </span>
-            <span className="min-w-0 truncate text-sol-text">
-              {summary.open_prompt.label}
-            </span>
+            <button
+              type="button"
+              data-cc-late-join-prompt-jump
+              onClick={() => onJumpPrompt(summary.open_prompt!)}
+              className="group flex min-w-0 flex-1 items-center gap-1.5 text-left hover:underline"
+            >
+              <span className="shrink-0 rounded border border-sol-orange/40 bg-sol-orange/10 px-1.5 py-0.5 text-mark text-sol-orange">
+                {summary.open_prompt.kind}
+              </span>
+              <span className="min-w-0 truncate text-sol-text">
+                {summary.open_prompt.label}
+              </span>
+              <ArrowDownRight className="h-3 w-3 shrink-0 text-sol-orange" />
+            </button>
           </div>
         )}
       </div>

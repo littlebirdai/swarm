@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { NAV_PROMPT_LIVE_SINCE } from "./userMessagesFilter";
 
 const lateJoinSummary = api.lateJoinSummary;
@@ -24,12 +25,13 @@ async function setup() {
     const owner = await rows.user({ name: "Ana" });
     const teammate = await rows.user({ name: "Ben" });
     const outsider = await rows.user({ name: "Eve" });
-    await rows.membership(owner, team);
+    await rows.membership(owner, team, { visibility: "full" });
     await rows.membership(teammate, team);
 
     const teamConv = await rows.conversation(owner, {
       team_id: team,
       is_private: false,
+      team_visibility: "full",
       updated_at: BASE_TIME + 50_000,
     });
     const privateConv = await rows.conversation(owner, {
@@ -114,6 +116,104 @@ async function setup() {
   const asOwner = asUser(t, ids.owner);
   const asOutsider = asUser(t, ids.outsider);
   return { t, ...ids, asTeammate, asOwner, asOutsider };
+}
+
+async function setupFencedTurn(
+  f: Awaited<ReturnType<typeof setup>>,
+  promptDetails: Array<{
+    prompt_id: string;
+    kind: "question" | "permission";
+  }>,
+) {
+  return f.t.run(async ({ db }) => {
+    const conv = await db.insert("conversations", {
+      user_id: f.owner,
+      team_id: f.team,
+      is_private: false,
+      team_visibility: "full",
+      session_id: `fenced-${Math.random()}`,
+      agent_type: "claude_code",
+      started_at: BASE_TIME,
+      updated_at: BASE_TIME + 20_000,
+      message_count: 2,
+      status: "active",
+      execution_protocol_state: "fenced",
+      owner_device_id: "dev-1",
+    });
+    const anchorMsg = await db.insert("messages", {
+      conversation_id: conv,
+      message_uuid: "fenced-anchor",
+      role: "user",
+      nav_prompt: true,
+      content: "Start",
+      timestamp: BASE_TIME,
+    });
+    await db.insert("conversation_read_anchors", {
+      conversation_id: conv,
+      user_id: f.owner,
+      anchor: {
+        message_id: anchorMsg,
+        offset: 0,
+        changed_at: BASE_TIME + 100,
+      },
+    });
+    await db.insert("conversation_execution_heads", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      protocol_state: "fenced",
+      protocol_version: 1,
+      current_epoch: 1,
+      admission_epoch: 1,
+      next_conversation_sequence: 2,
+      next_nonterminal_sequence: 1,
+      created_at: BASE_TIME,
+      updated_at: BASE_TIME + 10_000,
+    });
+    const bindingId = await db.insert("execution_bindings", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      owner_device_id: "dev-1",
+      daemon_boot_id: "boot-1",
+      epoch: 1,
+      state: "ready",
+      claim_id: "claim-1",
+      requested_agent: "codex",
+      transport: "app-server",
+      project_path: "/fixture",
+      configuration_revision: 1,
+      protocol_version: 1,
+      required_capabilities: [],
+      requires_run_lease: true,
+      created_at: BASE_TIME,
+      updated_at: BASE_TIME + 10_000,
+    });
+    const leaseId = await db.insert("run_leases", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      binding_id: bindingId,
+      claim_id: "claim-1",
+      boot: "boot-1",
+      fencing_token: "fence-1",
+      expires_at: BASE_TIME + 500_000,
+      retain_until: BASE_TIME + 600_000,
+    });
+    await db.insert("run_turn_projections", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      binding_id: bindingId,
+      run: 1,
+      status: "active",
+      projection_version: 2,
+      turn_ids: ["turn-1"],
+      open_turn: {
+        id: "turn-1",
+        prompt_ids: promptDetails.map((p) => p.prompt_id),
+        prompt_details: promptDetails,
+      },
+      received_at: BASE_TIME + 15_000,
+    });
+    return { conv, leaseId, anchorMsg };
+  });
 }
 
 test("returns new turns, changed files, decisions, and open prompt since the viewer's anchor", async () => {
@@ -237,6 +337,7 @@ test("returns new turns, changed files, decisions, and open prompt since the vie
       { path: "src/schema.ts", count: 1 },
     ],
     changed_files_total: 2,
+    changed_files_truncated: false,
     decisions: [
       {
         _id: expect.any(String),
@@ -253,6 +354,7 @@ test("returns new turns, changed files, decisions, and open prompt since the vie
       },
     ],
     decisions_total: 2,
+    decisions_truncated: false,
     open_prompt: {
       kind: "permission",
       label: "Run unit tests",
@@ -262,10 +364,10 @@ test("returns new turns, changed files, decisions, and open prompt since the vie
   });
 });
 
-test("detects an open AskUserQuestion prompt on the latest assistant message", async () => {
+test("detects an open AskUserQuestion prompt and suppresses answered plain AskUserQuestion", async () => {
   const f = await setup();
-  await f.t.run(async ({ db }) => {
-    await db.insert("messages", {
+  const askMsgId = await f.t.run(({ db }) =>
+    db.insert("messages", {
       conversation_id: f.teamConv,
       message_uuid: "ask-1",
       role: "assistant",
@@ -280,18 +382,275 @@ test("detects an open AskUserQuestion prompt on the latest assistant message", a
         },
       ],
       timestamp: BASE_TIME + 30_000,
+    }),
+  );
+
+  const openSummary = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+
+  expect(openSummary?.open_prompt).toEqual({
+    kind: "question",
+    label: "Which target should ship first?",
+    created_at: BASE_TIME + 30_000,
+    message_id: askMsgId,
+    timestamp: BASE_TIME + 30_000,
+  });
+
+  const pendingId = await f.t.run(({ db }) =>
+    db.insert("pending_messages", {
+      conversation_id: f.teamConv,
+      from_user_id: f.owner,
+      owner_user_id: f.owner,
+      content: "Ship web first",
+      status: "pending",
+      created_at: BASE_TIME + 35_000,
+      retry_count: 0,
+      client_id: "auq-answer-1",
+    }),
+  );
+
+  const queuedAnswerSummary = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+  expect(queuedAnswerSummary?.open_prompt).toBeNull();
+
+  await f.t.run(async ({ db }) => {
+    await db.delete(pendingId);
+    await db.insert("messages", {
+      conversation_id: f.teamConv,
+      message_uuid: "ask-1-result",
+      role: "user",
+      content: "",
+      tool_results: [{ tool_use_id: "call-1", content: "Ship web first" }],
+      timestamp: BASE_TIME + 36_000,
     });
+  });
+
+  const transcriptAnswerSummary = await f.asTeammate.query(
+    lateJoinSummary.get,
+    { conversation_id: f.teamConv },
+  );
+  expect(transcriptAnswerSummary?.open_prompt).toBeNull();
+});
+
+test("ignores fenced permission answered in edge_prompt_answers while pending_permissions is still pending", async () => {
+  const f = await setup();
+  const { conv, leaseId } = await setupFencedTurn(f, [
+    { prompt_id: "perm-1", kind: "permission" },
+  ]);
+
+  await f.t.run(async ({ db }) => {
+    await db.insert("pending_permissions", {
+      conversation_id: conv,
+      session_id: "fenced-sess",
+      fenced_prompt_id: "perm-1",
+      fenced_prompt_turn_id: "turn-1",
+      tool_name: "Bash",
+      arguments_preview: "rm -rf build",
+      intent: "Clean build output",
+      status: "pending",
+      created_at: BASE_TIME + 50_000,
+      owner_user_id: f.owner,
+    });
+  });
+
+  const beforeAnswer = await f.asOwner.query(lateJoinSummary.get, {
+    conversation_id: conv,
+  });
+  expect(beforeAnswer?.open_prompt).toMatchObject({
+    kind: "permission",
+    label: "Clean build output",
+  });
+
+  await f.t.run(({ db }) =>
+    db.insert("edge_prompt_answers", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      actor_user_id: f.owner,
+      device_id: "dev-1",
+      boot: "boot-1",
+      run: 1,
+      lease_id: leaseId,
+      turn_id: "turn-1",
+      prompt_id: "perm-1",
+      answer: { behavior: "allow" },
+    }),
+  );
+
+  const afterAnswer = await f.asOwner.query(lateJoinSummary.get, {
+    conversation_id: conv,
+  });
+  expect(afterAnswer?.open_prompt).toBeNull();
+});
+
+test("ignores fenced question answered in edge_prompt_answers and does not fall back to message scan", async () => {
+  const f = await setup();
+  const { conv, leaseId } = await setupFencedTurn(f, [
+    { prompt_id: "q-1", kind: "question" },
+  ]);
+
+  await f.t.run(async ({ db }) => {
+    await db.insert("messages", {
+      conversation_id: conv,
+      message_uuid: "ask-json-1",
+      role: "assistant",
+      content: "",
+      tool_calls: [
+        {
+          id: "q-1",
+          name: "AskUserQuestion",
+          input: JSON.stringify({
+            questions: [{ question: "Which strategy?" }],
+          }),
+        },
+      ],
+      timestamp: BASE_TIME + 16_000,
+    });
+  });
+
+  const beforeAnswer = await f.asOwner.query(lateJoinSummary.get, {
+    conversation_id: conv,
+  });
+  expect(beforeAnswer?.open_prompt).toEqual({
+    kind: "question",
+    label: "Question",
+    created_at: BASE_TIME + 20_000,
+  });
+
+  await f.t.run(({ db }) =>
+    db.insert("edge_prompt_answers", {
+      conversation_id: conv,
+      owner_user_id: f.owner,
+      actor_user_id: f.owner,
+      device_id: "dev-1",
+      boot: "boot-1",
+      run: 1,
+      lease_id: leaseId,
+      turn_id: "turn-1",
+      prompt_id: "q-1",
+      answer: { answers: { q: { answers: ["Option A"] } } },
+    }),
+  );
+
+  const afterAnswer = await f.asOwner.query(lateJoinSummary.get, {
+    conversation_id: conv,
+  });
+  expect(afterAnswer?.open_prompt).toBeNull();
+});
+
+test("withholds permission details from share-link viewers and redacts secrets for non-runners", async () => {
+  const f = await setup();
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.privateConv, { share_token: "share-secret-1" });
+    await db.insert("share_redemptions", {
+      user_id: f.outsider,
+      conversation_id: f.privateConv,
+      token: "share-secret-1",
+      created_at: BASE_TIME,
+    });
+    await db.insert("pending_permissions", {
+      conversation_id: f.privateConv,
+      session_id: "priv-sess",
+      tool_name: "Bash",
+      arguments_preview: "export KEY=sk-ant-api03-secret1234567890",
+      intent: "Run curl with sk-ant-api03-secret12345678901234567890",
+      status: "pending",
+      created_at: BASE_TIME + 50_000,
+      owner_user_id: f.owner,
+    });
+    await db.insert("pending_permissions", {
+      conversation_id: f.teamConv,
+      session_id: "team-sess",
+      tool_name: "Bash",
+      arguments_preview: "cat secret",
+      intent: "Use token sk-ant-api03-abcdefghijklmnopqrstuvwx",
+      status: "pending",
+      created_at: BASE_TIME + 50_000,
+      owner_user_id: f.owner,
+    });
+  });
+
+  const sharedSummary = await f.asOutsider.query(lateJoinSummary.get, {
+    conversation_id: f.privateConv,
+  });
+  expect(sharedSummary?.open_prompt).toBeNull();
+
+  const teamSummary = await f.asTeammate.query(lateJoinSummary.get, {
+    conversation_id: f.teamConv,
+  });
+  expect(teamSummary?.open_prompt?.kind).toBe("permission");
+  expect(teamSummary?.open_prompt?.label).not.toContain(
+    "sk-ant-api03-abcdefghijklmnopqrstuvwx",
+  );
+  expect(teamSummary?.open_prompt?.label).toContain("[REDACTED_API_KEY]");
+
+  const ownerSummary = await f.asOwner.query(lateJoinSummary.get, {
+    conversation_id: f.privateConv,
+  });
+  expect(ownerSummary).toBeNull();
+});
+
+test("finds older decisions resolved after the anchor and sets truncation flags when caps are hit", async () => {
+  const f = await setup();
+  await f.t.run(async ({ db }) => {
+    const oldResolved = await db.insert("session_decisions", {
+      conversation_id: f.teamConv,
+      session_id: "sess-1",
+      user_id: f.owner,
+      short_id: "sd-old",
+      question: "Older decision resolved late",
+      options: [{ label: "Done" }],
+      blocking: true,
+      status: "answered",
+      answer_index: 0,
+      created_at: BASE_TIME - 50_000,
+      resolved_at: BASE_TIME + 30_000,
+    });
+    for (let i = 0; i < 55; i++) {
+      await db.insert("session_decisions", {
+        conversation_id: f.teamConv,
+        session_id: "sess-1",
+        user_id: f.owner,
+        short_id: `sd-hist-${i}`,
+        question: `Historical decision ${i}`,
+        options: [{ label: "Ok" }],
+        blocking: false,
+        status: "answered",
+        answer_index: 0,
+        created_at: BASE_TIME - 40_000 + i,
+        resolved_at: BASE_TIME - 10_000 + i,
+      });
+    }
+    await db.insert("tree_snapshots", {
+      conversation_id: f.teamConv,
+      sha: "snap-clipped",
+      tree_sha: "tree-clipped",
+      base_sha: "base-clipped",
+      depth: 1,
+      changed_paths: ["src/clipped.ts"],
+      changed_count: 250,
+      dirty: true,
+      checkout_key: "chk-clipped",
+      source: "turn",
+      taken_at: BASE_TIME + 40_000,
+    });
+    expect(oldResolved).toBeTruthy();
   });
 
   const summary = await f.asTeammate.query(lateJoinSummary.get, {
     conversation_id: f.teamConv,
   });
 
-  expect(summary?.open_prompt).toEqual({
-    kind: "question",
-    label: "Which target should ship first?",
-    created_at: BASE_TIME + 30_000,
+  expect(summary?.decisions_total).toBe(1);
+  expect(summary?.decisions_truncated).toBe(true);
+  expect(summary?.decisions[0]).toMatchObject({
+    short_id: "sd-old",
+    title: "Older decision resolved late",
+    state: "answered",
+    answer: "Done",
   });
+  expect(summary?.changed_files_truncated).toBe(true);
 });
 
 test("returns zero updates when nothing happened since the viewer's anchor", async () => {
@@ -327,8 +686,10 @@ test("returns zero updates when nothing happened since the viewer's anchor", asy
     turns_truncated: false,
     changed_files: [],
     changed_files_total: 0,
+    changed_files_truncated: false,
     decisions: [],
     decisions_total: 0,
+    decisions_truncated: false,
     open_prompt: null,
   });
 });
@@ -371,7 +732,7 @@ test("returns null when unauthenticated, lacking access, or missing an anchor", 
   expect(sharedSummary?.new_turns).toBe(1);
 });
 
-test("counts pre-cutoff turns via role index fallback and detects fenced open-turn prompts", async () => {
+test("counts pre-cutoff turns via role index fallback", async () => {
   const f = await setup();
   const earlyBase = 10_000;
   const earlyConv = await f.t.run(async ({ db }) => {
@@ -379,14 +740,13 @@ test("counts pre-cutoff turns via role index fallback and detects fenced open-tu
       user_id: f.owner,
       team_id: f.team,
       is_private: false,
-      session_id: "fenced-early-sess",
+      team_visibility: "full",
+      session_id: "early-sess",
       agent_type: "claude_code",
       started_at: earlyBase,
       updated_at: earlyBase + 20_000,
       message_count: 3,
       status: "active",
-      execution_protocol_state: "fenced",
-      owner_device_id: "dev-1",
     });
     const earlyAnchor = await db.insert("messages", {
       conversation_id: conv,
@@ -419,72 +779,11 @@ test("counts pre-cutoff turns via role index fallback and detects fenced open-tu
         changed_at: earlyBase + 100,
       },
     });
-    await db.insert("conversation_execution_heads", {
-      conversation_id: conv,
-      owner_user_id: f.owner,
-      protocol_state: "fenced",
-      protocol_version: 1,
-      current_epoch: 1,
-      admission_epoch: 1,
-      next_conversation_sequence: 2,
-      next_nonterminal_sequence: 1,
-      created_at: earlyBase,
-      updated_at: earlyBase + 10_000,
-    });
-    const bindingId = await db.insert("execution_bindings", {
-      conversation_id: conv,
-      owner_user_id: f.owner,
-      owner_device_id: "dev-1",
-      daemon_boot_id: "boot-1",
-      epoch: 1,
-      state: "ready",
-      claim_id: "claim-1",
-      requested_agent: "codex",
-      transport: "app-server",
-      project_path: "/fixture",
-      configuration_revision: 1,
-      protocol_version: 1,
-      required_capabilities: [],
-      requires_run_lease: true,
-      created_at: earlyBase,
-      updated_at: earlyBase + 10_000,
-    });
-    await db.insert("run_leases", {
-      conversation_id: conv,
-      owner_user_id: f.owner,
-      binding_id: bindingId,
-      claim_id: "claim-1",
-      boot: "boot-1",
-      fencing_token: "fence-1",
-      expires_at: BASE_TIME + 500_000,
-      retain_until: BASE_TIME + 600_000,
-    });
-    await db.insert("run_turn_projections", {
-      conversation_id: conv,
-      owner_user_id: f.owner,
-      binding_id: bindingId,
-      run: 1,
-      status: "active",
-      projection_version: 2,
-      turn_ids: ["turn-1"],
-      open_turn: {
-        id: "turn-1",
-        prompt_ids: ["prompt-1"],
-        prompt_details: [{ prompt_id: "prompt-1", kind: "question" }],
-      },
-      received_at: earlyBase + 15_000,
-    });
     return conv;
   });
 
   const summary = await f.asTeammate.query(lateJoinSummary.get, {
     conversation_id: earlyConv,
   });
-
   expect(summary?.new_turns).toBe(1);
-  expect(summary?.open_prompt).toEqual({
-    kind: "question",
-    label: "Question",
-    created_at: earlyBase + 20_000,
-  });
 });

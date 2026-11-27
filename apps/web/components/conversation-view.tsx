@@ -254,6 +254,7 @@ import {
   hasLateJoinUpdates,
   isLateJoinSummaryEnabled,
   useLateJoinSummary,
+  type LateJoinSummary,
 } from "../hooks/use-late-join-summary";
 import { TmuxAttachPill } from "./TmuxAttachPill";
 import { useAttachCopy } from "../hooks/useAttachCopy";
@@ -3966,6 +3967,54 @@ const ConversationViewInner = function ConversationView(
     [timeline, scrollToMessageById, onJumpToTimestamp],
   );
 
+  const handleJumpToLateJoinPrompt = useCallback(
+    (prompt: NonNullable<LateJoinSummary["open_prompt"]>) => {
+      if (prompt.message_id) {
+        sawAwayFromBottomRef.current = true;
+        const inTimeline = timeline.some(
+          (item) =>
+            item.type === "message" && item.data._id === prompt.message_id,
+        );
+        if (
+          inTimeline ||
+          !onJumpToTimestamp ||
+          prompt.timestamp === undefined
+        ) {
+          scrollToMessageById(prompt.message_id);
+        } else {
+          onJumpToTimestamp(prompt.timestamp);
+        }
+        return;
+      }
+      setLateJoinReachedBottom(true);
+      if (hasMoreBelow && onJumpToEnd) {
+        jumpDirectionRef.current = "end";
+        setJumpPending("end");
+        setGuestStayAtTop(false);
+        onJumpToEnd();
+      } else {
+        setGuestStayAtTop(false);
+        setUserScrolled(false);
+        paginationCooldownRef.current = Date.now() + 1000;
+        scrollToEdgeRef.current("bottom");
+        const dock = containerRef.current
+          ?.closest("main")
+          ?.querySelector<HTMLElement>("[data-cc-permission-dock]");
+        dock?.scrollIntoView?.({ block: "nearest" });
+      }
+    },
+    [
+      timeline,
+      scrollToMessageById,
+      onJumpToTimestamp,
+      hasMoreBelow,
+      onJumpToEnd,
+      setJumpPending,
+      setUserScrolled,
+      setGuestStayAtTop,
+    ],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
@@ -6826,18 +6875,27 @@ const ConversationViewInner = function ConversationView(
     conversation.fork_status !== "copying" &&
     !(conversation.message_count ?? 0) &&
     !runLogEnded;
-  const lateJoinSummary = useLateJoinSummary(
+  const lateJoinSummaryRaw = useLateJoinSummary(
     convexConvId ?? null,
-    lateJoinEnabled && !guest && !newSessionPage,
+    lateJoinEnabled && !guest && !newSessionPage && !lateJoinReachedBottom,
   );
+  const lateJoinSummary = useMemo(() => {
+    if (!lateJoinSummaryRaw) return lateJoinSummaryRaw;
+    if (
+      lateJoinSummaryRaw.open_prompt?.kind === "permission" &&
+      pendingPermissionsRaw !== undefined &&
+      pendingPermissionsRaw.length === 0
+    ) {
+      return { ...lateJoinSummaryRaw, open_prompt: null };
+    }
+    return lateJoinSummaryRaw;
+  }, [lateJoinSummaryRaw, pendingPermissionsRaw]);
+  const lateJoinVisitKey = conversation?._id ? String(conversation._id) : null;
   useWatchEffect(() => {
+    if (lateJoinVisitKey === undefined) return;
     setLateJoinReachedBottom(false);
     sawAwayFromBottomRef.current = false;
-  }, [
-    conversation?._id,
-    lateJoinSummary?.anchor.message_id,
-    lateJoinSummary?.anchor.changed_at,
-  ]);
+  }, [lateJoinVisitKey]);
   const [newSessionFootSlot, setNewSessionFootSlot] =
     useState<HTMLElement | null>(null);
   const [newSessionBelowSlot, setNewSessionBelowSlot] =
@@ -8915,6 +8973,9 @@ const ConversationViewInner = function ConversationView(
                                       <LateJoinSummaryPanel
                                         summary={lateJoinSummary}
                                         onJump={handleJumpToLateJoinAnchor}
+                                        onJumpPrompt={
+                                          handleJumpToLateJoinPrompt
+                                        }
                                       />
                                     )}
                                   <div
@@ -10129,6 +10190,7 @@ const ConversationViewInner = function ConversationView(
                                               hasMoreBelow &&
                                               onJumpToEnd
                                             ) {
+                                              setLateJoinReachedBottom(true);
                                               jumpDirectionRef.current = "end";
                                               setJumpPending("end");
                                               setGuestStayAtTop(false);
@@ -10255,6 +10317,7 @@ const ConversationViewInner = function ConversationView(
                                   {pendingPermissions &&
                                     pendingPermissions.length > 0 && (
                                       <div
+                                        data-cc-permission-dock
                                         className={`border-t border-sol-border/40 shrink-0 ${embedded ? "-mx-[9999px] px-[9999px]" : ""}`}
                                       >
                                         {/* The composer, and the suggestion cards above it, wait under a prompt; the cards do not. */}
