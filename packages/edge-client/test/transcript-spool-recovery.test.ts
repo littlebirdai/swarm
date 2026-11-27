@@ -4,14 +4,21 @@ import { join as joinPath } from "node:path";
 import { tmpdir } from "node:os";
 import {
   TRANSCRIPT_APPEND_MAX_BYTES,
+  type TranscriptAppendReceipt,
   type TranscriptAppendRequest,
+  type TranscriptAppendWrite,
 } from "@codecast/edge-contract";
 import { it } from "@codecast/effect-kit/effect/testing";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import { join } from "effect/Fiber";
 import * as Metric from "effect/Metric";
 import { adjust } from "effect/testing/TestClock";
-import { fileTranscriptSpool, TranscriptUplink } from "../src/effect";
+import {
+  fileTranscriptSpool,
+  TranscriptUplink,
+  TranscriptUplinkError,
+} from "../src/effect";
 
 for (const recovers of [true, false]) {
   it.effect(
@@ -87,7 +94,7 @@ const retained: TranscriptAppendRequest = {
   ],
 };
 
-const ack = (batch: TranscriptAppendRequest) => ({
+const ack = (batch: TranscriptAppendRequest): TranscriptAppendReceipt => ({
   v: 1,
   batch_id: batch.batch_id,
   results: batch.writes.map(() => ({
@@ -154,6 +161,13 @@ for (const failsClear of [false, true]) {
           const uplink = yield* TranscriptUplink;
           yield* adjust(0);
           expect(sent).toEqual([retained]);
+          const startupError = yield* Effect.flip(uplink.ready);
+          expect(startupError.message).toContain(
+            failsClear
+              ? "spool clear failed"
+              : "Invalid transcript batch receipt",
+          );
+          expect(startupError.message).toContain("held");
           expect(
             (yield* Effect.flip(uplink.waitForReplay("held"))).message,
           ).toContain(
@@ -173,7 +187,6 @@ for (const failsClear of [false, true]) {
           yield* adjust(1);
           expect(sent).toEqual(failsClear ? [retained] : [retained, retained]);
           expect(clears).toBe(failsClear ? 2 : 1);
-          yield* uplink.ready;
           yield* uplink.waitForReplay("held");
         }).pipe(
           Effect.provide(
@@ -235,6 +248,156 @@ it.effect(
             spool: fileTranscriptSpool(path),
             async send() {
               throw new Error("Unexpected edge request");
+            },
+          }),
+        ),
+      );
+    }),
+);
+
+it.effect(
+  "a malformed packet from an older daemon skips the edge and clears after ordered fallback",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* Effect.acquireRelease(
+        Effect.promise(() =>
+          mkdtemp(joinPath(tmpdir(), "transcript-old-spool-")),
+        ),
+        (path) =>
+          Effect.promise(() => rm(path, { recursive: true, force: true })),
+      );
+      const spool = fileTranscriptSpool(joinPath(directory, "spool.json"));
+      const rejected: TranscriptAppendWrite = {
+        conversation_id: "bad",
+        messages: [{ role: "assistant", message_uuid: "old-bad", content: 42 }],
+      };
+      const good: TranscriptAppendWrite = {
+        conversation_id: "good",
+        messages: [
+          { role: "assistant", message_uuid: "old-good", content: "valid" },
+        ],
+      };
+      yield* Effect.promise(() =>
+        spool.save({ v: 1, batch_id: "previous", writes: [rejected, good] }),
+      );
+      const legacy: string[] = [];
+      yield* Effect.flatMap(TranscriptUplink, (uplink) => uplink.ready).pipe(
+        Effect.provide(
+          TranscriptUplink.layer({
+            spool,
+            async send() {
+              throw new TranscriptUplinkError({
+                message: "malformed batch reached the edge",
+                retryable: false,
+              });
+            },
+            async fallback(write) {
+              legacy.push(write.conversation_id);
+              return write.conversation_id === "bad"
+                ? { status: "refused" }
+                : { status: "applied", inserted: 1, ids: ["good"] };
+            },
+          }),
+        ),
+      );
+      expect(legacy).toEqual(["bad", "good"]);
+      expect(yield* Effect.promise(spool.read)).toBeNull();
+    }),
+);
+
+it.effect("the disk spool caps both saves and reads before decoding", () =>
+  Effect.gen(function* () {
+    const directory = yield* Effect.acquireRelease(
+      Effect.promise(() =>
+        mkdtemp(joinPath(tmpdir(), "transcript-spool-limit-")),
+      ),
+      (path) =>
+        Effect.promise(() => rm(path, { recursive: true, force: true })),
+    );
+    const path = joinPath(directory, "spool.json");
+    const spool = fileTranscriptSpool(path);
+    const batch: TranscriptAppendRequest = {
+      v: 1,
+      batch_id: "large",
+      writes: [
+        {
+          conversation_id: "large",
+          messages: [
+            {
+              role: "assistant",
+              content: "é".repeat(TRANSCRIPT_APPEND_MAX_BYTES / 2),
+            },
+          ],
+        },
+      ],
+    };
+    const saveFailure = yield* Effect.flip(
+      Effect.tryPromise(() => spool.save(batch)),
+    );
+    expect(saveFailure.cause).toEqual(
+      new Error("Transcript spool exceeds byte limit"),
+    );
+    expect(yield* Effect.promise(spool.read)).toBeNull();
+    yield* Effect.promise(() => writeFile(path, JSON.stringify(batch)));
+    const readFailure = yield* Effect.flip(Effect.tryPromise(spool.read));
+    expect(readFailure.cause).toEqual(
+      new Error("Transcript spool exceeds byte limit"),
+    );
+  }),
+);
+
+it.effect(
+  "an unreadable startup spool fails both waiting and later writes closed",
+  () =>
+    Effect.gen(function* () {
+      const failRead = yield* Deferred.make<void>();
+      let sends = 0;
+      yield* Effect.flatMap(TranscriptUplink, (uplink) =>
+        Effect.gen(function* () {
+          const waiting = yield* Effect.forkChild(
+            Effect.result(
+              uplink.submit({
+                conversation_id: "possibly-spooled",
+                messages: [{ role: "assistant", content: "possibly-spooled" }],
+              }),
+            ),
+          );
+          yield* adjust(0);
+          yield* Deferred.succeed(failRead, undefined);
+          const error = yield* Effect.flip(uplink.ready);
+          expect(error.message).toContain("Transcript spool read failed");
+          expect(yield* join(waiting)).toMatchObject({
+            _tag: "Failure",
+            failure: error,
+          });
+          expect(
+            yield* Effect.result(
+              uplink.submit({
+                conversation_id: "new",
+                messages: [{ role: "assistant", content: "new" }],
+              }),
+            ),
+          ).toMatchObject({ _tag: "Failure", failure: error });
+          expect(yield* Effect.flip(uplink.waitForReplay("new"))).toBe(error);
+          expect(sends).toBe(0);
+        }),
+      ).pipe(
+        Effect.provide(
+          TranscriptUplink.layer({
+            spool: {
+              read: async () => {
+                await Effect.runPromise(Deferred.await(failRead));
+                throw new Error("spool unreadable");
+              },
+              save: async () => {},
+              clear: async () => {},
+            },
+            async send(batch): Promise<TranscriptAppendReceipt> {
+              sends++;
+              return ack(batch);
+            },
+            async fallback() {
+              return { status: "refused" };
             },
           }),
         ),

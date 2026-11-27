@@ -80,6 +80,55 @@ export function attachTranscriptUplink(
   sync.setTranscriptUplink(binding);
 }
 
+export function startDaemonTranscriptUplink(
+  sync: {
+    setApiToken(token: string): void;
+    setTranscriptUplink(
+      uplink: SyncTranscriptUplink | undefined,
+      expected?: SyncTranscriptUplink,
+    ): void;
+    replayTranscriptWrite(
+      write: TranscriptAppendWrite,
+      bearer: string,
+    ): Promise<TranscriptAppendResult>;
+  },
+  options: {
+    convexUrl: string;
+    account: string | undefined;
+    readConfig: () => {
+      user_id?: string;
+      convex_url?: string;
+      auth_token?: string;
+    } | null;
+    logError: (message: string, error: Error) => void;
+  },
+) {
+  const { convexUrl, account, readConfig, logError } = options;
+  if (process.env.CODECAST_EDGE_TRANSCRIPT_UPLINK_V1 !== "1" || !account)
+    return undefined;
+  const opening = import("./daemon-transcript-uplink.js").then(
+    ({ openTranscriptUplink }) =>
+      openTranscriptUplink(sync, {
+        convexUrl,
+        account,
+        bearer: () => {
+          const latest = readConfig();
+          if (
+            latest?.user_id !== account ||
+            (latest?.convex_url || process.env.CONVEX_URL) !== convexUrl
+          )
+            return null;
+          if (latest?.auth_token) sync.setApiToken(latest.auth_token);
+          return latest?.auth_token ?? null;
+        },
+      }),
+  );
+  attachTranscriptUplink(sync, opening, (error) =>
+    logError("Transcript uplink startup failed", error),
+  );
+  return opening;
+}
+
 export function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(
   message: T,
 ): Omit<T, "delivery_ids"> {

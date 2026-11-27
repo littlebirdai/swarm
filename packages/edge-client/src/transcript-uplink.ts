@@ -29,6 +29,32 @@ const quarantinedSpools = Metric.counter(
   "transcript_uplink_quarantined_spools",
 );
 const terminalBypasses = Metric.counter("transcript_uplink_terminal_bypasses");
+const heldReplayConversations = Metric.gauge(
+  "transcript_uplink_replay_held_conversations",
+);
+const replayRetries = Metric.counter("transcript_uplink_replay_retries");
+const replayBypasses = Metric.counter("transcript_uplink_replay_bypasses");
+
+function heldConversations(batch: TranscriptAppendRequest) {
+  return [
+    ...new Set(batch.writes.map(({ conversation_id }) => conversation_id)),
+  ];
+}
+
+function startupReplayFailure(
+  error: TranscriptUplinkError,
+  conversations: readonly string[],
+) {
+  return new TranscriptUplinkError({
+    message: `${error.message} (held conversations: ${conversations.join(", ")})`,
+    retryable: error.retryable,
+    retryAfterMs: error.retryAfterMs,
+    fallbackAllowed: error.fallbackAllowed,
+    credentialRejected: error.credentialRejected,
+    cause: error,
+    spoolPath: error.spoolPath,
+  });
+}
 
 export type TranscriptSubmission =
   | TranscriptAppendResult
@@ -230,7 +256,13 @@ export class TranscriptUplink extends Context.Service<
         const sendHeldBatch = Effect.fn("TranscriptUplink.send-held-batch")(
           function* (batch: TranscriptAppendRequest, entries: PendingWrite[]) {
             let results: TranscriptAppendResult[] | undefined;
+            let attempts = 0;
+            let lastLoggedFailure: string | undefined;
+            const conversations = heldConversations(batch);
             for (;;) {
+              attempts++;
+              if (replaying && attempts > 1)
+                yield* Metric.update(replayRetries, 1);
               const attempt = yield* Effect.result(
                 Effect.gen(function* () {
                   results ??= yield* transmit(batch);
@@ -243,6 +275,7 @@ export class TranscriptUplink extends Context.Service<
                 }),
               );
               if (attempt._tag === "Success") {
+                if (replaying) yield* Metric.update(heldReplayConversations, 0);
                 replaying = false;
                 activeBatch = null;
                 heldFailure = undefined;
@@ -256,7 +289,23 @@ export class TranscriptUplink extends Context.Service<
               if (!replaying && !attempt.failure.retryable)
                 return yield* attempt.failure;
               heldFailure = attempt.failure;
-              if (replaying) yield* Deferred.fail(replayFailure, heldFailure);
+              if (lastLoggedFailure !== heldFailure.message) {
+                lastLoggedFailure = heldFailure.message;
+                yield* Effect.logWarning(
+                  `Transcript uplink ${replaying ? "replay" : "batch"} failed for ${conversations.join(", ")} (attempt ${attempts}): ${heldFailure.message}`,
+                );
+              }
+              if (replaying) {
+                yield* Metric.update(
+                  heldReplayConversations,
+                  conversations.length,
+                );
+                yield* Deferred.fail(replayFailure, heldFailure);
+                yield* Deferred.fail(
+                  ready,
+                  startupReplayFailure(heldFailure, conversations),
+                );
+              }
               for (const entry of entries)
                 yield* Deferred.fail(entry.result, heldFailure);
               yield* Effect.sleep(
@@ -371,13 +420,17 @@ export class TranscriptUplink extends Context.Service<
               });
             }
             const onTerminal = Effect.fn("TranscriptUplink.bypass-terminal")(
-              function* (error: TranscriptUplinkError) {
+              function* (
+                error: TranscriptUplinkError,
+                counter?: Metric.Counter<number>,
+              ) {
                 yield* Deferred.await(discovered);
                 if (
                   !options.fallback ||
                   activeConversation(write.conversation_id)
                 )
                   return yield* error;
+                if (counter) yield* Metric.update(counter, 1);
                 return { status: "legacy" as const };
               },
             );
@@ -389,7 +442,10 @@ export class TranscriptUplink extends Context.Service<
             if (replaying) {
               const replay = yield* Effect.result(replayGate);
               if (replay._tag === "Failure")
-                return yield* onTerminal(heldFailure ?? replay.failure);
+                return yield* onTerminal(
+                  heldFailure ?? replay.failure,
+                  replayBypasses,
+                );
             }
             if (heldFailure && activeConversation(write.conversation_id))
               return yield* heldFailure;

@@ -768,7 +768,7 @@ import {
   type ConversationLifecycle,
   type CreateConversationParams,
 } from "./syncService.js";
-import { attachTranscriptUplink } from "./transcript-write.js";
+import { startDaemonTranscriptUplink } from "./transcript-write.js";
 import { subagentPromptParent } from "./agentPromptOrigin.js";
 import { declaredSpawnParent } from "./spawnParents.js";
 import { redactSecrets, maskToken } from "./redact.js";
@@ -40267,33 +40267,12 @@ async function main(): Promise<void> {
   // Every echo this daemon uploads names the delivery it settles. Nothing
   // above has awaited since syncService was built, so no upload precedes it.
   syncService.setDeliveryEchoes(deliveryEchoLedger());
-  const transcriptUplink =
-    process.env.CODECAST_EDGE_TRANSCRIPT_UPLINK_V1 === "1" && config.user_id
-      ? import("./daemon-transcript-uplink.js").then(
-          ({ openTranscriptUplink }) =>
-            openTranscriptUplink(syncService, {
-              convexUrl,
-              configDir: CONFIG_DIR,
-              account: config.user_id!,
-              machine: deviceId(),
-              bearer: () => {
-                const latest = readConfig();
-                if (
-                  latest?.user_id !== config.user_id ||
-                  (latest?.convex_url || process.env.CONVEX_URL) !== convexUrl
-                )
-                  return null;
-                if (latest?.auth_token)
-                  syncService.setApiToken(latest.auth_token);
-                return latest?.auth_token ?? null;
-              },
-            }),
-        )
-      : undefined;
-  if (transcriptUplink)
-    attachTranscriptUplink(syncService, transcriptUplink, (error) =>
-      logError("Transcript uplink startup failed", error),
-    );
+  const transcriptUplink = startDaemonTranscriptUplink(syncService, {
+    convexUrl,
+    account: config.user_id,
+    readConfig,
+    logError,
+  });
 
   // Open the Convex WebSocket now, before the tmux warm restart. That scan
   // awaits every managed pane (133s for 135 sessions on 2026-09-15) and used

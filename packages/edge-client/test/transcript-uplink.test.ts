@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join as joinPath } from "node:path";
 import {
@@ -12,6 +12,7 @@ import {
 import { it } from "@codecast/effect-kit/effect/testing";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
 import { join } from "effect/Fiber";
 import { adjust } from "effect/testing/TestClock";
@@ -481,96 +482,6 @@ it.effect(
 );
 
 it.effect(
-  "a malformed packet from an older daemon skips the edge and clears after ordered fallback",
-  () =>
-    Effect.gen(function* () {
-      const directory = yield* Effect.acquireRelease(
-        Effect.promise(() =>
-          mkdtemp(joinPath(tmpdir(), "transcript-old-spool-")),
-        ),
-        (path) =>
-          Effect.promise(() => rm(path, { recursive: true, force: true })),
-      );
-      const spool = fileTranscriptSpool(joinPath(directory, "spool.json"));
-      const rejected: TranscriptAppendWrite = {
-        conversation_id: "bad",
-        messages: [{ role: "assistant", message_uuid: "old-bad", content: 42 }],
-      };
-      const good: TranscriptAppendWrite = {
-        conversation_id: "good",
-        messages: [
-          { role: "assistant", message_uuid: "old-good", content: "valid" },
-        ],
-      };
-      yield* Effect.promise(() =>
-        spool.save({ v: 1, batch_id: "previous", writes: [rejected, good] }),
-      );
-      const legacy: string[] = [];
-      yield* withUplink(
-        {
-          spool,
-          async send() {
-            throw new TranscriptUplinkError({
-              message: "malformed batch reached the edge",
-              retryable: false,
-            });
-          },
-          async fallback(write) {
-            legacy.push(write.conversation_id);
-            return write.conversation_id === "bad"
-              ? { status: "refused" }
-              : { status: "applied", inserted: 1, ids: ["good"] };
-          },
-        },
-        (uplink) => uplink.ready,
-      );
-      expect(legacy).toEqual(["bad", "good"]);
-      expect(yield* Effect.promise(spool.read)).toBeNull();
-    }),
-);
-
-it.effect("the disk spool caps both saves and reads before decoding", () =>
-  Effect.gen(function* () {
-    const directory = yield* Effect.acquireRelease(
-      Effect.promise(() =>
-        mkdtemp(joinPath(tmpdir(), "transcript-spool-limit-")),
-      ),
-      (path) =>
-        Effect.promise(() => rm(path, { recursive: true, force: true })),
-    );
-    const path = joinPath(directory, "spool.json");
-    const spool = fileTranscriptSpool(path);
-    const batch: TranscriptAppendRequest = {
-      v: 1,
-      batch_id: "large",
-      writes: [
-        {
-          conversation_id: "large",
-          messages: [
-            {
-              role: "assistant",
-              content: "é".repeat(TRANSCRIPT_APPEND_MAX_BYTES / 2),
-            },
-          ],
-        },
-      ],
-    };
-    const saveFailure = yield* Effect.flip(
-      Effect.tryPromise(() => spool.save(batch)),
-    );
-    expect(saveFailure.cause).toEqual(
-      new Error("Transcript spool exceeds byte limit"),
-    );
-    expect(yield* Effect.promise(spool.read)).toBeNull();
-    yield* Effect.promise(() => writeFile(path, JSON.stringify(batch)));
-    const readFailure = yield* Effect.flip(Effect.tryPromise(spool.read));
-    expect(readFailure.cause).toEqual(
-      new Error("Transcript spool exceeds byte limit"),
-    );
-  }),
-);
-
-it.effect(
   "rotating rejected credentials wait for the minimum and bounded Retry-After",
   () =>
     Effect.gen(function* () {
@@ -652,52 +563,6 @@ it.effect(
             expect(yield* Effect.flip(uplink.submit(write("held")))).toBe(
               permanent,
             );
-          }),
-      );
-    }),
-);
-
-it.effect(
-  "an unreadable startup spool fails both waiting and later writes closed",
-  () =>
-    Effect.gen(function* () {
-      const failRead = yield* Deferred.make<void>();
-      let sends = 0;
-      yield* withUplink(
-        {
-          spool: {
-            ...memorySpool(),
-            async read() {
-              await Effect.runPromise(Deferred.await(failRead));
-              throw new Error("spool unreadable");
-            },
-          },
-          async send(batch) {
-            sends++;
-            return receipt(batch);
-          },
-          async fallback() {
-            return { status: "refused" };
-          },
-        },
-        (uplink) =>
-          Effect.gen(function* () {
-            const waiting = yield* Effect.forkChild(
-              Effect.result(uplink.submit(write("possibly-spooled"))),
-            );
-            yield* adjust(0);
-            yield* Deferred.succeed(failRead, undefined);
-            const error = yield* Effect.flip(uplink.ready);
-            expect(error.message).toContain("Transcript spool read failed");
-            expect(yield* join(waiting)).toMatchObject({
-              _tag: "Failure",
-              failure: error,
-            });
-            expect(
-              yield* Effect.result(uplink.submit(write("new"))),
-            ).toMatchObject({ _tag: "Failure", failure: error });
-            expect(yield* Effect.flip(uplink.waitForReplay("new"))).toBe(error);
-            expect(sends).toBe(0);
           }),
       );
     }),
@@ -797,3 +662,133 @@ it.effect(
       );
     }),
 );
+
+for (const mode of ["receipt", "clear"] as const) {
+  it.effect(
+    `persistent ${mode} error during replay settles startup, logs on state change, moves metrics, and recovers`,
+    () =>
+      Effect.gen(function* () {
+        const warnings: string[] = [];
+        const logger = Logger.make(({ logLevel, message }) => {
+          if (logLevel === "Warn")
+            warnings.push(
+              Array.isArray(message)
+                ? message.map(String).join(" ")
+                : String(message),
+            );
+        });
+        const heldGauge = Metric.gauge(
+          "transcript_uplink_replay_held_conversations",
+        );
+        const retriesCounter = Metric.counter(
+          "transcript_uplink_replay_retries",
+        );
+        const bypassesCounter = Metric.counter(
+          "transcript_uplink_replay_bypasses",
+        );
+        const spooled: TranscriptAppendRequest = {
+          v: 1,
+          batch_id: `replay-${mode}`,
+          writes: [write("held-a"), write("held-b")],
+        };
+        let cleared = false;
+        let sends = 0;
+        let clears = 0;
+        let allowSuccess = false;
+        let alternateFailure = false;
+        yield* withUplink(
+          {
+            spool: {
+              path: "/fixture/replay-spool.json",
+              read: async () => (cleared ? null : spooled),
+              save: async () => {},
+              async clear() {
+                clears++;
+                if (mode === "clear" && !allowSuccess)
+                  throw Object.assign(
+                    new Error(
+                      alternateFailure ? "EIO io error" : "EACCES denied",
+                    ),
+                    { code: alternateFailure ? "EIO" : "EACCES" },
+                  );
+                cleared = true;
+              },
+            },
+            async send(batch) {
+              sends++;
+              if (mode === "receipt" && !allowSuccess) {
+                if (alternateFailure)
+                  throw new TranscriptUplinkError({
+                    message: "Replay endpoint rejected batch",
+                    retryable: false,
+                  });
+                return receipt({ ...batch, batch_id: "mismatched" });
+              }
+              return receipt(batch);
+            },
+            async fallback() {
+              throw new Error("The caller owns legacy writes");
+            },
+          },
+          (uplink) =>
+            Effect.gen(function* () {
+              yield* adjust(0);
+              const startupError = yield* Effect.flip(uplink.ready);
+              expect(startupError.message).toContain(
+                mode === "clear"
+                  ? "EACCES"
+                  : "Invalid transcript batch receipt",
+              );
+              expect(startupError.message).toContain("held-a");
+              expect(startupError.message).toContain("held-b");
+              expect((yield* Metric.value(heldGauge)).value).toBe(2);
+              expect((yield* Metric.value(retriesCounter)).count).toBe(0);
+              expect(warnings).toHaveLength(1);
+              expect(warnings[0]).toContain("held-a, held-b");
+              expect(warnings[0]).toContain("attempt 1");
+              expect(
+                yield* Effect.flip(uplink.waitForReplay("held-a")),
+              ).toBeInstanceOf(TranscriptUplinkError);
+              expect(
+                yield* Effect.flip(uplink.submit(write("held-a"))),
+              ).toBeInstanceOf(TranscriptUplinkError);
+              expect((yield* Metric.value(bypassesCounter)).count).toBe(0);
+              expect(yield* uplink.submit(write("unrelated"))).toEqual({
+                status: "legacy",
+              });
+              expect((yield* Metric.value(bypassesCounter)).count).toBe(1);
+              yield* adjust(30_000);
+              expect((yield* Metric.value(retriesCounter)).count).toBe(1);
+              expect(warnings).toHaveLength(1);
+              expect(sends).toBe(mode === "clear" ? 1 : 2);
+              expect(clears).toBe(mode === "clear" ? 2 : 0);
+              alternateFailure = true;
+              yield* adjust(30_000);
+              expect((yield* Metric.value(retriesCounter)).count).toBe(2);
+              expect(warnings).toHaveLength(2);
+              expect(warnings[1]).toContain("attempt 3");
+              expect(sends).toBe(mode === "clear" ? 1 : 3);
+              yield* adjust(30_000);
+              expect((yield* Metric.value(retriesCounter)).count).toBe(3);
+              expect(warnings).toHaveLength(2);
+              allowSuccess = true;
+              yield* adjust(30_000);
+              expect((yield* Metric.value(retriesCounter)).count).toBe(4);
+              expect((yield* Metric.value(heldGauge)).value).toBe(0);
+              expect(sends).toBe(mode === "clear" ? 1 : 5);
+              expect(cleared).toBe(true);
+              yield* uplink.waitForReplay("held-a");
+              yield* uplink.waitForReplay("held-b");
+              const next = yield* Effect.forkChild(
+                uplink.submit(write("held-a")),
+              );
+              yield* adjust(250);
+              expect(yield* join(next)).toMatchObject({ status: "applied" });
+            }),
+        ).pipe(
+          Effect.provide(Logger.layer([logger])),
+          Effect.provideService(Metric.MetricRegistry, new Map()),
+        );
+      }),
+  );
+}

@@ -4,7 +4,14 @@ import {
   type TranscriptUplinkClient,
 } from "@codecast/edge-client";
 import type { TranscriptAppendRequest } from "@codecast/edge-contract";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { withTranscriptDeadline } from "./workers/ingestDeadline";
@@ -482,3 +489,75 @@ test("a reported post-discovery startup failure never detaches the replay gate",
     binding.mockRestore();
   }
 });
+
+test.each(["receipt", "clear"] as const)(
+  "persistent %s error during startup replay settles, reports cause and held conversation, and preserves the replay gate",
+  async (mode) => {
+    const tmp = await mkdtemp(join(tmpdir(), `cli-replay-${mode}-`));
+    const spoolPath = join(tmp, "spool.json");
+    const batch: TranscriptAppendRequest = {
+      v: 1,
+      batch_id: `retained-${mode}`,
+      writes: [
+        {
+          conversation_id: input.conversationId,
+          messages: [{ role: "assistant", message_uuid: "prior" }],
+        },
+      ],
+    };
+    await writeFile(spoolPath, JSON.stringify(batch), { mode: 0o600 });
+    if (mode === "clear") await chmod(tmp, 0o500);
+
+    const { sync, legacy } = syncFixture();
+    const binding = spyOn(sync, "setTranscriptUplink");
+    const reported = Promise.withResolvers<Error>();
+    let posts = 0;
+    const fetch = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (_url: unknown, init?: RequestInit) => {
+          posts++;
+          const sent = JSON.parse(
+            String(init?.body),
+          ) as TranscriptAppendRequest;
+          expect(sent).toEqual(batch);
+          return mode === "receipt"
+            ? wireReceipt({ ...sent, batch_id: "wrong-receipt" })
+            : wireReceipt(sent);
+        },
+        { preconnect: globalThis.fetch.preconnect },
+      ),
+    );
+    const uplink = createTranscriptUplink({
+      siteUrl: "https://edge.invalid",
+      spoolPath,
+      bearer: () => "pilot-token",
+      fallback: (write) => sync.replayTranscriptWrite(write, "pilot-token"),
+    });
+    try {
+      attachTranscriptUplink(sync, Promise.resolve(uplink), reported.resolve);
+      const error = await reported.promise;
+      expect(error.message).toContain(
+        mode === "clear" ? "EACCES" : "Invalid transcript batch receipt",
+      );
+      expect(error.message).toContain(input.conversationId);
+      expect(binding).toHaveBeenCalledTimes(1);
+      expect(posts).toBe(1);
+      await expect(sync.addMessages(input)).rejects.toThrow(
+        mode === "clear" ? "EACCES" : "Invalid transcript batch receipt",
+      );
+      await expect(
+        sync.addMessages({ ...input, conversationId: "unrelated" }),
+      ).resolves.toEqual({ inserted: 1, ids: ["legacy-id"] });
+      expect(legacy.map(({ args }) => args.conversation_id)).toEqual([
+        "unrelated",
+      ]);
+      expect(posts).toBe(1);
+    } finally {
+      if (mode === "clear") await chmod(tmp, 0o700);
+      binding.mockRestore();
+      await uplink.close();
+      fetch.mockRestore();
+      await rm(tmp, { recursive: true, force: true });
+    }
+  },
+);
