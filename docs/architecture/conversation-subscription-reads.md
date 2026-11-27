@@ -49,3 +49,25 @@ narrow queries' document read sets untouched. An access change, a delivered
 echo, or a safety change can still invalidate a query when it changes the
 answer. Transcript viewers and queries that display activity still depend
 on transcript changes.
+
+## CLI watch reads
+
+The unfiltered personal subscription used by `cast sessions -w` ranks waiting
+and working sessions ahead of idle pins, leaves out killed rows, and returns
+at most 200 rows. It reports when the page or an inbox window was cut. The
+CLI prints one warning when a watch starts returning a partial result.
+Plan, task, role, owner, and label lookups apply to the returned page.
+
+To classify the inbox, the watch reads at most 192 parent transcripts and
+128 child transcripts. It takes children from the recent subagent window
+and up to 128 indexed parent lookups, excluding dismissed, stashed, snoozed,
+and overflow pinned parents from those lookups. Priority and ID determine
+the probe order on every run. A child's pending decision can still lift its
+parent. The watch checks up to 64 additional secondary-owner records when
+the owner window is full.
+
+Recent heartbeat ranges cover top-level rows and their children. The
+256 cold-history lookups cover top-level rows in pinned-first, recent order.
+For daemon-wide liveness, the watch reads `users.daemon_last_seen` and
+considers the managed rows it covers. The label summary is empty because the
+stream shows each row's label and does not count archived conversations.

@@ -423,3 +423,372 @@ test("re-enabling a lease with the same deadline leaves one pending renewal", as
     now + freshAt + HEARTBEAT_ALIVE_MS,
   ]);
 });
+
+test("a cold watch keeps pinned hibernated and done sessions past its recent lookup budget", async () => {
+  const t = serverTest({});
+  const { user, pins } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "cold pinned CLI watch");
+    const user = await rows.user();
+    const pins = [];
+    for (let i = 0; i < 280; i++) {
+      const pinned = i >= 200;
+      const conversation_id = await rows.conversation(user, {
+        updated_at: now - (i + 1) * 100,
+        message_count: 1,
+        last_message_role: "assistant",
+        ...(pinned ? { inbox_pinned_at: now - (i + 1) * 100 } : {}),
+      });
+      const state = i === 278 ? "hibernated" : i === 279 ? "done" : "idle";
+      await rows.session(user, {
+        conversation_id,
+        agent_status: state,
+        last_heartbeat: now - 24 * 60 * 60_000,
+        ...(state === "hibernated" ? { hibernated_at: now - 5000 } : {}),
+      });
+      if (i >= 278) pins.push({ conversation_id, state });
+    }
+    return { user, pins };
+  });
+  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+    api_token: token,
+    watch: true,
+    limit: 100,
+  });
+  for (const { conversation_id, state } of pins)
+    expect(result.sessions).toContainEqual(
+      expect.objectContaining({
+        id: conversation_id,
+        agent_status: state,
+        is_pinned: true,
+      }),
+    );
+});
+
+test.each([false, true])(
+  "a subagent's pending decision lifts its parent in the CLI watch (dense: %s)",
+  async (dense) => {
+    const t = serverTest({});
+    const { user, parent, child } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "child decision in CLI watch");
+      const user = await rows.user();
+      const parent = await rows.conversation(user, {
+        updated_at: now - 10_000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const child = await rows.conversation(user, {
+        parent_conversation_id: parent,
+        is_subagent: true,
+        updated_at: now - 9000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const decision_id = await db.insert("session_decisions", {
+        conversation_id: child,
+        session_id: "worker",
+        user_id: user,
+        status: "pending",
+        question: "Continue?",
+        options: [{ label: "Yes" }],
+        created_at: now,
+        blocking: true,
+        asked_user_ids: [user],
+      });
+      await db.insert("decision_inbox", {
+        decision_id,
+        user_id: user,
+        status: "pending",
+        created_at: now,
+      });
+      if (dense) {
+        for (let i = 0; i < 130; i++)
+          await rows.conversation(user, { updated_at: now - 8000 - i });
+      }
+      return { user, parent, child };
+    });
+    const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+      api_token: token,
+      watch: true,
+    });
+    expect(result.sessions?.find(({ id }) => id === parent)).toMatchObject({
+      bucket: "questions",
+    });
+    expect(result.sessions?.some(({ id }) => id === child)).toBe(false);
+  },
+);
+
+test("a pinned killed row keeps its plan and task references in an explicit CLI watch", async () => {
+  const t = serverTest({});
+  const { user, conversation, plan, task } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "pinned killed CLI watch");
+    const user = await rows.user();
+    const plan = { short_id: "pl-killed", title: "Pinned plan" };
+    const task = { short_id: "ct-killed", title: "Pinned task" };
+    const conversation = await rows.conversation(user, {
+      inbox_pinned_at: now - 3,
+      inbox_killed_at: now - 1,
+      inbox_dismissed_at: now - 1,
+      updated_at: now - 2,
+      message_count: 1,
+      last_message_role: "assistant",
+      active_plan_id: await rows.plan(user, plan),
+      active_task_id: await rows.task(user, task),
+    });
+    return { user, conversation, plan, task };
+  });
+  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+    api_token: token,
+    watch: true,
+    include_killed: true,
+    session_ids: [conversation],
+  });
+  expect(result.sessions).toEqual([
+    expect.objectContaining({
+      id: conversation,
+      is_killed: true,
+      active_plan: plan,
+      active_task: task,
+    }),
+  ]);
+});
+
+test("foreign-run child rows do not spend the CLI watch's cold liveness budget", async () => {
+  const t = serverTest({});
+  const { user, staleSession } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "foreign child CLI watch");
+    const user = await rows.user();
+    const other = await rows.user();
+    const parent = await rows.conversation(user, {
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const child = await rows.conversation(other, {
+      parent_conversation_id: parent,
+      is_subagent: true,
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const staleSession = await rows.session(user, {
+      conversation_id: child,
+      last_heartbeat: now - 24 * 60 * 60_000,
+    });
+    return { user, staleSession };
+  });
+  const { reads } = await recordDocuments(() =>
+    asUser(t, user).query(api.conversations.inboxForCLI, {
+      api_token: token,
+      watch: true,
+    }),
+  );
+  expect(reads.has(staleSession)).toBe(false);
+});
+
+test("user-wide CLI watch reads the inbox window and the filing of its result page", async () => {
+  const { t, viewer, user, working } = await seed();
+  const bucketId = await t.run(async ({ db }) => {
+    await db.patch(user, { daemon_last_seen: now });
+    const decision_id = await db.insert("session_decisions", {
+      user_id: user,
+      asked_user_ids: [user],
+      conversation_id: working.conversation,
+      session_id: "working-trace",
+      question: "Continue?",
+      options: [{ label: "Yes" }],
+      blocking: true,
+      status: "pending",
+      created_at: now,
+    });
+    await db.insert("decision_inbox", {
+      decision_id,
+      user_id: user,
+      status: "pending",
+      created_at: now,
+    });
+    const bucket = await db.insert("inbox_buckets", {
+      user_id: user,
+      name: "Current",
+      created_at: now,
+      updated_at: now,
+    });
+    await db.insert("bucket_assignments", {
+      user_id: user,
+      conversation_id: working.conversation,
+      bucket_id: bucket,
+      updated_at: now,
+    });
+    return bucket;
+  });
+  const read = (watch: boolean) =>
+    recordDocuments(() =>
+      viewer.query(api.conversations.inboxForCLI, { api_token: token, watch }),
+    );
+  const before = await read(true);
+  expect(before.result.sessions).toContainEqual(
+    expect.objectContaining({
+      id: working.conversation,
+      label: "Current",
+      bucket: "questions",
+    }),
+  );
+  const archivedAt = now - 90 * 24 * 60 * 60_000;
+  const archived = await t.run(async ({ db }) => {
+    const fixtures = fixtureRows(db, "cli watch archive");
+    const ids = [];
+    for (let i = 0; i < 2200; i++) {
+      const conversation_id = await fixtures.conversation(user, {
+        status: "completed",
+        started_at: archivedAt,
+        updated_at: archivedAt,
+      });
+      ids.push(
+        await fixtures.session(user, {
+          conversation_id,
+          last_heartbeat: archivedAt,
+        }),
+      );
+      ids.push(
+        await db.insert("session_decisions", {
+          user_id: user,
+          conversation_id,
+          session_id: `archived-${i}`,
+          question: "Continue?",
+          options: [{ label: "Yes" }],
+          blocking: true,
+          status: "pending",
+          created_at: archivedAt,
+        }),
+      );
+      ids.push(
+        await db.insert("bucket_assignments", {
+          user_id: user,
+          conversation_id,
+          bucket_id: bucketId,
+          updated_at: archivedAt,
+        }),
+      );
+    }
+    return ids;
+  });
+  const after = await read(true);
+  const legacy = await read(false);
+  expect(after.result.sessions).toEqual(legacy.result.sessions);
+  expect(after.result.counts).toEqual(legacy.result.counts);
+  expect(after.result.labels).toEqual([]);
+  expect(legacy.result.labels).toEqual([{ name: "Current", count: 2201 }]);
+  expect(after.reads.size).toBe(before.reads.size);
+  expect(archived.some((id) => after.reads.has(id))).toBe(false);
+  expect(archived.every((id) => legacy.reads.has(id))).toBe(true);
+});
+
+test("a CLI watch stays scoped when the owner lookup window overflows", async () => {
+  const { t, viewer, user, working } = await seed();
+  const history = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "dense CLI ownership history");
+    const primary = await rows.user();
+    const archivedAt = now - 90 * 24 * 60 * 60_000;
+    await db.patch(user, { daemon_last_seen: now });
+    await db.patch(working.conversation, { owner_user_id: primary });
+    await rows.message(working.conversation, {
+      role: "assistant",
+      timestamp: now - 2000,
+      tool_calls: [{ id: "question", name: "AskUserQuestion", input: "{}" }],
+    });
+    await db.insert("session_owners", {
+      conversation_id: working.conversation,
+      user_id: user,
+      added_by: primary,
+      added_at: archivedAt - 1,
+    });
+    const owners = [];
+    for (let i = 0; i < 2020; i++) {
+      const conversation_id = await rows.conversation(primary, {
+        status: "completed",
+        message_count: 0,
+        started_at: archivedAt,
+        updated_at: archivedAt,
+        owner_user_id: user,
+      });
+      owners.push(
+        await db.insert("session_owners", {
+          conversation_id,
+          user_id: user,
+          added_by: primary,
+          added_at: archivedAt + i,
+        }),
+      );
+    }
+    return owners;
+  });
+
+  const read = (watch: boolean, session_ids?: string[]) =>
+    recordDocuments(() =>
+      viewer.query(api.conversations.inboxForCLI, {
+        api_token: token,
+        limit: 1,
+        watch,
+        session_ids,
+      }),
+    );
+  const scoped = await read(true);
+  const ordinary = await read(false);
+  expect(scoped.result.sessions).toEqual(ordinary.result.sessions);
+  expect(scoped.result.sessions).toEqual([
+    expect.objectContaining({
+      id: working.conversation,
+      owned_by_me: true,
+      work_state: "needs_input",
+    }),
+  ]);
+  expect(history.filter((id) => scoped.reads.has(id))).toHaveLength(201);
+  expect(scoped.reads.size).toBeLessThan(450);
+  expect(history.some((id) => !ordinary.reads.has(id))).toBe(true);
+  expect(ordinary.reads.size).toBeGreaterThan(2000);
+
+  const named = await read(true, [working.conversation]);
+  expect(named.result.sessions).toEqual(scoped.result.sessions);
+  expect(named.reads.size).toBeLessThan(20);
+
+  const missing = await read(true, ["missing-id"]);
+  expect(missing.result.sessions).toEqual([]);
+  expect(missing.reads.size).toBeLessThan(10);
+});
+
+test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async () => {
+  process.env.INBOX_LIVENESS_LEASES = "0";
+  const t = serverTest({});
+  const { user, conversation, unrelated } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "CLI watch daemon health");
+    const user = await rows.user();
+    const conversation = await rows.conversation(user, {
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const unrelated = await rows.session(user, {
+      last_heartbeat: now - HEARTBEAT_ALIVE_MS - 5000,
+    });
+    return { user, conversation, unrelated };
+  });
+  const read = (watch: boolean) =>
+    recordDocuments(() =>
+      asUser(t, user).query(api.conversations.inboxForCLI, {
+        api_token: token,
+        watch,
+      }),
+    );
+  const legacy = await read(false);
+  const watched = await read(true);
+  expect(legacy.result.sessions).toMatchObject([
+    { id: conversation, is_live: true },
+  ]);
+  expect(watched.result.sessions).toMatchObject([
+    { id: conversation, is_live: false },
+  ]);
+  expect(watched.reads.has(unrelated)).toBe(false);
+  await t.run(({ db }) => db.patch(user, { daemon_last_seen: now }));
+  expect((await read(true)).result.sessions).toMatchObject([
+    { id: conversation, is_live: true },
+  ]);
+});

@@ -30,6 +30,7 @@ import {
   ORCH_SKILL_REL,
 } from "./codecastOwned.js";
 import { isOlderBackendRefusal } from "./castApi.js";
+import { subscribeCliInboxWatch } from "./cli-inbox-watch.js";
 import type { LoopFreezeState } from "./loopFreezeState.js";
 import {
   describeHangMarker,
@@ -10439,10 +10440,10 @@ program
     };
 
     if (!teamMode) {
-      stateClient.onUpdate(
-        "conversations:inboxForCLI" as any,
+      subscribeCliInboxWatch(
+        stateClient,
         {
-          api_token: config.auth_token,
+          api_token: config.auth_token!,
           state: options.state,
           show_all: showAll,
           label: options.label,
@@ -10450,9 +10451,7 @@ program
           limit,
           session_ids: requestedIds,
         },
-        (result: any) => {
-          if (result && !result.error) onSessions(result.sessions || []);
-        },
+        onSessions,
       );
     } else {
       const projectPath = options.global ? undefined : getRealCwd();

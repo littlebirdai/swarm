@@ -4,6 +4,7 @@ import { makeFakeDb, schemaIndexes } from "./testDb";
 import {
   _resetChildAuqProbeCacheForTests,
   computeInboxSessions,
+  inboxForCLI,
 } from "./conversations";
 import {
   INBOX_WINDOW_CAPS,
@@ -45,24 +46,33 @@ const CLI = { includeLiveness: true, projection: true };
 function countingDb(db: any) {
   let calls = 0;
   const queriedTables = new Set<string>();
-  const count = (v: any) => {
+  const operations = new Map<string, number>();
+  const count = (v: any, route = "") => {
     calls++;
+    operations.set(route, (operations.get(route) ?? 0) + 1);
     return v;
   };
-  const wrap = (q: any): any =>
+  const wrap = (q: any, route?: string): any =>
     new Proxy(q, {
       get(target, prop) {
         const value = target[prop];
         if (typeof value !== "function") return value;
         return (...args: any[]) => {
           if (prop === "query") queriedTables.add(args[0]);
+          const nextRoute =
+            prop === "query"
+              ? args[0]
+              : prop === "withIndex"
+                ? route + "." + args[0]
+                : route;
           const out = value.apply(target, args);
-          if (out && typeof out.then === "function") return out.then(count);
-          return out && typeof out === "object" ? wrap(out) : out;
+          if (out && typeof out.then === "function")
+            return out.then((value: any) => count(value, nextRoute));
+          return out && typeof out === "object" ? wrap(out, nextRoute) : out;
         };
       },
     });
-  return { db: wrap(db), calls: () => calls, queriedTables };
+  return { db: wrap(db), calls: () => calls, queriedTables, operations };
 }
 
 // An account with `perWindow(w)` rows in every window. Every top-level row
@@ -310,6 +320,196 @@ describe("listInboxSessions read budget on a full account", () => {
     for (const w of WINDOWS) expect(result.truncated).toContain(w as any);
     expect(calls).toBeLessThanOrEqual(READ_BUDGET);
   });
+
+  test.each([false, true])(
+    "the CLI watch stays inside the system-operation limit with show_all=%s",
+    async (show_all) => {
+      const { calls, result } = await run(full(), {
+        ...CLI,
+        watchedWindow: true,
+        show_all,
+      });
+      console.log(`CLI watch on a full account: ${calls} db calls`);
+      expect(calls).toBeLessThan(4096);
+      for (const window of WINDOWS) expect(result.truncated).toContain(window);
+    },
+  );
+
+  test("the CLI watch bounds historical lookups on a full account with cold sessions", async () => {
+    const fixture = full();
+    for (const row of fixture.data.managed_sessions)
+      row.last_heartbeat -= 24 * 60 * MIN;
+    const { calls } = await run(fixture, {
+      ...CLI,
+      watchedWindow: true,
+      show_all: true,
+    });
+    console.log(`CLI watch on a cold full account: ${calls} db calls`);
+    expect(calls).toBeLessThan(4096);
+  });
+
+  test.each([200, 500])(
+    "the dense watch fits its budget including filing and unique work references (limit %s)",
+    async (limit) => {
+      const fixture = full();
+      const now = Date.now();
+      const topLevel = fixture.data.conversations.filter((row) =>
+        fixture.windowOf.has(row._id),
+      );
+      fixture.data.plans = topLevel.map((row) => {
+        row.active_plan_id = "plan-" + row._id;
+        return {
+          _id: row.active_plan_id,
+          short_id: "pl-" + row._id,
+          title: "Unique plan",
+        };
+      });
+      fixture.data.tasks = topLevel.map((row) => {
+        row.active_task_id = "task-" + row._id;
+        return {
+          _id: row.active_task_id,
+          short_id: "ct-" + row._id,
+          title: "Unique task",
+        };
+      });
+      for (const row of fixture.data.managed_sessions)
+        row.agent_status = "working";
+      for (const [i, row] of topLevel.entries()) {
+        const window = fixture.windowOf.get(row._id);
+        row.last_message_role = undefined;
+        row.standing_role_id = "role-" + row._id;
+        row.acting_user_id = "acting-" + row._id;
+        fixture.data.users.push({
+          _id: row.acting_user_id,
+          name: "Acting " + i,
+        });
+        if (window === "owned") {
+          row.user_id = row.acting_user_id;
+          row.owner_user_id = "primary-" + row._id;
+          row.inbox_pinned_at = now - i;
+        } else if (window === "pinned") {
+          row.owner_user_id = "primary-" + row._id;
+        } else if (
+          window === "recent" ||
+          (window === "snoozed" && i % 2 === 0)
+        ) {
+          row.owner_user_id = "primary-" + row._id;
+          if (i % 2) {
+            const secondary = fixture.data.session_owners.find(
+              (owner) => owner.conversation_id === row._id,
+            )!;
+            secondary.user_id = row.owner_user_id;
+          }
+        }
+        if (row.owner_user_id !== ME)
+          fixture.data.users.push({
+            _id: row.owner_user_id,
+            name: "Primary " + i,
+          });
+      }
+      const topById = new Map(topLevel.map((row) => [row._id, row]));
+      for (const row of fixture.data.managed_sessions) {
+        const parent = topById.get(row.conversation_id);
+        if (parent) row.user_id = parent.user_id;
+        if (
+          fixture.windowOf.get(row.conversation_id) === "dismissed" ||
+          fixture.windowOf.get(row.conversation_id) === "stashed"
+        ) {
+          row.last_heartbeat = now - 24 * 60 * MIN;
+        }
+      }
+      const adultPins = new Set(
+        topLevel
+          .filter((row) => fixture.windowOf.get(row._id) === "pinned")
+          .map((row) => row._id),
+      );
+      for (const [i, row] of fixture.data.conversations
+        .filter(
+          (row) => row.is_subagent && adultPins.has(row.parent_conversation_id),
+        )
+        .entries()) {
+        row.updated_at = now - i;
+        fixture.data.managed_sessions.push({
+          _id: "managed-" + row._id,
+          conversation_id: row._id,
+          user_id: ME,
+          agent_status: "working",
+          last_heartbeat: now,
+        });
+      }
+      const assignmentRows = Array.from({ length: 256 }, (_, i) => ({
+        _id: "decision-inbox-archive-" + i,
+        decision_id: "decision-archive-" + i,
+        user_id: ME,
+        status: "pending",
+        created_at: now - i,
+      }));
+      const data = {
+        ...fixture.data,
+        decision_inbox: assignmentRows,
+        session_decisions: assignmentRows.map(({ decision_id }, i) => ({
+          _id: decision_id,
+          status: "answered",
+          conversation_id: "outside-" + i,
+        })),
+        org_roles: topLevel.map((row) => ({
+          _id: row.standing_role_id,
+          name: "Role " + row._id,
+          handle: row._id,
+        })),
+        inbox_buckets: topLevel.map((row) => ({
+          _id: "bucket-" + row._id,
+          user_id: ME,
+          name: "Filed " + row._id,
+        })),
+        bucket_assignments: topLevel.map((row) => ({
+          _id: "assignment-" + row._id,
+          user_id: ME,
+          bucket_id: "bucket-" + row._id,
+          conversation_id: row._id,
+        })),
+      };
+      const { db, calls, operations } = countingDb(
+        makeFakeDb(data, { indexes: schemaIndexes(schema as any) }),
+      );
+      const auth = {
+        getUserIdentity: async () => ({ subject: ME + "|session" }),
+      };
+      _resetChildAuqProbeCacheForTests();
+      const result = await (inboxForCLI as any)._handler(
+        { db, auth },
+        {
+          api_token: "unused",
+          watch: true,
+          show_all: true,
+          limit,
+        },
+      );
+      console.log(
+        `CLI watch on a dense account including its page: ${calls()} db calls`,
+      );
+      expect(calls()).toBeLessThanOrEqual(3072);
+      expect(operations.get("conversations.by_parent_conversation_id")).toBe(
+        128,
+      );
+      expect(operations.get("managed_sessions.by_conversation_user")).toBe(256);
+      expect(operations.get("messages.by_conversation_timestamp")).toBe(320);
+      expect(result.sessions).toHaveLength(200);
+      for (const reference of [
+        (row: any) => row.active_plan?.short_id,
+        (row: any) => row.active_task?.short_id,
+        (row: any) => row.label,
+        (row: any) => row.role?.handle,
+        (row: any) => row.owner?.name,
+        (row: any) => row.run_by,
+      ]) {
+        const values = result.sessions.map(reference);
+        expect(values).not.toContain(undefined);
+        expect(values).not.toContain(null);
+        expect(new Set(values).size).toBe(200);
+      }
+    },
+  );
 
   test("no row a window admits goes missing without its window in truncated, and the rows match the pre-change code", async () => {
     const fixture = full();
