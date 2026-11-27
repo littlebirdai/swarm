@@ -93,7 +93,19 @@ export function makeDispatchBinding(
       ? new Set(meta.locks.map((l) => l.lock))
       : undefined;
     // A tab address leaves the browser in its storable form, as the outbox row keeps it (lib/tabSafePath).
-    const args = storableActionArgs(action, raw);
+    const stored = storableActionArgs(action, raw);
+    const args =
+      action === "sendMessage" &&
+      typeof result?.clientId === "string" &&
+      !stored[3]?.trim()
+        ? [
+            stored[0],
+            stored[1],
+            stored[2] ?? null,
+            result.clientId,
+            ...stored.slice(4),
+          ]
+        : stored;
     // A Record or Stop press that is no longer a moment never leaves the
     // browser: refused here as final, so the outbox drops it instead of
     // delivering it into a room nobody is still asking to film.

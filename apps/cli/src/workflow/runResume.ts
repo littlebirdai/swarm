@@ -369,6 +369,7 @@ export function isMidRun(row: ResumeRow): boolean {
 
 export interface ResumePoint {
   node_id: string;
+  continuingVisit?: boolean;
   /** Restored state; the node at `node_id` runs next and counts its visit then. */
   visit_counts: Record<string, number>;
   completed: string[];
@@ -549,6 +550,7 @@ export function resumePoint(
     hands,
     finished,
     from: atCheckpoint ? "checkpoint" : "row",
+    ...(!newAttempt && atCheckpoint?.started && { continuingVisit: true }),
   };
 }
 

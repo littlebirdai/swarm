@@ -605,6 +605,7 @@ describe("the huddle digest", () => {
     const { args } = c._scheduled[0];
     expect(args.as_user).toBe("ua");
     expect(args.to).toBe("conv1");
+    expect(args.client_id).toBe("huddle-digest:t1");
     expect(
       args.body.startsWith(
         '<huddle-summary transcript="t1" title="Auth rollout" minutes="12" speakers="Alice, Bob">',

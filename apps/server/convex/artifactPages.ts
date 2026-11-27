@@ -24,6 +24,7 @@ const PIN_PATH = `<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><cir
 
 import { escAttr, escHtml } from "./htmlEscape";
 import { MD_THEME_CSS } from "./artifactMarkdown";
+import { ARTIFACT_COMMENT_SUBMIT_SCRIPT } from "./lib/artifact-comment-submit.script";
 import {
   PAGE_AGENT_LABELS,
   PAGE_AGENT_PICKUP_MS,
@@ -1248,39 +1249,7 @@ function barHtml(o: BrandOpts): string {
     if(b){b.disabled=!n;
       b.textContent=!n?"Comment":na===n?(n>1?"Send "+n+" to agent":"Send to agent"):na?"Post "+n+" \\u00B7 "+na+" to agent":(n>1?"Post "+n+" comments":"Comment");}
   };
-  // One post per batch; each comment says for itself whether it goes to the
-  // agent. The batch's deliver:false means an unmarked comment never does.
-  var doSend=function(name){
-    var ready=drafts.filter(function(d){return d.text.trim();});
-    if(!ready.length)return;
-    var na=ready.filter(toAgent).length;
-    var b=document.getElementById("__cc_sendbtn");
-    var errBox=cpanel.querySelector(".__cc_cerr");
-    if(b){b.disabled=true;b.textContent=na?"Sending…":"Posting…";}
-    sSet("__cc_name",name||"");
-    api("/cli/artifacts/comment",{slug:CC.slug,author_name:me?me.name:((name||"").trim()||"anonymous"),
-      author_email:gateEmail||undefined,version:CC.version,
-      k:gateK||undefined,e:gateE||undefined,m:gateM||undefined,
-      deliver:false,
-      owner_key:ownerKey||undefined,
-      identity_token:idTok||undefined,
-      comments:ready.map(function(d){var c={text:d.text.trim(),deliver:toAgent(d)};if(d.anchor)c.anchor=JSON.stringify(d.anchor);return c;})})
-    .then(function(r){
-      if(!r||r.error){if(errBox)errBox.textContent=(r&&r.error)||"Send failed — try again";syncSend();return;}
-      drafts=[];renderPins();
-      cpanel.innerHTML="";
-      var ok=el("div","__cc_okwrap");
-      ok.appendChild(el("div","__cc_okmark","✓"));
-      ok.appendChild(el("div","__cc_okt",(na?"Sent ":"Posted ")+ready.length+(ready.length===1?" comment":" comments")));
-      ok.appendChild(el("div","__cc_oks",na
-        ?(r.delivered?"The agent has it. This page reloads when it publishes a new version."
-          :"Posted, but the agent's session could not be reached. "+(ownerKey?"Use \\u201CSend all\\u201D later.":"The owner can send it later."))
-        :"Now part of this page's discussion."));
-      cpanel.appendChild(ok);
-      if(na&&r.delivered){awaitAgent();}
-      refreshSaved(function(){setTimeout(function(){if(!cpanel.hidden)renderC();},1600);});
-    },function(){if(errBox)errBox.textContent="Network error — your drafts are kept";syncSend();});
-  };
+  ${ARTIFACT_COMMENT_SUBMIT_SCRIPT}
   // "Send all" (owner-only): flush the discussion's unsent comments to the
   // session in one batch message.
   var sendAll=function(btn){
@@ -1488,15 +1457,17 @@ function barHtml(o: BrandOpts): string {
           var txt=(replyState.text[tid]||"").trim();
           if(!txt)return;
           rb.disabled=true;rb.textContent="Posting\\u2026";
-          api("/cli/artifacts/comment",{slug:CC.slug,
+          var payload={slug:CC.slug,
             author_name:me?me.name:(sGet("__cc_name")||"anonymous"),
             author_email:gateEmail||undefined,version:CC.version,
             k:gateK||undefined,e:gateE||undefined,m:gateM||undefined,
             deliver:false,owner_key:ownerKey||undefined,identity_token:idTok||undefined,
-            parent_id:tid,comments:[{text:txt}]})
+            parent_id:tid,comments:[{text:txt}]};
+          payload.client_id=commentAttempt("reply:"+tid,payload);
+          api("/cli/artifacts/comment",payload)
           .then(function(r){
             if(!r||r.error){rb.disabled=false;rb.textContent="Reply";return;}
-            replyState.open=null;delete replyState.text[tid];
+            commentAttempts.delete("reply:"+tid);replyState.open=null;delete replyState.text[tid];
             refreshSaved(function(){if(!cpanel.hidden)renderC(null,tid);});
           },function(){rb.disabled=false;rb.textContent="Reply";});
         });

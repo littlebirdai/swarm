@@ -737,6 +737,7 @@ export async function sendMineNowFor(
   const res = await performSessionSend(ctx, userId, {
     to: String(row.conversation_id),
     body: row.body,
+    client_id: `suggestion:${row._id}`,
     direct: true,
     ...(row.queued ? { queue: true } : {}),
   });

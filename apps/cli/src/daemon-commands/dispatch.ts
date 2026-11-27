@@ -313,6 +313,7 @@ export async function executeRemoteCommand(
         await handleStartSessionCommand(
           daemon,
           commandOutcome,
+          commandId,
           command,
           config,
           commandArgs,

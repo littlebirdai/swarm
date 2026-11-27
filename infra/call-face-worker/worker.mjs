@@ -42,7 +42,12 @@ import {
   TrackKind,
 } from "@livekit/rtc-node";
 import { AccessToken } from "livekit-server-sdk";
-import { nameMatchers, turnIsForVoice, turnVerdict } from "./turns.mjs";
+import {
+  forwardVoiceAsk,
+  nameMatchers,
+  turnIsForVoice,
+  turnVerdict,
+} from "./turns.mjs";
 import { eachTrack, isPerson, people, watchVideo } from "./vision.mjs";
 
 const AGENT_NAME = process.env.FACE_AGENT_NAME || "codecast-face";
@@ -291,13 +296,10 @@ async function runRealtime(ctx, meta, face) {
           },
           required: ["request"],
         },
-        execute: async ({ request }) => {
-          await convex("ask", meta, room, {
-            text: request,
-            speaker: speaker?.name || "",
-          });
-          return "Handed to your session. Tell the room briefly that you are on it.";
-        },
+        execute: forwardVoiceAsk(
+          (args) => convex("ask", meta, room, args),
+          () => speaker?.name,
+        ),
       }),
     },
   });

@@ -4669,7 +4669,7 @@
     "swarm/no-comments": 49
   },
   "apps/cli/src/syncService.ts": {
-    "swarm/no-comments": 298
+    "swarm/no-comments": 294
   },
   "apps/cli/src/syncService.updateSessionId.test.ts": {
     "swarm/no-comments": 3
@@ -8402,7 +8402,7 @@
     "swarm/no-comments": 9
   },
   "apps/server/convex/artifacts.ts": {
-    "swarm/no-comments": 307
+    "swarm/no-comments": 296
   },
   "apps/server/convex/artifactsHttp.test.ts": {
     "swarm/no-comments": 18
@@ -8549,7 +8549,7 @@
     "swarm/no-comments": 75
   },
   "apps/server/convex/callFace.test.ts": {
-    "swarm/no-comments": 22
+    "swarm/no-comments": 21
   },
   "apps/server/convex/callFace.ts": {
     "swarm/no-comments": 81
@@ -9311,7 +9311,7 @@
     "swarm/no-comments": 68
   },
   "apps/server/convex/dispatch.ts": {
-    "swarm/no-comments": 751
+    "swarm/no-comments": 738
   },
   "apps/server/convex/dispatch.watches.test.ts": {
     "swarm/no-comments": 4
@@ -16792,7 +16792,7 @@
     "react/immutability": 2,
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 5,
-    "swarm/no-comments": 89
+    "swarm/no-comments": 77
   },
   "apps/web/components/comments/AnchorPlacementNote.tsx": {
     "swarm/no-comments": 10,
@@ -28088,7 +28088,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5047
+    "swarm/no-comments": 5042
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4

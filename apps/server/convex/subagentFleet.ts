@@ -328,8 +328,10 @@ async function settleWorktree(
     );
     return;
   }
+  const attempt = (worker.merge_back_attempt ?? 0) + 1;
   await ctx.db.patch(worker._id, {
     merge_back: { state: "pending", at: Date.now() },
+    merge_back_attempt: attempt,
   });
   await ctx.db.insert("daemon_commands", {
     user_id: worker.user_id,
@@ -338,6 +340,7 @@ async function settleWorktree(
       conversation_id: worker._id,
       worktree_path: worker.worktree_path,
       target_path: target,
+      attempt,
     }),
     created_at: Date.now(),
     target_device_id: worker.owner_device_id,
@@ -350,8 +353,12 @@ async function recordMergeBack(
   parent: any,
   status: MergeBackStatus,
   outcome: SubagentOutcome,
+  attempt = (worker.merge_back_attempt ?? 0) + 1,
 ): Promise<void> {
-  await ctx.db.patch(worker._id, { merge_back: status });
+  await ctx.db.patch(worker._id, {
+    merge_back: status,
+    merge_back_attempt: attempt,
+  });
   const note = mergeBackNote(
     {
       short_id: worker.short_id ?? String(worker._id).slice(0, 7),
@@ -375,6 +382,7 @@ async function recordMergeBack(
       note,
     ),
     from_conversation_id: worker._id,
+    client_id: `merge-back:${worker._id}:attempt:${attempt}`,
   });
 }
 
@@ -384,6 +392,7 @@ export async function applyMergeBackReport(
   userId: Id<"users">,
   args: {
     conversation_id: Id<"conversations">;
+    attempt?: number;
     state: "merged" | "empty" | "conflict" | "failed";
     files?: string[];
     reason?: string;
@@ -392,6 +401,12 @@ export async function applyMergeBackReport(
   const worker = await ctx.db.get(args.conversation_id);
   if (!worker || String(worker.user_id) !== String(userId))
     throw new Error("Conversation not found");
+  const prior = worker.merge_back as MergeBackStatus | undefined;
+  if (
+    args.attempt !== undefined &&
+    (args.attempt !== worker.merge_back_attempt || prior?.state !== "pending")
+  )
+    return;
   const parent = worker.parent_conversation_id
     ? await ctx.db.get(worker.parent_conversation_id)
     : null;
@@ -401,13 +416,22 @@ export async function applyMergeBackReport(
     ...(args.files?.length ? { files: args.files.slice(0, 200) } : {}),
     ...(args.reason ? { reason: args.reason.slice(0, 500) } : {}),
   };
-  await recordMergeBack(ctx, worker, parent, status, "done");
+  if (
+    prior?.state === status.state &&
+    prior.reason === status.reason &&
+    JSON.stringify(prior.files) === JSON.stringify(status.files)
+  )
+    return;
+  const attempt =
+    prior?.state === "pending" ? (worker.merge_back_attempt ?? 1) : undefined;
+  await recordMergeBack(ctx, worker, parent, status, "done", attempt);
 }
 
 export const reportMergeBack = mutation({
   args: {
     api_token: v.string(),
     conversation_id: v.id("conversations"),
+    attempt: v.optional(v.number()),
     state: v.union(
       v.literal("merged"),
       v.literal("empty"),

@@ -19110,7 +19110,10 @@ anchor
     const fwd = headForward(anchorRow, "wake", { message, from_session });
     if (fwd?.route) {
       console.log(`${c.dim}${fwd.note}${c.reset}`);
-      const result = await cliPost(fwd.route, fwd.body);
+      const result = await cliPost(fwd.route, {
+        ...fwd.body,
+        client_id: randomUUID(),
+      });
       printSendResult(result, console.log, {
         target: result?.short_id ?? "",
         label: `${c.cyan}${anchorRow.name}${c.reset} ${c.dim}(${result?.short_id ?? ""})${c.reset}`,
@@ -19125,6 +19128,7 @@ anchor
         api_token: config.auth_token,
         anchor_id: anchorRow._id,
         message,
+        client_id: randomUUID(),
       }),
     });
     if (!resp.ok) {
@@ -19138,7 +19142,6 @@ anchor
       `${c.green}✓${c.reset} woke ${c.cyan}${anchorRow.name}${c.reset}`,
     );
   });
-
 anchor
   .command("brief")
   .description(
@@ -20074,7 +20077,6 @@ roleGroup
     if (info.preview_url)
       console.log(`${c.dim}preview:${c.reset} ${info.preview_url}`);
   });
-
 roleGroup
   .command("wake")
   .description("Send a message to a role's standing session")
@@ -20086,6 +20088,7 @@ roleGroup
     const role_id = await resolveRoleId(handle, options.team);
     const from_session = callingSession();
     const result = await cliPost("/cli/role/wake", {
+      client_id: randomUUID(),
       role_id,
       message,
       from_session,

@@ -129,6 +129,7 @@ export async function handleWorkflowCommand(
       );
       await daemon.syncServiceRef?.reportMergeBack({
         conversation_id: conversationId,
+        ...(typeof parsed.attempt === "number" && { attempt: parsed.attempt }),
         state: outcome.state,
         files: outcome.files,
         ...("reason" in outcome && outcome.reason

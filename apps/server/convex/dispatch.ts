@@ -175,6 +175,7 @@ import {
   mergeQueuedForUser,
   releaseQueuedForUser,
 } from "./pendingMessages";
+import { requireFencedClientId } from "./lib/pending-message-enqueue.rules";
 import { composerChannel } from "./pendingMessageWrites";
 import {
   enqueueCloudSpawn,
@@ -542,7 +543,7 @@ export const dispatch = mutation({
             presence: answerPresence(action, actionArgs),
           });
         }
-        return sideEffect?.(ctx, userId, actionArgs, result);
+        return sideEffect?.(ctx, userId, actionArgs, result, outbox?.id);
       },
     );
   },
@@ -559,6 +560,7 @@ type HandlerFn = (
   userId: Id<"users">,
   args: any,
   result?: any,
+  outboxId?: string,
 ) => Promise<any>;
 // The hide-transition decision + side effects live in cleanup.ts
 // (classifyHideTransition / applyHideTransition), shared with the CLI
@@ -757,19 +759,6 @@ export async function applyPatches(
         ) {
           delete finalSafe.is_favorite;
         }
-        // inbox_killed_at is the retired marker: the daemon's reap/resurrection
-        // gate and classifyWorkState both read it, and a killed persistent
-        // anchor stays daemon-proof only while it's set. This generic rail
-        // carries whatever fields an action's draft happened to touch, so a
-        // gesture with nothing to do with revival can wipe it — the web's pin
-        // nulls it in its draft (see ct-41083), which deleted the marker on the
-        // very rows it matters most for (a killed row is only visible while
-        // pinned, per shouldShowInInbox). Guard by FIELD, not by action name, so
-        // an old client shipping the same patch is caught too: a CLEAR is
-        // honored only when the patch is itself an un-kill (it clears
-        // inbox_dismissed_at as well). The other sanctioned revivals — a human
-        // send (pendingMessages.enqueue), delivery, Restart — are mutations and
-        // never ride this rail. SETTING it is untouched.
         if (
           table === "conversations" &&
           "inbox_killed_at" in finalSafe &&
@@ -2404,12 +2393,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   queueMessage: async (
     ctx,
     userId,
-    [convId, content, clientId, typed]: [
-      string,
-      string,
-      string,
-      string | undefined,
-    ],
+    [convId, content, clientId, typed]: [string, string, string, string?],
+    result,
+    outboxId,
   ) => {
     const conversation = await ctx.db.get(convId as Id<"conversations">);
     if (!conversation) throw new Error("conversation_deleted");
@@ -2417,7 +2403,14 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       throw new Error("Unauthorized");
     return await enqueuePendingMessage(ctx, conversation, userId, {
       content,
-      client_id: clientId,
+      client_id: requireFencedClientId(
+        conversation,
+        clientId?.trim()
+          ? clientId
+          : hasReceiptCommandId(result)
+            ? receiptCommandId("queueMessage", result)
+            : outboxId && `dispatch:${userId}:${outboxId}`,
+      ),
       human: true,
       ...composerChannel(typed),
       queue: true,
@@ -2437,6 +2430,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       string | undefined,
     ],
     result,
+    outboxId,
   ) => {
     const quoteClientIds =
       Array.isArray(quoteIds) && quoteIds.length ? quoteIds : undefined;
@@ -2474,12 +2468,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     if (!conversation) throw new Error("conversation_deleted");
     if (!(await canSendProductMessage(ctx, userId, conversation)))
       throw new Error("Unauthorized");
-    const stampQuotes = quoteClientIds && clientId ? quoteClientIds : undefined;
+    const deliveryClientId = requireFencedClientId(
+      conversation,
+      clientId?.trim()
+        ? clientId
+        : outboxId && `dispatch:${userId}:${outboxId}`,
+    );
+    const stampQuotes = deliveryClientId ? quoteClientIds : undefined;
     const waiting = await quotesWaiting(ctx, conversation._id, stampQuotes);
     const queued = await enqueuePendingMessage(ctx, conversation, userId, {
       content,
       image_storage_ids: imageIds?.length ? (imageIds as any) : undefined,
-      client_id: clientId,
+      client_id: deliveryClientId,
       human: true,
       ...composerChannel(typed),
       ...(observed_turn && { observed_turn }),
@@ -2489,7 +2489,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         ctx,
         userId,
         conversation._id,
-        clientId!,
+        deliveryClientId!,
         stampQuotes,
         waiting,
       );

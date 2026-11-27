@@ -1188,6 +1188,7 @@ async function runE2E(
     await doctorPost(deps.siteUrl, deps.apiToken, "/cli/messages/send", {
       to: conversationId,
       body: `codecast doctor ${runId}: reply with ${tokenB}`,
+      client_id: `doctor:${runId}:roundtrip`,
     });
 
     let echoed = false;

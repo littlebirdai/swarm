@@ -16316,19 +16316,19 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (target && hasThreadState(target))
         Object.assign(target, answeredThreadStateFields());
     }
+    const clientId = _clientId?.trim() ? undefined : crypto.randomUUID();
     const turn = this.fencedObservedTurns[_convId];
     if (
       observeTurn &&
       turn?.observed_turn &&
       turn.local_lease_deadline > performance.now()
     )
-      return { observed_turn: { ...turn.observed_turn } };
+      return {
+        ...(clientId && { clientId }),
+        observed_turn: { ...turn.observed_turn },
+      };
+    if (clientId) return { clientId };
   }),
-  // A real id sends now. A stub waits for its create (awaitConvexId heals a
-  // stranded one), because the server cannot address a stub id. A create that
-  // is still on its way (parked, or fenced by a binding rewire) leaves the
-  // bubble pending: the stranded-stub sweep re-creates and re-sends it under
-  // the same client id. Only a refused create fails the bubble.
   sendMessageWhenReady: (
     convId: string,
     content: string,

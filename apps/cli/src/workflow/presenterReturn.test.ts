@@ -250,6 +250,9 @@ describe("workflow/runner (a presenter sent back its brief)", () => {
     };
     expect(await run()).toBe("completed");
     expect(spawned).toBe(1);
+    expect(routed("/cli/messages/send")[0].body.client_id).toBe(
+      "run:run-1:resume:present:conv_hand1:1000",
+    );
     expect(routed("/cli/sessions/kill")).toHaveLength(0);
     expect(routed("/cli/decide", (b) => b.action === "cancel")).toHaveLength(0);
     expect(gates).toBe(2);

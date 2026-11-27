@@ -151,6 +151,7 @@ describe("delivery from a published page", () => {
     expect(pending[0]).toMatchObject({
       conversation_id: p.conversation,
       from_user_id: p.owner,
+      client_id: `artifact-comment-batch:${p.artifact}:${comments[0]._id}`,
     });
     expect(pending[0].content).toContain("From your user, the page's owner:");
     expect(pending[0].content).not.toContain("UNTRUSTED");
@@ -350,4 +351,29 @@ describe("delivery from a published page", () => {
       author_role: "owner",
     });
   });
+});
+
+test("a retried viewer request returns its whole comment batch and sends it once", async () => {
+  const p = await page();
+  const post = (client_id: string) =>
+    p.post({
+      owner_key,
+      client_id,
+      deliver: false,
+      comments: [
+        { text: "Discussion only", deliver: false },
+        { text: "Revise the header", deliver: true },
+      ],
+    });
+  const first = await post("viewer-submission");
+  expect(first).toMatchObject({ count: 2, delivered: true });
+  expect(await post("viewer-submission")).toEqual(first);
+  const another = await post("another-submission");
+  expect(another.ids).not.toEqual(first.ids);
+  const { comments, pending } = await p.read();
+  expect(comments).toHaveLength(4);
+  expect(pending.map((row) => row.client_id)).toEqual([
+    `artifact-comment-batch:${p.artifact}:request:viewer-submission`,
+    `artifact-comment-batch:${p.artifact}:request:another-submission`,
+  ]);
 });

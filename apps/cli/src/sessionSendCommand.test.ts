@@ -52,7 +52,13 @@ describe("session send command", () => {
     expect(cli.requests).toEqual([
       {
         path: "/cli/messages/send",
-        body: { to: "jx7c6zk", from: "native-thread-uuid", body, wake: false },
+        body: {
+          to: "jx7c6zk",
+          from: "native-thread-uuid",
+          body,
+          client_id: expect.any(String),
+          wake: false,
+        },
       },
     ]);
     expect(cli.output.join("\n")).not.toContain("without resolving");
@@ -115,6 +121,7 @@ describe("session send command", () => {
       to: "jx7c6zk",
       body: "/model opus",
       from: undefined,
+      client_id: expect.any(String),
       raw: true,
     });
     expect(cli.output).toHaveLength(1);

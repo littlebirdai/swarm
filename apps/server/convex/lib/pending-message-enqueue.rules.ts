@@ -3,9 +3,10 @@ import type { WakeCause } from "@codecast/hosted-assistant/assistant";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import { ConvexError, v, type Infer } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { claim, findClaim, takeoverForTurn } from "./claims";
+import { fail } from "./execution-binding.validators";
 
 export const observedTurnValidator = v.object({
   id: v.string(),
@@ -68,6 +69,23 @@ export type PendingMessageEnqueueFields = {
   // other conversation.
   wake_cause?: WakeCause;
 };
+
+export function requireFencedClientId(
+  conversation: Pick<Doc<"conversations">, "execution_protocol_state">,
+  clientId: string | undefined,
+): string | undefined {
+  if (
+    conversation.execution_protocol_state === "fenced" &&
+    (typeof clientId !== "string" ||
+      !clientId.trim() ||
+      clientId !== clientId.trim())
+  )
+    fail(
+      "FENCED_DELIVERY_ID_REQUIRED",
+      "fenced messages require a caller-stable client_id used as delivery_id",
+    );
+  return clientId;
+}
 
 export type SendAdmission =
   | { delivery_intent: "queue" }

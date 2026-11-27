@@ -28,8 +28,9 @@ export const reportPaneRefused = mutation({
     if (!(await senderOrOwnerCanAct(ctx, msg, userId)))
       throw new Error("Unauthorized: can only report messages you sent or own");
     const conv = await ctx.db.get(msg.conversation_id);
-    await patchPendingMessageStatus(ctx, msg, { status: "cancelled" });
-    if (!conv) return { recovered: false };
+    if (!conv || conv.execution_protocol_state) return { recovered: false };
+    if (!(await patchPendingMessageStatus(ctx, msg, { status: "cancelled" })))
+      return { recovered: false };
     const now = Date.now();
     const plan = planPaneRefusal(conv as any, now);
     if (plan.kind === "recover") {
@@ -39,6 +40,7 @@ export const reportPaneRefused = mutation({
       });
       await enqueuePendingMessage(ctx, conv, msg.from_user_id, {
         content: msg.content,
+        client_id: `pane-recovery:${msg._id}`,
         ...(msg.image_storage_id
           ? { image_storage_id: msg.image_storage_id }
           : {}),

@@ -466,6 +466,7 @@ export async function provisionStandingAgent(
             role: args.role!.bootstrap,
             cleanChat: adoptedAnchor.clean_chat,
           }),
+          client_id: `anchor-adopt:${adoptedAnchor._id}:${args.role!._id}`,
         },
       );
     }
@@ -611,6 +612,7 @@ export async function provisionStandingAgent(
   if (args.bootstrap !== false) {
     const conversation = await ctx.db.get(conversationId);
     await enqueuePendingMessage(ctx, conversation, hostUserId, {
+      client_id: `anchor-bootstrap:${args.role?._id ?? anchorId}:${conversationId}`,
       content: bootstrapMessage({
         name,
         scopeType: args.scope_type,
@@ -676,6 +678,7 @@ export const wakeAnchor = mutation({
     api_token: v.optional(v.string()),
     anchor_id: v.id("anchors"),
     message: v.string(),
+    client_id: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -686,7 +689,14 @@ export const wakeAnchor = mutation({
     if (!(await userCanAccessAnchor(ctx, userId, anchor))) {
       throw new Error("Not authorized for this workspace's agent");
     }
-    return await deliverToAnchor(ctx, args.anchor_id, args.message);
+    return await deliverToAnchor(
+      ctx,
+      args.anchor_id,
+      args.message,
+      args.client_id?.trim()
+        ? `anchor-wake:${userId}:${args.client_id.trim()}`
+        : undefined,
+    );
   },
 });
 

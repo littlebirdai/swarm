@@ -138,6 +138,7 @@ export function registerSessionSendCommand(program: Command, io: SendIo): void {
             to: sessionId,
             from,
             body,
+            client_id: crypto.randomUUID(),
             ...(options.raw ? { raw: true } : { wake: options.wake === true }),
             ...(intent ? { intent } : {}),
           });

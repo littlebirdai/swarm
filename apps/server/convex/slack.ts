@@ -941,7 +941,12 @@ export const wakeFromSlackEvent = internalMutation({
         : undefined,
       text: String(args.text),
     });
-    await deliverToAnchor(ctx, anchor._id, wake);
+    await deliverToAnchor(
+      ctx,
+      anchor._id,
+      wake,
+      `slack-anchor:${args.event_id}`,
+    );
     await ctx.db.insert("slack_events", {
       event_id: args.event_id,
       created_at: Date.now(),

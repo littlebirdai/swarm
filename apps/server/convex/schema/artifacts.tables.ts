@@ -153,7 +153,8 @@ export const artifactTables = {
     created_at: v.number(),
   })
     .index("by_artifact", ["artifact_id", "created_at"])
-    .index("by_artifact_client_id", ["artifact_id", "client_id"]),
+    .index("by_artifact_client_id", ["artifact_id", "client_id"])
+    .index("by_artifact_batch", ["artifact_id", "batch_id"]),
 
   // Live data on a published page (cast-data.json): one row per declared
   // query, run as the publisher inside one workspace, its last answer cached

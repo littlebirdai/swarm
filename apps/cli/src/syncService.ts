@@ -93,10 +93,6 @@ const MAX_INLINE_IMAGE_SIZE = 500_000;
 const MAX_IMAGES_PER_MESSAGE = 10;
 const MAX_FILES_PER_MESSAGE = 10;
 
-// Upload images concurrently rather than one-at-a-time. Uploads go to file storage
-// (not the conversation hot-doc), so they don't contend on OCC; serializing them
-// made an image-heavy sync chunk slower than the live file grew, so the session
-// never caught up. Bounded so a burst can't stampede the backend.
 const IMAGE_UPLOAD_CONCURRENCY = 6;
 
 const MIN_REQUEST_INTERVAL_MS = 100;
@@ -2931,6 +2927,7 @@ export class SyncService {
   /** What a merge_back command did with a worker's worktree (subagentFleet.reportMergeBack). */
   async reportMergeBack(args: {
     conversation_id: string;
+    attempt?: number;
     state: "merged" | "empty" | "conflict" | "failed";
     files?: string[];
     reason?: string;

@@ -230,6 +230,7 @@ export const conversationTables = {
     // Bring this isolated worker's changes into its parent's checkout when it
     // finishes done (agent definition merge_back, or cast spawn --merge-back).
     merge_back_on_done: v.optional(v.boolean()),
+    merge_back_attempt: v.optional(v.number()),
     // What became of them (MergeBackStatus): the worker row's chip.
     merge_back: v.optional(
       v.object({

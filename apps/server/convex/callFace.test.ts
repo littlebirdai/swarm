@@ -800,25 +800,38 @@ describe("what the worker reads and writes", () => {
     ).toBeNull();
   });
 
+  const askArgs = {
+    conversation_id: "conv1",
+    room_key: "session:conv1",
+    text: "Why does refresh race?",
+    speaker: "Ada",
+  };
+
   test("an ask reaches the session as the feed's adder, with who asked", async () => {
     const ctx = live();
-    expect(
-      await call(ask, ctx, {
-        conversation_id: "conv1",
-        room_key: "session:conv1",
-        text: "Why does refresh race?",
-        speaker: "Ada",
-      }),
-    ).toBe(true);
-    const [sent] = ctx._scheduled.filter(
-      (s) => s.name === "transcripts:deliverToSession",
-    );
+    expect(await call(ask, ctx, { ...askArgs, client_id: "ask-1" })).toBe(true);
+    const [sent] = ctx._scheduled;
+    expect(sent.name).toBe("transcripts:deliverToSession");
     expect(sent.args.as_user).toBe("ua");
     expect(sent.args.to).toBe("conv1");
+    expect(sent.args.client_id).toBe("huddle-voice:ask-1");
     expect(sent.args.body).toContain("from Ada");
-    expect(sent.args.body).toEndWith("Why does refresh race?");
-    // Its answer is one the voice will say.
+    expect(sent.args.body).toEndWith(askArgs.text);
     expect(ctx.db._tables.call_agent_feeds[0].addressed_at).toBeNumber();
+  });
+
+  test("an older worker's ask reuses the call-turn identity until the transcript advances", async () => {
+    const ctx = live();
+    await call(ask, ctx, askArgs);
+    await call(ask, ctx, askArgs);
+    await call(said, ctx, { ...askArgs, text: "Next turn" });
+    await call(ask, ctx, askArgs);
+    const [first, replay, next] = ctx._scheduled.map(
+      (entry) => entry.args.client_id,
+    );
+    expect(first).toMatch(/^huddle-voice:f1:legacy:/);
+    expect(replay).toBe(first);
+    expect(next).not.toBe(first);
   });
 
   test("what the voice said lands in the transcript under its own name", async () => {

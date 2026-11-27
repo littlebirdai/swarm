@@ -131,7 +131,13 @@ describe("reportPaneRefused", () => {
     expect(resent[0]).toMatchObject({
       status: "pending",
       content: "the day's number",
+      client_id: `pane-recovery:${message}`,
     });
+    await t.mutation(reportPaneRefused, {
+      message_id: message,
+      api_token: TOKEN,
+    });
+    expect(await rows(t, target)).toEqual(queued);
     expect((await commands(t)).map((c: any) => c.command).sort()).toEqual([
       "kill_session",
       "resume_session",

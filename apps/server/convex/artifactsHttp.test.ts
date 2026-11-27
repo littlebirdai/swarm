@@ -499,6 +499,7 @@ describe("living pages over HTTP", () => {
           author_name: "A",
           deliver: false,
           identity_token: "tok",
+          client_id: "comment-request",
           comments: [
             { text: "one", deliver: true },
             { text: "two", deliver: "yes" },
@@ -508,6 +509,7 @@ describe("living pages over HTTP", () => {
       }),
     );
     expect(calls[0].deliver).toBe(false);
+    expect(calls[0].client_id).toBe("comment-request");
     expect(calls[0].comments.map((c: any) => c.deliver)).toEqual([
       true,
       undefined,

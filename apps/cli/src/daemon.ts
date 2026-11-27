@@ -2812,12 +2812,12 @@ const cloudAgents = new CloudAgentRegistry(
         })
         .catch(logConvexFailure);
     },
-    enqueueMessage: async (conversationId, content) => {
+    enqueueMessage: async (conversationId, content, clientId) => {
       if (!syncServiceRef) throw new Error("not connected");
       await syncServiceRef.enqueueUserMessage(
         conversationId,
         content,
-        undefined,
+        clientId,
         { human: true },
       );
     },
@@ -5617,7 +5617,7 @@ const DETACHED_COMMANDS: ReadonlySet<string> = new Set([
  *  whole batch in one round trip, then execute in order. Shared by the three
  *  paths a command arrives on (the subscription, the 10s poll, the heartbeat
  *  response), which differed only in their log line. */
-async function executeCommandBatch(
+export async function executeCommandBatch(
   cmds: Array<{ id: string; command: string; args?: string }>,
   config: Config,
   source: string,

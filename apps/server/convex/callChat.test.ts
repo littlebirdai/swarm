@@ -637,6 +637,9 @@ describe("post relays a typed line to the agents in the room", () => {
       (s) => s.name === "transcripts:deliverToSession",
     );
     expect(relays).toHaveLength(1);
+    expect(relays[0].args.client_id).toBe(
+      `huddle-chat:${ctx.db._tables.call_chat_messages[0]._id}`,
+    );
     expect(relays[0].args.body).toContain("**Ada Lovelace**: look at this");
     expect(relays[0].args.image_storage_ids).toEqual([shot.storage_id]);
   });

@@ -48,6 +48,7 @@ import {
 import {
   admitFencedHumanSend,
   observedTurnValidator,
+  requireFencedClientId,
   type PendingMessageEnqueueFields,
 } from "./lib/pending-message-enqueue.rules";
 import { requireUser } from "./lib/auth";
@@ -838,7 +839,7 @@ export async function tellRole(
 ): Promise<Id<"pending_messages"> | null> {
   const conversation = (await reachableRole(ctx, roleId))?.standing;
   if (!conversation) return null;
-  const { from_user_id, ...rest } = fields;
+  const { from_user_id, client_id, ...rest } = fields;
   if (!fields.content.startsWith("<")) {
     const from = fields.from_conversation_id
       ? await ctx.db.get(fields.from_conversation_id)
@@ -854,7 +855,7 @@ export async function tellRole(
     ctx,
     conversation,
     from_user_id ?? conversation.user_id,
-    rest,
+    { ...rest, client_id },
   );
 }
 
@@ -910,7 +911,7 @@ export const sendMessageToSession = mutation({
       content: args.content,
       image_storage_id: args.image_storage_id,
       image_storage_ids: args.image_storage_ids,
-      client_id: args.client_id,
+      client_id: requireFencedClientId(conversation, args.client_id),
       origin: args.origin,
       human: args.human === true && args.origin !== "scheduler",
     });
@@ -1416,7 +1417,7 @@ export async function performSessionSend(
     image_storage_ids: args.image_storage_ids?.length
       ? args.image_storage_ids
       : undefined,
-    client_id: args.client_id,
+    client_id: requireFencedClientId(target, args.client_id),
     // The failure-feedback channel: the stuck-message cron tells this session when the send sits
     // undelivered (planStuckSendNotify decides which waits are worth saying).
     from_conversation_id: fromConversationId,
@@ -1570,7 +1571,10 @@ export const sendSessionMessage = mutation({
     if (!authUserId) {
       throw new Error("Authentication failed: invalid token or session");
     }
-    return await performSessionSend(ctx, authUserId, args);
+    return await performSessionSend(ctx, authUserId, {
+      ...args,
+      client_id: args.client_id,
+    });
   },
 });
 
@@ -3016,7 +3020,7 @@ export async function notifyStuckSend(
   const earlier = msg.sender_notice_id
     ? await ctx.db.get(msg.sender_notice_id)
     : null;
-  if (earlier?.status === "pending") {
+  if (earlier?.status === "pending" && !isFencedPendingMessage(earlier)) {
     await ctx.db.patch(earlier._id, { content });
     await ctx.db.patch(msg._id, { sender_notified_at: Date.now() });
   } else {
@@ -3024,7 +3028,7 @@ export async function notifyStuckSend(
       ctx,
       senderConv,
       msg.from_user_id,
-      { content },
+      { content, client_id: `send-notice:${msg._id}:${reach}` },
     );
     await ctx.db.patch(msg._id, {
       sender_notified_at: Date.now(),
