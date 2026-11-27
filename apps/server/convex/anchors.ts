@@ -672,11 +672,7 @@ export async function deliverToAnchor(
     throw new Error("The workspace agent's session is missing");
   await enqueuePendingMessage(ctx, conversation, conversation.user_id, {
     content: message,
-    client_id:
-      clientId ??
-      (conversation.execution_protocol_state === "fenced"
-        ? crypto.randomUUID()
-        : undefined),
+    client_id: clientId,
   });
   return { conversation_id: anchor.conversation_id, woke: true };
 }

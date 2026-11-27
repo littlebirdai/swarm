@@ -162,6 +162,20 @@ test("a CLI anchor wake reaches a fenced anchor and replays by request ID", asyn
   expect(await f.deliveryIds()).toEqual([`anchor-wake:${f.owner}:wake-1`]);
 });
 
+test("a CLI anchor wake without a client ID is refused on a fenced anchor", async () => {
+  const f = await fencedAnchor();
+  for (const client_id of [undefined, "  "])
+    await expect(
+      f.t.mutation(api.anchors.wakeAnchor, {
+        api_token: f.bearer,
+        anchor_id: f.anchor,
+        message: "Wake the anchor",
+        ...(client_id === undefined ? {} : { client_id }),
+      }),
+    ).rejects.toThrow("FENCED_DELIVERY_ID_REQUIRED");
+  expect(await f.deliveryIds()).toEqual([]);
+});
+
 test("a Slack event wakes a fenced anchor only once", async () => {
   const f = await fencedAnchor();
   const wake = () =>
