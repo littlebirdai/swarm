@@ -211,7 +211,6 @@ export async function stampRunConversation(
   }
   return conv;
 }
-
 // Kill is the strongest triage gesture — "make this stop". Any armed schedule
 // that INJECTS into the killed conversation (originating_conversation_id, the
 // `--context current` kind) would resurrect it on its next fire — the
