@@ -364,34 +364,41 @@ test.each([false, true])(
   },
 );
 
-test.each([
-  {
-    reason: "baton flag is off",
-    baton: false,
-    clientId: "queue-without-baton",
-  },
-  { reason: "client ID is missing", baton: true, clientId: undefined },
-])(
-  "an explicit agent send stays unallocated and held when the $reason",
-  async ({ baton, clientId }) => {
-    const f = await launch();
-    const turn = await openTurn(f);
-    if (!baton) delete process.env.SWARM_TURN_BATON;
+test("an explicit agent send stays unallocated and held when the baton flag is off", async () => {
+  const clientId = "queue-without-baton";
+  const f = await launch();
+  const turn = await openTurn(f);
+  delete process.env.SWARM_TURN_BATON;
 
-    const sent = await f.send(clientId, "sending-session", true);
-    const queued = await f.t.run(({ db }) => db.get(sent.message_id!));
-    expect(queued).toMatchObject({
-      queued: true,
-      status: "held",
-      from_conversation_id: f.sender,
-    });
-    expect(queued?.client_id).toBe(clientId);
-    expect(queued?.delivery_protocol_version).toBeUndefined();
-    expect(queued?.delivery_id).toBeUndefined();
-    expect(queued?.delivery_intent).toBeUndefined();
-    expect(await turn.next()).toMatchObject({ status: "empty" });
-  },
-);
+  const sent = await f.send(clientId, "sending-session", true);
+  const queued = await f.t.run(({ db }) => db.get(sent.message_id!));
+  expect(queued).toMatchObject({
+    queued: true,
+    status: "held",
+    from_conversation_id: f.sender,
+  });
+  expect(queued?.client_id).toBe(clientId);
+  expect(queued?.delivery_protocol_version).toBeUndefined();
+  expect(queued?.delivery_id).toBeUndefined();
+  expect(queued?.delivery_intent).toBeUndefined();
+  expect(await turn.next()).toMatchObject({ status: "empty" });
+});
+
+test("an explicit agent send without a client ID is refused and writes nothing", async () => {
+  const f = await launch();
+  const turn = await openTurn(f);
+  const before = await f.t.run(({ db }) =>
+    db.query("pending_messages").collect(),
+  );
+
+  await expect(f.send(undefined, "sending-session", true)).rejects.toThrow(
+    "FENCED_DELIVERY_ID_REQUIRED",
+  );
+  expect(
+    await f.t.run(({ db }) => db.query("pending_messages").collect()),
+  ).toHaveLength(before.length);
+  expect(await turn.next()).toMatchObject({ status: "empty" });
+});
 
 test("turning enrollment off keeps existing delivery fenced and starts new sessions on legacy", async () => {
   const f = await launch();
