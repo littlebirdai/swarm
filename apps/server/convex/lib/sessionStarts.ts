@@ -11,6 +11,7 @@
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { isConversationSafetyBlocked } from "../conversationSafety";
 import { teamVisibleConvTeam } from "../privacy";
 import { daemonDeliveryStateOf } from "./daemonDelivery";
 
@@ -74,6 +75,7 @@ export function sessionStartFields(conv: Doc<"conversations">) {
     subagent: !!(conv.is_subagent || conv.parent_conversation_id),
     card: cardOf(conv),
     daemon_delivery: daemonDeliveryStateOf(conv),
+    execution_safety_blocked: isConversationSafetyBlocked(conv),
   };
 }
 
@@ -105,6 +107,7 @@ const same = (row: any, next: ReturnType<typeof sessionStartFields>) =>
   row.daemon_delivery?.blocked === next.daemon_delivery.blocked &&
   row.daemon_delivery?.owner_device_id ===
     next.daemon_delivery.owner_device_id &&
+  row.execution_safety_blocked === next.execution_safety_blocked &&
   sameCard(row.card, next.card);
 
 /** Re-derive one conversation's row from what it is now: write it, rewrite it, or drop it with the conversation. */
