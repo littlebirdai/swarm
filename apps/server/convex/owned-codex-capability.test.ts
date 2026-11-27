@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
   boot,
@@ -257,4 +258,71 @@ test("legacy quiescence activation requires the current boot to offer owned Code
     epoch: 1,
     migratedMessages: 0,
   });
+});
+
+test("only the opted-in daemon boot can consume an owned Codex successor intent", async () => {
+  const f = await setupRunLease();
+  const required_capabilities = [
+    ...EXECUTION_PROTOCOL_CAPABILITIES,
+    STEER_BATON_CAPABILITY,
+  ];
+  await f.t.run(({ db }) =>
+    db.patch(f.binding, {
+      required_capabilities,
+      capabilities: required_capabilities,
+    }),
+  );
+  const request = {
+    conversation_id: f.conversation,
+    intent_id: "restart-owned-codex",
+    expected_current_epoch: 1,
+    policy: "drain-current" as const,
+  };
+  await asUser(f.t, f.owner).mutation(
+    api.executionBindings.requestExecutionSuccessorIntent,
+    { ...request, kind: "restart" },
+  );
+  const register = (
+    daemon_boot_id: string,
+    owned_codex_new_sessions: boolean,
+  ) =>
+    f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
+      api_token: f.bearer,
+      owner_device_id: machine,
+      daemon_boot_id,
+      owned_codex_new_sessions,
+    });
+  const consume = () =>
+    f.t.mutation(api.executionBindings.requestExecutionSuccessor, {
+      ...request,
+      api_token: f.bearer,
+      target: {
+        owner_device_id: machine,
+        daemon_boot_id: boot,
+        project_path: "/fixture",
+        requested_agent: "codex",
+        transport: "app-server",
+        configuration_revision: 2,
+        protocol_version: 1,
+        required_capabilities,
+      },
+    });
+
+  await register(boot, false);
+  await expect(consume()).rejects.toThrow(
+    "the daemon boot did not offer owned Codex sessions",
+  );
+  await register("different-boot", true);
+  await expect(consume()).rejects.toThrow(
+    "the daemon boot did not offer owned Codex sessions",
+  );
+  await f.t.run(async ({ db }) => {
+    const head = await db.get(f.head);
+    expect(head?.successor_intent?.status).toBe("pending");
+    expect(head?.pending_epoch).toBeUndefined();
+    expect(await db.query("execution_bindings").collect()).toHaveLength(1);
+  });
+  await register(boot, true);
+  await expect(consume()).resolves.toMatchObject({ created: true, epoch: 2 });
+  await expect(consume()).resolves.toMatchObject({ created: false, epoch: 2 });
 });

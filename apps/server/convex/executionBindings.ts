@@ -868,6 +868,7 @@ export async function requestExecutionSuccessorInDb(
     );
   }
 
+  await requireOwnedCodexBoot(ctx, userId, args.target);
   await assertActiveRunLease(ctx, current, args.fencingToken, args.now);
   const epoch = args.expectedCurrentEpoch + 1;
   const admissionBoundary = head.next_conversation_sequence;
