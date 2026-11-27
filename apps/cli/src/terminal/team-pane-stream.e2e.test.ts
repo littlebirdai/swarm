@@ -69,7 +69,7 @@ test("a re-dispatched stream checks the original physical pane before sending a 
   expect(captured).toEqual([{}]);
 });
 
-test("capture binds the physical pane and refuses a partial tmux session name", async () => {
+test("capture binds the physical pane and refuses tmux fallback targets", async () => {
   const name = "watch-exact";
   const second = "watch-other";
   expect(tmuxRun(["new-session", "-d", "-s", name, "sleep", "60"]).status).toBe(
@@ -92,6 +92,8 @@ test("capture binds the physical pane and refuses a partial tmux session name", 
     const first = await captureTeamPane(name);
     expect(first?.identity).toStartWith(`${name}|`);
     expect(await captureTeamPane("watch-exac:0.0")).toBeNull();
+    for (const suffix of ["0.1", "1.0", "0", ".0", "%0", "0.0:1"])
+      expect(await captureTeamPane(`${name}:${suffix}`)).toBeNull();
     expect(
       tmuxRun(["respawn-pane", "-k", "-t", `${name}:0.0`, "sleep", "60"])
         .status,

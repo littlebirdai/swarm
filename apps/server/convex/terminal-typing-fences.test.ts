@@ -5,8 +5,13 @@ import {
 } from "@platform/auth/tokenFormat";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { terminalTypingFixture } from "../test-helpers/terminal-typing.testkit";
-import { deviceId } from "../test-helpers/terminal-watch.testkit";
+import {
+  enableTerminalWatchingForTests,
+  deviceId,
+} from "../test-helpers/terminal-watch.testkit";
 import { api, internal } from "./_generated/api";
+
+enableTerminalWatchingForTests();
 
 const flag = "CODECAST_TERMINAL_TYPING";
 const previous = process.env[flag];

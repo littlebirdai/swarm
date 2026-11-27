@@ -1,3 +1,4 @@
+import { teamTerminalWatchEnabled } from "./lib/terminal-watch.flags";
 import { v } from "convex/values";
 import {
   isValidPaneTarget,
@@ -126,6 +127,7 @@ async function viewerLease(
     share: Id<"terminal_watch_shares">;
   },
 ) {
+  if (!teamTerminalWatchEnabled()) return null;
   const share = await ctx.db.get(args.share);
   if (
     !share?.bound_at ||
@@ -153,6 +155,7 @@ async function viewerLease(
 export const status = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return null;
     const user = await getUserOrToken(ctx);
     if (!user) return null;
     const conversation = await ctx.db.get(args.conversation_id);
@@ -197,6 +200,7 @@ export const status = query({
 export const setSharing = mutation({
   args: { ...conversationArg, enabled: v.boolean() },
   handler: async (ctx, args) => {
+    if (args.enabled && !teamTerminalWatchEnabled()) return false;
     const user = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation || conversation.user_id !== user) return false;
@@ -249,6 +253,7 @@ export const setSharing = mutation({
 export const watchers = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return [];
     const user = await getUserOrToken(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!user || !conversation || conversation.user_id !== user) return [];
@@ -303,6 +308,7 @@ export const stopViewer = mutation({
 export const blockedViewers = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return [];
     const user = await getUserOrToken(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (
@@ -469,6 +475,7 @@ async function deviceShare(
     share: Id<"terminal_watch_shares">;
   },
 ) {
+  if (!teamTerminalWatchEnabled()) return null;
   const user = await terminalPublisher(ctx, args.api_token, args.device_id);
   if (!user) return null;
   const share = await ctx.db.get(args.share);

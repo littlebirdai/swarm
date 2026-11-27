@@ -3,9 +3,15 @@ import { PANE_MAX_PENDING_INPUT_BYTES } from "@codecast/daemon/terminalStream";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import { asUser } from "../test-helpers/database.testkit";
-import { deviceId, target } from "../test-helpers/terminal-watch.testkit";
+import {
+  enableTerminalWatchingForTests,
+  deviceId,
+  target,
+} from "../test-helpers/terminal-watch.testkit";
 
 import { terminalTypingFixture as fixture } from "../test-helpers/terminal-typing.testkit";
+
+enableTerminalWatchingForTests();
 
 const typing = api.terminalInput;
 const flag = "CODECAST_TERMINAL_TYPING";

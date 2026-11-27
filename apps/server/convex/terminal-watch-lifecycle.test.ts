@@ -1,6 +1,11 @@
 import { expect, test } from "bun:test";
 import { api, internal } from "./_generated/api";
-import { terminalWatchFixture } from "../test-helpers/terminal-watch.testkit";
+import {
+  enableTerminalWatchingForTests,
+  terminalWatchFixture,
+} from "../test-helpers/terminal-watch.testkit";
+
+enableTerminalWatchingForTests();
 
 const watch = api.terminalWatch;
 

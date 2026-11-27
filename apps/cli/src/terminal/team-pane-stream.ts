@@ -12,19 +12,21 @@ import { deviceId } from "../remote/device.js";
 import { tmuxRunAsync } from "../tmux.js";
 import { redactTeamScreen } from "./team-pane-redaction.js";
 
-import { WATCH_PANE_IDENTITY } from "./tmux-typing-pane.js";
+import { exactTypingTarget, WATCH_PANE_IDENTITY } from "./tmux-typing-pane.js";
 const MAX_PUSH_FAILURES = 6;
 
 export async function captureTeamPane(target: string) {
-  if (!isValidPaneTarget(target) || target.startsWith("%")) return null;
-  const pane = target.includes(":") ? target : `${target}:0.0`;
+  const exact = exactTypingTarget(target);
+  if (!exact) return null;
+  const pane = exact.paneTarget;
+  const format = `${WATCH_PANE_IDENTITY}|#{window_index}.#{pane_index}`;
   const result = await tmuxRunAsync([
     "display-message",
     "-p",
     "-t",
     pane,
     "-F",
-    WATCH_PANE_IDENTITY,
+    format,
     ";",
     "capture-pane",
     "-p",
@@ -37,21 +39,24 @@ export async function captureTeamPane(target: string) {
     "-t",
     pane,
     "-F",
-    WATCH_PANE_IDENTITY,
+    format,
   ]);
   if (result.status !== 0) return null;
   const output = result.stdout.replace(/\n$/, "");
   const first = output.indexOf("\n");
   const last = output.lastIndexOf("\n");
   if (first < 0 || last <= first) return null;
-  const identity = output.slice(0, first);
+  const stamp = output.slice(0, first);
+  const separator = stamp.lastIndexOf("|");
+  const identity = stamp.slice(0, separator);
   const [name, , , paneId, panePid, dead] = identity.split("|");
   if (
-    identity !== output.slice(last + 1) ||
+    stamp !== output.slice(last + 1) ||
+    stamp.slice(separator + 1) !== `${exact.windowIndex}.${exact.paneIndex}` ||
     !paneId?.startsWith("%") ||
     !Number(panePid) ||
     dead !== "0" ||
-    name !== target.split(":")[0]
+    name !== exact.sessionName
   )
     return null;
   return { identity, text: output.slice(first + 1, last) };

@@ -1,3 +1,4 @@
+import { teamTerminalWatchEnabled } from "./lib/terminal-watch.flags";
 import { v } from "convex/values";
 import {
   PANE_MAX_PENDING_INPUT_BYTES,
@@ -152,6 +153,7 @@ async function typingAccess(
 ): Promise<TerminalAccess | null> {
   const { conversation, device, session, target } = pane;
   if (device.user_id === user) return {};
+  if (!teamTerminalWatchEnabled()) return null;
   if (
     !conversation.team_id ||
     conversation.team_visibility === "private" ||

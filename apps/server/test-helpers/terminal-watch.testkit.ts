@@ -2,7 +2,7 @@ import {
   DEVICE_BOUND_TOKEN_PREFIX,
   presentToken,
 } from "@platform/auth/tokenFormat";
-import { expect } from "bun:test";
+import { afterEach, beforeEach, expect } from "bun:test";
 import { api } from "../convex/_generated/api";
 import { asUser, serverTest } from "./database.testkit";
 import { fixtureRows } from "./rows.testkit";
@@ -12,6 +12,20 @@ export const deviceId = "terminal-device";
 export const frame = "redacted screen";
 const secret = DEVICE_BOUND_TOKEN_PREFIX + "terminal-daemon-token";
 const token = presentToken(secret, deviceId);
+
+export const terminalWatchFlag = "CODECAST_TEAM_TERMINAL_WATCH";
+
+export function enableTerminalWatchingForTests() {
+  let previous: string | undefined;
+  beforeEach(() => {
+    previous = process.env[terminalWatchFlag];
+    process.env[terminalWatchFlag] = "1";
+  });
+  afterEach(() => {
+    if (previous === undefined) delete process.env[terminalWatchFlag];
+    else process.env[terminalWatchFlag] = previous;
+  });
+}
 
 export async function terminalWatchFixture(
   limits?: Parameters<typeof serverTest>[0],

@@ -9,10 +9,13 @@ import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
   deviceId,
+  enableTerminalWatchingForTests,
   frame,
   target,
   terminalWatchFixture,
 } from "../test-helpers/terminal-watch.testkit";
+
+enableTerminalWatchingForTests();
 
 const watch = api.terminalWatch;
 
