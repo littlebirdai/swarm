@@ -406,6 +406,62 @@ test("a due tick that finds work restores the 15-second cadence", async () => {
   }
 });
 
+test.each(["busy", "idle"] as const)(
+  "15-second tick jitter preserves the %s mirror cadence",
+  async (cadence) => {
+    const flag = "SEARCH_MIRROR_CRON_BACKOFF";
+    const previous = process.env[flag];
+    process.env[flag] = "1";
+    const t = serverTest(true);
+    const tick = internal.searchMirror.advanceCron;
+    try {
+      jest.setSystemTime(NOW - TICK_MS);
+      const { conversation, warm } = await t.run(async ({ db }) => {
+        const rows = fixtureRows(db, "mirror-jitter");
+        const conversation = await rows.conversation(await rows.user());
+        const warm =
+          cadence === "busy" ? await rows.message(conversation) : undefined;
+        return { conversation, warm };
+      });
+      const seed = (name: string) =>
+        t.run(({ db }) => fixtureRows(db, name).message(conversation));
+      const mirrored = () =>
+        t.run(async ({ db }) =>
+          (await db.query("message_search_recent").collect()).map(
+            ({ message_id }) => message_id,
+          ),
+        );
+      const fire = async (number: number, jitter: number) => {
+        jest.setSystemTime(NOW + number * TICK_MS + jitter);
+        return t.mutation(async (ctx) => {
+          await ctx.runMutation(tick, {});
+          return (await ctx.meta.getTransactionMetrics()).databaseQueries.used;
+        });
+      };
+      await fire(0, 0);
+      if (cadence === "busy") {
+        const early = await seed("mirror-jitter-early");
+        await fire(1, -10);
+        expect(await mirrored()).toEqual([warm, early]);
+        const late = await seed("mirror-jitter-late");
+        await fire(2, 10);
+        expect(await mirrored()).toEqual([warm, early, late]);
+      } else {
+        expect(await fire(1, 10)).toBe(1);
+        expect(await fire(2, -10)).toBeGreaterThan(1);
+        const message = await seed("mirror-jitter-idle-message");
+        expect(await fire(3, -10)).toBe(1);
+        expect(await mirrored()).toEqual([]);
+        await fire(4, -10);
+        expect(await mirrored()).toEqual([message]);
+      }
+    } finally {
+      if (previous === undefined) delete process.env[flag];
+      else process.env[flag] = previous;
+    }
+  },
+);
+
 test("the backoff cron leaves room in its transaction and finishes the tail on its next tick", async () => {
   const flag = "SEARCH_MIRROR_CRON_BACKOFF";
   const previous = process.env[flag];

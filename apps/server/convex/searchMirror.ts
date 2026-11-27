@@ -366,14 +366,12 @@ export const advanceCron = internalMutation({
     }
     const now = Date.now();
     const state = await ctx.db.query("search_mirror_state").first();
-    if (state?.next_tick_at !== undefined) {
-      const elapsed = now - state.next_tick_at;
-      if (
-        elapsed < 0 ||
-        (state.tick_delay_ms === MAX_TICK_MS &&
-          elapsed % MAX_TICK_MS >= TICK_MS)
-      )
-        return;
+    if (
+      state?.tick_delay_ms === MAX_TICK_MS &&
+      state.next_tick_at !== undefined
+    ) {
+      const elapsed = now - state.next_tick_at + TICK_MS / 2;
+      if (elapsed < 0 || elapsed % MAX_TICK_MS >= TICK_MS) return;
     }
     await performMirrorAdvance(
       ctx,
