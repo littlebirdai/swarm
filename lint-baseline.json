@@ -9305,7 +9305,7 @@
     "swarm/no-comments": 68
   },
   "apps/server/convex/dispatch.ts": {
-    "swarm/no-comments": 766
+    "swarm/no-comments": 751
   },
   "apps/server/convex/dispatch.watches.test.ts": {
     "swarm/no-comments": 4
@@ -18783,7 +18783,7 @@
   "apps/web/components/message-input.tsx": {
     "react-hooks/exhaustive-deps": 12,
     "swarm/ime-safe-key-handlers": 16,
-    "swarm/no-comments": 607,
+    "swarm/no-comments": 596,
     "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/messageMarkdown.tsx": {
@@ -26279,6 +26279,9 @@
   "apps/web/lib/syncLogCargo.ts": {
     "swarm/no-comments": 39
   },
+  "apps/web/lib/tab-safe-path.ts": {
+    "swarm/no-comments": 16
+  },
   "apps/web/lib/tabLazyPages.ts": {
     "swarm/no-comments": 44
   },
@@ -26287,9 +26290,6 @@
   },
   "apps/web/lib/tabRoutes.ts": {
     "swarm/no-comments": 62
-  },
-  "apps/web/lib/tab-safe-path.ts": {
-    "swarm/no-comments": 17
   },
   "apps/web/lib/tabTitle.test.ts": {
     "swarm/no-comments": 1
@@ -28076,7 +28076,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5053
+    "swarm/no-comments": 5050
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
