@@ -1,0 +1,59 @@
+# Environment variables for the Convex dev deployment. Set each one in the
+# Convex dashboard (Settings > Environment Variables) or with
+# `bunx convex env set NAME value` from apps/server. Do not copy this file to
+# .env.local: the Convex functions read these from the deployment.
+
+# Required
+# The web dev server's address, for sign-in redirects (dev.sh serves on 3200).
+SITE_URL=
+# Sign-in token keys. `npx @convex-dev/auth` in apps/server generates both.
+JWT_PRIVATE_KEY=
+JWKS=
+
+# Sign-in with GitHub (optional; email and password needs nothing).
+# Use a new GitHub OAuth app. Callback:
+# https://<dev-deployment>.convex.site/api/auth/callback/github
+AUTH_GITHUB_ID=
+AUTH_GITHUB_SECRET=
+
+# Sign-in with Google (optional)
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+
+# Email verification codes (optional; set AUTH_EMAIL_VERIFICATION=1 to require them)
+AUTH_EMAIL_VERIFICATION=
+RESEND_API_KEY=
+
+# Relay (optional; only to test relay liveness and presence).
+# RELAY_AUDIENCE: an ID you choose. RELAY_HMAC_KEY: at least 32 random bytes,
+# unpadded base64url: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+# RELAY_PUBLIC_URL: ws://127.0.0.1:3100 for a local relay.
+RELAY_AUDIENCE=
+RELAY_HMAC_KEY=
+RELAY_PUBLIC_URL=
+
+# Feature flags. Set to 1 to turn a feature on. All are off when unset.
+CODECAST_FENCED_EXECUTION_V1=
+CODECAST_FENCED_NEW_SESSIONS_V1=
+CODECAST_EDGE_V1=
+CODECAST_EDGE_DELIVERY_V1=
+CODECAST_EDGE_TERMINAL_EVENTS=
+CODECAST_EDGE_RELAY_LIVENESS_V1=
+SWARM_TURN_BATON=
+CODECAST_TERMINAL_TYPING=
+CODECAST_TEAM_TERMINAL_WATCH=
+CODECAST_SESSION_READ_ANCHORS=
+CODECAST_SYNC_ALARMS=
+INBOX_INDEXED_LIVENESS=
+INBOX_LIVENESS_LEASES=
+EXECUTION_WORK_SESSION_CARD=
+# A byte count, not 1: the machine memory budget for parked sessions.
+CODECAST_EDGE_MEMORY_PARKING_BYTES=
+
+# Optional integrations. Leave empty in a dev deployment unless you test one.
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+VOYAGE_API_KEY=
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_APP_WEBHOOK_SECRET=
