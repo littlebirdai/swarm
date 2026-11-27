@@ -1767,6 +1767,10 @@ export const CLIENT_SYNC_REGISTRY = {
     feeds: ["managedSessions.getAggregateMetrics"],
   },
   ...FENCED_PROMPT_SYNC_COLLECTIONS,
+  fencedSteerClaims: {
+    sync: { isDelta: true, deepFields: ["holder", "turn", "queue"] },
+    feeds: ["collab.steerClaimState"],
+  },
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
   // syncs with pruneAbsentScope for it (a resolved permission leaves the
@@ -2772,6 +2776,7 @@ export const REPLICATION_CLASSIFICATION: Record<
   pendingPermissions: "shared",
   fencedPromptAddresses: "local",
   fencedObservedTurns: "local",
+  fencedSteerClaims: "local",
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",

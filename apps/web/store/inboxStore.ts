@@ -1,5 +1,6 @@
 import { relayGrantAction } from "./relay-grant-action";
 import * as deferredCache from "./deferred-cache-policy";
+import { createSteerComposerSlice } from "./steer-composer-state";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -7872,13 +7873,14 @@ export interface InboxStoreState
     OpsSliceActions,
     ReturnType<typeof createReadingAnchorsSlice>,
     FencedPromptAnswerActions,
+    ReturnType<typeof createSteerComposerSlice>,
     LiveArtifactsSliceActions,
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
     ComposeSliceState,
     Omit<
       RegisteredCollectionSlots,
-      keyof ChatSliceState | keyof OrgSliceState
+      keyof ChatSliceState | keyof OrgSliceState | "fencedSteerClaims"
     > {
   sessions: Record<string, InboxSession>;
   pending: Record<string, PendingEntry>;
@@ -14880,6 +14882,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // -- Session unread --
   sessionReads: {},
   ...createReadingAnchorsSlice(),
+  ...createSteerComposerSlice(),
   // Plain, not an action: an action() always dispatches, and the ack fires on
   // every presence change and every re-render of the open session. The guard
   // here is what makes "the agent re-reported the same state" literally free —

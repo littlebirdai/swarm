@@ -111,6 +111,8 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
 
   // Sends and agent turns
   sendMessage: SEND,
+  controlSteerComposer: SEND,
+  changeCollabGrant: SEND,
   dispatchChatSend: SEND,
   addComment: SEND,
   addTaskComment: SEND,

@@ -8,6 +8,7 @@ import {
   type ComposerControlFlag,
   type ComposerPayload,
   type SendState,
+  type TurnExpectation,
 } from "./composer-control-model";
 
 type SendKind = "send" | "queue" | "suggest";
@@ -116,6 +117,8 @@ export function useComposerControl(
     ? JSON.stringify([
         facts.viewerId,
         facts.turn,
+        facts.expected?.address,
+        facts.expected?.batonToken,
         facts.driver?.id,
         facts.role,
         facts.driveRequested,
@@ -178,7 +181,10 @@ export function useComposerControl(
         ? { kind: "submitting" }
         : (localSend ?? currentFacts.sendState),
   });
-  const expected = { kind: "turn", turn: currentFacts.turn } as const;
+  const expected: TurnExpectation = currentFacts.expected ?? {
+    kind: "turn",
+    turn: currentFacts.turn,
+  };
 
   function begin(kind: SendKind, retry?: Retry) {
     if (
@@ -203,6 +209,8 @@ export function useComposerControl(
         const result = await baton.run(command);
         if (result === "accepted") {
           if (retry) dismissRetry(retry);
+          if (currentFacts.live && !currentFacts.sendState)
+            sendState = { kind: "saved" };
           return true;
         }
         sendState = { kind: result === "stale" ? "stale" : "refused" };

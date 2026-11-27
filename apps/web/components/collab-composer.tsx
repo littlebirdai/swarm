@@ -417,7 +417,6 @@ export const CollabComposer = memo(function CollabComposer({
       ? { conversation_id: convId }
       : "skip",
   ).data;
-  const requestAccess = useMutation(api.collab.requestSendAccess);
   const sendToSession = useMutation(api.pendingMessages.sendSessionMessage);
 
   const [message, setLocalMessage] = useState(() =>
@@ -591,7 +590,9 @@ export const CollabComposer = memo(function CollabComposer({
     if (busy) return;
     setBusy(true);
     try {
-      await requestAccess({ conversation_id: convId });
+      await useInboxStore
+        .getState()
+        .changeCollabGrant({ kind: "request", conversationId: convId });
     } finally {
       setBusy(false);
     }
@@ -1057,8 +1058,6 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
     api.collab.collabRequests,
     isConvexId(conversationId) ? { conversation_id: convId } : "skip",
   ).data;
-  const decide = useMutation(api.collab.decideSendAccess);
-  const revoke = useMutation(api.collab.revokeSendAccess);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const pending = (requests ?? []).filter((r) => r.status === "requested");
@@ -1100,7 +1099,12 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
             <button
               onClick={() =>
                 act(
-                  () => decide({ grant_id: r.grant_id, allow: true }),
+                  () =>
+                    useInboxStore.getState().changeCollabGrant({
+                      kind: "decide",
+                      grantId: r.grant_id,
+                      allow: true,
+                    }),
                   r.grant_id,
                 )
               }
@@ -1112,7 +1116,12 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
             <button
               onClick={() =>
                 act(
-                  () => decide({ grant_id: r.grant_id, allow: false }),
+                  () =>
+                    useInboxStore.getState().changeCollabGrant({
+                      kind: "decide",
+                      grantId: r.grant_id,
+                      allow: false,
+                    }),
                   r.grant_id,
                 )
               }
@@ -1135,7 +1144,14 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
             </span>
             <button
               onClick={() =>
-                act(() => revoke({ grant_id: r.grant_id }), r.grant_id)
+                act(
+                  () =>
+                    useInboxStore.getState().changeCollabGrant({
+                      kind: "revoke",
+                      grantId: r.grant_id,
+                    }),
+                  r.grant_id,
+                )
               }
               disabled={busyId === r.grant_id}
               className="shrink-0 h-6 px-2.5 rounded-full text-meta font-medium border border-sol-border text-sol-text-dim hover:text-sol-red hover:border-sol-red/40 disabled:opacity-50 transition-colors"

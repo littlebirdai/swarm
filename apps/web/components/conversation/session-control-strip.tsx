@@ -20,6 +20,10 @@ export function SessionControlStrip({
     control.takeover === "takeover" &&
     review?.driverId === driver?.id &&
     review?.expected.turn === control.expected.turn &&
+    review?.expected.address?.run === control.expected.address?.run &&
+    review?.expected.address?.start_event_seq ===
+      control.expected.address?.start_event_seq &&
+    review?.expected.batonToken === control.expected.batonToken &&
     !control.takeoverPending;
 
   return (

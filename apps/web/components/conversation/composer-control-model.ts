@@ -1,4 +1,11 @@
-export type TurnExpectation = { kind: "turn"; turn: string | null };
+import type { SteerTurn } from "../../store/steer-composer-state";
+
+export type TurnExpectation = {
+  kind: "turn";
+  turn: string | null;
+  address?: SteerTurn;
+  batonToken?: number | null;
+};
 
 type Driver = { id: string; name: string };
 
@@ -15,6 +22,10 @@ export type ComposerControlFacts = {
   takeoverPending: boolean;
   driveRequested: boolean;
   sendState: SendState | null;
+  expected?: TurnExpectation;
+  canSteer?: boolean;
+  canTakeOver?: boolean;
+  live?: true;
 };
 
 export type ComposerPayload = {
@@ -102,13 +113,21 @@ export function composerControlModel(facts: ComposerControlFacts) {
       ? facts.role === "suggester"
         ? "suggest"
         : null
-      : retryWithQueue || facts.takeoverPending || otherDrives
+      : retryWithQueue ||
+          facts.takeoverPending ||
+          otherDrives ||
+          (facts.turn !== null && facts.canSteer === false)
         ? "queue"
         : "send",
     request: !canQueue ? (facts.driveRequested ? "requested" : "ask") : null,
     canQueue,
-    interrupt: facts.turn !== null && (owner || (canQueue && mine)),
-    takeover: takingOver ? "cancel" : owner && otherDrives ? "takeover" : null,
+    interrupt:
+      !facts.live && facts.turn !== null && (owner || (canQueue && mine)),
+    takeover: takingOver
+      ? "cancel"
+      : owner && otherDrives && facts.canTakeOver !== false
+        ? "takeover"
+        : null,
     takeoverStatus: facts.takeoverPending
       ? "Taking over · Waiting for the machine"
       : null,

@@ -195,6 +195,7 @@ export const DATA_SCOPE = {
   pendingPermissions: "entity",
   fencedPromptAddresses: "entity",
   fencedObservedTurns: "entity",
+  fencedSteerClaims: "entity",
   permissionRules: "viewer",
   guestSuggestions: "entity",
   pendingMessageStatus: "entity",
