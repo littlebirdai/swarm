@@ -1,7 +1,8 @@
-import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
+import { mkdir, open, rename, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
-  parseTranscriptAppendRequest,
+  parseTranscriptSpoolRequest,
+  TRANSCRIPT_APPEND_MAX_BYTES,
   type TranscriptAppendRequest,
 } from "@codecast/edge-contract";
 
@@ -26,22 +27,47 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
 
   return {
     async read() {
-      const text = await readFile(path, "utf8").catch(
-        (error: NodeJS.ErrnoException) => {
-          if (error.code === "ENOENT") return null;
-          throw error;
-        },
+      const fd = await open(path, "r").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (!fd) return null;
+      const bytes = Buffer.alloc(TRANSCRIPT_APPEND_MAX_BYTES + 1);
+      let length = 0;
+      try {
+        while (length < bytes.length) {
+          const { bytesRead } = await fd.read(
+            bytes,
+            length,
+            bytes.length - length,
+            length,
+          );
+          if (bytesRead === 0) break;
+          length += bytesRead;
+        }
+      } finally {
+        await fd.close();
+      }
+      if (length > TRANSCRIPT_APPEND_MAX_BYTES)
+        throw new Error("Transcript spool exceeds byte limit");
+      const parsed = parseTranscriptSpoolRequest(
+        JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(
+            bytes.subarray(0, length),
+          ),
+        ),
       );
-      if (text === null) return null;
-      const parsed = parseTranscriptAppendRequest(JSON.parse(text));
       if (!parsed.ok) throw parsed.error;
       return parsed.value;
     },
     async save(batch) {
+      const body = JSON.stringify(batch);
+      if (Buffer.byteLength(body) > TRANSCRIPT_APPEND_MAX_BYTES)
+        throw new Error("Transcript spool exceeds byte limit");
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const fd = await open(temporary, "w", 0o600);
       try {
-        await fd.writeFile(JSON.stringify(batch));
+        await fd.writeFile(body);
         await fd.sync();
       } finally {
         await fd.close();

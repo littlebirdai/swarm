@@ -40268,24 +40268,31 @@ async function main(): Promise<void> {
   syncService.setDeliveryEchoes(deliveryEchoLedger());
   const transcriptUplink =
     process.env.CODECAST_EDGE_TRANSCRIPT_UPLINK_V1 === "1" && config.user_id
-      ? import("@codecast/edge-client").then(({ createTranscriptUplink }) =>
-          createTranscriptUplink({
-            siteUrl: convexUrl.replace(".cloud", ".site"),
-            spoolPath: path.join(
-              CONFIG_DIR,
-              "transcript-uplink",
-              createHash("sha256")
-                .update(JSON.stringify([convexUrl, config.user_id, deviceId()]))
-                .digest("hex") + ".json",
-            ),
-            bearer: () =>
-              activeConfig?.user_id === config.user_id ? getAuthToken() : null,
-          }),
+      ? import("./daemon-transcript-uplink.js").then(
+          ({ openTranscriptUplink }) =>
+            openTranscriptUplink(syncService, {
+              convexUrl,
+              configDir: CONFIG_DIR,
+              account: config.user_id!,
+              machine: deviceId(),
+              bearer: () => {
+                const latest = readConfig();
+                if (
+                  latest?.user_id !== config.user_id ||
+                  (latest?.convex_url || process.env.CONVEX_URL) !== convexUrl
+                )
+                  return null;
+                if (latest?.auth_token)
+                  syncService.setApiToken(latest.auth_token);
+                return latest?.auth_token ?? null;
+              },
+            }),
         )
       : undefined;
   if (transcriptUplink) {
     syncService.setTranscriptUplink({
       submit: async (...args) => (await transcriptUplink).submit(...args),
+      waitForReplay: async (id) => (await transcriptUplink).waitForReplay(id),
     });
     void transcriptUplink
       .then((uplink) => uplink.start())

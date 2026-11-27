@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join as joinPath } from "node:path";
 import {
@@ -298,4 +298,139 @@ it.effect(
         ),
       ).toBe(true);
     }),
+);
+
+it.effect(
+  "bounded retry failure retains its spool and blocks only the affected legacy sequence",
+  () =>
+    Effect.gen(function* () {
+      let attempts = 0;
+      const spool = memorySpool();
+      const error = new TranscriptUplinkError({
+        message: "unavailable",
+        retryable: true,
+      });
+      yield* withUplink(
+        {
+          spool,
+          async send() {
+            attempts++;
+            throw error;
+          },
+          async fallback() {
+            throw new Error("ambiguous transport failure must not fall back");
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("affected"))),
+            );
+            yield* adjust(20_000);
+            expect(yield* join(pending)).toBe(error);
+            expect(attempts).toBe(6);
+            expect((yield* Effect.promise(spool.read))?.writes).toEqual([
+              write("affected"),
+            ]);
+            expect(yield* Effect.flip(uplink.waitForReplay("affected"))).toBe(
+              error,
+            );
+            yield* uplink.waitForReplay("unrelated");
+            expect(yield* uplink.submit(write("unrelated"))).toEqual({
+              status: "legacy",
+            });
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "a malformed packet from an older daemon skips the edge and clears after ordered fallback",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* Effect.acquireRelease(
+        Effect.promise(() =>
+          mkdtemp(joinPath(tmpdir(), "transcript-old-spool-")),
+        ),
+        (path) =>
+          Effect.promise(() => rm(path, { recursive: true, force: true })),
+      );
+      const spool = fileTranscriptSpool(joinPath(directory, "spool.json"));
+      const rejected: TranscriptAppendWrite = {
+        conversation_id: "bad",
+        messages: [{ role: "assistant", message_uuid: "old-bad", content: 42 }],
+      };
+      const good: TranscriptAppendWrite = {
+        conversation_id: "good",
+        messages: [
+          { role: "assistant", message_uuid: "old-good", content: "valid" },
+        ],
+      };
+      yield* Effect.promise(() =>
+        spool.save({ v: 1, batch_id: "previous", writes: [rejected, good] }),
+      );
+      const legacy: string[] = [];
+      yield* withUplink(
+        {
+          spool,
+          async send() {
+            throw new TranscriptUplinkError({
+              message: "malformed batch reached the edge",
+              retryable: false,
+            });
+          },
+          async fallback(write) {
+            legacy.push(write.conversation_id);
+            return write.conversation_id === "bad"
+              ? { status: "refused" }
+              : { status: "applied", inserted: 1, ids: ["good"] };
+          },
+        },
+        (uplink) => uplink.ready,
+      );
+      expect(legacy).toEqual(["bad", "good"]);
+      expect(yield* Effect.promise(spool.read)).toBeNull();
+    }),
+);
+
+it.effect("the disk spool caps both saves and reads before decoding", () =>
+  Effect.gen(function* () {
+    const directory = yield* Effect.acquireRelease(
+      Effect.promise(() =>
+        mkdtemp(joinPath(tmpdir(), "transcript-spool-limit-")),
+      ),
+      (path) =>
+        Effect.promise(() => rm(path, { recursive: true, force: true })),
+    );
+    const path = joinPath(directory, "spool.json");
+    const spool = fileTranscriptSpool(path);
+    const batch: TranscriptAppendRequest = {
+      v: 1,
+      batch_id: "large",
+      writes: [
+        {
+          conversation_id: "large",
+          messages: [
+            {
+              role: "assistant",
+              content: "é".repeat(TRANSCRIPT_APPEND_MAX_BYTES / 2),
+            },
+          ],
+        },
+      ],
+    };
+    const saveFailure = yield* Effect.flip(
+      Effect.tryPromise(() => spool.save(batch)),
+    );
+    expect(saveFailure.cause).toEqual(
+      new Error("Transcript spool exceeds byte limit"),
+    );
+    expect(yield* Effect.promise(spool.read)).toBeNull();
+    yield* Effect.promise(() => writeFile(path, JSON.stringify(batch)));
+    const readFailure = yield* Effect.flip(Effect.tryPromise(spool.read));
+    expect(readFailure.cause).toEqual(
+      new Error("Transcript spool exceeds byte limit"),
+    );
+  }),
 );

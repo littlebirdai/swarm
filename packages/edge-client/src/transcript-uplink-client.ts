@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
   TRANSCRIPT_APPEND_OPERATION,
   type TranscriptAppendResult,
@@ -6,14 +7,16 @@ import {
 import { makeFacade } from "@codecast/effect-kit/effect";
 import * as Effect from "effect/Effect";
 import { fileTranscriptSpool } from "./transcript-spool";
-import { TranscriptUplink, TranscriptUplinkError } from "./transcript-uplink";
+import {
+  TranscriptUplink,
+  TranscriptUplinkError,
+  type TranscriptSubmission,
+} from "./transcript-uplink";
 
 export interface TranscriptUplinkClient {
   start(): Promise<void>;
-  submit(
-    write: TranscriptAppendWrite,
-    signal?: AbortSignal,
-  ): Promise<TranscriptAppendResult>;
+  submit(write: TranscriptAppendWrite): Promise<TranscriptSubmission>;
+  waitForReplay(conversationId: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -21,23 +24,24 @@ export function createTranscriptUplink(options: {
   spoolPath: string;
   siteUrl: string;
   bearer: () => string | null;
+  fallback: (write: TranscriptAppendWrite) => Promise<TranscriptAppendResult>;
 }): TranscriptUplinkClient {
   const lifetime = new AbortController();
   const url = new URL(
     `/edge/v1/${TRANSCRIPT_APPEND_OPERATION}`,
     options.siteUrl,
   );
+  let rejectedBearer: string | null = null;
   const facade = makeFacade(
     TranscriptUplink.layer({
       spool: fileTranscriptSpool(options.spoolPath),
+      fallback: options.fallback,
       async send(batch, signal) {
-        const bearer = options.bearer();
-        if (!bearer)
-          throw new TranscriptUplinkError({
-            message:
-              "Authentication failed: transcript device credentials unavailable",
-            retryable: false,
-          });
+        let bearer = options.bearer();
+        while (!bearer || bearer === rejectedBearer) {
+          await delay(1_000, undefined, { signal });
+          bearer = options.bearer();
+        }
         const response = await fetch(url, {
           method: "POST",
           headers: {
@@ -49,6 +53,7 @@ export function createTranscriptUplink(options: {
         });
         if (!response.ok) {
           await response.body?.cancel();
+          if (response.status === 401) rejectedBearer = bearer;
           const retryAfterMs =
             Number(response.headers.get("Retry-After")) * 1_000;
           throw new TranscriptUplinkError({
@@ -56,7 +61,13 @@ export function createTranscriptUplink(options: {
               response.status === 401
                 ? "Authentication failed: invalid transcript device token"
                 : `Transcript batch request failed (${response.status})`,
-            retryable: response.status === 429 || response.status >= 500,
+            retryable:
+              response.status === 401 ||
+              response.status === 429 ||
+              response.status >= 500,
+            fallbackAllowed: [400, 403, 404, 405, 410, 413, 422].includes(
+              response.status,
+            ),
             retryAfterMs: Number.isSafeInteger(retryAfterMs)
               ? retryAfterMs
               : undefined,
@@ -72,10 +83,17 @@ export function createTranscriptUplink(options: {
         Effect.flatMap(TranscriptUplink, (uplink) => uplink.ready),
         lifetime.signal,
       ),
-    submit: (write, signal) =>
+    waitForReplay: (conversationId) =>
+      facade.run(
+        Effect.flatMap(TranscriptUplink, (uplink) =>
+          uplink.waitForReplay(conversationId),
+        ),
+        lifetime.signal,
+      ),
+    submit: (write) =>
       facade.run(
         Effect.flatMap(TranscriptUplink, (uplink) => uplink.submit(write)),
-        signal ? AbortSignal.any([lifetime.signal, signal]) : lifetime.signal,
+        lifetime.signal,
       ),
     close: () => {
       lifetime.abort();

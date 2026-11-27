@@ -5,7 +5,11 @@ import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { internalMutation, internalQuery, query } from "./functions";
 import { bumpWindow, takeFromWindow } from "./ipRateLimit";
 import { messageValidator } from "./messages";
-import { appendDeviceTranscripts } from "./lib/edge/transcript-appends.route";
+import {
+  appendDeviceTranscripts,
+  TRANSCRIPT_RECEIPT_RETENTION_MS,
+} from "./lib/edge/transcript-appends.route";
+import { internal } from "./_generated/api";
 
 export const appendTranscripts = internalMutation({
   args: {
@@ -20,6 +24,36 @@ export const appendTranscripts = internalMutation({
     ),
   },
   handler: appendDeviceTranscripts,
+});
+
+export const pruneTranscriptReceipts = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<number> => {
+    const now = Date.now();
+    const limit = 500;
+    const rows = await ctx.db
+      .query("edge_transcript_receipts")
+      .withIndex("by_retention", (q) => q.lte("retain_until", now))
+      .take(limit);
+    let deleted = 0;
+    for (const row of rows) {
+      const retainUntil =
+        row.retain_until ?? row._creationTime + TRANSCRIPT_RECEIPT_RETENTION_MS;
+      if (retainUntil > now) {
+        await ctx.db.patch(row._id, { retain_until: retainUntil });
+      } else {
+        await ctx.db.delete(row._id);
+        deleted++;
+      }
+    }
+    if (rows.length === limit)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.edgeLink.pruneTranscriptReceipts,
+        {},
+      );
+    return deleted;
+  },
 });
 
 export const isDeviceBearer = internalQuery({

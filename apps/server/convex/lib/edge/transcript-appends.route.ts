@@ -8,6 +8,8 @@ import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { MutationCtx } from "../../_generated/server";
 import { writeMessageBatch, type MessageBatch } from "../../messages";
 
+export const TRANSCRIPT_RECEIPT_RETENTION_MS = 7 * 24 * 60 * 60_000;
+
 export async function appendDeviceTranscripts(
   ctx: MutationCtx,
   args: {
@@ -67,6 +69,7 @@ export async function appendDeviceTranscripts(
     batch_id: args.batch_id,
     fingerprint,
     receipt_json: JSON.stringify(receipt),
+    retain_until: Date.now() + TRANSCRIPT_RECEIPT_RETENTION_MS,
   });
   return receipt;
 }

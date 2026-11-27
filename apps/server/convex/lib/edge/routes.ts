@@ -240,6 +240,12 @@ function workAction<T>(
         if (error.data === "resolution_evidence_required")
           return edgeError(422, error.data);
       }
+      if (
+        options?.operation === "transcript" &&
+        error instanceof Error &&
+        /ArgumentValidationError|^Validator error:/.test(error.message)
+      )
+        return edgeError(400, EDGE_ERROR_CODES.INVALID);
       return edgeError(503, EDGE_ERROR_CODES.UNAVAILABLE, true, 1_000);
     }
   });

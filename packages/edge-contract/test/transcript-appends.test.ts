@@ -3,6 +3,7 @@ import {
   parseTranscriptAppendRequest,
   parseTranscriptAppendResponse,
   TRANSCRIPT_APPEND_MAX_MESSAGES,
+  TRANSCRIPT_APPEND_MAX_BYTES,
 } from "../src";
 
 const write = (conversation_id: string) => ({
@@ -54,4 +55,32 @@ test("parses ordered receipts including a refused transcript", () => {
       results: [{ status: "applied", inserted: -1, ids: [] }],
     }).ok,
   ).toBe(false);
+});
+
+test("checks message fields, nested records and encoded UTF-8 size", () => {
+  const invalid = [
+    { content: 7 },
+    { timestamp: Infinity },
+    { tool_calls: [{ id: "tool", name: "shell", input: {} }] },
+    { tool_results: [{ tool_use_id: "tool", content: "", is_error: "false" }] },
+    { images: [{ data: "image" }] },
+    { files: [{ name: "file", media_type: "text/plain", storage_id: 4 }] },
+    { usage: { input_tokens: 4 } },
+    { delivery_ids: [1] },
+    { extra: true },
+    { content: "é".repeat(TRANSCRIPT_APPEND_MAX_BYTES / 2) },
+  ];
+  for (const row of invalid) {
+    expect(
+      parseTranscriptAppendRequest({
+        ...request,
+        writes: [
+          {
+            conversation_id: "first",
+            messages: [{ role: "assistant", ...row }],
+          },
+        ],
+      }).ok,
+    ).toBe(false);
+  }
 });
