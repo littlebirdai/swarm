@@ -7,6 +7,7 @@ import type {
   EdgeErrorResponse,
   HeartbeatResponse,
   HelloResponse,
+  RelayGrantResponse,
   ReleaseResponse,
   RenewResponse,
   EdgeParseResult,
@@ -34,6 +35,7 @@ type WireReply =
   | ClaimResponse
   | HeartbeatResponse
   | HelloResponse
+  | RelayGrantResponse
   | ReleaseResponse
   | RenewResponse
   | PermitsNextResponse

@@ -54,6 +54,8 @@ export type RelayClientOptions = {
   ): Promise<TokenResult>;
   WebSocket: new (url: string) => RelaySocket;
   sessionLiveness?: boolean;
+  capabilities?: readonly string[];
+  onReady?(hub: RelayHub): void;
   now(): number;
   setTimer(callback: () => void, delayMs: number): () => void;
   random(): number;
@@ -87,10 +89,12 @@ type Request = {
 };
 
 export function createRelayClient(options: RelayClientOptions) {
-  const offeredCapabilities =
-    options.sessionLiveness === false
-      ? CAPABILITIES.filter((name) => name !== "session_liveness")
-      : CAPABILITIES;
+  const offeredCapabilities = [
+    ...(options.capabilities ??
+      (options.sessionLiveness === false
+        ? CAPABILITIES.filter((name) => name !== "session_liveness")
+        : CAPABILITIES)),
+  ];
   const subscriptions = new Map<string, Subscription>();
   const grants = new Map<string, Grant>();
   const queued = new Map<string, { wire: string; expires: number }>();
@@ -324,6 +328,7 @@ export function createRelayClient(options: RelayClientOptions) {
       sub.failures = 0;
       sub.retryAt = -Infinity;
       flush(key);
+      if (sub.status === "ready") options.onReady?.(sub.hub);
     } else if (
       frame.status === "denied" ||
       (frame.status === "unsubscribed" && frame.reason === "expired")
@@ -523,7 +528,8 @@ export function createRelayClient(options: RelayClientOptions) {
       const canSend =
         sub.status === "ready" &&
         (grants.get(key)?.expires ?? -Infinity) > now();
-      if (canSend && (!capabilities?.has(frame.type) || write(wire))) return;
+      if (canSend && !capabilities?.has(frame.type)) return;
+      if (canSend && write(wire)) return true;
       const coalesces =
         (frame.type === "presence" && frame.state === "active") ||
         ((frame.type === "draft_cursor" || frame.type === "reading_cursor") &&

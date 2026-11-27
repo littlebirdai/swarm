@@ -9,11 +9,14 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./effect": "./src/effect.ts"
+    "./effect": "./src/effect.ts",
+    "./relay-liveness": "./src/relay-liveness.ts"
   },
   "dependencies": {
     "@codecast/edge-contract": "workspace:*",
     "@codecast/effect-kit": "workspace:*",
+    "@codecast/relay-client": "workspace:*",
+    "@codecast/relay-contract": "workspace:*",
     "effect": "catalog:"
   }
 }
