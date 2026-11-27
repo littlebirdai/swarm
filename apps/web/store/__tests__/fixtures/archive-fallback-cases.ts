@@ -23,7 +23,7 @@ export async function registerArchiveFallbackCases({
   const { authPrincipal } = await import("../../../lib/authPrincipal");
   const { startSyncReplication, stopSyncReplication } =
     await import("../../sync-replication");
-  const { replicationChannelName, replicationTransport } =
+  const { replicationChannelName, replicationTransport, transportAvailable } =
     await import("../../storage-transport");
   const state = () => useInboxStore.getState();
   const id = "z".repeat(32);
@@ -273,4 +273,38 @@ export async function registerArchiveFallbackCases({
       }
     },
   );
+
+  test("local replication with no transport cleans a settled archive", async () => {
+    const restore = prepareFallback();
+    const verify = mock(async (_id: string) => archived);
+    try {
+      expect(transportAvailable()).toBe(false);
+      await COLLECTION_TABLES.docDetails.put(detail);
+      await bootCache();
+      expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(detail);
+      startSyncReplication({
+        eligible: true,
+        principalId: TEST_PRINCIPAL,
+        detailAuthority: {
+          detail: verify,
+          async page() {
+            throw new Error("The archive echo should not need a crawl");
+          },
+        },
+      });
+      state().syncTable("docs", [archivedDoc], { isDelta: true });
+      const deadline = Bun.nanoseconds() + 2_000_000_000;
+      while (
+        (await COLLECTION_TABLES.docDetails.get(id)) !== undefined &&
+        Bun.nanoseconds() < deadline
+      )
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(verify.mock.calls).toEqual([[id]]);
+      expect(state().docDetails[id]).toBeUndefined();
+      expect(await COLLECTION_TABLES.docDetails.get(id)).toBeUndefined();
+    } finally {
+      stopSyncReplication();
+      restore();
+    }
+  });
 }

@@ -133,10 +133,6 @@ export function reportCompleteDocCrawl(
   return detailCache.reportCrawl?.(workspace, ids, position);
 }
 
-export function hasFreshDocDetailReader(): boolean {
-  return detailCache.readFresh !== undefined;
-}
-
 export function revalidateDroppedDocArchive(id: string): void {
   if (
     cacheEvictionEnabled() &&

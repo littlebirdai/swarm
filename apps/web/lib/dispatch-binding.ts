@@ -11,7 +11,6 @@ import {
   fetchFreshDocDetail,
   invalidateDetailReads,
   reportDetailInvalidation,
-  revalidateDroppedDocArchive,
 } from "../store/doc-detail-cache";
 // The store's server dispatch binding and its failure handler, outside React.
 //
@@ -188,15 +187,6 @@ export function makeDispatchBinding(
       },
       (err) => {
         settle({ err });
-        if (
-          action === "archiveDoc" &&
-          detailWrite &&
-          detailAccountIsCurrent(detailWrite) &&
-          docId &&
-          timedDocCapsEnabled() &&
-          isPermanentDispatchError(err)
-        )
-          revalidateDroppedDocArchive(docId);
         throw err;
       },
     );

@@ -2466,7 +2466,6 @@ export type DocItem = {
   updated_at: number;
   archived_at?: number;
 };
-
 export type DocDetail = DocItem & {
   conversation?: any;
   related_tasks?: any[];
