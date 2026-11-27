@@ -29,6 +29,7 @@ const PACKAGE_AREAS = [
   "diff",
   "edge-client",
   "edge-contract",
+  "edge-supervisor",
   "effect-kit",
   "entities",
   "evals-api",
