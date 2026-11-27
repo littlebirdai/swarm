@@ -1324,10 +1324,12 @@ async function performRetireRoleCore(
         q.eq("conversation_id", standing._id).eq("status", "held"),
       )
       .collect();
-    for (const p of held)
+    for (const p of held) {
+      if (!keepStanding && isFencedPendingMessage(p)) continue;
       await writePendingStatus(ctx, p._id, {
         status: keepStanding ? "pending" : "cancelled",
       });
+    }
   }
   const pendingTriggerCancellation = stopped === null;
   const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
