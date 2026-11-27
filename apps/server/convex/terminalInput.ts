@@ -233,7 +233,11 @@ async function canUseLease(
 export const setTypingGrant = mutation({
   args: { ...conversationArgs, user_id: v.id("users"), enabled: v.boolean() },
   handler: async (ctx, args) => {
-    if (!terminalTypingEnabled()) return false;
+    if (
+      !terminalTypingEnabled() ||
+      (args.enabled && !teamTerminalWatchEnabled())
+    )
+      return false;
     const owner = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (conversation?.user_id !== owner || args.user_id === owner) return false;

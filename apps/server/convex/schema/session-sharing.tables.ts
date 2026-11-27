@@ -180,6 +180,7 @@ export const sessionFrameTables = {
     pane_instance: v.optional(v.string()),
     bind_expires_at: v.optional(v.number()),
     bound_at: v.optional(v.number()),
+    last_stream_requested_at: v.optional(v.number()),
   })
     .index("by_conversation", ["conversation_id"])
     .index("by_owner_team", ["owner_id", "team_id"])

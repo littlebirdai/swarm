@@ -17,6 +17,7 @@ import { terminalPublisher } from "./lib/terminalPublisher";
 import {
   deleteTerminalShare,
   deleteTerminalViewer,
+  deleteTerminalWatchScreen,
   terminalWatchScreen,
   terminalWatchViewers,
 } from "./lib/terminalWatchRows";
@@ -401,10 +402,10 @@ export const watch = mutation({
     }
 
     const screen = await terminalWatchScreen(ctx.db, share._id);
+    const requestedAt = screen?.requested_at ?? share.last_stream_requested_at;
     if (
-      !screen ||
-      (now - (screen.seen_at ?? 0) > STREAM_STALE_MS &&
-        now - screen.requested_at >= DISPATCH_MS)
+      (!screen || now - (screen.seen_at ?? 0) > STREAM_STALE_MS) &&
+      (requestedAt === undefined || now - requestedAt >= DISPATCH_MS)
     ) {
       const device = await ctx.db.get(share.device);
       if (!device) return false;
@@ -551,7 +552,7 @@ export const cliPush = mutation({
       }
     }
     if (!watched) {
-      await ctx.db.delete(screen._id);
+      await deleteTerminalWatchScreen(ctx.db, screen, share);
       return { stop: true };
     }
 

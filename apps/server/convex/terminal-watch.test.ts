@@ -720,3 +720,41 @@ test("expired legacy revoked presence is purged without deleting the block", asy
   ).toEqual([]);
   expect(await owner.query(watch.blockedViewers, args)).toHaveLength(1);
 });
+
+test("leaving and rejoining as the only viewer does not reset the dispatch window", async () => {
+  const { t, viewer, start } = await terminalWatchFixture();
+  const now = Date.now();
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  try {
+    const { lease, push } = await start();
+    const dispatches = () =>
+      t.run(async ({ db }) =>
+        (await db.query("daemon_commands").collect()).filter((row) => {
+          const watch = JSON.parse(row.args!).team_watch;
+          return watch?.share === lease.share && watch.stream_id;
+        }),
+      );
+    const join = () => viewer.mutation(watch.watch, { ...lease, renew: false });
+    for (const elapsed of [1, 20_000, 59_999]) {
+      expect(await viewer.mutation(watch.leave, lease)).toBe(true);
+      clock.mockReturnValue(now + elapsed);
+      expect(await join()).toBe(true);
+      expect(await viewer.query(watch.screen, lease)).toMatchObject({
+        text: null,
+      });
+      expect(await t.mutation(watch.cliPush, push)).toEqual({ stop: true });
+      expect(await dispatches()).toHaveLength(1);
+    }
+    clock.mockReturnValue(now + 60_000);
+    expect(await join()).toBe(true);
+    const commands = await dispatches();
+    expect(commands).toHaveLength(2);
+    const { stream_id } = JSON.parse(commands[1]!.args!).team_watch;
+    expect(stream_id).not.toBe(push.stream_id);
+    expect(await t.mutation(watch.cliPush, { ...push, stream_id })).toEqual({
+      stop: false,
+    });
+  } finally {
+    clock.mockRestore();
+  }
+});
