@@ -6,9 +6,9 @@ import { LIVE_SYNC_COLLECTIONS } from "./clientSyncRegistry.live";
 import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
-import { COLLAB_SYNC_COLLECTIONS } from "./client-sync-registry.collab";
+import * as collabRegistry from "./client-sync-registry.collab";
 import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
-import { FENCED_PROMPT_SYNC_COLLECTIONS } from "./client-sync-registry.fenced-prompts";
+import * as fencedPromptRegistry from "./client-sync-registry.fenced-prompts";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
 import {
   thinCachedPullRequestDetail,
@@ -1767,8 +1767,8 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { kind: "list" },
     feeds: ["managedSessions.getAggregateMetrics"],
   },
-  ...FENCED_PROMPT_SYNC_COLLECTIONS,
-  ...COLLAB_SYNC_COLLECTIONS,
+  ...fencedPromptRegistry.FENCED_PROMPT_SYNC_COLLECTIONS,
+  ...collabRegistry.COLLAB_SYNC_COLLECTIONS,
   // Pending tool-permission requests, per conversation. Each conversation's
   // push is the complete pending set for THAT conversation, so the feeder
   // syncs with pruneAbsentScope for it (a resolved permission leaves the
@@ -2772,11 +2772,8 @@ export const REPLICATION_CLASSIFICATION: Record<
   forcedMoveOptions: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
-  fencedPromptAddresses: "local",
-  fencedObservedTurns: "local",
-  collabAccess: "local",
-  collabRequests: "local",
-  fencedSteerClaims: "local",
+  ...fencedPromptRegistry.replication,
+  ...collabRegistry.replication,
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",

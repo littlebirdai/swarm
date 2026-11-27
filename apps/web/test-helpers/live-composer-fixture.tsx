@@ -19,7 +19,7 @@ import {
 import { replaceGlobals } from "./globals";
 import { mountWeb } from "./mountWeb";
 
-export const mount = createComposerMount(mountWeb);
+const mount = createComposerMount(mountWeb);
 export const signedInViewer = "b".repeat(32) as Id<"users">;
 installSignedInPrincipal(signedInViewer);
 export const principalStorage = localStorage;

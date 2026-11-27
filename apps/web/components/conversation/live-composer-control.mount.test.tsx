@@ -1,7 +1,6 @@
 import {
   claimState,
   driver,
-  mount,
   principalStorage,
   publishClaim,
   settleRecoveryWrites,
@@ -30,8 +29,14 @@ import {
 import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { type SteerClaimState } from "../../store/steer-composer-state";
-import { button } from "../../test-helpers/composer-control-fixture";
+import {
+  button,
+  createComposerMount,
+} from "../../test-helpers/composer-control-fixture";
+import { mountWeb } from "../../test-helpers/mountWeb";
 import { replaceGlobals } from "../../test-helpers/globals";
+
+const mountComposer = createComposerMount(mountWeb);
 
 test("the disabled composer skips the feed and keeps the existing editor", async () => {
   const row = claimState();
@@ -634,13 +639,16 @@ test.each([
       updated_at: 1,
     };
     const reply = Promise.withResolvers<{ status: string }>();
-    const ui = await mount(<CollabRequestBanner conversationId={row._id} />, {
-      setup(backend) {
-        backend.set(api.collab.collabRequests, [grant]);
-        backend.set(api.guestSuggestions.listPending, []);
-        backend.mutation(api.dispatch.dispatch, () => reply.promise);
+    const ui = await mountComposer(
+      <CollabRequestBanner conversationId={row._id} />,
+      {
+        setup(backend) {
+          backend.set(api.collab.collabRequests, [grant]);
+          backend.set(api.guestSuggestions.listPending, []);
+          backend.mutation(api.dispatch.dispatch, () => reply.promise);
+        },
       },
-    });
+    );
     await act(() => button(ui.container, action).click());
     expect(
       useInboxStore.getState().collabRequests[grant.grant_id]?.status,
@@ -689,7 +697,7 @@ test("a lease refresh leaves the stored claim and composer selection unchanged",
     reads.push(useLiveComposerControl(row._id, row.viewer));
     return null;
   }
-  const ui = await mount(
+  const ui = await mountComposer(
     <>
       <SteerClaimFeeder scope={row._id} viewerId={row.viewer} />
       <Probe />

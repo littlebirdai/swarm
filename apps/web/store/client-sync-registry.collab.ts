@@ -21,3 +21,9 @@ export const COLLAB_SYNC_COLLECTIONS = {
     feeds: ["collab.steerClaimState"],
   },
 } satisfies Record<string, ClientSyncRegistryEntry>;
+
+export const replication = {
+  collabAccess: "local",
+  collabRequests: "local",
+  fencedSteerClaims: "local",
+} as const;
