@@ -8,6 +8,7 @@ import {
   afterEach,
   describe,
   expect,
+  jest,
   setDefaultTimeout,
   setSystemTime,
   test,
@@ -259,6 +260,8 @@ describe("CI deliveries drain per repository", () => {
           await ctx.scheduler.cancel(job._id);
       }
     });
+    jest.advanceTimersToNextTimer();
+    await s.t.finishInProgressScheduledFunctions();
     // A delivery while the queue is fresh joins it: its drain is still on the way.
     await s.checkRun(1001, HEAD, [12]);
     expect(await s.named(":drainCiEvents")).toHaveLength(0);

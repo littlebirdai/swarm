@@ -3,37 +3,63 @@ import type { ServerTest } from "./database.testkit";
 
 type Backend = Pick<ServerTest, "run" | "finishInProgressScheduledFunctions">;
 
+async function cancelPendingJobs(backend: Backend) {
+  return backend.run(async (ctx) => {
+    const jobs = await ctx.db.system.query("_scheduled_functions").collect();
+    const pending = jobs.filter((job) => job.state.kind === "pending");
+    for (const job of pending) await ctx.scheduler.cancel(job._id);
+    return {
+      active: jobs
+        .filter((job) => job.state.kind === "inProgress")
+        .map((job) => job.name),
+      failed: jobs
+        .filter((job) => job.state.kind === "failed")
+        .map((job) => job.name),
+      cancelled: pending.length,
+    };
+  });
+}
+
 export function isolateScheduledFunctions() {
-  const backends = new Set<Backend>();
+  const backends = new Map<Backend, readonly string[]>();
   beforeEach(() => jest.useFakeTimers());
   afterEach(async () => {
+    const errors: unknown[] = [];
+    let cancelled = 0;
     try {
-      for (const backend of backends) {
-        await backend.finishInProgressScheduledFunctions();
-        const active = await backend.run(async (ctx) => {
-          const jobs = await ctx.db.system
-            .query("_scheduled_functions")
-            .collect();
-          for (const job of jobs)
-            if (job.state.kind === "pending")
-              await ctx.scheduler.cancel(job._id);
-          return (await ctx.db.system.query("_scheduled_functions").collect())
-            .filter(
-              (job) =>
-                job.state.kind === "pending" || job.state.kind === "inProgress",
-            )
-            .map((job) => job.name);
-        });
-        expect(active).toEqual([]);
+      for (const [backend, expectedFailures] of backends) {
+        try {
+          await backend.finishInProgressScheduledFunctions();
+        } catch (error) {
+          errors.push(error);
+        } finally {
+          try {
+            const jobs = await cancelPendingJobs(backend);
+            cancelled += jobs.cancelled;
+            expect(jobs.active).toEqual([]);
+            expect(jobs.failed.sort()).toEqual([...expectedFailures].sort());
+          } catch (error) {
+            errors.push(error);
+          }
+        }
       }
+      try {
+        expect(jest.getTimerCount()).toBe(cancelled);
+      } catch (error) {
+        errors.push(error);
+      }
+      if (errors.length)
+        throw new AggregateError(errors, "Scheduled function teardown failed");
     } finally {
       backends.clear();
-      jest.clearAllTimers();
       jest.useRealTimers();
     }
   });
-  return <T extends Backend>(backend: T): T => {
-    backends.add(backend);
+  return <T extends Backend>(
+    backend: T,
+    expectedFailures: readonly string[] = [],
+  ): T => {
+    backends.set(backend, expectedFailures);
     return backend;
   };
 }
