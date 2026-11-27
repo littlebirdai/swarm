@@ -65,3 +65,37 @@ test("a device sample preserves the write load and each sampled device's results
   expect(sample.headWritesPerDrain).toBe(full.headWritesPerDrain);
   expect(sample.measurements).toEqual(full.measurements.slice(0, 3));
 });
+
+test.each([1, 50])(
+  "interest scopes converge followed project work at %i people without team-wide fan-out",
+  async (people) => {
+    const seed = 42;
+    const model = population(seed, people);
+    const baseline = await runPopulation({ people, devices: people, seed });
+    const report = await runPopulation({
+      people,
+      devices: people,
+      seed,
+      mode: "interest",
+    });
+    const shared = model.activity.filter(({ privateTask }) => !privateTask);
+    expect(report.scopeWrites).toEqual({
+      team: shared.length + report.writes.doc,
+      user: model.activity.length + report.writes.doc + people,
+      interest: shared.length + report.writes.doc,
+    });
+    expect(report.measurements).toHaveLength(people);
+    for (const device of report.measurements) {
+      expect(device.teamEvents).toBe(0);
+      expect(device.staleTaskTitles).toBe(0);
+      expect(device.staleDocTitles).toBe(0);
+      expect(device.unexpectedTasks).toBe(0);
+    }
+    if (people > 1) {
+      expect(report.eventsPerDevice.mean).toBeLessThan(
+        baseline.eventsPerDevice.mean,
+      );
+      expect(report.interestEventsPerDevice.mean).toBeGreaterThan(0);
+    }
+  },
+);

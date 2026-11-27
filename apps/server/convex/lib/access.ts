@@ -21,9 +21,11 @@ import {
   accessStampFor,
   accessStampFromDoc,
   authorizedFor,
+  computeHomeScope,
   computeWorkspaceKey,
   computeWorkspaceKeyDb,
   heldKeysFor,
+  interestScopesEnabled,
   linkedConversationId,
   parseWorkspaceKey,
   resolveWorkspaceKey,
@@ -31,6 +33,7 @@ import {
   workspaceKey,
   type AccessStamp,
   type AuthorizedWorkspace,
+  type HomeScopeKey,
   type WorkspaceKey,
 } from "./accessKeys";
 // The keys and their evaluators are one layer to every caller.
@@ -320,10 +323,20 @@ export async function recomputeWorkspaceForConversation(
   for (const row of rows) {
     if (linkedConversationId(row) !== convId) continue;
     const key = computeWorkspaceKey(row, conv);
-    if (row.workspace !== key) {
-      await ctx.db.patch(row._id, { workspace: key });
+    const trackHome = interestScopesEnabled();
+    const nextHome = trackHome
+      ? computeHomeScope({ ...row, workspace: key }, conv)
+      : row.home_scope;
+    const workspaceChanged = row.workspace !== key;
+    const homeChanged = trackHome && row.home_scope !== nextHome;
+    if (workspaceChanged || homeChanged) {
+      const patch: Record<string, any> = {};
+      if (workspaceChanged) patch.workspace = key;
+      if (homeChanged) patch.home_scope = nextHome;
+      await ctx.db.patch(row._id, patch);
       updated++;
-      if (/^ct-\d+$/.test(row.short_id ?? "")) movedTasks.push(row._id);
+      if (workspaceChanged && /^ct-\d+$/.test(row.short_id ?? ""))
+        movedTasks.push(row._id);
     }
   }
   // A task that moved may sit on a dependency edge into its old workspace,

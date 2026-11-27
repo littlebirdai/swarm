@@ -240,6 +240,62 @@ export function computeWorkspaceKey(
   return record.team_id ? `team:${record.team_id}` : `user:${record.user_id}`;
 }
 
+export type HomeScopeKey = string;
+
+export function interestScopesEnabled(): boolean {
+  try {
+    return process.env.SWARM_INTEREST_SCOPES === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function computeHomeScope(
+  record: {
+    user_id: Id<"users"> | string;
+    team_id?: Id<"teams"> | string;
+    workspace?: string;
+    project_id?: Id<"projects"> | string;
+    channel_id?: Id<"chat_channels"> | string;
+    project_path?: string;
+    created_from_conversation?: Id<"conversations"> | string;
+    created_from_conversation_id?: Id<"conversations"> | string;
+    conversation_id?: Id<"conversations"> | string;
+    conversation_ids?: Array<Id<"conversations"> | string>;
+    related_conversation_ids?: Array<Id<"conversations"> | string>;
+  },
+  linkedConv?:
+    | {
+        team_id?: Id<"teams"> | string;
+        is_private?: boolean;
+        auto_shared?: boolean;
+        team_visibility?: string;
+      }
+    | null
+    | undefined,
+): HomeScopeKey {
+  if (record.channel_id) return `channel:${record.channel_id}`;
+  const ws =
+    typeof record.workspace === "string" && record.workspace
+      ? record.workspace
+      : computeWorkspaceKey(record as any, linkedConv as any);
+  if (!ws.startsWith("team:")) return `user:${record.user_id}`;
+  if (record.project_id) return `project:${record.project_id}`;
+  const convId = linkedConversationId(record);
+  if (convId) return `session:${convId}`;
+  return `dir:${ws.slice(5)}`;
+}
+
+export async function computeHomeScopeDb(
+  ctx: AccessCtx,
+  record: any,
+): Promise<HomeScopeKey> {
+  if (record.channel_id) return `channel:${record.channel_id}`;
+  const cid = linkedConversationId(record);
+  const conv = cid ? await ctx.db.get(cid) : null;
+  return computeHomeScope(record, conv);
+}
+
 /** computeWorkspaceKey with the linked conversation fetched from the db. */
 export async function computeWorkspaceKeyDb(
   ctx: AccessCtx,

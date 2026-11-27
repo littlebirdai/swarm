@@ -40,6 +40,7 @@ export const planTables = {
     team_id: v.optional(v.id("teams")),
     // ACCESS axis — see tasks.workspace.
     workspace: v.optional(v.string()),
+    home_scope: v.optional(v.string()),
     project_id: v.optional(v.id("projects")),
     project_path: v.optional(v.string()),
     short_id: v.string(),

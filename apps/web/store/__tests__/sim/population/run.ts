@@ -13,7 +13,7 @@ import {
   uninstallRealm,
 } from "../realm";
 import { DURATION_MS, PEAK_START_MS, population } from "./model";
-import { populationReplica } from "./replica";
+import { type PopulationMode, populationReplica } from "./replica";
 import {
   fixtureId,
   populationTables,
@@ -21,15 +21,24 @@ import {
   saveTask,
 } from "./workload";
 
+export type { PopulationMode } from "./replica";
+
 const POLL_MS = 1500;
 const CONTENTION_WINDOW_MS = 5;
 
 type OutboxSlot = { scope_key: string; pending: boolean };
-type ScopeClass = "team" | "user";
+type ScopeClass = "team" | "user" | "interest";
 
 function scopeClass(scope: string): ScopeClass {
   if (scope.startsWith("team:")) return "team";
   if (scope.startsWith("user:")) return "user";
+  if (
+    scope.startsWith("project:") ||
+    scope.startsWith("session:") ||
+    scope.startsWith("dir:") ||
+    scope.startsWith("channel:")
+  )
+    return "interest";
   throw new Error(`Unexpected sync scope ${scope}`);
 }
 
@@ -53,8 +62,13 @@ export async function runPopulation(config: {
   people: number;
   devices: number;
   seed: number;
+  mode?: PopulationMode;
 }) {
+  const mode: PopulationMode = config.mode ?? "team";
   const model = population(config.seed, config.people);
+  const previousInterestScopes = process.env.SWARM_INTEREST_SCOPES;
+  if (mode === "interest") process.env.SWARM_INTEREST_SCOPES = "1";
+  else delete process.env.SWARM_INTEREST_SCOPES;
   installRealm(config.seed);
   try {
     const writes = {
@@ -67,8 +81,8 @@ export async function runPopulation(config: {
     const saves = writes.task + writes.doc + writes.heartbeat + writes.message;
     const drainJobBySlot = new Map<string, string>();
     const deliveryByJob = new Map<string, number>();
-    const scopeWrites = { team: 0, user: 0 };
-    const nearbyCanceledDrains = { team: 0, user: 0 };
+    const scopeWrites = { team: 0, user: 0, interest: 0 };
+    const nearbyCanceledDrains = { team: 0, user: 0, interest: 0 };
     const headIds = new Set<string>();
     let headWrites = 0;
     let drainTransactions = 0;
@@ -153,9 +167,10 @@ export async function runPopulation(config: {
     });
     attachRealm({ timers: net, serverCall: backend.activeCall });
 
-    const devices = model.deviceOrder
-      .slice(0, config.devices)
-      .map((person) => populationReplica(backend, person));
+    const sampledPeople = model.deviceOrder.slice(0, config.devices);
+    const devices = sampledPeople.map((person) =>
+      populationReplica(backend, person, mode),
+    );
     const clients = model.people.map(({ id }) =>
       backend.clientFor({ kind: "user", userId: fixtureId("users", id) }),
     );
@@ -227,28 +242,103 @@ export async function runPopulation(config: {
       backend.db._tables.sync_outbox?.some((slot: OutboxSlot) => slot.pending)
     )
       throw new Error("Population simulation left undelivered work");
-    const taskRows: { _id: string; title: string }[] = await backend.db
-      .query("tasks")
-      .collect();
+    const taskRows: {
+      _id: string;
+      title: string;
+      user_id: string;
+      project_id?: string;
+      workspace: string;
+    }[] = await backend.db.query("tasks").collect();
     const expectedTitles = new Map(
       taskRows.map(({ _id, title }) => [_id, title]),
     );
     const expectedDocTitles = new Map<string, string>();
+    const docUpdateAuthors = new Map<number, number>();
     for (const event of model.background) {
-      if (event.kind === "doc")
+      if (event.kind === "doc") {
         expectedDocTitles.set(
           fixtureId("docs", event.project),
           `Project ${event.project} notes at ${event.at}`,
         );
+        docUpdateAuthors.set(event.project, event.person.id);
+      }
     }
-    const measurements = devices.map((device) =>
-      device.result(expectedTitles, expectedDocTitles),
-    );
+    const teamWorkspace = `team:${fixtureId("teams", 0)}`;
+    const measurements = devices.map((device, index) => {
+      if (mode !== "interest")
+        return device.result(expectedTitles, expectedDocTitles);
+      const person = sampledPeople[index];
+      const userId = String(fixtureId("users", person.id));
+      const followedProjects = new Set(
+        person.follows.map((project) => String(fixtureId("projects", project))),
+      );
+      const expectedTaskIds = new Set(
+        taskRows
+          .filter(
+            (task) =>
+              task.user_id === userId ||
+              (task.workspace === teamWorkspace &&
+                task.project_id !== undefined &&
+                followedProjects.has(String(task.project_id))),
+          )
+          .map(({ _id }) => _id),
+      );
+      const followedDocs = new Map(
+        [...expectedDocTitles].filter(([docId]) => {
+          const projectIndex = person.follows.find(
+            (project) => String(fixtureId("docs", project)) === docId,
+          );
+          if (projectIndex !== undefined) return true;
+          for (const [project, authorId] of docUpdateAuthors) {
+            if (
+              authorId === person.id &&
+              String(fixtureId("docs", project)) === docId
+            )
+              return true;
+          }
+          return false;
+        }),
+      );
+      return device.result(expectedTitles, followedDocs, expectedTaskIds);
+    });
     const baselineSaves = [...model.activity, ...model.background].filter(
       ({ at }) => at < PEAK_START_MS,
     ).length;
+    const scopeWriteSummary: {
+      team: number;
+      user: number;
+      interest?: number;
+    } =
+      mode === "interest"
+        ? scopeWrites
+        : { team: scopeWrites.team, user: scopeWrites.user };
+    const canceledDrainSummary: {
+      team: number;
+      user: number;
+      interest?: number;
+    } =
+      mode === "interest"
+        ? nearbyCanceledDrains
+        : { team: nearbyCanceledDrains.team, user: nearbyCanceledDrains.user };
+    const heuristicRetriesSummary: {
+      team: number;
+      user: number;
+      interest?: number;
+    } = {
+      team: ratio(nearbyCanceledDrains.team, scopeWrites.team),
+      user: ratio(nearbyCanceledDrains.user, scopeWrites.user),
+      ...(mode === "interest"
+        ? {
+            interest: ratio(
+              nearbyCanceledDrains.interest,
+              scopeWrites.interest,
+            ),
+          }
+        : {}),
+    };
     return {
       ...config,
+      mode,
       devices: devices.length,
       durationMs: DURATION_MS,
       peakStartMs: PEAK_START_MS,
@@ -265,21 +355,24 @@ export async function runPopulation(config: {
       headWrites,
       drainTransactions,
       headWritesPerDrain: ratio(headWrites, drainTransactions),
-      scopeWrites,
-      nearbyCanceledDrains,
-      heuristicRetriesPerScopeWrite: {
-        team: ratio(nearbyCanceledDrains.team, scopeWrites.team),
-        user: ratio(nearbyCanceledDrains.user, scopeWrites.user),
-      },
+      scopeWrites: scopeWriteSummary,
+      nearbyCanceledDrains: canceledDrainSummary,
+      heuristicRetriesPerScopeWrite: heuristicRetriesSummary,
       eventsPerDevice: distribution(measurements.map(({ events }) => events)),
       teamEventsPerDevice: distribution(
         measurements.map(({ teamEvents }) => teamEvents),
+      ),
+      interestEventsPerDevice: distribution(
+        measurements.map(({ interestEvents }) => interestEvents),
       ),
       bytesPerDevice: distribution(measurements.map(({ bytes }) => bytes)),
       rowsPerDevice: distribution(measurements.map(({ rows }) => rows)),
       measurements,
     };
   } finally {
+    if (previousInterestScopes === undefined)
+      delete process.env.SWARM_INTEREST_SCOPES;
+    else process.env.SWARM_INTEREST_SCOPES = previousInterestScopes;
     uninstallRealm();
   }
 }

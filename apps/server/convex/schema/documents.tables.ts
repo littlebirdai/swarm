@@ -11,6 +11,7 @@ export const documentTables = {
     client_key: v.optional(v.string()),
     // ACCESS axis — see tasks.workspace.
     workspace: v.optional(v.string()),
+    home_scope: v.optional(v.string()),
     title: v.string(),
     content: v.string(),
     // Derived from @codecast/docs DOC_TYPES so the schema and every
