@@ -1,4 +1,3 @@
-import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex, useConvexAuth } from "convex/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useIsSyncHost } from "../hooks/use-sync-role";
@@ -40,28 +39,10 @@ function ActiveRelayPresence({
       const { createRelayClient } = await import("@codecast/relay-client");
       if (lifetime.signal.aborted) return;
       const client = createRelayClient({
-        async getToken(hubs, signal) {
-          if (
-            signal.aborted ||
-            useInboxStore.getState().currentUser?._id !== account
-          )
-            return { status: "unauthenticated" };
-          try {
-            const result = await convex.mutation(api.relayGrants.mint, {
-              hubs: hubs.flatMap((hub) =>
-                hub.kind === "session" ? [{ kind: hub.kind, id: hub.id }] : [],
-              ),
-            });
-            if (
-              signal.aborted ||
-              useInboxStore.getState().currentUser?._id !== account
-            )
-              return { status: "unauthenticated" };
-            return result.status === "ok" ? { ...result, url } : result;
-          } catch {
-            return { status: "unavailable" };
-          }
-        },
+        getToken: (hubs, signal) =>
+          useInboxStore
+            .getState()
+            .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
         now: () => performance.now(),

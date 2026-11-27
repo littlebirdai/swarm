@@ -1,3 +1,4 @@
+import { relayGrantAction } from "./relay-grant-action";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -7946,6 +7947,7 @@ export interface InboxStoreState
   relayInboxCards: Record<string, number>;
   relayInboxContacts: Record<string, InboxRelayContact | undefined>;
   countRelayInboxCard: (id: string, delta: 1 | -1) => void;
+  mintRelayGrant: ReturnType<typeof relayGrantAction>;
   setInboxRelayContact: (id: string, contact?: InboxRelayContact) => void;
   // ── The projection stamp buffer (sync-convergence C1/C6) ──
   // Per-scope checking data from the liveness overlay: the server's run of the
@@ -13290,6 +13292,9 @@ const inboxStoreConfig = (set: any, get: any) => ({
       this.pending[`${key}:${id}:${field}`] = fieldLockEntry(value, ts, ack);
     }
   }),
+  mintRelayGrant: relayGrantAction(
+    () => useInboxStore.getState().currentUser?._id,
+  ),
   countRelayInboxCard: sync(function (this: Draft, id: string, delta: 1 | -1) {
     const count = (this.relayInboxCards[id] ?? 0) + delta;
     if (count > 0) this.relayInboxCards[id] = count;

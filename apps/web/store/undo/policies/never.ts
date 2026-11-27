@@ -105,6 +105,9 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   setOrgFocusChangeId: VIEW_STATE,
   setFeedCursor: VIEW_STATE,
   setFeedHasMore: VIEW_STATE,
+  countRelayInboxCard: never(
+    "relay visibility follows the cards mounted in this window",
+  ),
 
   // Sends and agent turns
   sendMessage: SEND,
