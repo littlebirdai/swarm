@@ -1,6 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { question } from "../../../../tests/codex-driver-parity/recording.js";
+import { observeClaimedTerminal } from "../terminal/terminal-lifecycle.js";
 import {
   bindingFor,
   fixture,
@@ -238,5 +239,58 @@ test("a granted lease is retained if the provider never opened", async () => {
     expect(f.actions).toEqual(["edge:claim"]);
   } finally {
     await f.dispose();
+  }
+});
+
+test("owned Codex keeps its provider stream and ends the pane after a terminal write returns 503", async () => {
+  const f = fixture();
+  const original = process.env.CODECAST_DIR;
+  process.env.CODECAST_DIR = f.journalDirectory;
+  try {
+    f.failFirstTerminalStart();
+    await f.runtime.processWorkUpdate([item(f.pilotRequest)]);
+    await expect(
+      observeClaimedTerminal("pilot", "pane", "owner"),
+    ).rejects.toThrow("HTTP 503");
+    f.appServer.send({
+      frames: [
+        {
+          id: "terminal-recovery-question",
+          method: "item/tool/requestUserInput",
+          params: {
+            threadId: f.appServer.thread,
+            turnId: f.appServer.turn(3),
+            itemId: "ask-item",
+            questions: [question],
+          },
+        },
+      ],
+    });
+    await until(
+      () => f.promptMessages.length === 1,
+      "publish after recovering the terminal write",
+    );
+    expect(f.actions).not.toContain("edge:release");
+
+    await f.runtime.stop();
+    expect(f.events.map(({ seq, kind }) => [seq, kind])).toEqual([
+      [1, "session.started"],
+      [2, "terminal.started"],
+      [3, "turn.started"],
+      [4, "prompt.opened"],
+      [5, "context"],
+      [6, "terminal.ended"],
+    ]);
+    expect(f.events.at(-1)).toMatchObject({
+      body: { pane_instance: 1, outcome: { kind: "lost" } },
+    });
+    expect(f.actions).toContain("edge:release");
+  } finally {
+    try {
+      await f.dispose();
+    } finally {
+      if (original === undefined) delete process.env.CODECAST_DIR;
+      else process.env.CODECAST_DIR = original;
+    }
   }
 });

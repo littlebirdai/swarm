@@ -466,11 +466,22 @@ export class CodexOwnedPilot {
       inDoubtDeliveryIds: pending ? [pending.delivery_id] : [],
     });
     if (claim.terminal_lifecycle && !this.terminalEvents) {
-      this.terminalEvents = createTerminalEventWriter(
-        claim,
-        path.join(defaultConfigDir(), "terminal-lifecycle"),
-        (event) => this.append(claim, event, AbortSignal.timeout(10_000)),
-      );
+      try {
+        this.terminalEvents = createTerminalEventWriter(
+          claim,
+          path.join(defaultConfigDir(), "terminal-lifecycle"),
+          (...events) =>
+            this.append(claim, events, AbortSignal.timeout(10_000)),
+          (error) =>
+            this.options.log(
+              `[owned-codex] terminal journal update failed: ${String(error)}`,
+            ),
+        );
+      } catch (error) {
+        this.options.log(
+          `[owned-codex] terminal journal could not be opened: ${String(error)}`,
+        );
+      }
     }
     if (previous === 0) {
       const event: CanonicalEvent = {
@@ -485,9 +496,15 @@ export class CodexOwnedPilot {
         body: { machine: binding.ownerDeviceId, provider: provider.agent },
       };
       if (this.terminalEvents) await this.terminalEvents.append(event);
-      else await this.append(claim, event);
+      else await this.append(claim, [event]);
     }
-    await this.terminalEvents?.startWatching();
+    await this.terminalEvents
+      ?.startWatching()
+      .catch((error) =>
+        this.options.log(
+          `[owned-codex] terminal event recovery failed: ${String(error)}`,
+        ),
+      );
     const session = this.session;
     const recovery =
       previous > 0 && this.options.bearer && session.getPendingPrompts
@@ -560,7 +577,7 @@ export class CodexOwnedPilot {
       this.streamProgress++;
       if (event.kind === "message.delta") continue;
       if (this.terminalEvents) await this.terminalEvents.append(event);
-      else await this.append(claim, event);
+      else await this.append(claim, [event]);
       await this.delivery.observe(event, session, this.controller.signal);
       await this.promptCards
         .publish(event, claim, session, syncService, () => {
@@ -636,14 +653,14 @@ export class CodexOwnedPilot {
 
   private async append(
     claim: ClaimGrant,
-    event: CanonicalEvent,
+    events: readonly [CanonicalEvent, ...CanonicalEvent[]],
     signal?: AbortSignal,
   ): Promise<void> {
     const response = await this.edge(
       "events.append",
       {
         v,
-        batches: [{ ...deliveryFence(claim), events: [event] }],
+        batches: [{ ...deliveryFence(claim), events }],
       },
       parseEventsAppendResponse,
       signal,
@@ -652,7 +669,7 @@ export class CodexOwnedPilot {
     if (
       result?.status !== "appended" ||
       result.session !== claim.session ||
-      result.through_seq !== event.seq
+      result.through_seq !== (events.at(-1) ?? events[0]).seq
     )
       throw new Error("Owned Codex event sequence was not confirmed");
   }

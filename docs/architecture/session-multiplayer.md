@@ -54,8 +54,12 @@ The multiplayer simulator covers the proposed turn baton, takeover fence, relay 
 When `CODECAST_EDGE_TERMINAL_EVENTS=1` on the server, a run grant
 advertises terminal lifecycle support. The machine appends a start and an
 end for a watched pane through the run's ordered event writer. Convex
-retains the facts by session, start run, and pane instance. Screen content
-and input are outside those records. The feature is off by default.
+retains the latest 128 pane instances per run for up to seven days from
+each pane's last recorded transition. Screen content and input are outside
+those records. An unconfirmed terminal event is replayed with its original
+sequence alongside the next provider event, so the server can accept both
+without losing either event or duplicating one it already recorded. The
+feature is off by default.
 
 Existing daemons and legacy terminal watches keep their current frame
 protocol. Legacy watched sessions have no canonical run claim and emit no

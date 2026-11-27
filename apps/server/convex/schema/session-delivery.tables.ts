@@ -573,6 +573,7 @@ export const sessionDeliveryTables = {
     owner_user_id: v.id("users"),
     run: v.number(),
     pane_instance: v.number(),
+    retain_until: v.number(),
     started: v.optional(
       v.object({
         at: v.number(),
@@ -607,7 +608,8 @@ export const sessionDeliveryTables = {
       "run",
       "pane_instance",
     ])
-    .index("by_owner", ["owner_user_id"]),
+    .index("by_owner", ["owner_user_id"])
+    .index("by_retention", ["retain_until"]),
 
   run_turn_projections: defineTable({
     conversation_id: v.id("conversations"),

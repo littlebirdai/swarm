@@ -327,7 +327,7 @@ export async function appendRunEvents(
     return { session, status: "gap", expected_seq: base + 1 };
 
   if (terminalEventsEnabled()) {
-    const conflict = await retainTerminalEvents(ctx, binding, suffix);
+    const conflict = await retainTerminalEvents(ctx, binding, suffix, now);
     if (conflict !== undefined)
       return { session, status: "conflict", seq: conflict };
   }

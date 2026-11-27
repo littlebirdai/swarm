@@ -224,12 +224,11 @@ crons.interval(
   { hours: 1 },
   internal.ipRateLimit.pruneIpRateLimits,
 );
-crons.interval(
-  "prune run lease receipts",
-  { minutes: 10 },
-  internal.edgeRunLease.prune,
-);
-
+for (const [name, handler] of [
+  ["prune run lease receipts", internal.edgeRunLease.prune],
+  ["prune terminal panes", internal.edgeRunLease.pruneTerminalPanes],
+] as const)
+  crons.interval(name, { minutes: 10 }, handler);
 for (const [name, handler] of [
   ["terminal", internal.terminalStream.pruneStaleFrames],
   ["browser", internal.browserStream.pruneStaleFrames],

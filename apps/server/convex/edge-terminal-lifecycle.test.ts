@@ -10,6 +10,8 @@ import {
   setupRunLease,
   start,
 } from "../test-helpers/run-lease.testkit";
+import { scheduledJobs } from "../test-helpers/database.testkit";
+import { internal } from "./_generated/api";
 import { purgeAccountPass } from "./accountDelete";
 
 const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
@@ -176,4 +178,90 @@ test("the default-off grant leaves an old daemon's cursor and turn events workin
     last_pane_instance: 0,
     last_event_seq: 1,
   });
+});
+
+test("retention caps each run without stopping the event cursor", async () => {
+  const f = await setup();
+  for (const offset of [0, 100]) {
+    const events = Array.from({ length: 100 }, (_, i) => ({
+      ...f.started,
+      seq: offset + i + 1,
+      body: { ...f.started.body, pane_instance: offset + i + 1 },
+    }));
+    expect(await f.append(events)).toMatchObject({
+      status: "appended",
+      through_seq: offset + 100,
+    });
+  }
+  expect(
+    (await f.rows()).map((pane) => pane.pane_instance).sort((a, b) => a - b),
+  ).toEqual(Array.from({ length: 128 }, (_, i) => i + 73));
+  expect(await f.grant()).toMatchObject({
+    last_event_seq: 200,
+    last_pane_instance: 200,
+  });
+});
+
+test("the terminal pane prune expires receipts in bounded pages and preserves fresh panes", async () => {
+  const f = await setup();
+  expect(await f.append([f.started])).toMatchObject({ status: "appended" });
+  const [pane] = await f.rows();
+  const retainedFor = 7 * 24 * 60 * 60_000;
+  expect(pane.retain_until).toBe(start + retainedFor);
+  const { _id, _creationTime, ...fields } = pane;
+  await f.t.run(async ({ db }) => {
+    for (let i = 0; i < 501; i++)
+      await db.insert("run_terminal_panes", {
+        ...fields,
+        run: i + 2,
+        retain_until: start + retainedFor,
+      });
+    await db.insert("run_terminal_panes", {
+      ...fields,
+      run: 503,
+      retain_until: start + retainedFor + 1,
+    });
+  });
+  jest.setSystemTime(start + retainedFor - 1);
+  expect(await f.t.mutation(internal.edgeRunLease.pruneTerminalPanes, {})).toBe(
+    0,
+  );
+  jest.setSystemTime(start + retainedFor);
+  expect(await f.t.mutation(internal.edgeRunLease.pruneTerminalPanes, {})).toBe(
+    500,
+  );
+  expect(
+    await scheduledJobs(f.t, internal.edgeRunLease.pruneTerminalPanes),
+  ).toHaveLength(1);
+  expect(await f.t.mutation(internal.edgeRunLease.pruneTerminalPanes, {})).toBe(
+    2,
+  );
+  expect(await f.rows()).toMatchObject([{ run: 503 }]);
+});
+
+test("a terminal receipt replay followed by a provider event advances both once", async () => {
+  const f = await setup();
+  expect(await f.append([f.started])).toMatchObject({
+    status: "appended",
+    through_seq: 1,
+  });
+  expect(
+    await f.append([
+      f.started,
+      {
+        ...f.stamp,
+        seq: 2,
+        turn: "provider-turn",
+        source: "provider",
+        kind: "turn.started",
+        body: {},
+      },
+    ]),
+  ).toMatchObject({ status: "appended", through_seq: 2 });
+  expect(await f.rows()).toMatchObject([
+    { pane_instance: 7, started: { seq: 1 } },
+  ]);
+  expect(
+    await f.t.run(({ db }) => db.query("run_turn_projections").unique()),
+  ).toMatchObject({ open_turn: { id: "provider-turn" } });
 });

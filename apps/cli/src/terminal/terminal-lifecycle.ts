@@ -54,7 +54,8 @@ function loadJournal(file: string): Journal {
 export function createTerminalEventWriter(
   claim: ClaimGrant,
   directory: string,
-  write: (event: CanonicalEvent) => Promise<void>,
+  write: (...events: [CanonicalEvent, ...CanonicalEvent[]]) => Promise<void>,
+  onJournalError?: (error: unknown) => void,
 ) {
   const { session, run } = claim;
   const file = path.join(
@@ -65,6 +66,7 @@ export function createTerminalEventWriter(
   let seq = claim.last_event_seq ?? 0;
   let providerSeq = seq;
   let tail = Promise.resolve();
+  let pending: { event: CanonicalEvent; confirm: () => void } | undefined;
   let watch: Watch | undefined;
   let closed = false;
   const persist = () => {
@@ -73,36 +75,56 @@ export function createTerminalEventWriter(
   };
   function ordered<T>(work: () => Promise<T>) {
     const result = tail.then(work);
-    tail = result.then(() => {});
-    void tail.catch(() => {});
+    tail = result.then(
+      () => {},
+      () => {},
+    );
     return result;
   }
   const envelope = (): Omit<End, "kind" | "body"> => ({
     v,
     session,
     run,
-    seq: ++seq,
+    seq: seq + 1,
     at: Date.now(),
     turn: null,
     source: "observed",
   });
+  async function flushTerminal() {
+    if (!pending) return;
+    await write(pending.event);
+    confirmTerminal();
+  }
+  function confirmTerminal() {
+    if (!pending) return;
+    const { event, confirm } = pending;
+    pending = undefined;
+    seq = event.seq;
+    confirm();
+  }
   async function end(outcome: End["body"]["outcome"]) {
     const pane = journal.open;
     if (!pane) return;
     if (pane.run > run)
       throw new Error("Terminal reservation belongs to a later run");
-    await write({
-      ...envelope(),
-      kind: "terminal.ended",
-      body: { pane_instance: pane.instance, started_run: pane.run, outcome },
-    });
-    journal.open = undefined;
-    watch = undefined;
-    persist();
+    pending = {
+      event: {
+        ...envelope(),
+        kind: "terminal.ended",
+        body: { pane_instance: pane.instance, started_run: pane.run, outcome },
+      },
+      confirm: () => {
+        journal.open = undefined;
+        watch = undefined;
+        persist();
+      },
+    };
+    await flushTerminal();
   }
   const observe: ObservePane = (identity, actor) =>
     ordered(async () => {
       if (writers.get(session) !== observe) return;
+      await flushTerminal();
       if (watch?.identity !== identity) {
         await end({ kind: "replaced" });
         const last = Math.max(journal.last, claim.last_pane_instance);
@@ -112,17 +134,22 @@ export function createTerminalEventWriter(
         journal.last = reservation.instance;
         journal.open = reservation;
         persist();
-        await write({
-          ...envelope(),
-          kind: "terminal.started",
-          body: {
-            pane_instance: reservation.instance,
-            actor: { kind: "person", id: actor },
+        pending = {
+          event: {
+            ...envelope(),
+            kind: "terminal.started",
+            body: {
+              pane_instance: reservation.instance,
+              actor: { kind: "person", id: actor },
+            },
           },
-        });
-        watch = { identity, viewers: 0 };
+          confirm: () => {
+            watch = { identity, viewers: 0 };
+          },
+        };
+        await flushTerminal();
       }
-      const current = watch;
+      const current = watch!;
       current.viewers++;
       let released = false;
       return (outcome) =>
@@ -138,20 +165,36 @@ export function createTerminalEventWriter(
       return ordered(async () => {
         if (event.seq !== providerSeq + 1)
           throw new Error("Provider event sequence is not contiguous");
-        await write({ ...event, seq: ++seq });
+        const next = { ...event, seq: seq + (pending ? 2 : 1) };
+        const terminal = pending;
+        if (terminal) await write(terminal.event, next);
+        else await write(next);
+        pending = undefined;
         providerSeq = event.seq;
+        seq = next.seq;
+        try {
+          terminal?.confirm();
+        } catch (error) {
+          onJournalError?.(error);
+        }
       });
     },
     async startWatching() {
-      await ordered(() =>
-        end({ kind: journal.open?.run === run ? "lost" : "replaced" }),
-      );
-      if (!closed) writers.set(session, observe);
+      try {
+        await ordered(() =>
+          end({ kind: journal.open?.run === run ? "lost" : "replaced" }),
+        );
+      } finally {
+        if (!closed) writers.set(session, observe);
+      }
     },
     close() {
       closed = true;
       if (writers.get(session) === observe) writers.delete(session);
-      return ordered(() => end({ kind: "lost" }));
+      return ordered(async () => {
+        await flushTerminal();
+        await end({ kind: "lost" });
+      });
     },
   };
 }

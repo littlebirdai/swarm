@@ -397,3 +397,22 @@ export const prune = internalMutation({
     return rows.length;
   },
 });
+
+export const pruneTerminalPanes = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<number> => {
+    const limit = 500;
+    const rows = await ctx.db
+      .query("run_terminal_panes")
+      .withIndex("by_retention", (q) => q.lte("retain_until", Date.now()))
+      .take(limit);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length === limit)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.edgeRunLease.pruneTerminalPanes,
+        {},
+      );
+    return rows.length;
+  },
+});
