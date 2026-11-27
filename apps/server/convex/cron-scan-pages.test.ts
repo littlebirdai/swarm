@@ -33,8 +33,20 @@ test("the daemon health scan resumes until every offline daemon has one alert", 
 
   const first = await t.mutation(internal.daemonLogs.checkDaemonHealth, {});
   expect(first).toEqual({ checked: 64, alertsCreated: 64 });
-  const [next] = await scheduledJobs(t, internal.daemonLogs.checkDaemonHealth);
-  expect(next.args[0]).toMatchObject({ now: NOW, cursor: expect.any(String) });
+  const [next] = await scheduledJobs(t, internal.cronSweep.continuePage);
+  expect(structuredClone(next.args[0].page)).toMatchObject({
+    job: "health",
+    startedAt: NOW,
+    token: 1,
+    cursor: expect.any(String),
+  });
+  await t.mutation(internal.daemonLogs.checkDaemonHealth, {});
+  const stale = await t.mutation(internal.daemonLogs.checkDaemonHealth, {
+    now: NOW,
+    cursor: next.args[0].page.cursor,
+    token: 1,
+  });
+  expect(stale).toEqual({ checked: 0, alertsCreated: 0 });
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
   const recipients = await t.run(async ({ db }) =>
@@ -72,11 +84,21 @@ test("the lease reclaim cursor reaches later expired tasks without scanning futu
   });
 
   expect(await t.mutation(internal.agentTasks.reclaimStaleTasks, {})).toBe(16);
-  const [next] = await scheduledJobs(t, internal.agentTasks.reclaimStaleTasks);
-  expect(next.args[0]).toMatchObject({
-    through: NOW,
+  const [next] = await scheduledJobs(t, internal.cronSweep.continuePage);
+  expect(structuredClone(next.args[0].page)).toMatchObject({
+    job: "reclaim",
+    startedAt: NOW,
+    token: 1,
     cursor: expect.any(String),
   });
+  await t.mutation(internal.agentTasks.reclaimStaleTasks, {});
+  expect(
+    await t.mutation(internal.agentTasks.reclaimStaleTasks, {
+      through: NOW,
+      cursor: next.args[0].page.cursor,
+      token: 1,
+    }),
+  ).toBe(0);
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
   await t.run(async ({ db }) => {
@@ -114,11 +136,46 @@ test("activity rollup reaches every eligible account without loading dormant use
     rolled: 32,
     failed: 0,
   });
-  const [next] = await scheduledJobs(t, internal.activityDays.sweep);
-  expect(next.args[0]).toMatchObject({
-    today: NOW,
+  const [next] = await scheduledJobs(t, internal.cronSweep.continuePage);
+  expect(structuredClone(next.args[0].page)).toMatchObject({
+    job: "activity",
+    startedAt: NOW,
+    token: 1,
     phase: "seen",
     cursor: expect.any(String),
+  });
+  jest.setSystemTime(NOW + 50_000);
+  await t.run(async ({ db }) => {
+    for (const id of eligible.slice(2, 34))
+      await db.patch(id, { daemon_last_seen: Date.now() });
+  });
+  const { cursor, startedAt, days, token } = next.args[0].page;
+  expect(
+    await t.action(internal.activityDays.sweep, {
+      cursor,
+      startedAt,
+      days,
+      token,
+      phase: "seen",
+    }),
+  ).toEqual({
+    users: 2,
+    rolled: 2,
+    failed: 0,
+  });
+  await t.action(internal.activityDays.sweep, { days: 2 });
+  expect(
+    await t.action(internal.activityDays.sweep, {
+      cursor,
+      startedAt,
+      days,
+      token,
+      phase: "seen",
+    }),
+  ).toEqual({
+    users: 0,
+    rolled: 0,
+    failed: 0,
   });
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
   const accounts = await t.run(async ({ db }) =>
@@ -231,7 +288,11 @@ test("a bounded apply reaches the ready session past multiple busy pages", async
     expect(await t.run(({ db }) => db.get(message))).toMatchObject({
       status: "failed",
     });
-    expect((await scheduledJobs(t, apply))[0]?.args[0]).toMatchObject({
+    expect(
+      (await scheduledJobs(t, internal.cronSweep.continuePending))[0]?.args[0]
+        .page,
+    ).toMatchObject({
+      runToken: 1,
       sessionCursor: expect.any(String),
     });
     await t.finishAllScheduledFunctions(() => jest.runAllTimers());
@@ -245,67 +306,221 @@ test("a bounded apply reaches the ready session past multiple busy pages", async
   }
 });
 
-test("a pending apply whose last page has stale leases does not report an earlier live daemon offline", async () => {
-  const bounded = "BOUNDED_PENDING_MESSAGE_SESSIONS";
-  const leases = "INBOX_LIVENESS_LEASES";
-  const priorBounded = process.env[bounded];
-  const priorLeases = process.env[leases];
-  process.env[bounded] = process.env[leases] = "1";
-  const now = Date.now();
-  const t = serverTest({ documentsRead: 68 });
-  try {
-    const old = now - 40 * 60_000;
-    const message = await t.run(async ({ db }) => {
-      const rows = fixtureRows(db, "pending-apply-live-lease");
-      const owner = await rows.user();
-      const conversation = await rows.conversation(owner);
-      for (let i = 0; i < 68; i++) {
-        const id = await db.insert("managed_sessions", {
-          conversation_id: conversation,
-          user_id: owner,
-          session_id: `managed-lease-${i}`,
-          pid: i + 1,
-          started_at: old,
-          last_heartbeat: old,
-          liveness_lease: { end: old, expired: false },
-          agent_status: "working",
-        });
-        if (i === 0)
-          await db.insert("session_heartbeats", {
-            managed_session_id: id,
+test.each([
+  [true, true],
+  [true, false],
+  [false, true],
+  [false, false],
+] as const)(
+  "a pending apply carries real liveness across stale pages (leases %s, side heartbeat %s)",
+  async (useLeases, beat) => {
+    const bounded = "BOUNDED_PENDING_MESSAGE_SESSIONS";
+    const leases = "INBOX_LIVENESS_LEASES";
+    const priorBounded = process.env[bounded];
+    const priorLeases = process.env[leases];
+    process.env[bounded] = "1";
+    if (useLeases) process.env[leases] = "1";
+    else delete process.env[leases];
+    const now = Date.now();
+    const t = serverTest({ documentsRead: 68 });
+    try {
+      const old = now - 40 * 60_000;
+      const message = await t.run(async ({ db }) => {
+        const rows = fixtureRows(db, "pending-apply-live-lease");
+        const owner = await rows.user();
+        const conversation = await rows.conversation(owner);
+        for (let i = 0; i < 68; i++) {
+          const id = await db.insert("managed_sessions", {
+            conversation_id: conversation,
             user_id: owner,
-            heartbeat_at: now,
+            session_id: `managed-lease-${i}`,
+            pid: i + 1,
+            started_at: old,
+            last_heartbeat: old,
+            liveness_lease: { end: old, expired: false },
+            agent_status: "working",
           });
+          if (beat && i === 0)
+            await db.insert("session_heartbeats", {
+              managed_session_id: id,
+              user_id: owner,
+              heartbeat_at: now,
+            });
+        }
+        return db.insert("pending_messages", {
+          conversation_id: conversation,
+          from_user_id: owner,
+          status: "injected",
+          created_at: old,
+          paste_verified_at: old,
+          content: "Sent and waiting for its echo",
+          retry_count: 0,
+        });
+      });
+      const plan = await t.query(internal.pendingMessages.planStuckMessages, {
+        now,
+      });
+      expect(plan.groups[0]?.ids).toEqual([message]);
+      const apply = internal.pendingMessages.applyStuckMessages;
+      await t.mutation(apply, {
+        ids: [message],
+        now,
+        deadRevivesRemaining: 1,
+        allowHostedWake: true,
+      });
+      await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+      expect(await t.run(({ db }) => db.get(message))).toMatchObject({
+        status: beat ? "injected" : "failed",
+      });
+    } finally {
+      if (priorBounded === undefined) delete process.env[bounded];
+      else process.env[bounded] = priorBounded;
+      if (priorLeases === undefined) delete process.env[leases];
+      else process.env[leases] = priorLeases;
+    }
+  },
+);
+
+test("paged applies share the run's revive budget and retain the deferred message", async () => {
+  const flag = "BOUNDED_PENDING_MESSAGE_SESSIONS";
+  const previous = process.env[flag];
+  process.env[flag] = "1";
+  const t = serverTest({ documentsRead: 138 });
+  try {
+    const ids = await t.run(async ({ db }) => {
+      const fixture = fixtureRows(db, "pending-revive-budget");
+      const owner = await fixture.user();
+      const ids = [];
+      for (let group = 0; group < 4; group++) {
+        const conversation = await fixture.conversation(owner);
+        for (let i = 0; i < 65; i++)
+          await fixture.session(owner, {
+            conversation_id: conversation,
+            last_heartbeat: NOW - 60 * 60_000,
+            liveness_lease: { end: NOW - 60 * 60_000, expired: false },
+          });
+        ids.push(
+          await db.insert("pending_messages", {
+            conversation_id: conversation,
+            from_user_id: owner,
+            status: "failed",
+            created_at: NOW - 40 * 60_000 + group,
+            content: "retry",
+            retry_count: 6,
+          }),
+        );
       }
+      return ids;
+    });
+    await t.action(internal.pendingMessages.retryStuckMessages, {});
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    const messages = await t.run(async ({ db }) =>
+      Promise.all(ids.map((id) => db.get(id))),
+    );
+    expect(
+      messages.filter((row) => row?.dead_session_revived_at !== undefined),
+    ).toHaveLength(3);
+    const heldRows = await t.run(({ db }) =>
+      db.query("pending_message_sweep_retries").collect(),
+    );
+    expect(heldRows).toHaveLength(1);
+    const [held] = heldRows;
+    expect(held).toMatchObject({ reason: "dead_revive_limit" });
+    expect(
+      messages.find((message) => message?._id === held.message_id)?.status,
+    ).toBe("failed");
+  } finally {
+    if (previous === undefined) delete process.env[flag];
+    else process.env[flag] = previous;
+  }
+});
+
+test("a failed pending page is recorded and a superseded chain leaves retry work alone", async () => {
+  const flag = "BOUNDED_PENDING_MESSAGE_SESSIONS";
+  const previous = process.env[flag];
+  process.env[flag] = "1";
+  const t = serverTest({});
+  try {
+    const message = await t.run(async ({ db }) => {
+      const fixture = fixtureRows(db, "pending-continuation-failure");
+      const owner = await fixture.user();
+      const conversation = await fixture.conversation(owner);
+      for (let i = 0; i < 35; i++)
+        await fixture.session(owner, {
+          conversation_id: conversation,
+          last_heartbeat: NOW - 60 * 60_000,
+        });
       return db.insert("pending_messages", {
         conversation_id: conversation,
         from_user_id: owner,
-        status: "injected",
-        created_at: old,
-        paste_verified_at: old,
-        content: "Sent and waiting for its echo",
-        retry_count: 0,
+        status: "failed",
+        created_at: NOW - 40 * 60_000,
+        content: "retry",
+        retry_count: 6,
       });
     });
-    const plan = await t.query(internal.pendingMessages.planStuckMessages, {
-      now,
-    });
-    expect(plan.groups[0]?.ids).toEqual([message]);
-    const apply = internal.pendingMessages.applyStuckMessages;
-    await t.mutation(apply, {
+    await t.mutation(internal.pendingMessages.applyStuckMessages, {
       ids: [message],
-      now,
+      now: NOW,
       deadRevivesRemaining: 1,
       allowHostedWake: true,
     });
-    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    const [next] = await scheduledJobs(t, internal.cronSweep.continuePending);
+    const retry = () =>
+      t.run(({ db }) => db.query("pending_message_sweep_retries").first());
+    expect(await retry()).toMatchObject({ reason: "scan_pending" });
+    await t.action(internal.cronSweep.continuePending, {
+      page: { ...next.args[0].page, sessionCursor: "invalid JSON cursor" },
+    });
+    expect(await retry()).toMatchObject({ reason: "apply_failed" });
+    await t.mutation(internal.cronSweep.beginPending, {});
+    await t.action(internal.cronSweep.continuePending, next.args[0]);
+    expect(await retry()).toMatchObject({ reason: "apply_failed" });
     expect(await t.run(({ db }) => db.get(message))).toMatchObject({
-      status: "injected",
+      status: "failed",
+    });
+    jest.setSystemTime(NOW + 60_000);
+    await t.action(internal.pendingMessages.retryStuckMessages, {});
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    expect(await retry()).toBeNull();
+    expect(await t.run(({ db }) => db.get(message))).toMatchObject({
+      status: "pending",
     });
   } finally {
-    if (priorBounded === undefined) delete process.env[bounded];
-    else process.env[bounded] = priorBounded;
-    if (priorLeases === undefined) delete process.env[leases];
-    else process.env[leases] = priorLeases;
+    if (previous === undefined) delete process.env[flag];
+    else process.env[flag] = previous;
   }
+});
+
+test("a failed sweep page records its cursor and schedules one retry", async () => {
+  const t = serverTest({});
+  const token = await t.mutation(internal.cronSweep.begin, { job: "health" });
+  const page = {
+    job: "health",
+    startedAt: NOW,
+    token: token!,
+    cursor: "invalid JSON cursor",
+  } as const;
+  await t.action(internal.cronSweep.continuePage, { page });
+  const failure = () =>
+    t.run(({ db }) =>
+      db
+        .query("system_config")
+        .withIndex("by_key", (q) => q.eq("key", "cron_sweep_failure:health"))
+        .unique(),
+    );
+  expect(JSON.parse((await failure())!.value)).toMatchObject({
+    page,
+    retried: false,
+  });
+  const [retry] = await scheduledJobs(t, internal.cronSweep.continuePage);
+  expect(retry.args[0]).toEqual({ page, retried: true });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(JSON.parse((await failure())!.value)).toMatchObject({
+    page,
+    retried: true,
+  });
+  expect(await scheduledJobs(t, internal.cronSweep.continuePage)).toHaveLength(
+    1,
+  );
 });

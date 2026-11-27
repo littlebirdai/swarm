@@ -104,7 +104,15 @@ import {
   relinkPendingQueue,
 } from "./lib/pending-queue-relink.state";
 import type { MutationCtx } from "./_generated/server";
-import { stuckSessionRanges } from "./lib/pending-message-liveness.rules";
+import {
+  beginPendingSweep,
+  stuckApplyArgs,
+  stuckRetryUpdate,
+  stuckSessions,
+  stuckSessionBeats,
+  writeStuckRetries,
+  type ApplyStuckArgs,
+} from "./lib/pending-message-liveness.rules";
 import { sessionRunnerOf, sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
@@ -2663,12 +2671,6 @@ export const getMessageStatus = query({
   },
 });
 
-// A user message is never dropped, and there is no age ceiling: a stranded message stays alive
-// until it is delivered. What the cron gates on is not age but session READINESS (see
-// retryStuckMessages / readyConversationIds) — it only re-pends a stray when the session is live
-// and idle, so a busy/blocked/offline session just waits instead of thrashing. planStuckMessageHeal
-// is the pure per-message decision once the session is known ready.
-// Give the JSONL-echo ack a chance to land before re-pending an "injected" message as failed.
 const INJECT_ACK_GRACE_MS = 120_000;
 
 export type HealAction =
@@ -2804,16 +2806,6 @@ export function planDeadSessionRevive(
   return planStuckMessageHeal(msg, now).kind === "repend";
 }
 
-// The cron only revives a stranded message when its session is live AND settled — i.e. ready to
-// receive it right now. A user message is NEVER dropped: if the session is busy, blocked, stopped,
-// resuming, or gone, the message is left untouched and revived on a later tick once the session
-// recovers (becomes idle). This readiness gate is what keeps a backlog from stampeding the daemon
-// into mass resumes (storm) or re-injecting into a busy agent (thrash) — when blocked we simply
-// wait; the second the session is idle, every queued message for it goes.
-// Returns two sets keyed by conversation id: `live` (a daemon for it beat its heartbeat recently,
-// regardless of what the agent is doing) and `ready` (live AND the agent is idle, so it can take a
-// message right now). The cross-user notifier needs `live` to tell "busy" (alive but not idle)
-// apart from "offline" (no live daemon); both keep the message queued.
 function liveAndReadyConversationIds(
   sessions: Doc<"managed_sessions">[],
   beats: number[],
@@ -3043,9 +3035,6 @@ export async function notifyStuckSend(
     await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
 }
 
-// The query reads a bounded page. Each conversation gets its own mutation
-// because heartbeat and delivery writes made the former multi-conversation
-// mutation fail OCC on all 61 attempts in an hour.
 export const STUCK_MESSAGES_PER_PAGE = 16;
 export const STUCK_MESSAGE_PAGES_PER_RUN = 32;
 export const STUCK_SESSIONS_PER_CONVERSATION = 4;
@@ -3073,29 +3062,19 @@ type StuckGroup = {
   ids: Id<"pending_messages">[];
 };
 type StuckPlan = { groups: StuckGroup[]; next?: StuckCursor | null };
-const retryReason = v.union(
-  v.literal("apply_failed"),
-  v.literal("dead_revive_limit"),
-);
-const retryUpdate = v.object({
-  conversationId: v.id("conversations"),
-  messageId: v.id("pending_messages"),
-  reason: v.optional(retryReason),
-});
-type RetryUpdate = Infer<typeof retryUpdate>;
-type ApplyStuckResult = Awaited<ReturnType<typeof healStuckCandidates>>;
-type ApplyStuckArgs = {
-  ids: Id<"pending_messages">[];
-  now: number;
-  deadRevivesRemaining: number;
-  allowHostedWake: boolean;
-  sessionCursor?: string;
+type RetryUpdate = Infer<typeof stuckRetryUpdate>;
+type ApplyStuckResult = Awaited<ReturnType<typeof healStuckCandidates>> & {
+  continuing?: boolean;
 };
 
 export const retryStuckMessages = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     const now = Date.now();
+    const runToken: number | undefined =
+      process.env.BOUNDED_PENDING_MESSAGE_SESSIONS === "1"
+        ? await ctx.runMutation(internal.cronSweep.beginPending, {})
+        : undefined;
     const deadline = now + STUCK_MESSAGE_RUN_BUDGET_MS;
     const deadRevived = new Set<Id<"conversations">>();
     const hostedChecked = new Set<Id<"conversations">>();
@@ -3126,6 +3105,7 @@ export const retryStuckMessages = internalAction({
             internal.pendingMessages.applyStuckMessages,
             {
               ids,
+              runToken,
               now: Date.now(),
               deadRevivesRemaining: deadRevived.has(conversationId)
                 ? 1
@@ -3133,6 +3113,7 @@ export const retryStuckMessages = internalAction({
               allowHostedWake: !hostedChecked.has(conversationId),
             },
           );
+          if (result.continuing) continue;
           if (result.deadRevived > 0) deadRevived.add(conversationId);
           if (result.checkedHosted) hostedChecked.add(conversationId);
           const deferred = new Set(result.deferred);
@@ -3164,12 +3145,10 @@ export const retryStuckMessages = internalAction({
     if (freshUpdates.length > 0) {
       await ctx.runMutation(
         internal.pendingMessages.checkpointStuckMessagePage,
-        { now, updates: freshUpdates },
+        { now, updates: freshUpdates, runToken },
       );
     }
 
-    // Advance both queues while there is time. Repeated apply failures can
-    // use the retry budget without holding the normal sweep cursor.
     let retriesRemain = true;
     let sweepRemains = true;
     for (
@@ -3188,7 +3167,7 @@ export const retryStuckMessages = internalAction({
           const updates = await applyPage(groups, true);
           await ctx.runMutation(
             internal.pendingMessages.checkpointStuckMessagePage,
-            { now, updates },
+            { now, updates, runToken },
           );
         }
       }
@@ -3203,7 +3182,7 @@ export const retryStuckMessages = internalAction({
         if (next !== undefined || updates.length > 0) {
           await ctx.runMutation(
             internal.pendingMessages.checkpointStuckMessagePage,
-            { now, updates, next },
+            { now, updates, next, runToken },
           );
         }
         sweepRemains = next != null;
@@ -3299,23 +3278,23 @@ export const planFreshStuckMessages = internalQuery({
 export const planStuckMessageRetries = internalQuery({
   args: { now: v.number() },
   handler: async (ctx, { now }): Promise<StuckGroup[]> => {
-    const failures = await ctx.db
-      .query("pending_message_sweep_retries")
-      .withIndex("by_reason_attempted", (q) =>
-        q.eq("reason", "apply_failed").lt("attempted_at", now),
-      )
-      .take(STUCK_MESSAGES_PER_PAGE);
-    const remaining = STUCK_MESSAGES_PER_PAGE - failures.length;
-    const deferred =
-      remaining > 0
-        ? await ctx.db
-            .query("pending_message_sweep_retries")
-            .withIndex("by_reason_attempted", (q) =>
-              q.eq("reason", "dead_revive_limit").lt("attempted_at", now),
-            )
-            .take(remaining)
-        : [];
-    return groupStuckMessages([...failures, ...deferred]);
+    const rows: Doc<"pending_message_sweep_retries">[] = [];
+    for (const reason of [
+      "apply_failed",
+      "dead_revive_limit",
+      "scan_pending",
+    ] as const) {
+      if (rows.length === STUCK_MESSAGES_PER_PAGE) break;
+      rows.push(
+        ...(await ctx.db
+          .query("pending_message_sweep_retries")
+          .withIndex("by_reason_attempted", (q) =>
+            q.eq("reason", reason).lt("attempted_at", now),
+          )
+          .take(STUCK_MESSAGES_PER_PAGE - rows.length)),
+      );
+    }
+    return groupStuckMessages(rows);
   },
 });
 
@@ -3323,33 +3302,21 @@ export const checkpointStuckMessagePage = internalMutation({
   args: {
     now: v.number(),
     next: v.optional(v.union(stuckCursor, v.null())),
-    updates: v.array(retryUpdate),
+    updates: v.array(stuckRetryUpdate),
+    runToken: v.optional(v.number()),
   },
-  handler: async (ctx, { now, next, updates }): Promise<void> => {
+  handler: async (ctx, { now, next, updates, runToken }): Promise<void> => {
+    const state =
+      next !== undefined || runToken !== undefined
+        ? await ctx.db.query("pending_message_sweep_state").first()
+        : null;
+    if (runToken !== undefined && state?.run_token !== runToken) return;
     if (next !== undefined) {
-      const state = await ctx.db.query("pending_message_sweep_state").first();
       if (state) await ctx.db.patch(state._id, { cursor: next });
       else if (next)
         await ctx.db.insert("pending_message_sweep_state", { cursor: next });
     }
-    for (const { conversationId, messageId, reason } of updates) {
-      const retry = await ctx.db
-        .query("pending_message_sweep_retries")
-        .withIndex("by_message_id", (q) => q.eq("message_id", messageId))
-        .first();
-      if (reason === undefined) {
-        if (retry) await ctx.db.delete(retry._id);
-      } else if (retry) {
-        await ctx.db.patch(retry._id, { attempted_at: now, reason });
-      } else {
-        await ctx.db.insert("pending_message_sweep_retries", {
-          message_id: messageId,
-          conversation_id: conversationId,
-          attempted_at: now,
-          reason,
-        });
-      }
-    }
+    await writeStuckRetries(ctx.db, now, updates);
   },
 });
 
@@ -3358,8 +3325,6 @@ async function readStuckMessagePage(
   now: number,
   cursor: StuckCursor | null,
 ) {
-  // Fix the high-water mark until wraparound so fresh messages cannot keep
-  // an older row that becomes eligible behind the cursor out of the sweep.
   const through = cursor?.through ?? now;
   const pages = await Promise.all(
     NON_TERMINAL_STATUSES.map(async (status) => {
@@ -3412,32 +3377,19 @@ async function planStuckMessageGroups(
   now: number,
   candidates: Doc<"pending_messages">[],
 ): Promise<StuckGroup[]> {
+  const bounded = process.env.BOUNDED_PENDING_MESSAGE_SESSIONS === "1";
   const sessionsByConversation = await Promise.all(
-    stuckConversationIds(candidates).map(async (id) => {
-      const sample = STUCK_SESSIONS_PER_CONVERSATION;
-      if (process.env.BOUNDED_PENDING_MESSAGE_SESSIONS !== "1")
-        return conversationSessionsBeatingSince(
-          ctx,
-          id,
-          now - HEARTBEAT_ALIVE_MS,
-        ).take(sample);
-      const rows = (
-        await Promise.all(
-          stuckSessionRanges(ctx.db, id, now).map((range) =>
-            range.take(sample),
-          ),
-        )
-      ).flat();
-      return [...new Map(rows.map((row) => [row._id, row])).values()].slice(
-        0,
-        sample,
-      );
-    }),
+    stuckConversationIds(candidates).map((id) =>
+      (bounded
+        ? stuckSessions(ctx, id)
+        : conversationSessionsBeatingSince(ctx, id, now - HEARTBEAT_ALIVE_MS)
+      ).take(STUCK_SESSIONS_PER_CONVERSATION),
+    ),
   );
   const sampled = sessionsByConversation.flat();
   const readiness = liveAndReadyConversationIds(
     sampled,
-    await heartbeatsFor(ctx, sampled),
+    await stuckSessionBeats(ctx, sampled, bounded),
     now,
   );
   const uncertain = new Set(
@@ -3495,13 +3447,7 @@ export const applyStuckMessages: RegisteredMutation<
   ApplyStuckArgs,
   Promise<ApplyStuckResult>
 > = internalMutation({
-  args: {
-    ids: v.array(v.id("pending_messages")),
-    now: v.number(),
-    deadRevivesRemaining: v.number(),
-    allowHostedWake: v.boolean(),
-    sessionCursor: v.optional(v.string()),
-  },
+  args: stuckApplyArgs,
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:retryStuckMessages");
     return healAndNotifyStuckMessages(ctx, args);
@@ -3512,7 +3458,7 @@ async function healAndNotifyStuckMessages(
   ctx: MutationCtx,
   args: ApplyStuckArgs,
 ) {
-  let candidates = (
+  const candidates = (
     await Promise.all(args.ids.map((id) => ctx.db.get(id)))
   ).filter(
     (row): row is Doc<"pending_messages"> =>
@@ -3521,65 +3467,115 @@ async function healAndNotifyStuckMessages(
   );
   const now = args.sessionCursor ? Math.max(args.now, Date.now()) : args.now;
   const ids = stuckConversationIds(candidates);
-  const queries = ids.map((id) =>
-    conversationSessionsBeatingSince(ctx, id, args.now - HEARTBEAT_ALIVE_MS),
-  );
   const bounded =
-    queries.length === 1 &&
-    (args.sessionCursor ||
-      process.env.BOUNDED_PENDING_MESSAGE_SESSIONS === "1");
-  const page = bounded
-    ? await queries[0].paginate({
-        cursor: args.sessionCursor ?? null,
-        numItems: 32,
-        maximumRowsRead: 64,
-        maximumBytesRead: 2 * 1024 ** 2,
-      })
-    : null;
+    args.runToken !== undefined ||
+    process.env.BOUNDED_PENDING_MESSAGE_SESSIONS === "1";
+  const state = !bounded
+    ? null
+    : args.runToken === undefined
+      ? await beginPendingSweep(ctx.db)
+      : await ctx.db.query("pending_message_sweep_state").first();
+  const readiness = { ready: new Set<string>(), live: new Set<string>() };
+  if (args.runToken !== undefined && state?.run_token !== args.runToken)
+    return healStuckCandidates(ctx, now, [], readiness, 0, false, (effect) =>
+      effect(),
+    );
+  const conversationId = args.conversationId ?? ids[0];
+  const page =
+    bounded && ids.length === 1
+      ? await stuckSessions(ctx, ids[0]).paginate({
+          cursor: args.sessionCursor ?? null,
+          numItems: 32,
+          maximumRowsRead: 64,
+          maximumBytesRead: 2 * 1024 ** 2,
+        })
+      : null;
   const sessions =
     page?.page ??
-    (await Promise.all(queries.map((query) => query.collect()))).flat();
-  const readiness = liveAndReadyConversationIds(
-    sessions,
-    await heartbeatsFor(ctx, sessions),
-    now,
+    (
+      await Promise.all(
+        ids.map((id) =>
+          conversationSessionsBeatingSince(
+            ctx,
+            id,
+            args.now - HEARTBEAT_ALIVE_MS,
+          ).collect(),
+        ),
+      )
+    ).flat();
+  const beats = await stuckSessionBeats(ctx, sessions, bounded);
+  const current = liveAndReadyConversationIds(sessions, beats, now);
+  const liveThrough = Math.max(
+    args.liveThrough ?? 0,
+    ...beats.map((beat) => beat + HEARTBEAT_ALIVE_MS),
   );
-  if (page && !readiness.ready.size) {
-    const conversation = ids[0];
-    if (!page.isDone) {
-      await ctx.scheduler.runAfter(
+  const retryUpdates = (reason?: RetryUpdate["reason"]) =>
+    args.ids.map((messageId) => ({ conversationId, messageId, reason }));
+  if (page && !page.isDone && !current.ready.size) {
+    if (!args.sessionCursor)
+      await writeStuckRetries(ctx.db, now, retryUpdates("scan_pending"));
+    await ctx.scheduler.runAfter(0, internal.cronSweep.continuePending, {
+      page: {
+        ...args,
+        conversationId,
+        sessionCursor: page.continueCursor,
+        liveThrough,
+        runToken: state?.run_token,
+      },
+    });
+    return {
+      ...(await healStuckCandidates(
+        ctx,
+        now,
+        [],
+        readiness,
         0,
-        internal.pendingMessages.applyStuckMessages,
-        {
-          ...args,
-          deadRevivesRemaining: 0,
-          sessionCursor: page.continueCursor,
-        },
-      );
-      candidates = [];
-    } else if (
-      args.sessionCursor &&
-      !readiness.live.size &&
-      (
-        await Promise.all(
-          stuckSessionRanges(ctx.db, conversation, now).map((range) =>
-            range.first(),
-          ),
-        )
-      ).some(Boolean)
-    ) {
-      readiness.live.add(conversation);
-    }
+        false,
+        (effect) => effect(),
+      )),
+      continuing: true,
+    };
   }
-  return healStuckCandidates(
+  if (conversationId && liveThrough > now) current.live.add(conversationId);
+  const revived = state?.dead_revived ?? [];
+  const limit = revived.includes(conversationId)
+    ? 1
+    : Math.min(
+        args.deadRevivesRemaining,
+        DEAD_SESSION_REVIVES_PER_PASS - revived.length,
+      );
+  const result = await healStuckCandidates(
     ctx,
     now,
     candidates,
-    readiness,
-    args.deadRevivesRemaining,
+    current,
+    limit,
     args.allowHostedWake,
     (effect) => effect(),
   );
+  if (
+    state &&
+    conversationId &&
+    result.deadRevived &&
+    !revived.includes(conversationId)
+  )
+    await ctx.db.patch(state._id, {
+      dead_revived: [...revived, conversationId],
+    });
+  if (args.sessionCursor && conversationId) {
+    const deferred = new Set(result.deferred);
+    await writeStuckRetries(
+      ctx.db,
+      now,
+      retryUpdates().map((update) => ({
+        ...update,
+        reason: deferred.has(update.messageId)
+          ? "dead_revive_limit"
+          : undefined,
+      })),
+    );
+  }
+  return result;
 }
 
 function stuckConversationIds(candidates: Doc<"pending_messages">[]) {
@@ -3710,13 +3706,6 @@ async function healStuckCandidates(
         }),
       );
     }
-    // Session not ready to receive (busy / blocked / stopped / gone): leave the message
-    // exactly as-is — preserved, never dropped — and revive it once the session is idle.
-    // A session with no live process is the exception: see planDeadSessionRevive.
-    // No daemon serves the session any more: a submitted row it never confirmed
-    // will not confirm now, so it fails visibly rather than holding Working.
-    // A daemon that only paused (a laptop asleep, a restart) comes back and
-    // syncs the echo, so this waits far longer than the idle case.
     if (
       !ready.has(conversationId) &&
       !live.has(conversationId) &&

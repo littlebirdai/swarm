@@ -106,10 +106,6 @@ export const managedSessionTables = {
     // session works the range is empty, so heartbeats never conflict with it.
     .index("by_conversation_status", ["conversation_id", "agent_status"])
     .index("by_conversation_heartbeat", ["conversation_id", "last_heartbeat"])
-    .index("by_conversation_active_lease", [
-      "conversation_id",
-      "liveness_lease.expired",
-    ])
     .index("by_heartbeat", ["last_heartbeat"]),
 
   // Use the managed document id because the daemon can rename or reuse its session id.

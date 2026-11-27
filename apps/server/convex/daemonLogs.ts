@@ -1,3 +1,4 @@
+import { cronSweepToken } from "./lib/cron-sweep.rules";
 import { mutation, query, internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import type { MutationCtx } from "./_generated/server";
@@ -386,11 +387,17 @@ async function recentlyActiveDaemonUsers(
 }
 
 export const checkDaemonHealth = internalMutation({
-  args: { cursor: v.optional(v.string()), now: v.optional(v.number()) },
+  args: {
+    cursor: v.optional(v.string()),
+    token: v.optional(v.number()),
+    now: v.optional(v.number()),
+  },
   handler: async (
     ctx,
     args,
   ): Promise<{ checked: number; alertsCreated: number }> => {
+    const token = await cronSweepToken(ctx.db, "health", args.token);
+    if (token === null) return { checked: 0, alertsCreated: 0 };
     const now = args.now ?? Date.now();
     const OFFLINE_THRESHOLD_MS = 10 * 60 * 1000; // 10 min no heartbeat = offline
 
@@ -441,9 +448,13 @@ export const checkDaemonHealth = internalMutation({
     }
 
     if (!page.isDone)
-      await ctx.scheduler.runAfter(0, internal.daemonLogs.checkDaemonHealth, {
-        now,
-        cursor: page.continueCursor,
+      await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
+        page: {
+          job: "health",
+          startedAt: now,
+          token,
+          cursor: page.continueCursor,
+        },
       });
     return { checked: page.page.length, alertsCreated };
   },

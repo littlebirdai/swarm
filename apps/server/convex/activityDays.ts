@@ -1,3 +1,4 @@
+import { activitySweepPhase, isCurrentCronSweep } from "./lib/cron-sweep.rules";
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
@@ -81,25 +82,34 @@ export const rollupCandidates = internalQuery({
   },
 });
 
-const sweepPhase = v.union(v.literal("seen"), v.literal("created"));
 type SweepPage = { users: Id<"users">[]; cursor: string | null };
 
 export const rollupCandidatePage = internalQuery({
   args: {
     since: v.number(),
-    phase: sweepPhase,
+    phase: activitySweepPhase,
+    startedAt: v.number(),
+    token: v.number(),
     cursor: v.optional(v.string()),
   },
-  handler: async (ctx, { since, phase, cursor }): Promise<SweepPage> => {
+  handler: async (
+    ctx,
+    { since, phase, cursor, startedAt, token },
+  ): Promise<SweepPage | null> => {
+    if (!(await isCurrentCronSweep(ctx.db, "activity", token))) return null;
     const candidates =
       phase === "created"
         ? ctx.db
             .query("users")
-            .withIndex("by_creation_time", (q) => q.gte("_creationTime", since))
+            .withIndex("by_creation_time", (q) =>
+              q.gte("_creationTime", since).lte("_creationTime", startedAt),
+            )
         : ctx.db
             .query("users")
             .withIndex("by_daemon_last_seen", (q) =>
-              q.gte("daemon_last_seen", since),
+              q
+                .gte("daemon_last_seen", since)
+                .lte("daemon_last_seen", startedAt),
             )
             .filter((q) => q.lt(q.field("_creationTime"), since));
     const page = await candidates.paginate({
@@ -118,8 +128,9 @@ export const rollupCandidatePage = internalQuery({
 export const sweep = internalAction({
   args: {
     days: v.optional(v.number()),
-    today: v.optional(v.number()),
-    phase: v.optional(sweepPhase),
+    startedAt: v.optional(v.number()),
+    token: v.optional(v.number()),
+    phase: v.optional(activitySweepPhase),
     cursor: v.optional(v.string()),
   },
   handler: async (
@@ -127,13 +138,20 @@ export const sweep = internalAction({
     args,
   ): Promise<{ users: number; rolled: number; failed: number }> => {
     const days = args.days ?? SWEEP_DAYS;
-    const today = args.today ?? dayStartUtc(Date.now());
+    const startedAt = args.startedAt ?? Date.now();
+    const today = dayStartUtc(startedAt);
+    const token: number | null =
+      args.token ??
+      (await ctx.runMutation(internal.cronSweep.begin, { job: "activity" }));
+    if (token === null) return { users: 0, rolled: 0, failed: 0 };
     const since = today - days * ACTIVITY_DAY_MS;
     const phase = args.phase ?? "seen";
-    const { users, cursor }: SweepPage = await ctx.runQuery(
+    const page: SweepPage | null = await ctx.runQuery(
       internal.activityDays.rollupCandidatePage,
-      { since, phase, cursor: args.cursor },
+      { since, phase, cursor: args.cursor, startedAt, token },
     );
+    if (!page) return { users: 0, rolled: 0, failed: 0 };
+    const { users, cursor } = page;
     let rolled = 0;
     let failed = 0;
     for (const user_id of users) {
@@ -153,11 +171,15 @@ export const sweep = internalAction({
       }
     }
     if (cursor !== null || phase === "seen")
-      await ctx.scheduler.runAfter(0, internal.activityDays.sweep, {
-        days,
-        today,
-        phase: cursor === null ? "created" : phase,
-        cursor: cursor ?? undefined,
+      await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
+        page: {
+          job: "activity",
+          days,
+          startedAt,
+          token,
+          phase: cursor === null ? "created" : phase,
+          cursor: cursor ?? undefined,
+        },
       });
     return { users: users.length, rolled, failed };
   },

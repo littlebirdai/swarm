@@ -1,4 +1,5 @@
 import { cronJobs } from "convex/server";
+import { registerSearchMirrorCron } from "./lib/search-mirror-cron.rules";
 import { internal } from "./_generated/api";
 
 const crons = cronJobs();
@@ -254,16 +255,7 @@ crons.interval(
   {},
 );
 
-crons.interval(
-  // Recent-window content-search mirror (searchMirror.ts, ct-37627): walks
-  // messages forward by _creationTime — backfill, tail sync, and window GC in
-  // one step. Content search cuts over to the mirror automatically once the
-  // cursor is fresh (see fetchMessageSearchPool).
-  "advance search mirror",
-  { minutes: 2 },
-  internal.searchMirror.advanceCron,
-  {},
-);
+registerSearchMirrorCron(crons);
 
 crons.interval(
   // Kicks off the retention drain; pruneOldLogs self-reschedules to chew through

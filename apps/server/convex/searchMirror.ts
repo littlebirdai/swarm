@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
+import { searchMirrorBackoffEnabled } from "./lib/search-mirror-cron.rules";
 
 // Recent-window mirror for message content search (ct-37627).
 //
@@ -62,7 +63,7 @@ const MAX_BATCH_ROWS = 1000;
 const GC_BATCH = 200;
 const CRON_BATCH_ROWS = 400;
 const TICK_MS = 15_000;
-const MAX_TICK_MS = 120_000;
+const MAX_TICK_MS = 30_000;
 
 type MirrorDb = Pick<
   import("./_generated/server").MutationCtx["db"],
@@ -343,6 +344,7 @@ export const advance = internalMutation({
 export const advanceCron = internalMutation({
   args: { scheduledAt: v.optional(v.number()) },
   handler: async (ctx, { scheduledAt }): Promise<void> => {
+    if (!searchMirrorBackoffEnabled()) return;
     const now = Date.now();
     const state = await ctx.db.query("search_mirror_state").first();
     if (scheduledAt !== undefined) {
@@ -361,10 +363,9 @@ export const advanceCron = internalMutation({
       result.fresh_scanned === 0 &&
       result.scanned === 0 &&
       result.expired === 0;
-    const delay =
-      process.env.SEARCH_MIRROR_CRON_BACKOFF === "1" && idle
-        ? Math.min(MAX_TICK_MS, (state?.tick_delay_ms ?? TICK_MS) * 2)
-        : TICK_MS;
+    const delay = idle
+      ? Math.min(MAX_TICK_MS, (state?.tick_delay_ms ?? TICK_MS) * 2)
+      : TICK_MS;
     const next = now + delay;
     const id =
       state?._id ?? (await ctx.db.query("search_mirror_state").first())!._id;

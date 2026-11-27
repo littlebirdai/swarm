@@ -189,6 +189,8 @@ export const sessionDeliveryTables = {
 
   // Singleton storage for the stuck-message cron's current sweep.
   pending_message_sweep_state: defineTable({
+    run_token: v.optional(v.number()),
+    dead_revived: v.optional(v.array(v.id("conversations"))),
     cursor: v.union(
       v.null(),
       v.object({
@@ -203,7 +205,11 @@ export const sessionDeliveryTables = {
     conversation_id: v.id("conversations"),
     message_id: v.id("pending_messages"),
     attempted_at: v.number(),
-    reason: v.union(v.literal("apply_failed"), v.literal("dead_revive_limit")),
+    reason: v.union(
+      v.literal("apply_failed"),
+      v.literal("dead_revive_limit"),
+      v.literal("scan_pending"),
+    ),
   })
     .index("by_reason_attempted", ["reason", "attempted_at"])
     .index("by_message_id", ["message_id"]),

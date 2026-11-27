@@ -8339,7 +8339,7 @@
     "swarm/no-comments": 35
   },
   "apps/server/convex/agentTasks.ts": {
-    "swarm/no-comments": 631
+    "swarm/no-comments": 615
   },
   "apps/server/convex/agentTasks.verbHistory.test.ts": {
     "swarm/no-comments": 2
@@ -9056,7 +9056,7 @@
     "swarm/no-comments": 15
   },
   "apps/server/convex/crons.ts": {
-    "swarm/no-comments": 185
+    "swarm/no-comments": 181
   },
   "apps/server/convex/daemonCommandClaim.test.ts": {
     "swarm/no-comments": 13
@@ -11561,7 +11561,7 @@
     "swarm/no-comments": 48
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 578
+    "swarm/no-comments": 548
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6
