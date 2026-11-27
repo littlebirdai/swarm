@@ -2,12 +2,15 @@ import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
 } from "@codecast/agent-clients/executionBinding";
+import type { ClaimGrant } from "@codecast/edge-client";
+import type { startRelayLiveness } from "@codecast/edge-client/relay-liveness";
 import type { EdgeJson } from "@codecast/edge-contract";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import type { ParsedMessage } from "../parser.js";
 import type { RetryQueue } from "../retryQueue.js";
 import type { SyncService } from "../syncService.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
+import { deliveryFence } from "./codex-pilot-delivery.js";
 import type { CodexPilotDisplayEffect } from "./codex-pilot-display.js";
 import type { EnsureBindingRequest } from "./types.js";
 
@@ -106,4 +109,52 @@ export async function codexPilotSettings(
       : {}),
     ...(developerInstructions ? { developerInstructions } : {}),
   });
+}
+
+export function startOwnedCodexRelayContact(
+  options: Pick<PilotOptions, "bearer" | "siteUrl" | "log">,
+  provider: { readonly agent: string; readonly version: string },
+  claim: ClaimGrant,
+  binding: ReadyBinding,
+  signal: AbortSignal,
+  deadline: () => number,
+  onRelay: (relay: ReturnType<typeof startRelayLiveness>) => void,
+): void {
+  const { bearer, siteUrl, log } = options;
+  if (!bearer) return;
+  const launchRelayPublisher = () => {
+    void Promise.all([
+      import("@codecast/edge-client"),
+      import("@codecast/edge-client/relay-liveness"),
+    ])
+      .then(([{ createHttpEdgeTransport }, { startRelayLiveness }]) => {
+        if (signal.aborted) return;
+        const relay = startRelayLiveness(
+          {
+            transport: createHttpEdgeTransport(new URL("/edge/v1/", siteUrl), {
+              Authorization: `Bearer ${bearer}`,
+            }),
+            hello: {
+              machine: binding.ownerDeviceId,
+              boot: binding.daemonBootId,
+              providers: [{ name: provider.agent, version: provider.version }],
+              runtimes: [{ host: "daemon", isolation: "app-server" }],
+              capacity: {
+                memory_total_bytes: 0,
+                memory_available_bytes: 0,
+                live_agents: 1,
+              },
+            },
+          },
+          signal,
+          [{ ...deliveryFence(claim), deadline: deadline() }],
+        );
+        onRelay(relay);
+        return relay.running;
+      })
+      .catch(() => {
+        if (!signal.aborted) log("[owned-codex] relay liveness stopped");
+      });
+  };
+  setImmediate(launchRelayPublisher).unref();
 }

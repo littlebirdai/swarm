@@ -30,6 +30,7 @@ import { agentSpawnPath } from "../agentSpawnPath.js";
 import {
   checkpointOf,
   codexPilotSettings,
+  startOwnedCodexRelayContact,
   type PilotOptions,
 } from "./codex-pilot-settings.js";
 import {
@@ -199,6 +200,14 @@ export class CodexOwnedPilot {
 
   getProcessId(): number | undefined {
     return this.session?.getProcessId?.();
+  }
+
+  getProcessIds(): number[] {
+    const pid = this.session?.getProcessId?.();
+    const children = [...this.children.values()].flatMap((p) =>
+      p.getProcessIds(),
+    );
+    return pid === undefined ? children : [pid, ...children];
   }
 
   owns(binding: ReadyBinding): boolean {
@@ -520,48 +529,18 @@ export class CodexOwnedPilot {
   }
 
   private startRelayContact(claim: ClaimGrant, binding: ReadyBinding): void {
-    const { bearer, siteUrl, log } = this.options;
-    if (!this.relayEnabled || !bearer) return;
-    const { signal } = this.controller;
-    const launchRelayPublisher = () => {
-      void Promise.all([
-        import("@codecast/edge-client"),
-        import("@codecast/edge-client/relay-liveness"),
-      ])
-        .then(([{ createHttpEdgeTransport }, { startRelayLiveness }]) => {
-          if (signal.aborted) return;
-          this.relay = startRelayLiveness(
-            {
-              transport: createHttpEdgeTransport(
-                new URL("/edge/v1/", siteUrl),
-                {
-                  Authorization: `Bearer ${bearer}`,
-                },
-              ),
-              hello: {
-                machine: binding.ownerDeviceId,
-                boot: binding.daemonBootId,
-                providers: [
-                  { name: provider.agent, version: provider.version },
-                ],
-                runtimes: [{ host: "daemon", isolation: "app-server" }],
-                capacity: {
-                  memory_total_bytes: 0,
-                  memory_available_bytes: 0,
-                  live_agents: 1,
-                },
-              },
-            },
-            signal,
-            [{ ...deliveryFence(claim), deadline: this.leaseDeadline }],
-          );
-          return this.relay.running;
-        })
-        .catch(() => {
-          if (!signal.aborted) log("[owned-codex] relay liveness stopped");
-        });
-    };
-    setImmediate(launchRelayPublisher).unref();
+    if (!this.relayEnabled) return;
+    startOwnedCodexRelayContact(
+      this.options,
+      provider,
+      claim,
+      binding,
+      this.controller.signal,
+      () => this.leaseDeadline,
+      (relay) => {
+        this.relay = relay;
+      },
+    );
   }
 
   async drain(

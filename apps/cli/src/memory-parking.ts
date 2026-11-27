@@ -60,7 +60,8 @@ type ParkingMemoryRoot = readonly [
 
 export type OwnedParkingProcess = {
   ownsThread(id: string): boolean;
-  getProcessId(): number | undefined;
+  getProcessId?(): number | undefined;
+  getProcessIds?(): readonly number[];
 };
 
 export function* parkingMemoryRoots(
@@ -69,8 +70,12 @@ export function* parkingMemoryRoots(
 ): Iterable<ParkingMemoryRoot> {
   for (const [id, agent] of sessions)
     yield [owned?.ownsThread(id) ? null : id, agent];
-  const pid = owned?.getProcessId();
-  if (pid !== undefined) yield [null, { pid }];
+  const pids = owned?.getProcessIds
+    ? owned.getProcessIds()
+    : owned?.getProcessId
+      ? [owned.getProcessId()].filter((pid): pid is number => pid !== undefined)
+      : [];
+  for (const pid of pids) yield [null, { pid }];
 }
 
 export async function sampleParkingMemory(

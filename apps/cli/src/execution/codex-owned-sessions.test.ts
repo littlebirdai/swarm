@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
+import { parkingMemoryRoots, sampleParkingMemory } from "../memory-parking.js";
 import { fixture, item } from "./codex-owned-pilot-fixture.js";
 import { ownsCodexCheckpoint } from "./codex-owned-pilot.js";
 
@@ -91,6 +92,46 @@ test("without the many-session flag the configured pilot leaves other Codex sess
     expect(f.permitSessions).toContain("pilot");
     expect(f.actions).toContain("legacy-start:legacy:1");
     expect(f.driver.capabilities).not.toContain(STEER_BATON_CAPABILITY);
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("memory parking counts every live owned Codex child process without marking them parkable", async () => {
+  const f = fixture(null, true, "receipt", true);
+  try {
+    f.pilotRequest.requiredCapabilities = f.newRequest.requiredCapabilities;
+    f.initial([item(f.pilotRequest), item(f.newRequest)]);
+    await f.runtime.start();
+
+    const first = f.ready(f.pilotRequest);
+    const second = f.ready(f.newRequest);
+    const firstPid = f.pilot.pilotFor(f.pilotRequest)?.getProcessId();
+    const secondPid = f.pilot.pilotFor(f.newRequest)?.getProcessId();
+    expect(firstPid).toBeNumber();
+    expect(secondPid).toBeNumber();
+    expect(firstPid).not.toBe(secondPid);
+    expect(f.pilot.getProcessId()).toBeUndefined();
+    expect(f.pilot.getProcessIds().sort((a, b) => a - b)).toEqual(
+      [firstPid!, secondPid!].sort((a, b) => a - b),
+    );
+
+    const legacyPid = 900_001;
+    expect(f.pilot.ownsThread(first.runtimeId)).toBe(true);
+    expect(f.pilot.ownsThread(second.runtimeId)).toBe(true);
+    const memory = await sampleParkingMemory(
+      100 * 1024,
+      parkingMemoryRoots(new Map([["legacy", { pid: legacyPid }]]), f.pilot),
+      () => {},
+      async () => `${firstPid} 1 45\n${secondPid} 1 50\n${legacyPid} 1 20`,
+    );
+    expect(memory?.usedBytes).toBe(115 * 1024);
+    expect([...(memory?.rssBySession ?? [])]).toEqual([["legacy", 20 * 1024]]);
+
+    await f.driver.stop(first);
+    expect(f.pilot.getProcessIds()).toEqual([secondPid!]);
+    await f.driver.stop(second);
+    expect(f.pilot.getProcessIds()).toEqual([]);
   } finally {
     await f.dispose();
   }
