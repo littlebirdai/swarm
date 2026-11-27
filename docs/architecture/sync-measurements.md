@@ -24,6 +24,18 @@ The timeout applies to each measured step and the warm-up. A stall reports the s
 
 The results include the 25 ms coalescing delay from the product scheduler. The probe flushes store notifications immediately, so the results exclude the 33 ms publish fold. They also exclude network latency, live subscription delivery, the client debounce, and browser paint.
 
+## Continuous reporting
+
+Set `CODECAST_SYNC_PROBE_METRICS=1` and `POSTHOG_KEY` in the environment of a dedicated measurement process.
+
+```sh
+bun apps/web/scripts/sync-probe.ts --samples 30 --interval-ms 60000
+```
+
+Each batch starts in a new process with a fresh Convex fixture. The probe deletes its document before it reports the result. The interval starts after each batch finishes. A failed batch reports an error and the next batch starts after the same interval.
+
+Use the `sync_save_to_screen` event in Metrics. Plot `p50_ms` and `p95_ms` per batch, with `samples` as the sample count. The event contains no document or account fields. It measures in-process save-to-store latency and uses no Convex deployment.
+
 ## Alarm definitions
 
 Print the HogQL queries and thresholds without creating watches.

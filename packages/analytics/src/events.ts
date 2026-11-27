@@ -188,6 +188,7 @@ export const CODECAST_EVENTS = defineCatalog({
   synclog_apply: { direct: COUNT, refetch: COUNT, ratio: COUNT },
   synclog_resync: { count: COUNT },
   sync_outbox_status: { oldest_age_ms: COUNT },
+  sync_save_to_screen: { samples: COUNT, p50_ms: COUNT, p95_ms: COUNT },
 
   // A desktop app process died: a window's renderer or a helper such as the
   // GPU process. The only record that leaves the machine when a window goes
