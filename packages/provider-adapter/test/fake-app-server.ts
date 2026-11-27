@@ -197,7 +197,8 @@ watch(directory, () => {
           params: { threadId, threadName: String(index), fixtureBuffer: index },
         });
     }
-    if (command.holdLiveness) holdLiveness = true;
+    if (typeof command.holdLiveness === "boolean")
+      holdLiveness = command.holdLiveness;
     if (command.frame) send(command.frame);
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.rejectStart) {

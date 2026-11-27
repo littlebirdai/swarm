@@ -488,22 +488,24 @@ export class DaemonExecutionRuntime {
       this.pilotAwaitingSuccessor = Boolean(successor && policy);
       this.pilotSendNew =
         !this.pilotAwaitingSuccessor || policy === "drain-current";
-      await this.codexOwnedPilot.activate(current.binding, current.request);
       const alreadyPolling = this.pollingPilot !== undefined;
       this.pollingPilot ??= current.binding;
-      let idle = false;
+      let idle: boolean;
       try {
+        await this.codexOwnedPilot.activate(current.binding, current.request);
         idle = await this.codexOwnedPilot.drain(
           current.binding,
           this.coordinator,
           (text) => this.prepareText(text),
           this.pilotSendNew,
         );
-      } finally {
-        if (idle || this.codexOwnedPilot.closed) this.stopPilotPoll();
-        else if (!alreadyPolling)
-          this.schedulePilotPoll(current.binding, current.request);
+      } catch (error) {
+        this.stopPilotPoll();
+        throw error;
       }
+      if (idle || this.codexOwnedPilot.closed) this.stopPilotPoll();
+      else if (!alreadyPolling)
+        this.schedulePilotPoll(current.binding, current.request);
       if (!this.pilotAwaitingSuccessor || !idle) return;
     }
 
@@ -583,6 +585,7 @@ export class DaemonExecutionRuntime {
         this.stopPilotPoll();
       });
       this.workChain = next.catch((error) => {
+        this.stopPilotPoll();
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });
       void this.workChain.then(() => this.schedulePilotPoll(binding, request));

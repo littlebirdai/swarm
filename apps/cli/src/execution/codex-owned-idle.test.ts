@@ -239,57 +239,181 @@ test.each(["stale lease at wake", "stale lease at poll", "closed session"])(
   },
 );
 
-test("an open silent turn renews while responsive and closes when the app-server stops answering", async () => {
+test("stream activity skips the probe and one slow reply leaves the active session running", async () => {
   const f = fixture("pilot", true, "receipt");
   const timers = fakeTimers(2_000, 5_000, 30_000);
+  const probes = () =>
+    f.providerRequests().filter(({ method }) => method === "thread/read");
+  const renewals = () =>
+    f.actions.filter((action) => action === "edge:renew").length;
+  const renewed = (count: number) =>
+    until(
+      () => renewals() === count && timers.count(30_000) === 1,
+      `renewal ${count} finishes`,
+    );
   try {
-    f.initial([item(f.pilotRequest)]);
-    await f.runtime.start();
-    f.enqueue(1);
-    await f.runtime.processWorkUpdate([
-      item(f.pilotRequest, f.ready(f.pilotRequest)),
-    ]);
-    await until(
-      () => f.statuses.includes("working"),
-      "the provider started a turn",
-    );
+    await openTurn(f);
     timers.tick(30_000);
-    await until(
-      () => f.actions.includes("edge:renew") && timers.count(30_000) === 1,
-      "a responsive silent turn renews",
-    );
-    expect(
-      f
-        .providerRequests()
-        .filter(({ method }) => method === "thread/read")
-        .map(({ params }) => params),
-    ).toEqual([{ threadId: f.deliveryThread, includeTurns: false }]);
-    expect(f.actions.filter((action) => action === "edge:renew")).toHaveLength(
-      1,
-    );
+    await renewed(1);
+    expect(probes()).toEqual([]);
+
     await f.sendFrame({ holdLiveness: true });
     timers.tick(30_000);
     await until(
-      () =>
-        f.providerRequests().filter(({ method }) => method === "thread/read")
-          .length === 2,
-      "the unresponsive process receives the next check",
+      () => probes().length === 1 && timers.count(5_000) === 1,
+      "the silent turn receives a check",
     );
     timers.tick(5_000);
+    await renewed(2);
+    expect(f.pilot!.ownsThread(f.deliveryThread)).toBe(true);
+    expect(f.statuses).toEqual(["working"]);
+
+    await f.sendFrame({
+      frame: {
+        method: "thread/status/changed",
+        params: { threadId: f.deliveryThread, status: { type: "active" } },
+      },
+    });
+    await until(() => f.statuses.length === 2, "new stream progress arrived");
+    timers.tick(30_000);
+    await renewed(3);
+    expect(probes()).toHaveLength(1);
+
+    await f.sendFrame({ holdLiveness: false });
+    timers.tick(30_000);
+    await renewed(4);
+    expect(probes().at(-1)?.params).toEqual({
+      threadId: f.deliveryThread,
+      includeTurns: false,
+    });
+    expect(probes()).toHaveLength(2);
+    await f.sendFrame({ holdLiveness: true });
+    for (let attempt = 3; attempt <= 4; attempt++) {
+      timers.tick(30_000);
+      await until(
+        () => probes().length === attempt && timers.count(5_000) === 1,
+        "another check reaches the provider",
+      );
+      timers.tick(5_000);
+      await renewed(attempt + 2);
+      expect(f.pilot!.closed).toBe(false);
+    }
+  } finally {
+    timers.restore();
+    await f.dispose();
+  }
+});
+
+async function openTurn(f: ReturnType<typeof fixture>) {
+  f.initial([item(f.pilotRequest)]);
+  await f.runtime.start();
+  f.enqueue(1);
+  await f.runtime.processWorkUpdate([
+    item(f.pilotRequest, f.ready(f.pilotRequest)),
+  ]);
+  await until(
+    () => f.statuses.includes("working"),
+    "the provider started a turn",
+  );
+}
+
+test("three consecutive missed checks stop renewal, publish stopped, and close the session", async () => {
+  const f = fixture("pilot", true, "receipt");
+  const timers = fakeTimers(2_000, 5_000, 30_000);
+  const renewals = () =>
+    f.actions.filter((action) => action === "edge:renew").length;
+  try {
+    await openTurn(f);
+    await f.sendFrame({ holdLiveness: true });
+    timers.tick(30_000);
+    await until(
+      () => renewals() === 1 && timers.count(30_000) === 1,
+      "the active stream renews",
+    );
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      timers.tick(30_000);
+      await until(
+        () =>
+          f.providerRequests().filter(({ method }) => method === "thread/read")
+            .length === attempt && timers.count(5_000) === 1,
+        `provider receives check ${attempt}`,
+      );
+      timers.tick(5_000);
+      if (attempt < 3) {
+        await until(
+          () => renewals() === attempt + 1 && timers.count(30_000) === 1,
+          "the lease is renewed through a missed check",
+        );
+        expect(f.pilot!.closed).toBe(false);
+      }
+    }
     await until(
       () => f.actions.includes("edge:release"),
-      "the timeout closes and releases the session",
+      "the third miss closes the run",
     );
+    expect(f.events.some(({ kind }) => kind === "session.ended")).toBe(false);
+    expect(f.statuses.at(-1)).toBe("stopped");
     expect(f.pilot!.ownsThread(f.deliveryThread)).toBe(false);
-    expect(f.actions.filter((action) => action === "edge:renew")).toHaveLength(
-      1,
-    );
+    expect(renewals()).toBe(3);
     expect(timers.count(30_000)).toBe(0);
   } finally {
     timers.restore();
     await f.dispose();
   }
 });
+
+test.each(["on wake", "on poll"])(
+  "an unexpected delivery failure stops polling %s",
+  async (timing) => {
+    const f = fixture("pilot", true, "receipt");
+    const timers = fakeTimers(2_000);
+    const reads = () =>
+      f.actions.filter((action) => action === "edge:permits.next").length;
+    try {
+      f.initial([item(f.pilotRequest)]);
+      await f.runtime.start();
+      f.enqueue(1);
+      f.queue[0]!.state = "started";
+      if (timing === "on wake") f.setPermitReadStatus("takeover_fence");
+      f.workSubscription().onUpdate([
+        {
+          ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+          nextDeliverySequence: 1,
+        },
+      ]);
+      await f.runtime.processWorkUpdate([]);
+      if (timing === "on poll") {
+        expect(timers.count(2_000)).toBe(1);
+        f.setPermitReadStatus("takeover_fence");
+        timers.tick(2_000);
+        await f.runtime.processWorkUpdate([]);
+      }
+      const afterFailure = reads();
+      expect(timers.count(2_000)).toBe(0);
+      for (let elapsed = 0; elapsed < 10_000; elapsed += 2_000) {
+        timers.tick(2_000);
+        await f.runtime.processWorkUpdate([]);
+      }
+      expect(reads()).toBe(afterFailure);
+      expect(f.pilot!.closed).toBe(false);
+      expect(f.logs.join("\n")).toContain(
+        "cannot acknowledge a takeover fence",
+      );
+      f.setPermitReadStatus();
+      f.workSubscription().onUpdate([
+        {
+          ...item(f.pilotRequest, f.ready(f.pilotRequest)),
+          nextDeliverySequence: 2,
+        },
+      ]);
+      await f.runtime.processWorkUpdate([]);
+      expect(timers.count(2_000)).toBe(1);
+    } finally {
+      timers.restore();
+      await f.dispose();
+    }
+  },
+);
 
 test("the app-server exit sends stopped status and releases ownership", async () => {
   const f = fixture("pilot", true, "receipt");
