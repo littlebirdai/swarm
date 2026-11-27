@@ -429,7 +429,7 @@ it.effect(
             const pending = yield* Effect.forkChild(
               uplink.submit(write("credentials")),
             );
-            yield* adjust(5_500);
+            yield* adjust(13_500);
             expect(credentialRejections).toBe(8);
             expect(transportAttempts).toBe(6);
             expect(yield* join(pending)).toMatchObject({ status: "applied" });
@@ -568,4 +568,232 @@ it.effect("the disk spool caps both saves and reads before decoding", () =>
       new Error("Transcript spool exceeds byte limit"),
     );
   }),
+);
+
+it.effect(
+  "rotating rejected credentials wait for the minimum and bounded Retry-After",
+  () =>
+    Effect.gen(function* () {
+      const bearers: string[] = [];
+      const hints = [undefined, 3_500, 120_000];
+      yield* withUplink(
+        {
+          spool: memorySpool(),
+          async send(batch) {
+            const index = bearers.length;
+            const bearer = `fixture-bearer-${index}`;
+            bearers.push(bearer);
+            if (index < hints.length)
+              throw new TranscriptUplinkError({
+                message: `Rejected ${bearer}`,
+                credentialRejected: true,
+                retryable: false,
+                retryAfterMs: hints[index],
+              });
+            return receipt(batch);
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              uplink.submit(write("rotating")),
+            );
+            yield* adjust(250);
+            for (const [index, delay] of [1_000, 3_500, 60_000].entries()) {
+              expect(bearers).toHaveLength(index + 1);
+              yield* adjust(delay - 1);
+              expect(bearers).toHaveLength(index + 1);
+              yield* adjust(1);
+            }
+            expect(new Set(bearers).size).toBe(4);
+            expect(yield* join(pending)).toMatchObject({ status: "applied" });
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "a held conversation reports the permanent failure after backoff",
+  () =>
+    Effect.gen(function* () {
+      const transient = new TranscriptUplinkError({
+        message: "unavailable",
+        retryable: true,
+      });
+      const permanent = new TranscriptUplinkError({
+        message: "invalid receipt",
+        retryable: false,
+      });
+      let failure = transient;
+      yield* withUplink(
+        {
+          spool: memorySpool(),
+          async send() {
+            throw failure;
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("held"))),
+            );
+            yield* adjust(10_000);
+            expect(yield* join(pending)).toBe(transient);
+            expect(yield* Effect.flip(uplink.waitForReplay("held"))).toBe(
+              transient,
+            );
+            failure = permanent;
+            yield* adjust(30_000);
+            expect(yield* Effect.flip(uplink.waitForReplay("held"))).toBe(
+              permanent,
+            );
+            expect(yield* Effect.flip(uplink.submit(write("held")))).toBe(
+              permanent,
+            );
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "an unreadable startup spool fails both waiting and later writes closed",
+  () =>
+    Effect.gen(function* () {
+      const failRead = yield* Deferred.make<void>();
+      let sends = 0;
+      yield* withUplink(
+        {
+          spool: {
+            ...memorySpool(),
+            async read() {
+              await Effect.runPromise(Deferred.await(failRead));
+              throw new Error("spool unreadable");
+            },
+          },
+          async send(batch) {
+            sends++;
+            return receipt(batch);
+          },
+          async fallback() {
+            return { status: "refused" };
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            const waiting = yield* Effect.forkChild(
+              Effect.result(uplink.submit(write("possibly-spooled"))),
+            );
+            yield* adjust(0);
+            yield* Deferred.succeed(failRead, undefined);
+            const error = yield* Effect.flip(uplink.ready);
+            expect(error.message).toBe("Transcript spool I/O failed");
+            expect(yield* join(waiting)).toMatchObject({
+              _tag: "Failure",
+              failure: error,
+            });
+            expect(
+              yield* Effect.result(uplink.submit(write("new"))),
+            ).toMatchObject({ _tag: "Failure", failure: error });
+            expect(yield* Effect.flip(uplink.waitForReplay("new"))).toBe(error);
+            expect(sends).toBe(0);
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "a known failed batch allows legacy only for unrelated conversations",
+  () =>
+    Effect.gen(function* () {
+      const spool = memorySpool();
+      const failure = new TranscriptUplinkError({
+        message: "permanent",
+        retryable: false,
+      });
+      yield* withUplink(
+        {
+          spool,
+          async send() {
+            throw failure;
+          },
+          async fallback() {
+            throw new Error("the caller owns the legacy write");
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("held"))),
+            );
+            yield* adjust(250);
+            expect(yield* join(pending)).toBe(failure);
+            expect(yield* Effect.flip(uplink.submit(write("held")))).toBe(
+              failure,
+            );
+            expect(yield* uplink.submit(write("unrelated"))).toEqual({
+              status: "legacy",
+            });
+            expect((yield* Effect.promise(spool.read))?.writes).toEqual([
+              write("held"),
+            ]);
+          }),
+      );
+    }),
+);
+
+it.effect(
+  "queue shutdown releases submissions blocked behind a permanently failed batch",
+  () =>
+    Effect.gen(function* () {
+      const failSend = yield* Deferred.make<void>();
+      const failure = new TranscriptUplinkError({
+        message: "permanent",
+        retryable: false,
+      });
+      let sends = 0;
+      const settled: unknown[] = [];
+      yield* withUplink(
+        {
+          spool: memorySpool(),
+          async send(_batch, signal) {
+            sends++;
+            await Effect.runPromise(Deferred.await(failSend), { signal });
+            throw failure;
+          },
+        },
+        (uplink) =>
+          Effect.gen(function* () {
+            yield* uplink.ready;
+            const pending = yield* Effect.forkChild(
+              Effect.flip(uplink.submit(write("head"))),
+            );
+            yield* adjust(250);
+            expect(sends).toBe(1);
+            const followers = yield* Effect.forkChild(
+              Effect.forEach(
+                Array.from({ length: 40 }, (_, n) => n),
+                (n) =>
+                  Effect.flip(uplink.submit(write(`follower-${n}`))).pipe(
+                    Effect.tap((error) =>
+                      Effect.sync(() => settled.push(error)),
+                    ),
+                  ),
+                { concurrency: "unbounded" },
+              ),
+            );
+            yield* adjust(0);
+            expect(settled).toEqual([]);
+            yield* Deferred.succeed(failSend, undefined);
+            expect(yield* join(pending)).toBe(failure);
+            yield* adjust(0);
+            expect(settled).toHaveLength(40);
+            expect(settled.every((error) => error === failure)).toBe(true);
+            yield* join(followers);
+            expect(sends).toBe(1);
+          }),
+      );
+    }),
 );

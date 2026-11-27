@@ -43,6 +43,20 @@ export class TranscriptUplinkError extends Data.TaggedError(
   credentialRejected?: boolean;
 }> {}
 
+const retryDelay = (minimum: number, hint?: number) =>
+  Math.max(minimum, Math.min(hint || 0, maxRetryDelayMs));
+
+const spacedRetry = Schedule.spaced("1 second").pipe(
+  Schedule.modifyDelay(({ input }) =>
+    Effect.succeed(
+      retryDelay(
+        1_000,
+        input instanceof TranscriptUplinkError ? input.retryAfterMs : undefined,
+      ),
+    ),
+  ),
+);
+
 export interface TranscriptUplinkOptions {
   spool: TranscriptSpool;
   send(request: TranscriptAppendRequest, signal: AbortSignal): Promise<unknown>;
@@ -76,7 +90,10 @@ export class TranscriptUplink extends Context.Service<
     return Layer.effect(
       TranscriptUplink,
       Effect.gen(function* () {
-        const queue = yield* Queue.bounded<PendingWrite>(queueCapacity);
+        const queue = yield* Effect.acquireRelease(
+          Queue.bounded<PendingWrite>(queueCapacity),
+          Queue.shutdown,
+        );
         const fatal = yield* Deferred.make<never, TranscriptUplinkError>();
         const ready = yield* Deferred.make<void, TranscriptUplinkError>();
         const discovered = yield* Deferred.make<
@@ -138,23 +155,11 @@ export class TranscriptUplink extends Context.Service<
                     }),
             }).pipe(
               Effect.retry({
-                schedule: Schedule.forever,
+                schedule: spacedRetry,
                 while: (error) => error.credentialRejected === true,
               }),
               Effect.retry({
-                schedule: Schedule.spaced("1 second").pipe(
-                  Schedule.modifyDelay(({ input }) =>
-                    Effect.succeed(
-                      Math.max(
-                        1_000,
-                        input instanceof TranscriptUplinkError
-                          ? Math.min(input.retryAfterMs ?? 0, maxRetryDelayMs)
-                          : 0,
-                      ),
-                    ),
-                  ),
-                  Schedule.upTo({ times: 5 }),
-                ),
+                schedule: spacedRetry.pipe(Schedule.upTo({ times: 5 })),
                 while: (error) => error.retryable,
               }),
             ),
@@ -198,10 +203,7 @@ export class TranscriptUplink extends Context.Service<
               for (const entry of entries)
                 yield* Deferred.fail(entry.result, heldFailure);
               yield* Effect.sleep(
-                Math.max(
-                  recoveryBackoffMs,
-                  Math.min(heldFailure.retryAfterMs ?? 0, maxRetryDelayMs),
-                ),
+                retryDelay(recoveryBackoffMs, heldFailure.retryAfterMs),
               );
             }
           },
@@ -247,6 +249,7 @@ export class TranscriptUplink extends Context.Service<
           Effect.catch(
             Effect.fn("TranscriptUplink.fail")(function* (error) {
               terminalFailure = error;
+              heldFailure = undefined;
               yield* Deferred.fail(discovered, error);
               yield* Deferred.fail(ready, error);
               yield* Deferred.fail(fatal, error);
@@ -275,26 +278,36 @@ export class TranscriptUplink extends Context.Service<
                 retryable: false,
               });
             }
-            const onTerminal = (error: TranscriptUplinkError) =>
-              !options.fallback || activeConversation(write.conversation_id)
-                ? Effect.fail(error)
-                : Effect.succeed({ status: "legacy" as const });
+            const onTerminal = Effect.fn("TranscriptUplink.bypass-terminal")(
+              function* (error: TranscriptUplinkError) {
+                yield* Deferred.await(discovered);
+                if (
+                  !options.fallback ||
+                  activeConversation(write.conversation_id)
+                )
+                  return yield* error;
+                return { status: "legacy" as const };
+              },
+            );
             if (terminalFailure) {
               yield* Metric.update(terminalBypasses, 1);
               return yield* onTerminal(terminalFailure);
             }
             if (heldFailure && activeConversation(write.conversation_id))
               return yield* heldFailure;
-            const submit = Effect.gen(function* () {
-              const result = yield* Deferred.make<
-                TranscriptAppendResult,
-                TranscriptUplinkError
-              >();
-              yield* Queue.offer(queue, { write, result });
-              return yield* Deferred.await(result);
-            });
+            const result = yield* Deferred.make<
+              TranscriptAppendResult,
+              TranscriptUplinkError
+            >();
+            if (!(yield* Queue.offer(queue, { write, result }))) {
+              if (terminalFailure) return yield* onTerminal(terminalFailure);
+              return yield* new TranscriptUplinkError({
+                message: "Transcript uplink is closed",
+                retryable: false,
+              });
+            }
             return yield* Effect.raceFirst(
-              submit,
+              Deferred.await(result),
               Deferred.await(fatal).pipe(Effect.catch(onTerminal)),
             );
           }),

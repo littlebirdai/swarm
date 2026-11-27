@@ -336,7 +336,7 @@ test("repeated 401s wait for different bearers and replay the same batch", async
         const authorization = new Headers(init?.headers).get("Authorization");
         const body = JSON.parse(String(init?.body));
         posts.push([authorization, body]);
-        return authorization === "Bearer token-8"
+        return authorization === "Bearer token-3"
           ? wireReceipt(body)
           : new Response(null, { status: 401 });
       },
@@ -360,7 +360,7 @@ test("repeated 401s wait for different bearers and replay the same batch", async
   try {
     await uplink.start();
     expect(posts).toEqual(
-      Array.from({ length: 9 }, (_, index) => [
+      Array.from({ length: 4 }, (_, index) => [
         `Bearer token-${index}`,
         request,
       ]),
