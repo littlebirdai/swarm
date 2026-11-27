@@ -139,3 +139,37 @@ The old device cannot be a move destination for this conversation, even
 after it registers a new boot. The server cannot stop a disconnected process
 from having effects outside the server. The existing abort and retarget
 rules still apply before activation.
+
+## Drive a recorded move
+
+The server schedules a forced move when the owner requests it. For a normal
+recorded move, the server schedules work after it verifies the source stop
+or replacement boot. Public entry points still refuse normal moves.
+
+The driver prepares the destination binding for its registered boot. The
+destination daemon sees the binding in its authenticated execution work feed
+and publishes readiness through its usual startup calls. Each scheduled
+retarget step processes at most 100 messages with a 512 KiB scan budget.
+Activation checks readiness again and transfers ownership in one transaction.
+
+Each job names the move and its driver revision. The server ignores a job
+when the move was aborted, replaced, or already advanced. It retries a step
+up to ten attempts with exponential backoff capped at 30 seconds. The move
+record keeps progress and the last failure. Activation fails without
+transferring ownership if more than 100 linked triggers, or more than
+512 KiB of trigger data, would need an atomic handoff.
+
+After the driver fails, the session stays parked until its owner confirms a
+device choice. Choosing the same device resumes the failed step with a fresh
+retry budget if its prepared binding can still run on the current boot.
+Otherwise, the driver retires that binding and restores its staged queue in
+bounded pages before preparing a fresh epoch. Choosing a different device
+uses the same retirement path. The request names the failed move and its
+revision so a replay cannot restart a later failure. The source remains fenced throughout. The
+abandoned runtime loses server authority, and its binding preserves any
+evidence of a local runtime.
+
+The completion receipt is visible for 30 seconds. The former runner must
+still have access to the conversation to see it. The current owner can
+choose another destination when the current device goes offline and the
+receipt has expired.

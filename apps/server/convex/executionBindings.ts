@@ -1,3 +1,4 @@
+import { executionWorkFor } from "./lib/execution-work.feed";
 /**
  * Convex authority for fenced runtime selection and ordered delivery.
  *
@@ -22,7 +23,6 @@ import { isStashHidden } from "@codecast/inbox/inboxProjection";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
 import { insertRiskResendPendingMessage } from "./pendingMessageWrites";
-import { isConversationSafetyBlocked } from "./conversationSafety";
 import {
   capabilityValidator,
   permitValidator,
@@ -75,9 +75,6 @@ import {
   cancelUnstartedOldEpoch,
   advanceNonterminalHead,
   clearPendingFlagIfQuiet,
-  watchesOwnedCodexInbox,
-  executionRequestWire,
-  bindingEvidenceWire,
 } from "./lib/execution-binding.state";
 import {
   registeredDaemonBoot,
@@ -1509,14 +1506,14 @@ export async function activateExecutionSuccessorInDb(
   return { activated: true, epoch: args.successorEpoch, cancelledMessages };
 }
 
-export async function authenticateExecutionDaemon(
+async function authenticateExecutionDaemonScope(
   ctx: DbCtx,
   apiToken: string | undefined,
   scope?:
     | string
     | { conversation_id: Id<"conversations">; owner_device_id?: string },
   checkDevice = false,
-): Promise<Id<"users">> {
+) {
   // Effect authority never falls back to ambient browser/session auth. The
   // caller must present the daemon/CLI bearer explicitly on every mutation.
   if (!apiToken)
@@ -1524,8 +1521,9 @@ export async function authenticateExecutionDaemon(
   const result = await verifyApiToken(ctx, apiToken);
   if (!result)
     fail("DAEMON_TOKEN_INVALID", "execution control API token is invalid");
+  let deviceId: string | undefined;
   if (scope !== undefined) {
-    const deviceId = (await ctx.db.get(result.tokenId))?.device_id;
+    deviceId = (await ctx.db.get(result.tokenId))?.device_id;
     if (typeof scope !== "string") {
       if (deviceId)
         await requireDeviceNotForceFenced(
@@ -1555,7 +1553,20 @@ export async function authenticateExecutionDaemon(
     )
       fail("DAEMON_DEVICE_MISMATCH", "the token belongs to a different device");
   }
-  return result.userId;
+  return { userId: result.userId, deviceId };
+}
+
+export async function authenticateExecutionDaemon(
+  ctx: DbCtx,
+  apiToken: string | undefined,
+  scope?:
+    | string
+    | { conversation_id: Id<"conversations">; owner_device_id?: string },
+  checkDevice = false,
+): Promise<Id<"users">> {
+  return (
+    await authenticateExecutionDaemonScope(ctx, apiToken, scope, checkDevice)
+  ).userId;
 }
 
 export const beginLegacyQuiescence = mutation({
@@ -2188,113 +2199,11 @@ export const listExecutionWork = query({
     ctx,
     { api_token: token, owner_device_id: device, ...args },
   ) => {
-    const userId = await authenticateExecutionDaemon(ctx, token, device);
-    requireNonEmpty(device, "ownerDeviceId");
-    requireNonEmpty(args.daemon_boot_id, "daemonBootId");
-    requireProtocolVersion(args.protocol_version);
-    requireProtocolCapabilities(args.capabilities);
-    const heads = await (ctx.db as any)
-      .query("conversation_execution_heads")
-      .withIndex("by_owner_state", (q: any) =>
-        q.eq("owner_user_id", userId).eq("protocol_state", "fenced"),
-      )
-      .collect();
-    const work: any[] = [];
-    for (const head of heads) {
-      const conversation = await ctx.db.get(
-        head.conversation_id as Id<"conversations">,
-      );
-      if (conversation && isConversationSafetyBlocked(conversation)) continue;
-      if (head.protocol_version !== args.protocol_version) {
-        fail(
-          "EXECUTION_PROTOCOL_VERSION_MISMATCH",
-          "stored head differs from daemon handshake",
-        );
-      }
-      const epochs = [
-        ...new Set(
-          [head.current_epoch, head.pending_epoch].filter(Number.isSafeInteger),
-        ),
-      ];
-      const bindings = [];
-      for (const epoch of epochs) {
-        const binding = await executionBinding(
-          ctx,
-          head.conversation_id,
-          epoch as number,
-        );
-        if (!binding || binding.owner_device_id !== device) continue;
-        if (
-          !capabilitiesEqual(
-            binding.required_capabilities ?? [],
-            args.capabilities,
-          )
-        ) {
-          fail(
-            "EXECUTION_CAPABILITY_MISMATCH",
-            "stored binding differs from daemon handshake",
-          );
-        }
-        const hasRuntimeEvidence =
-          binding.state === "ready" ||
-          binding.state === "stopped" ||
-          binding.state === "quarantined";
-        bindings.push({
-          state: binding.state,
-          daemonBootMatch: binding.daemon_boot_id === args.daemon_boot_id,
-          request: executionRequestWire(binding),
-          ...(hasRuntimeEvidence && !binding.pre_ready_disposition
-            ? { binding: bindingEvidenceWire(binding) }
-            : {}),
-        });
-      }
-      const intent = head.successor_intent;
-      const pendingIntent =
-        intent?.status === "pending" && intent.owner_device_id === device
-          ? {
-              intentId: intent.intent_id,
-              expectedCurrentEpoch: intent.expected_current_epoch,
-              policy: intent.policy,
-              request: {
-                target: {
-                  conversationId: String(head.conversation_id),
-                  epoch: intent.expected_current_epoch + 1,
-                  requestedAgent: intent.requested_agent,
-                  transport: intent.transport,
-                  projectPath: intent.project_path,
-                  isolation: wireIsolation(intent.isolation),
-                },
-                configuration: {
-                  revision: intent.configuration_revision,
-                  model: intent.model,
-                  effort: intent.effort,
-                },
-                ownerDeviceId: intent.owner_device_id,
-                daemonBootId: args.daemon_boot_id,
-                requiredCapabilities: intent.required_capabilities,
-                protocolVersion: intent.protocol_version,
-                trigger: "recovery" as const,
-              },
-            }
-          : undefined;
-      if (bindings.length > 0 || pendingIntent) {
-        work.push({
-          conversationId: String(head.conversation_id),
-          currentEpoch: head.current_epoch,
-          pendingEpoch: head.pending_epoch,
-          pendingPolicy: head.pending_policy,
-          bindings,
-          pendingIntent,
-          ...(watchesOwnedCodexInbox(
-            args.owned_codex_conversation_id,
-            head,
-            bindings,
-          )
-            ? { nextDeliverySequence: head.next_conversation_sequence }
-            : {}),
-        });
-      }
-    }
-    return work;
+    const { userId, deviceId } = await authenticateExecutionDaemonScope(
+      ctx,
+      token,
+      device,
+    );
+    return executionWorkFor(ctx, userId, device, deviceId === device, args);
   },
 });

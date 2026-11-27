@@ -59,6 +59,8 @@ test("the running account sees eligible destinations and the recorded request th
         sourceLabel: "Laptop",
         offlineAfter: 120_010,
         requestedDestination: null,
+        progress: null,
+        failure: null,
         destinations: [
           { id: "studio", label: "Studio" },
           { id: "team-mac", label: "Team Mac" },

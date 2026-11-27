@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { act } from "react";
+import { tickCoarseClocks } from "../../hooks/useCoarseNow";
 import { ConvexError } from "convex/values";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -24,6 +25,8 @@ function moveOptions(conversationId: Id<"conversations">) {
     sourceLabel: "Laptop",
     offlineAfter: 0,
     requestedDestination: null as string | null,
+    progress: null,
+    failure: null,
     destinations,
   };
 }
@@ -101,8 +104,11 @@ function button(root: ParentNode, name: string) {
   return match;
 }
 
-async function chooseDestination(container: HTMLElement) {
-  await act(async () => button(container, "Move to another device").click());
+async function chooseDestination(
+  container: HTMLElement,
+  action = "Move to another device",
+) {
+  await act(async () => button(container, action).click());
   const dialog = document.querySelector('[role="dialog"]')!;
   const select = dialog.querySelector("select")!;
   expect(
@@ -163,10 +169,7 @@ test("deliberate confirm dispatches the selected move once and paints the reques
   await act(async () => {
     ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
       {
-        _id: ui.conversationId,
-        epoch: 7,
-        sourceLabel: "Laptop",
-        offlineAfter: 0,
+        ...moveOptions(ui.conversationId),
         requestedDestination: "Team Mac",
         destinations: [],
       },
@@ -265,4 +268,99 @@ test("a transient dispatch failure leaves the request pending", async () => {
   expect(ui.calls).toHaveLength(4);
   expect(ui.container.querySelector('[role="alert"]')).toBeNull();
   expect(button(ui.container, "Requesting move").disabled).toBe(true);
+});
+
+test("the status strip follows the scheduler's progress and failure", async () => {
+  const ui = await mount("accepted");
+  for (const [progress, label, failure, role] of [
+    ["preparing", "Preparing Team Mac", null, "status"],
+    ["moving", "Moving session to Team Mac", null, "status"],
+    [
+      "failed",
+      "Move to Team Mac failed",
+      "The destination daemon did not connect",
+      "alert",
+    ],
+    ["done", "Session moved to Team Mac", null, "status"],
+  ] as const) {
+    await act(async () => {
+      ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+        {
+          ...moveOptions(ui.conversationId),
+          requestedDestination: "Team Mac",
+          progress,
+          failure,
+          destinations: [],
+        },
+      ]);
+      flushSyncPublishes();
+    });
+    const status = ui.container.querySelector(`[role="${role}"]`);
+    expect(status?.textContent).toContain(label);
+    if (failure) expect(status?.textContent).toContain(failure);
+  }
+  expect(ui.calls).toEqual([]);
+});
+
+test("a failed move lets the owner choose a computer and confirm again", async () => {
+  const ui = await mount("accepted");
+  await act(async () => {
+    ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+      {
+        _id: ui.conversationId,
+        epoch: 7,
+        sourceLabel: "Laptop",
+        offlineAfter: Date.now() + 600_000,
+        requestedDestination: "Studio",
+        progress: "failed",
+        failedMove: { move_id: "failed-move", revision: 10 },
+        failure: "The destination daemon did not connect",
+        destinations: [
+          { id: "studio", label: "Studio" },
+          { id: "team-mac", label: "Team Mac" },
+        ],
+      },
+    ]);
+    flushSyncPublishes();
+  });
+  expect(ui.container.querySelector('[role="alert"]')?.textContent).toContain(
+    "Move to Studio failed",
+  );
+  expect(ui.calls).toEqual([]);
+  const dialog = await chooseDestination(ui.container, "Choose a computer");
+  await act(async () => button(dialog, "Force move").click());
+  expect(ui.calls).toEqual([
+    [
+      expect.any(String),
+      ui.conversationId,
+      7,
+      "team-mac",
+      "Team Mac",
+      true,
+      { move_id: "failed-move", revision: 10 },
+    ],
+  ]);
+});
+
+test("an expired receipt gives way to the offline move action without a new server result", async () => {
+  const ui = await mount("accepted");
+  await act(async () => {
+    ui.backend.set(api.edgeRunLease.forcedMoveOptions, [
+      {
+        _id: ui.conversationId,
+        epoch: 8,
+        sourceLabel: "Studio",
+        offlineAfter: 0,
+        requestedDestination: "Studio",
+        progress: "done",
+        doneUntil: Date.now() - 1,
+        failure: null,
+        destinations: [{ id: "team-mac", label: "Team Mac" }],
+      },
+    ]);
+    tickCoarseClocks();
+    flushSyncPublishes();
+  });
+  expect(ui.container.textContent).not.toContain("Session moved");
+  expect(button(ui.container, "Move to another device").disabled).toBe(false);
 });

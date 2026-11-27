@@ -10,6 +10,7 @@ export type ForcedMoveActions = {
     deviceId: string,
     label: string,
     acknowledged: true,
+    retryFailedMove?: { move_id: string; revision: number },
   ) => Promise<string | undefined>;
 };
 
@@ -22,6 +23,7 @@ export const forcedMoveActions = {
     deviceId: string,
     label: string,
     _acknowledged: true,
+    _retryFailedMove?: { move_id: string; revision: number },
   ) {
     stampSessionCommand(this, {
       _id: requestId,

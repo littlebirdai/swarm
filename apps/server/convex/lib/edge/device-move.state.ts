@@ -118,11 +118,28 @@ export async function assertMoveSettlement(
   assertMoveSettlementStarted(head, attempt);
 }
 
+export async function registeredBoot(
+  ctx: Pick<QueryCtx, "db">,
+  runner: Id<"users">,
+  device: string,
+) {
+  return await ctx.db
+    .query("execution_daemon_boots")
+    .withIndex("by_user_device", (q) =>
+      q.eq("user_id", runner).eq("owner_device_id", device),
+    )
+    .unique();
+}
+
 export async function recordDeviceMove(
   ctx: Pick<MutationCtx, "db">,
   args: (
     | Destination
-    | { destination_device_id: string; forced_by: Id<"users"> }
+    | {
+        destination_device_id: string;
+        forced_by: Id<"users">;
+        retry_failed_move?: { move_id: string; revision: number };
+      }
   ) & {
     conversation_id: Id<"conversations">;
     expected_source_epoch: number;
@@ -173,14 +190,76 @@ export async function recordDeviceMove(
     args.destination_device_id,
   );
   const existing = head?.device_move;
+  const retry = "forced_by" in args ? args.retry_failed_move : undefined;
+  const resumeDriver =
+    retry !== undefined &&
+    existing?.move_id === retry.move_id &&
+    existing.driver?.step === "failed" &&
+    existing.driver.revision === retry.revision;
   if (head && existing) {
-    if (
+    const target = existing.replacement ?? existing;
+    const sameTarget =
       existing.source_epoch === args.expected_source_epoch &&
-      existing.destination_device_id === args.destination_device_id &&
-      existing.destination_runner_id === destinationRunnerId
-    ) {
+      target.destination_device_id === args.destination_device_id &&
+      target.destination_runner_id === destinationRunnerId;
+    const replacementDriver =
+      forcedBy !== undefined &&
+      existing.forced &&
+      existing.source_epoch === args.expected_source_epoch &&
+      existing.driver?.step === "failed" &&
+      resumeDriver &&
+      (existing.phase !== "aborting" || existing.replacement)
+        ? existing.driver
+        : undefined;
+    const abandonedMoveId =
+      replacementDriver && existing.phase
+        ? (existing.replacement?.abandoned_move_id ?? existing.move_id)
+        : undefined;
+    const prepared =
+      replacementDriver && existing.phase
+        ? await ctx.db
+            .query("execution_bindings")
+            .withIndex("by_conversation_epoch", (q) =>
+              q
+                .eq("conversation_id", args.conversation_id)
+                .eq("epoch", existing.next_epoch),
+            )
+            .unique()
+        : undefined;
+    if (
+      prepared !== undefined &&
+      (head.pending_epoch !== existing.next_epoch ||
+        !prepared ||
+        !abandonedMoveId ||
+        prepared.move_id !== abandonedMoveId ||
+        prepared.owner_device_id !== existing.destination_device_id ||
+        prepared.owner_user_id !== existing.destination_runner_id)
+    )
+      throw new ConvexError("The destination binding does not match the move");
+    const refreshPreparedBinding =
+      sameTarget &&
+      replacementDriver &&
+      existing.phase === "preparing" &&
+      prepared &&
+      ((prepared.state !== "requested" &&
+        prepared.state !== "starting" &&
+        prepared.state !== "ready" &&
+        (prepared.state !== "start-failed-before-effect" ||
+          prepared.failure_retryable !== true)) ||
+        (
+          await registeredBoot(
+            ctx,
+            prepared.owner_user_id,
+            prepared.owner_device_id,
+          )
+        )?.daemon_boot_id !== prepared.daemon_boot_id);
+    if (sameTarget && !refreshPreparedBinding) {
       const moveId = existing.move_id ?? crypto.randomUUID();
-      if (forcedBy !== undefined && existing.phase === "aborting")
+      if (
+        forcedBy !== undefined &&
+        existing.phase === "aborting" &&
+        !existing.replacement
+      )
         throw new ConvexError("An aborting move cannot be forced");
       const force = forcedBy !== undefined && existing.forced === undefined;
       if (!existing.move_id || existing.recorded_at === undefined || force)
@@ -200,10 +279,63 @@ export async function recordDeviceMove(
         headId: head._id,
         sourceEpoch: existing.source_epoch,
         expiresAt: force ? now : null,
+        resumeDriver: force || resumeDriver,
+      };
+    }
+    if (replacementDriver) {
+      const moveId = crypto.randomUUID();
+      const destination = {
+        destination_device_id: args.destination_device_id,
+        destination_runner_id: destinationRunnerId,
+      };
+      if (prepared) {
+        if (!Number.isSafeInteger(existing.next_epoch + 1))
+          throw new ConvexError("The next destination epoch is out of range");
+        await ctx.db.patch(prepared._id, {
+          state:
+            prepared.state === "requested" ||
+            prepared.state === "start-failed-before-effect" ||
+            prepared.state === "stopped"
+              ? "stopped"
+              : "quarantined",
+          abandoned_move: true,
+          stopped_reason: "session owner replaced the failed destination",
+          updated_at: now,
+        });
+      }
+      await ctx.db.patch(head._id, {
+        device_move: {
+          ...existing,
+          move_id: moveId,
+          ...(abandonedMoveId
+            ? {
+                phase: "aborting",
+                replacement: {
+                  ...destination,
+                  abandoned_move_id: abandonedMoveId,
+                },
+              }
+            : destination),
+          driver: {
+            revision: replacementDriver.revision,
+            step: "failed",
+            retries: 0,
+            moved: 0,
+          },
+        },
+        updated_at: now,
+      });
+      return {
+        moveId,
+        headId: head._id,
+        sourceEpoch: existing.source_epoch,
+        expiresAt: null,
+        resumeDriver,
       };
     }
     requireNoDeviceMove(head);
   }
+  if (retry) throw new ConvexError("The failed move changed before the retry");
   if (
     !head ||
     head.protocol_state !== "fenced" ||
