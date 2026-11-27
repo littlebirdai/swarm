@@ -5,6 +5,7 @@ import {
   type DbCtx,
 } from "./execution-binding.state";
 import { isTerminalDeliveryState } from "./executionQueue";
+import { pendingQueueRelinkOwner } from "./pending-queue-relink.state";
 
 function sameOptionalIds(
   left: unknown[] | undefined,
@@ -41,8 +42,12 @@ export async function pendingMessageMatchesProductIntent(
   if (!sameIntent) return false;
   if (String(message.owner_user_id) === String(conversation.user_id))
     return true;
+  if (message.delivery_protocol_version === undefined)
+    return (
+      (await pendingQueueRelinkOwner(ctx.db, message, conversation.user_id)) ===
+      conversation.user_id
+    );
   if (
-    message.delivery_protocol_version === undefined ||
     message.owner_user_id === undefined ||
     message.execution_epoch === undefined
   )

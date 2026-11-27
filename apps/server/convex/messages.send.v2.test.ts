@@ -223,10 +223,9 @@ describe("messages.send/v2 durable command", () => {
     ).toBe(false);
   });
 
-  test("every poisoned existing row rejects instead of being accepted as dedupe", async () => {
+  test("every conflicting existing intent rejects instead of being accepted as dedupe", async () => {
     const poisonCases: Array<[string, Record<string, unknown>]> = [
       ["principal", { from_user_id: OTHER }],
-      ["delivery owner", { owner_user_id: OTHER }],
       ["content", { content: "poisoned" }],
       ["singular image", { image_storage_id: "storage-poison" }],
       ["image list", { image_storage_ids: ["storage-poison"] }],
@@ -725,6 +724,8 @@ describe("messages.byConversation/v2 command coverage", () => {
 });
 
 describe("pending intent identity comparison", () => {
+  const intent = { content: "hello from durable intent", clientId: COMMAND };
+
   test("matches every canonical field and nothing operational", async () => {
     const conv = conversation();
     const ctx = context(OWNER);
@@ -734,10 +735,7 @@ describe("pending intent identity comparison", () => {
         pending() as any,
         conv,
         OWNER,
-        {
-          content: "hello from durable intent",
-          clientId: COMMAND,
-        },
+        intent,
       ),
     ).toBe(true);
     expect(
@@ -750,11 +748,20 @@ describe("pending intent identity comparison", () => {
         }) as any,
         conv,
         OWNER,
-        {
-          content: "hello from durable intent",
-          clientId: COMMAND,
-        },
+        intent,
       ),
     ).toBe(true);
+  });
+
+  test("rejects an unrelated owner stamp", async () => {
+    expect(
+      await pendingMessageMatchesProductIntent(
+        context(OWNER),
+        pending(COMMAND, { owner_user_id: OTHER }) as any,
+        conversation(),
+        OWNER,
+        intent,
+      ),
+    ).toBe(false);
   });
 });

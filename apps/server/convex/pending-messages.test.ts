@@ -457,7 +457,7 @@ const createDeliverCtx = (
               );
             return {
               async first() {
-                expect(table).toBe("session_starts");
+                expect(["session_starts", "system_config"]).toContain(table);
                 return null;
               },
               async collect() {

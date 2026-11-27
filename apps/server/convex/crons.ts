@@ -167,14 +167,12 @@ crons.interval(
   (internal as any).cloudWake.reconcile,
   {},
 );
-
 crons.interval(
   "dispatch due cloud triggers",
   { seconds: 60 },
   internal.agentTasks.dispatchCloudTriggers,
   {},
 );
-
 crons.interval(
   // An action: a query plans the pass and a short mutation applies it (see
   // retryStuckMessages). As one long mutation it failed OCC on every retry, so its
@@ -186,13 +184,17 @@ crons.interval(
   { seconds: 60 },
   internal.pendingMessages.retryStuckMessages,
 );
-
+crons.interval(
+  "recover pending queue relinks",
+  { minutes: 1 },
+  internal.devices.recoverClaimQueueRelinks,
+  {},
+);
 crons.interval(
   "check daemon health",
   { minutes: 5 },
   internal.daemonLogs.checkDaemonHealth,
 );
-
 // Separate entry from "check daemon health" so a failure in one alert never
 // stops the other. The 5 minute cadence is also this alert's debounce.
 // Pending permissions on a machine that stopped beating can never be answered;
@@ -202,7 +204,6 @@ crons.interval(
   { minutes: 5 },
   internal.permissions.expireOfflinePermissions,
 );
-
 crons.interval(
   "check daemon loop freeze",
   { minutes: 5 },
@@ -796,5 +797,4 @@ crons.interval(
   { hours: 1 },
   internal.dispatchReceipts.pruneOutboxReceipts,
 );
-
 export default crons;

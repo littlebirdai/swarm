@@ -381,8 +381,8 @@ apps/server/convex/originator.test.ts 1400
 apps/server/convex/pageData.ts 950
 apps/server/convex/pageState.ts 950
 apps/server/convex/passkeys.test.ts 1050
+apps/server/convex/pending-messages.test.ts 1550
 apps/server/convex/pendingMessages.teamSend.test.ts 2100
-apps/server/convex/pendingMessages.test.ts 1550
 apps/server/convex/pendingMessages.ts 4050
 apps/server/convex/plans.ts 2250
 apps/server/convex/prCli.ts 1250

@@ -1,8 +1,12 @@
 import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { checkConversationAccess } from "../privacy";
+
+import { pendingQueueRelinkBudget } from "./pending-queue-relink.state";
+import { followNewRunner } from "./followNewRunner";
+import { transferManagedSession } from "./sessionHeartbeat";
 
 const CLAIM_ACCOUNT_PAGE = 100;
 const CLAIM_ACCOUNT_PAGE_BYTES = 512 * 1024;
@@ -143,4 +147,28 @@ export async function scanDeviceRows(
     skipped: scan.skipped,
     refusal: isDone && scan.fenced ? FENCED_MOVE_REFUSAL : undefined,
   };
+}
+
+export async function transferClaimedConversations(
+  ctx: { db: MutationCtx["db"]; scheduler?: MutationCtx["scheduler"] },
+  page: Doc<"conversations">[],
+  previousUserId: Id<"users">,
+  callerId: Id<"users">,
+) {
+  const budget = pendingQueueRelinkBudget();
+  for (const conv of page) {
+    await ctx.db.patch(conv._id, {
+      user_id: callerId,
+      author_user_id: conv.author_user_id ?? conv.user_id,
+    });
+    await followNewRunner(ctx, conv._id, callerId, budget);
+    const managed = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+      .collect();
+    for (const row of managed) {
+      if (row.user_id === previousUserId)
+        await transferManagedSession(ctx, row._id, callerId);
+    }
+  }
 }

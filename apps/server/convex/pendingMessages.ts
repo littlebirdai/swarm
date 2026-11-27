@@ -97,6 +97,13 @@ import {
   daemonDeliveryStateOf,
   legacyConversationAcceptsDaemonWork,
 } from "./lib/daemonDelivery";
+import {
+  pendingQueueRelinkBudget,
+  pendingQueueRelinkOf,
+  pendingQueueRelinkOwner,
+  relinkPendingQueue,
+} from "./lib/pending-queue-relink.state";
+import type { MutationCtx } from "./_generated/server";
 import { sessionRunnerOf, sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
@@ -236,6 +243,8 @@ export async function patchPendingMessageStatus(
     _id: Id<"pending_messages">;
     conversation_id: Id<"conversations">;
     status: string;
+    _creationTime?: number;
+    delivery_protocol_version?: number;
     delivery_disposition_reason?: string;
   },
   patch: {
@@ -251,7 +260,7 @@ export async function patchPendingMessageStatus(
     isUnconfirmedRow(message) && patch.status !== "failed";
   await writePendingStatus(
     ctx,
-    message._id,
+    message,
     leavesUnconfirmed
       ? { ...patch, delivery_disposition_reason: undefined }
       : patch,
@@ -279,31 +288,12 @@ export function pendingMessageOwnerId(
 // the previous runner, whose daemon no longer serves the conversation, while the new runner's
 // daemon refuses the row as someone else's: the message strands as "pending" forever.
 export async function rehomeUndeliveredMessages(
-  ctx: { db: any },
+  ctx: { db: any; scheduler?: MutationCtx["scheduler"] },
   conversationId: Id<"conversations">,
   runnerId: Id<"users">,
-): Promise<number> {
-  let moved = 0;
-  for (const status of [
-    "pending",
-    "held",
-    "injected",
-    "failed",
-    "undeliverable",
-  ] as const) {
-    const rows = await ctx.db
-      .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) =>
-        q.eq("conversation_id", conversationId).eq("status", status),
-      )
-      .collect();
-    for (const row of rows) {
-      if (String(row.owner_user_id) === String(runnerId)) continue;
-      await ctx.db.patch(row._id, { owner_user_id: runnerId });
-      moved++;
-    }
-  }
-  return moved;
+  budget = pendingQueueRelinkBudget(),
+): Promise<void> {
+  await relinkPendingQueue(ctx, conversationId, runnerId, budget);
 }
 
 export function canDaemonSeePendingMessage(
@@ -336,8 +326,7 @@ function canDaemonDeliver(
   deviceId: string,
 ): boolean {
   if (delivery.blocked || isFencedPendingMessage(message)) return false;
-  if (pendingMessageOwnerId(message, conversation.user_id) !== userId)
-    return false;
+  if (conversation.user_id !== userId) return false;
   if (message.status !== "pending") return false;
   // DPM-02: the owning device is the ONLY device that delivers, however long it
   // has been offline. Delivery to another machine happens when a person moves
@@ -374,7 +363,10 @@ export async function claimPendingMessageForDaemon(
   if (!message) return null;
   const conversation = await ctx.db.get(message.conversation_id);
   if (!conversation) return null;
-  if (!canDaemonSeePendingMessage(message, conversation, userId, deviceId))
+  if (
+    !canDaemonSeePendingMessage(message, conversation, userId, deviceId) ||
+    (await pendingQueueRelinkOf(ctx.db, conversation._id))
+  )
     return null;
   if (
     targetConversationId &&
@@ -411,7 +403,8 @@ async function daemonCanMutatePendingMessage(
   if (isFencedPendingMessage(message)) return false;
   if (
     !conversation ||
-    pendingMessageOwnerId(message, conversation.user_id) !== userId
+    conversation.user_id !== userId ||
+    (await pendingQueueRelinkOf(ctx.db, conversation._id))
   )
     return false;
   if (!legacyConversationAcceptsDaemonWork(conversation)) return false;
@@ -432,7 +425,11 @@ async function daemonCanMutateConversation(
   deviceId?: string,
 ): Promise<boolean> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation || conversation.user_id.toString() !== userId.toString())
+  if (
+    !conversation ||
+    conversation.user_id.toString() !== userId.toString() ||
+    (await pendingQueueRelinkOf(ctx.db, conversationId))
+  )
     return false;
   if (!legacyConversationAcceptsDaemonWork(conversation)) return false;
   if (!deviceId) return true;
@@ -461,10 +458,7 @@ export async function senderOrOwnerCanAct(
 ): Promise<boolean> {
   if (message.from_user_id.toString() === authUserId.toString()) return true;
   const conversation = await ctx.db.get(message.conversation_id);
-  return (
-    !!conversation &&
-    pendingMessageOwnerId(message, conversation.user_id) === authUserId
-  );
+  return conversation?.user_id === authUserId;
 }
 
 export async function updatePendingMessageStatusForDaemon(
@@ -1927,7 +1921,7 @@ export async function mergeQueuedForUser(
     channel: undefined,
     typed_text: undefined,
   });
-  await writePendingStatus(ctx, absorb._id, {
+  await writePendingStatus(ctx, absorb, {
     status: "cancelled" as const,
     merged_into: keep._id,
   });
@@ -2289,6 +2283,8 @@ export async function markPendingDelivered(
     _id: Id<"pending_messages">;
     conversation_id: Id<"conversations">;
     status: string;
+    _creationTime?: number;
+    delivery_protocol_version?: number;
   },
 ): Promise<boolean> {
   return await patchPendingMessageStatus(ctx, message, {
@@ -2335,8 +2331,6 @@ export const getPendingMessages = query({
 // An index eq() can't match an unset optional field, so a self-send written by a path that forgot
 // owner_user_id would be invisible to the owner scan alone — silently undeliverable. The legacy
 // from_user_id scan is the safety net that makes delivery independent of that denormalization.
-// canDaemonDeliver (which falls back to owner_user_id ?? conversation.user_id) is the final
-// gate on every candidate, so the union never delivers anything the owner shouldn't see.
 export async function collectDeliverableForOwner(
   ctx: Pick<QueryCtx, "db">,
   ownerUserId: Id<"users">,
@@ -2367,6 +2361,7 @@ export async function collectDeliverableForOwner(
   // DPM-02: the session start gives us the assigned device without a read
   // of either heartbeat-written document (the device or the conversation).
   const owned = [];
+  const relinking = new Map<Id<"conversations">, boolean>();
   const seen = new Set<string>();
   for (const message of [...byOwner, ...bySender]) {
     const key = message._id.toString();
@@ -2383,14 +2378,18 @@ export async function collectDeliverableForOwner(
     if (!conversation) continue;
     const delivery = projectedDelivery ?? daemonDeliveryStateOf(conversation);
     if (
-      canDaemonDeliver(message, conversation, delivery, ownerUserId, deviceId)
-    ) {
-      // Delivery uses the current agent type to refuse leftovers after a switch.
-      owned.push({
-        ...message,
-        conversation_agent_type: conversation.agent_type ?? null,
-      });
-    }
+      !canDaemonDeliver(message, conversation, delivery, ownerUserId, deviceId)
+    )
+      continue;
+    const id = message.conversation_id;
+    if (!relinking.has(id))
+      relinking.set(id, !!(await pendingQueueRelinkOf(ctx.db, id)));
+    if (relinking.get(id)) continue;
+    // Delivery uses the current agent type to refuse leftovers after a switch.
+    owned.push({
+      ...message,
+      conversation_agent_type: conversation.agent_type ?? null,
+    });
   }
   return headOfEachQueue(owned);
 }
@@ -2644,7 +2643,11 @@ export const getMessageStatus = query({
 
     if (message.from_user_id !== authUserId) {
       const runner = await sessionRunnerOf(ctx.db, message.conversation_id);
-      if (!runner || pendingMessageOwnerId(message, runner) !== authUserId)
+      let owner = runner && pendingMessageOwnerId(message, runner);
+      if (runner && owner !== runner)
+        owner =
+          (await pendingQueueRelinkOwner(ctx.db, message, runner)) ?? owner;
+      if (owner !== authUserId)
         throw new Error(
           "Unauthorized: can only check status of messages you sent or own",
         );
@@ -3819,7 +3822,7 @@ export const cancelOldPendingMessages = internalMutation({
     for (const row of selected) {
       affectedConvs.add(row.conversation_id);
       if (!args.dry_run)
-        await writePendingStatus(ctx, row._id, { status: "cancelled" });
+        await writePendingStatus(ctx, row, { status: "cancelled" });
     }
     if (!args.dry_run) {
       for (const convId of affectedConvs) {
