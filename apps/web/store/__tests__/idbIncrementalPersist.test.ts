@@ -162,6 +162,32 @@ describe("incremental persistence", () => {
     }
   });
 
+  it("contains a rejected pending-entry write", async () => {
+    const put = IDBObjectStore.prototype.put;
+    const key = "docs:abort:title";
+    let aborted = false;
+    const spy = spyOn(IDBObjectStore.prototype, "put").mockImplementation(
+      function (this: IDBObjectStore, value, primaryKey) {
+        const request = put.call(this, value, primaryKey);
+        if (this.name === "pendingEntries" && value.key === key) {
+          aborted = true;
+          this.transaction.abort();
+        }
+        return request;
+      },
+    );
+    try {
+      await writePatchesToIDB(
+        [{ op: "add", path: ["pending", key], value: {} }],
+        { pending: { [key]: { type: "field", ts: 1, value: "edit" } } },
+      );
+      expect(aborted).toBe(true);
+      expect(await db().pendingEntries.get(key)).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("still writes other meta blobs once for a run of actions, with their last value", async () => {
     let puts = 0;
     const put = db().meta.put.bind(db().meta);

@@ -192,7 +192,9 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
       // waited for a quiet spell was lost with a page killed in between, and the reload showed a stale push
       // over its own parked write. (A big write plants a few hundred locks, never one per field it touches.)
-      pendingWrite = writePendingEntries(patches, state.pending);
+      pendingWrite = writePendingEntries(patches, state.pending).catch(
+        () => {},
+      );
     } else if (key === "syncMeta") {
       holdLivenessSyncMeta(state);
     } else if (META_KEYS.has(key)) {

@@ -1,4 +1,10 @@
-import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import "fake-indexeddb/auto";
+import {
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "./fixtures/signedInPrincipal";
+import { authPrincipal } from "../../lib/authPrincipal";
+import { AUTH_JWT_STORAGE_KEY } from "./fixtures/fakeAuthToken";
 import { loadCache } from "../persistence/boot-loader";
 import { expect, spyOn, test } from "bun:test";
 import Dexie from "dexie";
@@ -55,6 +61,34 @@ test("v113 pending locks survive an aborted upgrade and migrate exactly on retry
     );
   } finally {
     legacy.close();
+    db.close();
+  }
+});
+
+test("a second account purges pending locks left by a stale window after sign-out", async () => {
+  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+  try {
+    await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
+    await loadCache(["pending"]);
+    localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
+    authPrincipal.check();
+    expect(await authPrincipal.resolve()).toBeNull();
+    await loadCache(["pending"]);
+    expect((await db.meta.get("cacheOwner"))?.value.principal).toBeNull();
+    await db.pendingEntries.put({
+      key: "docs:shared:title",
+      value: { type: "field", ts: Date.now(), value: "First account's edit" },
+    });
+    installSignedInPrincipal("userB");
+    authPrincipal.check();
+    expect(await authPrincipal.resolve()).toBe("userB");
+    expect((await loadCache(["pending"]))?.pending).toBeUndefined();
+    expect(await db.pendingEntries.count()).toBe(0);
+    expect((await loadCache(["pending"]))?.pending).toBeUndefined();
+  } finally {
+    installSignedInPrincipal();
+    authPrincipal.check();
+    await authPrincipal.resolve();
     db.close();
   }
 });
