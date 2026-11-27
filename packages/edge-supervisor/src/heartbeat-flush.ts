@@ -162,12 +162,17 @@ export class HeartbeatFlush extends Context.Service<
               : null;
           if (!sendBatch) return;
           host.beforeFlush?.();
-          const dead = deadTranscriptBeats(transcriptSessions, {
-            hasPane: host.hasPane,
-            parked: host.isParked,
-            processAlive: host.isProcessAlive,
-          });
-          for (const id of dead) yield* stopSession(id);
+          const dead = yield* membershipLock.withPermit(
+            Effect.gen(function* () {
+              const expired = deadTranscriptBeats(transcriptSessions, {
+                hasPane: host.hasPane,
+                parked: host.isParked,
+                processAlive: host.isProcessAlive,
+              });
+              for (const id of expired) yield* deleteSession(id);
+              return expired;
+            }),
+          );
           if (dead.length > 0)
             host.log(
               `[HEARTBEAT-FLUSH] stopped beating ${dead.length} session(s) whose process exited`,

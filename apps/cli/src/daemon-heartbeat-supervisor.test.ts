@@ -4,10 +4,12 @@ import * as path from "node:path";
 import { startMachine } from "@codecast/edge-supervisor";
 import { defaultConfigDir } from "./config/configDir.js";
 import {
+  closeEdgeSupervisorForTests,
   ensureManagedSessionHeartbeat,
   flushHeartbeatMembershipForTests,
   heartbeatFlushHostForTests,
   isLegacyHeartbeatFlushLoopRunningForTests,
+  parkHibernationTerminalForTests,
   runHeartbeatFlush,
   setEdgeMachineForTests,
   setSyncServiceForTests,
@@ -16,6 +18,45 @@ import {
   trackSessionPaneForTests,
 } from "./daemon.js";
 import type { SyncService } from "./syncService.js";
+
+function makeParkBoundary(
+  sessionId: string,
+): Parameters<typeof parkHibernationTerminalForTests>[4] {
+  return {
+    target: {
+      session: "$1",
+      pane: "%1",
+      pid: process.pid,
+      agentPid: process.pid,
+      start: "0",
+      stamp: sessionId,
+      conversationStamp: "",
+    },
+    terminal: async (args) => {
+      if (args[0] === "capture-pane") return { stdout: "❯ " };
+      if (args[0] === "if-shell") return { stdout: "parked" };
+      if (args[0] === "list-panes") return { stdout: "" };
+      return { stdout: "" };
+    },
+    beginCommit: () => true,
+    unchanged: () => true,
+    revalidate: async () => true,
+  };
+}
+
+function makeParkOps() {
+  return {
+    reapPlan: async () => ({
+      roots: [],
+      targets: [],
+      terminals: [],
+      panePids: [process.pid],
+      sideSessions: [],
+      complete: true,
+    }),
+    planRefusal: async () => null,
+  };
+}
 
 describe("daemon heartbeat flush supervisor flag", () => {
   const previousFlag = process.env.CODECAST_EDGE_SUPERVISOR_V1;
@@ -27,6 +68,7 @@ describe("daemon heartbeat flush supervisor flag", () => {
       trackSessionPaneForTests(id, null);
     }
     await flushHeartbeatMembershipForTests();
+    await closeEdgeSupervisorForTests();
     stopLegacyHeartbeatFlushLoopForTests();
     setEdgeMachineForTests(undefined);
     setSyncServiceForTests(null);
@@ -256,7 +298,7 @@ describe("daemon heartbeat flush supervisor flag", () => {
     }
   });
 
-  test("with CODECAST_EDGE_SUPERVISOR_V1 on, supervisor startup rejection falls back once without rejecting runHeartbeatFlush", async () => {
+  test("with CODECAST_EDGE_SUPERVISOR_V1 on, supervisor startup rejection falls back once, runs ensureManagedSessionHeartbeat, and starts the legacy loop", async () => {
     process.env.CODECAST_EDGE_SUPERVISOR_V1 = "1";
     const sessionId = "sup-start-fail";
     cleanupSessions.push(sessionId);
@@ -268,12 +310,264 @@ describe("daemon heartbeat flush supervisor flag", () => {
       },
     } as unknown as SyncService);
 
-    trackSessionPaneForTests(sessionId, "tmux-fail", { status: "working" });
-    setEdgeMachineForTests(Promise.reject(new Error("supervisor failed")));
+    let rejectStart!: (error: Error) => void;
+    const startPromise = new Promise<undefined>((_, reject) => {
+      rejectStart = reject;
+    });
+    setEdgeMachineForTests(startPromise);
 
+    ensureManagedSessionHeartbeat(sessionId);
+    expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+    expect(heartbeatFlushHostForTests().sessions.has(sessionId)).toBe(false);
+
+    rejectStart(new Error("supervisor failed"));
+    await flushHeartbeatMembershipForTests();
+
+    expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(true);
+    expect(heartbeatFlushHostForTests().sessions.has(sessionId)).toBe(true);
     await expect(runHeartbeatFlush()).resolves.toBeUndefined();
     await expect(runHeartbeatFlush()).resolves.toBeUndefined();
-    expect(batches).toHaveLength(2);
+    expect(batches).toEqual([
+      [{ session_id: sessionId }],
+      [{ session_id: sessionId }],
+    ]);
+  });
+
+  test("with CODECAST_EDGE_SUPERVISOR_V1 on, parkHibernationTerminal keeps transcript sessions beating and orders behind a queued stop", async () => {
+    process.env.CODECAST_EDGE_SUPERVISOR_V1 = "1";
+    const transcriptSession = `sup-park-transcript-${Date.now()}`;
+    const raceSession = `sup-park-race-${Date.now()}`;
+    cleanupSessions.push(transcriptSession, raceSession);
+    const registryDir = path.join(defaultConfigDir(), "session-registry");
+    const registryFile = path.join(registryDir, `${transcriptSession}.json`);
+    const batches: Array<Array<{ session_id: string; agent_status?: string }>> =
+      [];
+
+    fs.mkdirSync(registryDir, { recursive: true });
+    fs.writeFileSync(registryFile, JSON.stringify({ pid: process.pid }));
+
+    setSyncServiceForTests({
+      heartbeatManagedSessionsBatch: async (
+        rows: Array<{ session_id: string; agent_status?: string }>,
+      ) => {
+        batches.push(rows);
+      },
+    } as unknown as SyncService);
+
+    let releaseDelayedStop: (() => void) | undefined;
+    let delayStop = false;
+    const supervisor = await startMachine({
+      log: () => {},
+      heartbeatFlush: heartbeatFlushHostForTests(),
+    });
+    setEdgeMachineForTests(
+      Promise.resolve({
+        ...supervisor,
+        stopSessionHeartbeat: async (id) => {
+          if (delayStop && id === raceSession) {
+            delayStop = false;
+            await new Promise<void>((resolve) => {
+              releaseDelayedStop = resolve;
+            });
+          }
+          await supervisor.stopSessionHeartbeat(id);
+        },
+      }),
+    );
+
+    try {
+      ensureManagedSessionHeartbeat(transcriptSession, "transcript");
+      await flushHeartbeatMembershipForTests();
+      expect(
+        await parkHibernationTerminalForTests(
+          transcriptSession,
+          "tmux-park-1",
+          undefined,
+          1,
+          makeParkBoundary(transcriptSession),
+          makeParkOps(),
+        ),
+      ).toBe(true);
+      await flushHeartbeatMembershipForTests();
+      fs.rmSync(registryFile, { force: true });
+
+      await runHeartbeatFlush();
+      expect(heartbeatFlushHostForTests().sessions.has(transcriptSession)).toBe(
+        true,
+      );
+      expect(batches[0]).toContainEqual(
+        expect.objectContaining({
+          session_id: transcriptSession,
+          agent_status: "hibernated",
+        }),
+      );
+
+      ensureManagedSessionHeartbeat(raceSession, "transcript");
+      await flushHeartbeatMembershipForTests();
+
+      delayStop = true;
+      stopManagedSessionHeartbeat(raceSession);
+      while (!releaseDelayedStop) {
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      expect(
+        await parkHibernationTerminalForTests(
+          raceSession,
+          "tmux-park-2",
+          undefined,
+          1,
+          makeParkBoundary(raceSession),
+          makeParkOps(),
+        ),
+      ).toBe(true);
+      releaseDelayedStop();
+      await flushHeartbeatMembershipForTests();
+
+      expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+      expect(heartbeatFlushHostForTests().sessions.has(raceSession)).toBe(true);
+      await runHeartbeatFlush();
+      expect(batches[1]).toContainEqual(
+        expect.objectContaining({
+          session_id: raceSession,
+          agent_status: "hibernated",
+        }),
+      );
+    } finally {
+      fs.rmSync(registryFile, { force: true });
+      await supervisor.close();
+    }
+  });
+
+  test("with CODECAST_EDGE_SUPERVISOR_V1 on, post-failure stop cannot overtake an earlier queued ensure", async () => {
+    process.env.CODECAST_EDGE_SUPERVISOR_V1 = "1";
+    const s0 = "sup-fail-order-s0";
+    const s1 = "sup-fail-order-s1";
+    cleanupSessions.push(s0, s1);
+
+    setSyncServiceForTests({
+      heartbeatManagedSessionsBatch: async () => {},
+    } as unknown as SyncService);
+
+    let rejectStart!: (error: Error) => void;
+    const startPromise = new Promise<undefined>((_, reject) => {
+      rejectStart = reject;
+    });
+    setEdgeMachineForTests(startPromise);
+
+    ensureManagedSessionHeartbeat(s0);
+    ensureManagedSessionHeartbeat(s1);
+    rejectStart(new Error("startup failed"));
+
+    while (!isLegacyHeartbeatFlushLoopRunningForTests()) {
+      await Promise.resolve();
+    }
+    expect(heartbeatFlushHostForTests().sessions.has(s0)).toBe(true);
+    expect(heartbeatFlushHostForTests().sessions.has(s1)).toBe(false);
+
+    stopManagedSessionHeartbeat(s1);
+    await flushHeartbeatMembershipForTests();
+
+    expect(heartbeatFlushHostForTests().sessions.has(s0)).toBe(true);
+    expect(heartbeatFlushHostForTests().sessions.has(s1)).toBe(false);
+  });
+
+  test("with CODECAST_EDGE_SUPERVISOR_V1 on, ensure after close starts no legacy loop", async () => {
+    process.env.CODECAST_EDGE_SUPERVISOR_V1 = "1";
+    const sessionId = "sup-after-close";
+    const afterFailureId = "sup-after-failed-close";
+    cleanupSessions.push(sessionId, afterFailureId);
+    const batches: unknown[] = [];
+
+    setSyncServiceForTests({
+      heartbeatManagedSessionsBatch: async (rows: unknown[]) => {
+        batches.push(rows);
+      },
+    } as unknown as SyncService);
+
+    const supervisor = await startMachine({
+      log: () => {},
+      heartbeatFlush: heartbeatFlushHostForTests(),
+    });
+    setEdgeMachineForTests(Promise.resolve(supervisor));
+
+    await closeEdgeSupervisorForTests();
+    ensureManagedSessionHeartbeat(sessionId);
+    await flushHeartbeatMembershipForTests();
+    await runHeartbeatFlush();
+
+    expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+    expect(heartbeatFlushHostForTests().sessions.has(sessionId)).toBe(false);
+    expect(batches).toHaveLength(0);
+
+    setEdgeMachineForTests(Promise.reject(new Error("boom")));
+    await runHeartbeatFlush();
+    stopLegacyHeartbeatFlushLoopForTests();
+    await closeEdgeSupervisorForTests();
+    ensureManagedSessionHeartbeat(afterFailureId);
+    await flushHeartbeatMembershipForTests();
+    await runHeartbeatFlush();
+
+    expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+    expect(heartbeatFlushHostForTests().sessions.has(afterFailureId)).toBe(
+      false,
+    );
+    expect(batches).toHaveLength(0);
+  });
+
+  test("with CODECAST_EDGE_SUPERVISOR_V1 on, an op rejection after successful start causes no fallback or dual loops", async () => {
+    process.env.CODECAST_EDGE_SUPERVISOR_V1 = "1";
+    const failingSession = "sup-op-reject";
+    const healthySession = "sup-op-ok";
+    cleanupSessions.push(failingSession, healthySession);
+    const batches: Array<Array<{ session_id: string }>> = [];
+    let flushCalls = 0;
+
+    setSyncServiceForTests({
+      heartbeatManagedSessionsBatch: async (
+        rows: Array<{ session_id: string }>,
+      ) => {
+        batches.push(rows);
+      },
+    } as unknown as SyncService);
+
+    const supervisor = await startMachine({
+      log: () => {},
+      heartbeatFlush: heartbeatFlushHostForTests(),
+    });
+    setEdgeMachineForTests(
+      Promise.resolve({
+        ...supervisor,
+        ensureSessionHeartbeat: async (id, source) => {
+          if (id === failingSession) {
+            throw new Error("membership op rejected");
+          }
+          await supervisor.ensureSessionHeartbeat(id, source);
+        },
+        flushHeartbeats: () => {
+          flushCalls++;
+          return supervisor.flushHeartbeats();
+        },
+      }),
+    );
+
+    try {
+      ensureManagedSessionHeartbeat(failingSession);
+      await flushHeartbeatMembershipForTests();
+      expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+      expect(heartbeatFlushHostForTests().sessions.has(failingSession)).toBe(
+        false,
+      );
+
+      ensureManagedSessionHeartbeat(healthySession);
+      await flushHeartbeatMembershipForTests();
+      await runHeartbeatFlush();
+
+      expect(isLegacyHeartbeatFlushLoopRunningForTests()).toBe(false);
+      expect(flushCalls).toBe(1);
+      expect(batches).toEqual([[{ session_id: healthySession }]]);
+    } finally {
+      await supervisor.close();
+    }
   });
 
   test("sendBatch captures syncServiceRef once before the batch loop", async () => {

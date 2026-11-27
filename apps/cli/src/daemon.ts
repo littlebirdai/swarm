@@ -215,7 +215,7 @@ import type {
   HeartbeatSessionPayload,
   MachineSupervisor,
 } from "@codecast/edge-supervisor";
-import { createHeartbeatFlushController } from "./heartbeat-flush.js";
+import { createHeartbeatSupervisorCoordinator } from "./heartbeat-flush.js";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -26557,22 +26557,6 @@ export function shouldStartBlankSessionAfterResumeFailure(
   return !shouldMaterializeFreshClaudeSession(reason);
 }
 
-let legacyHeartbeatFlush:
-  | ReturnType<typeof createHeartbeatFlushController>
-  | undefined;
-let edgeSupervisorFailed = false;
-let edgeSupervisorStartFailureLogged = false;
-let heartbeatMembershipChain: Promise<void> = Promise.resolve();
-
-function noteEdgeSupervisorStartFailure(): void {
-  if (!edgeSupervisorStartFailureLogged) {
-    edgeSupervisorStartFailureLogged = true;
-    log("[EDGE] Supervisor start failed");
-  }
-  edgeMachine = undefined;
-  edgeSupervisorFailed = true;
-}
-
 function createHeartbeatFlushHost() {
   return {
     log,
@@ -26606,73 +26590,25 @@ function createHeartbeatFlushHost() {
   };
 }
 
-function getLegacyHeartbeatFlush() {
-  return (legacyHeartbeatFlush ??= createHeartbeatFlushController(
-    createHeartbeatFlushHost(),
-  ));
-}
+const heartbeatSupervisor = createHeartbeatSupervisorCoordinator({
+  log,
+  createHost: createHeartbeatFlushHost,
+  getEdgeMachine: () => edgeMachine,
+  setEdgeMachine: (machine) => {
+    edgeMachine = machine;
+  },
+});
 
-function isEdgeSupervisorEnabled(): boolean {
-  return process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1";
-}
+const shouldUseEdgeSupervisor = () =>
+  heartbeatSupervisor.shouldUseEdgeSupervisor();
 
-function shouldUseEdgeSupervisor(): boolean {
-  return (
-    Boolean(edgeMachine) || (isEdgeSupervisorEnabled() && !edgeSupervisorFailed)
-  );
-}
+export const stopManagedSessionHeartbeat = (sessionId: string | undefined) =>
+  heartbeatSupervisor.stopSession(sessionId);
 
-function enqueueSupervisedHeartbeatOp(
-  op: (machine: MachineSupervisor) => Promise<void>,
-  fallback: () => void,
-): void {
-  heartbeatMembershipChain = heartbeatMembershipChain
-    .then(async () => {
-      const machinePromise = edgeMachine;
-      if (!machinePromise) {
-        if (edgeSupervisorFailed) fallback();
-        return;
-      }
-      const machine = await machinePromise;
-      if (!machine) {
-        fallback();
-        return;
-      }
-      await op(machine);
-    })
-    .catch(() => {
-      noteEdgeSupervisorStartFailure();
-      fallback();
-    });
-}
-
-export function stopManagedSessionHeartbeat(
-  sessionId: string | undefined,
-): void {
-  if (!sessionId) return;
-  if (shouldUseEdgeSupervisor()) {
-    enqueueSupervisedHeartbeatOp(
-      (m) => m.stopSessionHeartbeat(sessionId),
-      () => getLegacyHeartbeatFlush().stopSession(sessionId),
-    );
-    return;
-  }
-  getLegacyHeartbeatFlush().stopSession(sessionId);
-}
-
-export function ensureManagedSessionHeartbeat(
+export const ensureManagedSessionHeartbeat = (
   sessionId: string,
   source?: "transcript",
-): void {
-  if (shouldUseEdgeSupervisor()) {
-    enqueueSupervisedHeartbeatOp(
-      (m) => m.ensureSessionHeartbeat(sessionId, source),
-      () => getLegacyHeartbeatFlush().ensureSession(sessionId, source),
-    );
-    return;
-  }
-  getLegacyHeartbeatFlush().ensureSession(sessionId, source);
-}
+) => heartbeatSupervisor.ensureSession(sessionId, source);
 
 function sessionRegistryProcessAlive(sessionId: string): boolean {
   try {
@@ -26688,58 +26624,28 @@ function sessionRegistryProcessAlive(sessionId: string): boolean {
   }
 }
 
-function ensureHeartbeatFlushLoop(): void {
-  if (shouldUseEdgeSupervisor()) {
-    enqueueSupervisedHeartbeatOp(
-      (m) => m.armHeartbeatFlush(),
-      () => getLegacyHeartbeatFlush().ensureLoop(),
-    );
-    return;
-  }
-  getLegacyHeartbeatFlush().ensureLoop();
-}
+const ensureHeartbeatFlushLoop = () => heartbeatSupervisor.ensureLoop();
 
-export async function runHeartbeatFlush(): Promise<void> {
-  await heartbeatMembershipChain;
-  if (edgeMachine) {
-    try {
-      const machine = await edgeMachine;
-      if (machine) {
-        await machine.flushHeartbeats();
-        return;
-      }
-    } catch {
-      noteEdgeSupervisorStartFailure();
-    }
-  }
-  if (isEdgeSupervisorEnabled() && !edgeSupervisorFailed) return;
-  await getLegacyHeartbeatFlush().runFlush();
-}
+export const runHeartbeatFlush = () => heartbeatSupervisor.runFlush();
 
 export function heartbeatFlushHostForTests(): HeartbeatFlushHost {
   return createHeartbeatFlushHost();
 }
 
-export function setEdgeMachineForTests(
+export const setEdgeMachineForTests = (
   machine: Promise<MachineSupervisor | undefined> | undefined,
-): void {
-  edgeMachine = machine;
-  edgeSupervisorFailed = false;
-  edgeSupervisorStartFailureLogged = false;
-  heartbeatMembershipChain = Promise.resolve();
-}
+) => heartbeatSupervisor.setEdgeMachineForTests(machine);
 
-export function flushHeartbeatMembershipForTests(): Promise<void> {
-  return heartbeatMembershipChain;
-}
+export const closeEdgeSupervisorForTests = () => heartbeatSupervisor.close();
 
-export function isLegacyHeartbeatFlushLoopRunningForTests(): boolean {
-  return legacyHeartbeatFlush?.isLoopRunning() ?? false;
-}
+export const flushHeartbeatMembershipForTests = () =>
+  heartbeatSupervisor.flushMembershipForTests();
 
-export function stopLegacyHeartbeatFlushLoopForTests(): void {
-  legacyHeartbeatFlush?.stopLoop();
-}
+export const isLegacyHeartbeatFlushLoopRunningForTests = () =>
+  heartbeatSupervisor.isLegacyLoopRunningForTests();
+
+export const stopLegacyHeartbeatFlushLoopForTests = () =>
+  heartbeatSupervisor.stopLegacyLoopForTests();
 
 export async function runBounded<T>(
   items: T[],
@@ -29398,6 +29304,10 @@ async function parkHibernationTerminal(
   convId: string | undefined,
   idleHours: number,
   boundary: HibernationBoundary,
+  ops: {
+    reapPlan?: typeof tmuxSessionReapPlan;
+    planRefusal?: typeof parkPlanRefusal;
+  } = {},
 ): Promise<boolean> {
   const { target } = boundary;
   const { stdout: pane } = await boundary.terminal([
@@ -29415,10 +29325,13 @@ async function parkHibernationTerminal(
   // pane is gone its tool shells, MCP servers and the tmux sessions its agent
   // opened have no parent left to find them by. Stopped only once parked, and
   // only what a fresh table still shows unchanged.
-  const leftovers = await tmuxSessionReapPlan(tmux).catch(() => null);
-  const refusal = await parkPlanRefusal(leftovers, target).catch(
-    () => "kill-set-unreadable",
+  const leftovers = await (ops.reapPlan ?? tmuxSessionReapPlan)(tmux).catch(
+    () => null,
   );
+  const refusal = await (ops.planRefusal ?? parkPlanRefusal)(
+    leftovers,
+    target,
+  ).catch(() => "kill-set-unreadable");
   if (refusal) {
     reaperLog(`HIBERNATE refused ${tmux}: ${refusal}`, false);
     return false;
@@ -29498,14 +29411,20 @@ async function parkHibernationTerminal(
   hibernatedSessions.add(sessionId);
   hibernationStampCleared.delete(sessionId);
   lastSentAgentStatus.set(sessionId, "hibernated");
-  managedHeartbeatSessions.add(sessionId);
-  ensureHeartbeatFlushLoop();
+  if (shouldUseEdgeSupervisor()) {
+    ensureManagedSessionHeartbeat(sessionId);
+  } else {
+    managedHeartbeatSessions.add(sessionId);
+    ensureHeartbeatFlushLoop();
+  }
   if (convId) queueHibernationStamp(sessionId, convId, Date.now());
   reaperLog(
     `HIBERNATED ${tmux} session=${sessionId.slice(0, 8)} conv=${(convId || "?").slice(0, 12)} idle=${idleHours}h`,
   );
   return true;
 }
+
+export const parkHibernationTerminalForTests = parkHibernationTerminal;
 
 const productionHibernationIo: HibernationPassIo = {
   get ownedCodex() {
@@ -40300,7 +40219,7 @@ async function main(): Promise<void> {
       m.startMachine({ log, heartbeatFlush: createHeartbeatFlushHost() }),
     );
     edgeMachine = start.catch(() => {
-      noteEdgeSupervisorStartFailure();
+      heartbeatSupervisor.noteStartFailure();
       return undefined;
     });
   }
@@ -45258,7 +45177,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }, 15_000);
     hardExitTimer.unref();
-    if (edgeMachine) await edgeMachine.then((m) => m?.close()).catch(() => {});
+    await heartbeatSupervisor.close();
     if (terminalTypingStopped) await terminalTypingStopped;
 
     saveDaemonState({ connected: false });

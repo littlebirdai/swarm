@@ -1,4 +1,5 @@
 import { expect } from "bun:test";
+import { makeFacade } from "@codecast/effect-kit/effect";
 import { it } from "@codecast/effect-kit/effect/testing";
 import {
   HEARTBEAT_FLUSH_INTERVAL_MS,
@@ -334,5 +335,51 @@ it.effect(
         expect(flushCalls).toBe(2);
         expect(maintenanceCalls).toBe(3);
       }).pipe(Effect.provide(HeartbeatFlush.layer(host)));
+    }),
+);
+
+it.effect(
+  "computes deadTranscriptBeats and deletes inside one membershipLock permit so an ensure in between is not undone",
+  () =>
+    Effect.promise(async () => {
+      const sessions = new Set<string>();
+      let alive = true;
+      let triggerEnsure = false;
+      let ensurePromise: Promise<void> | undefined;
+      let facade!: ReturnType<typeof makeFacade<HeartbeatFlush, never>>;
+      const host = makeHost({
+        sessions,
+        currentSessions: () => [...sessions],
+        isProcessAlive: (id) => {
+          if (id === "s1" && !alive && triggerEnsure) {
+            triggerEnsure = false;
+            ensurePromise = facade.run(
+              Effect.flatMap(HeartbeatFlush, (service) =>
+                service.ensureSession("s1"),
+              ),
+            );
+          }
+          return alive;
+        },
+      });
+      facade = makeFacade(HeartbeatFlush.layer(host));
+      try {
+        await facade.run(
+          Effect.flatMap(HeartbeatFlush, (service) =>
+            service.ensureSession("s1", "transcript"),
+          ),
+        );
+        expect(sessions.has("s1")).toBe(true);
+
+        alive = false;
+        triggerEnsure = true;
+        await facade.run(
+          Effect.flatMap(HeartbeatFlush, (service) => service.flushNow()),
+        );
+        await ensurePromise;
+        expect(sessions.has("s1")).toBe(true);
+      } finally {
+        await facade.dispose();
+      }
     }),
 );

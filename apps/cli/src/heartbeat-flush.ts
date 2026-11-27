@@ -8,6 +8,7 @@ import type {
   HeartbeatFlushHost,
   HeartbeatLogEntry,
   HeartbeatSessionPayload,
+  MachineSupervisor,
 } from "@codecast/edge-supervisor";
 
 export type LegacyHeartbeatFlushHost = HeartbeatFlushHost & {
@@ -167,5 +168,177 @@ export function createHeartbeatFlushController(host: LegacyHeartbeatFlushHost) {
     isLoopRunning: () => heartbeatFlushTimer !== null,
     runFlush: runHeartbeatFlush,
     flushTick: flushManagedHeartbeats,
+  };
+}
+
+export function createHeartbeatSupervisorCoordinator(deps: {
+  log: (msg: string) => void;
+  createHost: () => LegacyHeartbeatFlushHost;
+  getEdgeMachine: () => Promise<MachineSupervisor | undefined> | undefined;
+  setEdgeMachine: (
+    machine: Promise<MachineSupervisor | undefined> | undefined,
+  ) => void;
+}) {
+  let legacyHeartbeatFlush:
+    | ReturnType<typeof createHeartbeatFlushController>
+    | undefined;
+  let edgeSupervisorFailed = false;
+  let edgeSupervisorStartFailureLogged = false;
+  let edgeSupervisorStopped = false;
+  let pendingSupervisedMembershipOps = 0;
+  let heartbeatMembershipChain: Promise<void> = Promise.resolve();
+
+  const isEdgeSupervisorEnabled = () =>
+    process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1";
+
+  const shouldUseEdgeSupervisor = () =>
+    Boolean(deps.getEdgeMachine()) ||
+    (isEdgeSupervisorEnabled() && !edgeSupervisorFailed);
+
+  const getLegacy = () =>
+    (legacyHeartbeatFlush ??= createHeartbeatFlushController(
+      deps.createHost(),
+    ));
+
+  function noteStartFailure(): void {
+    if (!edgeSupervisorStartFailureLogged) {
+      edgeSupervisorStartFailureLogged = true;
+      deps.log("[EDGE] Supervisor start failed");
+    }
+    deps.setEdgeMachine(undefined);
+    edgeSupervisorFailed = true;
+  }
+
+  function enqueueSupervisedOp(
+    op: (machine: MachineSupervisor) => Promise<void>,
+    fallback: () => void,
+  ): void {
+    pendingSupervisedMembershipOps++;
+    heartbeatMembershipChain = heartbeatMembershipChain
+      .then(async () => {
+        if (edgeSupervisorStopped) return;
+        const machinePromise = deps.getEdgeMachine();
+        if (!machinePromise) {
+          if (edgeSupervisorFailed && !edgeSupervisorStopped) fallback();
+          return;
+        }
+        let machine: MachineSupervisor | undefined;
+        try {
+          machine = await machinePromise;
+        } catch {
+          noteStartFailure();
+          if (!edgeSupervisorStopped) fallback();
+          return;
+        }
+        if (!machine) {
+          noteStartFailure();
+          if (!edgeSupervisorStopped) fallback();
+          return;
+        }
+        if (edgeSupervisorStopped) return;
+        try {
+          await op(machine);
+        } catch (err) {
+          if (!edgeSupervisorStopped) {
+            deps.log(
+              `[EDGE] Supervisor heartbeat op failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      })
+      .finally(() => {
+        pendingSupervisedMembershipOps--;
+      });
+  }
+
+  function runMembershipOp(
+    op: (machine: MachineSupervisor) => Promise<void>,
+    legacy: () => void,
+  ): void {
+    if (edgeSupervisorStopped) return;
+    if (shouldUseEdgeSupervisor()) {
+      enqueueSupervisedOp(op, legacy);
+      return;
+    }
+    if (pendingSupervisedMembershipOps > 0) {
+      pendingSupervisedMembershipOps++;
+      heartbeatMembershipChain = heartbeatMembershipChain
+        .then(() => {
+          if (!edgeSupervisorStopped) legacy();
+        })
+        .catch(() => {})
+        .finally(() => {
+          pendingSupervisedMembershipOps--;
+        });
+      return;
+    }
+    legacy();
+  }
+
+  return {
+    shouldUseEdgeSupervisor,
+    noteStartFailure,
+    stopSession: (sessionId: string | undefined) => {
+      if (!sessionId) return;
+      runMembershipOp(
+        (m) => m.stopSessionHeartbeat(sessionId),
+        () => getLegacy().stopSession(sessionId),
+      );
+    },
+    ensureSession: (sessionId: string, source?: "transcript") => {
+      runMembershipOp(
+        (m) => m.ensureSessionHeartbeat(sessionId, source),
+        () => getLegacy().ensureSession(sessionId, source),
+      );
+    },
+    ensureLoop: () => {
+      runMembershipOp(
+        (m) => m.armHeartbeatFlush(),
+        () => getLegacy().ensureLoop(),
+      );
+    },
+    runFlush: async () => {
+      if (edgeSupervisorStopped) return;
+      await heartbeatMembershipChain;
+      if (edgeSupervisorStopped) return;
+      const machinePromise = deps.getEdgeMachine();
+      if (machinePromise) {
+        try {
+          const machine = await machinePromise;
+          if (edgeSupervisorStopped) return;
+          if (machine) {
+            await machine.flushHeartbeats();
+            return;
+          }
+        } catch {
+          noteStartFailure();
+        }
+      }
+      if (edgeSupervisorStopped) return;
+      if (isEdgeSupervisorEnabled() && !edgeSupervisorFailed) return;
+      await getLegacy().runFlush();
+    },
+    close: async () => {
+      edgeSupervisorStopped = true;
+      const machine = deps.getEdgeMachine();
+      deps.setEdgeMachine(undefined);
+      if (machine) await machine.then((m) => m?.close()).catch(() => {});
+    },
+    setEdgeMachineForTests: (
+      machine: Promise<MachineSupervisor | undefined> | undefined,
+    ) => {
+      deps.setEdgeMachine(machine);
+      edgeSupervisorFailed = false;
+      edgeSupervisorStartFailureLogged = false;
+      edgeSupervisorStopped = false;
+      pendingSupervisedMembershipOps = 0;
+      heartbeatMembershipChain = Promise.resolve();
+    },
+    flushMembershipForTests: () => heartbeatMembershipChain,
+    isLegacyLoopRunningForTests: () =>
+      legacyHeartbeatFlush?.isLoopRunning() ?? false,
+    stopLegacyLoopForTests: () => {
+      legacyHeartbeatFlush?.stopLoop();
+    },
   };
 }
