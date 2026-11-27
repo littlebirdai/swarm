@@ -34,6 +34,11 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
     { table: "api_tokens", field: "user_id", index: "by_user_id" },
     { table: "edge_prompt_answers", field: "owner_user_id", index: "by_owner" },
+    {
+      table: "edge_transcript_receipts",
+      field: "owner_user_id",
+      index: "by_owner",
+    },
     { table: "terminal_typing_grants", field: "owner_id", index: "by_owner" },
     { table: "terminal_typing_grants", field: "user_id", index: "by_user" },
     { table: "claims", field: "holder", index: "by_holder" },

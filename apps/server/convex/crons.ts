@@ -226,6 +226,7 @@ crons.interval(
 for (const [name, handler] of [
   ["prune run lease receipts", internal.edgeRunLease.prune],
   ["prune terminal panes", internal.edgeRunLease.pruneTerminalPanes],
+  ["prune transcript receipts", internal.edgeLink.pruneTranscriptReceipts],
 ] as const)
   crons.interval(name, { minutes: 10 }, handler);
 for (const [name, handler] of [

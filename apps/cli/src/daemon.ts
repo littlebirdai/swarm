@@ -768,6 +768,7 @@ import {
   type ConversationLifecycle,
   type CreateConversationParams,
 } from "./syncService.js";
+import { startDaemonTranscriptUplink } from "./transcript-write.js";
 import { subagentPromptParent } from "./agentPromptOrigin.js";
 import { declaredSpawnParent } from "./spawnParents.js";
 import { redactSecrets, maskToken } from "./redact.js";
@@ -40266,6 +40267,12 @@ async function main(): Promise<void> {
   // Every echo this daemon uploads names the delivery it settles. Nothing
   // above has awaited since syncService was built, so no upload precedes it.
   syncService.setDeliveryEchoes(deliveryEchoLedger());
+  const transcriptUplink = startDaemonTranscriptUplink(syncService, {
+    convexUrl,
+    account: config.user_id,
+    readConfig,
+    logError,
+  });
 
   // Open the Convex WebSocket now, before the tmux warm restart. That scan
   // awaits every managed pane (133s for 135 sessions on 2026-09-15) and used
@@ -45291,6 +45298,7 @@ async function main(): Promise<void> {
       unsubscribe();
     }
     await fencedRuntime?.stop();
+    await (await transcriptUplink?.catch(() => undefined))?.close();
 
     if (permissionUnsubscribe) {
       permissionUnsubscribe();

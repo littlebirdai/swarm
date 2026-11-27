@@ -4669,7 +4669,7 @@
     "swarm/no-comments": 49
   },
   "apps/cli/src/syncService.ts": {
-    "swarm/no-comments": 301
+    "swarm/no-comments": 298
   },
   "apps/cli/src/syncService.updateSessionId.test.ts": {
     "swarm/no-comments": 3
@@ -5010,6 +5010,9 @@
   },
   "apps/cli/src/tokenEncryption.ts": {
     "swarm/no-comments": 10
+  },
+  "apps/cli/src/transcript-batches.ts": {
+    "swarm/no-comments": 3
   },
   "apps/cli/src/transcriptDirWatcher.test.ts": {
     "swarm/no-comments": 55

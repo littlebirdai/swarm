@@ -1,9 +1,6 @@
+import { chunkMessagesBySize } from "./transcript-batches.js";
 import { describe, it, expect } from "bun:test";
-import {
-  withTimeout,
-  SyncService,
-  chunkMessagesBySize,
-} from "./syncService.js";
+import { withTimeout, SyncService } from "./syncService.js";
 
 describe("withTimeout", () => {
   it("resolves through when the inner promise wins the race", async () => {

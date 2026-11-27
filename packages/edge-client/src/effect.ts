@@ -137,3 +137,10 @@ function makeService(options: EdgeClientOptions) {
     }),
   };
 }
+
+export {
+  TranscriptUplink,
+  type TranscriptUplinkOptions,
+  TranscriptUplinkError,
+} from "./transcript-uplink";
+export { fileTranscriptSpool, type TranscriptSpool } from "./transcript-spool";

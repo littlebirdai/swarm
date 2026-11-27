@@ -1,3 +1,17 @@
+import {
+  ADD_MESSAGES_BATCH_SIZE,
+  chunkMessagesBySize,
+} from "./transcript-batches.js";
+import type {
+  TranscriptAppendWrite,
+  TranscriptAppendResult,
+} from "@codecast/edge-contract";
+import {
+  tryTranscriptUplink,
+  replayTranscriptWrite,
+  withoutDeliveryIds,
+  type SyncTranscriptUplink,
+} from "./transcript-write.js";
 import { ConvexHttpClient, ConvexClient } from "convex/browser";
 import {
   WriteBudgetBackoff,
@@ -56,9 +70,6 @@ const fetchWithIngestDeadline = ((input, init) => {
 
 const MAX_CONTENT_SIZE = 100_000;
 const MAX_TOOL_RESULT_SIZE = 50_000;
-// Max serialized bytes of one addMessages batch (~0.9MB, well under the 5MB
-// that triggered isolate OOM/timeouts in the 2026-05-13 stuck-sync incident).
-const MAX_BATCH_BYTES = 900_000;
 import { MAX_IMAGE_SIZE } from "./imageDownscale.js";
 export { MAX_IMAGE_SIZE };
 
@@ -101,7 +112,6 @@ const MIN_REQUEST_INTERVAL_MS = 100;
 // batch that would have landed — those are already split by MAX_BATCH_BYTES.
 // Image uploads keep their own (separate) UPLOAD_IMAGE_TIMEOUT_MS budget.
 const ADD_MESSAGES_BATCH_TIMEOUT_MS = 28_000;
-const ADD_MESSAGES_BATCH_SIZE = 25;
 // uploadImage runs *before* the timed addMessages batch, so an un-timed upload
 // hang (slow network / contended backend) wedges the whole chunk: the file-watcher
 // can't advance its position past the image message and every later turn stops
@@ -157,39 +167,6 @@ function truncate(str: string, maxLen: number): string {
   return (
     str.slice(0, maxLen) + `\n... [truncated ${str.length - maxLen} chars]`
   );
-}
-
-/**
- * Split prepared messages into mutation-sized batches, bounded by BOTH message
- * count and serialized byte size. The byte bound is what stops a handful of
- * image-heavy messages (large inline base64) from forming a multi-MB mutation
- * that can't commit within the timeout/isolate budget. A single message that
- * alone exceeds the byte cap is emitted in its own batch — one message can't be
- * split, and one ~MAX_INLINE_IMAGE_SIZE message commits fine on its own.
- */
-export function chunkMessagesBySize<T>(
-  messages: T[],
-  maxCount: number = ADD_MESSAGES_BATCH_SIZE,
-  maxBytes: number = MAX_BATCH_BYTES,
-): T[][] {
-  const batches: T[][] = [];
-  let current: T[] = [];
-  let currentBytes = 0;
-  for (const msg of messages) {
-    const bytes = Buffer.byteLength(JSON.stringify(msg));
-    if (
-      current.length > 0 &&
-      (current.length >= maxCount || currentBytes + bytes > maxBytes)
-    ) {
-      batches.push(current);
-      current = [];
-      currentBytes = 0;
-    }
-    current.push(msg);
-    currentBytes += bytes;
-  }
-  if (current.length > 0) batches.push(current);
-  return batches;
 }
 
 function isAuthError(error: any): boolean {
@@ -396,13 +373,6 @@ export interface CreateConversationParams {
 
 const ECHO_IDS_RECHECK_MS = 10 * 60_000;
 
-function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(
-  message: T,
-): Omit<T, "delivery_ids"> {
-  const { delivery_ids: _ids, ...rest } = message;
-  return rest;
-}
-
 export class SyncService {
   /** Stores the snapshot; the answer names the sessions a person put at background priority on this machine. */
   async reportMachineResources(
@@ -483,6 +453,24 @@ export class SyncService {
   // pairs echoes itself, so the ids are left off rather than the batch. Asked
   // again after a while, since the deployment catches up without a restart.
   private echoIdsRefusedAt: number | null = null;
+  private transcriptUplink?: SyncTranscriptUplink;
+
+  setTranscriptUplink(
+    uplink: SyncTranscriptUplink | undefined,
+    expected?: SyncTranscriptUplink,
+  ): void {
+    if (!expected || this.transcriptUplink === expected)
+      this.transcriptUplink = uplink;
+  }
+
+  replayTranscriptWrite(
+    write: TranscriptAppendWrite,
+    bearer: string,
+  ): Promise<TranscriptAppendResult> {
+    return replayTranscriptWrite(write, (payload) =>
+      this.mutate("messages:addMessages", { ...payload, api_token: bearer }),
+    );
+  }
 
   setDeliveryEchoes(ledger: Pick<DeliveryEchoLedger, "stamp"> | null): void {
     this.deliveryEchoes = ledger;
@@ -1802,26 +1790,30 @@ export class SyncService {
       }
     }
 
-    return this.guarded(async () => {
-      const messageId = await this.mutate("messages:addMessage" as any, {
-        conversation_id: params.conversationId,
-        message_uuid: params.messageUuid,
-        role: roleMap[params.role],
-        content: redactedContent,
-        thinking: redactedThinking,
-        tool_calls: toolCalls,
-        tool_results: toolResults,
-        images: images.length > 0 ? images : undefined,
-        files: filesForWire(fileHolder[0].files),
-        subtype: params.subtype,
-        model: params.model,
-        timestamp: params.timestamp,
-        usage: params.usage,
-        api_message_id: params.apiMessageId,
-        api_token: this.apiToken,
+    const write = () =>
+      this.guarded(async () => {
+        const messageId = await this.mutate("messages:addMessage" as any, {
+          conversation_id: params.conversationId,
+          message_uuid: params.messageUuid,
+          role: roleMap[params.role],
+          content: redactedContent,
+          thinking: redactedThinking,
+          tool_calls: toolCalls,
+          tool_results: toolResults,
+          images: images.length > 0 ? images : undefined,
+          files: filesForWire(fileHolder[0].files),
+          subtype: params.subtype,
+          model: params.model,
+          timestamp: params.timestamp,
+          usage: params.usage,
+          api_message_id: params.apiMessageId,
+          api_token: this.apiToken,
+        });
+        return messageId as string;
       });
-      return messageId as string;
-    });
+    return this.transcriptUplink
+      ? this.withConversationLock(params.conversationId, write)
+      : write();
   }
 
   async addMessages(
@@ -2049,7 +2041,14 @@ export class SyncService {
               `addMessages batch (${batch.length} msgs)`,
             );
           let result: unknown;
-          if (
+          const uplinkResult = await tryTranscriptUplink(
+            this.transcriptUplink,
+            params.conversationId,
+            batch,
+            !!echoes,
+          );
+          if (uplinkResult) result = uplinkResult;
+          else if (
             echoes &&
             (this.echoIdsRefusedAt === null ||
               Date.now() - this.echoIdsRefusedAt > ECHO_IDS_RECHECK_MS)
@@ -2123,7 +2122,12 @@ export class SyncService {
     fn: () => Promise<T>,
   ): Promise<T> {
     const prev = this.conversationWriteChains.get(convId) ?? Promise.resolve();
-    const run = prev.then(fn, fn);
+    const ordered = async () => {
+      if (this.transcriptUplink)
+        await this.transcriptUplink.waitForReplay(convId);
+      return fn();
+    };
+    const run = prev.then(ordered, ordered);
     const tail = run.then(
       () => {},
       () => {},
