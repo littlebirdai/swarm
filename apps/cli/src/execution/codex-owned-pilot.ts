@@ -36,6 +36,7 @@ import { agentSpawnPath } from "../agentSpawnPath.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
 import {
   CodexPilotDelivery,
+  CodexPilotLeaseLost,
   deliveryFence,
   readEdge,
 } from "./codex-pilot-delivery.js";
@@ -164,6 +165,10 @@ export class CodexOwnedPilot {
 
   selects(conversationId: string, epoch = 1): boolean {
     return conversationId === this.conversationId && epoch === 1;
+  }
+
+  get closed(): boolean {
+    return this.stopping;
   }
 
   ownsThread(threadId: string): boolean {
@@ -415,7 +420,11 @@ export class CodexOwnedPilot {
     try {
       pending = await this.delivery.nextPermit(claim, this.controller.signal);
     } catch (error) {
-      if (this.controller.signal.aborted) throw error;
+      if (
+        this.controller.signal.aborted ||
+        error instanceof CodexPilotLeaseLost
+      )
+        throw error;
       this.options.log(
         `[owned-codex] could not read the delivery head: ${String(error)}`,
       );
@@ -504,15 +513,20 @@ export class CodexOwnedPilot {
       !this.owns(binding)
     )
       return false;
-    return this.delivery.drain(
-      binding,
-      coordinator,
-      session,
-      claim,
-      prepareText,
-      this.controller.signal,
-      sendNew,
-    );
+    try {
+      return await this.delivery.drain(
+        binding,
+        coordinator,
+        session,
+        claim,
+        prepareText,
+        this.controller.signal,
+        sendNew,
+      );
+    } catch (error) {
+      if (error instanceof CodexPilotLeaseLost) await this.close();
+      throw error;
+    }
   }
 
   private async writeEvents(
@@ -624,15 +638,22 @@ export class CodexOwnedPilot {
   private scheduleRenewal(claim: ClaimGrant, duration: number): void {
     if (this.controller.signal.aborted) return;
     this.renewal = setTimeout(() => {
-      this.renewalTask = this.edge(
-        "renew",
-        { v, ...deliveryFence(claim) },
-        parseRenewResponse,
-      ).then((result) => {
+      this.renewalTask = (async () => {
+        const signal = this.controller.signal;
+        const session = this.deliveryReady ? this.session : undefined;
+        if (session?.checkLiveness && !(await session.checkLiveness(signal)))
+          throw new Error("Owned Codex app-server stopped responding");
+        signal.throwIfAborted();
+        const result = await this.edge(
+          "renew",
+          { v, ...deliveryFence(claim) },
+          parseRenewResponse,
+          signal,
+        );
         if (result.status !== "renewed")
           throw new Error("Owned Codex lease expired");
         this.scheduleRenewal(claim, result.lease_ms);
-      });
+      })();
       void this.renewalTask.catch((error) => {
         this.options.log(
           `[owned-codex] lease renewal failed: ${String(error)}`,
@@ -655,6 +676,7 @@ export class CodexOwnedPilot {
     await this.renewalTask?.catch(() => {});
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
+    this.session = undefined;
     const outcome = await session?.close();
     await this.eventWriter;
     await this.promptCards

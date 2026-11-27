@@ -65,6 +65,12 @@ export function createEffectAdapter(
             ...("getPendingPrompts" in owned && {
               getPendingPrompts: owned.getPendingPrompts,
             }),
+            ...("checkLiveness" in owned && {
+              checkLiveness: (signal?: AbortSignal) =>
+                closed || disposing
+                  ? Promise.resolve(false)
+                  : facade.run(owned.checkLiveness(), signal),
+            }),
             recoveredReceipts: owned.recoveredReceipts,
             events: {
               [Symbol.asyncIterator](): ProviderEventIterator {

@@ -500,7 +500,7 @@ export class DaemonExecutionRuntime {
           this.pilotSendNew,
         );
       } finally {
-        if (idle) this.stopPilotPoll();
+        if (idle || this.codexOwnedPilot.closed) this.stopPilotPoll();
         else if (!alreadyPolling)
           this.schedulePilotPoll(current.binding, current.request);
       }
@@ -555,9 +555,14 @@ export class DaemonExecutionRuntime {
     request: EnsureBindingRequest,
   ): void {
     if (this.pollingPilot !== binding) return;
+    if (this.codexOwnedPilot?.closed) {
+      this.stopPilotPoll();
+      return;
+    }
     this.pilotPoll = setTimeout(() => {
       const next = this.workChain.then(async () => {
-        if (this.pollingPilot !== binding) return;
+        if (this.pollingPilot !== binding || this.codexOwnedPilot?.closed)
+          return;
         await this.codexOwnedPilot?.activate(binding, request);
         const idle = await this.codexOwnedPilot?.drain(
           binding,

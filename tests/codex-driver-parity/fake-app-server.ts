@@ -56,6 +56,9 @@ inbox.on("line", (line) => {
       });
       break;
     }
+    case "thread/read":
+      send({ id, result: { thread: { id: threadId } } });
+      break;
     case "turn/start": {
       if (turnId) {
         send({ id, error: { code: -32000, message: "Turn already active" } });

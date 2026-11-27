@@ -18,6 +18,7 @@ export type { ProviderAdapterOptions, RawProviderFrame } from "./options";
 
 export interface ProviderOwnedSession extends OwnedSession {
   getUnknownPayloadCount(): number;
+  checkLiveness?(signal?: AbortSignal): Promise<boolean>;
   getPendingPrompts?(): readonly { id: string; turn: string }[];
   steer(request: SteerRequest, signal?: AbortSignal): Promise<DeliveryOutcome>;
   interrupt(

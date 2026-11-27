@@ -250,6 +250,10 @@ export class CodexPilotDisplay {
       const name = string(data?.name);
       if (name) await sink({ type: "threadNameUpdated", name });
     }
+    if (event.kind === "session.ended") {
+      await sink({ type: "statusChanged", status: { type: "systemError" } });
+      return;
+    }
     const turnId = event.turn;
     if (!turnId) return;
     let turn = this.turns.get(turnId);
