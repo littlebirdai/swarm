@@ -15,41 +15,49 @@ async function cancelPendingJobs(backend: Backend) {
       failed: jobs
         .filter((job) => job.state.kind === "failed")
         .map((job) => job.name),
-      cancelled: pending.length,
+      cancelled:
+        pending.length +
+        jobs.filter((job) => job.state.kind === "canceled").length,
     };
   });
+}
+
+export async function drainScheduledFunctions(
+  backends: ReadonlyMap<Backend, readonly string[]>,
+) {
+  const errors: unknown[] = [];
+  let cancelled = 0;
+  for (const [backend, expectedFailures] of backends) {
+    try {
+      await backend.finishInProgressScheduledFunctions();
+    } catch (error) {
+      errors.push(error);
+    } finally {
+      try {
+        const jobs = await cancelPendingJobs(backend);
+        cancelled += jobs.cancelled;
+        expect(jobs.active).toEqual([]);
+        expect(jobs.failed.sort()).toEqual([...expectedFailures].sort());
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  }
+  try {
+    expect(jest.getTimerCount()).toBe(cancelled);
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length)
+    throw new AggregateError(errors, "Scheduled function teardown failed");
 }
 
 export function isolateScheduledFunctions() {
   const backends = new Map<Backend, readonly string[]>();
   beforeEach(() => jest.useFakeTimers());
   afterEach(async () => {
-    const errors: unknown[] = [];
-    let cancelled = 0;
     try {
-      for (const [backend, expectedFailures] of backends) {
-        try {
-          await backend.finishInProgressScheduledFunctions();
-        } catch (error) {
-          errors.push(error);
-        } finally {
-          try {
-            const jobs = await cancelPendingJobs(backend);
-            cancelled += jobs.cancelled;
-            expect(jobs.active).toEqual([]);
-            expect(jobs.failed.sort()).toEqual([...expectedFailures].sort());
-          } catch (error) {
-            errors.push(error);
-          }
-        }
-      }
-      try {
-        expect(jest.getTimerCount()).toBe(cancelled);
-      } catch (error) {
-        errors.push(error);
-      }
-      if (errors.length)
-        throw new AggregateError(errors, "Scheduled function teardown failed");
+      await drainScheduledFunctions(backends);
     } finally {
       backends.clear();
       jest.useRealTimers();
