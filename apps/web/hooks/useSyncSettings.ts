@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { useSyncCollection } from "./useSyncCollection";
 import { settingsDataKey, TEAM_SCOPED_SETTINGS } from "../lib/settingsData";
 

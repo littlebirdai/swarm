@@ -18,7 +18,7 @@ import {
   type SessionShip,
 } from "../lib/ship/sessionShip";
 import type { TeamDeployRow } from "../lib/deploys/targets";
-import { cachedAt, pinDetailRows } from "../lib/detailRows";
+import { cachedAt, pinDetailRows } from "../lib/detail-rows";
 import { useWatchEffect } from "./useWatchEffect";
 import type { DeployReachRow } from "./useDeployReach";
 

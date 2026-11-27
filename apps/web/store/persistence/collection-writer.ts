@@ -1,3 +1,4 @@
+import { cacheEvictionsFor, withoutEvictionPatches } from "../cache-eviction";
 import type { Patch } from "mutative";
 import { partitionSessionRetention } from "../cacheRetention";
 import {
@@ -68,6 +69,8 @@ if (typeof window !== "undefined") {
 export function writePatchesToIDB(patches: Patch[], state: any) {
   if (_hydrating || !persistenceOwned()) return;
 
+  const evictions = cacheEvictionsFor(patches, state);
+  patches = withoutEvictionPatches(patches, evictions);
   const affectedKeys = new Set<string>();
   for (const patch of patches) {
     const path = patch.path as (string | number)[];
@@ -103,8 +106,13 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
         let puts: any[];
         let deletes: string[];
         if (prevShadow && ids) {
-          ({ puts, deletes } = diffPatchedRows(prevShadow, data, ids, (id) =>
-            deleteAllowed(key, id, pending),
+          ({ puts, deletes } = diffPatchedRows(
+            prevShadow,
+            data,
+            ids,
+            (id) =>
+              !evictions.some((row) => row.key === key && row.id === id) &&
+              deleteAllowed(key, id, pending),
           ));
         } else {
           const diff = diffCollection(prevShadow, data);
@@ -115,6 +123,13 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
             pending,
             prevShadow,
             diff.next,
+            evictions.length
+              ? new Set(
+                  evictions
+                    .filter((row) => row.key === key)
+                    .map((row) => row.id),
+                )
+              : undefined,
           );
           lastPersisted.set(key, diff.next);
         }
@@ -184,6 +199,25 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
       metaWriter.write(key, state[key]);
     }
   }
+}
+
+export async function deleteInvalidatedDocDetails(
+  ids: readonly string[],
+  current: (id: string) => boolean,
+): Promise<string[]> {
+  if (!persistenceOwned()) return [];
+  const table = COLLECTION_TABLES.docDetails;
+  const shadow = lastPersisted.get("docDetails");
+  const previous = new Map(ids.map((id) => [id, shadow?.get(id)]));
+  const deleted = await db.transaction("rw", table, async () => {
+    if (!persistenceOwned()) return [];
+    const confirmed = ids.filter(current);
+    if (confirmed.length) await table.bulkDelete(confirmed);
+    return confirmed;
+  });
+  for (const id of deleted)
+    if (current(id) && shadow?.get(id) === previous.get(id)) shadow?.delete(id);
+  return deleted;
 }
 
 /** Dexie writes only the diffed rows and lands them itself; nothing is held

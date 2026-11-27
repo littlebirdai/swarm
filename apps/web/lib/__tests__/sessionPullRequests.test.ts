@@ -11,7 +11,7 @@ import {
   showsCi,
   titledSessionPullRequests,
 } from "../sessionPullRequests";
-import { joinPullRequestDetail } from "../detailRows";
+import { joinPullRequestDetail } from "../detail-rows";
 
 const pullRequests = {
   p1: {

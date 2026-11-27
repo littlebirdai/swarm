@@ -7,7 +7,7 @@ import {
   DETAIL_ROW_CAPS,
   pinDetailRows,
   resetDetailPins,
-} from "../../lib/detailRows";
+} from "../../lib/detail-rows";
 import { _resetSnapshotLedger, deleteAllowed } from "../idb-collection-diff";
 
 // deployReach rows say how far a merged change has gone (hooks/useDeployReach).

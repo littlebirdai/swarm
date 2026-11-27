@@ -4,7 +4,7 @@ import { useInboxStore, isConvexId } from "../store/inboxStore";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useSwitchWorkspace } from "./useSwitchWorkspace";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { useServerAuthState } from "./useServerAuthSettled";
 
 import { useWatchEffect } from "./useWatchEffect";

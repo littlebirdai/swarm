@@ -8,7 +8,7 @@ import { ExternalLink, FileText, Globe, Lock, PinOff } from "lucide-react";
 import { isArtifactDocType, type ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { StagePinRow } from "../../hooks/useStagePins";
-import { useSyncDocDetail } from "../../hooks/useSyncDocs";
+import { useSyncDocDetail } from "../../hooks/use-sync-docs";
 import { LiveArtifactEmbed } from "../live/LiveArtifactEmbed";
 import { CollabDocEditor } from "../editor/CollabDocEditor";
 import { PublishedPageEmbed } from "../PublishedPageEmbed";

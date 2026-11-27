@@ -16,7 +16,7 @@ import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { Mono, uiFace } from "@/constants/fonts";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
-import { useSyncDocDetail } from "@codecast/web/hooks/useSyncDocs";
+import { useSyncDocDetail } from "@codecast/web/hooks/use-sync-docs";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { isConvexId } from "@codecast/web/store/inboxStore";
 import { DOC_TYPE_CONFIG } from "@/components/DocItem";

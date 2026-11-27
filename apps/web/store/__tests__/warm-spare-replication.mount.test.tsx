@@ -64,7 +64,7 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
   const { installWindowRoleTracker } = await import("../../lib/desktop");
   const { useInboxStore, rebootPersistence } = await import("../inboxStore");
   const { useIsSyncHost, useSyncReplication } =
-    await import("../../hooks/useSyncRole");
+    await import("../../hooks/use-sync-role");
   const { replicationChannelName, replicationLockName } =
     await import("../storage-transport");
   const { DesktopBadge } = await import("../../components/DesktopBadge");

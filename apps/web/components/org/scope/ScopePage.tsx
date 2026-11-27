@@ -44,7 +44,7 @@ import { useSyncOrgTree } from "../../../hooks/useSyncOrgTree";
 import { useSyncProjects } from "../../../hooks/useSyncProjects";
 import { useSyncTasks } from "../../../hooks/useSyncTasks";
 import { useSyncPlans } from "../../../hooks/useSyncPlans";
-import { useSyncDocs } from "../../../hooks/useSyncDocs";
+import { useSyncDocs } from "../../../hooks/use-sync-docs";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import {

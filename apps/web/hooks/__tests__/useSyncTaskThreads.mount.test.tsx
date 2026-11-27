@@ -282,7 +282,7 @@ test("what one account was not sent says nothing about the next one signed in", 
 });
 
 test("a thread on screen is held against the cap, and released when the surface closes", async () => {
-  const { isDetailPinned } = await import("../../lib/detailRows");
+  const { isDetailPinned } = await import("../../lib/detail-rows");
   answers.set(id(1), served(1, [comment(1)], 1));
   const root = await mount([{ _id: id(1), last_comment_at: 1 }]);
   expect(isDetailPinned("taskComments", id(1))).toBe(true);

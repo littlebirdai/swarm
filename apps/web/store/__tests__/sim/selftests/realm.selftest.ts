@@ -52,8 +52,13 @@ function markValue(v: unknown, tag: string, i: number): unknown {
   if (v instanceof Set || v === null) return new Set([`${tag}${i}`]);
   if (v && typeof v === "object") {
     const entries = Object.entries(v);
-    if (entries.length && entries.every(([, x]) => typeof x === "number")) {
-      return Object.fromEntries(entries.map(([k], j) => [k, n + j]));
+    if (entries.length) {
+      return Object.fromEntries(
+        entries.map(([key, value], offset) => [
+          key,
+          markValue(value, tag, i + offset),
+        ]),
+      );
     }
     return { [`${tag}${i}`]: {} };
   }

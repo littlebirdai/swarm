@@ -8,7 +8,7 @@ import { useMemo } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { DeployReach } from "@codecast/deploys/deployReach";
 import { useInboxStore } from "../store/inboxStore";
-import { cachedAt, pinDetailRows } from "../lib/detailRows";
+import { cachedAt, pinDetailRows } from "../lib/detail-rows";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWatchEffect } from "./useWatchEffect";
 

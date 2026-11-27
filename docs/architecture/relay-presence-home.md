@@ -81,7 +81,7 @@ Recheck access on every mint and renewal. Keep the current 60-second ceiling and
 ### Budgets and windows
 
 - One token carries up to 16 grants. One connection carries up to 256 live hubs. Each user gets 120 mint requests per minute across all windows. The relay allows eight connections per authenticated subject by default. It returns `hello.unavailable` when a ninth connection tries to join at that cap. `packages/relay-contract/src/authorization.ts:13`, `apps/server/convex/relayGrants.ts:16`, `apps/server/convex/relayGrants.ts:90`, `apps/relay/src/config.ts:69`, `packages/relay/src/relay.ts:110`, `packages/relay/src/connection.ts:307`.
-- Each window subscribes to `viewer:` hubs only for the sessions it shows. Run any inbox-wide subscription only on the elected sync host through `useIsSyncHost()`. On `unavailable` or `rate_limited`, cancel automatic retries for that view and fall back to Convex. Resume on a new eligible view or an explicit recovery signal. `apps/web/hooks/useSyncRole.ts:17`.
+- Each window subscribes to `viewer:` hubs only for the sessions it shows. Run any inbox-wide subscription only on the elected sync host through `useIsSyncHost()`. On `unavailable` or `rate_limited`, cancel automatic retries for that view and fall back to Convex. Resume on a new eligible view or an explicit recovery signal. `apps/web/hooks/use-sync-role.ts:17`.
 - Renew a 15-second shared-tier grant every 10 seconds. Batch shared-tier hubs separately from 60-second hubs because one token carries one expiry. A full 15-second batch costs six steady-state mints per minute per window, plus the initial request and any reconnects. `packages/relay-contract/README.md:31`, `apps/server/convex/relayGrants.ts:81`.
 
 ### Display identity and live updates

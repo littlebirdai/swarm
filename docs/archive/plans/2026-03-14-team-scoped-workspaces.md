@@ -409,7 +409,7 @@ git commit -m "feat(web): scope tasks page by workspace"
 
 **Files:**
 
-- Modify: `packages/web/hooks/useSyncDocs.ts`
+- Modify: `packages/web/hooks/use-sync-docs.ts`
 
 - [ ] **Step 1: Update useSyncDocs to pass workspace args**
 
@@ -451,7 +451,7 @@ export function useSyncDocs(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/web/hooks/useSyncDocs.ts
+git add packages/web/hooks/use-sync-docs.ts
 git commit -m "feat(web): scope docs page by workspace"
 ```
 

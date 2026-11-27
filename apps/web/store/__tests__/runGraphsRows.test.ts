@@ -5,7 +5,7 @@ import {
   DETAIL_ROW_CAPS,
   pinDetailRows,
   resetDetailPins,
-} from "../../lib/detailRows";
+} from "../../lib/detail-rows";
 import { _resetSnapshotLedger } from "../idb-collection-diff";
 
 // runGraphs holds the graph each pinned run executes (hooks/useSyncWorkflows useRunWorkflow), one row per version a

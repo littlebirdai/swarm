@@ -27,8 +27,8 @@ cache alone.
    mounted. Document details also use `syncRecord`, outside the
    `syncTable` cap for the keys in `DETAIL_ROW_CAPS`.
    `apps/web/store/cacheRetention.ts:123`,
-   `apps/web/hooks/useSyncDocs.ts:324`,
-   `apps/web/lib/detailRows.ts:57`,
+   `apps/web/hooks/use-sync-docs.ts:324`,
+   `apps/web/lib/detail-rows.ts:57`,
    `apps/web/store/inboxStore.ts:17423`,
    `apps/web/store/inboxStore.ts:17770`.
 3. **A host removal has no cause on the wire.** The host sends the same row
@@ -44,7 +44,7 @@ cache alone.
    per-view queries. A follower can add a document body or scoped Git events
    the host never holds. A host-only sweep leaves those rows in the follower.
    `docs/architecture/sync-host.md:25`,
-   `apps/web/hooks/useSyncDocs.ts:324`,
+   `apps/web/hooks/use-sync-docs.ts:324`,
    `apps/web/hooks/useSyncExternalEvents.ts:39`,
    `apps/web/store/clientSyncRegistry.ts:1603`.
 
@@ -71,8 +71,8 @@ cache alone.
   `apps/web/components/org/scope/ScopeTabs.tsx:860`,
   `apps/web/components/conversation/HostedMadeLine.tsx:34`,
   `apps/web/components/docs/drafting/useDrafting.ts:48`,
-  `apps/web/lib/detailRows.ts:80`,
-  `apps/web/lib/detailRows.ts:100`,
+  `apps/web/lib/detail-rows.ts:80`,
+  `apps/web/lib/detail-rows.ts:100`,
   `apps/web/hooks/useConvexSync.ts:54`,
   `apps/web/store/inboxStore.ts:22248`.
 - **Give Activity an authoritative Git outcome feed.** Compute history-dependent
@@ -193,7 +193,7 @@ invalidate its copy.
 `apps/web/store/inboxStore.ts:17846`,
 `apps/web/store/idb-collection-diff.ts:132`,
 `apps/web/store/persistence/collection-writer.ts:106`,
-`apps/web/hooks/useSyncDocs.ts:346`.
+`apps/web/hooks/use-sync-docs.ts:346`.
 
 Authorize a disk delete with an explicit detail invalidation for the current
 principal, document ID, and authoritative result. Accept a resolved detail
@@ -205,8 +205,8 @@ workspace even when their thin rows are absent from memory. Use the persisted
 scope stamp or verify the document with the detail query if its scope is
 unknown. Never authorize a delete from a partial crawl, loading state, or
 absence from a capped replication snapshot.
-`apps/web/hooks/useSyncDocs.ts:240`,
-`apps/web/hooks/useSyncDocs.ts:262`,
+`apps/web/hooks/use-sync-docs.ts:240`,
+`apps/web/hooks/use-sync-docs.ts:262`,
 `apps/web/store/inboxStore.ts:20789`.
 
 Give the host a dedicated delete path that accepts those authorized IDs even

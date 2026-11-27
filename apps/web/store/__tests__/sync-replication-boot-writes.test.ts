@@ -1,8 +1,13 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
-import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
-import { createReplicationHost } from "@platform/engine";
+import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
+import {
+  createReplicationFollower,
+  createReplicationHost,
+  type ReplicationMessage,
+  type ReplicationUpdate,
+} from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -61,8 +66,9 @@ db.use({
 });
 
 async function waitFor(condition: () => boolean) {
-  const deadline = Date.now() + 2000;
-  while (!condition() && Date.now() < deadline) await Bun.sleep(1);
+  const deadline = Bun.nanoseconds() + 2_000_000_000;
+  while (!condition() && Bun.nanoseconds() < deadline)
+    await new Promise<void>((resolve) => setImmediate(resolve));
   expect(condition()).toBe(true);
 }
 
@@ -296,3 +302,369 @@ test("boot hydration writes only documented row trims and retention drops", asyn
   expect(await sessions.toArray()).toEqual([fresh]);
   expect(await docs.toArray()).toEqual([thinDoc]);
 });
+
+test.each(["access", "archive", "crawl"] as const)(
+  "the elected host deletes a disk-only detail after a follower reports %s",
+  async (cause) => {
+    const original = process.env.VITE_CACHE_EVICTION_METADATA;
+    process.env.VITE_CACHE_EVICTION_METADATA = "1";
+    const { createDetailInvalidationTransport } =
+      await import("../detail-invalidation-transport");
+    const { resetDetailInvalidations } = await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    const release = holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "a".repeat(32),
+      workspace: "team:alpha",
+      content: "Body on disk only",
+    };
+    await COLLECTION_TABLES.docDetails.put(row);
+    startSyncReplication({
+      eligible: true,
+      principalId: TEST_PRINCIPAL,
+      detailAuthority: {
+        async detail() {
+          return cause === "archive" ? { ...row, archived_at: 1 } : null;
+        },
+        async page(workspace) {
+          expect(workspace).toBe(row.workspace);
+          return { page: [], isDone: true, continueCursor: "" };
+        },
+      },
+    });
+    release();
+    await waitFor(() => (dom.window as any).__syncReplication?.().holdsLock);
+    const transport = replicationTransport(
+      replicationChannelName(TEST_PRINCIPAL),
+      "requesting-follower",
+    );
+    const received = Promise.withResolvers<string[] | undefined>();
+    const protocol = createDetailInvalidationTransport({
+      selfId: "requesting-follower",
+      channel: transport.channel,
+      host: () => null,
+      current: () => true,
+      async verify() {
+        return [];
+      },
+      async deleteDetails() {
+        return [];
+      },
+      apply(ids) {
+        received.resolve(ids);
+      },
+    });
+    const follower = createReplicationFollower({
+      selfId: "requesting-follower",
+      channel: protocol.channel,
+      replicatedKeys: ["docDetails"],
+      isCollectionKey: () => true,
+      onPosition: protocol.onPosition,
+      onSnapshot: protocol.onSnapshot,
+      applyUpdates(updates: ReplicationUpdate[], origin) {
+        for (const update of updates)
+          if (update.kind === "authoritativeRemoval" && update.ids)
+            protocol.applyRemoval(update.ids, origin);
+      },
+    });
+    try {
+      await waitFor(() => follower.synced());
+      expect(state().docDetails[row._id]).toBeUndefined();
+      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+      protocol.report({
+        ids: [row._id],
+        cause,
+        ...(cause === "crawl" ? { workspace: row.workspace } : {}),
+      });
+      expect(await received.promise).toEqual([row._id]);
+      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+    } finally {
+      follower.stop();
+      transport.close();
+      stopSyncReplication();
+      if (original === undefined)
+        delete process.env.VITE_CACHE_EVICTION_METADATA;
+      else process.env.VITE_CACHE_EVICTION_METADATA = original;
+      resetDetailInvalidations();
+    }
+  },
+);
+
+test("the complete crawl compares disk-only details by workspace", async () => {
+  const flag = "VITE_CACHE_EVICTION_METADATA";
+  const original = process.env[flag];
+  process.env[flag] = "1";
+  const {
+    detailReadPosition,
+    setDetailInvalidationReporter,
+    resetDetailInvalidations,
+  } = await import("../doc-detail-cache");
+  const { collectCompleteDocCrawlAbsences } =
+    await import("../doc-detail-authority");
+  const here = {
+    _id: "a".repeat(32),
+    workspace: "team:alpha",
+    content: "Missing",
+  };
+  const elsewhere = { ...here, _id: "b".repeat(32), workspace: "team:beta" };
+  const live = { ...here, _id: "c".repeat(32), content: "Current" };
+  await bootCache();
+  await COLLECTION_TABLES.docDetails.bulkPut([here, elsewhere, live]);
+  const reported: unknown[] = [];
+  setDetailInvalidationReporter((evidence) => {
+    reported.push(evidence);
+    return true;
+  });
+  try {
+    expect(state().docDetails[here._id]).toBeUndefined();
+    expect(state().docs[here._id]).toBeUndefined();
+    await collectCompleteDocCrawlAbsences(
+      here.workspace,
+      new Set([live._id]),
+      detailReadPosition(),
+    );
+    expect(reported).toEqual([
+      { ids: [here._id], cause: "crawl", workspace: here.workspace },
+    ]);
+  } finally {
+    resetDetailInvalidations();
+    if (original === undefined) delete process.env[flag];
+    else process.env[flag] = original;
+  }
+});
+
+test("a thin row disappearing during the disk transaction does not cancel a verified deletion", async () => {
+  const { persistDetailInvalidation } = await import("../doc-detail-authority");
+  const doc = {
+    _id: "s".repeat(32),
+    title: "Removed during write",
+    content: "cached",
+  };
+  await bootCache();
+  await COLLECTION_TABLES.docDetails.put(doc);
+  state().syncRecord("docs", doc._id, doc);
+  const removal = persistDetailInvalidation([doc._id], () => true);
+  state().dropRows("docs", [doc._id]);
+  expect(await removal).toEqual([doc._id]);
+  expect(await COLLECTION_TABLES.docDetails.get(doc._id)).toBeUndefined();
+});
+
+test.each(["access", "archive", "crawl"] as const)(
+  "a solo window verifies and deletes a disk-only detail after %s",
+  async (cause) => {
+    const flag = "VITE_CACHE_EVICTION_METADATA";
+    const enabled = process.env[flag] === "1";
+    const {
+      detailReadPosition,
+      reportCompleteDocCrawl,
+      reportDetailInvalidation,
+      resetDetailInvalidations,
+    } = await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "s".repeat(32),
+      workspace: "team:alpha",
+      content: "Cache only",
+    };
+    await COLLECTION_TABLES.docDetails.put(row);
+    const verified: string[] = [];
+    jest.useFakeTimers();
+    try {
+      startSyncReplication({
+        eligible: false,
+        principalId: TEST_PRINCIPAL,
+        detailAuthority: {
+          async detail(id) {
+            verified.push(id);
+            return cause === "archive" ? { ...row, archived_at: 1 } : null;
+          },
+          async page() {
+            return { page: [], isDone: true, continueCursor: "" };
+          },
+        },
+      });
+      jest.advanceTimersByTime(8001);
+    } finally {
+      jest.useRealTimers();
+    }
+    try {
+      const role = (dom.window as any).__syncReplication?.();
+      expect(role.role).toBe("host");
+      expect(role.holdsLock).toBe(false);
+      expect(role.synced).toBe(false);
+      expect(state().docDetails[row._id]).toBeUndefined();
+      mutations = [];
+      if (cause === "crawl")
+        await reportCompleteDocCrawl(
+          row.workspace,
+          new Set(),
+          detailReadPosition(),
+        );
+      else
+        expect(reportDetailInvalidation({ ids: [row._id], cause })).toBe(
+          enabled,
+        );
+      if (enabled) {
+        await waitFor(() =>
+          mutations!.some(
+            (mutation) =>
+              mutation.table === "docDetails" &&
+              mutation.type === "delete" &&
+              mutation.keys.includes(row._id),
+          ),
+        );
+        await drainWrites();
+        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+        expect(verified).toEqual([row._id]);
+      } else {
+        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+        expect(verified).toEqual([]);
+      }
+    } finally {
+      stopSyncReplication();
+      resetDetailInvalidations();
+    }
+  },
+);
+
+test.each(["elected", "follower", "solo"] as const)(
+  "an accepted invalidation reaches the authority when the window becomes %s",
+  async (nextRole) => {
+    const enabled = process.env.VITE_CACHE_EVICTION_METADATA === "1";
+    const { reportDetailInvalidation, resetDetailInvalidations } =
+      await import("../doc-detail-cache");
+    resetDetailInvalidations();
+    const releaseLock = holdHostLock();
+    await bootCache();
+    const row = {
+      _id: "t".repeat(32),
+      workspace: "team:alpha",
+      content: "Body on disk only",
+    };
+    const table = COLLECTION_TABLES.docDetails;
+    await table.put(row);
+    mutations = [];
+    const evidence = { cause: "access" as const, ids: [row._id] };
+    const oldVerdict = Promise.withResolvers<null>();
+    const localReads: string[] = [];
+    const hostId = "detail-authority";
+    const peer = replicationTransport(
+      replicationChannelName(TEST_PRINCIPAL),
+      hostId,
+    );
+    const messages: Array<
+      ReplicationMessage & { detailInvalidation?: { request?: unknown } }
+    > = [];
+    peer.channel.onMessage((message) => messages.push(message));
+    cleanups.push(peer.close);
+    const getStatus = () =>
+      (
+        dom.window as Window & {
+          __syncReplication: () => SyncReplicationStatus;
+        }
+      ).__syncReplication();
+    const capability = { version: 1, compatible: true };
+    const sendSnapshot = () => {
+      const snapshot = {
+        type: "snapshot" as const,
+        hostId,
+        to: getStatus().selfId,
+        seq: 0,
+        entries: {},
+        detailInvalidation: capability,
+      };
+      peer.channel.post(snapshot);
+    };
+    const requests = () =>
+      messages.flatMap((msg) => msg.detailInvalidation?.request ?? []);
+    const hellos = () => messages.filter((msg) => msg.type === "hello").length;
+    jest.useFakeTimers();
+    try {
+      startSyncReplication({
+        eligible: nextRole === "elected",
+        principalId: TEST_PRINCIPAL,
+        detailAuthority: {
+          detail(id) {
+            localReads.push(id);
+            return nextRole !== "solo" && localReads.length === 1
+              ? oldVerdict.promise
+              : Promise.resolve(null);
+          },
+          async page() {
+            return { page: [row], isDone: true, continueCursor: "" };
+          },
+        },
+      });
+      await waitFor(() => hellos() === 1);
+      if (nextRole === "solo") {
+        sendSnapshot();
+        await waitFor(() => getStatus().synced);
+        const skippedUpdate = {
+          type: "update" as const,
+          hostId,
+          origin: hostId,
+          seq: 2,
+          updates: [],
+          detailInvalidation: capability,
+        };
+        peer.channel.post(skippedUpdate);
+        await waitFor(() => hellos() === 2);
+      } else {
+        jest.advanceTimersByTime(8000);
+      }
+
+      expect(reportDetailInvalidation(evidence)).toBe(enabled);
+      if (nextRole === "solo") {
+        await waitFor(() => !enabled || requests().length === 1);
+        expect(localReads).toEqual([]);
+        jest.advanceTimersByTime(8001);
+      } else {
+        await waitFor(() => !enabled || localReads.length === 1);
+        if (nextRole === "elected") {
+          releaseLock();
+          await waitFor(() => getStatus().elected);
+        } else {
+          sendSnapshot();
+          await waitFor(() => getStatus().synced);
+        }
+      }
+      jest.useRealTimers();
+      if (!enabled) {
+        expect(localReads).toEqual([]);
+        expect(requests()).toEqual([]);
+        expect(await table.get(row._id)).toEqual(row);
+      } else if (nextRole === "follower") {
+        await waitFor(() => requests().length === 1);
+        expect(requests()).toEqual([
+          expect.objectContaining({ ...evidence, toHost: hostId }),
+        ]);
+        oldVerdict.resolve(null);
+        await drainWrites();
+        expect(localReads).toEqual([row._id]);
+        expect(await table.get(row._id)).toEqual(row);
+      } else {
+        await waitFor(
+          () => localReads.length === (nextRole === "elected" ? 2 : 1),
+        );
+        await waitFor(() =>
+          mutations!.some(
+            ({ table, type, keys }) =>
+              table === "docDetails" &&
+              type === "delete" &&
+              keys.includes(row._id),
+          ),
+        );
+        await drainWrites();
+        expect(await table.get(row._id)).toBeUndefined();
+      }
+    } finally {
+      jest.useRealTimers();
+      stopSyncReplication();
+      oldVerdict.resolve(null);
+      resetDetailInvalidations();
+    }
+  },
+);

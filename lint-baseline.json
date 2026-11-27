@@ -21771,6 +21771,13 @@
     "swarm/no-comments": 209,
     "swarm/no-direct-use-effect": 2
   },
+  "apps/web/hooks/use-sync-docs.ts": {
+    "react/immutability": 1,
+    "swarm/no-comments": 72
+  },
+  "apps/web/hooks/use-sync-role.ts": {
+    "swarm/no-comments": 2
+  },
   "apps/web/hooks/useAccountRecoveryToggles.ts": {
     "swarm/no-comments": 9
   },
@@ -22812,10 +22819,6 @@
   "apps/web/hooks/useSyncDevices.ts": {
     "swarm/no-comments": 5
   },
-  "apps/web/hooks/useSyncDocs.ts": {
-    "react/immutability": 1,
-    "swarm/no-comments": 78
-  },
   "apps/web/hooks/useSyncExpectationsOverview.ts": {
     "swarm/no-comments": 6
   },
@@ -22898,9 +22901,6 @@
   },
   "apps/web/hooks/useSyncQuoteDrafts.ts": {
     "swarm/no-comments": 3
-  },
-  "apps/web/hooks/useSyncRole.ts": {
-    "swarm/no-comments": 2
   },
   "apps/web/hooks/useSyncRuns.ts": {
     "swarm/no-comments": 16
@@ -24580,7 +24580,7 @@
   "apps/web/lib/desktopMeetings.ts": {
     "swarm/no-comments": 20
   },
-  "apps/web/lib/detailRows.ts": {
+  "apps/web/lib/detail-rows.ts": {
     "swarm/no-comments": 61
   },
   "apps/web/lib/detailSplitContext.ts": {
