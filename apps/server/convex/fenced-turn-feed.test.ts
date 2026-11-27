@@ -57,7 +57,10 @@ test("the owner receives a current steer observation and eligible collaborators 
   const sender = await f.t.run(async ({ db }) => {
     const binding = await db.query("execution_bindings").unique();
     if (!binding) throw new Error("Expected binding");
-    await db.patch(binding._id, { capabilities: ["steer-baton-v1"] });
+    await db.patch(binding._id, {
+      capabilities: [...(binding.capabilities ?? []), "steer-baton-v1"],
+    });
+    await db.patch(f.message, { human: true });
     const rows = fixtureRows(db, "fenced turn feed");
     const sender = await rows.user();
     await db.patch(f.conversation, { share_token: "turn-share" });
@@ -82,6 +85,26 @@ test("the owner receives a current steer observation and eligible collaborators 
   const ownerFeed = () => asUser(f.t, f.owner).query(feed, args);
   const senderFeed = () => asUser(f.t, sender).query(feed, args);
 
+  const fence = {
+    v: 1 as const,
+    bearer: f.bearer,
+    session: f.conversation,
+    run: 1,
+    fencing_token: lease.fencing_token,
+  };
+  const permit = await f.t.mutation(internal.edgeDelivery.next, fence);
+  if (permit.status !== "permit") throw new Error("Expected a delivery permit");
+  expect(
+    await f.t.mutation(internal.edgeDelivery.start, {
+      ...fence,
+      attempt_id: permit.attempt_id,
+      delivery_id: permit.delivery_id,
+      seq: permit.seq,
+      intent: permit.intent,
+      sender: permit.sender,
+    }),
+  ).toMatchObject({ status: "started", intent: "queue" });
+
   expect(await senderFeed()).toEqual({ prompts: [], turn: null });
   await append([
     {
@@ -89,7 +112,7 @@ test("the owner receives a current steer observation and eligible collaborators 
       seq: 1,
       turn: "next",
       kind: "turn.started",
-      body: { starter: { kind: "person", id: sender } },
+      body: { starter: permit.sender },
     },
     {
       ...base,
@@ -151,7 +174,7 @@ test("the owner receives a current steer observation and eligible collaborators 
       seq: 4,
       turn: "new",
       kind: "turn.started",
-      body: { starter: { kind: "person", id: sender } },
+      body: { starter: permit.sender },
     },
   ]);
   expect(await ownerFeed()).toMatchObject({
