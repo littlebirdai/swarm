@@ -307,9 +307,11 @@ test.each(["cold", "warm"] as const)(
       expect(ui.container.textContent).toBe("Live body");
     } finally {
       input.mockRestore();
-      db.close();
       restore();
       await ui.close();
+      authPrincipal.check();
+      await cacheStorage.loadCache(["pending"]);
+      db.close();
     }
   },
 );
