@@ -4,7 +4,7 @@ import {
 } from "./lib/pending-message-liveness.rules";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalAction, internalMutation } from "./_generated/server";
+import { internalAction, internalMutation } from "./functions";
 import {
   cronSweepName,
   cronSweepPage,
