@@ -9,6 +9,7 @@ import {
 } from "./syncLog";
 import { heldKeysFor } from "./lib/accessKeys";
 import { pendingJob } from "./lib/pendingJob";
+import type { DatabaseReader } from "./_generated/server";
 import { scheduleDrain } from "./syncOutboxWriter";
 
 export async function drainSyncOutbox(ctx: any, id: string) {
@@ -111,17 +112,29 @@ export const recover = internalMutation({
   },
 });
 
+function pendingOutboxRows(db: DatabaseReader) {
+  return db
+    .query("sync_outbox")
+    .withIndex("by_pending", (q) => q.eq("pending", true));
+}
+
+function pendingAgeMs(oldest: { updated_at: number } | null | undefined) {
+  return oldest ? Date.now() - oldest.updated_at : 0;
+}
+
+export const oldestPendingAge = internalQuery({
+  args: {},
+  handler: async (ctx) => pendingAgeMs(await pendingOutboxRows(ctx.db).first()),
+});
+
 export const status = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const pending = await ctx.db
-      .query("sync_outbox")
-      .withIndex("by_pending", (q) => q.eq("pending", true))
-      .take(1001);
+    const pending = await pendingOutboxRows(ctx.db).take(1001);
     return {
       pending: pending.length,
       truncated: pending.length === 1001,
-      oldestAgeMs: pending.length ? Date.now() - pending[0].updated_at : 0,
+      oldestAgeMs: pendingAgeMs(pending[0]),
     };
   },
 });

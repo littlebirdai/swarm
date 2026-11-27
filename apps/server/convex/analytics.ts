@@ -65,9 +65,13 @@ export const capture = internalAction({
 export const sampleSyncOutbox = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
+    if (process.env.CODECAST_SYNC_ALARMS !== "1") return;
     const sampler = makeAnalytics();
     if (!sampler || sampler.optedOut) return;
-    const { oldestAgeMs } = await ctx.runQuery(internal.syncOutbox.status, {});
+    const oldestAgeMs = await ctx.runQuery(
+      internal.syncOutbox.oldestPendingAge,
+      {},
+    );
     await sampler.capturePersonless("sync_outbox_status", {
       oldest_age_ms: oldestAgeMs,
     });
