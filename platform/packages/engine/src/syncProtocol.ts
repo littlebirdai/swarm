@@ -212,7 +212,7 @@ export function applySyncTable<T extends { _id: string }>(
   // pass; soft-deletes still arrive as updated rows.
   if (!isDelta) {
     for (const id of excludeIds) {
-      if (!incomingIds.has(id) && !newPending[prefix + id]?.untilDispatchSettles) {
+      if (!incomingIds.has(id)) {
         delete mutPending()[prefix + id];
         excludeIds.delete(id);
       }
@@ -530,7 +530,7 @@ export function applyShapeLocks(
     if (!key.startsWith(prefix) || (entry?.type !== "include" && entry?.type !== "exclude")) continue;
     const id = key.slice(prefix.length);
     if (entry.type === "exclude") {
-      if (!listed.has(id) && !entry.untilDispatchSettles) delete next[key];
+      if (!listed.has(id)) delete next[key];
       continue;
     }
     const at = onScreenAt(id);

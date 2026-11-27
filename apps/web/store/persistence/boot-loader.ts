@@ -1,4 +1,3 @@
-import { docArchivePending } from "../doc-detail-cache";
 import { timedDocCapsEnabled } from "../cache-eviction";
 import {
   deferredCacheReadsEnabled,
@@ -96,7 +95,8 @@ export async function loadCache(
           : undefined;
     if (phase === "deferred") setHydrationReadPhase(phase);
     const wanted = keys ? new Set(keys) : null;
-    if ((await ensureCacheOwnership()) === null) {
+    const owner = await ensureCacheOwnership();
+    if (owner === null) {
       // No collection row is served without a matching persisted user row.
       // Pending input is keyed by its owner, so the principal's own rows are
       // theirs whatever the rest of the disk holds; they are served even
@@ -141,7 +141,7 @@ export async function loadCache(
     const shadowAtRead = onRead
       ? new Map(lastPersisted.get(keys[0]))
       : undefined;
-    const [collectionResults, metaRows, pending] = await Promise.all([
+    const [collectionResults, metaRows, pending, pendingArchives] = await Promise.all([
       Promise.all(
         collectionEntries.map(([key, table]) =>
           timeBootRead(phase, key, () =>
@@ -163,6 +163,21 @@ export async function loadCache(
               ]),
             ),
           )
+        : undefined,
+      timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
+        ? timeBootRead(phase, "archiveOutbox", async () => {
+            const rows = await db.dispatchOutbox.toArray();
+            return new Set(
+              rows.flatMap((entry) =>
+                entry.action === "archiveDoc" &&
+                (entry.accountId === undefined || entry.accountId === owner) &&
+                Array.isArray(entry.args) &&
+                typeof entry.args[0] === "string"
+                  ? [entry.args[0]]
+                  : [],
+              ),
+            );
+          })
         : undefined,
     ]);
     if (
@@ -254,10 +269,7 @@ export async function loadCache(
             invalid.push(row._id);
             continue;
           }
-          if (
-            key === "docDetails" &&
-            docArchivePending(hydrateCtx.pending, row._id)
-          ) {
+          if (key === "docDetails" && pendingArchives?.has(row._id)) {
             shadow.set(row._id, { _id: row._id, workspace: row.workspace });
             continue;
           }

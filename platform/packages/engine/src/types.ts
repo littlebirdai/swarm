@@ -73,7 +73,6 @@ export type PendingEntry = {
   // replays its steps in one loop), so (ts, value) cannot tell their locks
   // apart; a refusal or an undo finds its own lock by this (sameLock).
   lock?: string;
-  untilDispatchSettles?: true;
   // Exact hidden timestamp expected from a hide/unhide reconcile. This is
   // intentionally distinct from `ts`, which is only the local lock freshness
   // clock and may be sampled a millisecond later by the middleware.
@@ -138,7 +137,6 @@ export type ActionFieldLock = {
   // The planted entry's id (PendingEntry.lock), absent on older outbox rows.
   lock?: string;
   priorLock?: PendingEntry;
-  untilDispatchSettles?: true;
   // A list row the action added (include) or removed (exclude) rather than a
   // field it changed; `rowKey` names the row's identity field and `index`
   // where a removed row sat.
@@ -492,8 +490,6 @@ export type PlatformConfig = {
   // Commands that predate the receipt envelope but whose server still answers
   // with a receipt; a terminal rejection there must still be interpreted.
   legacyReceiptActions?: ReadonlySet<string>;
-  actionExcludesUntilSettled?: (action: string, args: any[]) => readonly { storeKey: string; id: string }[] | undefined;
-  onActionExcludesReleased?: (locks: readonly ActionFieldLock[]) => void;
   // Rekey the application's own referencing state when a stub row is superseded
   // by its real server row.
   rekeyExtra?: (draft: any, oldId: string, newId: string) => void;

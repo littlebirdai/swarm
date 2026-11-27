@@ -1,4 +1,3 @@
-import type { PendingEntry } from "@platform/engine";
 import { cacheEvictionEnabled } from "./cache-eviction";
 
 export type DetailInvalidation = {
@@ -174,11 +173,4 @@ export function __detailCacheSimSlots() {
     },
     fresh: () => ({ detailCache: freshDetailCache() }),
   };
-}
-
-export function docArchivePending(
-  pending: Record<string, PendingEntry>,
-  id: string,
-): boolean {
-  return pending[`docs:${id}`]?.untilDispatchSettles === true;
 }

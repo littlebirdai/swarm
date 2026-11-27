@@ -13,6 +13,12 @@ import {
   lastPersisted,
   writePatchesToIDB,
 } from "../persistence/collection-writer";
+import { loadCache } from "../persistence/boot-loader";
+import {
+  enqueueDispatch,
+  loadOutbox,
+  removeDispatch,
+} from "../persistence/outbox";
 import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
 import { setHydrating } from "../persistence/hydration";
 import { writeOwnerStamp } from "../persistence/ownership";
@@ -134,6 +140,68 @@ test("the host settles the disk cache and persistence metadata during a long rep
     db.close();
     lastPersisted.clear();
     restore();
+    if (beforeMetadata === undefined)
+      delete process.env.VITE_CACHE_EVICTION_METADATA;
+    else process.env.VITE_CACHE_EVICTION_METADATA = beforeMetadata;
+    if (beforeCaps === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
+    else process.env.VITE_TIMED_DOC_CAPS = beforeCaps;
+  }
+});
+
+test("reloading a queued detail-only archive hides its cached body without a pending lock", async () => {
+  const beforeMetadata = process.env.VITE_CACHE_EVICTION_METADATA;
+  const beforeCaps = process.env.VITE_TIMED_DOC_CAPS;
+  process.env.VITE_CACHE_EVICTION_METADATA = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const indexedDB = new IDBFactory();
+  const store = __createInboxStoreForTests();
+  const runtime = store.getState();
+  const response = Promise.withResolvers<null>();
+  const journaled = Promise.withResolvers<void>();
+  const archived = detail(1, Date.now());
+  const unrelated = detail(2, Date.now());
+  try {
+    await openStore(indexedDB);
+    await COLLECTION_TABLES.docDetails.bulkPut([archived, unrelated]);
+    const cache = await loadCache(["docDetails", "pending"]);
+    expect(cache?.docDetails[archived._id]?.content).toBe(archived.content);
+    store.setState({ docDetails: cache?.docDetails });
+    runtime._setIDBWrite(writePatchesToIDB);
+    runtime._setOutbox(
+      async (entry) => {
+        await enqueueDispatch(entry);
+        journaled.resolve();
+      },
+      removeDispatch,
+      loadOutbox,
+    );
+    runtime._setDispatch(() => response.promise);
+    void runtime.archiveDoc(archived._id);
+    await journaled.promise;
+    const [queued] = await loadOutbox();
+    expect(queued?.action).toBe("archiveDoc");
+    expect(queued?.locks).toBeUndefined();
+    expect(store.getState().docDetails[archived._id]).toBeUndefined();
+
+    runtime._clearRuntimeBindings();
+    await _reopenForTests({ indexedDB, IDBKeyRange });
+    const reloaded = await loadCache(["docDetails", "pending"]);
+    expect(reloaded?.docDetails[archived._id]).toBeUndefined();
+    expect(reloaded?.docDetails[unrelated._id]?.content).toBe(
+      unrelated.content,
+    );
+    expect(reloaded?.pending ?? {}).toEqual({});
+    expect((await db.meta.get("pending"))?.value ?? {}).toEqual({});
+
+    await removeDispatch(queued.id);
+    expect(
+      (await loadCache(["docDetails"]))?.docDetails[archived._id]?.content,
+    ).toBe(archived.content);
+  } finally {
+    runtime._clearRuntimeBindings();
+    response.resolve(null);
+    db.close();
+    lastPersisted.clear();
     if (beforeMetadata === undefined)
       delete process.env.VITE_CACHE_EVICTION_METADATA;
     else process.env.VITE_CACHE_EVICTION_METADATA = beforeMetadata;

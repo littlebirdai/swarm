@@ -420,18 +420,7 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
     if (pin && id) return pinDetailRows("docDetails", [id]);
   }, [id, pin, account]);
 
-  useLayoutEffect(() => {
-    if (
-      pin &&
-      id &&
-      data?._id === id &&
-      data.archived_at === undefined &&
-      detailReadPosition().account === account &&
-      canHydrateDetail(id) &&
-      !useInboxStore.getState().docDetails[id]
-    )
-      syncAuthorizedDocDetail(id, data);
-  }, [id, pin, data, account]);
+  const applied = useRef<object | null>(null);
 
   useWatchEffect(() => {
     if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);
@@ -442,6 +431,10 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
     useCallback(
       (detail: any) => {
         if (!id) return;
+        if (pin && detail && typeof detail === "object") {
+          if (applied.current === detail) return;
+          applied.current = detail;
+        }
         if (detail === null || (enabled && detail?.archived_at !== undefined)) {
           noteDeferredDocEdit(id, "denied");
           const reported =
@@ -457,7 +450,7 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
           else syncAuthorizedDocDetail(id, detail);
         }
       },
-      [id, enabled, authenticated],
+      [id, enabled, authenticated, pin],
     ),
   );
 

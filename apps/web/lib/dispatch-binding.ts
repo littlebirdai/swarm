@@ -1,5 +1,8 @@
 import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
-import { cacheEvictionEnabled } from "../store/cache-eviction";
+import {
+  cacheEvictionEnabled,
+  timedDocCapsEnabled,
+} from "../store/cache-eviction";
 import {
   detailAccountIsCurrent,
   detailReadIsCurrent,
@@ -19,7 +22,11 @@ import { outboxAccountId } from "../store/idb-cache";
 import { stampDeliveryReceipts } from "./syncDeliveryReceipts";
 import { toast } from "sonner";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
-import { isChatRoomRefusal, useInboxStore } from "../store/inboxStore";
+import {
+  isChatRoomRefusal,
+  useInboxStore,
+  type InboxStoreState,
+} from "../store/inboxStore";
 import { isPermanentDispatchError } from "../store/mutativeMiddleware";
 import { dropRejectedOrgIntent } from "../store/orgSlice";
 import { offerRollbackToHost } from "../store/sync-replication";
@@ -58,6 +65,15 @@ export function newDispatchAckState(): DispatchAckState {
   return { ackFlagSupported: true, retryOutboxAfter: 0 };
 }
 
+function clearUnchangedDocExclude(
+  id: string,
+  entry: InboxStoreState["pending"][string] | undefined,
+): void {
+  const store = useInboxStore.getState();
+  if (entry?.type === "exclude" && store.pending[`docs:${id}`] === entry)
+    store.clearFeedExcludes("docs", [id]);
+}
+
 /**
  * The function `_setDispatch` takes: sends one dispatch through `call` (the
  * `dispatch:dispatch` mutation) and unwraps the sync-log ack envelope.
@@ -84,6 +100,10 @@ export function makeDispatchBinding(
         ? detailReadPosition()
         : null;
     const docId = detailWrite && typeof args?.[0] === "string" ? args[0] : null;
+    const docExclude =
+      action === "restoreArchivedDoc" && docId && timedDocCapsEnabled()
+        ? useInboxStore.getState().pending[`docs:${docId}`]
+        : undefined;
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
@@ -96,6 +116,7 @@ export function makeDispatchBinding(
             reportDetailInvalidation({ ids: [id], cause: "archive" });
           else {
             invalidateDetailReads([id]);
+            clearUnchangedDocExclude(id, docExclude);
             const position = detailReadPosition();
             void fetchFreshDocDetail(id)
               .then((detail) => {
@@ -119,6 +140,15 @@ export function makeDispatchBinding(
       },
       (err) => {
         settle({ err });
+        if (
+          action === "archiveDoc" &&
+          detailWrite &&
+          detailAccountIsCurrent(detailWrite) &&
+          docId &&
+          timedDocCapsEnabled() &&
+          isPermanentDispatchError(err)
+        )
+          invalidateDetailReads([docId]);
         throw err;
       },
     );
