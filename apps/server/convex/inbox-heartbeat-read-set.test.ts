@@ -424,6 +424,165 @@ test("re-enabling a lease with the same deadline leaves one pending renewal", as
   ]);
 });
 
+test("a cold watch keeps pinned hibernated and done sessions past its recent lookup budget", async () => {
+  const t = serverTest({});
+  const { user, pins } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "cold pinned CLI watch");
+    const user = await rows.user();
+    const pins = [];
+    for (let i = 0; i < 280; i++) {
+      const pinned = i >= 200;
+      const conversation_id = await rows.conversation(user, {
+        updated_at: now - (i + 1) * 100,
+        message_count: 1,
+        last_message_role: "assistant",
+        ...(pinned ? { inbox_pinned_at: now - (i + 1) * 100 } : {}),
+      });
+      const state = i === 278 ? "hibernated" : i === 279 ? "done" : "idle";
+      await rows.session(user, {
+        conversation_id,
+        agent_status: state,
+        last_heartbeat: now - 24 * 60 * 60_000,
+        ...(state === "hibernated" ? { hibernated_at: now - 5000 } : {}),
+      });
+      if (i >= 278) pins.push({ conversation_id, state });
+    }
+    return { user, pins };
+  });
+  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+    api_token: token,
+    watch: true,
+    limit: 100,
+  });
+  for (const { conversation_id, state } of pins)
+    expect(result.sessions).toContainEqual(
+      expect.objectContaining({
+        id: conversation_id,
+        agent_status: state,
+        is_pinned: true,
+      }),
+    );
+});
+
+test.each([false, true])(
+  "a subagent's pending decision lifts its parent in the CLI watch (dense: %s)",
+  async (dense) => {
+    const t = serverTest({});
+    const { user, parent, child } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "child decision in CLI watch");
+      const user = await rows.user();
+      const parent = await rows.conversation(user, {
+        updated_at: now - 10_000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const child = await rows.conversation(user, {
+        parent_conversation_id: parent,
+        is_subagent: true,
+        updated_at: now - 9000,
+        message_count: 1,
+        last_message_role: "assistant",
+      });
+      const decision_id = await db.insert("session_decisions", {
+        conversation_id: child,
+        session_id: "worker",
+        user_id: user,
+        status: "pending",
+        question: "Continue?",
+        options: [{ label: "Yes" }],
+        created_at: now,
+        blocking: true,
+        asked_user_ids: [user],
+      });
+      await db.insert("decision_inbox", {
+        decision_id,
+        user_id: user,
+        status: "pending",
+        created_at: now,
+      });
+      if (dense) {
+        for (let i = 0; i < 130; i++)
+          await rows.conversation(user, { updated_at: now - 8000 - i });
+      }
+      return { user, parent, child };
+    });
+    const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+      api_token: token,
+      watch: true,
+    });
+    expect(result.sessions?.find(({ id }) => id === parent)).toMatchObject({
+      bucket: "questions",
+    });
+    expect(result.sessions?.some(({ id }) => id === child)).toBe(false);
+  },
+);
+
+test("a pinned killed row keeps its plan and task references in the CLI watch", async () => {
+  const t = serverTest({});
+  const { user, conversation, plan, task } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "pinned killed CLI watch");
+    const user = await rows.user();
+    const plan = { short_id: "pl-killed", title: "Pinned plan" };
+    const task = { short_id: "ct-killed", title: "Pinned task" };
+    const conversation = await rows.conversation(user, {
+      inbox_pinned_at: now - 3,
+      inbox_killed_at: now - 1,
+      inbox_dismissed_at: now - 1,
+      updated_at: now - 2,
+      message_count: 1,
+      last_message_role: "assistant",
+      active_plan_id: await rows.plan(user, plan),
+      active_task_id: await rows.task(user, task),
+    });
+    return { user, conversation, plan, task };
+  });
+  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+    api_token: token,
+    watch: true,
+  });
+  expect(result.sessions).toEqual([
+    expect.objectContaining({
+      id: conversation,
+      is_killed: true,
+      active_plan: plan,
+      active_task: task,
+    }),
+  ]);
+});
+
+test("foreign-run child rows do not spend the CLI watch's cold liveness budget", async () => {
+  const t = serverTest({});
+  const { user, staleSession } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "foreign child CLI watch");
+    const user = await rows.user();
+    const other = await rows.user();
+    const parent = await rows.conversation(user, {
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const child = await rows.conversation(other, {
+      parent_conversation_id: parent,
+      is_subagent: true,
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const staleSession = await rows.session(user, {
+      conversation_id: child,
+      last_heartbeat: now - 24 * 60 * 60_000,
+    });
+    return { user, staleSession };
+  });
+  const { reads } = await recordDocuments(() =>
+    asUser(t, user).query(api.conversations.inboxForCLI, {
+      api_token: token,
+      watch: true,
+    }),
+  );
+  expect(reads.has(staleSession)).toBe(false);
+});
+
 test("user-wide CLI watch reads the inbox window and the filing of its result page", async () => {
   const { t, viewer, user, working } = await seed();
   const bucketId = await t.run(async ({ db }) => {
@@ -630,163 +789,4 @@ test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async 
   expect((await read(true)).result.sessions).toMatchObject([
     { id: conversation, is_live: true },
   ]);
-});
-
-test("a cold watch keeps pinned hibernated and done sessions past its recent lookup budget", async () => {
-  const t = serverTest({});
-  const { user, pins } = await t.run(async ({ db }) => {
-    const rows = fixtureRows(db, "cold pinned CLI watch");
-    const user = await rows.user();
-    const pins = [];
-    for (let i = 0; i < 280; i++) {
-      const pinned = i >= 200;
-      const conversation_id = await rows.conversation(user, {
-        updated_at: now - (i + 1) * 100,
-        message_count: 1,
-        last_message_role: "assistant",
-        ...(pinned ? { inbox_pinned_at: now - (i + 1) * 100 } : {}),
-      });
-      const state = i === 278 ? "hibernated" : i === 279 ? "done" : "idle";
-      await rows.session(user, {
-        conversation_id,
-        agent_status: state,
-        last_heartbeat: now - 24 * 60 * 60_000,
-        ...(state === "hibernated" ? { hibernated_at: now - 5000 } : {}),
-      });
-      if (i >= 278) pins.push({ conversation_id, state });
-    }
-    return { user, pins };
-  });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
-    api_token: token,
-    watch: true,
-    limit: 100,
-  });
-  for (const { conversation_id, state } of pins)
-    expect(result.sessions).toContainEqual(
-      expect.objectContaining({
-        id: conversation_id,
-        agent_status: state,
-        is_pinned: true,
-      }),
-    );
-});
-
-test.each([false, true])(
-  "a subagent's pending decision lifts its parent in the CLI watch (dense: %s)",
-  async (dense) => {
-    const t = serverTest({});
-    const { user, parent, child } = await t.run(async ({ db }) => {
-      const rows = fixtureRows(db, "child decision in CLI watch");
-      const user = await rows.user();
-      const parent = await rows.conversation(user, {
-        updated_at: now - 10_000,
-        message_count: 1,
-        last_message_role: "assistant",
-      });
-      const child = await rows.conversation(user, {
-        parent_conversation_id: parent,
-        is_subagent: true,
-        updated_at: now - 9000,
-        message_count: 1,
-        last_message_role: "assistant",
-      });
-      const decision_id = await db.insert("session_decisions", {
-        conversation_id: child,
-        session_id: "worker",
-        user_id: user,
-        status: "pending",
-        question: "Continue?",
-        options: [{ label: "Yes" }],
-        created_at: now,
-        blocking: true,
-        asked_user_ids: [user],
-      });
-      await db.insert("decision_inbox", {
-        decision_id,
-        user_id: user,
-        status: "pending",
-        created_at: now,
-      });
-      if (dense) {
-        for (let i = 0; i < 130; i++)
-          await rows.conversation(user, { updated_at: now - 8000 - i });
-      }
-      return { user, parent, child };
-    });
-    const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
-      api_token: token,
-      watch: true,
-    });
-    expect(result.sessions?.find(({ id }) => id === parent)).toMatchObject({
-      bucket: "questions",
-    });
-    expect(result.sessions?.some(({ id }) => id === child)).toBe(false);
-  },
-);
-
-test("a pinned killed row keeps its plan and task references in the CLI watch", async () => {
-  const t = serverTest({});
-  const { user, conversation, plan, task } = await t.run(async ({ db }) => {
-    const rows = fixtureRows(db, "pinned killed CLI watch");
-    const user = await rows.user();
-    const plan = { short_id: "pl-killed", title: "Pinned plan" };
-    const task = { short_id: "ct-killed", title: "Pinned task" };
-    const conversation = await rows.conversation(user, {
-      inbox_pinned_at: now - 3,
-      inbox_killed_at: now - 1,
-      inbox_dismissed_at: now - 1,
-      updated_at: now - 2,
-      message_count: 1,
-      last_message_role: "assistant",
-      active_plan_id: await rows.plan(user, plan),
-      active_task_id: await rows.task(user, task),
-    });
-    return { user, conversation, plan, task };
-  });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
-    api_token: token,
-    watch: true,
-  });
-  expect(result.sessions).toEqual([
-    expect.objectContaining({
-      id: conversation,
-      is_killed: true,
-      active_plan: plan,
-      active_task: task,
-    }),
-  ]);
-});
-
-test("foreign-run child rows do not spend the CLI watch's cold liveness budget", async () => {
-  const t = serverTest({});
-  const { user, staleSession } = await t.run(async ({ db }) => {
-    const rows = fixtureRows(db, "foreign child CLI watch");
-    const user = await rows.user();
-    const other = await rows.user();
-    const parent = await rows.conversation(user, {
-      updated_at: now - 1000,
-      message_count: 1,
-      last_message_role: "assistant",
-    });
-    const child = await rows.conversation(other, {
-      parent_conversation_id: parent,
-      is_subagent: true,
-      updated_at: now - 1000,
-      message_count: 1,
-      last_message_role: "assistant",
-    });
-    const staleSession = await rows.session(user, {
-      conversation_id: child,
-      last_heartbeat: now - 24 * 60 * 60_000,
-    });
-    return { user, staleSession };
-  });
-  const { reads } = await recordDocuments(() =>
-    asUser(t, user).query(api.conversations.inboxForCLI, {
-      api_token: token,
-      watch: true,
-    }),
-  );
-  expect(reads.has(staleSession)).toBe(false);
 });
