@@ -72,7 +72,7 @@ export async function assertReadyFence(
 async function claimedSteerRefusal(
   ctx: DbCtx,
   conversation: Doc<"conversations">,
-  binding: Doc<"execution_bindings">,
+  head: Doc<"conversation_execution_heads">,
   turn: Awaited<ReturnType<typeof readBatonTurn>>,
   message: Doc<"pending_messages">,
   fence: Pick<ReadyBindingFence, "fencingToken"> & { now: number },
@@ -81,7 +81,7 @@ async function claimedSteerRefusal(
   return steerRefusal(
     ctx,
     conversation,
-    binding.epoch,
+    head,
     turn,
     turn
       ? await findClaim(ctx.db, { id: conversation._id, kind: "steer" })
@@ -153,7 +153,7 @@ export async function claimNextDeliveryInDb(
         const reason = await claimedSteerRefusal(
           ctx,
           conversation,
-          binding,
+          head,
           turn,
           activeMessage,
           args,
@@ -437,7 +437,7 @@ export async function startDeliveryInDb(
     const reason = await claimedSteerRefusal(
       ctx,
       conversation,
-      binding,
+      head,
       turn,
       message,
       fence,

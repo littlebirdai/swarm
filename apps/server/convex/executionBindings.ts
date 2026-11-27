@@ -1,3 +1,4 @@
+import { setAgentSteerGrantInDb } from "./lib/agent-steer-grant.state";
 import { executionWorkFor } from "./lib/execution-work.feed";
 /**
  * Convex authority for fenced runtime selection and ordered delivery.
@@ -1696,6 +1697,23 @@ export const requestExecutionSuccessor = mutation({
         now: Date.now(),
       },
     ),
+});
+
+export const setAgentSteerGrant = mutation({
+  args: {
+    conversation_id: v.id("conversations"),
+    sender_conversation_id: v.union(v.id("conversations"), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+    await setAgentSteerGrantInDb(
+      ctx,
+      userId,
+      args.conversation_id,
+      args.sender_conversation_id,
+    );
+  },
 });
 
 export const registerExecutionDaemonBoot = mutation({

@@ -1,3 +1,4 @@
+import { enrollFreshOwnedCodex } from "./lib/fenced-session-launch.state";
 import {
   dispatchCollabGrant,
   dispatchSteerComposer,
@@ -2308,6 +2309,26 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       }
       return conversationId;
     }
+    if (
+      daemonType === "codex" &&
+      runnerUserId === userId &&
+      !asDef.definition &&
+      !handThread &&
+      (await enrollFreshOwnedCodex(
+        ctx,
+        userId,
+        conversationId,
+        {
+          ...opts,
+          project_path: resolvedProjectPath || resolvedGitRoot,
+          git_root: resolvedGitRoot,
+          model: requestedModel,
+          effort: effortOk ? opts.effort : undefined,
+        },
+        now,
+      ))
+    )
+      return conversationId;
     await enqueueStartSession(ctx, runnerUserId, {
       conversationId,
       agentType: daemonType,
@@ -2318,10 +2339,6 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // pick of the runner's own cloud host to placement (mobile has no cloud
       // toggle; it sends target_device_id alone).
       callerUserId: userId,
-      // Isolated-worktree sessions: forward the launch flag so the daemon's
-      // start_session creates the git worktree up front. This is the SAME path
-      // reconfigureSession/createQuickSession use; without it the "isolated
-      // worktree" toggle silently did nothing until a later project switch.
       ...(opts.isolated ? { isolated: true } : {}),
       ...(opts.worktree_name ? { worktreeName: opts.worktree_name } : {}),
       // The machine picked on the new-session page. Web creates are deferred to
@@ -2339,10 +2356,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         : {}),
       ...(asDef.definition ? { definition: asDef.definition } : {}),
     });
-
     return conversationId;
   },
-
   retryPendingMessage: async (
     ctx,
     userId,

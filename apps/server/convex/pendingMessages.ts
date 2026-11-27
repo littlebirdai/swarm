@@ -1,3 +1,4 @@
+import { admitAgentSend } from "./lib/execution-steer-admission.rules";
 import { writePendingStatus } from "./lib/sessionStatusWriter";
 import {
   conversationSessionsBeatingSince,
@@ -645,7 +646,19 @@ export async function enqueuePendingMessage(
           fields.client_id,
           fields.queue ? undefined : fields.observed_turn,
         )
-      : undefined;
+      : !held &&
+          !fields.human &&
+          fields.from_conversation_id &&
+          !fields.origin &&
+          conversation.execution_protocol_state === "fenced"
+        ? await admitAgentSend(
+            ctx,
+            conversation,
+            fields.from_conversation_id,
+            fromUserId,
+            fields.queue === true,
+          )
+        : undefined;
   if (fields.queue || held) {
     const fenced =
       fields.queue && admission
@@ -659,6 +672,7 @@ export async function enqueuePendingMessage(
       conversationId: conversation._id,
       fromUserId,
       ownerUserId: conversation.user_id,
+      fromConversationId: fields.from_conversation_id,
       content: fields.content,
       clientId: fields.client_id,
       human: fields.human,
