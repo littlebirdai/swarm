@@ -64,7 +64,9 @@ async function setup() {
     expect(response.status).toBe(200);
     return response.json();
   };
-  return { ...f, actor, outsider, args, query, takeover, acknowledge };
+  const cancel = (fence_id: string) =>
+    actor.mutation(api.collab.cancelSteerTakeover, { ...args, fence_id });
+  return { ...f, actor, outsider, args, query, takeover, acknowledge, cancel };
 }
 
 test("the steer feed denies unauthorized viewers and only the owner can take over", async () => {
@@ -104,6 +106,14 @@ test("the owner takes an unstarted baton immediately and retires the exact fence
   expect(old.selected.intent).toBe("steer");
   const taken = await f.takeover();
   expect(taken.status).toBe("granted");
+  expect(await f.takeover()).toEqual(taken);
+  expect(await f.takeover(100)).toEqual({ status: "stale" });
+  const rows = await f.rows();
+  expect(rows.head?.active_delivery_attempt_id).toBeUndefined();
+  expect(rows.attempts).toMatchObject([
+    { state: "failed-before-effect", failure_message: "stale-baton" },
+  ]);
+  expect(rows.messages.at(-1)).toMatchObject({ delivery_status: "rejected" });
   expect(await f.query()).toMatchObject({
     holder: { id: f.other },
     can_steer: true,
@@ -129,7 +139,30 @@ test("the owner takes an unstarted baton immediately and retires the exact fence
   expect(await f.acknowledge({ fence_id, turn, baton_token })).toMatchObject({
     status: "duplicate",
   });
+  expect(await f.takeover()).toEqual(taken);
   expect(await f.next()).toMatchObject({ status: "empty" });
+  await f.send("new-holder", observed, f.other);
+  expect(await f.next()).toMatchObject({
+    status: "permit",
+    delivery_id: "new-holder",
+    intent: "steer",
+    baton_token: 1,
+  });
+});
+
+test("a claimed steer is checked again before a permit is reissued", async () => {
+  const f = await setup();
+  await f.send("reserved-old-turn", observed);
+  const old = await f.permit();
+  expect(await f.next()).toEqual(old.selected);
+  await f.turn(null);
+  expect(await f.next()).toMatchObject({ status: "empty" });
+  const rows = await f.rows();
+  expect(rows.head?.active_delivery_attempt_id).toBeUndefined();
+  expect(rows.attempts).toMatchObject([
+    { state: "failed-before-effect", failure_message: "stale-turn" },
+  ]);
+  expect(await f.next()).toMatchObject({ status: "permit", intent: "queue" });
 });
 
 test("takeover holds the slot and queues new sends until the daemon settles and acknowledges", async () => {
@@ -139,6 +172,8 @@ test("takeover holds the slot and queues new sends until the daemon settles and 
   expect(await f.begin(old.request)).toMatchObject({ status: "started" });
   const taken = await f.takeover();
   expect(taken.status).toBe("pending");
+  expect(await f.takeover()).toEqual(taken);
+  expect(await f.takeover(100)).toEqual({ status: "stale" });
   expect(await f.query()).toMatchObject({
     holder: { id: f.owner },
     can_steer: false,
@@ -168,15 +203,80 @@ test("takeover holds the slot and queues new sends until the daemon settles and 
       resolution_evidence: "known provider receipt",
     }),
   ).toMatchObject({ status: "recorded" });
-  expect(await f.acknowledge({ ...ack, fence_id: "unrelated" })).toMatchObject({
-    status: "stale",
-  });
+  for (const mismatch of [
+    { fence_id: "unrelated" },
+    { baton_token: 1 },
+    { turn: "other-turn" },
+    { run: 2 },
+    { fencing_token: "unrelated" },
+  ]) {
+    expect(await f.acknowledge({ ...ack, ...mismatch })).toMatchObject({
+      status: "stale",
+    });
+  }
+  expect(await f.takeover()).toEqual(taken);
   expect(await f.acknowledge(ack)).toMatchObject({ status: "recorded" });
   expect(await f.query()).toMatchObject({
     holder: { id: f.other },
     takeover_pending: false,
     can_steer: true,
   });
+});
+
+test("a pending takeover can be cancelled only before its fence is issued", async () => {
+  const f = await setup();
+  await f.send("started", observed);
+  const old = await f.permit();
+  expect(await f.begin(old.request)).toMatchObject({ status: "started" });
+  const first = await f.takeover();
+  expect(first.status).toBe("pending");
+  expect(await f.query()).toMatchObject({ fence_id: first.fence_id });
+  expect(await f.cancel(first.fence_id!)).toEqual({ status: "cancelled" });
+  expect(await f.query()).toMatchObject({
+    takeover_pending: false,
+    fence_id: null,
+  });
+  const second = await f.takeover();
+  expect(second.status).toBe("pending");
+  expect(second.fence_id).not.toBe(first.fence_id);
+  const fence = await f.next();
+  if (fence.status !== "takeover_fence")
+    throw new Error("Expected takeover fence");
+  expect(await f.query()).toMatchObject({
+    takeover_pending: true,
+    fence_id: null,
+  });
+  expect(await f.cancel(fence.fence_id)).toEqual({ status: "refused" });
+  expect(await f.next()).toEqual(fence);
+  expect(await f.settle(old.request, "applied")).toMatchObject({
+    status: "recorded",
+  });
+  const { fence_id, turn, baton_token } = fence;
+  expect(await f.acknowledge({ fence_id, turn, baton_token })).toMatchObject({
+    status: "recorded",
+  });
+});
+
+test("a late fence acknowledgement cannot transfer the baton after the turn ends", async () => {
+  const f = await setup();
+  await f.send("started", observed);
+  const old = await f.permit();
+  expect(await f.begin(old.request)).toMatchObject({ status: "started" });
+  expect(await f.takeover()).toMatchObject({ status: "pending" });
+  const fence = await f.next();
+  if (fence.status !== "takeover_fence")
+    throw new Error("Expected takeover fence");
+  expect(await f.settle(old.request, "applied")).toMatchObject({
+    status: "recorded",
+  });
+  await f.turn(null);
+  const { fence_id, turn, baton_token } = fence;
+  expect(await f.acknowledge({ fence_id, turn, baton_token })).toMatchObject({
+    status: "stale",
+  });
+  expect(
+    await f.t.run(({ db }) => db.query("claims").unique()),
+  ).not.toHaveProperty("holder");
 });
 
 test("the flag off refuses the feed and takeover without writing a claim", async () => {

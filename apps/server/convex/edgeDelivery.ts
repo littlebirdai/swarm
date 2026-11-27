@@ -233,7 +233,8 @@ export const next = internalMutation({
       const run = await runContext(ctx, args);
       if (!run) return stale;
       if (steerBatonEnabled()) {
-        const takeover = takeoverPermit(
+        const takeover = await takeoverPermit(
+          ctx,
           await readSteerContext(ctx, run, run.fence.now),
           args.fencing_token,
         );

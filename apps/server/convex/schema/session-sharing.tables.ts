@@ -20,8 +20,9 @@ export const sessionSharingTables = {
         start_event_seq: v.number(),
         baton_token: v.union(v.number(), v.null()),
         new_baton_token: v.number(),
-        owner: v.id("users"),
-        previous_holder: v.id("users"),
+        owner: v.optional(v.id("users")),
+        previous_holder: v.optional(v.id("users")),
+        handed_out: v.optional(v.boolean()),
         state: v.union(
           v.literal("pending"),
           v.literal("granted"),
@@ -51,6 +52,8 @@ export const sessionSharingTables = {
     .index("by_conversation_kind", ["conversation_id", "kind"])
     .index("by_holder", ["holder"])
     .index("by_request_holder", ["request_holder"])
+    .index("by_takeover_owner", ["takeover.owner"])
+    .index("by_takeover_previous_holder", ["takeover.previous_holder"])
     .index("by_live_terminal_device", [
       "terminal.device",
       "terminal.open",

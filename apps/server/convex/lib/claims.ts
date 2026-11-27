@@ -120,7 +120,7 @@ export function takeoverForTurn(
 export async function grantSteerTakeover(
   ctx: Pick<MutationCtx, "db">,
   row: Id<"claims">,
-  takeover: NonNullable<Doc<"claims">["takeover"]>,
+  takeover: NonNullable<Doc<"claims">["takeover"]> & { owner: Id<"users"> },
   now: number,
 ) {
   await ctx.db.patch(row, {

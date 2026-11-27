@@ -307,7 +307,7 @@ export const steerClaimState = query({
       baton_token: run.batonToken,
       delivery,
       takeover_pending: !!takeover,
-      fence_id: owner ? (takeover?.id ?? null) : null,
+      fence_id: owner && !takeover?.handed_out ? (takeover?.id ?? null) : null,
       can_take_over:
         owner &&
         !!run.address &&
@@ -383,6 +383,7 @@ export const cancelSteerTakeover = mutation({
     if (
       !row ||
       row.takeover?.state !== "pending" ||
+      row.takeover.handed_out ||
       row.takeover.id !== args.fence_id ||
       row.takeover.owner !== viewer
     )

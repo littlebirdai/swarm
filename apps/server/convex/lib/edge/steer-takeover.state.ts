@@ -13,6 +13,7 @@ import {
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { findClaim, grantSteerTakeover, takeoverForTurn } from "../claims";
+import { rejectClaimedSteer } from "../execution-delivery.attempts";
 import { pendingByIntent } from "../execution-queue.reads";
 import { isFreshTurnProjection, loadRunLeaseClaim } from "./runLease";
 
@@ -144,16 +145,18 @@ export async function steerQueue(ctx: Db, { head, binding }: SteerContext) {
   };
 }
 
-async function openSteer(ctx: Db, head: Run["head"]) {
+async function activeSteer(ctx: Db, head: Run["head"]) {
+  if (!head.active_delivery_attempt_id) return null;
+  const attempt = await ctx.db.get(head.active_delivery_attempt_id);
   if (
-    !head.active_delivery_attempt_id ||
-    (head.active_delivery_state !== "delivery-started" &&
-      head.active_delivery_state !== "ambiguous")
+    !attempt ||
+    (attempt.state !== "claimed" &&
+      attempt.state !== "delivery-started" &&
+      attempt.state !== "ambiguous")
   )
     return null;
-  const attempt = await ctx.db.get(head.active_delivery_attempt_id);
-  const message = attempt && (await ctx.db.get(attempt.message_id));
-  return message?.delivery_intent === "steer" ? message : null;
+  const message = await ctx.db.get(attempt.message_id);
+  return message?.delivery_intent === "steer" ? { attempt, message } : null;
 }
 
 export async function startSteerTakeover(
@@ -174,8 +177,17 @@ export async function startSteerTakeover(
     address.start_event_seq !== expected.start_event_seq
   )
     return { status: "stale" } as const;
-  if (run.takeover?.state === "pending")
-    return { status: "pending", fence_id: run.takeover.id } as const;
+  const previous = run.takeover;
+  if (
+    previous?.owner === owner &&
+    previous.previous_holder === expectedHolder &&
+    previous.baton_token === expectedToken
+  )
+    return {
+      status: previous.state === "pending" ? "pending" : "granted",
+      fence_id: previous.id,
+    } as const;
+  if (previous?.state === "pending") return { status: "stale" } as const;
   if (
     holder !== expectedHolder ||
     batonToken !== expectedToken ||
@@ -185,7 +197,9 @@ export async function startSteerTakeover(
   const lastToken = row?.token ?? 0;
   if (!Number.isSafeInteger(lastToken + 1))
     return { status: "refused" } as const;
-  const inFlight = await openSteer(ctx, run.head);
+  const active = await activeSteer(ctx, run.head);
+  const inFlight =
+    active?.attempt.state !== "claimed" ? active?.message : undefined;
   if (
     inFlight &&
     (inFlight.delivery_observed_turn?.id !== address.id ||
@@ -194,7 +208,16 @@ export async function startSteerTakeover(
       inFlight.delivery_baton_token !== batonToken)
   )
     return { status: "refused" } as const;
-  const takeover: Takeover = {
+  if (active?.attempt.state === "claimed")
+    await rejectClaimedSteer(
+      ctx,
+      run.head,
+      active.message,
+      active.attempt,
+      "stale-baton",
+      now,
+    );
+  const takeover = {
     id: crypto.randomUUID(),
     run: address.run,
     turn: address.id,
@@ -204,7 +227,7 @@ export async function startSteerTakeover(
     baton_token: batonToken,
     new_baton_token: lastToken + 1,
     state: inFlight ? "pending" : "granted",
-  };
+  } satisfies Takeover;
   const claimId =
     row?._id ??
     (await ctx.db.insert("claims", {
@@ -223,13 +246,18 @@ export async function startSteerTakeover(
   return { status: takeover.state, fence_id: takeover.id } as const;
 }
 
-export function takeoverPermit(
+export async function takeoverPermit(
+  ctx: Pick<MutationCtx, "db">,
   run: SteerContext | null,
   fencing_token: string,
-): TakeoverFence | undefined {
-  if (!run || !supportsTakeover(run)) return;
+): Promise<TakeoverFence | undefined> {
+  if (!run?.row || !supportsTakeover(run)) return;
   const takeover = run.takeover;
   if (!takeover || takeover.state === "recorded") return;
+  if (takeover.state === "pending" && !takeover.handed_out)
+    await ctx.db.patch(run.row._id, {
+      takeover: { ...takeover, handed_out: true },
+    });
   return {
     v: version,
     status: "takeover_fence",
@@ -261,11 +289,14 @@ export async function acknowledgeSteerTakeover(
     return stale;
   if (takeover.state === "recorded") return { v: version, status: "duplicate" };
   if (takeover.state === "pending") {
-    if (await openSteer(ctx, run.head)) return stale;
+    const active = await activeSteer(ctx, run.head);
+    if (active) return stale;
+  }
+  if (takeover.state === "pending" && takeover.owner) {
     await grantSteerTakeover(
       ctx,
       row._id,
-      { ...takeover, state: "recorded" },
+      { ...takeover, owner: takeover.owner, state: "recorded" },
       now,
     );
     const turn = run.projection.open_turn;

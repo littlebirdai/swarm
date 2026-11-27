@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
 import { makeFakeDb } from "./testDb";
 import { purgeAccountPass } from "./accountDelete";
 
@@ -6,6 +8,57 @@ const ME = "u".repeat(31) + "m";
 const MATE = "u".repeat(31) + "t";
 
 describe("purgeAccountPass", () => {
+  test("clears either takeover identity while keeping the machine fence intact", async () => {
+    const t = serverTest();
+    const { deleted, remaining, ids, fence } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "takeover account deletion");
+      const deleted = await rows.user();
+      const remaining = await rows.user();
+      const conversation_id = await rows.conversation(remaining);
+      const fence = {
+        id: "fence",
+        run: 1,
+        turn: "turn",
+        start_event_seq: 2,
+        baton_token: null,
+        new_baton_token: 1,
+        state: "pending" as const,
+        handed_out: true,
+      };
+      const insert = (takeover: {
+        owner: typeof deleted;
+        previous_holder: typeof deleted;
+      }) =>
+        db.insert("claims", {
+          kind: "steer",
+          conversation_id,
+          token: 0,
+          lease_until: 0,
+          takeover: { ...fence, ...takeover },
+        });
+      return {
+        deleted,
+        remaining,
+        fence,
+        ids: [
+          await insert({ owner: deleted, previous_holder: remaining }),
+          await insert({ owner: remaining, previous_holder: deleted }),
+        ],
+      };
+    });
+    expect(await t.run((ctx) => purgeAccountPass(ctx, deleted))).toBe(false);
+    expect(
+      await t.run(async ({ db }) =>
+        (await Promise.all(ids.map((id) => db.get(id)))).map(
+          (claim) => claim?.takeover,
+        ),
+      ),
+    ).toEqual([
+      { ...fence, previous_holder: remaining },
+      { ...fence, owner: remaining },
+    ]);
+  });
+
   test("an account too big for one pass is deleted over several, access first and the user row last", async () => {
     const conversations = Array.from({ length: 250 }, (_, i) => ({
       _id: `conv${i}`,
