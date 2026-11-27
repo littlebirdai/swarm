@@ -1,4 +1,4 @@
-import { expect, mock, spyOn, test } from "bun:test";
+import { expect, jest, mock, spyOn, test } from "bun:test";
 import fc from "fast-check";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import {
@@ -446,6 +446,59 @@ test("an idle session heartbeat leaves cached transcript rows unread", async () 
     else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
   }
 });
+
+test.each(["idle", "stopped"] as const)(
+  "a local agent's %s update releases an inline transcript after the grace period",
+  async (status) => {
+    const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
+    const store = useInboxStore;
+    const original = store.getState();
+    const id = `idle-grace-${status}`;
+    const { session } = webBuilders("message-cache-idle-grace");
+    jest.useFakeTimers();
+    process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
+    const now = Date.now();
+    const idle = session.build({
+      _id: id,
+      agent_type: "claude_code",
+      agent_status: "idle",
+      agent_status_updated_at: now,
+      last_heartbeat: now,
+      updated_at: now,
+      message_count: 1,
+    });
+    const image = { media_type: "image/png", data: "aW1hZ2U=" };
+    const heartbeat = (agent_status: "idle" | "stopped") => {
+      store.setState({
+        sessions: {
+          [id]: { ...idle, agent_status, last_heartbeat: Date.now() },
+        },
+      });
+    };
+    try {
+      store.setState({ sessions: { [id]: idle } });
+      store
+        .getState()
+        .setMessages(id, [{ ...row(1), images: [image] }], {}, "cache");
+      expect(store.getState().messages[id]?.[0].images).toEqual([image]);
+      jest.advanceTimersByTime(30_000);
+      heartbeat("idle");
+      await Promise.resolve();
+      expect(store.getState().messages[id]).toBeDefined();
+
+      jest.advanceTimersByTime(30_000);
+      heartbeat(status);
+      await Promise.resolve();
+      expect(store.getState().messages[id]).toBeUndefined();
+    } finally {
+      store.setState(original);
+      messageWarmState.inlineEvictedAtCount.delete(id);
+      if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
+      else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
+      jest.useRealTimers();
+    }
+  },
+);
 
 test("equal view times evict the oldest updated session first", () => {
   const store = __createInboxStoreForTests();

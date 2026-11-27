@@ -8069,6 +8069,7 @@ export interface InboxStoreState
   userMessages: Record<string, UserMessage[]>;
   messageCacheBytes: number;
   messageCacheBytesByConversation: Record<string, number>;
+  inlineImageConversationIds: Record<string, true>;
   trimMessageCache: (releasedIds?: readonly string[]) => void;
 
   clientState: ClientState;
@@ -13392,6 +13393,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   userMessages: {},
   messageCacheBytes: 0,
   messageCacheBytesByConversation: {},
+  inlineImageConversationIds: {},
   trimMessageCache: sync(function (
     this: Draft,
     releasedIds?: readonly string[],
@@ -22445,7 +22447,7 @@ if (!survivingInboxStore)
       state.viewingDismissedId !== prev.viewingDismissedId ||
       state.pendingNavigateId !== prev.pendingNavigateId;
     if (protectionChanged) {
-      const released = releasedInlineMessageIds(state, prev);
+      const released = releasedInlineMessageIds(state);
       if (released.length || hasEvictableMessagesOverBudget(state))
         queueMicrotask(() =>
           useInboxStore.getState().trimMessageCache(released),
