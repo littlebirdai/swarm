@@ -9615,7 +9615,7 @@ async function killConversationBackends(
     keepCodexResume: true,
     keepTurnClaims: opts.keepTurnClaims,
   });
-  codexOwnedPilot?.forgetConversation(conversationId);
+  fencedRuntime?.forgetConversation(conversationId);
   if (teardown.killedAppServer && teardown.appServerThreadId) {
     if (syncServiceRef) {
       syncServiceRef
@@ -24972,6 +24972,10 @@ const appServerRecoveryRetryAt = new Map<string, number>();
 const appServerRecoveringThreads = new Set<string>();
 let appServerShuttingDown = false;
 let codexOwnedPilot: ReturnType<typeof createCodexOwnedPilot>;
+let fencedRuntime:
+  | ReturnType<typeof getProcessExecutionRuntime>
+  | null
+  | undefined;
 
 /** New threads and turns must use the login currently on disk. Codex keeps
  * the account identity it started with in memory, so a browser login for a
@@ -43865,7 +43869,7 @@ async function main(): Promise<void> {
         log,
       })
     : undefined;
-  const fencedRuntime = fencedExecutionEnabled()
+  fencedRuntime = fencedExecutionEnabled()
     ? getProcessExecutionRuntime({
         transport: syncService,
         ownerDeviceId: deviceId(),

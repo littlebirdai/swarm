@@ -1,9 +1,16 @@
+import { randomUUID } from "node:crypto";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
 } from "@codecast/agent-clients/executionBinding";
+import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 import type { ClaimGrant } from "@codecast/edge-client";
-import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import {
+  EDGE_PROTOCOL_VERSION as v,
+  STEER_BATON_CAPABILITY,
+  parseClaimResponse,
+  type EdgeParseResult,
+} from "@codecast/edge-contract";
 import type {
   ProviderAdapterClient,
   ProviderOwnedSession,
@@ -48,7 +55,29 @@ const baseParkBackoffMs = 2_000;
 const maxParkBackoffMs = 5 * 60_000;
 const defaultMaxParkEntries = 1024;
 const initialErrorClearRetryMs = 1_000;
-const maxErrorClearRetryMs = 30_000;
+const maxErrorClearRetryMs = 16_000;
+const maxErrorClearRetries = 5;
+
+function isPermanentClearError(error: unknown): boolean {
+  if (argumentValidationProblem(error)) return true;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+  ) {
+    const status = (error as { status: number }).status;
+    if (status >= 400 && status < 500 && ![408, 425, 429].includes(status))
+      return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  const httpMatch = /\bHTTP\s+(4\d\d)\b/i.exec(message);
+  if (httpMatch) {
+    const status = Number(httpMatch[1]);
+    if (![408, 425, 429].includes(status)) return true;
+  }
+  return false;
+}
 
 export function createOwnedPilotDriver(
   legacy: RuntimeDriver,
@@ -250,9 +279,13 @@ export class PilotErrorClearer {
     this.timer = undefined;
   }
 
-  async clear(conversationId: string, signal: AbortSignal): Promise<void> {
+  async clear(
+    conversationId: string,
+    signal: AbortSignal,
+    isCurrent: () => boolean = () => true,
+  ): Promise<void> {
     this.cancel();
-    if (signal.aborted) return;
+    if (signal.aborted || !isCurrent()) return;
     const attempt = () =>
       this.display.syncService.setSessionError(conversationId, undefined, {
         force: true,
@@ -264,34 +297,39 @@ export class PilotErrorClearer {
       return;
     } catch (error) {
       this.log(`[owned-codex] session error clear failed: ${String(error)}`);
+      if (isPermanentClearError(error)) return;
     }
-    this.scheduleRetry(attempt, signal, initialErrorClearRetryMs);
+    this.scheduleRetry(
+      attempt,
+      signal,
+      isCurrent,
+      initialErrorClearRetryMs,
+      maxErrorClearRetries,
+    );
   }
 
   private scheduleRetry(
     attempt: () => Promise<void>,
     signal: AbortSignal,
+    isCurrent: () => boolean,
     delayMs: number,
+    remaining: number,
   ): void {
-    if (signal.aborted) return;
+    if (remaining <= 0 || signal.aborted || !isCurrent()) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      if (signal.aborted) return;
-      void attempt().then(
-        () => {
-          this.timer = undefined;
-        },
-        (error) => {
-          this.log(
-            `[owned-codex] session error clear failed: ${String(error)}`,
-          );
-          this.scheduleRetry(
-            attempt,
-            signal,
-            Math.min(maxErrorClearRetryMs, delayMs * 2),
-          );
-        },
-      );
+      this.timer = undefined;
+      if (signal.aborted || !isCurrent()) return;
+      void attempt().catch((error) => {
+        if (isPermanentClearError(error)) return;
+        this.scheduleRetry(
+          attempt,
+          signal,
+          isCurrent,
+          Math.min(maxErrorClearRetryMs, delayMs * 2),
+          remaining - 1,
+        );
+      });
     }, delayMs);
     this.timer.unref();
   }
@@ -381,6 +419,102 @@ export async function closeOwnedProvider(
     outcome?.status === "closed" ||
     (await cleanup("process exit confirmation", () => session.processGone?.()));
   return { disposed, stopped, cleanup };
+}
+
+export async function closeOwnedPilotSession(deps: {
+  log: (message: string) => void;
+  session: ProviderOwnedSession | undefined;
+  adapter: ProviderAdapterClient | undefined;
+  eventWriter: Promise<void> | undefined;
+  events: CodexPilotEvents;
+  conversationId: string | undefined;
+  promptCards: CodexPilotPromptCards;
+  syncService: PilotOptions["display"]["syncService"];
+  delivery: CodexPilotDelivery;
+  releaseLease?: () => Promise<unknown>;
+}): Promise<{ disposed: boolean; stopped: boolean }> {
+  const { stopped, disposed, cleanup } = await closeOwnedProvider(
+    deps.log,
+    deps.session,
+    deps.adapter,
+  );
+  if (stopped) await cleanup("event writer cleanup", () => deps.eventWriter);
+  await cleanup("event cleanup", () => deps.events.close());
+  if (deps.conversationId) {
+    await cleanup("prompt card cleanup", () =>
+      deps.promptCards.closeAll(
+        deps.conversationId!,
+        Date.now(),
+        deps.syncService,
+      ),
+    );
+  }
+  await cleanup("image cleanup", () => deps.delivery.clearImages());
+  if (stopped && deps.session && deps.releaseLease) {
+    await cleanup("lease release", deps.releaseLease);
+  }
+  return { disposed: Boolean(disposed), stopped: Boolean(stopped) };
+}
+
+export async function checkPilotRenewalLiveness(deps: {
+  signal: AbortSignal;
+  session: ProviderOwnedSession | undefined;
+  streamProgress: number;
+  progressAtRenewal: number;
+  consecutiveMisses: number;
+  maxConsecutiveMisses: number;
+  sessionId: string;
+  display: PilotOptions["display"];
+  currentProgress: () => number;
+}): Promise<number> {
+  const responsive =
+    deps.streamProgress !== deps.progressAtRenewal ||
+    !deps.session?.checkLiveness ||
+    (await deps.session.checkLiveness(deps.signal).catch(() => false));
+  deps.signal.throwIfAborted();
+  if (responsive || deps.streamProgress !== deps.currentProgress()) return 0;
+  const misses = deps.consecutiveMisses + 1;
+  if (misses >= deps.maxConsecutiveMisses) {
+    if (deps.session) {
+      deps.display.sendAgentStatus(
+        deps.display.syncService,
+        deps.sessionId,
+        deps.session.getCheckpoint(),
+        "stopped",
+      );
+    }
+    throw new Error("Owned Codex app-server stopped responding");
+  }
+  return misses;
+}
+
+export async function claimOwnedPilotRun(
+  binding: ReadyBinding,
+  edge: <T>(
+    operation: string,
+    request: object,
+    parse: (input: unknown) => EdgeParseResult<T>,
+  ) => Promise<T>,
+  onBusy: (retryAfterMs: number) => Error,
+): Promise<ClaimGrant> {
+  const claim = await edge(
+    "claim",
+    {
+      v,
+      session: binding.conversationId,
+      machine: binding.ownerDeviceId,
+      boot: binding.daemonBootId,
+      claim_id: randomUUID(),
+    },
+    parseClaimResponse,
+  );
+  if (claim.status === "busy") throw onBusy(claim.retry_after_ms);
+  if (claim.status !== "granted") {
+    throw new Error(
+      `Owned Codex pilot could not claim the run: ${claim.status}`,
+    );
+  }
+  return claim;
 }
 
 export async function closePilots(

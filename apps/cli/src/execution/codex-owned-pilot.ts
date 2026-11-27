@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
@@ -8,7 +7,6 @@ import type { startRelayLiveness } from "@codecast/edge-client/relay-liveness";
 import {
   EDGE_PROTOCOL_VERSION as v,
   STEER_BATON_CAPABILITY,
-  parseClaimResponse,
   parseReleaseResponse,
   parseRenewResponse,
   type CanonicalEvent,
@@ -41,7 +39,9 @@ import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import {
   ParkedPilotRegistry,
   PilotErrorClearer,
-  closeOwnedProvider,
+  checkPilotRenewalLiveness,
+  claimOwnedPilotRun,
+  closeOwnedPilotSession,
   closePilots,
   createOwnedPilotDriver,
   openOwnedProvider,
@@ -141,6 +141,7 @@ export class CodexOwnedPilot {
     private readonly epoch = 1,
     private readonly onClose?: (pilot: CodexOwnedPilot) => void,
     private readonly registry = new ParkedPilotRegistry(),
+    private readonly isCurrent: () => boolean = () => true,
   ) {
     this.errorClearer = new PilotErrorClearer(this.options.display, (message) =>
       this.options.log(message),
@@ -157,6 +158,16 @@ export class CodexOwnedPilot {
 
   markParkFailure(retryAfterMs?: number): void {
     this.parkFailure = { retryAfterMs };
+    if (!this.onClose && this.conversationId) {
+      this.registry.parkFailure(
+        this.conversationId,
+        this.epoch,
+        this.resumeGeneration,
+        this.deliverySequence,
+        retryAfterMs,
+        Date.now(),
+      );
+    }
   }
 
   forgetConversation(conversationId: string): void {
@@ -190,20 +201,28 @@ export class CodexOwnedPilot {
     );
   }
 
-  pilotFor(request: EnsureBindingRequest): CodexOwnedPilot | undefined {
-    if (this.stopped) return;
+  private handlesRequest(request: EnsureBindingRequest): boolean {
     const { conversationId, epoch, requestedAgent, transport } = request.target;
     const needsBaton = request.requiredCapabilities.includes(
       STEER_BATON_CAPABILITY,
     );
-    if (!needsBaton && this.selects(conversationId, epoch)) return this;
+    if (!needsBaton && this.selects(conversationId, epoch)) return true;
+    return (
+      this.acceptsNewSessions &&
+      needsBaton &&
+      requestedAgent === "codex" &&
+      transport === "app-server"
+    );
+  }
+
+  pilotFor(request: EnsureBindingRequest): CodexOwnedPilot | undefined {
+    if (this.stopped || !this.handlesRequest(request)) return;
+    const { conversationId, epoch } = request.target;
     if (
-      !this.acceptsNewSessions ||
-      !needsBaton ||
-      requestedAgent !== "codex" ||
-      transport !== "app-server"
+      !request.requiredCapabilities.includes(STEER_BATON_CAPABILITY) &&
+      this.selects(conversationId, epoch)
     )
-      return;
+      return this;
 
     const key = JSON.stringify([conversationId, epoch]);
     let child = this.children.get(key);
@@ -235,11 +254,30 @@ export class CodexOwnedPilot {
           }
         },
         this.registry,
+        () => !this.stopped && this.children.get(key) === child,
       );
       child.useReceiptJournal(this.delivery.receiptJournal);
       this.children.set(key, child);
     }
     return child;
+  }
+
+  private wakePilot(
+    pilot: CodexOwnedPilot,
+    generation: number,
+    deliverySequence: number,
+    singleClaimAttempt?: boolean,
+  ) {
+    if (singleClaimAttempt !== undefined)
+      pilot.singleClaimOnly = singleClaimAttempt;
+    else if (generation > pilot.resumeGeneration) pilot.singleClaimOnly = false;
+    pilot.resumeGeneration = Math.max(pilot.resumeGeneration, generation);
+    pilot.deliverySequence = Math.max(pilot.deliverySequence, deliverySequence);
+    return {
+      kind: "wake" as const,
+      pilot,
+      singleClaimAttempt: pilot.singleClaimOnly,
+    };
   }
 
   async resumePilotFor(
@@ -251,49 +289,31 @@ export class CodexOwnedPilot {
     | { kind: "defer"; notBeforeMs: number }
     | { kind: "wake"; pilot: CodexOwnedPilot; singleClaimAttempt: boolean }
   > {
-    if (this.stopped) return { kind: "parked" };
-    const { conversationId, epoch, requestedAgent, transport } = request.target;
-    const needsBaton = request.requiredCapabilities.includes(
-      STEER_BATON_CAPABILITY,
-    );
-    if (!needsBaton && this.selects(conversationId, epoch)) {
-      if (this.closed) return { kind: "parked" };
-      return { kind: "wake", pilot: this, singleClaimAttempt: false };
-    }
-    if (
-      !this.acceptsNewSessions ||
-      !needsBaton ||
-      requestedAgent !== "codex" ||
-      transport !== "app-server"
-    )
+    if (this.stopped || !this.handlesRequest(request))
       return { kind: "parked" };
-    const key = JSON.stringify([conversationId, epoch]);
-    const existing = this.children.get(key);
-    if (existing) {
-      if (!existing.closed) {
-        if (generation > existing.resumeGeneration)
-          existing.singleClaimOnly = false;
-        existing.resumeGeneration = Math.max(
-          existing.resumeGeneration,
-          generation,
-        );
-        existing.deliverySequence = Math.max(
-          existing.deliverySequence,
-          deliverySequence,
-        );
-        return {
-          kind: "wake",
-          pilot: existing,
-          singleClaimAttempt: existing.singleClaimOnly,
-        };
+    const { conversationId, epoch } = request.target;
+    const legacySelected =
+      !request.requiredCapabilities.includes(STEER_BATON_CAPABILITY) &&
+      this.selects(conversationId, epoch);
+    if (legacySelected) {
+      if (this.closed) return { kind: "parked" };
+      if (this.deliveryReady)
+        return this.wakePilot(this, generation, deliverySequence);
+    } else {
+      const existing = this.children.get(
+        JSON.stringify([conversationId, epoch]),
+      );
+      if (existing) {
+        if (!existing.closed)
+          return this.wakePilot(existing, generation, deliverySequence);
+        if (
+          generation <= existing.resumeGeneration &&
+          deliverySequence <= existing.deliverySequence
+        )
+          return { kind: "parked" };
+        await existing.close();
+        if (this.stopped) return { kind: "parked" };
       }
-      if (
-        generation <= existing.resumeGeneration &&
-        deliverySequence <= existing.deliverySequence
-      )
-        return { kind: "parked" };
-      await existing.close();
-      if (this.stopped) return { kind: "parked" };
     }
     const decision = this.registry.wakeDecision(
       conversationId,
@@ -303,16 +323,14 @@ export class CodexOwnedPilot {
       Date.now(),
     );
     if (decision.kind !== "wake") return decision;
-    const pilot = this.pilotFor(request);
+    const pilot = legacySelected ? this : this.pilotFor(request);
     if (!pilot) return { kind: "parked" };
-    pilot.singleClaimOnly = decision.singleClaimAttempt;
-    pilot.resumeGeneration = generation;
-    pilot.deliverySequence = deliverySequence;
-    return {
-      kind: "wake",
+    return this.wakePilot(
       pilot,
-      singleClaimAttempt: decision.singleClaimAttempt,
-    };
+      generation,
+      deliverySequence,
+      decision.singleClaimAttempt,
+    );
   }
 
   private pilotOwning(binding: ReadyBinding): CodexOwnedPilot | undefined {
@@ -352,7 +370,19 @@ export class CodexOwnedPilot {
     return createOwnedPilotDriver(legacy, {
       acceptsNewSessions: this.acceptsNewSessions,
       ownsCheckpoint: ownsCodexCheckpoint,
-      start: (request) => this.pilotFor(request)?.start(request),
+      start: (request) => {
+        if (!this.handlesRequest(request)) return;
+        if (this.stopped) {
+          return Promise.resolve({
+            state: "failed-before-effect",
+            failure: {
+              code: "OWNED_CODEX_STOPPED",
+              message: "Owned Codex pilot is stopped",
+            },
+          });
+        }
+        return this.pilotFor(request)?.start(request);
+      },
       stop: (binding) => this.pilotOwning(binding)?.close(),
     });
   }
@@ -403,6 +433,13 @@ export class CodexOwnedPilot {
     return (this.activation ??= this.claimAndRead(binding, request).catch(
       async (error) => {
         if (this.claim || this.stopping) {
+          if (!this.stopping) {
+            this.markParkFailure(
+              error instanceof CodexPilotLeaseBusy
+                ? error.retryAfterMs
+                : undefined,
+            );
+          }
           await this.close();
         } else {
           await this.cleanup();
@@ -452,23 +489,11 @@ export class CodexOwnedPilot {
   ): Promise<void> {
     const previousClaim = this.claim;
     const started = performance.now();
-    this.claiming ??= this.edge(
-      "claim",
-      {
-        v,
-        session: binding.conversationId,
-        machine: binding.ownerDeviceId,
-        boot: binding.daemonBootId,
-        claim_id: randomUUID(),
-      },
-      parseClaimResponse,
+    this.claiming ??= claimOwnedPilotRun(
+      binding,
+      (op, req, parse) => this.edge(op, req, parse),
+      (retryAfterMs) => new CodexPilotLeaseBusy(retryAfterMs),
     ).then((claim) => {
-      if (claim.status === "busy")
-        throw new CodexPilotLeaseBusy(claim.retry_after_ms);
-      if (claim.status !== "granted")
-        throw new Error(
-          `Owned Codex pilot could not claim the run: ${claim.status}`,
-        );
       this.claim = claim;
       this.leaseDeadline = started + claim.lease_ms;
       return claim;
@@ -477,7 +502,6 @@ export class CodexOwnedPilot {
     this.controller.signal.throwIfAborted();
     if (claim.session !== binding.conversationId || claim.run !== binding.epoch)
       throw new Error("Owned Codex lease does not match the binding");
-    this.registry.clear(claim.session, claim.run);
     if (!previousClaim) this.scheduleRenewal(claim, claim.lease_ms);
     const checkpoint = checkpointOf(binding);
     const previous = claim.last_event_seq ?? 0;
@@ -555,7 +579,11 @@ export class CodexOwnedPilot {
         : Promise.resolve();
     await recovery;
     this.controller.signal.throwIfAborted();
-    await this.errorClearer.clear(claim.session, this.controller.signal);
+    await this.errorClearer.clear(
+      claim.session,
+      this.controller.signal,
+      () => !this.stopping && this.isCurrent(),
+    );
     this.controller.signal.throwIfAborted();
     this.eventWriter = this.writeEvents(
       claim,
@@ -569,6 +597,7 @@ export class CodexOwnedPilot {
       void this.close().catch(() => {});
     });
     this.deliveryReady = true;
+    this.registry.clear(claim.session, claim.run);
     this.startRelayContact(claim, binding);
   }
 
@@ -646,28 +675,18 @@ export class CodexOwnedPilot {
     this.renewal = setTimeout(() => {
       this.renewalTask = (async () => {
         const signal = this.controller.signal;
-        const session = this.deliveryReady ? this.session : undefined;
         const progress = this.streamProgress;
-        const responsive =
-          progress !== this.progressAtRenewal ||
-          !session?.checkLiveness ||
-          (await session.checkLiveness(signal).catch(() => false));
-        signal.throwIfAborted();
-        if (responsive || progress !== this.streamProgress) {
-          this.consecutiveLivenessMisses = 0;
-        } else if (
-          ++this.consecutiveLivenessMisses >= maxConsecutiveLivenessMisses
-        ) {
-          const { display } = this.options;
-          if (session)
-            display.sendAgentStatus(
-              display.syncService,
-              claim.session,
-              session.getCheckpoint(),
-              "stopped",
-            );
-          throw new Error("Owned Codex app-server stopped responding");
-        }
+        this.consecutiveLivenessMisses = await checkPilotRenewalLiveness({
+          signal,
+          session: this.deliveryReady ? this.session : undefined,
+          streamProgress: progress,
+          progressAtRenewal: this.progressAtRenewal,
+          consecutiveMisses: this.consecutiveLivenessMisses,
+          maxConsecutiveMisses: maxConsecutiveLivenessMisses,
+          sessionId: claim.session,
+          display: this.options.display,
+          currentProgress: () => this.streamProgress,
+        });
         const started = performance.now();
         const result = await this.edge(
           "renew",
@@ -744,25 +763,28 @@ export class CodexOwnedPilot {
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
     this.opening = undefined;
-    const { stopped, disposed, cleanup } = await closeOwnedProvider(
-      this.options.log,
+    const claim = this.claim;
+    const { disposed, stopped } = await closeOwnedPilotSession({
+      log: this.options.log,
       session,
-      this.adapter,
-    );
+      adapter: this.adapter,
+      eventWriter: this.eventWriter,
+      events: this.events,
+      conversationId: this.conversationId,
+      promptCards: this.promptCards,
+      syncService: this.options.display.syncService,
+      delivery: this.delivery,
+      releaseLease: claim
+        ? () =>
+            this.edge(
+              "release",
+              { v, ...deliveryFence(claim) },
+              parseReleaseResponse,
+              AbortSignal.timeout(10_000),
+            )
+        : undefined,
+    });
     if (disposed) this.adapter = undefined;
-    if (stopped) await cleanup("event writer cleanup", () => this.eventWriter);
-    await cleanup("event cleanup", () => this.events.close());
-    const conversationId = this.conversationId;
-    if (conversationId) {
-      await cleanup("prompt card cleanup", () =>
-        this.promptCards.closeAll(
-          conversationId,
-          Date.now(),
-          this.options.display.syncService,
-        ),
-      );
-    }
-    await cleanup("image cleanup", () => this.delivery.clearImages());
     if (!stopped) {
       this.session = session;
       this.stopping = true;
@@ -770,16 +792,5 @@ export class CodexOwnedPilot {
     }
     this.session = undefined;
     this.adapter = undefined;
-    const claim = this.claim;
-    if (claim && session) {
-      await cleanup("lease release", () =>
-        this.edge(
-          "release",
-          { v, ...deliveryFence(claim) },
-          parseReleaseResponse,
-          AbortSignal.timeout(10_000),
-        ),
-      );
-    }
   }
 }

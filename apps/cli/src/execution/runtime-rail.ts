@@ -195,6 +195,11 @@ export class DaemonExecutionRuntime {
       .catch((error) => this.onLog(String(error)));
   }
 
+  forgetConversation(conversationId: string): void {
+    this.stopPilotPoll(conversationId);
+    this.codexOwnedPilot?.forgetConversation(conversationId);
+  }
+
   private clearAllTimers(): void {
     for (const id of [...this.pilotPolls.keys()]) this.stopPilotPoll(id);
     for (const id of [...this.deferredWakes.keys()])
@@ -234,6 +239,10 @@ export class DaemonExecutionRuntime {
       item.conversationId,
       item.currentEpoch,
     );
+    const deferred = this.deferredWakes.get(item.conversationId);
+    if (deferred && deferred.item.currentEpoch < item.currentEpoch) {
+      this.cancelDeferredWake(item.conversationId);
+    }
     let successorFromIntent: ReadyBinding | undefined;
     if (item.pendingIntent) {
       const intent = item.pendingIntent;
@@ -403,13 +412,15 @@ export class DaemonExecutionRuntime {
           return;
         }
         this.stopPilotPoll(conversationId);
-        if (!activated && pilot !== this.codexOwnedPilot) {
+        if (!activated && !pilot.closed) {
           pilot.markParkFailure(
             error instanceof CodexPilotLeaseBusy
               ? error.retryAfterMs
               : undefined,
           );
-          await pilot.close().catch(() => {});
+          if (pilot !== this.codexOwnedPilot) {
+            await pilot.close().catch(() => {});
+          }
         }
         throw error;
       }
@@ -452,6 +463,13 @@ export class DaemonExecutionRuntime {
         item.conversationId,
         successor.binding.epoch,
       );
+      const staleDeferred = this.deferredWakes.get(item.conversationId);
+      if (
+        staleDeferred &&
+        staleDeferred.item.currentEpoch < successor.binding.epoch
+      ) {
+        this.cancelDeferredWake(item.conversationId);
+      }
       if (
         successor.state === "ready" &&
         !ownsCodexCheckpoint(successor.binding.handle)
@@ -650,13 +668,15 @@ export class DaemonExecutionRuntime {
           }
           return;
         }
-        if (!activated && pilot !== this.codexOwnedPilot) {
+        if (!activated && !pilot.closed) {
           pilot.markParkFailure(
             error instanceof CodexPilotLeaseBusy
               ? error.retryAfterMs
               : undefined,
           );
-          await pilot.close().catch(() => {});
+          if (pilot !== this.codexOwnedPilot) {
+            await pilot.close().catch(() => {});
+          }
         }
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });

@@ -138,6 +138,8 @@ export function fixture(
   let questionWrite: Promise<void> | undefined;
   let errorClearPause: { started(): void; resume: Promise<void> } | undefined;
   let errorClearFailures = 0;
+  let errorClearFailureError: Error | undefined;
+  let failOpen = false;
   let claimStartPause: { started(): void; resume: Promise<void> } | undefined;
   let renewal: Promise<void> | undefined;
   const statuses: string[] = [];
@@ -159,15 +161,17 @@ export function fixture(
         siteUrl: "https://pilot.invalid",
         bearer: "fixture-bearer",
         command: () =>
-          !useReceiptPeer
-            ? [appServer.executable]
-            : resumedTurn
-              ? [
-                  peerCommand[0],
-                  `FIXTURE_RESUME_TURN_ID=${resumedTurn}`,
-                  ...peerCommand.slice(1),
-                ]
-              : peerCommand,
+          failOpen
+            ? (["/usr/bin/false"] as const)
+            : !useReceiptPeer
+              ? ([appServer.executable] as const)
+              : resumedTurn
+                ? ([
+                    peerCommand[0],
+                    `FIXTURE_RESUME_TURN_ID=${resumedTurn}`,
+                    ...peerCommand.slice(1),
+                  ] as const)
+                : peerCommand,
         permissions: () => ({
           sandbox: "read-only",
           approvalPolicy: "on-request",
@@ -218,7 +222,10 @@ export function fixture(
               if (error === undefined && errorClearFailures > 0) {
                 errorClearFailures -= 1;
                 if (opts?.throwOnError)
-                  throw new Error("Transient session error clear failure");
+                  throw (
+                    errorClearFailureError ??
+                    new Error("Transient session error clear failure")
+                  );
                 return;
               }
               if (
@@ -638,8 +645,12 @@ export function fixture(
     },
     pauseErrorClear: () => pauseGate((gate) => (errorClearPause = gate)),
     pauseNextClaimStart: () => pauseGate((gate) => (claimStartPause = gate)),
-    failNextErrorClears: (count: number) => {
+    failNextErrorClears: (count: number, err?: Error) => {
       errorClearFailures = count;
+      errorClearFailureError = err;
+    },
+    setFailOpen: (value: boolean) => {
+      failOpen = value;
     },
     seedSessionError: (conversationId: string, error?: string) => {
       if (error === undefined) currentSessionErrors.delete(conversationId);
@@ -717,12 +728,7 @@ export function fixture(
     setPermitReadStatus(status?: typeof permitReadStatus) {
       permitReadStatus = status;
     },
-    pauseNextPermitRead() {
-      const started = Promise.withResolvers<void>();
-      const resume = Promise.withResolvers<void>();
-      permitRead = { started: started.resolve, resume: resume.promise };
-      return { started: started.promise, resume: resume.resolve };
-    },
+    pauseNextPermitRead: () => pauseGate((gate) => (permitRead = gate)),
     terminalStartAttempts,
     failTerminalStart(mode: typeof terminalStartFailure) {
       terminalLifecycle = true;

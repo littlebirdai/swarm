@@ -328,8 +328,23 @@ test("stop during an ensureBinding await makes no new child or timer", async () 
     await Promise.all([update, stopping]);
 
     expect(f.pilot.pilotFor(f.newRequest)).toBeUndefined();
+    expect(f.actions.some((action) => action.startsWith("legacy-start:"))).toBe(
+      false,
+    );
     expect(f.actions.filter((action) => action === "edge:claim")).toEqual([]);
     expect(clock.active.size).toBe(0);
+
+    const stoppedStart = await f.driver.start(f.newRequest);
+    expect(stoppedStart).toEqual({
+      state: "failed-before-effect",
+      failure: {
+        code: "OWNED_CODEX_STOPPED",
+        message: "Owned Codex pilot is stopped",
+      },
+    });
+    const legacyStart = await f.driver.start(f.legacyRequest);
+    expect(legacyStart.state).toBe("started");
+    expect(f.actions).toContain("legacy-start:legacy:1");
   } finally {
     clock?.restore();
     await f.dispose();
@@ -441,6 +456,277 @@ test("park records are pruned on close, on epoch advance, and capped in size", a
     expect(registry.get("conv-5", 1)?.failures).toBe(1);
   } finally {
     clock?.restore();
+    await f.dispose();
+  }
+});
+
+test("post-claim stale permit and open failure park with failure backoff", async () => {
+  const f = fixture(null, true, "receipt", true);
+  const now = fakeNow();
+  try {
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest), nextDeliverySequence: 1 },
+    ]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+
+    f.enqueue(1, false, "new");
+    f.setPermitReadStatus("stale");
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    const staleRecord = f.pilot.parkedRecord("new", 1);
+    expect(staleRecord?.failures).toBe(1);
+    expect(staleRecord?.notBeforeMs).toBeGreaterThan(Date.now());
+    const claimsAfterStale = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
+      claimsAfterStale,
+    );
+
+    f.setPermitReadStatus(undefined);
+    f.queue.length = 0;
+    f.setFailOpen(true);
+    now.advance(5_000);
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    const openRecord = f.pilot.parkedRecord("new", 1);
+    expect(openRecord?.failures).toBe(2);
+    expect(openRecord?.notBeforeMs).toBeGreaterThan(Date.now());
+    const claimsAfterOpenFail = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    expect(claimsAfterOpenFail).toBe(claimsAfterStale + 1);
+
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
+      claimsAfterOpenFail,
+    );
+  } finally {
+    now.restore();
+    await f.dispose();
+  }
+});
+
+test("error clear stops immediately on ArgumentValidationError or 4xx and caps transient retries with one log", async () => {
+  const f = fixture(null, true, "receipt", true);
+  let clock: ReturnType<typeof interceptTimers> | undefined;
+  try {
+    await f.runtime.processWorkUpdate([item(f.newRequest)]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+
+    f.logs.length = 0;
+    f.setSessionErrorCalls.length = 0;
+    f.seedSessionError("new", PILOT_RESUME_BUSY_ERROR);
+    f.failNextErrorClears(
+      10,
+      new Error(
+        "ArgumentValidationError: Object contains extra field `only_if_equals`",
+      ),
+    );
+    clock = interceptTimers((delay) => delay >= 1_000 && delay <= 30_000);
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), resumeGeneration: 1 },
+    ]);
+    const argClearCalls = f.setSessionErrorCalls.filter(
+      (call) => call.error === undefined,
+    );
+    expect(argClearCalls).toHaveLength(1);
+    expect(clock.scheduled.filter((t) => t.delay === 1_000)).toHaveLength(0);
+    expect(
+      f.logs.filter((line) => line.includes("session error clear failed")),
+    ).toHaveLength(1);
+
+    await f.driver.stop(binding);
+    f.logs.length = 0;
+    f.setSessionErrorCalls.length = 0;
+    f.failNextErrorClears(10, new Error("Transient clear timeout"));
+    clock.restore();
+    clock = interceptTimers(
+      (delay) =>
+        delay === 1_000 ||
+        delay === 2_000 ||
+        delay === 4_000 ||
+        delay === 8_000 ||
+        delay === 16_000,
+    );
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), resumeGeneration: 2 },
+    ]);
+    let index = 0;
+    while (index < clock.scheduled.length) {
+      clock.scheduled[index++]!.run();
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    const transientCalls = f.setSessionErrorCalls.filter(
+      (call) => call.error === undefined,
+    );
+    expect(transientCalls).toHaveLength(6);
+    expect(clock.active.size).toBe(0);
+    expect(
+      f.logs.filter((line) => line.includes("session error clear failed")),
+    ).toHaveLength(1);
+  } finally {
+    clock?.restore();
+    await f.dispose();
+  }
+});
+
+test("deferred-wake timers are cancelled on epoch advance and on runtime.forgetConversation", async () => {
+  const f = fixture(null, true, "receipt", true);
+  let clock: ReturnType<typeof interceptTimers> | undefined;
+  try {
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest), nextDeliverySequence: 1 },
+    ]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+    clock = interceptTimers((delay) => delay >= 1_000);
+    await exhaustResume(f, binding, clock);
+
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    expect(clock.active.size).toBe(1);
+
+    await f.runtime.processWorkUpdate([
+      {
+        conversationId: "new",
+        currentEpoch: 2,
+        bindings: [
+          {
+            request: {
+              ...f.newRequest,
+              target: { ...f.newRequest.target, epoch: 2 },
+            },
+            state: "ready",
+            daemonBootMatch: true,
+            binding: { ...binding, epoch: 2 },
+          },
+        ],
+      },
+    ]);
+    expect(clock.active.size).toBe(0);
+
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 2,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    await f.driver.stop(binding);
+    for (let i = 0; i < 9; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 3,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    let executed = clock.scheduled.length - 1;
+    while (executed < clock.scheduled.length) {
+      clock.scheduled[executed++]!.run();
+      await f.runtime.processWorkUpdate([]);
+    }
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 3,
+        nextDeliverySequence: 4,
+      },
+    ]);
+    expect(clock.active.size).toBe(1);
+    expect(f.pilot.parkedRecord("new", 1)).toBeDefined();
+
+    f.runtime.forgetConversation("new");
+    expect(clock.active.size).toBe(0);
+    expect(f.pilot.parkedRecord("new", 1)).toBeUndefined();
+  } finally {
+    clock?.restore();
+    await f.dispose();
+  }
+});
+
+test("the legacy single-session pilot uses the park record and skips identical updates after failure", async () => {
+  const f = fixture();
+  const now = fakeNow();
+  let clock: ReturnType<typeof interceptTimers> | undefined;
+  try {
+    clock = interceptTimers((delay) => delay >= 1_000 && delay < 30_000);
+    f.claimResponses.push(
+      new Response(null, { status: 503 }),
+      Response.json({ v: 1, status: "busy", retry_after_ms: 5_000 }),
+    );
+    const work = [item(f.pilotRequest)];
+    await f.runtime.processWorkUpdate(work);
+    await f.runtime.processWorkUpdate(work);
+    await f.runtime.processWorkUpdate(work);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      1,
+    );
+    expect(f.pilot.parkedRecord("pilot", 1)?.failures).toBe(1);
+
+    await f.runtime.processWorkUpdate([
+      { ...item(f.pilotRequest), nextDeliverySequence: 1 },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      1,
+    );
+    expect(clock.active.size).toBe(1);
+
+    now.advance(2_500);
+    clock.scheduled.at(-1)!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      2,
+    );
+    expect(f.pilot.parkedRecord("pilot", 1)?.failures).toBe(2);
+
+    now.advance(6_000);
+    await f.runtime.processWorkUpdate([
+      { ...item(f.pilotRequest), nextDeliverySequence: 2 },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      3,
+    );
+    expect(f.pilot.parkedRecord("pilot", 1)).toBeUndefined();
+  } finally {
+    clock?.restore();
+    now.restore();
     await f.dispose();
   }
 });
