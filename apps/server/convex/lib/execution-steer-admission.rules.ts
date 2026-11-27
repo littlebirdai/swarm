@@ -1,3 +1,4 @@
+import { bindingHasBatonCapability } from "./edge/baton-capabilities.rules";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import {
   TURN_PROJECTION_VERSION,
@@ -6,7 +7,7 @@ import {
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { canSendProductMessage } from "../pendingMessages";
-import { findClaim } from "./claims";
+import { findClaim, takeoverForTurn } from "./claims";
 import { fail } from "./execution-binding.validators";
 import { byQueueOrder } from "./sessionQueue";
 import {
@@ -25,11 +26,14 @@ type Db = Pick<MutationCtx, "db">;
 type Turn = NonNullable<Doc<"run_turn_projections">["open_turn"]>;
 
 export function batonEnabled(
-  binding: Pick<Doc<"execution_bindings">, "capabilities"> | null,
+  binding: Pick<
+    Doc<"execution_bindings">,
+    "capabilities" | "edge_capabilities"
+  > | null,
 ): boolean {
   return (
     process.env.SWARM_TURN_BATON === "1" &&
-    binding?.capabilities?.includes(STEER_BATON_CAPABILITY) === true
+    bindingHasBatonCapability(binding, STEER_BATON_CAPABILITY) === true
   );
 }
 
@@ -157,6 +161,8 @@ export async function steerRefusal(
     message.origin !== undefined
   )
     return "stale-steer-sender";
+  if (takeoverForTurn(activeClaim, run, turn)?.state === "pending")
+    return "stale-baton";
   const held =
     activeClaim?.holder !== undefined && activeClaim.lease_until > now
       ? activeClaim

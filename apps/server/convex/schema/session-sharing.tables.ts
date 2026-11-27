@@ -12,6 +12,23 @@ export const sessionSharingTables = {
     lease_until: v.number(),
     request_id: v.optional(v.string()),
     request_holder: v.optional(v.id("users")),
+    takeover: v.optional(
+      v.object({
+        id: v.string(),
+        run: v.number(),
+        turn: v.string(),
+        start_event_seq: v.number(),
+        baton_token: v.union(v.number(), v.null()),
+        new_baton_token: v.number(),
+        owner: v.id("users"),
+        previous_holder: v.id("users"),
+        state: v.union(
+          v.literal("pending"),
+          v.literal("granted"),
+          v.literal("recorded"),
+        ),
+      }),
+    ),
     terminal: v.optional(
       v.object({
         device: v.id("devices"),

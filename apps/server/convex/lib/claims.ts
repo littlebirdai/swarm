@@ -103,6 +103,36 @@ export function findClaim(db: DatabaseReader, resource: ClaimKey) {
     .unique();
 }
 
+export function takeoverForTurn(
+  row: Doc<"claims"> | null,
+  run: number,
+  turn: { id: string; start_event_seq?: number },
+) {
+  const takeover = row?.takeover;
+  if (
+    takeover?.run === run &&
+    takeover.turn === turn.id &&
+    takeover.start_event_seq === turn.start_event_seq
+  )
+    return takeover;
+}
+
+export async function grantSteerTakeover(
+  ctx: Pick<MutationCtx, "db">,
+  row: Id<"claims">,
+  takeover: NonNullable<Doc<"claims">["takeover"]>,
+  now: number,
+) {
+  await ctx.db.patch(row, {
+    holder: takeover.owner,
+    token: takeover.new_baton_token,
+    lease_until: now + LEASE_MS.steer,
+    request_id: undefined,
+    request_holder: undefined,
+    takeover,
+  });
+}
+
 type TerminalState = NonNullable<Doc<"claims">["terminal"]>;
 
 export function nextTerminalControl(terminal: TerminalState): TerminalState {

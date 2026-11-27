@@ -2,6 +2,9 @@ import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION,
   RELAY_SESSION_LIVENESS_CAPABILITY,
+  STEER_BATON_CAPABILITY,
+  TAKEOVER_FENCE_CAPABILITY,
+  parseTakeoverAckRequest,
   negotiateEdgeVersion,
   parseBlobsGetRequest,
   parseClaimRequest,
@@ -31,6 +34,7 @@ import { machineRelayGrantConfig } from "../../relayGrants";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
+import { steerBatonEnabled } from "./baton-capabilities.rules";
 import type { AppendResult } from "./runEvents";
 
 const policy = {
@@ -68,7 +72,7 @@ function edgeError(
   });
 }
 
-function linkAction<T extends { machine: string }>(
+function linkAction<T extends { machine: string; boot: string }>(
   parse: (body: unknown) => EdgeParseResult<T>,
   reply: (body: T) => HelloResponse | HeartbeatResponse,
 ) {
@@ -89,10 +93,27 @@ function linkAction<T extends { machine: string }>(
     const parsed = parse(body);
     if (!parsed.ok) return edgeError(400, EDGE_ERROR_CODES.INVALID);
 
+    const response = reply(parsed.value);
+    const batonHello =
+      steerBatonEnabled() && "policy" in response
+        ? {
+            boot: parsed.value.boot,
+            capabilities: response.policy.capabilities.filter(
+              (
+                capability,
+              ): capability is
+                | typeof STEER_BATON_CAPABILITY
+                | typeof TAKEOVER_FENCE_CAPABILITY =>
+                capability === STEER_BATON_CAPABILITY ||
+                capability === TAKEOVER_FENCE_CAPABILITY,
+            ),
+          }
+        : undefined;
     try {
       const admission = await ctx.runMutation(internal.edgeLink.admit, {
         bearer,
         machine: parsed.value.machine,
+        ...(batonHello && { batonHello }),
       });
       if (admission.status === "unauthorized")
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
@@ -106,7 +127,7 @@ function linkAction<T extends { machine: string }>(
     } catch {
       return edgeError(503, EDGE_ERROR_CODES.UNAVAILABLE, true);
     }
-    return Response.json(reply(parsed.value));
+    return Response.json(response);
   });
 }
 
@@ -241,6 +262,11 @@ export function registerEdgeRoutes(http: HttpRouter) {
           ...policy,
           capabilities: [
             ...policy.capabilities,
+            ...(steerBatonEnabled() ? [STEER_BATON_CAPABILITY] : []),
+            ...(steerBatonEnabled() &&
+            body.capabilities.includes(STEER_BATON_CAPABILITY)
+              ? [TAKEOVER_FENCE_CAPABILITY]
+              : []),
             ...(machineRelayGrantConfig()
               ? [RELAY_SESSION_LIVENESS_CAPABILITY]
               : []),
@@ -373,6 +399,16 @@ export function registerEdgeRoutes(http: HttpRouter) {
     method: "POST",
     handler: workAction(parsePermitsNextRequest, (ctx, bearer, body) =>
       ctx.runMutation(internal.edgeDelivery.next, { ...body, bearer }),
+    ),
+  });
+  http.route({
+    path: "/edge/v1/takeover.ack",
+    method: "POST",
+    handler: workAction(
+      parseTakeoverAckRequest,
+      (ctx, bearer, body) =>
+        ctx.runMutation(internal.edgeDelivery.takeoverAck, { ...body, bearer }),
+      { enabled: steerBatonEnabled },
     ),
   });
   http.route({

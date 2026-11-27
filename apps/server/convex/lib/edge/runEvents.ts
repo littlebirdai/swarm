@@ -1,3 +1,4 @@
+import { bindingHasBatonCapability } from "./baton-capabilities.rules";
 import type {
   CanonicalEvent,
   EdgeJson,
@@ -335,7 +336,7 @@ export async function appendRunEvents(
     } as const;
     const batonEnabled =
       process.env.SWARM_TURN_BATON === "1" &&
-      binding.capabilities?.includes(STEER_BATON_CAPABILITY) === true;
+      bindingHasBatonCapability(binding, STEER_BATON_CAPABILITY);
     const {
       opened,
       open_turn: projectedTurn,

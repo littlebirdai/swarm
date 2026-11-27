@@ -1,11 +1,11 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { QueryCtx } from "../_generated/server";
 import {
   isTerminalDeliveryState,
   orderedNonterminalMessages,
 } from "./executionQueue";
 
-type Db = Pick<MutationCtx, "db">;
+type Db = Pick<QueryCtx, "db">;
 type Head = Doc<"conversation_execution_heads">;
 type Message = Doc<"pending_messages">;
 

@@ -412,6 +412,14 @@ export const sessionDeliveryTables = {
     user_id: v.id("users"),
     owner_device_id: v.string(),
     daemon_boot_id: v.string(),
+    edge_baton_hello: v.optional(
+      v.object({
+        boot: v.string(),
+        capabilities: v.array(
+          v.union(v.literal("steer-baton-v1"), v.literal("takeover-fence-v1")),
+        ),
+      }),
+    ),
     registered_at: v.number(),
   }).index("by_user_device", ["user_id", "owner_device_id"]),
 
@@ -506,11 +514,17 @@ export const sessionDeliveryTables = {
       v.array(
         v.union(
           v.literal("steer-baton-v1"),
+          v.literal("takeover-fence-v1"),
           v.literal("single-flight-binding"),
           v.literal("delivery-permit-v1"),
           v.literal("strict-agent-routing"),
           v.literal("runtime-inspection-v1"),
         ),
+      ),
+    ),
+    edge_capabilities: v.optional(
+      v.array(
+        v.union(v.literal("steer-baton-v1"), v.literal("takeover-fence-v1")),
       ),
     ),
     failure_code: v.optional(v.string()),

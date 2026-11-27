@@ -1,6 +1,8 @@
+import { steerBatonEnabled } from "./lib/edge/baton-capabilities.rules";
 import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION as v1,
+  type TakeoverAckResponse,
   type DeliverySettleResponse,
   type DeliveryStartResponse,
   type PermitsNextResponse,
@@ -27,6 +29,11 @@ import {
   deliveryRejectionCodes,
   type PermitFence,
 } from "./lib/delivery-slot.state";
+import {
+  acknowledgeSteerTakeover,
+  readSteerContext,
+  takeoverPermit,
+} from "./lib/edge/steer-takeover.state";
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
 import { finalDeliveryReceipt } from "./lib/edge/final-delivery.receipt";
 import {
@@ -120,7 +127,7 @@ async function runContext(
   const moved =
     !!owned.conversationDeviceId &&
     owned.conversationDeviceId !== binding.owner_device_id;
-  return { head, fence, owner: binding.owner_user_id, moved };
+  return { head, binding, fence, owner: binding.owner_user_id, moved };
 }
 
 function deliveryFields(
@@ -225,6 +232,13 @@ export const next = internalMutation({
     withFence<PermitsNextResponse>(stale, async () => {
       const run = await runContext(ctx, args);
       if (!run) return stale;
+      if (steerBatonEnabled()) {
+        const takeover = takeoverPermit(
+          await readSteerContext(ctx, run, run.fence.now),
+          args.fencing_token,
+        );
+        if (takeover) return takeover;
+      }
       const result = await claimNextDeliveryInDb(ctx, run.owner, run.fence);
       if (result.state === "empty" || result.state === "waiting-for-successor")
         return { v: v1, status: "empty" };
@@ -291,6 +305,28 @@ export const next = internalMutation({
         baton_token: token,
         expected: { kind: "turn", turn: observed.id },
       };
+    }),
+});
+
+export const takeoverAck = internalMutation({
+  args: {
+    ...runFence,
+    fence_id: v.string(),
+    turn: v.string(),
+    baton_token: v.union(v.number(), v.null()),
+  },
+  handler: (ctx, args): Promise<TakeoverAckResponse> =>
+    withFence<TakeoverAckResponse>(stale, async () => {
+      if (!steerBatonEnabled()) return stale;
+      const run = await runContext(ctx, args);
+      return run
+        ? acknowledgeSteerTakeover(
+            ctx,
+            await readSteerContext(ctx, run, run.fence.now),
+            args,
+            run.fence.now,
+          )
+        : stale;
     }),
 });
 
