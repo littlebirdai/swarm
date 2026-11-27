@@ -214,6 +214,9 @@ export async function executionWorkFor(
           ? { nextDeliverySequence: head.next_conversation_sequence }
           : {}),
         ...(turn ? { openTurn: turn.open_turn?.id ?? null } : {}),
+        ...(watchesInbox && head.resume_generation !== undefined
+          ? { resumeGeneration: head.resume_generation }
+          : {}),
       });
     }
   }

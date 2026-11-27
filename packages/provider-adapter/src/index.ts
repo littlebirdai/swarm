@@ -20,6 +20,7 @@ export interface ProviderOwnedSession extends OwnedSession {
   getProcessId?(): number | undefined;
   getUnknownPayloadCount(): number;
   checkLiveness?(signal?: AbortSignal): Promise<boolean>;
+  processGone?(): boolean;
   getPendingPrompts?(): readonly { id: string; turn: string }[];
   steer(request: SteerRequest, signal?: AbortSignal): Promise<DeliveryOutcome>;
   interrupt(

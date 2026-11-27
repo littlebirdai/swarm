@@ -1,3 +1,4 @@
+import { enqueueFreshLocalSession } from "./lib/fenced-session-launch.state";
 import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
 import {
   hasLiveInboxLease,
@@ -2381,10 +2382,9 @@ export const createQuickSession = mutation({
       return conversationId;
     }
 
-    const daemonAgentType = fromConvexAgentType(agentType);
-    await enqueueStartSession(ctx, userId, {
+    await enqueueFreshLocalSession(ctx, userId, {
       conversationId,
-      agentType: daemonAgentType,
+      agentType: fromConvexAgentType(agentType),
       projectPath: args.project_path || args.git_root,
       sessionId,
       isolated: args.isolated,
@@ -14406,6 +14406,7 @@ export const setSessionError = mutation({
   args: {
     conversation_id: v.string(),
     error: v.optional(v.string()),
+    only_if_equals: v.optional(v.string()),
     force: v.optional(v.boolean()),
     api_token: v.optional(v.string()),
   },
@@ -14418,6 +14419,11 @@ export const setSessionError = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id !== userId) return;
     if (isConversationSafetyBlocked(conv)) return;
+    if (
+      args.only_if_equals !== undefined &&
+      conv.session_error !== args.only_if_equals
+    )
+      return;
     const safetyPatch = safetyBlockPatch(
       conv,
       [{ role: "assistant", content: args.error }],
@@ -15028,15 +15034,13 @@ export const cliResumeSession = mutation({
       conv,
       userId,
     );
-    const { deduplicated, command_id } = await enqueueResumeSession(ctx, conv);
-    // Re-queue stranded messages so the resume actually delivers them — the
-    // same reason users.resumeSession does it.
-    await resetConversationPendingMessages(ctx, conv._id);
+    const resume = await enqueueResumeSession(ctx, conv);
+    if (!resume.fenced) await resetConversationPendingMessages(ctx, conv._id);
 
     return {
       ...sessionCommandResult(conv),
-      deduplicated,
-      command_id,
+      deduplicated: resume.deduplicated,
+      command_id: resume.command_id,
       was_hidden: wasHidden,
       rearmed_schedules: rearmed,
     };

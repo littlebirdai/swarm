@@ -12,6 +12,8 @@ import type { SyncService } from "../syncService.js";
 import { withWorktreeConfig } from "../worktreeEnv.js";
 import { deliveryFence } from "./codex-pilot-delivery.js";
 import type { CodexPilotDisplayEffect } from "./codex-pilot-display.js";
+import { CodexAppServerRuntimeDriver } from "./drivers/codex-app-server.js";
+import type { RuntimeDriver, RuntimeDriverRegistry } from "./driver.js";
 import type { EnsureBindingRequest } from "./types.js";
 
 const sandboxes = [
@@ -157,4 +159,42 @@ export function startOwnedCodexRelayContact(
       });
   };
   setImmediate(launchRelayPublisher).unref();
+}
+
+export function registerCodexExecutionDriver(
+  registry: RuntimeDriverRegistry,
+  pilot: { register(legacy: RuntimeDriver): RuntimeDriver } | undefined,
+  options: {
+    client: ConstructorParameters<
+      typeof CodexAppServerRuntimeDriver
+    >[0]["io"]["client"];
+    defaultPermissions: () => Permissions;
+    threads: ReadonlyMap<string, { conversationId: string }>;
+    isRunning: () => boolean;
+    registerThread: ConstructorParameters<
+      typeof CodexAppServerRuntimeDriver
+    >[0]["io"]["registerThread"];
+    teardownConversation: (conversationId: string) => Promise<unknown>;
+  },
+): void {
+  const stopThread = async (threadId: string) => {
+    const entry = options.threads.get(threadId);
+    if (entry) await options.teardownConversation(entry.conversationId);
+  };
+  const legacy = new CodexAppServerRuntimeDriver({
+    defaultPermissions: options.defaultPermissions,
+    io: {
+      client: options.client,
+      registerThread: options.registerThread,
+      inspectThread: async (id) =>
+        !options.isRunning()
+          ? "unknown"
+          : options.threads.has(id)
+            ? "alive"
+            : "unknown",
+      stopThread,
+      quarantineThread: stopThread,
+    },
+  });
+  registry.register(pilot?.register(legacy) ?? legacy);
 }

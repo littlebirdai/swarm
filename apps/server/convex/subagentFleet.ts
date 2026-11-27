@@ -19,7 +19,10 @@ import { v } from "convex/values";
 import { mutation, query } from "./functions";
 import { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { enqueueStartSession } from "./devices";
+import {
+  enqueueFreshLocalSession,
+  launchPromptId,
+} from "./lib/fenced-session-launch.state";
 import { enqueuePendingMessage, formatSessionMessage } from "./pendingMessages";
 import { NEEDS_INPUT_IDLE_CHECK_DELAY_MS } from "./inboxFilters";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
@@ -62,7 +65,7 @@ export async function startSpawnedSession(
   conversationId: Id<"conversations">,
   start: QueuedStart,
 ): Promise<void> {
-  await enqueueStartSession(ctx, runnerUserId, {
+  await enqueueFreshLocalSession(ctx, runnerUserId, {
     conversationId,
     agentType: start.agentType,
     projectPath: start.projectPath,
@@ -88,7 +91,10 @@ export async function startSpawnedSession(
     const author = (start.briefFromUserId ??
       start.callerUserId ??
       runnerUserId) as Id<"users">;
-    await enqueuePendingMessage(ctx, conversation, author, { content: prompt });
+    await enqueuePendingMessage(ctx, conversation, author, {
+      content: prompt,
+      client_id: launchPromptId(conversation, "spawn"),
+    });
   }
 }
 

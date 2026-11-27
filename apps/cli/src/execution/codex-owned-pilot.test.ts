@@ -159,6 +159,7 @@ test("the enabled pilot starts an owned session and resumes its checkpoint with 
         async updateTitle(conversation, title) {
           titles.push([conversation, title, savedEvents.at(-1)?.kind]);
         },
+        async setSessionError() {},
       }),
       sendAgentStatus(
         _service: SyncService,

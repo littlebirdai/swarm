@@ -4,15 +4,9 @@ import { randomUUID } from "node:crypto";
 import {
   FENCED_EXECUTION_PROTOCOL_VERSION,
   FENCED_RUNTIME_CAPABILITIES,
-  parseReadyBinding,
   type Delivery,
   type ReadyBinding,
-  type RuntimeCapability,
 } from "@codecast/agent-clients/executionBinding";
-import {
-  agentSupportsExecutionTransport,
-  parseExecutionAgentClientId,
-} from "@codecast/agent-clients/agentClients";
 import { ConvexExecutionControlPlane } from "./convexControlPlane.js";
 import { ExecutionCoordinator } from "./coordinator.js";
 import { RuntimeDriverRegistry, type RuntimeDriver } from "./driver.js";
@@ -27,10 +21,13 @@ import {
 } from "@codecast/daemon/fileAttachment";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import {
+  CodexPilotLeaseBusy,
   ownsCodexCheckpoint,
   type CodexOwnedPilot,
 } from "./codex-owned-pilot.js";
+import { PILOT_RESUME_BUSY_ERROR } from "./codex-pilot-cleanup.js";
 import { defaultConfigDir } from "../config/configDir.js";
+import { parseWork, type ExecutionWorkItem } from "./work-feed-parser.js";
 
 export const FENCED_EXECUTION_FEATURE_FLAG =
   "CODECAST_FENCED_EXECUTION_V1" as const;
@@ -62,224 +59,6 @@ export function assertLegacyDeliveryEnvelope(
   }
 }
 
-function object(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TypeError(`Invalid ${label}: expected object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function string(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new TypeError(`Invalid ${label}: expected non-empty string`);
-  }
-  return value;
-}
-
-function integer(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) < 1) {
-    throw new TypeError(`Invalid ${label}: expected positive safe integer`);
-  }
-  return value as number;
-}
-
-function optionalString(value: unknown, label: string): string | undefined {
-  return value === undefined ? undefined : string(value, label);
-}
-
-function optionalEnum<const T extends string>(
-  value: unknown,
-  label: string,
-  allowed: readonly T[],
-): T | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string" || !allowed.includes(value as T)) {
-    throw new TypeError(`Invalid ${label}: unsupported value`);
-  }
-  return value as T;
-}
-
-function parseCapabilities(value: unknown): RuntimeCapability[] {
-  if (
-    !Array.isArray(value) ||
-    value.some((candidate) => typeof candidate !== "string")
-  ) {
-    throw new TypeError(
-      "Invalid execution work: capabilities must be an array",
-    );
-  }
-  const actual = [...new Set(value)].sort();
-  const base = actual.filter(
-    (capability) => capability !== STEER_BATON_CAPABILITY,
-  );
-  const expected = [...FENCED_RUNTIME_CAPABILITIES].sort();
-  if (
-    base.length !== expected.length ||
-    base.some((capability, index) => capability !== expected[index])
-  ) {
-    throw new TypeError(
-      "Invalid execution work: capability handshake mismatch",
-    );
-  }
-  return actual as RuntimeCapability[];
-}
-
-function parseEnsureRequest(value: unknown): EnsureBindingRequest {
-  const request = object(value, "execution request");
-  const target = object(request.target, "execution target");
-  const configuration = object(request.configuration, "runtime configuration");
-  const requestedAgent = parseExecutionAgentClientId(target.requestedAgent);
-  if (requestedAgent !== target.requestedAgent) {
-    throw new TypeError("Invalid execution work: agent id is not canonical");
-  }
-  const transport = string(target.transport, "runtime transport");
-  if (!["tmux", "app-server", "external"].includes(transport)) {
-    throw new TypeError(
-      "Invalid execution work: unsupported transport spelling",
-    );
-  }
-  if (!agentSupportsExecutionTransport(requestedAgent, transport as any)) {
-    throw new TypeError("Invalid execution work: agent/transport mismatch");
-  }
-  let isolation: EnsureBindingRequest["target"]["isolation"];
-  if (target.isolation !== undefined) {
-    const raw = object(target.isolation, "isolation spec");
-    const sandbox = optionalEnum(raw.sandbox, "isolation sandbox", [
-      "read-only",
-      "workspace-write",
-      "danger-full-access",
-    ] as const);
-    const approvalPolicy = optionalEnum(
-      raw.approvalPolicy,
-      "isolation approval policy",
-      ["untrusted", "on-failure", "on-request", "never"] as const,
-    );
-    if (raw.isolated !== undefined && typeof raw.isolated !== "boolean") {
-      throw new TypeError("Invalid isolation flag: expected boolean");
-    }
-    isolation = {
-      ...(sandbox === undefined ? {} : { sandbox }),
-      ...(approvalPolicy === undefined ? {} : { approvalPolicy }),
-      ...(raw.isolated === undefined ? {} : { isolated: raw.isolated }),
-      ...(raw.worktreeName === undefined
-        ? {}
-        : { worktreeName: string(raw.worktreeName, "worktree name") }),
-    };
-  }
-  const protocolVersion = integer(request.protocolVersion, "protocol version");
-  if (protocolVersion !== FENCED_EXECUTION_PROTOCOL_VERSION) {
-    throw new TypeError(
-      `Invalid execution work: unsupported protocol ${protocolVersion}`,
-    );
-  }
-  return {
-    target: {
-      conversationId: string(target.conversationId, "conversation id"),
-      epoch: integer(target.epoch, "execution epoch"),
-      requestedAgent,
-      transport: transport as EnsureBindingRequest["target"]["transport"],
-      projectPath: string(target.projectPath, "project path"),
-      ...(isolation ? { isolation } : {}),
-    },
-    configuration: {
-      revision: integer(configuration.revision, "configuration revision"),
-      model: optionalString(configuration.model, "model"),
-      effort: optionalString(configuration.effort, "effort"),
-    },
-    ownerDeviceId: string(request.ownerDeviceId, "owner device id"),
-    daemonBootId: string(request.daemonBootId, "daemon boot id"),
-    requiredCapabilities: parseCapabilities(request.requiredCapabilities),
-    protocolVersion,
-    trigger: "recovery",
-  };
-}
-
-interface BindingWork {
-  state: string;
-  daemonBootMatch: boolean;
-  request: EnsureBindingRequest;
-  binding?: ReadyBinding;
-}
-
-interface ExecutionWorkItem {
-  conversationId: string;
-  currentEpoch: number;
-  pendingEpoch?: number;
-  pendingPolicy?: "drain-current" | "cancel-unstarted";
-  bindings: BindingWork[];
-  pendingIntent?: {
-    intentId: string;
-    expectedCurrentEpoch: number;
-    policy: "drain-current" | "cancel-unstarted";
-    request: EnsureBindingRequest;
-  };
-}
-
-function parseWork(value: unknown): ExecutionWorkItem[] {
-  if (!Array.isArray(value))
-    throw new TypeError("Invalid execution work feed: expected array");
-  return value.map((rawItem) => {
-    const item = object(rawItem, "execution work item");
-    const bindingsRaw = item.bindings;
-    if (!Array.isArray(bindingsRaw))
-      throw new TypeError("Invalid execution work bindings");
-    const bindings = bindingsRaw.map((rawBinding): BindingWork => {
-      const binding = object(rawBinding, "binding work");
-      if (typeof binding.daemonBootMatch !== "boolean") {
-        throw new TypeError(
-          "Invalid binding work: daemonBootMatch must be boolean",
-        );
-      }
-      const state = string(binding.state, "binding state");
-      return {
-        state,
-        daemonBootMatch: binding.daemonBootMatch,
-        request: parseEnsureRequest(binding.request),
-        ...(binding.binding === undefined
-          ? {}
-          : { binding: parseReadyBinding(binding.binding) }),
-      };
-    });
-    let pendingIntent: ExecutionWorkItem["pendingIntent"];
-    if (item.pendingIntent !== undefined) {
-      const intent = object(item.pendingIntent, "pending successor intent");
-      const policy = string(intent.policy, "successor policy");
-      if (policy !== "drain-current" && policy !== "cancel-unstarted") {
-        throw new TypeError(
-          "Invalid execution work: unsupported successor policy",
-        );
-      }
-      pendingIntent = {
-        intentId: string(intent.intentId, "successor intent id"),
-        expectedCurrentEpoch: integer(
-          intent.expectedCurrentEpoch,
-          "expected current epoch",
-        ),
-        policy,
-        request: parseEnsureRequest(intent.request),
-      };
-    }
-    const pendingPolicy = item.pendingPolicy;
-    if (
-      pendingPolicy !== undefined &&
-      pendingPolicy !== "drain-current" &&
-      pendingPolicy !== "cancel-unstarted"
-    ) {
-      throw new TypeError("Invalid execution work: malformed pending policy");
-    }
-    return {
-      conversationId: string(item.conversationId, "work conversation id"),
-      currentEpoch: integer(item.currentEpoch, "current epoch"),
-      ...(item.pendingEpoch === undefined
-        ? {}
-        : { pendingEpoch: integer(item.pendingEpoch, "pending epoch") }),
-      ...(pendingPolicy === undefined ? {} : { pendingPolicy }),
-      bindings,
-      ...(pendingIntent ? { pendingIntent } : {}),
-    };
-  });
-}
-
 export interface DaemonExecutionRuntimeOptions {
   transport: ExecutionConvexTransport;
   ownerDeviceId: string;
@@ -294,6 +73,9 @@ export interface DaemonExecutionRuntimeOptions {
   onLog?: (message: string) => void;
 }
 
+const maxPilotLeaseRetries = 8;
+const maxPilotLeaseRetryDelayMs = 30_000;
+
 export class DaemonExecutionRuntime {
   readonly daemonBootId: string;
   readonly controlPlane: ConvexExecutionControlPlane;
@@ -305,15 +87,29 @@ export class DaemonExecutionRuntime {
   private readonly resolveFile?: DaemonExecutionRuntimeOptions["resolveFile"];
   private readonly onLog: (message: string) => void;
   private unsubscribe?: () => void;
+  private stopped = false;
   private workChain: Promise<void> = Promise.resolve();
+  private readonly deferredWakes = new Map<
+    string,
+    {
+      timer: ReturnType<typeof setTimeout>;
+      notBeforeMs: number;
+      item: ExecutionWorkItem;
+    }
+  >();
   private readonly pilotPolls = new Map<
     string,
     {
       binding: ReadyBinding;
       pilot: CodexOwnedPilot;
       timer?: ReturnType<typeof setTimeout>;
+      timerToken: number;
       sendNew: boolean;
       awaitingSuccessor: boolean;
+      resumeRequested: boolean;
+      resumeGeneration: number;
+      singleClaimAttempt: boolean;
+      leaseRetry?: { attempts: number; delayMs: number };
     }
   >();
 
@@ -357,6 +153,7 @@ export class DaemonExecutionRuntime {
   }
 
   async start(): Promise<void> {
+    if (this.stopped) return;
     // Registration makes THIS boot the device's authorized recovery claimant:
     // the server only transfers a stranded binding to the registered current
     // boot, so it must happen before the recovery pass below.
@@ -365,12 +162,14 @@ export class DaemonExecutionRuntime {
       daemonBootId: this.daemonBootId,
       ownedCodexNewSessions: this.handshake().ownedCodexNewSessions,
     });
+    if (this.stopped) return;
     // Startup recovery is an actual read/process pass before reactive updates;
     // a WebSocket subscription alone can otherwise wait forever on unchanged
     // durable work left by the prior process.
     await this.processWorkUpdate(
       await this.controlPlane.listExecutionWork(this.handshake()),
     );
+    if (this.stopped) return;
     this.unsubscribe = this.controlPlane.subscribeExecutionWork(
       this.handshake(),
       (value) => {
@@ -384,18 +183,35 @@ export class DaemonExecutionRuntime {
   }
 
   async stop(): Promise<void> {
+    this.stopped = true;
+    this.codexOwnedPilot?.markStopped();
     this.unsubscribe?.();
     this.unsubscribe = undefined;
-    for (const id of this.pilotPolls.keys()) this.stopPilotPoll(id);
+    this.clearAllTimers();
+    await this.workChain;
+    this.clearAllTimers();
     await this.codexOwnedPilot
       ?.closeAll()
       .catch((error) => this.onLog(String(error)));
   }
 
+  forgetConversation(conversationId: string): void {
+    this.stopPilotPoll(conversationId);
+    this.codexOwnedPilot?.forgetConversation(conversationId);
+  }
+
+  private clearAllTimers(): void {
+    for (const id of [...this.pilotPolls.keys()]) this.stopPilotPoll(id);
+    for (const id of [...this.deferredWakes.keys()])
+      this.cancelDeferredWake(id);
+  }
+
   processWorkUpdate(value: unknown): Promise<void> {
+    if (this.stopped) return Promise.resolve();
     const work = parseWork(value);
     const next = this.workChain.then(async () => {
       for (const item of work) {
+        if (this.stopped) return;
         try {
           await this.processItem(item);
         } catch (error) {
@@ -418,6 +234,15 @@ export class DaemonExecutionRuntime {
   }
 
   private async processItem(item: ExecutionWorkItem): Promise<void> {
+    if (this.stopped) return;
+    this.codexOwnedPilot?.pruneParkedEpochs(
+      item.conversationId,
+      item.currentEpoch,
+    );
+    const deferred = this.deferredWakes.get(item.conversationId);
+    if (deferred && deferred.item.currentEpoch < item.currentEpoch) {
+      this.cancelDeferredWake(item.conversationId);
+    }
     let successorFromIntent: ReadyBinding | undefined;
     if (item.pendingIntent) {
       const intent = item.pendingIntent;
@@ -431,9 +256,11 @@ export class DaemonExecutionRuntime {
         policy: intent.policy,
         request: intent.request,
       });
+      if (this.stopped) return;
       successorFromIntent = await this.coordinator.ensureBinding(
         intent.request,
       );
+      if (this.stopped) return;
     }
 
     const ready = new Map<
@@ -445,6 +272,7 @@ export class DaemonExecutionRuntime {
       }
     >();
     for (const work of item.bindings) {
+      if (this.stopped) return;
       if (
         (work.state === "stopped" || work.state === "quarantined") &&
         work.binding
@@ -475,6 +303,7 @@ export class DaemonExecutionRuntime {
         );
       }
       const binding = await this.coordinator.ensureBinding(request);
+      if (this.stopped) return;
       ready.set(binding.epoch, { binding, request, state: "ready" });
     }
     if (successorFromIntent && item.pendingIntent) {
@@ -496,28 +325,69 @@ export class DaemonExecutionRuntime {
       pendingEpoch === undefined ? undefined : ready.get(pendingEpoch);
     const policy = item.pendingPolicy ?? item.pendingIntent?.policy;
 
-    const pilot =
-      currentOwned && current
-        ? await this.codexOwnedPilot?.resumePilotFor(current.request)
+    if (current?.state !== "ready") {
+      this.stopPilotPoll(item.conversationId);
+      if (!(current && successor && policy)) {
+        this.codexOwnedPilot?.forgetConversation(item.conversationId);
+      }
+    }
+
+    const wake =
+      currentOwned && current?.state === "ready"
+        ? await this.codexOwnedPilot?.resumePilotFor(
+            current.request,
+            item.resumeGeneration,
+            item.nextDeliverySequence,
+          )
         : undefined;
+    if (this.stopped) return;
+    if (wake?.kind === "defer") {
+      this.scheduleDeferredWake(item, wake.notBeforeMs);
+    }
+    const pilot = wake?.kind === "wake" ? wake.pilot : undefined;
     if (current?.state === "ready" && pilot?.owns(current.binding)) {
       const { conversationId } = current.binding;
+      this.cancelDeferredWake(conversationId);
       const awaitingSuccessor = Boolean(successor && policy);
       const sendNew = !awaitingSuccessor || policy === "drain-current";
+      const generation = item.resumeGeneration ?? 0;
       let poll = this.pilotPolls.get(conversationId);
       if (
         poll?.pilot !== pilot ||
         poll.binding.epoch !== current.binding.epoch
       ) {
         this.stopPilotPoll(conversationId);
-        poll = { binding: current.binding, pilot, awaitingSuccessor, sendNew };
+        poll = {
+          binding: current.binding,
+          pilot,
+          timerToken: 0,
+          awaitingSuccessor,
+          sendNew,
+          resumeRequested: false,
+          resumeGeneration: generation,
+          singleClaimAttempt: pilot.singleClaimAttempt,
+        };
         this.pilotPolls.set(conversationId, poll);
       }
       poll.awaitingSuccessor = awaitingSuccessor;
       poll.sendNew = sendNew;
+      poll.singleClaimAttempt = pilot.singleClaimAttempt;
+      if (generation > poll.resumeGeneration) {
+        poll.resumeGeneration = generation;
+        if (poll.leaseRetry) {
+          this.clearPilotPollTimer(poll);
+          poll.leaseRetry = undefined;
+        }
+      }
+      poll.resumeRequested ||= Boolean(item.resumeGeneration);
+      if (poll.leaseRetry && poll.timer) return;
       let idle: boolean;
+      let activated = false;
       try {
         await pilot.activate(current.binding, current.request);
+        activated = true;
+        poll.leaseRetry = undefined;
+        if (this.stopped) return;
         idle = await pilot.drain(
           current.binding,
           this.coordinator,
@@ -525,9 +395,37 @@ export class DaemonExecutionRuntime {
           sendNew,
         );
       } catch (error) {
+        if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
+          if (
+            !poll.singleClaimAttempt &&
+            (poll.timer ||
+              this.schedulePilotLeaseRetry(poll, current.request, error))
+          )
+            return;
+          this.stopPilotPoll(conversationId);
+          if (poll.singleClaimAttempt) {
+            pilot.markParkFailure(error.retryAfterMs);
+            if (pilot !== this.codexOwnedPilot)
+              await pilot.close().catch(() => {});
+          } else {
+            await this.failPilotLeaseRetry(pilot, current.binding, error);
+          }
+          return;
+        }
         this.stopPilotPoll(conversationId);
+        if (!activated && !pilot.closed) {
+          pilot.markParkFailure(
+            error instanceof CodexPilotLeaseBusy
+              ? error.retryAfterMs
+              : undefined,
+          );
+          if (pilot !== this.codexOwnedPilot) {
+            await pilot.close().catch(() => {});
+          }
+        }
         throw error;
       }
+      if (this.stopped) return;
       if (idle || pilot.closed) this.stopPilotPoll(conversationId);
       else if (!poll.timer)
         this.schedulePilotPoll(pilot, poll.binding, current.request);
@@ -562,6 +460,17 @@ export class DaemonExecutionRuntime {
         }
         if (batch === 1023) throw new Error("SUCCESSOR_ACTIVATION_BATCH_LIMIT");
       }
+      this.codexOwnedPilot?.pruneParkedEpochs(
+        item.conversationId,
+        successor.binding.epoch,
+      );
+      const staleDeferred = this.deferredWakes.get(item.conversationId);
+      if (
+        staleDeferred &&
+        staleDeferred.item.currentEpoch < successor.binding.epoch
+      ) {
+        this.cancelDeferredWake(item.conversationId);
+      }
       if (
         successor.state === "ready" &&
         !ownsCodexCheckpoint(successor.binding.handle)
@@ -575,16 +484,110 @@ export class DaemonExecutionRuntime {
     await this.drain(current.binding, current.request);
   }
 
+  private cancelDeferredWake(conversationId: string): void {
+    const wake = this.deferredWakes.get(conversationId);
+    if (!wake) return;
+    clearTimeout(wake.timer);
+    this.deferredWakes.delete(conversationId);
+  }
+
+  private scheduleDeferredWake(
+    item: ExecutionWorkItem,
+    notBeforeMs: number,
+  ): void {
+    if (this.stopped) return;
+    const existing = this.deferredWakes.get(item.conversationId);
+    if (existing) {
+      existing.item = item;
+      if (existing.notBeforeMs === notBeforeMs) return;
+      clearTimeout(existing.timer);
+      this.deferredWakes.delete(item.conversationId);
+    }
+    const delayMs = Math.max(0, notBeforeMs - Date.now());
+    const entry = {
+      notBeforeMs,
+      item,
+      timer: setTimeout(() => {
+        if (this.stopped) return;
+        if (this.deferredWakes.get(item.conversationId) !== entry) return;
+        this.deferredWakes.delete(item.conversationId);
+        const next = this.workChain.then(async () => {
+          if (this.stopped) return;
+          try {
+            await this.processItem(entry.item);
+          } catch (error) {
+            this.onLog(
+              `[owned-codex] work failed for ${entry.item.conversationId}: ${String(error)}`,
+            );
+          }
+        });
+        this.workChain = next.catch(() => {});
+      }, delayMs),
+    };
+    entry.timer.unref();
+    this.deferredWakes.set(item.conversationId, entry);
+  }
+
+  private clearPilotPollTimer(
+    poll: NonNullable<ReturnType<typeof this.pilotPolls.get>>,
+  ): void {
+    clearTimeout(poll.timer);
+    poll.timer = undefined;
+    poll.timerToken += 1;
+  }
+
   private stopPilotPoll(conversationId: string): void {
-    clearTimeout(this.pilotPolls.get(conversationId)?.timer);
+    const poll = this.pilotPolls.get(conversationId);
+    if (poll) this.clearPilotPollTimer(poll);
     this.pilotPolls.delete(conversationId);
+    this.cancelDeferredWake(conversationId);
+  }
+
+  private schedulePilotLeaseRetry(
+    poll: NonNullable<ReturnType<typeof this.pilotPolls.get>>,
+    request: EnsureBindingRequest,
+    error: CodexPilotLeaseBusy,
+  ): boolean {
+    if (this.stopped) return false;
+    const attempts = (poll.leaseRetry?.attempts ?? 0) + 1;
+    if (attempts > maxPilotLeaseRetries) return false;
+    const delayMs = Math.min(
+      maxPilotLeaseRetryDelayMs,
+      Math.max(
+        error.retryAfterMs,
+        poll.leaseRetry ? poll.leaseRetry.delayMs * 2 : 250,
+      ),
+    );
+    poll.leaseRetry = { attempts, delayMs };
+    this.schedulePilotPoll(poll.pilot, poll.binding, request, delayMs);
+    return true;
+  }
+
+  private async failPilotLeaseRetry(
+    pilot: CodexOwnedPilot,
+    binding: ReadyBinding,
+    error: CodexPilotLeaseBusy,
+  ): Promise<void> {
+    await pilot
+      .failResume(binding, PILOT_RESUME_BUSY_ERROR, error.retryAfterMs, () => {
+        this.onLog(
+          `[owned-codex] resume lease retry exhausted: ${String(error)}`,
+        );
+      })
+      .catch((closeError) => {
+        this.onLog(
+          `[owned-codex] exhausted resume cleanup failed: ${String(closeError)}`,
+        );
+      });
   }
 
   private schedulePilotPoll(
     pilot: CodexOwnedPilot,
     binding: ReadyBinding,
     request: EnsureBindingRequest,
+    delay = 2_000,
   ): void {
+    if (this.stopped) return;
     const { conversationId } = binding;
     const poll = this.pilotPolls.get(conversationId);
     if (poll?.binding !== binding) return;
@@ -592,25 +595,46 @@ export class DaemonExecutionRuntime {
       this.stopPilotPoll(conversationId);
       return;
     }
+    this.clearPilotPollTimer(poll);
+    const token = poll.timerToken;
     poll.timer = setTimeout(() => {
+      if (
+        this.stopped ||
+        this.pilotPolls.get(conversationId) !== poll ||
+        poll.timerToken !== token
+      )
+        return;
+      let entered = false;
+      let activated = false;
       const next = this.workChain.then(async () => {
-        if (this.pilotPolls.get(conversationId) !== poll) return;
+        if (
+          this.stopped ||
+          this.pilotPolls.get(conversationId) !== poll ||
+          poll.timerToken !== token
+        )
+          return;
+        entered = true;
+        poll.timer = undefined;
         if (pilot.closed) {
           this.stopPilotPoll(conversationId);
           return;
         }
         await pilot.activate(binding, request);
+        activated = true;
+        poll.leaseRetry = undefined;
+        if (this.stopped) return;
         const idle = await pilot.drain(
           binding,
           this.coordinator,
           (text) => this.prepareText(text),
           poll.sendNew,
         );
-        if (!idle) return;
+        if (!idle || this.stopped) return;
         if (poll.awaitingSuccessor) {
           const work = parseWork(
             await this.controlPlane.listExecutionWork(this.handshake()),
           );
+          if (this.stopped) return;
           const item = work.find(
             (item) => item.conversationId === conversationId,
           );
@@ -618,15 +642,56 @@ export class DaemonExecutionRuntime {
         }
         this.stopPilotPoll(conversationId);
       });
-      this.workChain = next.catch((error) => {
-        if (this.pilotPolls.get(conversationId) === poll)
-          this.stopPilotPoll(conversationId);
+      this.workChain = next.catch(async (error) => {
+        if (!entered) return;
+        const activePoll =
+          !this.stopped &&
+          this.pilotPolls.get(conversationId) === poll &&
+          poll.timerToken === token;
+        if (!activePoll) {
+          this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
+          return;
+        }
+        if (
+          poll.resumeRequested &&
+          error instanceof CodexPilotLeaseBusy &&
+          !poll.singleClaimAttempt &&
+          this.schedulePilotLeaseRetry(poll, request, error)
+        )
+          return;
+        this.stopPilotPoll(conversationId);
+        if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
+          if (poll.singleClaimAttempt) {
+            pilot.markParkFailure(error.retryAfterMs);
+            if (pilot !== this.codexOwnedPilot)
+              await pilot.close().catch(() => {});
+          } else {
+            await this.failPilotLeaseRetry(pilot, binding, error);
+          }
+          return;
+        }
+        if (!activated && !pilot.closed) {
+          pilot.markParkFailure(
+            error instanceof CodexPilotLeaseBusy
+              ? error.retryAfterMs
+              : undefined,
+          );
+          if (pilot !== this.codexOwnedPilot) {
+            await pilot.close().catch(() => {});
+          }
+        }
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });
-      void this.workChain.then(() =>
-        this.schedulePilotPoll(pilot, binding, request),
-      );
-    }, 2_000);
+      void this.workChain.then(() => {
+        if (
+          !this.stopped &&
+          this.pilotPolls.get(conversationId) === poll &&
+          poll.timerToken === token &&
+          !poll.timer
+        )
+          this.schedulePilotPoll(pilot, binding, request);
+      });
+    }, delay);
     poll.timer.unref();
   }
 
@@ -688,4 +753,10 @@ export function getProcessExecutionRuntime(
 ): DaemonExecutionRuntime {
   processRuntime ??= new DaemonExecutionRuntime(options);
   return processRuntime;
+}
+
+export function forgetProcessExecutionConversation(
+  conversationId: string,
+): void {
+  processRuntime?.forgetConversation(conversationId);
 }

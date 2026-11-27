@@ -1,3 +1,7 @@
+import {
+  enrollLocalCodexLaunch,
+  launchPromptId,
+} from "./lib/fenced-session-launch.state";
 import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { v, type ObjectType, type Validator } from "convex/values";
 import { predictionPatch } from "./predictions";
@@ -5748,12 +5752,7 @@ export async function spawnSessionForTask(
       ? worktreeNameFor(task.external.identifier) || undefined
       : undefined);
 
-  // Single canonical writer: stamps owner_user_id for the daemon's delivery poll and flips
-  // has_pending_messages. The task session is the launcher's own, so owner == sender.
-  const taskConversation = await ctx.db.get(conversationId);
-  await enqueuePendingMessage(ctx, taskConversation, userId, { content });
-
-  await enqueueStartSession(ctx, userId, {
+  const start = {
     conversationId,
     agentType: daemonAgentType,
     projectPath: project_path || git_root,
@@ -5768,7 +5767,18 @@ export async function spawnSessionForTask(
     targetDeviceId: opts.target_device_id,
     definition: asDef.definition,
     callerUserId: opts.caller_user_id,
+  };
+
+  const enrolled = await enrollLocalCodexLaunch(ctx, userId, start);
+  // Single canonical writer: stamps owner_user_id for the daemon's delivery poll and flips
+  // has_pending_messages. The task session is the launcher's own, so owner == sender.
+  const taskConversation = await ctx.db.get(conversationId);
+  await enqueuePendingMessage(ctx, taskConversation, userId, {
+    content,
+    client_id: launchPromptId(taskConversation, "task"),
   });
+
+  if (!enrolled) await enqueueStartSession(ctx, userId, start);
 
   // S7: tell the provider issue that a session took it, exactly once per
   // spawn. Written as a normal task comment and pushed outward by the same

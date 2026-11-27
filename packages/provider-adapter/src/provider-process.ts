@@ -402,6 +402,16 @@ export function spawnProvider(
     release,
     releaseOutcome: () => releaseResult.promise,
     terminate: () => stopGroup(child.pid),
+    processGone: () => {
+      try {
+        process.kill(-child.pid, 0);
+        return false;
+      } catch (error) {
+        return (
+          error instanceof Error && "code" in error && error.code === "ESRCH"
+        );
+      }
+    },
     exit,
   };
 }

@@ -8,3 +8,4 @@ export * from "./runtime-rail.js";
 export * from "./drivers/managedTmux.js";
 export * from "./drivers/codex-app-server.js";
 export { createCodexOwnedPilot } from "./codex-owned-pilot.js";
+export { registerCodexExecutionDriver } from "./codex-pilot-settings.js";

@@ -2395,11 +2395,10 @@ async function performProvisionRoleCore(
       briefTemplate(role),
     );
   if (!role.trust) patch.trust = defaultTrustFor(role);
-  const agentType = args.agent_type
-    ? normalizeBackend(args.agent_type) === "claude"
-      ? "claude_code"
-      : normalizeBackend(args.agent_type)
+  const backend = args.agent_type
+    ? normalizeBackend(args.agent_type)
     : undefined;
+  const agentType = backend === "claude" ? "claude_code" : backend;
   const provisioned = await provisionStandingAgent(
     ctx,
     args.host_user_id ?? userId,
@@ -2411,6 +2410,7 @@ async function performProvisionRoleCore(
       model: args.model,
       agent_type: agentType as any,
       target_device_id: args.target_device_id,
+      transfersPendingTurns: !!args.carry_from,
       role: {
         _id: role._id,
         bootstrap,

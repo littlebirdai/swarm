@@ -12,6 +12,11 @@ import {
 
 test("startup claim failure leaves legacy work running and the pilot retries a busy claim on the next updates", async () => {
   const f = fixture();
+  const realNow = Date.now;
+  let offsetMs = 0;
+  const nowSpy = spyOn(Date, "now").mockImplementation(
+    () => realNow() + offsetMs,
+  );
   try {
     f.claimResponses.push(
       new Response(null, { status: 503 }),
@@ -23,9 +28,17 @@ test("startup claim failure leaves legacy work running and the pilot retries a b
     expect(f.actions).toContain("subscribed");
     expect(f.actions).toContain("legacy-start:legacy:1");
     expect(f.actions).toContain("legacy-deliver:legacy:1:1");
-    await f.runtime.processWorkUpdate(work);
+    offsetMs += 5_000;
+    await f.runtime.processWorkUpdate([
+      { ...item(f.pilotRequest), nextDeliverySequence: 1 },
+      item(f.legacyRequest),
+    ]);
     expect(f.actions).toContain("legacy-deliver:legacy:1:2");
-    await f.runtime.processWorkUpdate(work);
+    offsetMs += 10_000;
+    await f.runtime.processWorkUpdate([
+      { ...item(f.pilotRequest), nextDeliverySequence: 2 },
+      item(f.legacyRequest),
+    ]);
     expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
       3,
     );
@@ -38,6 +51,7 @@ test("startup claim failure leaves legacy work running and the pilot retries a b
     expect(f.actions).not.toContain("claim-delivery:pilot:1");
     expect(f.actions).not.toContain("edge:release");
   } finally {
+    nowSpy.mockRestore();
     await f.dispose();
   }
 });

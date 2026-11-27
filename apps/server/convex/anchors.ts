@@ -1,3 +1,4 @@
+import { enqueueStartSession } from "./devices";
 import {
   insertConversationWithStatus,
   patchConversationLifecycle,
@@ -12,7 +13,7 @@ import {
 } from "./privacy";
 import { activeTeamMembershipFor } from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
-import { enqueueStartSession } from "./devices";
+import { enqueueFreshLocalSession } from "./lib/fenced-session-launch.state";
 import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 import { killConversation } from "./conversations";
 import {
@@ -283,6 +284,7 @@ export type ProvisionStandingAgentOpts = {
   // The machine a new standing session starts on (a fresh restart keeps the old seat's).
   target_device_id?: string;
   bootstrap?: boolean;
+  transfersPendingTurns?: boolean;
   // Role provisioning: the role row and the extra bootstrap frame. `adopt` is
   // an existing conversation row that BECOMES the standing session
   // (org-staffing.md S6): no new session is started, the row is re-identified
@@ -562,7 +564,10 @@ export async function provisionStandingAgent(
       short_id: conversationId.toString().slice(0, 7),
     });
 
-    await enqueueStartSession(ctx, hostUserId, {
+    const start = args.transfersPendingTurns
+      ? enqueueStartSession
+      : enqueueFreshLocalSession;
+    await start(ctx, hostUserId, {
       conversationId,
       agentType: fromConvexAgentType(agentType),
       projectPath: args.project_path,

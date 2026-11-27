@@ -5,8 +5,6 @@ import ts from "typescript";
 const convexDir = join(import.meta.dir, "../../../apps/server/convex");
 const legacySites: Readonly<Record<string, number>> = {
   "cloud.ts:placeConversation": 1,
-  "subagentFleet.ts:startSpawnedSession": 1,
-  "tasks.ts:spawnSessionForTask": 1,
 };
 type Signature = { position: number; positional?: true };
 const enqueueFunctions = new Map<string, Signature>([

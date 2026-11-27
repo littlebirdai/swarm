@@ -74,6 +74,7 @@ export function createEffectAdapter(
                   ? Promise.resolve(false)
                   : facade.run(owned.checkLiveness(), signal),
             }),
+            ...("processGone" in owned && { processGone: owned.processGone }),
             recoveredReceipts: owned.recoveredReceipts,
             events: {
               [Symbol.asyncIterator](): ProviderEventIterator {
