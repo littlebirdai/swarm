@@ -646,6 +646,7 @@ export function collectActionFieldLocks(
     const base = {
       key, storeKey, ts: entry.ts ?? 0,
       ...(entry.lock !== undefined ? { lock: entry.lock } : {}),
+      ...(entry.untilDispatchSettles ? { untilDispatchSettles: true as const } : {}),
       ...(prevPending[key] ? { priorLock: prevPending[key] } : {}),
     };
     if (entry.type === "field") {
@@ -695,6 +696,7 @@ export function releaseActionFieldLocks(
   state: Record<string, any>,
   locks: ActionFieldLock[],
   refusedLock?: (key: string, entry: PendingEntry) => ActionFieldLock | undefined,
+  settledExclude?: (entry: PendingEntry) => boolean,
 ): {
   pending: Record<string, PendingEntry>;
   slices: Record<string, any>;
@@ -728,6 +730,7 @@ export function releaseActionFieldLocks(
     if (priorLock && priorLock.type === "field" && hidden.some((v) => echoes(v, priorLock!.value))) {
       priorLock = undefined;
     }
+    if (priorLock && settledExclude?.(priorLock)) priorLock = undefined;
     if (priorLock) {
       // It carries on what the server said meanwhile, for its own refusal.
       pending[lock.key] = priorLock.type === "field" ? hidden.reduce(lockSaw, priorLock) : priorLock;
@@ -813,6 +816,7 @@ export function generateAutoPending(
     prevState: Record<string, any>;
     nextState: Record<string, any>;
   },
+  actionExcludes?: readonly { storeKey: string; id: string }[],
 ): Record<string, any> | null {
   let result: Record<string, any> | null = null;
   const now = Date.now();
@@ -874,6 +878,10 @@ export function generateAutoPending(
       lock: newLockId(),
       ...(ack !== undefined ? { hideAck: ack } : {}),
     };
+  }
+  for (const { storeKey, id } of actionExcludes ?? []) {
+    if (!result) result = { ...currentPending };
+    result[`${storeKey}:${id}`] = { type: "exclude", ts: now, lock: newLockId(), untilDispatchSettles: true };
   }
   return result;
 }
@@ -1224,6 +1232,31 @@ export function mutativeMiddleware(
 
     // `droppedOutboxId`: an overtaken send dropped on failure, whose history
     // moves only if a rollback later steps back past it (droppedSendOf).
+    const settledExcludes = new Set<string>();
+    const releaseAcceptedExcludes = (locks: ActionFieldLock[]) => {
+      const exclusions = locks.filter((lock) => lock.untilDispatchSettles);
+      if (!exclusions.length) return;
+      const state = get();
+      const current = state.pending as Record<string, PendingEntry>;
+      const released = exclusions.filter((lock) => sameLock(current[lock.key], lock));
+      for (const lock of exclusions) {
+        if (lock.lock) settledExcludes.add(lock.lock);
+      }
+      for (const id of settledExcludes) {
+        if (settledExcludes.size <= 256) break;
+        settledExcludes.delete(id);
+      }
+      if (released.length === 0) return;
+      const pending = { ...current };
+      for (const lock of released) delete pending[lock.key];
+      set({ ...state, pending }, true);
+      if (idbWriteFn) {
+        void Promise.resolve(idbWriteFn([{ op: "replace", path: ["pending"], value: pending }], get())).catch((error) => {
+          console.error("[local-first] failed to persist delivered exclusions", error);
+        });
+      }
+      platformConfig.onActionExcludesReleased?.(released);
+    };
     const releaseRefusedLocks = (actionName: string, locks: ActionFieldLock[], outboxId?: string, droppedOutboxId?: string) => {
       // The undo history names its entries by the dispatch that carried them.
       if (outboxId) markUndoOutboxRefused(outboxId);
@@ -1239,7 +1272,9 @@ export function mutativeMiddleware(
         }
         return lock;
       };
-      const released = releaseActionFieldLocks(state, locks, stepPast);
+      const released = releaseActionFieldLocks(state, locks, stepPast, (entry) =>
+        !!entry.untilDispatchSettles && !!entry.lock && settledExcludes.has(entry.lock),
+      );
       if (!released) return;
       const next: Record<string, any> = { pending: released.pending, ...released.slices };
       const patches: Patch[] = [{ op: "replace", path: ["pending"], value: released.pending }];
@@ -1258,7 +1293,13 @@ export function mutativeMiddleware(
           patches.push({ op: "replace", path: [storeKey], value: slice });
         }
       }
+      const expiredExcludes = locks.filter((lock) =>
+        lock.untilDispatchSettles &&
+        sameLock(state.pending?.[lock.key], lock) &&
+        !released.pending[lock.key]?.untilDispatchSettles,
+      );
       set({ ...state, ...next }, true);
+      if (expiredExcludes.length) platformConfig.onActionExcludesReleased?.(expiredExcludes);
       if (idbWriteFn) {
         void Promise.resolve(idbWriteFn(patches, get())).catch((error) => {
           console.error(`[local-first] failed to persist refused "${actionName}" rollback`, error);
@@ -1282,6 +1323,10 @@ export function mutativeMiddleware(
           console.error(`[local-first] replication tee failed (refused ${actionName})`, error);
         }
       }
+    };
+
+    const releaseDroppedExcludes = (action: string, locks: ActionFieldLock[]) => {
+      releaseRefusedLocks(action, locks.filter((lock) => lock.untilDispatchSettles));
     };
 
     const rejectReceiptWaiter = (entryId: string, error: unknown) => {
@@ -1548,6 +1593,7 @@ export function mutativeMiddleware(
               `[store] dropping ${Math.round((Date.now() - entry.ts) / 86_400_000)}d-old parked "${entry.action}" — too stale to replay`,
               entry.args,
             );
+            releaseDroppedExcludes(entry.action, entry.locks ?? []);
             void retireOutboxEntry(entry.id, null);
             return false;
           }
@@ -1630,6 +1676,7 @@ export function mutativeMiddleware(
                 continue;
               }
             }
+            releaseAcceptedExcludes(entry.locks ?? []);
             await capturedRemove?.(entry.id);
           } catch (e) {
             if (e instanceof StaleDispatchBindingError) return;
@@ -1949,6 +1996,7 @@ export function mutativeMiddleware(
         }
         const promise = dispatched.then(async (r) => {
           assertDispatchCurrent(capturedDispatch);
+          releaseAcceptedExcludes(fieldLocks);
           await retireOutboxEntry(outboxId, enqueued);
           void drainOutbox(false);
           return r;
@@ -1964,12 +2012,19 @@ export function mutativeMiddleware(
             releaseRefusedLocks(key, fieldLocks, outboxId);
             await retireOutboxEntry(outboxId, enqueued);
             void drainOutbox(false);
-          }
-          // Its reversal is already on the server: a replay of this row would
-          // land after it and undo the undo, so the row goes.
-          if (e instanceof DispatchOvertakenError) {
+          } else if (e instanceof DispatchOvertakenError) {
+            // Its reversal is already on the server: a replay of this row would
+            // land after it and undo the undo, so the row goes.
             await retireOutboxEntry(outboxId, enqueued);
             void drainOutbox(false);
+          } else if (fieldLocks.some((lock) => lock.untilDispatchSettles)) {
+            if (enqueued) {
+              void enqueued.catch(() => {
+                if (capturedDispatch === dispatchBinding) releaseDroppedExcludes(key, fieldLocks);
+              });
+            } else {
+              releaseDroppedExcludes(key, fieldLocks);
+            }
           }
           throw e;
         });
@@ -1991,7 +2046,10 @@ export function mutativeMiddleware(
           enqueued.catch(() => {
             parkedOutboxIds.delete(outboxId);
             parkedCells.delete(outboxId);
+            releaseDroppedExcludes(key, fieldLocks);
           });
+        } else {
+          releaseDroppedExcludes(key, fieldLocks);
         }
         console.warn(`[sync] dispatch not wired; ${enqueued ? `enqueueing "${key}" for later delivery` : `"${key}" was dropped (no outbox)`}`);
         // An asyncAction promises its caller the server result. Returning
@@ -2095,6 +2153,7 @@ export function mutativeMiddleware(
             hideAckFields,
             maps.isUnprotectedField,
             { kindOf: syncKindOf, rowKeyOf: syncRowKeyOf, prevState: state, nextState },
+            platformConfig.actionExcludesUntilSettled?.(key, actionArgs),
           );
           if (newPending) {
             fieldLocks = collectActionFieldLocks(state.pending ?? {}, newPending, state, syncRowKeyOf);

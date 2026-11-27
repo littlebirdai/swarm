@@ -1,3 +1,4 @@
+import { docArchivePending } from "../doc-detail-cache";
 import { timedDocCapsEnabled } from "../cache-eviction";
 import {
   deferredCacheReadsEnabled,
@@ -251,6 +252,13 @@ export async function loadCache(
         for (const row of rows) {
           if (validRow && !validRow(row)) {
             invalid.push(row._id);
+            continue;
+          }
+          if (
+            key === "docDetails" &&
+            docArchivePending(hydrateCtx.pending, row._id)
+          ) {
+            shadow.set(row._id, { _id: row._id, workspace: row.workspace });
             continue;
           }
           const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;

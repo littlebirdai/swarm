@@ -1,7 +1,9 @@
 import { relayGrantAction } from "./relay-grant-action";
 import * as deferredCache from "./deferred-cache-policy";
-import { timedDocCapsEnabled } from "./cache-eviction";
-import { resetDetailInvalidations } from "./doc-detail-cache";
+import {
+  docArchivePending,
+  resetDetailInvalidations,
+} from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
   cancelResourceBatch,
@@ -15243,8 +15245,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
     ids: string[],
   ) {
     for (const id of ids) {
-      if (this.pending[`${collection}:${id}`]?.type === "exclude")
-        delete this.pending[`${collection}:${id}`];
+      const key = `${collection}:${id}`;
+      const entry = this.pending[key];
+      if (entry?.type === "exclude" && !entry.untilDispatchSettles)
+        delete this.pending[key];
       if (
         collection === "sessions" &&
         this.pending[`conversations:${id}`]?.type === "exclude"
@@ -17381,6 +17385,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // not an action: the fold has to wrap the inner action's own commit.
   syncTable(field: string, incoming: any, opts?: SyncOpts) {
     syncTransaction(() => {
+      if (field === "docDetails" && Array.isArray(incoming))
+        incoming = incoming.filter(
+          (row) => !docArchivePending(get().pending, row._id),
+        );
       const split = DETAIL_SPLITS[field];
       if (split && Array.isArray(incoming)) {
         const out = splitDetailRows(split, incoming, (get() as any)[split.key]);
@@ -17728,6 +17736,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // action's own write.
   syncRecord(field: string, id: string, record: any) {
     syncTransaction(() => {
+      if (field === "docDetails" && docArchivePending(get().pending, id))
+        return;
       const split = DETAIL_SPLITS[field];
       if (split && record && typeof record === "object") {
         const out = splitDetailRows(split, [record], (get() as any)[split.key]);
@@ -20749,13 +20759,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
   }),
   archiveDoc: action(function (this: Draft, id: string) {
     deferredCache.noteDeferredDocEdit(id, "archive");
-    const key = `docs:${id}`;
-    if (
-      timedDocCapsEnabled() &&
-      !this.docs[id] &&
-      this.pending[key]?.type !== "exclude"
-    )
-      this.pending[key] = { type: "exclude", ts: Date.now() };
     delete this.docs[id];
     delete this.docDetails[id];
   }),

@@ -1,3 +1,5 @@
+import { timedDocCapsEnabled } from "./cache-eviction";
+import { invalidateDetailReads } from "./doc-detail-cache";
 import { captureException } from "./pendingInputError";
 import { outboxAccountId, persistPendingMessageChanges } from "./idb-cache";
 // Codecast's binding of the @platform/engine middleware. The engine owns the
@@ -625,6 +627,12 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverActions: MUST_DELIVER_ACTIONS,
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
+  actionExcludesUntilSettled: (action, [id]) =>
+    action === "archiveDoc" && typeof id === "string" && timedDocCapsEnabled()
+      ? [{ storeKey: "docs", id }]
+      : undefined,
+  onActionExcludesReleased: (locks) =>
+    invalidateDetailReads(locks.map((lock) => lock.recordId)),
   outboxAccountId,
   outboxCoalesceKeys: OUTBOX_COALESCE_KEYS,
   transformReplayPatches: stripStalePointerFromReplay,
