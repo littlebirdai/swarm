@@ -1,10 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   classifyClaudeResumeFatalReason,
+  executeCommandBatch,
+  setSyncServiceForTests,
   getInitialManagedSessionId,
   shouldMaterializeFreshClaudeSession,
   shouldStartBlankSessionAfterResumeFailure,
 } from "./daemon.js";
+import { CloudAgentSessions } from "./cloudAgents/sessions.js";
+import { SyncService } from "./syncService.js";
 
 describe("getInitialManagedSessionId", () => {
   test("uses the expected conversation session id for fresh Claude sessions", () => {
@@ -41,4 +45,67 @@ describe("getInitialManagedSessionId", () => {
     ).toBe(false);
     expect(shouldStartBlankSessionAfterResumeFailure(null)).toBe(true);
   });
+});
+
+test("daemon cloud starts queue the prompt under the command's delivery ID", async () => {
+  const service = new SyncService({ convexUrl: "https://test.convex.cloud" });
+  const projectInfo = spyOn(service, "getProjectInfo").mockResolvedValue(null);
+  const status = spyOn(service, "updateSessionAgentStatus").mockResolvedValue(
+    true,
+  );
+  const enqueue = spyOn(service, "enqueueUserMessage").mockResolvedValue(
+    "queued",
+  );
+  const start = spyOn(CloudAgentSessions.prototype, "start").mockResolvedValue(
+    undefined,
+  );
+  const fetch = spyOn(globalThis, "fetch").mockImplementation((async (url) => {
+    switch (new URL(String(url)).pathname) {
+      case "/cli/command-claim":
+        return Response.json({ claimed: true });
+      case "/cli/command-result":
+        return Response.json({ ok: true });
+      default:
+        throw new Error(`Unexpected request: ${url}`);
+    }
+  }) as typeof globalThis.fetch);
+  setSyncServiceForTests(service);
+  try {
+    const args = JSON.stringify({
+      conversation_id: "cloud-session",
+      project_path: "/workspace",
+      agent_type: "cursor",
+      model: "cloud",
+      prompt: "Review the changes",
+    });
+    const commands = ["cloud-start-1", "cloud-start-2"].map((id) => ({
+      id,
+      command: "start_session",
+      args,
+    }));
+    const config = {
+      convex_url: "https://test.convex.cloud",
+      auth_token: "test",
+    };
+    await executeCommandBatch(commands, config, "TEST");
+    await executeCommandBatch(commands, config, "TEST");
+    expect(enqueue.mock.calls).toEqual([
+      [
+        "cloud-session",
+        "Review the changes",
+        "cloud-launch:cloud-start-1",
+        { human: true },
+      ],
+      [
+        "cloud-session",
+        "Review the changes",
+        "cloud-launch:cloud-start-2",
+        { human: true },
+      ],
+    ]);
+  } finally {
+    setSyncServiceForTests(null);
+    for (const spy of [projectInfo, status, enqueue, start, fetch])
+      spy.mockRestore();
+  }
 });

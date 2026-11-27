@@ -1672,7 +1672,7 @@ async function waitOnStation(
         await cliCall(options, "/cli/messages/send", {
           to: conversationId,
           ...(options.runSession ? { from: options.runSession } : {}),
-          client_id: `${subjectSendKey(options, context, `handoff:${node.id}`)}:${conversationId}:${pinned?.at ?? row.message_count ?? 0}`,
+          client_id: `${subjectSendKey(options, context, `handoff:${node.id}`)}:${context["station_attempt"]}:${conversationId}`,
           body: `The run reads this session as finished, but ${options.taskId} has no handoff from it, and this station's next step routes on the handoff. If work you started is still running (a backgrounded check, a replay), pin \`cast state --status dormant\` naming what you wait on and end your turn: the run waits for your wake. When the work is done, or cannot be done, end with \`cast task handoff ${options.taskId} --status done|blocked|needs_context\` as your brief says.`,
           wake: true,
         });
@@ -3491,6 +3491,7 @@ async function driveRun(
     cwd,
     options,
     parker,
+    resumeAt?.continuingVisit,
   );
 
   // An exit with `stop` ends the run on purpose, in the graph's own words for why.
@@ -3693,6 +3694,7 @@ async function runNodeLoop(
   cwd: string,
   options: RunOptions,
   parker?: SubjectParker,
+  continuingVisit = false,
 ): Promise<WorkflowNode> {
   let current: WorkflowNode = startNode;
 
@@ -3724,6 +3726,13 @@ async function runNodeLoop(
     state.context[`${current.id}.visits`] = String(visits);
     // A station's own id as the graph runs it (a segment's station is `<node>__<id>`), for a script that reports on itself.
     state.context["station_id"] = current.id;
+    const previousAttempt = Number(state.context["station_attempt"] ?? 0);
+    state.context["station_attempt"] = String(
+      continuingVisit && previousAttempt
+        ? previousAttempt
+        : previousAttempt + 1,
+    );
+    continuingVisit = false;
 
     if (current.max_visits !== undefined && visits > current.max_visits) {
       console.log(

@@ -4,7 +4,6 @@ import ts from "typescript";
 
 const convexDir = join(import.meta.dir, "../../../apps/server/convex");
 const legacySites: Readonly<Record<string, number>> = {
-  "anchors.ts:provisionStandingAgent": 1,
   "cloud.ts:placeConversation": 1,
   "subagentFleet.ts:startSpawnedSession": 1,
   "tasks.ts:spawnSessionForTask": 1,

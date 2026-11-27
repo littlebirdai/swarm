@@ -2931,6 +2931,7 @@ export class SyncService {
   /** What a merge_back command did with a worker's worktree (subagentFleet.reportMergeBack). */
   async reportMergeBack(args: {
     conversation_id: string;
+    attempt?: number;
     state: "merged" | "empty" | "conflict" | "failed";
     files?: string[];
     reason?: string;

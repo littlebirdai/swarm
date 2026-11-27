@@ -1,9 +1,9 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { setupRunLease } from "../test-helpers/run-lease.testkit";
+import { machine, setupRunLease } from "../test-helpers/run-lease.testkit";
 import { api, internal } from "./_generated/api";
-import { applyMergeBackReport } from "./subagentFleet";
+import { applyMergeBackReport, subagentEnded } from "./subagentFleet";
 import { provisionStandingAgent } from "./anchors";
 import { notifyStuckSend } from "./pendingMessages";
 
@@ -242,3 +242,85 @@ test("a repeated merge-back report does not send twice to a fenced parent", asyn
     ),
   ).toBe(true);
 });
+
+test("a regular fenced session can become a role and receive its bootstrap", async () => {
+  const f = await setupRunLease();
+  const role = await f.t.run(({ db }) =>
+    fixtureRows(db, "fenced role adoption").role(f.owner, {
+      scope_user_id: f.owner,
+    }),
+  );
+  expect(
+    (await f.t.run(({ db }) => db.get(f.conversation)))?.anchor_id,
+  ).toBeUndefined();
+
+  const viewer = asUser(f.t, f.owner);
+  const request = { role_id: role, adopt_conversation_id: f.conversation };
+  const adopted = await viewer.mutation(api.orgRoles.provision, request);
+  expect(adopted).toMatchObject({
+    conversation_id: f.conversation,
+    adopted: true,
+  });
+  expect(await viewer.mutation(api.orgRoles.provision, request)).toMatchObject({
+    conversation_id: f.conversation,
+    already_existed: true,
+  });
+
+  const rows = await f.t.run(({ db }) =>
+    db
+      .query("pending_messages")
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", f.conversation),
+      )
+      .collect(),
+  );
+  const bootstrapId = `anchor-bootstrap:${role}:${f.conversation}`;
+  expect(rows.filter((row) => row.delivery_id === bootstrapId)).toMatchObject([
+    { client_id: bootstrapId, execution_epoch: 1 },
+  ]);
+});
+
+test.each([
+  ["failed", "done", "other-machine"],
+  ["kept", "blocked", machine],
+] as const)(
+  "a resumed worker sends both direct %s reports",
+  async (state, outcome, ownerDevice) => {
+    const f = await setupRunLease();
+    const worker = await f.t.run(async ({ db }) => {
+      await db.patch(f.conversation, { project_path: "/checkout" });
+      return fixtureRows(db, "resumed worker").conversation(f.owner, {
+        parent_conversation_id: f.conversation,
+        merge_back_on_done: true,
+        worktree_path: "/worktree",
+        owner_device_id: ownerDevice,
+      });
+    });
+    const settle = () =>
+      f.t.run(async (ctx) =>
+        subagentEnded(ctx, await ctx.db.get(worker), outcome),
+      );
+    jest.useFakeTimers();
+    try {
+      await settle();
+      await settle();
+      expect(await f.t.run(({ db }) => db.get(worker))).toMatchObject({
+        merge_back: { state },
+        merge_back_attempt: 2,
+      });
+      const rows = await f.t.run(({ db }) =>
+        db.query("pending_messages").collect(),
+      );
+      expect(
+        rows
+          .filter((row) => row.from_conversation_id === worker)
+          .map((row) => row.delivery_id),
+      ).toEqual([
+        `merge-back:${worker}:attempt:1`,
+        `merge-back:${worker}:attempt:2`,
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  },
+);

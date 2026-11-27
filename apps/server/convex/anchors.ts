@@ -612,6 +612,7 @@ export async function provisionStandingAgent(
   if (args.bootstrap !== false) {
     const conversation = await ctx.db.get(conversationId);
     await enqueuePendingMessage(ctx, conversation, hostUserId, {
+      client_id: `anchor-bootstrap:${args.role?._id ?? anchorId}:${conversationId}`,
       content: bootstrapMessage({
         name,
         scopeType: args.scope_type,

@@ -141,6 +141,7 @@ describe("the fleet cap", () => {
       conversation_id: a.conversation_id,
       worktree_path: "/repo/.codecast/worktrees/w1",
       target_path: "/repo",
+      attempt: 1,
     });
     expect((await w.db.get(a.conversation_id)).merge_back.state).toBe(
       "pending",
