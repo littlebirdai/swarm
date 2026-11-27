@@ -1,3 +1,4 @@
+import { api } from "./_generated/api";
 import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
 import { presentToken } from "@platform/auth/tokenFormat";
 import { hashToken } from "./apiTokens";
@@ -266,4 +267,92 @@ test("admission errors return only the public unavailable response", async () =>
   expect(await t.run(({ db }) => db.query("ip_rate_limits").collect())).toEqual(
     [],
   );
+});
+
+test("hello advertises an opt-in RSS budget and heartbeat invalidates a changed budget", async () => {
+  const env = "CODECAST_EDGE_MEMORY_PARKING_BYTES";
+  const saved = process.env[env];
+  const { post } = await provision();
+  try {
+    delete process.env[env];
+    const original = await (await post("hello", hello)).json();
+    expect(original.policy).not.toHaveProperty("parking");
+    process.env[env] = "536870912";
+    const configured = await (await post("hello", hello)).json();
+    expect(configured.policy.parking).toEqual({
+      agent_rss_budget_bytes: 536_870_912,
+    });
+    expect(configured.policy.revision).not.toBe(original.policy.revision);
+    process.env[env] = "1073741824";
+    const beat = await (await post("heartbeat", heartbeat)).json();
+    expect(beat.policy_revision).not.toBe(configured.policy.revision);
+  } finally {
+    if (saved === undefined) delete process.env[env];
+    else process.env[env] = saved;
+  }
+});
+
+test("the parking interlock refuses turns, prompts, delivery and a different device", async () => {
+  const { t, user } = await provision();
+  const { conversation, session } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "parking safety");
+    const conversation = await rows.conversation(user, {
+      owner_device_id: machine,
+    });
+    const session = await rows.session(user, {
+      conversation_id: conversation,
+      session_id: "session",
+      agent_status: "idle",
+    });
+    return { conversation, session };
+  });
+  const canPark = (sessionId = "session") =>
+    t.query(api.edgeLink.canParkSession, {
+      bearer,
+      conversation_id: conversation,
+      session_id: sessionId,
+    });
+  expect(await canPark()).toEqual({ status: "allowed" });
+  expect(await canPark("other")).toEqual({
+    status: "refused",
+    reason: "session",
+  });
+  await t.run(({ db }) => db.patch(session, { agent_status: "working" }));
+  expect(await canPark()).toEqual({ status: "refused", reason: "turn" });
+  const prompt = await t.run(async ({ db }) => {
+    await db.patch(session, { agent_status: "idle" });
+    return db.insert("pending_permissions", {
+      conversation_id: conversation,
+      session_id: "session",
+      tool_name: "Bash",
+      arguments_preview: "",
+      status: "pending",
+      created_at: start,
+    });
+  });
+  expect(await canPark()).toEqual({ status: "refused", reason: "prompt" });
+  const delivery = await t.run(async ({ db }) => {
+    await db.patch(prompt, { status: "approved" });
+    return db.insert("pending_messages", {
+      conversation_id: conversation,
+      from_user_id: user,
+      content: "queued",
+      status: "injected",
+      created_at: start,
+      retry_count: 0,
+    });
+  });
+  expect(await canPark()).toEqual({ status: "refused", reason: "delivery" });
+  await t.run(async ({ db }) => {
+    await db.delete(delivery);
+    await db.patch(conversation, { owner_device_id: "different-device" });
+  });
+  expect(await canPark()).toEqual({ status: "refused", reason: "ownership" });
+  await t.run(({ db }) =>
+    db.patch(conversation, {
+      owner_device_id: machine,
+      execution_protocol_state: "fenced",
+    }),
+  );
+  expect(await canPark()).toEqual({ status: "refused", reason: "protocol" });
 });

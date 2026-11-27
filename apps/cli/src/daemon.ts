@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as memoryParking from "./memory-parking.js";
 import {
   commandLogContext,
   executeRemoteCommand,
@@ -263,15 +264,22 @@ import {
   DEFAULT_HIBERNATE_IDLE_MS,
   DEFAULT_MAX_LIVE_SESSIONS,
   HIBERNATE_MAX_PER_PASS,
-  HIBERNATE_REFUSAL_BACKOFF_MS,
   HIBERNATE_RESUME_GRACE_MS,
   agentForeignDescendants,
   hibernationBlockReason,
   parkTargetsBeyondAgent,
-  selectHibernationCandidates,
+  pruneHibernationRefusals,
+  rememberHibernationRefusal,
+  runHibernationSelection,
   type HibernationCandidate,
-  type HibernationPolicy,
+  type HibernationRetry,
 } from "./hibernation.js";
+import type {
+  HibernationBoundary,
+  HibernationPassIo,
+  HibernationTarget,
+} from "./hibernation-io.js";
+export type { HibernationPassIo, HibernationTarget } from "./hibernation-io.js";
 import {
   scanOpenBackgroundTasksInto,
   type OpenTaskInfo,
@@ -26826,6 +26834,12 @@ async function runHeartbeatMaintenance(): Promise<void> {
     heartbeatHealthCheck(sessionId, reverse).catch(() => {}),
   );
 
+  if (Number.isFinite(REAP_EVERY_N_FLUSHES)) {
+    if (memoryParking.enabled() && tick % REAP_EVERY_N_FLUSHES !== 0)
+      await runHibernationPass({}, true).catch((e) =>
+        log(`[HIBERNATE] pass error: ${String(e)}`),
+      );
+  }
   // Conservative reap of long-idle orphan terminals — gentle (capped per pass)
   // and logged to a dedicated reaper.log. See reapIdleOrphanTerminals.
   if (tick % REAP_EVERY_N_FLUSHES === 0) {
@@ -28838,26 +28852,6 @@ async function reapIdleOrphanTerminals(): Promise<void> {
 // Every dependency goes through an injected io so the test can drive the fleet
 // without a real one. The production io below is the only place that touches
 // tmux, the transcript or Convex.
-export type HibernationTarget = {
-  session: string;
-  pane: string;
-  /** The PANE's own process, which the tmux boundary checks before the kill. */
-  pid: number;
-  /** The agent process itself, which every identity check is made against. */
-  agentPid: number;
-  start: string;
-  stamp: string;
-  conversationStamp: string;
-};
-
-type HibernationBoundary = {
-  target: HibernationTarget;
-  terminal(args: string[]): Promise<{ stdout: string }>;
-  revalidate(): Promise<boolean>;
-  unchanged(): boolean;
-  beginCommit(): boolean;
-};
-
 type HibernationReservation = {
   done: Promise<void>;
   cancelled: boolean;
@@ -29212,7 +29206,11 @@ function hibernationLocalUnchanged(
     !managedHeartbeatSessions.has(cand.sessionId)
   )
     return false;
-  if (knownAgentStatus(cand.sessionId) !== cand.status) return false;
+  if (
+    io.promptOpen?.(cand.sessionId) ||
+    knownAgentStatus(cand.sessionId) !== cand.status
+  )
+    return false;
   const cachedConv = io.conversationIds()[cand.sessionId];
   if (cachedConv && cachedConv !== cand.conversationId) return false;
   const fresh = {
@@ -29355,7 +29353,7 @@ async function attemptHibernation(
     )
     .catch((err) => {
       log(`[HIBERNATE] refused ${cand.sessionId}: ${String(err)}`);
-      return "evidence-unavailable";
+      return memoryParking.parkingEvidenceFailure(err);
     })
     .finally(() => {
       abandonedEvidenceJobs.delete(work);
@@ -29476,6 +29474,7 @@ async function parkHibernationTerminal(
     ]);
     if (stdout.trim() !== "parked") return false;
     killed = true;
+    sessionProcessCache.delete(sessionId);
     expected.phase = "parked";
     delete expected.replayStop;
     const remaining = await boundary
@@ -29530,47 +29529,10 @@ async function parkHibernationTerminal(
   return true;
 }
 
-export type HibernationPassIo = {
-  attemptTimeoutMs?: number;
-  terminal(args: string[]): Promise<{ stdout: string }>;
-  policy(): HibernationPolicy;
-  /** tmux session name to the number of clients attached to it. */
-  tmuxSessions(): Promise<Map<string, number>>;
-  awakeIdleMs(sessionId: string): number;
-  /** Since a subagent of this session last wrote. Infinity when it has none. */
-  subagentActiveAgoMs(sessionId: string): number;
-  /** session id to conversation id, read once per pass. */
-  conversationIds(): Record<string, string>;
-  askSidecarMtimeMs(sessionId: string): Promise<number | null>;
-  transcriptLastRealMs(sessionId: string): Promise<number | null>;
-  lifecycle(
-    conversationId: string,
-    sessionId: string,
-  ): Promise<ConversationLifecycle | null>;
-  /** False when the session runs inside another session's process tree. */
-  canReapPidTree(sessionId: string): boolean | Promise<boolean>;
-  /** True when work is reaching this session right now. Read again at the kill. */
-  deliveryActive(
-    sessionId: string,
-    conversationId: string | undefined,
-  ): boolean;
-  /** True when the pane is gone; false when the kill-time recheck refused it. */
-  inspectTarget(
-    sessionId: string,
-    tmux: string,
-    conversationId: string,
-  ): Promise<HibernationTarget | null>;
-  park(
-    sessionId: string,
-    tmux: string,
-    convId: string | undefined,
-    idleHours: number,
-    boundary: HibernationBoundary,
-  ): Promise<boolean>;
-  now(): number;
-};
-
 const productionHibernationIo: HibernationPassIo = {
+  get ownedCodex() {
+    return codexOwnedPilot;
+  },
   terminal: (args) => tmuxExec(args, { timeout: 3000, killSignal: "SIGKILL" }),
   policy: () => ({
     // The cached config, never readConfig: that is a synchronous file read and
@@ -29667,6 +29629,7 @@ export function trackSessionPaneForTests(
 ): void {
   if (tmux === null) {
     resumeSessionCache.delete(sessionId);
+    sessionProcessCache.delete(sessionId);
     managedHeartbeatSessions.delete(sessionId);
     forgetHibernationPark(sessionId);
     lastSentAgentStatus.delete(sessionId);
@@ -29735,7 +29698,11 @@ async function collectHibernationCandidates(
   const convCache = io.conversationIds();
   const candidates: HibernationCandidate[] = [];
   for (const [sessionId, tmux] of resumeSessionCache) {
-    if (!managedHeartbeatSessions.has(sessionId)) continue;
+    if (
+      !managedHeartbeatSessions.has(sessionId) ||
+      io.ownedCodex?.ownsThread(sessionId)
+    )
+      continue;
     const attached = attachedByTmux.get(tmux);
     if (attached === undefined) continue; // no live pane: nothing to park
     const convId = convCache[sessionId];
@@ -29778,6 +29745,7 @@ async function hibernationRefusalReason(
 ): Promise<string | null> {
   const blocked = hibernationBlockReason(cand);
   if (blocked) return blocked;
+  if (io.promptOpen?.(cand.sessionId)) return "pending-question";
 
   const sidecarMtimeMs = await io.askSidecarMtimeMs(cand.sessionId);
   if (sidecarMtimeMs !== null) {
@@ -29787,6 +29755,13 @@ async function hibernationRefusalReason(
   }
   if (!cand.conversationId) return "conversation-unknown";
   const lifecycle = await io.lifecycle(cand.conversationId, cand.sessionId);
+  if (io.parkingRefusal) {
+    const refusal = await io.parkingRefusal(
+      cand.conversationId,
+      cand.sessionId,
+    );
+    if (refusal) return refusal;
+  }
   if (!lifecycle) return "lifecycle-unknown";
   if (lifecycle.hideStateKnown !== true || lifecycle.source !== "lifecycle")
     return "lifecycle-degraded";
@@ -29871,10 +29846,7 @@ async function migrateLegacyPanesToFleet(
   const candidates = await collectHibernationCandidates(io);
   if (!candidates) return 0;
   const now = Date.now();
-  for (const [sessionId, at] of hibernationRefusedAt) {
-    if (now - at >= HIBERNATE_REFUSAL_BACKOFF_MS)
-      hibernationRefusedAt.delete(sessionId);
-  }
+  const refusedRecently = pruneHibernationRefusals(hibernationRetryAt, now);
   const skips: string[] = [];
   const known = new Set(candidates.map((c) => c.tmux));
   for (const id of legacy) if (!known.has(id)) skips.push("no-candidate");
@@ -29909,7 +29881,7 @@ async function migrateLegacyPanesToFleet(
         ? "no-transcript"
         : ago < FLEET_MIGRATE_IDLE_MS
           ? "turn-within-1h"
-          : hibernationRefusedAt.has(c.sessionId)
+          : refusedRecently.has(c.sessionId)
             ? "refused-recently"
             : hibernationBlockReason(c);
     if (reason) skips.push(reason);
@@ -29926,13 +29898,19 @@ async function migrateLegacyPanesToFleet(
   for (const cand of picks) {
     const refusal = await attemptHibernation(cand, io);
     if (refusal) {
-      hibernationRefusedAt.set(cand.sessionId, now);
+      rememberHibernationRefusal(
+        hibernationRetryAt,
+        cand.sessionId,
+        refusal,
+        now,
+      );
       reaperLog(
         `fleet migration: ${cand.sessionId.slice(0, 8)} refused: ${refusal}`,
         false,
       );
       continue;
     }
+    hibernationRetryAt.delete(cand.sessionId);
     const resumed = await autoResumeSession(
       cand.sessionId,
       "",
@@ -29954,68 +29932,49 @@ async function migrateLegacyPanesToFleet(
   return moved;
 }
 
-// When the gates last refused each session, so the next passes offer their
-// picks to someone else (HIBERNATE_REFUSAL_BACKOFF_MS). Memory only: a restart
-// costs one pass of repeated refusals, which is what every pass cost before.
-const hibernationRefusedAt = new Map<string, number>();
+const hibernationRetryAt = new Map<string, HibernationRetry>();
 
 // `io` overrides only the parts a test needs; everything else stays real, so
 // the end-to-end test runs the actual tmux listing and the actual teardown.
 export async function runHibernationPass(
   overrides: Partial<HibernationPassIo> = {},
+  memoryOnly = false,
 ): Promise<number> {
   const io: HibernationPassIo = { ...productionHibernationIo, ...overrides };
-  const policy = io.policy();
+  const policy = { ...io.policy() };
+  if (memoryOnly) policy.maxLive = policy.idleMs = 0;
+  const budget =
+    memoryParking.enabled() && (await edgeLink)?.memoryParkingBudget();
+  if (budget && !policy.memory)
+    policy.memory = await memoryParking.sampleParkingMemory(
+      budget,
+      memoryParking.parkingMemoryRoots(sessionProcessCache, io.ownedCodex),
+      log,
+    );
+  if (!memoryParking.underPressure(policy.memory)) delete policy.memory;
+  if (policy.memory) {
+    io.parkingRefusal ??= memoryParking.interlock(syncServiceRef, getAuthToken);
+    io.promptOpen ??= (id) =>
+      [
+        openPermissionDialogs,
+        permissionRecordPending,
+        codexPermissionPending,
+      ].some((open) => open.has(id));
+  }
   // Both knobs off is the shipping default: no tmux call, no log line, nothing.
-  if (policy.maxLive <= 0 && policy.idleMs <= 0) return 0;
+  if (policy.maxLive <= 0 && policy.idleMs <= 0 && !policy.memory) return 0;
   if (!hasTmux()) return 0;
-
   const candidates = await collectHibernationCandidates(io);
   if (candidates === null) return 0; // tmux unreachable: no facts, so no kills
   if (candidates.length === 0) return 0;
 
-  const passAt = Date.now();
-  for (const [sessionId, at] of hibernationRefusedAt) {
-    if (passAt - at >= HIBERNATE_REFUSAL_BACKOFF_MS)
-      hibernationRefusedAt.delete(sessionId);
-  }
-  const { picked, skips } = selectHibernationCandidates(
-    candidates,
-    policy,
-    new Set(hibernationRefusedAt.keys()),
-  );
-  if (policy.dryRun) {
-    const would: string[] = [];
-    for (const cand of picked) {
-      const refusal = await previewHibernation(cand, io);
-      if (refusal) {
-        skips.push(refusal);
-        hibernationRefusedAt.set(cand.sessionId, passAt);
-      } else
-        would.push(
-          `${cand.sessionId.slice(0, 8)}@${Math.round(cand.awakeIdleMs / 3600000)}h`,
-        );
-    }
-    reaperLog(
-      `hibernation DRY RUN: ${candidates.length} live, cap=${policy.maxLive}, would park ${would.length}${would.length ? ` (${would.join(", ")})` : ""}, skipped: ${summarizeReapSkips(skips)}`,
-      false,
-    );
-    return 0;
-  }
-  let hibernated = 0;
-  for (const cand of picked) {
-    const refusal = await attemptHibernation(cand, io);
-    if (refusal) {
-      skips.push(refusal);
-      hibernationRefusedAt.set(cand.sessionId, passAt);
-    } else hibernated++;
-  }
-  // File-only, like the reaper's pass line: this fires every ~5 min.
-  reaperLog(
-    `hibernation pass: ${candidates.length} live, cap=${policy.maxLive}, hibernated ${hibernated}, skipped: ${summarizeReapSkips(skips)}`,
-    false,
-  );
-  return hibernated;
+  return runHibernationSelection(candidates, policy, hibernationRetryAt, {
+    now: io.now,
+    preview: (cand) => previewHibernation(cand, io),
+    attempt: (cand) => attemptHibernation(cand, io),
+    report: (message, skips) =>
+      reaperLog(`${message}, skipped: ${summarizeReapSkips(skips)}`, false),
+  });
 }
 
 // Reads the last ~64KB of a file as UTF-8 without loading the whole thing --
@@ -31622,13 +31581,26 @@ const LIVENESS_RECONCILE_INTERVAL_MS = 120_000; // 2 min — conservative; daemo
 //
 // Cheap by construction: one Convex query + one `tmux list-panes -a`, then a
 // bounded process-tree walk only for rows whose tmux session is actually live.
-export async function reconcileSessionLiveness(): Promise<void> {
-  if (process.platform !== "darwin") return;
+export async function reconcileSessionLiveness(
+  platform = process.platform,
+): Promise<void> {
+  if (
+    platform !== "darwin" &&
+    !(platform === "linux" && memoryParking.enabled())
+  )
+    return;
   if (!syncServiceRef) return;
   if (isInWakeGrace()) return;
 
   const catalog = await syncServiceRef.listManagedSessions();
   if (!catalog || catalog.length === 0) return;
+
+  const pending = catalog.filter(
+    ({ session_id }) =>
+      !sessionProcessCache.has(session_id) &&
+      !codexOwnedPilot?.ownsThread(session_id),
+  );
+  if (!pending.length) return;
 
   // session_name -> pane_pid for every live pane, in one call.
   const paneByTmux = new Map<string, { pid: number; tty: string }>();
@@ -31646,11 +31618,6 @@ export async function reconcileSessionLiveness(): Promise<void> {
       }
     } catch {}
   }
-
-  // Rows needing resolution (skip ones collectResourceSnapshot already tracks).
-  const pending = catalog.filter(
-    (row) => !sessionProcessCache.has(row.session_id),
-  );
 
   // Resolve agent pids with bounded concurrency — each resolution is a
   // process-tree walk (pgrep), and doing ~160 sequentially stalls for tens of
@@ -32282,8 +32249,10 @@ async function autoResumeSession(
       agentTypeHint,
       resumeOpts,
     );
-    if (resumed && resumeInFlight.get(sessionId) === promise)
-      clearHibernationPark(sessionId, conversationId);
+    if (resumed && resumeInFlight.get(sessionId) === promise) {
+      const refresh = clearHibernationPark(sessionId, conversationId, true);
+      if (refresh) await refresh;
+    }
     return resumed;
   });
   resumeInFlight.set(sessionId, promise);
@@ -32431,6 +32400,11 @@ export const hibernationConcurrencyForTests = {
   resumeInFlight,
   resumeInFlightStarted,
   autoResumeSession,
+  agentProcessPid,
+  openPermissionDialogs,
+  setEdgeLink: (link: typeof edgeLink) => {
+    edgeLink = link;
+  },
   accountLifecycleGate,
   hibernationInFlight,
   hibernationEvidenceJobs,
@@ -32539,7 +32513,17 @@ function retryHibernationStamps(): void {
 export function clearHibernationPark(
   sessionId: string,
   conversationId?: string,
-): void {
+  resumed = false,
+): Promise<boolean | null | void> | void {
+  const pane =
+    resumed &&
+    memoryParking.enabled() &&
+    !codexOwnedPilot?.ownsThread(sessionId)
+      ? resumeSessionCache.get(sessionId)
+      : undefined;
+  const refresh = pane
+    ? tmuxAgentLiveness(pane, sessionId).catch(() => {})
+    : undefined;
   expectedHibernationExits.delete(sessionId);
   const parking = hibernationInFlight.get(sessionId);
   if (parking) parking.cancel();
@@ -32550,7 +32534,7 @@ export function clearHibernationPark(
   );
   const convId = conversationId ?? readConversationCache()[sessionId];
   if (!wasParked && convId && hibernationStampCleared.get(sessionId) === convId)
-    return;
+    return refresh;
   const pending = pendingHibernationStamps.get(sessionId);
   if (
     pending?.at === null &&
@@ -32564,6 +32548,7 @@ export function clearHibernationPark(
     reaperLog(
       `WOKE session=${sessionId.slice(0, 8)} conv=${(convId || "?").slice(0, 12)}`,
     );
+  return refresh;
 }
 
 /**
@@ -36533,7 +36518,14 @@ async function tmuxAgentLiveness(
       { timeout: 3000, killSignal: "SIGKILL" },
     ));
   } catch {}
-  return classifyTmuxLiveness({ panePid, agent, pane });
+  const live = classifyTmuxLiveness({ panePid, agent, pane });
+  if (live && sessionId && typeof agent === "number" && memoryParking.enabled())
+    cacheSessionProcess(
+      sessionId,
+      { pid: agent, tty: "", sessionId },
+      tmuxSession,
+    );
+  return live;
 }
 
 // Walk a process tree (BFS, bounded depth) and return the first agent process

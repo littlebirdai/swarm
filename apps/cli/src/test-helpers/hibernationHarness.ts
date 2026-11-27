@@ -7,6 +7,7 @@ import {
   SETTLE_VERDICT_STATUSES,
 } from "@codecast/sessions/agentStatus";
 import * as policy from "../hibernation.js";
+import * as memoryParking from "../memory-parking.js";
 import { functionBlock } from "./sourceRegion.js";
 import { withTmuxSession } from "../tmuxRoute.js";
 import { releasePromptHold } from "../pendingPromptHold.js";
@@ -108,6 +109,7 @@ export function createHibernationHarness() {
     readConversationCache: () => ({}),
     // No hook status files in this world: the status is what the daemon last sent.
     agentStatusOnDisk: () => undefined,
+    memoryParking: { ...memoryParking, enabled: () => false },
     productionHibernationIo: Object.fromEntries(
       [
         "policy",
@@ -144,7 +146,7 @@ export function createHibernationHarness() {
     "tmuxTargetLocks",
     "hibernationInFlight",
     "hibernationEvidenceJobs",
-    "hibernationRefusedAt",
+    "hibernationRetryAt",
     "expectedHibernationExits",
     "pendingHibernationStamps",
     "hibernationStampCleared",

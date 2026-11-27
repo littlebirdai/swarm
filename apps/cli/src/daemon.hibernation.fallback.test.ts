@@ -277,6 +277,17 @@ describe("dry run reports without parking", () => {
       .map((e) => String(e.args[0] ?? ""))
       .join("\n");
 
+  test("the parking IO excludes an owned Codex thread before reading park evidence", async () => {
+    const { h, io, calls } = fixture();
+    io.ownedCodex = {
+      ownsThread: (id) => id === "session",
+      getProcessId: () => undefined,
+    };
+    io.inspectTarget = async () => target;
+    expect(await h.runHibernationPass(io)).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
   test("a session that passes every gate is named, and nothing is killed", async () => {
     const { h, io, calls } = fixture();
     io.policy = () => ({ maxLive: 1, idleMs: 1, maxPerPass: 5, dryRun: true });

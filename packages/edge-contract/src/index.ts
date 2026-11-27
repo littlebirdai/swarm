@@ -35,6 +35,7 @@ export {
   type HelloResponse,
   type HeartbeatRequest,
   type HeartbeatResponse,
+  type ParkingInterlockResult,
   type PolicyGetRequest,
   type PolicyGetResponse,
 } from "./link";

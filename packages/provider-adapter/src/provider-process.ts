@@ -384,6 +384,10 @@ export function spawnProvider(
   }
 
   return {
+    getProcessId: () =>
+      child.exitCode === null && child.signalCode === null
+        ? child.pid
+        : undefined,
     frames,
     fence: () => {
       closing = true;
