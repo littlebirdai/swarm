@@ -11,6 +11,16 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { pending } from "../../test-helpers/testConvex";
 import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import { act } from "react";
+import { StagePinTile } from "../../components/calls/StagePinTile";
+import { ScopeCharterTab } from "../../components/org/scope/ScopeTabs";
+import type { OrgRole } from "../../components/org/orgTypes";
+import { useMySends } from "../useMySends";
+import { useDeferredCache } from "../use-deferred-cache";
+import {
+  replicationChannelName,
+  replicationTransport,
+} from "../../store/storage-transport";
+import { startSyncReplication } from "../../store/sync-replication";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { useInboxStore } from "../../store/inboxStore";
@@ -21,10 +31,11 @@ import {
   resetDetailInvalidations,
   setDetailInvalidationReporter,
 } from "../../store/doc-detail-cache";
-import { useSyncDocDetail } from "../use-sync-docs";
+import { useSyncDocDetail, useSyncDocsPaginated } from "../use-sync-docs";
 
 const flag = "VITE_CACHE_EVICTION_METADATA";
 const original = process.env[flag];
+const originalDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
 const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
@@ -32,6 +43,9 @@ afterEach(() => {
   resetDetailInvalidations();
   if (original === undefined) delete process.env[flag];
   else process.env[flag] = original;
+  if (originalDeferred === undefined)
+    delete process.env.VITE_DEFERRED_CACHE_BOOT;
+  else process.env.VITE_DEFERRED_CACHE_BOOT = originalDeferred;
 });
 
 function Body() {
@@ -337,6 +351,295 @@ test.each(["0", "1"])(
       await act(async () => disk.resolve({ docDetails: { [id]: row } }));
       expect(ui.container.textContent).toBe("No body");
     } finally {
+      input.mockRestore();
+      await ui.close();
+    }
+  },
+);
+
+async function mountDeferred(
+  owner: string,
+  boot?: Parameters<typeof mountWeb>[1],
+) {
+  const ui = await mountWeb(null, {
+    ...boot,
+    authenticated: true,
+    setup(backend, store) {
+      localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(owner));
+      backend.set(api.taskMining.webGetDocDetail, pending);
+      backend.set(api.docSync.getPresence, []);
+      backend.set(api.assistant.incidents.thinkingAvailable, pending);
+      boot?.setup?.(backend, store);
+    },
+  });
+  authPrincipal.check();
+  expect(await authPrincipal.resolve()).toBe(owner);
+  return ui;
+}
+
+function Sends() {
+  const { rows, ready } = useMySends();
+  return (
+    <p>
+      {ready
+        ? rows.map((send) => send.text).join(",") || "Empty sends"
+        : "Loading sends"}
+    </p>
+  );
+}
+
+const stage = (
+  <StagePinTile
+    share={{
+      key: id,
+      identity: id,
+      name: "Doc",
+      kind: "pin",
+      pin: {
+        _id: id,
+        ref: id,
+        kind: "doc",
+        doc_id: id,
+        title: "Doc",
+        readable: true,
+      },
+    }}
+  />
+);
+const charter = (
+  <ScopeCharterTab
+    role={{ charter_doc_id: id } as OrgRole}
+    charter=""
+    backHref="/"
+    canEdit
+    onUpdateCharter={() => {}}
+  />
+);
+
+test.each(["stage", "charter", "sends"] as const)(
+  "the %s reader keeps its loading state until its deferred rows arrive",
+  async (reader) => {
+    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+    const disk = Promise.withResolvers<Record<string, unknown>>();
+    const key = reader === "sends" ? "mySends" : "docDetails";
+    const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+      async (keys) =>
+        keys?.length === 1 && keys[0] === key ? disk.promise : null,
+    );
+    const ui = await mountDeferred(`deferred-wait-${reader}`, {
+      setup(backend, store) {
+        const { content: _content, ...thin } = row;
+        store.syncRecord("docs", id, thin);
+        backend.set(api.userSends.mine, { rows: [], nextBefore: null });
+      },
+    });
+    try {
+      await ui.rerender(
+        reader === "stage" ? stage : reader === "charter" ? charter : <Sends />,
+      );
+      if (reader === "sends") {
+        expect(ui.container.textContent).toBe("Loading sends");
+      } else {
+        const selector =
+          reader === "stage"
+            ? '[role="status"][aria-label="Loading"]'
+            : '[aria-busy="true"]';
+        expect(ui.container.querySelector(selector)).not.toBeNull();
+        expect(!!ui.container.querySelector(".doc-editor")).toBe(false);
+        expect(
+          ui.backend.queryRequests.some(
+            ({ name }) => name === "docSync:getPresence",
+          ),
+        ).toBe(false);
+      }
+      await act(async () =>
+        disk.resolve(
+          reader === "sends"
+            ? {
+                mySends: {
+                  example: {
+                    _id: "example",
+                    timestamp: 10,
+                    text: "Held send",
+                  },
+                },
+              }
+            : { docDetails: { [id]: row } },
+        ),
+      );
+      if (reader === "sends")
+        expect(ui.container.textContent).toBe("Held send");
+      else if (reader === "stage") {
+        expect(ui.container.querySelector(".doc-editor")).not.toBeNull();
+        expect(ui.store.getState().docDetails[id]?.content).toBe(row.content);
+      } else expect(ui.container.textContent).toContain(row.content);
+    } finally {
+      input.mockRestore();
+      await ui.close();
+    }
+  },
+);
+
+function Prefetch() {
+  useSyncDocsPaginated({ workspace: "personal" });
+  return null;
+}
+
+test("doc body prefetch waits for cached bodies and fetches only the missing ones", async () => {
+  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+  const disk = Promise.withResolvers<Record<string, unknown>>();
+  const missing = "k".repeat(32);
+  const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+    async (keys) =>
+      keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
+  );
+  const ui = await mountDeferred("deferred-prefetch", {
+    setup(backend) {
+      const { content: _content, ...thin } = row;
+      backend.set(api.docs.webListPaginated, {
+        page: [thin, { ...thin, _id: missing }],
+        continueCursor: "",
+        isDone: true,
+      });
+      backend.set(api.docs.webGetBodies, { bodies: [] });
+    },
+  });
+  const bodyQueries = () =>
+    ui.backend.queryRequests.filter(
+      (request) => request.name === "docs:webGetBodies",
+    );
+  try {
+    ui.store.setState({
+      clientStateInitialized: true,
+      currentUser: { _id: "deferred-prefetch" },
+      syncLogScopeStamps: { "user:deferred-prefetch": 0 },
+    });
+    await ui.rerender(<Prefetch />);
+    expect(input.mock.calls.some(([keys]) => keys?.[0] === "docDetails")).toBe(
+      true,
+    );
+    expect(bodyQueries()).toEqual([]);
+    await act(async () => disk.resolve({ docDetails: { [id]: row } }));
+    expect(bodyQueries().map(({ args }) => args)).toEqual([{ ids: [missing] }]);
+  } finally {
+    input.mockRestore();
+    await ui.close();
+  }
+});
+
+test.each(["archive", "pin", "update"] as const)(
+  "a local %s wins over the deferred document snapshot",
+  async (action) => {
+    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+    const disk = Promise.withResolvers<Record<string, unknown>>();
+    const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+      async (keys) =>
+        keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
+    );
+    const ui = await mountDeferred(`deferred-${action}`, {
+      setup(_backend, store) {
+        const { content: _content, ...thin } = row;
+        if (action !== "archive") store.syncRecord("docs", id, thin);
+        store._setDispatch(async () => null);
+      },
+    });
+    try {
+      await ui.rerender(<Body />);
+      await act(async () => {
+        const store = ui.store.getState();
+        if (action === "archive") await store.archiveDoc(id);
+        if (action === "pin") await store.pinDoc(id, true);
+        if (action === "update")
+          await store.updateDoc(id, { content: "Edited body" });
+        expect(store.docDetails[id]).toBeUndefined();
+      });
+      await act(async () => disk.resolve({ docDetails: { [id]: row } }));
+      const detail = ui.store.getState().docDetails[id];
+      if (action === "archive") expect(detail).toBeUndefined();
+      if (action === "pin")
+        expect(detail).toMatchObject({ pinned: true, content: row.content });
+      if (action === "update") expect(detail?.content).toBe("Edited body");
+    } finally {
+      input.mockRestore();
+      await ui.close();
+    }
+  },
+);
+
+function DeferredProbe() {
+  const ready = useDeferredCache("docDetails");
+  return <p>{ready ? "Ready" : "Waiting"}</p>;
+}
+
+test("an empty deferred table is read once across repeated mounts", async () => {
+  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+  const input = spyOn(cacheStorage, "loadCache").mockResolvedValue(null);
+  const ui = await mountDeferred("deferred-empty");
+  try {
+    for (let count = 0; count < 2; count++) {
+      await ui.rerender(<DeferredProbe />);
+      expect(ui.container.textContent).toBe("Ready");
+      await ui.rerender(null);
+    }
+    expect(
+      input.mock.calls.filter(([keys]) => keys?.[0] === "docDetails"),
+    ).toHaveLength(1);
+  } finally {
+    input.mockRestore();
+    await ui.close();
+  }
+});
+
+test.each([false, true])(
+  "a follower cannot reload a document absent from the host snapshot (disk read already started: %s)",
+  async (started) => {
+    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+    const owner = "deferred-follower";
+    const peer = replicationTransport(replicationChannelName(owner), "host");
+    const disk = Promise.withResolvers<Record<string, unknown>>();
+    const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+      async (keys) =>
+        keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
+    );
+    const ui = await mountDeferred(owner);
+    const restore = replaceGlobals({ navigator: { locks: { request() {} } } });
+    const joined = Promise.withResolvers<void>();
+    const liveId = "k".repeat(32);
+    peer.channel.onMessage((message) => {
+      if (message.type !== "hello") return;
+      peer.channel.post({
+        type: "snapshot",
+        to: message.from,
+        hostId: "host",
+        seq: 1,
+        entries: { docDetails: { [liveId]: { ...row, _id: liveId } } },
+      });
+    });
+    let stop = () => {};
+    const unsubscribe = ui.store.subscribe((state) => {
+      if (state.syncRole === "follower") joined.resolve();
+    });
+    try {
+      if (started) await ui.rerender(<Body />);
+      await act(async () => {
+        stop = startSyncReplication({ eligible: false, principalId: owner });
+      });
+      if (!started) await ui.rerender(<Body />);
+      await act(async () => joined.promise);
+      await act(async () => disk.resolve({ docDetails: { [id]: row } }));
+      await act(async () => flushSyncPublishes());
+      expect(ui.store.getState().docDetails[id]).toBeUndefined();
+      expect(ui.store.getState().docDetails[liveId]).toBeDefined();
+      expect(ui.container.textContent).toBe("No body");
+      expect(
+        input.mock.calls.filter(([keys]) => keys?.[0] === "docDetails"),
+      ).toHaveLength(started ? 1 : 0);
+    } finally {
+      unsubscribe();
+      await ui.rerender(null);
+      stop();
+      restore();
+      peer.close();
       input.mockRestore();
       await ui.close();
     }

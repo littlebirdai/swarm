@@ -1,6 +1,8 @@
 import {
   deferredCacheReadsEnabled,
+  deferredSharedCacheSource,
   HYDRATION_EAGER_DEFERRED_KEYS,
+  HYDRATION_ON_READ_KEYS,
 } from "../deferred-cache-policy";
 import { authPrincipal } from "../../lib/authPrincipal";
 import {
@@ -10,6 +12,7 @@ import {
   partitionSessionRetention,
 } from "../cacheRetention";
 import {
+  REPLICATED_STORE_KEYS,
   collectionRowHydrator,
   collectionRowValidator,
   HYDRATION_CRITICAL_READ_KEYS,
@@ -63,7 +66,10 @@ async function readRetainedMySends() {
     const newer = latest.filter((row) => row.timestamp > cutoff);
     const tied = await table.where("timestamp").equals(cutoff).toArray();
     const remaining = MAX_CACHED_MY_SENDS - newer.length;
-    if (epoch === authPrincipal.epoch()) {
+    if (
+      epoch === authPrincipal.epoch() &&
+      deferredSharedCacheSource() === "disk"
+    ) {
       await table.where("timestamp").below(cutoff).delete();
       if (remaining < tied.length)
         await table.bulkDelete(tied.slice(remaining).map((row) => row._id));
@@ -124,6 +130,13 @@ export async function loadCache(
     const metaKeys = (keys ?? [...META_KEYS]).filter((key) =>
       META_KEYS.has(key),
     );
+    const onRead =
+      deferredCacheReadsEnabled() &&
+      keys?.length === 1 &&
+      HYDRATION_ON_READ_KEYS.has(keys[0]);
+    const shadowAtRead = onRead
+      ? new Map(lastPersisted.get(keys[0]))
+      : undefined;
     const [collectionResults, metaRows, pending] = await Promise.all([
       Promise.all(
         collectionEntries.map(([key, table]) =>
@@ -148,7 +161,13 @@ export async function loadCache(
           )
         : undefined,
     ]);
-    if (epoch !== authPrincipal.epoch()) return null;
+    if (
+      epoch !== authPrincipal.epoch() ||
+      (onRead &&
+        REPLICATED_STORE_KEYS.includes(keys[0]) &&
+        deferredSharedCacheSource() !== "disk")
+    )
+      return null;
     if (!retiredMetaSwept) {
       retiredMetaSwept = true;
       void db.meta.bulkDelete(RETIRED_META_KEYS).catch(() => {});
@@ -172,6 +191,9 @@ export async function loadCache(
       // the first write after hydrate diffs against reality and can prune rows
       // the server has since deleted.
       const shadow = new Map<string, any>();
+      const current = onRead ? lastPersisted.get(key) : undefined;
+      const unchanged = (id: string) =>
+        !onRead || current?.get(id) === shadowAtRead?.get(id);
       const validRow = collectionRowValidator(key);
       // Trim rows on the way in (see hydrateRow in the registry). Trimmed rows
       // are written straight back so disk shrinks with memory; the shadow then
@@ -204,7 +226,7 @@ export async function loadCache(
       if (retain && rows.length > 0) {
         const { keep, drop } = retain(rows, Date.now());
         rows = keep;
-        if (drop.length) void deleteInBatches(table, drop);
+        if (drop.length) void deleteInBatches(table, drop.filter(unchanged));
       }
       if (rows.length > 0) {
         const map: Record<string, any> = {};
@@ -226,9 +248,18 @@ export async function loadCache(
         result[key] = {};
         hasData = true;
       }
-      if (invalid.length) table.bulkDelete(invalid).catch(() => {});
-      if (trimmed.length) table.bulkPut(trimmed).catch(() => {});
-      lastPersisted.set(key, shadow);
+      if (invalid.length)
+        table.bulkDelete(invalid.filter(unchanged)).catch(() => {});
+      if (trimmed.length)
+        table
+          .bulkPut(trimmed.filter((row) => unchanged(row._id)))
+          .catch(() => {});
+      if (current) {
+        for (const [id, row] of shadow)
+          if (!current.has(id) && !shadowAtRead?.has(id)) current.set(id, row);
+      } else {
+        lastPersisted.set(key, shadow);
+      }
     });
 
     for (const row of metaRows) {

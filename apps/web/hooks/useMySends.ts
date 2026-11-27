@@ -1,4 +1,4 @@
-import { deferredCacheRead, useDeferredCache } from "./use-deferred-cache";
+import { useDeferredCache } from "./use-deferred-cache";
 // What the viewer typed into sessions, newest first: the Messages feed's data.
 //
 // The rows live in `mySends` (store/clientSyncRegistry), persisted, and the
@@ -62,7 +62,7 @@ export function useMySends(): {
   loadingOlder: boolean;
   loadOlder: () => void;
 } {
-  useDeferredCache("mySends");
+  const cacheReady = useDeferredCache("mySends");
   const convex = useConvex();
   const authSettled = useServerAuthSettled();
   const coll = useInboxStore((s) => (s as any).mySends) as
@@ -132,13 +132,13 @@ export function useMySends(): {
   }, [fetchPage]);
 
   useWatchEffect(() => {
-    if (!authSettled) return;
+    if (!authSettled || !cacheReady) return;
     // History can grow below a known end (the log is backfilled), so each
     // visit re-confirms it with one page when the walk gets there.
     useInboxStore.getState().setFeedCursor(END_KEY, null);
     let cancelled = false;
     const run = async () => {
-      await (deferredCacheRead("mySends") ?? sleep(50));
+      await sleep(50);
       if (cancelled) return;
       const st = useInboxStore.getState();
       const heldBefore = new Set(heldRows().map((r) => r._id));
@@ -205,11 +205,11 @@ export function useMySends(): {
     return () => {
       cancelled = true;
     };
-  }, [authSettled, fetchPage]);
+  }, [authSettled, cacheReady, fetchPage]);
 
   return {
     rows,
-    ready: rows.length > 0 || tail.ready,
+    ready: rows.length > 0 || (cacheReady && tail.ready),
     hasMore,
     loadingOlder,
     loadOlder,

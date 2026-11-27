@@ -8,7 +8,7 @@ import { ExternalLink, FileText, Globe, Lock, PinOff } from "lucide-react";
 import { isArtifactDocType, type ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { StagePinRow } from "../../hooks/useStagePins";
-import { useSyncDocDetail } from "../../hooks/use-sync-docs";
+import { useSyncDocDetailWithCache } from "../../hooks/use-sync-docs";
 import { LiveArtifactEmbed } from "../live/LiveArtifactEmbed";
 import { CollabDocEditor } from "../editor/CollabDocEditor";
 import { PublishedPageEmbed } from "../PublishedPageEmbed";
@@ -238,14 +238,16 @@ function PinHead({ row, toolbar }: { row: StagePinRow; toolbar?: ReactNode }) {
 
 /** A prose doc, editable together: the same collaborative editor as its page. */
 function ProseDoc({ id }: { id: string }) {
-  const detailResult = useSyncDocDetail(id);
-  const detail = useInboxStore((s: any) => s.docDetails[id] ?? s.docs[id]) as
+  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id);
+  const detail = useInboxStore((s) => s.docDetails[id]) as
     | { content?: string; title?: string }
     | undefined;
+  const listContent = useInboxStore((s) => s.docs[id]?.content);
+  const content = detail?.content ?? listContent;
   // The same mentions and image drops as the doc's own page.
   const onMentionQuery = useMentionQuery(useActiveMentionScope());
   const onImageUpload = useImageUpload();
-  if (!detail && detailResult === undefined)
+  if (content === undefined && (!cacheReady || detailResult === undefined))
     return <AppLoader className="h-full" />;
   return (
     <div className="h-full overflow-y-auto px-6 py-4">
@@ -253,11 +255,11 @@ function ProseDoc({ id }: { id: string }) {
         <CollabDocEditor
           key={id}
           docId={id}
-          markdownContent={detail?.content ?? ""}
+          markdownContent={content ?? ""}
           onMentionQuery={onMentionQuery}
           onImageUpload={onImageUpload}
           editable
-          contentReady={!!detail}
+          contentReady={content !== undefined}
           placeholder="Write together…"
         />
       </div>

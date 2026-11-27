@@ -3,6 +3,7 @@ import {
   panelReplicationTransport,
   scopedSnapshotSource,
 } from "./desktop-panel-transport";
+import { setDeferredSharedCacheSource } from "./deferred-cache-policy";
 import type { Patch } from "mutative";
 import {
   cacheEvictionEnabled,
@@ -705,6 +706,7 @@ export function startSyncReplication(opts: {
         if (keys) persistence.discardSkipped();
         else persistence.persistSkipped();
         details?.enterSolo();
+        setDeferredSharedCacheSource("disk");
         setRole("host");
       }
     }, SOLO_FALLBACK_MS);
@@ -720,6 +722,7 @@ export function startSyncReplication(opts: {
         if (synced) {
           if (soloTimer) clearTimeout(soloTimer);
           setRole("follower");
+          setDeferredSharedCacheSource("replica");
           // The host persists the shared slice; nothing skipped is owed.
           persistence.discardSkipped();
           (useInboxStore.getState() as any)._setIDBWrite(
@@ -727,6 +730,7 @@ export function startSyncReplication(opts: {
           );
           setActionTee(followerActionTee(channel, selfId));
         } else {
+          setDeferredSharedCacheSource("joining");
           armSoloFallback();
         }
       },
@@ -756,8 +760,10 @@ export function startSyncReplication(opts: {
     // Straight to disk, not through the tee: followers already have the data.
     persistence.persistSkipped();
     details?.promote();
+    setDeferredSharedCacheSource("disk");
   };
 
+  setDeferredSharedCacheSource("joining");
   startFollower();
 
   if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);
@@ -773,6 +779,7 @@ export function startSyncReplication(opts: {
     transport.close();
     const internals = useInboxStore.getState() as any;
     setActionTee(null);
+    setDeferredSharedCacheSource("disk");
     // Whatever role we were in, leave the window as a self-sufficient host
     // (today's behavior): write-through restored, feeders gate open.
     internals._setIDBWrite(

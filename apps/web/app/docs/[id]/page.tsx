@@ -8,7 +8,7 @@ import {
   type DocItem,
 } from "../../../store/inboxStore";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
-import { useSyncDocDetail } from "../../../hooks/use-sync-docs";
+import { useSyncDocDetailWithCache } from "../../../hooks/use-sync-docs";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
 import { DetailSplitLayout } from "../../../components/DetailSplitLayout";
 import { AuthGuard } from "../../../components/AuthGuard";
@@ -113,7 +113,7 @@ function DocDetailContent() {
   const openLinkedSession = useOpenLinkedSession();
   const id = params.id as string;
 
-  const detailResult = useSyncDocDetail(id);
+  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id);
 
   const detail = useInboxStore((s) => s.docDetails[id]) as
     | DocDetail
@@ -180,7 +180,7 @@ function DocDetailContent() {
     [data, updateDoc, promoteToPlan, router],
   );
 
-  if (!data) {
+  if (!data || (!detail && !cacheReady)) {
     // The query resolved to null and nothing is cached for this id → it doesn't
     // address an accessible doc (e.g. a conversation id from a malformed
     // /docs/<id> link). Show a graceful empty state rather than spinning forever.

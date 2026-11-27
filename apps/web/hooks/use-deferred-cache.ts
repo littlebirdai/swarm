@@ -1,82 +1,125 @@
+import { useSyncExternalStore } from "react";
 import { useAuthPrincipal, authPrincipal } from "../lib/authPrincipal";
-import type { ClientSyncStoreKey } from "../store/clientSyncRegistry";
+import {
+  REPLICATED_STORE_KEYS,
+  type ClientSyncStoreKey,
+} from "../store/clientSyncRegistry";
 import {
   HYDRATION_ON_READ_KEYS,
   deferredCacheReadsEnabled,
+  deferredDocEdit,
+  deferredSharedCacheSource,
+  subscribeDeferredSharedCache,
 } from "../store/deferred-cache-policy";
 import { detailInvalidationRevision } from "../store/doc-detail-cache";
 import { cacheStorage } from "../store/idb-cache";
-import { hydrateMergeValue } from "../store/inbox-hydration";
 import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
 
 const deferred = {
   epoch: -1,
-  reads: new Map<string, Promise<void>>(),
-  deniedDocs: new Set<string>(),
+  reads: new Set<string>(),
+  complete: new Set<string>(),
+  listeners: new Set<() => void>(),
 };
 
-function forEpoch(epoch: number) {
-  if (deferred.epoch !== epoch) {
-    deferred.epoch = epoch;
-    deferred.reads.clear();
-    deferred.deniedDocs.clear();
-  }
-  return deferred;
+function subscribe(listener: () => void) {
+  deferred.listeners.add(listener);
+  return () => deferred.listeners.delete(listener);
 }
 
-export function denyDeferredDoc(id: string): void {
-  if (deferredCacheReadsEnabled())
-    forEpoch(authPrincipal.epoch()).deniedDocs.add(id);
-}
-
-export function deferredCacheRead(
+function applyDeferredRows(
   key: ClientSyncStoreKey,
-): Promise<void> | undefined {
-  return forEpoch(authPrincipal.epoch()).reads.get(key);
+  fromDisk: Record<string, any>,
+) {
+  const state = useInboxStore.getState();
+  const live = state[key as keyof typeof state] as Record<string, unknown>;
+  const rows = Object.entries(fromDisk).flatMap(([id, row]) => {
+    if (live?.[id]) return [];
+    if (key !== "docDetails") return [row];
+    const edit = deferredDocEdit(id);
+    const thin = state.docs[id] as Record<string, unknown> | undefined;
+    if (
+      edit === "denied" ||
+      (edit === "archive" && !thin) ||
+      detailInvalidationRevision(id) !== 0 ||
+      state.pending[`docs:${id}`]?.type === "exclude" ||
+      thin?.archived_at != null
+    )
+      return [];
+    if (!edit || edit === "archive") return [row];
+    if (!thin) return [];
+    const fields = Object.fromEntries(
+      edit.flatMap((field) =>
+        thin[field] === undefined ? [] : [[field, thin[field]]],
+      ),
+    );
+    return [
+      {
+        ...row,
+        ...fields,
+        updated_at: Math.max(row.updated_at ?? 0, Number(thin.updated_at ?? 0)),
+      },
+    ];
+  });
+  if (rows.length) state.syncTable(key, rows, { isDelta: true });
 }
 
-export function useDeferredCache(key: ClientSyncStoreKey, wanted = true): void {
+export function useDeferredCache(
+  key: ClientSyncStoreKey,
+  wanted = true,
+): boolean {
   const { principalId, epoch } = useAuthPrincipal();
+  const source = useSyncExternalStore(
+    subscribeDeferredSharedCache,
+    deferredSharedCacheSource,
+    () => "disk" as const,
+  );
+  const complete = useSyncExternalStore(
+    subscribe,
+    () => deferred.epoch === epoch && deferred.complete.has(key),
+    () => false,
+  );
+  const enabled =
+    wanted &&
+    !!principalId &&
+    deferredCacheReadsEnabled() &&
+    HYDRATION_ON_READ_KEYS.has(key);
+  const shared = REPLICATED_STORE_KEYS.includes(key);
+  const readFromDisk = enabled && (!shared || source === "disk");
+
   useWatchEffect(() => {
-    if (
-      !wanted ||
-      !principalId ||
-      !deferredCacheReadsEnabled() ||
-      !HYDRATION_ON_READ_KEYS.has(key)
-    )
-      return;
-    const { reads, deniedDocs } = forEpoch(epoch);
-    if (reads.has(key)) return;
+    if (!readFromDisk) return;
+    if (deferred.epoch !== epoch) {
+      deferred.epoch = epoch;
+      deferred.reads.clear();
+      deferred.complete.clear();
+    }
+    if (deferred.reads.has(key)) return;
+    deferred.reads.add(key);
+
     const pending = useInboxStore.getState().pending;
-    const read = cacheStorage
+    void cacheStorage
       .loadCache([key], { pending })
       .then((cached) => {
-        if (authPrincipal.epoch() !== epoch) return;
-        if (!cached?.[key]) {
-          reads.delete(key);
-          return;
-        }
-        const state = useInboxStore.getState();
-        const fromDisk =
-          key === "docDetails"
-            ? Object.fromEntries(
-                Object.entries(cached[key]).filter(
-                  ([id]) =>
-                    !deniedDocs.has(id) && detailInvalidationRevision(id) === 0,
-                ),
-              )
-            : cached[key];
-        const merge = hydrateMergeValue(
-          key,
-          fromDisk,
-          state[key as keyof typeof state],
-        );
-        if (merge.apply) useInboxStore.setState({ [key]: merge.value });
+        if (
+          authPrincipal.epoch() === epoch &&
+          (!shared || deferredSharedCacheSource() === "disk") &&
+          cached?.[key]
+        )
+          applyDeferredRows(key, cached[key]);
       })
-      .catch(() => {
-        if (authPrincipal.epoch() === epoch) reads.delete(key);
+      .catch(() => {})
+      .finally(() => {
+        if (authPrincipal.epoch() !== epoch) return;
+        if (shared && deferredSharedCacheSource() !== "disk") {
+          deferred.reads.delete(key);
+        } else {
+          deferred.complete.add(key);
+        }
+        for (const listener of deferred.listeners) listener();
       });
-    reads.set(key, read);
-  }, [key, wanted, principalId, epoch]);
+  }, [key, epoch, readFromDisk, shared]);
+
+  return !enabled || (shared && source === "replica") || complete;
 }

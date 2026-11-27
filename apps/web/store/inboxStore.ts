@@ -1,4 +1,8 @@
 import { relayGrantAction } from "./relay-grant-action";
+import {
+  noteDeferredDocEdit,
+  resetDeferredCacheWindow,
+} from "./deferred-cache-policy";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -20690,6 +20694,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       overflow?: string;
     },
   ) {
+    if (!this.docDetails[id]) noteDeferredDocEdit(id, Object.keys(fields));
     let changed = false;
     if (this.docs[id]) {
       if (
@@ -20735,11 +20740,13 @@ const inboxStoreConfig = (set: any, get: any) => ({
   }),
 
   pinDoc: action(function (this: Draft, id: string, pinned: boolean) {
+    if (!this.docDetails[id]) noteDeferredDocEdit(id, ["pinned"]);
     if (this.docs[id]) this.docs[id].pinned = pinned;
     if (this.docDetails[id]) (this.docDetails[id] as any).pinned = pinned;
   }),
 
   archiveDoc: action(function (this: Draft, id: string) {
+    noteDeferredDocEdit(id, "archive");
     delete this.docs[id];
     delete this.docDetails[id];
   }),
@@ -22200,6 +22207,7 @@ let hydrationEpoch = 0;
 const currentHydrationEpoch = () => hydrationEpoch;
 /** Synchronous gate used before an old principal store is closed or purged. */
 export function clearProtectedInboxMemory(): void {
+  resetDeferredCacheWindow();
   hydrationEpoch++;
   resetDetailInvalidations();
   messageWarmState.full = false;

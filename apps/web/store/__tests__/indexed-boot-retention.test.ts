@@ -1,10 +1,13 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { MAX_CACHED_MY_SENDS } from "../cacheRetention";
 import { loadCache } from "../persistence/boot-loader";
-import { _reopenForTests, db } from "../persistence/db";
+import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
 import { replaceGlobals } from "../../test-helpers/globals";
+import { writePatchesToIDB, _resetPersistedShadow } from "../idb-cache";
+import { setHydrating } from "../persistence/hydration";
+import { noteSnapshotSync } from "../idb-collection-diff";
 import { measureIndexedDB } from "../../perf/measure-indexeddb";
 
 test("indexed send retention keeps the same boundary ties without reading older payloads", async () => {
@@ -39,5 +42,60 @@ test("indexed send retention keeps the same boundary ties without reading older 
   } finally {
     db.close();
     restore();
+  }
+});
+
+test("an older deferred snapshot does not erase the shadow of a newer durable row", async () => {
+  const before = process.env.VITE_DEFERRED_CACHE_BOOT;
+  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
+  const restore = replaceGlobals({ document: {} });
+  _resetPersistedShadow();
+  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+  setHydrating(false);
+  const table = COLLECTION_TABLES.docDetails;
+  const row = {
+    _id: "j".repeat(32),
+    title: "New doc",
+    content: "Body",
+    updated_at: Date.now(),
+  };
+  const captured = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const list = table.toArray.bind(table);
+  const stale = spyOn(table, "toArray").mockImplementation(async () => {
+    const rows = await list();
+    captured.resolve();
+    await release.promise;
+    return rows;
+  });
+  try {
+    await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
+    const load = loadCache(["docDetails"]);
+    await captured.promise;
+    writePatchesToIDB(
+      [{ op: "add", path: ["docDetails", row._id], value: row }],
+      { docDetails: { [row._id]: row }, pending: {} },
+    );
+    expect(await db.transaction("r", table, () => table.get(row._id))).toEqual(
+      row,
+    );
+    release.resolve();
+    await load;
+    noteSnapshotSync("docDetails", [], [row._id]);
+    writePatchesToIDB([{ op: "replace", path: ["docDetails"], value: {} }], {
+      docDetails: {},
+      pending: {},
+    });
+    expect(
+      await db.transaction("r", table, () => table.get(row._id)),
+    ).toBeUndefined();
+  } finally {
+    release.resolve();
+    stale.mockRestore();
+    _resetPersistedShadow();
+    db.close();
+    restore();
+    if (before === undefined) delete process.env.VITE_DEFERRED_CACHE_BOOT;
+    else process.env.VITE_DEFERRED_CACHE_BOOT = before;
   }
 });
