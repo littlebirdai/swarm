@@ -167,7 +167,12 @@ test("activity rollup reaches every eligible account without loading dormant use
     (job) => job.args[0].page.phase === "tail",
   );
   expect(tail).toBeDefined();
-  const { phase: tailPhase, cursor: tailCursor } = tail!.args[0].page;
+  const {
+    phase: tailPhase,
+    cursor: tailCursor,
+    tailEnd,
+    tailPagesRemaining,
+  } = tail!.args[0].page;
   expect(
     await t.action(internal.activityDays.sweep, {
       startedAt,
@@ -175,6 +180,8 @@ test("activity rollup reaches every eligible account without loading dormant use
       token,
       phase: tailPhase,
       cursor: tailCursor,
+      tailEnd,
+      tailPagesRemaining,
     }),
   ).toEqual({
     users: 2,
@@ -203,6 +210,105 @@ test("activity rollup reaches every eligible account without loading dormant use
     failed: 0,
   });
   await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+});
+
+test.each([65, 161])(
+  "the activity tail reaches the created phase with %i active accounts",
+  async (count) => {
+    const t = serverTest({ documentsRead: 80 });
+    const day = 86_400_000;
+    const { users, recent } = await t.run(async ({ db }) => {
+      jest.setSystemTime(NOW - 7 * day);
+      const old = fixtureRows(db, "activity-tail-paid");
+      const users = [];
+      for (let i = 0; i < count; i++)
+        users.push(await old.user({ daemon_last_seen: NOW + i + 1 }));
+      jest.setSystemTime(NOW - day);
+      const fresh = fixtureRows(db, "activity-tail-fresh");
+      const recent = await fresh.user();
+      await fresh.conversation(recent, {
+        started_at: NOW - day,
+        updated_at: NOW - day + 1000,
+      });
+      return { users, recent };
+    });
+    const sweep = internal.activityDays.sweep;
+    const continuation = internal.cronSweep.continuePage;
+    jest.setSystemTime(NOW + 1000);
+    await t.action(sweep, { days: 2, startedAt: NOW });
+    if (count === 65) {
+      const [first] = await scheduledJobs(t, continuation);
+      const { job, ...page } = first.args[0].page;
+      expect(await t.action(sweep, page)).toMatchObject({ rolled: 32 });
+      jest.setSystemTime(NOW + 50_000);
+      await t.run(async ({ db }) => {
+        for (const id of users.slice(0, 64))
+          await db.patch(id, { daemon_last_seen: Date.now() });
+      });
+    }
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    const phases = (await scheduledJobs(t, continuation)).map(
+      ({ args }) => args[0].page.phase,
+    );
+    expect(phases.filter((phase) => phase === "tail")).toHaveLength(
+      count === 65 ? 2 : 4,
+    );
+    expect(phases).toContain("created");
+    if (count === 65)
+      expect(await t.run(({ db }) => db.get(users[33]))).not.toHaveProperty(
+        "last_activity_rollup_run",
+      );
+    else
+      expect(await t.run(({ db }) => db.get(users[128]))).not.toHaveProperty(
+        "last_activity_rollup_run",
+      );
+    expect(await t.run(({ db }) => db.get(recent))).toMatchObject({
+      last_activity_rollup_run: 1,
+    });
+  },
+);
+
+test("a failed activity day is retried without repeating that user's successful day", async () => {
+  const t = serverTest({ documentsRead: 80 });
+  const day = 86_400_000;
+  const { user, excess } = await t.run(async ({ db }) => {
+    jest.setSystemTime(NOW - 7 * day);
+    const rows = fixtureRows(db, "activity-failed-day");
+    const user = await rows.user({ daemon_last_seen: NOW });
+    const sessionAt = (at: number) =>
+      rows.conversation(user, { started_at: at, updated_at: at + 1000 });
+    await sessionAt(NOW - day);
+    const excess = [];
+    for (let i = 0; i < 85; i++) excess.push(await sessionAt(NOW - 2 * day));
+    return { user, excess };
+  });
+  jest.setSystemTime(NOW);
+  const sweep = internal.activityDays.sweep;
+  expect(await t.action(sweep, { days: 3 })).toEqual({
+    users: 1,
+    rolled: 1,
+    failed: 1,
+  });
+  expect(await t.action(sweep, { days: 3, startedAt: NOW, token: 1 })).toEqual({
+    users: 0,
+    rolled: 0,
+    failed: 0,
+  });
+  const jobs = await scheduledJobs(t, internal.activityDays.rollupDay);
+  expect(jobs.map(({ args }) => args[0])).toEqual([
+    { user_id: user, day_start: NOW - 2 * day, sweepToken: 1 },
+  ]);
+  await t.run(async ({ db }) => {
+    for (const id of excess.slice(1, 20)) await db.delete(id);
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(
+    await t.run(async ({ db }) =>
+      (await db.query("user_activity_daily").collect())
+        .map(({ day_start }) => day_start)
+        .sort(),
+    ),
+  ).toEqual([NOW - 2 * day, NOW - day]);
 });
 
 test("a backlog larger than a cron run is drained after resuming its checkpoint", async () => {

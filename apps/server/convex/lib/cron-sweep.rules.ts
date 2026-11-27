@@ -21,6 +21,8 @@ export const cronSweepPage = v.union(
     cursor: v.optional(v.string()),
     days: v.number(),
     phase: activitySweepPhase,
+    tailEnd: v.optional(v.number()),
+    tailPagesRemaining: v.optional(v.number()),
   }),
   v.object({
     job: v.literal("health"),

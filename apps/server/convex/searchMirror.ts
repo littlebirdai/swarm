@@ -1,5 +1,4 @@
 import { internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
@@ -191,7 +190,7 @@ async function walkMessages(
 // and it owns the backfill and the liveness cursor.
 export async function performMirrorAdvance(
   ctx: { db: MirrorDb },
-  args: { batch?: number; now?: number },
+  args: { batch?: number; now?: number; cronBackoff?: boolean },
   previous?: Doc<"search_mirror_state"> | null,
 ) {
   {
@@ -248,6 +247,11 @@ export async function performMirrorAdvance(
     );
     const newCursor = settle.cursor;
     const caughtUp = settle.drained && fresh.drained;
+    const cronTiming = (idle: boolean) => {
+      if (!args.cronBackoff) return {};
+      const delay = idle ? MAX_TICK_MS : TICK_MS;
+      return { next_tick_at: now + delay, tick_delay_ms: delay };
+    };
     if (
       fresh.scanned === 0 &&
       settle.scanned === 0 &&
@@ -255,6 +259,12 @@ export async function performMirrorAdvance(
       state.cursor >= state.updated_at - SWEEP_LAG_MS - 1 &&
       now - state.updated_at < IDLE_MAINTENANCE_MS
     ) {
+      if (
+        args.cronBackoff &&
+        (state.tick_delay_ms !== MAX_TICK_MS ||
+          state.next_tick_at === undefined)
+      )
+        await ctx.db.patch(state._id, cronTiming(true));
       return {
         scanned: 0,
         fresh_scanned: 0,
@@ -288,6 +298,12 @@ export async function performMirrorAdvance(
       cursor: newCursor,
       fresh_cursor: fresh.cursor,
       updated_at: now,
+      ...cronTiming(
+        caughtUp &&
+          fresh.scanned === 0 &&
+          settle.scanned === 0 &&
+          expiredCount === 0,
+      ),
     });
 
     // Liveness flag lives in its OWN row and is written only on transitions —
@@ -343,39 +359,27 @@ export const advance = internalMutation({
 export const advanceCron = internalMutation({
   args: { scheduledAt: v.optional(v.number()) },
   handler: async (ctx, { scheduledAt }): Promise<void> => {
+    if (scheduledAt !== undefined) return;
     if (process.env.SEARCH_MIRROR_CRON_BACKOFF !== "1") {
-      if (scheduledAt === undefined)
-        await performMirrorAdvance(ctx, { batch: MAX_BATCH_ROWS });
+      await performMirrorAdvance(ctx, { batch: MAX_BATCH_ROWS });
       return;
     }
     const now = Date.now();
     const state = await ctx.db.query("search_mirror_state").first();
-    if (scheduledAt !== undefined) {
-      if (state?.next_tick_at !== scheduledAt) return;
-    } else if ((state?.next_tick_at ?? 0) > now - TICK_MS) {
-      return;
+    if (state?.next_tick_at !== undefined) {
+      const elapsed = now - state.next_tick_at;
+      if (
+        elapsed < 0 ||
+        (state.tick_delay_ms === MAX_TICK_MS &&
+          elapsed % MAX_TICK_MS >= TICK_MS)
+      )
+        return;
     }
-
-    const result = await performMirrorAdvance(
+    await performMirrorAdvance(
       ctx,
-      { batch: CRON_BATCH_ROWS, now },
+      { batch: CRON_BATCH_ROWS, now, cronBackoff: true },
       state,
     );
-    const idle =
-      result.caught_up &&
-      result.fresh_scanned === 0 &&
-      result.scanned === 0 &&
-      result.expired === 0;
-    const delay = idle
-      ? Math.min(MAX_TICK_MS, (state?.tick_delay_ms ?? TICK_MS) * 2)
-      : TICK_MS;
-    const next = now + delay;
-    const id =
-      state?._id ?? (await ctx.db.query("search_mirror_state").first())!._id;
-    await ctx.db.patch(id, { next_tick_at: next, tick_delay_ms: delay });
-    await ctx.scheduler.runAt(next, internal.searchMirror.advanceCron, {
-      scheduledAt: next,
-    });
   },
 });
 

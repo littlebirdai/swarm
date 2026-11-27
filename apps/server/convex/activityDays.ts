@@ -23,28 +23,32 @@ import { dayStartUtc } from "./lib/userSend";
 
 /** Days the sweep re-rolls each run: the live window plus a day of slack. */
 const SWEEP_DAYS = ACTIVITY_LIVE_DAYS + 2;
+const TAIL_PAGE_CAP = 4;
+
+export const claimSweepUser = internalMutation({
+  args: { user_id: v.id("users"), token: v.number() },
+  handler: async (ctx, { user_id, token }) => {
+    if (!(await isCurrentCronSweep(ctx.db, "activity", token))) return false;
+    const user = await ctx.db.get(user_id);
+    if (!user || user.last_activity_rollup_run === token) return false;
+    await ctx.db.patch(user_id, { last_activity_rollup_run: token });
+    return true;
+  },
+});
 
 export const rollupDay = internalMutation({
   args: {
     user_id: v.id("users"),
     day_start: v.number(),
-    sweep: v.optional(v.object({ token: v.number(), lastDay: v.boolean() })),
+    sweepToken: v.optional(v.number()),
   },
-  handler: async (ctx, { user_id, day_start, sweep }) => {
-    if (sweep) {
-      if (!(await isCurrentCronSweep(ctx.db, "activity", sweep.token)))
-        return null;
-      const user = await ctx.db.get(user_id);
-      if (!user || user.last_activity_rollup_run === sweep.token) return null;
-    }
-    const result = await rollupActivityDay(
-      ctx,
-      user_id,
-      dayStartUtc(day_start),
-    );
-    if (sweep?.lastDay)
-      await ctx.db.patch(user_id, { last_activity_rollup_run: sweep.token });
-    return result;
+  handler: async (ctx, { user_id, day_start, sweepToken }) => {
+    if (
+      sweepToken !== undefined &&
+      !(await isCurrentCronSweep(ctx.db, "activity", sweepToken))
+    )
+      return null;
+    return rollupActivityDay(ctx, user_id, dayStartUtc(day_start));
   },
 });
 
@@ -101,13 +105,14 @@ export const rollupCandidatePage = internalQuery({
   args: {
     since: v.number(),
     phase: activitySweepPhase,
+    tailEnd: v.optional(v.number()),
     startedAt: v.number(),
     token: v.number(),
     cursor: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { since, phase, cursor, startedAt, token },
+    { since, phase, cursor, startedAt, token, tailEnd },
   ): Promise<SweepPage | null> => {
     if (!(await isCurrentCronSweep(ctx.db, "activity", token))) return null;
     const candidates =
@@ -121,7 +126,9 @@ export const rollupCandidatePage = internalQuery({
             .query("users")
             .withIndex("by_daemon_last_seen", (q) =>
               phase === "tail"
-                ? q.gt("daemon_last_seen", startedAt)
+                ? q
+                    .gt("daemon_last_seen", startedAt)
+                    .lte("daemon_last_seen", tailEnd ?? startedAt)
                 : q
                     .gte("daemon_last_seen", since)
                     .lte("daemon_last_seen", startedAt),
@@ -148,6 +155,8 @@ export const sweep = internalAction({
     startedAt: v.optional(v.number()),
     token: v.optional(v.number()),
     phase: v.optional(activitySweepPhase),
+    tailEnd: v.optional(v.number()),
+    tailPagesRemaining: v.optional(v.number()),
     cursor: v.optional(v.string()),
   },
   handler: async (
@@ -163,23 +172,37 @@ export const sweep = internalAction({
     if (token === null) return { users: 0, rolled: 0, failed: 0 };
     const since = today - days * ACTIVITY_DAY_MS;
     const phase = args.phase ?? "seen";
+    const tailPagesRemaining = args.tailPagesRemaining ?? TAIL_PAGE_CAP;
     const page: SweepPage | null = await ctx.runQuery(
       internal.activityDays.rollupCandidatePage,
-      { since, phase, cursor: args.cursor, startedAt, token },
+      {
+        since,
+        phase,
+        cursor: args.cursor,
+        startedAt,
+        token,
+        tailEnd: args.tailEnd,
+      },
     );
     if (!page) return { users: 0, rolled: 0, failed: 0 };
     const { users, cursor } = page;
     let rolled = 0;
     let failed = 0;
     for (const user_id of users) {
+      const claimed = await ctx.runMutation(
+        internal.activityDays.claimSweepUser,
+        { user_id, token },
+      );
+      if (!claimed) continue;
       for (let i = 1; i < days; i++) {
+        const day_start = today - i * ACTIVITY_DAY_MS;
         try {
           const result = await ctx.runMutation(
             internal.activityDays.rollupDay,
             {
               user_id,
-              day_start: today - i * ACTIVITY_DAY_MS,
-              sweep: { token, lastDay: i === days - 1 },
+              day_start,
+              sweepToken: token,
             },
           );
           if (!result) break;
@@ -187,14 +210,21 @@ export const sweep = internalAction({
         } catch (e) {
           failed++;
           console.warn(
-            `activity sweep: ${user_id} day ${today - i * ACTIVITY_DAY_MS} left for the next run: ${e}`,
+            `activity sweep: retrying ${user_id} day ${day_start}: ${e}`,
           );
+          await ctx.scheduler.runAfter(1000, internal.activityDays.rollupDay, {
+            user_id,
+            day_start,
+            sweepToken: token,
+          });
         }
       }
     }
+    const nextCursor =
+      phase === "tail" && tailPagesRemaining <= 1 ? null : cursor;
     const nextPhase =
-      cursor !== null ? phase : phase === "seen" ? "tail" : "created";
-    if (cursor !== null || phase !== "created")
+      nextCursor !== null ? phase : phase === "seen" ? "tail" : "created";
+    if (nextCursor !== null || phase !== "created")
       await ctx.scheduler.runAfter(0, internal.cronSweep.continuePage, {
         page: {
           job: "activity",
@@ -202,7 +232,12 @@ export const sweep = internalAction({
           startedAt,
           token,
           phase: nextPhase,
-          cursor: cursor ?? undefined,
+          cursor: nextCursor ?? undefined,
+          ...(nextPhase === "tail" && {
+            tailEnd: phase === "seen" ? Date.now() : args.tailEnd,
+            tailPagesRemaining:
+              phase === "seen" ? TAIL_PAGE_CAP : tailPagesRemaining - 1,
+          }),
         },
       });
     return { users: users.length, rolled, failed };

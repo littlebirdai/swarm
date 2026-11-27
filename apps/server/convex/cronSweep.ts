@@ -28,6 +28,8 @@ export const continuePage = internalAction({
           await ctx.runAction(internal.activityDays.sweep, {
             days: page.days,
             phase: page.phase,
+            tailEnd: page.tailEnd,
+            tailPagesRemaining: page.tailPagesRemaining,
             startedAt: page.startedAt,
             cursor: page.cursor,
             token: page.token,
