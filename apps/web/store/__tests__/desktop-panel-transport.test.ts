@@ -135,65 +135,96 @@ test("a legacy host's snapshot and updates are filtered before entering the pane
   }
 });
 
-test("a panel rejoins when a scoped host disappears", async () => {
-  const name = `test-handoff-${crypto.randomUUID()}`;
-  jest.useFakeTimers();
-  const first = replicationTransport(name, "first");
-  const scopedHost = scopedHostChannel(name, "first", first.channel);
-  scopedHost.activate();
-  const host = replicationHostFor("first", scopedHost.channel, () => ({
-    docs: { row: { _id: "row", title: "First host" } },
-  }));
-  const scope = scopedFollowerChannel(name, "panel", ["docs"], () =>
-    replicationTransport(name, "panel"),
-  );
-  const ready = Promise.withResolvers<void>();
-  const replaced = Promise.withResolvers<void>();
-  const roles: boolean[] = [];
-  const follower = createReplicationFollower({
-    selfId: "panel",
-    channel: scope.channel,
-    replicatedKeys: ["docs"],
-    isCollectionKey: () => true,
-    applyUpdates(batch) {
-      const title = batch.find(({ key }) => key === "docs")?.upserts?.[0]
-        ?.title;
-      if (title === "First host") ready.resolve();
-      if (title === "Replacement host") replaced.resolve();
-    },
-    onSynced(synced) {
-      roles.push(synced);
-    },
-  });
-  const replacement = replicationTransport(name, "replacement");
-  let replacementHost: ReturnType<typeof createReplicationHost> | undefined;
-  try {
-    await ready.promise;
-    host.stop();
-    scopedHost.close();
-    first.close();
-    replacementHost = createReplicationHost({
-      hostId: "replacement",
-      channel: replacement.channel,
-      getState: () => ({
-        docs: { row: { _id: "row", title: "Replacement host" } },
-      }),
-      replicatedKeys: ["docs"],
-      isCollectionKey: () => true,
-      applyUpdates() {},
+test.each(["legacy", "scoped"] as const)(
+  "a panel rejoins a %s replacement when a scoped host disappears",
+  async (successor) => {
+    const name = `test-handoff-${crypto.randomUUID()}`;
+    jest.useFakeTimers();
+    const first = replicationTransport(name, "first");
+    const scopedHost = scopedHostChannel(name, "first", first.channel);
+    scopedHost.activate();
+    const host = replicationHostFor("first", scopedHost.channel, () => ({
+      docs: { row: { _id: "row", title: "First host" } },
+    }));
+    let usedLegacy = false;
+    const scope = scopedFollowerChannel(name, "panel", ["docs"], () => {
+      usedLegacy = true;
+      return replicationTransport(name, "panel");
     });
-    jest.advanceTimersByTime(6001);
-    jest.useRealTimers();
-    await replaced.promise;
-    expect(roles).toEqual([true, false, true]);
-  } finally {
-    follower.stop();
-    scope.close();
-    replacementHost?.stop();
-    replacement.close();
-    host.stop();
-    scopedHost.close();
-    first.close();
-    jest.useRealTimers();
-  }
-});
+    const ready = Promise.withResolvers<void>();
+    const replaced = Promise.withResolvers<void>();
+    const live = Promise.withResolvers<void>();
+    const roles: boolean[] = [];
+    const applied: ReplicationUpdate[] = [];
+    const follower = createReplicationFollower({
+      selfId: "panel",
+      channel: scope.channel,
+      replicatedKeys: ["docs", "tasks"],
+      isCollectionKey: () => true,
+      applyUpdates(batch) {
+        applied.push(...batch);
+        const title = batch.find(({ key }) => key === "docs")?.upserts?.[0]
+          ?.title;
+        if (title === "First host") ready.resolve();
+        if (title === "Replacement host") replaced.resolve();
+        if (title === "Replacement update") live.resolve();
+      },
+      onSynced(synced) {
+        roles.push(synced);
+      },
+    });
+    const replacement = replicationTransport(name, "replacement");
+    const replacementScope =
+      successor === "scoped"
+        ? scopedHostChannel(name, "replacement", replacement.channel)
+        : undefined;
+    let replacementHost: ReturnType<typeof createReplicationHost> | undefined;
+    try {
+      await ready.promise;
+      host.stop();
+      scopedHost.close();
+      first.close();
+      const replacementState = () => ({
+        docs: { row: { _id: "row", title: "Replacement host" } },
+        tasks: { other: { _id: "other", title: "Excluded task" } },
+      });
+      if (replacementScope) {
+        replacementScope.activate();
+        replacementHost = replicationHostFor(
+          "replacement",
+          replacementScope.channel,
+          replacementState,
+        );
+      } else {
+        replacementHost = createReplicationHost({
+          hostId: "replacement",
+          channel: replacement.channel,
+          getState: replacementState,
+          replicatedKeys: ["docs"],
+          isCollectionKey: () => true,
+          applyUpdates() {},
+        });
+      }
+      if (successor === "legacy") jest.advanceTimersByTime(6001);
+      jest.useRealTimers();
+      await replaced.promise;
+      replacementHost.publish([
+        { key: "docs", upserts: [{ _id: "row", title: "Replacement update" }] },
+      ]);
+      await live.promise;
+      expect(roles).toEqual([true, false, true]);
+      expect(usedLegacy).toBe(successor === "legacy");
+      expect(applied.every(({ key }) => key === "docs")).toBe(true);
+    } finally {
+      follower.stop();
+      scope.close();
+      replacementHost?.stop();
+      replacementScope?.close();
+      replacement.close();
+      host.stop();
+      scopedHost.close();
+      first.close();
+      jest.useRealTimers();
+    }
+  },
+);
