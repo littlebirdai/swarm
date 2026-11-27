@@ -2,10 +2,12 @@ import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   _resetChildAuqProbeCacheForTests,
   buildAskingParents,
 } from "./conversations";
+import { orderCliWatchCandidates } from "./lib/cli-inbox-reads.rules";
 import { readCliWatchLiveness } from "./lib/sessionHeartbeat";
 
 const now = 1_750_000_020_000;
@@ -281,4 +283,20 @@ test("cold watch lookups break equal times by id at the cap", async () => {
     return liveness.sessions.map(({ conversation_id }) => conversation_id);
   });
   expect(included).toEqual([ids[0]]);
+});
+
+test("watch candidates that tie on every field keep one order by id", () => {
+  const row = (id: string) => ({
+    _id: id as Id<"conversations">,
+    updated_at: 5,
+    inbox_pinned_at: undefined,
+    has_pending_messages: false,
+  });
+  const ids = ["c", "a", "d", "b"];
+  const forward = orderCliWatchCandidates(ids.map(row)).map((r) => r._id);
+  const backward = orderCliWatchCandidates([...ids].reverse().map(row)).map(
+    (r) => r._id,
+  );
+  expect(forward).toEqual(["a", "b", "c", "d"]);
+  expect(backward).toEqual(forward);
 });

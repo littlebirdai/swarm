@@ -244,7 +244,7 @@ export async function readCliWatchLiveness(
     [...history.flat(), ...hot].map((row) => [row._id, row]),
   );
   const sessions = [...managed.values()].sort(
-    (a, b) => a._creationTime - b._creationTime,
+    (a, b) => a._creationTime - b._creationTime || a._id.localeCompare(b._id),
   );
   const beatsById = new Map(
     sideBeats.map((row) => [row.managed_session_id, row.heartbeat_at]),
