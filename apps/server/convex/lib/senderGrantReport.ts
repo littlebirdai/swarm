@@ -1,7 +1,7 @@
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { checkConversationAccess } from "../privacy";
+import { canOwnerOrTeamAccess } from "../privacy";
 import {
   decideSenderGrant,
   senderGrantReportEnabled,
@@ -71,16 +71,40 @@ async function resolveEffectiveTarget(
   };
 }
 
+type EffectiveTarget = {
+  runnerId: Id<"users">;
+  deviceId: string | undefined;
+  isMoving: boolean;
+};
+
+async function isLinkVisitorSender(
+  ctx: DbCtx,
+  fromUserId: Id<"users">,
+  conversation: TargetConversation,
+): Promise<boolean> {
+  if (!conversation.share_token || !conversation._id) return false;
+  const redemption = await ctx.db
+    .query("share_redemptions")
+    .withIndex("by_conversation_user", (q: any) =>
+      q.eq("conversation_id", conversation._id).eq("user_id", fromUserId),
+    )
+    .first();
+  if (redemption?.token !== conversation.share_token) return false;
+  return !(await canOwnerOrTeamAccess(ctx, fromUserId, {
+    ...conversation,
+    is_private: conversation.is_private ?? true,
+  }));
+}
+
 export async function resolveTargetMachineKind(
   ctx: DbCtx,
   conversation: TargetConversation,
+  resolvedTarget?: EffectiveTarget,
 ): Promise<SenderGrantMachineKind> {
   if (isHostedAgentType(conversation.agent_type)) return "hosted";
 
-  const { runnerId, deviceId, isMoving } = await resolveEffectiveTarget(
-    ctx,
-    conversation,
-  );
+  const { runnerId, deviceId, isMoving } =
+    resolvedTarget ?? (await resolveEffectiveTarget(ctx, conversation));
 
   const runner = await ctx.db.get(runnerId);
   if (runner?.is_bot && runner.team_id) return "team";
@@ -92,7 +116,7 @@ export async function resolveTargetMachineKind(
         q.eq("user_id", runnerId).eq("device_id", deviceId),
       )
       .first();
-    if (teamMember && teamMember.status !== "removing") return "team";
+    if (teamMember && teamMember.status === "ready") return "team";
 
     const adminHost = await ctx.db
       .query("team_hosts")
@@ -122,12 +146,6 @@ export async function resolveTargetMachineKind(
 
     if (isMoving) return "unknown";
 
-    const castEnv = await ctx.db
-      .query("cast_env_machines")
-      .withIndex("by_user", (q: any) => q.eq("user_id", runnerId))
-      .first();
-    if (castEnv) return "hosted";
-
     return "personal";
   }
 
@@ -147,12 +165,6 @@ export async function resolveTargetMachineKind(
   ) {
     return "hosted";
   }
-
-  const castEnv = await ctx.db
-    .query("cast_env_machines")
-    .withIndex("by_user", (q: any) => q.eq("user_id", runnerId))
-    .first();
-  if (castEnv) return "hosted";
 
   return "personal";
 }
@@ -175,18 +187,26 @@ export async function reportSenderGrantIfNeeded(
 ): Promise<void> {
   if (!senderGrantReportEnabled()) return;
   if (fields.skip_sender_grant_report) return;
-  if (String(fromUserId) === String(conversation.user_id)) return;
   if (isHostedAgentType(conversation.agent_type)) return;
+  if (
+    conversation.execution_protocol_state === undefined &&
+    String(fromUserId) === String(conversation.user_id)
+  ) {
+    return;
+  }
 
   try {
-    const machineKind = await resolveTargetMachineKind(ctx, conversation);
-    if (machineKind === "hosted" || machineKind === "team") return;
+    const target = await resolveEffectiveTarget(ctx, conversation);
+    if (String(fromUserId) === String(target.runnerId)) return;
 
-    const access = await checkConversationAccess(ctx, fromUserId, {
-      ...conversation,
-      is_private: conversation.is_private ?? true,
-    });
-    if (access === "shared") return;
+    if (await isLinkVisitorSender(ctx, fromUserId, conversation)) return;
+
+    const machineKind = await resolveTargetMachineKind(
+      ctx,
+      conversation,
+      target,
+    );
+    if (machineKind === "hosted" || machineKind === "team") return;
 
     const isAgentSender =
       fields.from_conversation_id !== undefined ||

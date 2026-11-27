@@ -216,6 +216,87 @@ describe("sender grant report mode behavior", () => {
       );
       expect(approved.status).toBe("sent");
 
+      const secondarySuggestionId = await w.t.run(async ({ db }) =>
+        db.insert("guest_suggestions", {
+          conversation_id: w.personalConv,
+          author_user_id: w.teammate,
+          guest_name: "Teammate",
+          owner_user_id: w.secondaryOwner,
+          body: "secondary approved suggestion",
+          status: "pending",
+          created_at: 2,
+        }),
+      );
+      const secondaryApproved = await asUser(w.t, w.secondaryOwner).mutation(
+        api.dispatch.dispatch,
+        {
+          action: "sendGuestSuggestion",
+          args: [String(secondarySuggestionId)],
+        },
+      );
+      expect(secondaryApproved.status).toBe("sent");
+
+      const mentionPrivateConvId = await w.t.run(async ({ db }) => {
+        const convId = await db.insert("conversations", {
+          user_id: w.owner,
+          team_id: w.team,
+          agent_type: "claude_code",
+          session_id: "sess-mention-priv",
+          short_id: "jxment1",
+          started_at: 1,
+          updated_at: 1,
+          message_count: 0,
+          is_private: true,
+          status: "active",
+          owner_device_id: w.personalDeviceId,
+        });
+        await db.insert("conversation_read_grants", {
+          conversation_id: convId,
+          user_id: w.teammate,
+          granted_by: w.owner,
+          source: "mention",
+          created_at: 1,
+        });
+        await db.insert("collab_grants", {
+          conversation_id: convId,
+          grantee_user_id: w.teammate,
+          owner_user_id: w.owner,
+          status: "granted",
+          created_at: 1,
+          updated_at: 1,
+        });
+        return convId;
+      });
+      const mentionAgentSend = await asUser(w.t, w.teammate).mutation(
+        api.pendingMessages.sendSessionMessage,
+        {
+          to: "jxment1",
+          from: "jxmate1",
+          body: "secret body mention agent",
+        },
+      );
+      expect(mentionAgentSend.message_id).toBeTruthy();
+
+      await w.t.run(async ({ db }) => {
+        await db.insert("cast_env_machines", {
+          user_id: w.owner,
+          region: "us-west-2",
+          ssh_public_key: "ssh-ed25519 BBBB",
+          created_at: 1,
+          updated_at: 1,
+        });
+      });
+      const staleEnvPersonalSend = await asUser(w.t, w.teammate).mutation(
+        api.pendingMessages.sendMessageV2,
+        {
+          command_id: "cmd-stale-env-personal",
+          client_id: "cmd-stale-env-personal",
+          conversation_id: mentionPrivateConvId,
+          content: "stale env fallback ignored",
+        },
+      );
+      expect(staleEnvPersonalSend.status).toBe("acknowledged");
+
       await w.t.run(async ({ db }) => {
         const unknownMigrationId = await db.insert("session_migrations", {
           user_id: w.owner,
@@ -293,6 +374,17 @@ describe("sender grant report mode behavior", () => {
           updated_at: 1,
         });
       });
+      const fencedDestRunnerSend = await asUser(w.t, w.owner).mutation(
+        api.pendingMessages.sendMessageV2,
+        {
+          command_id: "cmd-fenced-dest-runner",
+          client_id: "cmd-fenced-dest-runner",
+          conversation_id: w.teamBotConv,
+          content: "destination runner send not reported",
+        },
+      );
+      expect(fencedDestRunnerSend.status).toBe("acknowledged");
+
       const fencedPersonalMoveSend = await asUser(w.t, w.teammate).mutation(
         api.pendingMessages.sendMessageV2,
         {
@@ -304,56 +396,110 @@ describe("sender grant report mode behavior", () => {
       );
       expect(fencedPersonalMoveSend.status).toBe("acknowledged");
 
+      const aliceToBobConvId = await w.t.run(async ({ db }) => {
+        const bobDeviceId = "bob-laptop";
+        await db.insert("devices", {
+          user_id: w.teammate,
+          device_id: bobDeviceId,
+          label: "Bob Laptop",
+          platform: "darwin",
+          is_remote: false,
+          last_seen: 1,
+        });
+        const convId = await db.insert("conversations", {
+          user_id: w.owner,
+          team_id: w.team,
+          agent_type: "claude_code",
+          session_id: "sess-alice-to-bob",
+          short_id: "jxmove2",
+          started_at: 1,
+          updated_at: 1,
+          message_count: 0,
+          is_private: false,
+          status: "active",
+          owner_device_id: w.personalDeviceId,
+          execution_protocol_state: "fenced",
+        });
+        await db.insert("conversation_execution_heads", {
+          conversation_id: convId,
+          owner_user_id: w.owner,
+          protocol_state: "fenced",
+          protocol_version: 1,
+          current_epoch: 1,
+          admission_epoch: 1,
+          next_conversation_sequence: 1,
+          next_nonterminal_sequence: 1,
+          device_move: {
+            source_epoch: 1,
+            destination_device_id: bobDeviceId,
+            destination_runner_id: w.teammate,
+            next_epoch: 2,
+            settlement_deadline: 9999999,
+          },
+          created_at: 1,
+          updated_at: 1,
+        });
+        await db.insert("execution_bindings", {
+          conversation_id: convId,
+          epoch: 1,
+          state: "ready",
+          protocol_version: 1,
+          owner_user_id: w.owner,
+          owner_device_id: w.personalDeviceId,
+          daemon_boot_id: "boot-2",
+          requested_agent: "claude",
+          transport: "tmux",
+          project_path: "/tmp/proj",
+          configuration_revision: 1,
+          required_capabilities: [
+            "single-flight-binding",
+            "delivery-permit-v1",
+          ],
+          created_at: 1,
+          updated_at: 1,
+        });
+        return convId;
+      });
+      const sourceRunnerDuringMove = await asUser(w.t, w.owner).mutation(
+        api.pendingMessages.sendMessageV2,
+        {
+          command_id: "cmd-alice-to-bob",
+          client_id: "cmd-alice-to-bob",
+          conversation_id: aliceToBobConvId,
+          content: "alice sends while moving to bob laptop",
+        },
+      );
+      expect(sourceRunnerDuringMove.status).toBe("acknowledged");
+
       const jobs = (await scheduledJobs(w.t))
         .filter((j) => j.name === "analytics:capture")
         .map((j) => j.args[0]);
 
+      const reported = (
+        distinctId: any,
+        conversationId: any,
+        senderKind: string,
+        reason = "personal_machine_no_grant",
+      ) => ({
+        event: "sender_grant_report",
+        distinctId: String(distinctId),
+        properties: {
+          conversation_id: String(conversationId),
+          sender_kind: senderKind,
+          reason,
+        },
+      });
+
       expect(jobs).toEqual([
-        {
-          event: "sender_grant_report",
-          distinctId: String(w.teammate),
-          properties: {
-            conversation_id: String(w.personalConv),
-            sender_kind: "teammate",
-            reason: "personal_machine_no_grant",
-          },
-        },
-        {
-          event: "sender_grant_report",
-          distinctId: String(w.secondaryOwner),
-          properties: {
-            conversation_id: String(w.personalConv),
-            sender_kind: "teammate",
-            reason: "personal_machine_no_grant",
-          },
-        },
-        {
-          event: "sender_grant_report",
-          distinctId: String(w.teammate),
-          properties: {
-            conversation_id: String(w.personalConv),
-            sender_kind: "agent",
-            reason: "personal_machine_no_grant",
-          },
-        },
-        {
-          event: "sender_grant_report",
-          distinctId: String(w.teammate),
-          properties: {
-            conversation_id: String(w.teamAdminConv),
-            sender_kind: "teammate",
-            reason: "unknown_machine",
-          },
-        },
-        {
-          event: "sender_grant_report",
-          distinctId: String(w.teammate),
-          properties: {
-            conversation_id: String(w.teamBotConv),
-            sender_kind: "teammate",
-            reason: "personal_machine_no_grant",
-          },
-        },
+        reported(w.teammate, w.personalConv, "teammate"),
+        reported(w.secondaryOwner, w.personalConv, "teammate"),
+        reported(w.teammate, w.personalConv, "agent"),
+        reported(w.teammate, w.personalConv, "teammate"),
+        reported(w.teammate, mentionPrivateConvId, "agent"),
+        reported(w.teammate, mentionPrivateConvId, "teammate"),
+        reported(w.teammate, w.teamAdminConv, "teammate", "unknown_machine"),
+        reported(w.teammate, w.teamBotConv, "teammate"),
+        reported(w.owner, aliceToBobConvId, "teammate"),
       ]);
 
       const serialized = JSON.stringify(jobs);
@@ -412,6 +558,19 @@ describe("sender grant report mode behavior", () => {
     try {
       const w = await setupSenderGrantWorld();
       const counts = await w.t.run(async ({ db }) => {
+        const personalNoShareConv = await db.insert("conversations", {
+          user_id: w.owner,
+          team_id: w.team,
+          agent_type: "claude_code",
+          session_id: "sess-no-share",
+          short_id: "jxnosh1",
+          started_at: 1,
+          updated_at: 1,
+          message_count: 0,
+          is_private: false,
+          status: "active",
+          owner_device_id: w.personalDeviceId,
+        });
         const measure = async (
           convId: any,
           senderId: any,
@@ -440,6 +599,14 @@ describe("sender grant report mode behavior", () => {
           teamHostAdmin: await measure(w.teamAdminConv, w.teammate),
           castReady: await measure(w.castReadyConv, w.teammate),
           cloudHost: await measure(w.cloudHostConv, w.teammate),
+          personalNoShareTeammate: await measure(
+            personalNoShareConv,
+            w.teammate,
+          ),
+          personalNoShareAgent: await measure(personalNoShareConv, w.teammate, {
+            from_conversation_id: w.teammateConv,
+            human: false,
+          }),
           personalTeammate: await measure(w.personalConv, w.teammate),
           personalAgent: await measure(w.personalConv, w.teammate, {
             from_conversation_id: w.teammateConv,
@@ -472,37 +639,42 @@ describe("sender grant report mode behavior", () => {
         "cast_machines",
         "devices",
       ]);
-      expect(counts.personalTeammate).toEqual([
+      expect(counts.personalNoShareTeammate).toEqual([
         "get",
         "team_host_members",
         "team_hosts",
         "cast_machines",
         "devices",
-        "session_owners",
-        "team_memberships",
-        "team_memberships",
+        "get",
+      ]);
+      expect(counts.personalNoShareAgent).toEqual([
+        "get",
+        "team_host_members",
+        "team_hosts",
+        "cast_machines",
+        "devices",
+      ]);
+      expect(counts.personalTeammate).toEqual([
+        "share_redemptions",
+        "get",
+        "team_host_members",
+        "team_hosts",
+        "cast_machines",
+        "devices",
         "get",
       ]);
       expect(counts.personalAgent).toEqual([
+        "share_redemptions",
         "get",
         "team_host_members",
         "team_hosts",
         "cast_machines",
         "devices",
-        "session_owners",
-        "team_memberships",
-        "team_memberships",
       ]);
       expect(counts.linkVisitor).toEqual([
-        "get",
-        "team_host_members",
-        "team_hosts",
-        "cast_machines",
-        "devices",
+        "share_redemptions",
         "session_owners",
         "team_memberships",
-        "conversation_read_grants",
-        "share_redemptions",
       ]);
     } finally {
       restore();

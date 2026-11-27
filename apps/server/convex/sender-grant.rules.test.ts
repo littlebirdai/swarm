@@ -185,7 +185,7 @@ describe("decideSenderGrant pure decision", () => {
 });
 
 describe("resolveTargetMachineKind classification branches", () => {
-  test("classifies hosted agent type, remote device, cloud_host, cast_machines booting, and cast_env_machines as hosted", async () => {
+  test("classifies hosted agent type, remote device, cloud_host, and cast_machines booting as hosted, while ignoring stale cast_env_machines", async () => {
     const w = await setupSenderGrantWorld();
     await w.t.run(async ({ db }) => {
       const hosted = await db.get(w.hostedConv);
@@ -224,10 +224,30 @@ describe("resolveTargetMachineKind classification branches", () => {
       );
 
       const envUser = await db.insert("users", { name: "EnvUser" });
+      const envDeviceId = "env-personal-laptop";
+      await db.insert("devices", {
+        user_id: envUser,
+        device_id: envDeviceId,
+        label: "Personal Laptop",
+        platform: "darwin",
+        is_remote: false,
+        last_seen: 1,
+      });
       const envConvId = await db.insert("conversations", {
         user_id: envUser,
         agent_type: "claude_code",
         session_id: "sess-env",
+        started_at: 1,
+        updated_at: 1,
+        message_count: 0,
+        is_private: false,
+        status: "active",
+        owner_device_id: envDeviceId,
+      });
+      const envUnboundConvId = await db.insert("conversations", {
+        user_id: envUser,
+        agent_type: "claude_code",
+        session_id: "sess-env-unbound",
         started_at: 1,
         updated_at: 1,
         message_count: 0,
@@ -242,11 +262,15 @@ describe("resolveTargetMachineKind classification branches", () => {
         updated_at: 1,
       });
       const envConv = await db.get(envConvId);
-      expect(await resolveTargetMachineKind({ db }, envConv!)).toBe("hosted");
+      const envUnboundConv = await db.get(envUnboundConvId);
+      expect(await resolveTargetMachineKind({ db }, envConv!)).toBe("personal");
+      expect(await resolveTargetMachineKind({ db }, envUnboundConv!)).toBe(
+        "personal",
+      );
     });
   });
 
-  test("classifies team bot with team_id, non-admin team_host_members, and team_hosts admin device by device", async () => {
+  test("classifies team bot with team_id, ready team_host_members only, and team_hosts admin device by device", async () => {
     const w = await setupSenderGrantWorld();
     await w.t.run(async ({ db }) => {
       const teamBot = await db.get(w.teamBotConv);
@@ -261,15 +285,54 @@ describe("resolveTargetMachineKind classification branches", () => {
       expect(await resolveTargetMachineKind({ db }, teamMember!)).toBe("team");
       expect(await resolveTargetMachineKind({ db }, teamAdmin!)).toBe("team");
 
-      const memberRow = await db
-        .query("team_host_members")
-        .withIndex("by_user_device", (q) =>
-          q.eq("user_id", w.hostMember).eq("device_id", w.teamMemberDeviceId),
-        )
-        .first();
-      await db.patch(memberRow!._id, { status: "removing" });
-      expect(await resolveTargetMachineKind({ db }, teamMember!)).toBe(
-        "hosted",
+      const localDeviceId = "member-local-box";
+      await db.insert("devices", {
+        user_id: w.hostMember,
+        device_id: localDeviceId,
+        label: "Member Local",
+        platform: "linux",
+        is_remote: false,
+        last_seen: 1,
+      });
+      const host = await db.query("team_hosts").first();
+      const nonReadyMemberId = await db.insert("team_host_members", {
+        host_id: host!._id,
+        user_id: w.hostMember,
+        linux_user: "member2",
+        device_id: localDeviceId,
+        status: "joining",
+        requested_at: 1,
+      });
+      const localMemberConvId = await db.insert("conversations", {
+        user_id: w.hostMember,
+        team_id: w.team,
+        agent_type: "claude_code",
+        session_id: "sess-local-member",
+        started_at: 1,
+        updated_at: 1,
+        message_count: 0,
+        is_private: false,
+        status: "active",
+        owner_device_id: localDeviceId,
+      });
+      const localMemberConv = await db.get(localMemberConvId);
+      expect(await resolveTargetMachineKind({ db }, localMemberConv!)).toBe(
+        "personal",
+      );
+
+      await db.patch(nonReadyMemberId, { status: "failed" });
+      expect(await resolveTargetMachineKind({ db }, localMemberConv!)).toBe(
+        "personal",
+      );
+
+      await db.patch(nonReadyMemberId, { status: "removing" });
+      expect(await resolveTargetMachineKind({ db }, localMemberConv!)).toBe(
+        "personal",
+      );
+
+      await db.patch(nonReadyMemberId, { status: "ready", ready_at: 2 });
+      expect(await resolveTargetMachineKind({ db }, localMemberConv!)).toBe(
+        "team",
       );
     });
   });
