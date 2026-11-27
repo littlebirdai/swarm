@@ -1,3 +1,4 @@
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -229,6 +230,13 @@ export async function prepareRecordedDeviceMove(
   );
   if (boot?.daemon_boot_id !== daemonBootId)
     throw new ConvexError("The destination boot is not registered");
+  if (
+    source.required_capabilities.includes(STEER_BATON_CAPABILITY) &&
+    !boot.owned_codex_new_sessions
+  )
+    throw new ConvexError(
+      "The destination daemon boot did not offer owned Codex sessions",
+    );
   if (move.phase === "preparing") {
     const existing = await destinationBinding(ctx, state);
     if (existing.daemon_boot_id !== daemonBootId)

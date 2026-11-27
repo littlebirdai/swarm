@@ -605,7 +605,11 @@ export function fixture(
               return Response.json({
                 v: 1,
                 results: [
-                  { session: batch.session, status: "conflict", seq: first.seq },
+                  {
+                    session: batch.session,
+                    status: "conflict",
+                    seq: first.seq,
+                  },
                 ],
               });
             if (terminalStartFailure) {

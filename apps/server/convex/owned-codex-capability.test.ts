@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import { presentToken } from "@platform/auth/tokenFormat";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
@@ -325,4 +326,72 @@ test("only the opted-in daemon boot can consume an owned Codex successor intent"
   await register(boot, true);
   await expect(consume()).resolves.toMatchObject({ created: true, epoch: 2 });
   await expect(consume()).resolves.toMatchObject({ created: false, epoch: 2 });
+});
+
+test("preparing a device move requires the destination boot to offer owned Codex sessions", async () => {
+  const f = await setupRunLease();
+  const required_capabilities = [
+    ...EXECUTION_PROTOCOL_CAPABILITIES,
+    STEER_BATON_CAPABILITY,
+  ];
+  const destinationDevice = "move-destination";
+  const destinationBoot = "destination-boot";
+  const destinationSecret = "destination-token";
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.binding, {
+      required_capabilities,
+      capabilities: required_capabilities,
+    });
+    const tokenId = await fixtureRows(db, "move destination").token(
+      f.owner,
+      destinationSecret,
+    );
+    await db.patch(tokenId, { device_id: destinationDevice });
+  });
+  const destinationBearer = presentToken(destinationSecret, destinationDevice);
+  await f.t.mutation(internal.edgeRunLease.recordMove, {
+    conversation_id: f.conversation,
+    destination_device_id: destinationDevice,
+    destination_runner_id: f.owner,
+    expected_source_epoch: 1,
+  });
+  const recorded = await f.t.run(({ db }) => db.get(f.head));
+  const move_id = recorded?.device_move?.move_id;
+  if (!move_id) throw new Error("Expected a recorded move");
+  const register = (owned_codex_new_sessions: boolean) =>
+    f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
+      api_token: destinationBearer,
+      owner_device_id: destinationDevice,
+      daemon_boot_id: destinationBoot,
+      owned_codex_new_sessions,
+    });
+  const prepare = () =>
+    f.t.mutation(internal.edgeRunLease.prepareMove, {
+      conversation_id: f.conversation,
+      move_id,
+      bearer: destinationBearer,
+      daemon_boot_id: destinationBoot,
+    });
+
+  await register(false);
+  await expect(prepare()).rejects.toThrow(
+    "The destination daemon boot did not offer owned Codex sessions",
+  );
+  await f.t.run(async ({ db }) => {
+    const head = await db.get(f.head);
+    expect(head?.device_move?.phase).toBeUndefined();
+    expect(head?.pending_epoch).toBeUndefined();
+    expect(head?.admission_epoch).toBe(1);
+    expect(await db.query("execution_bindings").collect()).toHaveLength(1);
+  });
+
+  await register(true);
+  await expect(prepare()).resolves.toEqual({ epoch: 2 });
+  await f.t.run(async ({ db }) => {
+    const head = await db.get(f.head);
+    expect(head?.device_move?.phase).toBe("preparing");
+    expect(head?.pending_epoch).toBe(2);
+    expect(head?.admission_epoch).toBe(2);
+    expect(await db.query("execution_bindings").collect()).toHaveLength(2);
+  });
 });
