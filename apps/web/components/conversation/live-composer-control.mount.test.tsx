@@ -1,7 +1,11 @@
+import "../../store/__tests__/fixtures/signedInPrincipal";
 import { expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { act } from "react";
+import { _reopenForTests } from "../../store/idb-cache";
+import { db } from "../../store/persistence/db";
+import { writePatchesToIDB } from "../../store/persistence/collection-writer";
 import type { OutboxEntry } from "@platform/engine";
 import { CollabRequestBanner } from "../collab-composer";
 import {
@@ -10,13 +14,17 @@ import {
 } from "../../hooks/use-live-composer-control";
 import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
-import type { SteerClaimState } from "../../store/steer-composer-state";
+import {
+  composerRetryDraftKey,
+  type SteerClaimState,
+} from "../../store/steer-composer-state";
 import {
   button,
   collaborator,
   createComposerMount,
   owner,
 } from "../../test-helpers/composer-control-fixture";
+import { replaceGlobals } from "../../test-helpers/globals";
 import { mountWeb } from "../../test-helpers/mountWeb";
 
 const mount = createComposerMount(mountWeb);
@@ -176,7 +184,15 @@ test("a viewer asks to drive through the store and sees the pending grant", asyn
   expect(
     useInboxStore.getState().fencedSteerClaims[row._id]?.drive_requested,
   ).toBe(true);
+  const lock = `fencedSteerClaims:${row._id}:drive_requested`;
+  expect(useInboxStore.getState().pending[lock]).toMatchObject({
+    type: "field",
+    value: true,
+  });
   await publishClaim(ui, { ...row, fresh_for_ms: 29000 });
+  expect(useInboxStore.getState().pending[lock]).toMatchObject({
+    seen: [false],
+  });
   expect(button(ui.container, "Drive requested").disabled).toBe(true);
   expect(ui.backend.mutations.at(-1)?.args).toMatchObject({
     action: "controlSteerComposer",
@@ -187,6 +203,7 @@ test("a viewer asks to drive through the store and sees the pending grant", asyn
     drive_requested: true,
   });
   await act(() => reply.resolve({ status: "requested" }));
+  expect(useInboxStore.getState().pending[lock]).toBeUndefined();
   expect(button(ui.container, "Drive requested").disabled).toBe(true);
 });
 
@@ -349,6 +366,95 @@ test("a sender who drives cannot interrupt without session command access", asyn
   expect(ui.backend.mutations.some(({ args }) => isEscape(args))).toBe(false);
 });
 
+test("the collaborator only interrupts on plain Escape with an empty draft", async () => {
+  const row = { ...claimState(), owner: false, can_take_over: false };
+  const ui = await show(row);
+  await act(async () => {
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [{ _id: row._id, user_id: row.viewer }]);
+    flushSyncPublishes();
+  });
+  expect(button(ui.container, "Interrupt")).toBeTruthy();
+  await ui.press("Escape", { shiftKey: true });
+  await ui.type("Keep these words");
+  await ui.press("Escape");
+  await ui.press("Escape", { shiftKey: true });
+  expect(ui.box().value).toBe("Keep these words");
+  expect(ui.backend.mutations.some(({ args }) => isEscape(args))).toBe(false);
+  await ui.type("");
+  await ui.press("Escape");
+  expect(
+    ui.backend.mutations.filter(({ args }) => isEscape(args)),
+  ).toHaveLength(1);
+});
+
+test("a reloaded composer restores a send in doubt with the original command", async () => {
+  const row = claimState();
+  const ui = await show(row);
+  type State = ReturnType<typeof useInboxStore.getState>;
+  const store = useInboxStore.getState() as State & {
+    _setIDBWrite: (write: typeof writePatchesToIDB) => void;
+  };
+  const restoreDispatch = replaceGlobals({
+    dispatchEvent: window.dispatchEvent.bind(window),
+  });
+  const saved = await (async () => {
+    try {
+      await _reopenForTests({ indexedDB, IDBKeyRange });
+      await db.meta.delete("drafts");
+      store._setIDBWrite(writePatchesToIDB);
+      const reply = Promise.withResolvers<{ status: string }>();
+      const beforeDispatch = Promise.withResolvers<
+        State["drafts"] | undefined
+      >();
+      ui.backend.mutation(api.dispatch.dispatch, async ({ action }) => {
+        if (action !== "controlSteerComposer") return {};
+        const drafts = await db.meta.get("drafts");
+        beforeDispatch.resolve(drafts?.value);
+        return reply.promise;
+      });
+      await ui.type("Keep this across reload");
+      await ui.press("Enter");
+      const drafts = await beforeDispatch.promise;
+      const original = ui.backend.mutations.find(
+        ({ args }) =>
+          !!args &&
+          typeof args === "object" &&
+          "action" in args &&
+          args.action === "controlSteerComposer",
+      )?.args;
+      expect(original).toBeDefined();
+      expect(drafts![composerRetryDraftKey(row._id)]?.retries).toHaveLength(1);
+      expect(ui.box().value).toBe("");
+      return { drafts: drafts!, original };
+    } finally {
+      restoreDispatch();
+    }
+  })();
+  await ui.close();
+
+  const reloaded = await mount(<Composer row={row} />, {
+    setup(backend) {
+      useInboxStore.setState({ drafts: saved.drafts });
+      backend.set(api.permissions.listAnswerablePromptAddresses, []);
+      backend.set(api.collab.steerClaimState, row);
+      backend.mutation(api.dispatch.dispatch, { status: "acknowledged" });
+    },
+  });
+  await act(async () => flushSyncPublishes());
+  const retry = reloaded.container.querySelector(
+    '[aria-label="Draft to retry"]',
+  )!;
+  expect(retry.textContent).toContain("Keep this across reload");
+  expect(reloaded.backend.mutations).toHaveLength(0);
+  await act(async () => button(reloaded.container, "Retry").click());
+  expect(reloaded.backend.mutations.at(-1)?.args).toEqual(saved.original);
+  expect(
+    useInboxStore.getState().drafts[composerRetryDraftKey(row._id)],
+  ).toBeUndefined();
+});
+
 test.each(["retry", "dismiss"] as const)(
   "a transient send can %s without leaving an outbox replay",
   async (resolution) => {
@@ -395,7 +501,7 @@ test.each(["retry", "dismiss"] as const)(
     expect(ui.container.textContent).toContain("Delivery in doubt");
     expect(parkedSteers()).toEqual([]);
     online = true;
-    await act(() =>
+    await act(async () =>
       button(
         ui.container,
         resolution === "retry" ? "Retry" : "Dismiss",

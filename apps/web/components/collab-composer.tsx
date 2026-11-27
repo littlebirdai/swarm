@@ -606,7 +606,7 @@ export const CollabComposer = memo(function CollabComposer({
     if (control) {
       const kind = queue && control.canQueue ? "queue" : control.send;
       if (!kind) return;
-      const complete = control.begin(kind);
+      const complete = control.begin(kind, { text: body });
       if (!complete) return;
       setMessage("");
       flushDraftWrite(convKey);
@@ -706,7 +706,12 @@ export const CollabComposer = memo(function CollabComposer({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const { key, isComposing, keyCode } = e.nativeEvent;
     if (control && (isComposing || keyCode === 229)) return;
-    if (control?.interrupt && key === "Escape") {
+    if (
+      control?.interrupt &&
+      key === "Escape" &&
+      !e.shiftKey &&
+      !draft.current
+    ) {
       e.preventDefault();
       e.stopPropagation();
       void control.act({ kind: "interrupt", expected: control.expected });

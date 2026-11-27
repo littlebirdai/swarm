@@ -2872,6 +2872,7 @@ export const MessageInput = memo(function MessageInput({
     const completeControlled = controlled?.send
       ? controlled.begin(
           queue && controlled.canQueue ? "queue" : controlled.send,
+          { text: trimmed, quoteIds, typedWords },
         )
       : null;
     if (controlled && !completeControlled) return false;
@@ -2918,7 +2919,6 @@ export const MessageInput = memo(function MessageInput({
     sendingRef.current = false;
     requestAnimationFrame(() => textareaRef.current?.focus());
     onMessageSent?.();
-
     const preparedPayload = (ids: string[]): ComposerPayload => ({
       text: trimmed,
       ...(ids.length ? { imageIds: ids } : {}),

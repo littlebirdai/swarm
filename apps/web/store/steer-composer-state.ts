@@ -1,4 +1,6 @@
-import { sync } from "./mutativeMiddleware";
+import { asyncAction, sync } from "./mutativeMiddleware";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
+import type { InboxStoreState } from "./inboxStore";
 import type { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import type {
@@ -11,7 +13,6 @@ export type SteerClaimState = NonNullable<
   FunctionReturnType<typeof api.collab.steerClaimState>
 >;
 export type SteerTurn = NonNullable<SteerClaimState["turn"]>;
-type SteerClaimRow = SteerClaimState & { feedVersion?: string };
 export type SteerComposerCommand =
   | { kind: "ask" }
   | { kind: "cancel"; fenceId: string }
@@ -30,6 +31,8 @@ export type SteerComposerCommand =
       typedWords?: string;
       observed?: SteerTurn;
     };
+type SteeringControl = Exclude<SteerComposerCommand, { kind: "send" }>;
+type SteeringSend = Extract<SteerComposerCommand, { kind: "send" }>;
 export type SteerComposerResult = { status: string; code?: string };
 
 export type CollabGrantCommand =
@@ -57,6 +60,10 @@ export type ComposerRetry = {
   payload: ComposerPayload;
   command?: ComposerControlCommand;
 };
+export function composerRetryDraftKey(conversationId: string) {
+  return `steer-retry:${conversationId}`;
+}
+
 export type ComposerOutcome = {
   observation: ComposerObservation;
   completed: ReadonlySet<ComposerControlCommandKey>;
@@ -71,44 +78,40 @@ export type ComposerOperation = {
   retries: ComposerRetry[];
 };
 
-type SteerFacts = Partial<
-  Pick<SteerClaimState, "takeover_pending" | "drive_requested" | "fence_id">
->;
 type State = {
-  fencedSteerClaims: Record<string, SteerClaimRow>;
+  fencedSteerClaims: Record<string, SteerClaimState>;
   collabAccess: Record<string, CollabAccess>;
   collabRequests: Record<string, CollabRequest>;
   composerOperations: Record<string, ComposerOperation>;
 };
-type Dispatch = (
-  action: string,
-  args: unknown[],
-) => Promise<SteerComposerResult>;
+type Draft = State & Pick<InboxStoreState, "pending" | "drafts">;
 type SteerComposerSlice = State & {
   updateComposerOperation: (id: string, value: ComposerOperation) => void;
-  paintSteerFacts: (
+  updateComposerRetry: (
+    conversation: string,
     id: string,
-    before: SteerClaimRow,
-    changes: SteerFacts,
-  ) => void;
-  paintCollabAccess: (
-    id: string,
-    before: CollabAccess["level"] | undefined,
-    next: CollabAccess | undefined,
-  ) => void;
-  paintCollabRequest: (
-    id: string,
-    before: CollabRequest["status"],
-    status: CollabRequest["status"],
-    updatedAt: number,
+    retry?: ComposerRetry,
   ) => void;
   changeCollabGrant: (command: CollabGrantCommand) => Promise<unknown>;
   controlSteerComposer: (
     convId: string,
-    command: SteerComposerCommand,
+    command: SteeringControl,
   ) => Promise<SteerComposerResult>;
+  sendSteerComposer: (
+    convId: string,
+    command: SteeringSend,
+  ) => Promise<SteerComposerResult>;
+  retireSteerControl: (id: string) => void;
+  settleCollabCommand: (
+    action: string,
+    args: unknown[],
+    result: unknown,
+    locks: ReadonlySet<string>,
+  ) => void;
 };
-type Store = SteerComposerSlice & { _dispatch: Dispatch };
+type Store = {
+  _dispatch: (action: string, args: unknown[]) => Promise<SteerComposerResult>;
+};
 
 export function canStopSteerCommand(row: SteerClaimState, expected: SteerTurn) {
   return (
@@ -118,17 +121,16 @@ export function canStopSteerCommand(row: SteerClaimState, expected: SteerTurn) {
   );
 }
 
-function optimisticSteer(command: SteerComposerCommand): SteerFacts {
-  switch (command.kind) {
-    case "ask":
-      return { drive_requested: true };
-    case "takeover":
-      return { takeover_pending: true, fence_id: null };
-    case "cancel":
-      return { takeover_pending: false, fence_id: null };
-    case "send":
-      return {};
-  }
+function safeRetry(retry: ComposerRetry): ComposerRetry {
+  const { text, typedWords } = retry.payload;
+  const safeText = withoutSecrets(text);
+  const safeTyped =
+    typedWords === undefined ? undefined : withoutSecrets(typedWords);
+  if (safeText === text && safeTyped === typedWords) return retry;
+  return {
+    id: retry.id,
+    payload: { ...retry.payload, text: safeText, typedWords: safeTyped },
+  };
 }
 
 export function createSteerComposerSlice(get: () => Store): SteerComposerSlice {
@@ -137,120 +139,123 @@ export function createSteerComposerSlice(get: () => Store): SteerComposerSlice {
     collabAccess: {},
     collabRequests: {},
     composerOperations: {},
-    updateComposerOperation: sync(function (this: State, id, value) {
+    updateComposerOperation: sync(function (
+      this: State,
+      id: string,
+      value: ComposerOperation,
+    ) {
       this.composerOperations[id] = value;
     }),
-    paintSteerFacts: sync(function (this: State, id, before, changes) {
-      const row = this.fencedSteerClaims[id];
-      if (
-        !row ||
-        row.viewer !== before.viewer ||
-        row.feedVersion !== before.feedVersion ||
-        row.turn?.id !== before.turn?.id ||
-        row.turn?.run !== before.turn?.run ||
-        row.turn?.start_event_seq !== before.turn?.start_event_seq ||
-        row.baton_token !== before.baton_token ||
-        row.takeover_pending !== before.takeover_pending ||
-        row.fence_id !== before.fence_id ||
-        row.drive_requested !== before.drive_requested
-      )
-        return;
-      Object.assign(row, changes);
+    updateComposerRetry: sync(function (
+      this: Draft,
+      conversation: string,
+      id: string,
+      retry?: ComposerRetry,
+    ) {
+      const key = composerRetryDraftKey(conversation);
+      const previous = (this.drafts[key]?.retries ?? []) as ComposerRetry[];
+      if (!retry && !previous.some((row) => row.id === id)) return;
+      const rows = previous.filter((row) => row.id !== id);
+      if (retry) rows.push(safeRetry(retry));
+      if (rows.length) this.drafts[key] = { retries: rows };
+      else delete this.drafts[key];
     }),
-    paintCollabAccess: sync(function (this: State, id, before, next) {
-      if (this.collabAccess[id]?.level !== before) return;
-      if (next) this.collabAccess[id] = next;
-      else delete this.collabAccess[id];
-    }),
-    paintCollabRequest: sync(
-      function (this: State, id, before, status, updatedAt) {
-        const row = this.collabRequests[id];
-        if (row && row.status === before && row.updated_at === updatedAt)
-          row.status = status;
-      },
-    ),
-    async changeCollabGrant(command) {
+    changeCollabGrant: asyncAction(function (
+      this: Draft,
+      command: CollabGrantCommand,
+    ) {
       if (command.kind === "request") {
         const id = command.conversationId;
-        const before = get().collabAccess[id];
-        if (before?.level === "requested") return;
-        get().paintCollabAccess(id, before?.level, {
-          ...before,
+        this.collabAccess[id] = {
+          ...this.collabAccess[id],
           _id: id,
           level: "requested",
-        });
-        try {
-          const response = await get()._dispatch("changeCollabGrant", [
-            command,
-          ]);
-          const confirmed = response as unknown as Omit<CollabAccess, "_id">;
-          if (confirmed.level !== "requested")
-            get().paintCollabAccess(id, "requested", { ...confirmed, _id: id });
-          return response;
-        } catch (error) {
-          get().paintCollabAccess(id, "requested", before);
-          throw error;
+        };
+      } else {
+        const row = this.collabRequests[command.grantId];
+        if (row)
+          row.status =
+            command.kind === "revoke"
+              ? "revoked"
+              : command.allow
+                ? "granted"
+                : "denied";
+      }
+    }),
+    controlSteerComposer: asyncAction(function (
+      this: Draft,
+      id: string,
+      command: SteeringControl,
+    ) {
+      const row = this.fencedSteerClaims[id];
+      if (!row) return;
+      switch (command.kind) {
+        case "ask":
+          row.drive_requested = true;
+          return;
+        case "takeover":
+          row.takeover_pending = true;
+          return;
+        case "cancel":
+          row.takeover_pending = false;
+          row.fence_id = null;
+          return;
+      }
+    }),
+    sendSteerComposer: (id: string, command: SteeringSend) =>
+      get()._dispatch("controlSteerComposer", [id, command]),
+    retireSteerControl: sync(function (this: Draft, id: string) {
+      for (const field of ["takeover_pending", "fence_id", "drive_requested"])
+        delete this.pending[`fencedSteerClaims:${id}:${field}`];
+    }),
+    settleCollabCommand: sync(function (
+      this: Draft,
+      action: string,
+      args: unknown[],
+      result: unknown,
+      locks: ReadonlySet<string>,
+    ) {
+      if (!result || typeof result !== "object") return;
+      const retire = (key: string) => {
+        const entry = this.pending[key];
+        if (!entry?.lock || !locks.has(entry.lock)) return false;
+        delete this.pending[key];
+        return true;
+      };
+      if (
+        action === "controlSteerComposer" &&
+        "status" in result &&
+        result.status === "granted"
+      ) {
+        const [id] = args as [string];
+        const row = this.fencedSteerClaims[id];
+        if (retire(`fencedSteerClaims:${id}:takeover_pending`) && row)
+          row.takeover_pending = false;
+      } else if (action === "changeCollabGrant") {
+        const [command] = args as [CollabGrantCommand];
+        if (
+          command.kind === "request" &&
+          "level" in result &&
+          result.level !== "requested"
+        ) {
+          const id = command.conversationId;
+          if (
+            retire(`collabAccess:${id}:level`) ||
+            retire(`collabAccess:${id}`)
+          )
+            this.collabAccess[id] = { ...(result as CollabAccess), _id: id };
+        } else if (
+          command.kind !== "request" &&
+          "status" in result &&
+          (result.status === "revoked" ||
+            result.status === "denied" ||
+            result.status === "gone")
+        ) {
+          const id = command.grantId;
+          if (retire(`collabRequests:${id}:status`))
+            delete this.collabRequests[id];
         }
       }
-      const { grantId } = command;
-      const row = get().collabRequests[grantId];
-      if (!row) return;
-      const { status: before, updated_at: updatedAt } = row;
-      if (before !== "requested" && before !== "granted") return;
-      const status =
-        command.kind === "revoke"
-          ? "revoked"
-          : command.allow
-            ? "granted"
-            : "denied";
-      if ((command.kind === "revoke") !== (before === "granted")) return;
-      get().paintCollabRequest(grantId, before, status, updatedAt);
-      try {
-        return await get()._dispatch("changeCollabGrant", [command]);
-      } catch (error) {
-        get().paintCollabRequest(grantId, status, before, updatedAt);
-        throw error;
-      }
-    },
-    async controlSteerComposer(id, command) {
-      const before = get().fencedSteerClaims[id];
-      if (!before) return { status: "refused" };
-      if (
-        (command.kind === "ask" && before.drive_requested) ||
-        (command.kind === "takeover" && before.takeover_pending) ||
-        (command.kind === "cancel" && before.fence_id !== command.fenceId)
-      )
-        return { status: "refused" };
-      const changes = optimisticSteer(command);
-      function rollback() {
-        get().paintSteerFacts(
-          id,
-          { ...before, ...changes },
-          {
-            takeover_pending: before.takeover_pending,
-            drive_requested: before.drive_requested,
-            fence_id: before.fence_id,
-          },
-        );
-      }
-      if (command.kind !== "send") get().paintSteerFacts(id, before, changes);
-      try {
-        const result = await get()._dispatch("controlSteerComposer", [
-          id,
-          command,
-        ]);
-        if (
-          command.kind !== "send" &&
-          !["requested", "pending", "granted", "cancelled"].includes(
-            result.status,
-          )
-        )
-          rollback();
-        return result;
-      } catch (error) {
-        if (command.kind !== "send") rollback();
-        throw error;
-      }
-    },
-  };
+    }),
+  } as unknown as SteerComposerSlice;
 }

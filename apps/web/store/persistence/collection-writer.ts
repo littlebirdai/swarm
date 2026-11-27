@@ -45,9 +45,19 @@ export function _resetPersistedShadow() {
   lastPersisted.clear();
 }
 
+let draftWrite: Promise<string> | undefined;
 const metaWriter = createCoalescedWriter((key, value) => {
-  db.meta.put({ key, value }).catch(() => {});
+  const write = db.meta.put({ key, value });
+  if (key === "drafts") draftWrite = write;
+  void write.catch(() => {});
 }, 250);
+
+export async function flushDraftPersistence() {
+  if (_hydrating || !persistenceOwned()) return;
+  metaWriter.flush();
+  await draftWrite;
+}
+
 connectLivenessLane({
   db,
   tables: COLLECTION_TABLES,
@@ -232,6 +242,7 @@ export async function flushPersistence(): Promise<void> {}
 export function resetCollectionWrites() {
   // A meta value still waiting to be written belongs to the cache being purged.
   metaWriter.drop();
+  draftWrite = undefined;
   resetLivenessLane();
   lastPersisted.clear();
   conversationRetentionDrops = new Set();

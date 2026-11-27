@@ -1,6 +1,6 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { createElement, useCallback, useMemo, useRef } from "react";
+import { createElement, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { commandsSession } from "@codecast/inbox/inboxProjection";
 import {
@@ -76,9 +76,6 @@ export function SteerClaimFeeder({
   scope: string;
   viewerId: string;
 }) {
-  const prior = useRef<{ scope: string; signature: string } | undefined>(
-    undefined,
-  );
   const select = useCallback(
     (row: SteerClaimState | null | undefined) => {
       if (
@@ -86,20 +83,18 @@ export function SteerClaimFeeder({
         (row && (row._id !== scope || row.viewer !== viewerId))
       )
         return;
-      if (!row) {
-        prior.current = undefined;
-        return [];
-      }
-      const { fresh_for_ms: _fresh, ...facts } = row;
-      const signature = JSON.stringify(facts);
+      const store = useInboxStore.getState();
+      const previous = store.fencedSteerClaims[scope];
       if (
-        prior.current?.scope === scope &&
-        prior.current.signature === signature &&
-        useInboxStore.getState().fencedSteerClaims[scope]?.viewer === viewerId
+        previous &&
+        (!row ||
+          (previous.turn
+            ? !canStopSteerCommand(row, previous.turn)
+            : row.turn !== null) ||
+          row.baton_token !== previous.baton_token)
       )
-        return;
-      prior.current = { scope, signature };
-      return [{ ...row, feedVersion: crypto.randomUUID() }];
+        store.retireSteerControl(scope);
+      return row ? [row] : [];
     },
     [scope, viewerId],
   );
@@ -217,9 +212,18 @@ export function useLiveComposerControl(
             }
             const call = toStoreCommand(command, row.fence_id);
             if (!call) return "refused";
-            const result = await useInboxStore
-              .getState()
-              .controlSteerComposer(scope, call);
+            const store = useInboxStore.getState();
+            const current = store.fencedSteerClaims[scope];
+            if (!current || current.viewer !== viewerId) return "refused";
+            if (
+              (call.kind === "ask" && current.drive_requested) ||
+              (call.kind === "takeover" && current.takeover_pending) ||
+              (call.kind === "cancel" && current.fence_id !== call.fenceId)
+            )
+              return "refused";
+            const result = await (call.kind === "send"
+              ? store.sendSteerComposer(scope, call)
+              : store.controlSteerComposer(scope, call));
             if (
               [
                 "acknowledged",

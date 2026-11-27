@@ -1,4 +1,7 @@
 import { useInboxStore } from "../../store/inboxStore";
+import { flushDraftPersistence } from "../../store/persistence/collection-writer";
+import { composerRetryDraftKey } from "../../store/steer-composer-state";
+import { isPermanentDispatchError } from "../../store/mutativeMiddleware";
 import type {
   ComposerControlCommandKey as CommandKey,
   ComposerObservation as Observation,
@@ -19,6 +22,7 @@ import {
 
 type SendKind = "send" | "queue" | "suggest";
 type ControlCommand = Exclude<ComposerControlCommand, ComposerPayload>;
+const noRetries: Retry[] = [];
 const empty: Operations = { pending: new Map(), retries: [] };
 const operations = () => useInboxStore.getState().composerOperations;
 
@@ -89,6 +93,14 @@ export function useComposerControl(
   const scopedId = shared ? conversationId : null;
   const record = useInboxStore((state) =>
     scopedId ? (state.composerOperations[scopedId] ?? empty) : empty,
+  );
+  const draftKey = shared?.facts.live
+    ? composerRetryDraftKey(conversationId)
+    : null;
+  const retries = useInboxStore((state) =>
+    draftKey
+      ? ((state.drafts[draftKey]?.retries as Retry[] | undefined) ?? noRetries)
+      : noRetries,
   );
   const facts = shared?.facts;
   const observed = facts
@@ -166,13 +178,31 @@ export function useComposerControl(
     turn: currentFacts.turn,
   };
 
-  function begin(kind: SendKind, retry?: Retry) {
+  function begin(kind: SendKind, draft?: ComposerPayload, retry?: Retry) {
     if (
       !observation ||
       !receipt ||
       !claim(conversationId, observation, "submit", receipt)
     )
       return null;
+    const store = useInboxStore.getState();
+    const draftEpoch = store.syncLogFloorEpoch;
+    const staged =
+      currentFacts.live &&
+      (retry ?? (draft && { id: crypto.randomUUID(), payload: draft }));
+    if (staged && !retry)
+      store.updateComposerRetry(conversationId, staged.id, staged);
+    const stageRetry = (
+      payload: ComposerPayload,
+      command?: ComposerControlCommand,
+    ) => {
+      if (staged && useInboxStore.getState().syncLogFloorEpoch === draftEpoch)
+        store.updateComposerRetry(conversationId, staged.id, {
+          id: staged.id,
+          payload,
+          command,
+        });
+    };
     return async (
       prepare: () => ComposerPayload | Promise<ComposerPayload>,
       restore: (payload: ComposerPayload) => boolean,
@@ -190,15 +220,35 @@ export function useComposerControl(
           kind === "send"
             ? { ...content, kind, expected }
             : { ...content, kind };
+        if (staged) {
+          stageRetry(payload, attempted);
+          try {
+            await flushDraftPersistence();
+          } catch {
+            if (useInboxStore.getState().syncLogFloorEpoch !== draftEpoch)
+              return false;
+            sendState = { kind: "refused" };
+            if (!retry && restore(payload)) dismissRetry(staged);
+            else stageRetry(payload);
+            return false;
+          }
+          if (useInboxStore.getState().syncLogFloorEpoch !== draftEpoch)
+            return false;
+        }
         const result = await baton.run(attempted);
+        if (useInboxStore.getState().syncLogFloorEpoch !== draftEpoch)
+          return false;
         if (result === "accepted") {
-          if (retry) dismissRetry(retry);
+          if (staged || retry) dismissRetry((staged || retry)!);
           if (currentFacts.live && !currentFacts.sendState)
             sendState = { kind: "saved" };
           return true;
         }
         sendState = { kind: result === "stale" ? "stale" : "refused" };
-        if (retry) {
+        if (staged) {
+          if (!retry && restore(payload)) dismissRetry(staged);
+          else stageRetry(payload);
+        } else if (retry) {
           update(conversationId, (current) => ({
             ...current,
             retries: current.retries.map((row) =>
@@ -208,8 +258,13 @@ export function useComposerControl(
         } else if (!restore(payload)) addRetry(payload);
       } catch {
         sendState = { kind: "in-doubt" };
-        if (payload && !retry)
-          addRetry(payload, currentFacts.live ? attempted : undefined);
+        if (
+          !staged &&
+          payload &&
+          !retry &&
+          useInboxStore.getState().syncLogFloorEpoch === draftEpoch
+        )
+          addRetry(payload);
       } finally {
         settle(
           conversationId,
@@ -226,20 +281,18 @@ export function useComposerControl(
     };
   }
 
-  function addRetry(
-    payload: ComposerPayload,
-    command?: ComposerControlCommand,
-  ) {
+  function addRetry(payload: ComposerPayload) {
     update(conversationId, (current) => ({
       ...current,
-      retries: [
-        ...current.retries,
-        { id: crypto.randomUUID(), payload, command },
-      ],
+      retries: [...current.retries, { id: crypto.randomUUID(), payload }],
     }));
   }
 
   function dismissRetry(retry: Retry) {
+    if (draftKey) {
+      useInboxStore.getState().updateComposerRetry(conversationId, retry.id);
+      return;
+    }
     update(conversationId, (current) => ({
       ...current,
       retries: current.retries.filter((row) => row.id !== retry.id),
@@ -252,9 +305,13 @@ export function useComposerControl(
       : view.send === "suggest"
         ? "suggest"
         : null;
-    const current = operations()[conversationId];
-    if (!kind || !current?.retries.some((row) => row.id === retry.id)) return;
-    const complete = begin(kind, retry);
+    const current = draftKey
+      ? (useInboxStore.getState().drafts[draftKey]?.retries as
+          | Retry[]
+          | undefined)
+      : operations()[conversationId]?.retries;
+    if (!kind || !current?.some((row) => row.id === retry.id)) return;
+    const complete = begin(kind, undefined, retry);
     if (complete)
       void complete(
         () => retry.payload,
@@ -269,8 +326,8 @@ export function useComposerControl(
       let controlError: Outcome["controlError"];
       try {
         if ((await baton.run(command)) !== "accepted") controlError = "refused";
-      } catch {
-        controlError = "in-doubt";
+      } catch (error) {
+        controlError = isPermanentDispatchError(error) ? "refused" : "in-doubt";
       }
       if (controlError) {
         update(conversationId, (current) => {
@@ -316,7 +373,7 @@ export function useComposerControl(
     act,
     retryDraft,
     dismissRetry,
-    retries: record.retries,
+    retries: draftKey ? retries : record.retries,
     controlError: outcome?.controlError,
     request:
       view.request && outcome?.completed.has("ask")
