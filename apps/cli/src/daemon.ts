@@ -8217,6 +8217,9 @@ let heartbeatTailnet:
     >
   | undefined;
 let edgeLink: Promise<typeof import("./daemon-edge-link.js")> | undefined;
+let edgeMachine:
+  | Promise<import("@codecast/edge-supervisor").MachineSupervisor>
+  | undefined;
 async function sendHeartbeat(): Promise<void> {
   if (
     hasActiveCloudWork(
@@ -8416,11 +8419,24 @@ async function sendHeartbeat(): Promise<void> {
     }
     if (process.env.CODECAST_EDGE_V1 === "1") {
       const edge = { siteUrl, bearer: config.auth_token, boot: BOOT_ID };
-      void (edgeLink ??= import("./daemon-edge-link.js"))
-        .then((m) =>
-          m.reportEdgeHeartbeat(edge, managedHeartbeatSessions.size, log),
-        )
-        .catch(() => log("[EDGE] Link failed"));
+      if (edgeMachine) {
+        void edgeMachine
+          .then((machine) =>
+            machine.connect({
+              ...edge,
+              machine: deviceId(),
+              liveAgents: managedHeartbeatSessions.size,
+              local: !isRemoteDevice(),
+            }),
+          )
+          .catch(() => log("[EDGE] Supervisor link failed"));
+      } else {
+        void (edgeLink ??= import("./daemon-edge-link.js"))
+          .then((m) =>
+            m.reportEdgeHeartbeat(edge, managedHeartbeatSessions.size, log),
+          )
+          .catch(() => log("[EDGE] Link failed"));
+      }
     }
     resetAuthFailureCount();
     // Same endpoint as the command poll: a beat that lands is proof the
@@ -40303,6 +40319,12 @@ async function main(): Promise<void> {
   // first result for diagnosability.
   // Register this device early + on its own interval, so device presence never
   // depends on later (potentially slow) init steps.
+  if (process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1") {
+    edgeMachine = import("@codecast/edge-supervisor").then((m) =>
+      m.startMachine({ log }),
+    );
+    void edgeMachine.catch(() => log("[EDGE] Supervisor start failed"));
+  }
   void sendHeartbeat().catch(() => {});
   setInterval(() => heartbeatTick(), HEARTBEAT_INTERVAL_MS);
 
@@ -45268,6 +45290,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }, 15_000);
     hardExitTimer.unref();
+    if (edgeMachine) await edgeMachine.then((m) => m.close()).catch(() => {});
     if (terminalTypingStopped) await terminalTypingStopped;
 
     saveDaemonState({ connected: false });
