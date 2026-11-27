@@ -93,7 +93,7 @@ async function twice(): Promise<Report[]> {
 
 await test(
   "switch",
-  "a warm conversation switch fetches no history and opens the same 15 subscriptions each way",
+  "a warm conversation switch fetches no history and opens the same 14 subscriptions each way",
   async () => {
     await setup("switch");
     for (const r of await twice()) {
@@ -106,13 +106,15 @@ await test(
           "domMutations",
         ]),
         asked: r.detail.query,
+        grantsBeforeAuth: r.detail.subscribe.includes("collab:collabRequests"),
       }).toEqual({
         // A cached window of 200 rows needs no snapshot, backfill or reread.
         convexQueries: 0,
         convexActions: 0,
         asked: [],
         // The destination's live queries (tail, meta, watermark, pane chrome).
-        convexSubscribes: 15,
+        convexSubscribes: 14,
+        grantsBeforeAuth: false,
         storeWrites: 0,
         // The pane swaps its subtrees; nothing else on the page moves. Six rows
         // of overscan each side (ConversationView) set how many it mounts.

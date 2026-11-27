@@ -150,19 +150,30 @@ export function useScreenRecordingAttach(
 
   /** The turn's text with the recording, which the send takes: the composer
    *  holds no recording after it. Unchanged when none is named yet. */
-  const take = useCallback((text: string): string => {
-    const rec = current.current;
-    if (!rec?.begun) return text;
-    setRecording(null);
-    return formatScreenRecordingMessage(
-      {
-        call: rec.begun.call,
-        transcriptId: rec.begun.transcriptId,
-        durationMs: rec.durationMs,
-      },
-      text,
-    );
-  }, []);
+  const take = useCallback(
+    (text: string, defer?: (consume: () => void) => void): string => {
+      const rec = current.current;
+      if (!rec?.begun) return text;
+      const consume = () => {
+        setRecording((current) =>
+          current?.begun?.transcriptId === rec.begun?.transcriptId
+            ? null
+            : current,
+        );
+      };
+      if (defer) defer(consume);
+      else consume();
+      return formatScreenRecordingMessage(
+        {
+          call: rec.begun.call,
+          transcriptId: rec.begun.transcriptId,
+          durationMs: rec.durationMs,
+        },
+        text,
+      );
+    },
+    [],
+  );
 
   return { recording, attach, remove, take, ready: !!recording?.begun };
 }

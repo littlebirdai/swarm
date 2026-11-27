@@ -61,6 +61,43 @@ export async function settleComposerAttachments(
     .map((img) => ({ storage_id: img.storageId, mime: img.mime }));
 }
 
+export function reconcileSendImages(
+  conversationId: string,
+  images: PastedImage[],
+) {
+  const drafts = useInboxStore.getState().drafts;
+  const draftRows = restoreDraftImages(drafts[conversationId] ?? undefined);
+  const pending = images.filter((image) => image.storageId || image.uploading);
+  const draftOnly = draftRows.filter(
+    (row) =>
+      row.storageId &&
+      !pending.some((image) => image.storageId === row.storageId),
+  );
+  return [...pending, ...draftOnly];
+}
+
+export async function resolveSendImages(
+  images: readonly PastedImage[],
+  quotedUploads: readonly Promise<string>[],
+) {
+  const settled = await Promise.all(
+    images.map(async (image) => ({
+      media_type: image.file.type,
+      storage_id: image.storageId ?? (await awaitUpload(image.previewUrl)),
+    })),
+  );
+  return [
+    ...settled.filter(
+      (image): image is { media_type: string; storage_id: string } =>
+        !!image.storage_id,
+    ),
+    ...(await Promise.all(quotedUploads)).map((storage_id) => ({
+      media_type: "image/png",
+      storage_id,
+    })),
+  ];
+}
+
 export function serializeDraftImages(images: PastedImage[]): DraftImageRow[] {
   return images.map((i) => ({
     storageId: i.storageId,

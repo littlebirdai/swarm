@@ -132,8 +132,8 @@ export function quoteToComposer(text: string, populate: PopulateFn): void {
 // each such image quote then names its attachment as `[Image N]`, numbered
 // from there, and its point as the marker number drawn on it.
 //
-// A whole take is the send: the proposal answers in the batch are applied
-// (takeProposalAnswers) and their words lead the message, then the quotes.
+type DeferReviewTake = (consume: () => void) => void;
+
 export function takeReviewBatch(
   conversationId: string,
   messageId?: string,
@@ -142,21 +142,17 @@ export function takeReviewBatch(
   return takeBatch(conversationId, messageId, firstImageNumber, false).text;
 }
 
-// The take a send makes when it carries the quote record (lib/quoteDraftWire):
-// the same text, plus the ids of the recorded quotes it took, for the send to
-// hand the server (store sendMessage's quoteIds) so it stamps them sent. Their
-// records stay; with the record off, `quoteIds` is empty and this is
-// takeReviewBatch.
 function takeBatch(
   conversationId: string,
   messageId: string | undefined,
   firstImageNumber: number | undefined,
   sending: boolean,
+  defer?: DeferReviewTake,
 ): { text: string; quoteIds: string[] } {
   const s = useInboxStore.getState();
   const answers = messageId
     ? ""
-    : takeProposalAnswers(conversationId, { sentIn: conversationId });
+    : takeProposalAnswers(conversationId, { sentIn: conversationId, defer });
   const taken = sortPendingComments(
     s
       .getReviewComments(conversationId)
@@ -186,7 +182,18 @@ function takeBatch(
       ? taken.filter((c) => isRecordedQuote(conversationId, c)).map((c) => c.id)
       : [];
   const sent = new Set(quoteIds);
-  if (messageId) {
+  if (defer) {
+    defer(() => {
+      const pending = new Set(s.getReviewComments(conversationId));
+      for (const comment of taken)
+        if (pending.has(comment))
+          s.removeReviewComment(
+            conversationId,
+            comment.id,
+            sent.has(comment.id),
+          );
+    });
+  } else if (messageId) {
     taken.forEach((c) =>
       s.removeReviewComment(conversationId, c.id, sent.has(c.id)),
     );
@@ -198,16 +205,14 @@ function takeBatch(
   return { text, quoteIds };
 }
 
-// Build the outgoing message: the pending batch (if any) prepended to the typed
-// reply, clearing the batch. The composer's send path calls this so a plain send
-// carries the quotes. With nothing pending it returns `typed` untouched.
 export function attachReviewToMessage(
   conversationId: string,
   typed: string,
   firstImageNumber?: number,
+  defer?: DeferReviewTake,
 ): string {
   return withReply(
-    takeReviewBatch(conversationId, undefined, firstImageNumber),
+    takeBatch(conversationId, undefined, firstImageNumber, false, defer).text,
     typed,
   );
 }
@@ -218,12 +223,14 @@ export function attachReviewForSend(
   conversationId: string,
   typed: string,
   firstImageNumber?: number,
+  defer?: DeferReviewTake,
 ): { text: string; quoteIds: string[] } {
   const { text, quoteIds } = takeBatch(
     conversationId,
     undefined,
     firstImageNumber,
     true,
+    defer,
   );
   return { text: withReply(text, typed), quoteIds };
 }
@@ -477,6 +484,7 @@ export function takeProposalAnswers(
     say?: OrgReplyOpts["say"];
     leave_sessions?: boolean;
     sentIn?: string;
+    defer?: DeferReviewTake;
   },
 ): string {
   const s = useInboxStore.getState();
@@ -500,24 +508,34 @@ export function takeProposalAnswers(
     const items = replyItemsOf(answers, proposalId);
     const leave =
       !!opts?.leave_sessions || answers.some((c) => c.proposal.leave_sessions);
-    if (opts?.sentIn)
-      noteReplySent(proposalId, answers[0].proposal.short_id, opts.sentIn);
-    const thread = s.orgProposals[proposalId]?.thread?.conversation_id;
-    const say =
-      opts?.say ??
-      (opts?.sentIn && thread && thread !== opts.sentIn
-        ? {
-            thread,
-            client_id: `optimistic_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-          }
-        : undefined);
-    s.replyOnOrgProposal(proposalId, items, proposalSeen(rows), {
-      ...(leave ? { leave_sessions: true } : {}),
-      ...(say ? { say } : {}),
-    });
+    const consume = () => {
+      if (opts?.sentIn)
+        noteReplySent(proposalId, answers[0].proposal.short_id, opts.sentIn);
+      const thread = s.orgProposals[proposalId]?.thread?.conversation_id;
+      const say =
+        opts?.say ??
+        (opts?.sentIn && thread && thread !== opts.sentIn
+          ? {
+              thread,
+              client_id: `optimistic_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            }
+          : undefined);
+      s.replyOnOrgProposal(proposalId, items, proposalSeen(rows), {
+        ...(leave ? { leave_sessions: true } : {}),
+        ...(say ? { say } : {}),
+      });
+    };
+    if (opts?.defer) opts.defer(consume);
+    else consume();
     replies.push(replyOf(answers));
   }
-  for (const c of taken) s.removeReviewComment(batchKey, c.id);
+  const remove = () => {
+    const pending = new Set(s.getReviewComments(batchKey));
+    for (const c of taken)
+      if (pending.has(c)) s.removeReviewComment(batchKey, c.id);
+  };
+  if (opts?.defer) opts.defer(remove);
+  else for (const c of taken) s.removeReviewComment(batchKey, c.id);
   return replies.length ? proposalRepliesText(replies) : "";
 }
 

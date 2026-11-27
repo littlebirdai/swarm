@@ -53,16 +53,29 @@ export function useFileAttach() {
 
   /** The turn's text with a tag per uploaded file; the composer holds no
    *  files after it. */
-  const take = useCallback((text: string): string => {
-    const ready = current.current.filter((f) => f.storageId);
-    if (ready.length === 0) return text;
-    setFiles([]);
-    current.current = [];
-    return appendFileTags(
-      text,
-      ready.map((f) => ({ storageId: f.storageId!, name: f.file.name })),
-    );
-  }, []);
+  const take = useCallback(
+    (text: string, defer?: (consume: () => void) => void): string => {
+      const ready = current.current.filter((f) => f.storageId);
+      if (ready.length === 0) return text;
+      if (defer) {
+        const keys = new Set(ready.map(({ key }) => key));
+        const remaining = (files: AttachedFile[]) =>
+          files.filter(({ key }) => !keys.has(key));
+        defer(() => {
+          current.current = remaining(current.current);
+          setFiles(remaining);
+        });
+      } else {
+        setFiles([]);
+        current.current = [];
+      }
+      return appendFileTags(
+        text,
+        ready.map((f) => ({ storageId: f.storageId!, name: f.file.name })),
+      );
+    },
+    [],
+  );
 
   return {
     files,

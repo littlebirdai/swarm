@@ -58,6 +58,8 @@ import {
   pendingImageUploads,
   persistDraftImages,
   restoreDraftImages,
+  resolveSendImages,
+  reconcileSendImages,
   settleDraftImageUpload,
 } from "../lib/draftImages";
 import { cancelPendingSend } from "../lib/cancelPendingSend";
@@ -84,6 +86,7 @@ import {
   quotedImages,
 } from "../lib/reviewActions";
 import { useShallow } from "zustand/react/shallow";
+import { releaseUpload } from "../lib/pendingUploads";
 import { uploadMarkedImage } from "../lib/markedImage";
 import { enterReviewFromComposer } from "../lib/reviewNav";
 import { ReviewBar } from "./ReviewBar";
@@ -2642,6 +2645,18 @@ export const MessageInput = memo(function MessageInput({
     return true;
   };
 
+  const reportSubmitIntent = (
+    submitted: Promise<unknown>,
+    navigate = false,
+  ) => {
+    if (!onSubmitWithIntent) return;
+    if (control?.facts.live)
+      void submitted.then((saved) => {
+        if (saved === true) onSubmitWithIntent(navigate);
+      });
+    else if (!submitRefusedRef.current) onSubmitWithIntent(navigate);
+  };
+
   const handleSubmit = async (
     e: React.FormEvent,
     forkTail = false,
@@ -2661,14 +2676,14 @@ export const MessageInput = memo(function MessageInput({
     if (onGoalCommand?.(message)) return false;
     if (
       holdForCredential(message, () => {
-        void handleSubmitRef.current?.(
+        const resumed = handleSubmitRef.current?.(
           { preventDefault: () => {} } as unknown as React.FormEvent,
           forkTail,
           queue,
           interrupt,
           observeTurn,
         );
-        if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
+        if (resumed) reportSubmitIntent(resumed);
       })
     )
       return false;
@@ -2754,26 +2769,8 @@ export const MessageInput = memo(function MessageInput({
     const controlled = forking ? null : control;
     if (controlled && (!controlled.send || controlled.isSubmitting()))
       return false;
-    // Snapshot the composer's images. Ready ones already carry a storageId;
-    // still-uploading ones are handed to the pending bubble (preview + spinner)
-    // and finished in the background — either way the input unblocks instantly.
-    // The store draft is the durable record of pasted images (sacred from the
-    // moment of paste) — in-memory state can lose rows across a remount, rekey,
-    // or cross-tab handoff while the draft keeps them, and a send that trusts
-    // only memory then silently drops the user's images (jx7byyk, 2026-07-31).
-    // Reconcile: any settled draft row missing from memory rides along.
-    const draftRows = restoreDraftImages(
-      useInboxStore.getState().drafts[conversationId] ?? undefined,
-    );
-    const memoryImages = pastedImagesRef.current.filter(
-      (img) => img.storageId || img.uploading,
-    );
-    const draftOnlyImages = draftRows.filter(
-      (row) =>
-        row.storageId &&
-        !memoryImages.some((img) => img.storageId === row.storageId),
-    ) as typeof memoryImages;
-    const submitImages = [...memoryImages, ...draftOnlyImages];
+    const memoryImages = pastedImagesRef.current;
+    const submitImages = reconcileSendImages(conversationId, memoryImages);
     if (refuseHostedImages(submitImages.length)) return false;
     // Auto-attach any pending review quotes/comments so a plain send carries them —
     // no separate "add to message" step. They prepend the typed reply and the batch
@@ -2792,13 +2789,17 @@ export const MessageInput = memo(function MessageInput({
       !jointSendReady(conversationId)
     )
       return false;
+    const live = controlled?.facts.live === true;
+    const consumeAttachments: (() => void)[] = [];
+    const defer = live
+      ? consumeAttachments.push.bind(consumeAttachments)
+      : undefined;
     const quoted = forking ? [] : quotedImages(conversationId);
-    // The quotes it takes ride the send as ids too, so the server stamps their
-    // records sent (lib/quoteDraftWire; empty unless the person turned it on).
     const review = attachReviewForSend(
       conversationId,
       message,
       quoted.length ? submitImages.length + 1 : undefined,
+      defer,
     );
     message = review.text;
     const quoteIds = review.quoteIds;
@@ -2818,10 +2819,8 @@ export const MessageInput = memo(function MessageInput({
           : undefined,
       );
     const typedWords = message === beforeJoint ? typed : undefined;
-    // An attached screen recording rides as its tag (a fork leaves it here).
-    if (!forking) message = screenRec.take(message);
-    // Attached files ride as tags the daemon turns into local paths.
-    if (!forking) message = fileAttach.take(message);
+    if (!forking)
+      message = fileAttach.take(screenRec.take(message, defer), defer);
     const quotedOriginals: OptimisticImage[] = quoted.map((q) => ({
       media_type: "image/png",
       storage_id: q.storageId,
@@ -2875,9 +2874,17 @@ export const MessageInput = memo(function MessageInput({
         )
       : null;
     if (controlled && !completeControlled) return false;
-    if (interrupt && controlled?.interrupt)
-      void controlled.act({ kind: "interrupt", expected: controlled.expected });
-    sendingRef.current = true;
+    const stopTurn = () => {
+      if (interrupt && controlled?.interrupt)
+        void controlled.act({
+          kind: "interrupt",
+          expected: controlled.expected,
+        });
+    };
+    if (!live) {
+      stopTurn();
+      sendingRef.current = true;
+    }
     let clientId: string | undefined;
     try {
       if (!completeControlled)
@@ -2900,25 +2907,43 @@ export const MessageInput = memo(function MessageInput({
       submitRefusedRef.current = true;
       return false;
     }
-    suggestionRef.current?.settleSend(typed);
-    cancelPendingDraft();
-    soundSend();
-    setMessage("");
-    messageRef.current = "";
-    setSelectedQueueIndex(null);
-    // When images are still uploading their blobs now belong to the pending
-    // bubble; the background task revokes them once the upload resolves.
-    clearAllImages(!hasUploadingImages);
-    useInboxStore.getState().clearDraftFinal(conversationId);
-    if (composeMode) {
-      composeRef.current?.clear();
-      setComposeMode(false);
-      setComposeHasContent(false);
-    }
-    sendingRef.current = false;
-    requestAnimationFrame(() => textareaRef.current?.focus());
-    onMessageSent?.();
-
+    const clearComposer = () => {
+      if (live) {
+        consumeAttachments.forEach((consume) => consume());
+        stopTurn();
+        if (
+          !composerMounted.current ||
+          convIdRef.current !== conversationId ||
+          (composeMode
+            ? composeRef.current?.getMarkdown()
+            : messageRef.current) !== typed ||
+          pastedImagesRef.current.length !== memoryImages.length ||
+          pastedImagesRef.current.some(
+            (image, index) =>
+              image.previewUrl !== memoryImages[index]?.previewUrl,
+          )
+        )
+          return;
+        sendingRef.current = true;
+      }
+      suggestionRef.current?.settleSend(typed);
+      cancelPendingDraft();
+      soundSend();
+      setMessage("");
+      messageRef.current = "";
+      setSelectedQueueIndex(null);
+      clearAllImages(live || !hasUploadingImages);
+      useInboxStore.getState().clearDraftFinal(conversationId);
+      if (composeMode) {
+        composeRef.current?.clear();
+        setComposeMode(false);
+        setComposeHasContent(false);
+      }
+      sendingRef.current = false;
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      onMessageSent?.();
+    };
+    if (!live) clearComposer();
     const preparedPayload = (ids: string[]): ComposerPayload => ({
       text: trimmed,
       ...(ids.length ? { imageIds: ids } : {}),
@@ -2959,6 +2984,7 @@ export const MessageInput = memo(function MessageInput({
           }),
           restoreControlled,
           preparedPayload(ids),
+          clearComposer,
         );
         if (accepted) claimJoint?.();
         return accepted;
@@ -3020,31 +3046,10 @@ export const MessageInput = memo(function MessageInput({
 
     if (hasUploadingImages) {
       const uploaded = (async () => {
-        const tasks = submitImages.map((img) => ({
-          previewUrl: img.previewUrl,
-          mediaType: img.file.type,
-          promise: img.storageId
-            ? Promise.resolve<string | null>(img.storageId as string)
-            : (pendingImageUploads.get(img.previewUrl) ??
-              Promise.resolve<string | null>(null)),
-        }));
-        const settled = await Promise.all(
-          tasks.map((t) =>
-            t.promise.then((storageId) => ({ ...t, storageId })),
-          ),
+        const resolvedImages = await resolveSendImages(
+          submitImages,
+          quotedUploads,
         );
-        const resolvedImages: OptimisticImage[] = [
-          ...settled
-            .filter((t) => t.storageId)
-            .map((t) => ({
-              media_type: t.mediaType,
-              storage_id: t.storageId as string,
-            })),
-          ...(await Promise.all(quotedUploads)).map((storage_id) => ({
-            media_type: "image/png",
-            storage_id,
-          })),
-        ];
         if (resolvedImages.length === 0 && !message.trim()) {
           if (clientId)
             useInboxStore
@@ -3055,17 +3060,17 @@ export const MessageInput = memo(function MessageInput({
               () => Promise.reject(new Error("Image upload failed")),
               restoreControlled,
             );
-          tasks.forEach((t) => pendingImageUploads.delete(t.previewUrl));
+          submitImages.forEach(({ previewUrl }) =>
+            pendingImageUploads.delete(previewUrl),
+          );
           return false;
         }
         if (clientId)
           useInboxStore
             .getState()
             .resolvePendingUploads(targetConvId, clientId, resolvedImages);
-        tasks.forEach((t) => {
-          pendingImageUploads.delete(t.previewUrl);
-          setTimeout(() => URL.revokeObjectURL(t.previewUrl), 1000);
-        });
+        if (!live)
+          submitImages.forEach(({ previewUrl }) => releaseUpload(previewUrl));
         return finishSend(resolvedImages.map((i) => i.storage_id as string));
       })().catch((error: unknown) => {
         if (!completeControlled) throw error;
@@ -3676,10 +3681,7 @@ export const MessageInput = memo(function MessageInput({
     }
     if (onSubmitWithIntent && e.key === "Enter" && !e.shiftKey && !e.altKey) {
       e.preventDefault();
-      const navigate = e.metaKey || e.ctrlKey;
-      void handleSubmit(e);
-      if (submitRefusedRef.current) return;
-      onSubmitWithIntent(navigate);
+      reportSubmitIntent(handleSubmit(e), e.metaKey || e.ctrlKey);
       return;
     }
     // Send together: my draft and everyone else's in this composer, one turn.
@@ -3758,11 +3760,8 @@ export const MessageInput = memo(function MessageInput({
   // must honor the compose-popup contract the same way plain Enter does in
   // handleKeyDown: send, then dismiss the popup with fire-and-forget intent.
   // Outside the popup (no onSubmitWithIntent) this is exactly handleSubmit.
-  const handleFormSubmit = (e: React.FormEvent) => {
-    void handleSubmit(e);
-    if (submitRefusedRef.current) return;
-    onSubmitWithIntent?.(false);
-  };
+  const handleFormSubmit = (e: React.FormEvent) =>
+    reportSubmitIntent(handleSubmit(e));
 
   handleSubmitRef.current = handleSubmit;
   const typedLength =

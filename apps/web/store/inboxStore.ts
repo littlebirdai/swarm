@@ -1,5 +1,6 @@
 import { relayGrantAction } from "./relay-grant-action";
 import * as deferredCache from "./deferred-cache-policy";
+import { createSteerComposerSlice } from "./steer-composer-state";
 import { resetDetailInvalidations } from "./doc-detail-cache";
 import {
   resourceOffloadStubs,
@@ -7855,9 +7856,8 @@ function dropGuestKnock(draft: any, guestId: string): void {
     draft.roomKnocks = knocks.filter((k) => k.guest_id !== guestId);
 }
 
-// RegisteredCollectionSlots: every collection in CLIENT_SYNC_REGISTRY gets a
-// typed `Record<string, any>` slot here by registration alone; the explicit
-// fields below narrow the ones with a real row type.
+type SteerComposerStore = ReturnType<typeof createSteerComposerSlice>;
+
 export interface InboxStoreState
   extends
     ChatSliceState,
@@ -7872,13 +7872,14 @@ export interface InboxStoreState
     OpsSliceActions,
     ReturnType<typeof createReadingAnchorsSlice>,
     FencedPromptAnswerActions,
+    SteerComposerStore,
     LiveArtifactsSliceActions,
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
     ComposeSliceState,
     Omit<
       RegisteredCollectionSlots,
-      keyof ChatSliceState | keyof OrgSliceState
+      keyof (ChatSliceState & OrgSliceState & SteerComposerStore)
     > {
   sessions: Record<string, InboxSession>;
   pending: Record<string, PendingEntry>;
@@ -14880,6 +14881,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // -- Session unread --
   sessionReads: {},
   ...createReadingAnchorsSlice(),
+  ...createSteerComposerSlice(get),
   // Plain, not an action: an action() always dispatches, and the ack fires on
   // every presence change and every re-render of the open session. The guard
   // here is what makes "the agent re-reported the same state" literally free —

@@ -1,4 +1,4 @@
-import { selectComposerControl } from "./conversation/composer-control-model";
+import { useSessionComposerControl } from "../hooks/use-live-composer-control";
 import {
   HandoffLinkChip,
   HandoffSessionLink,
@@ -6815,11 +6815,15 @@ const ConversationViewInner = function ConversationView(
     },
     [roleSend.wakeRole, roleSend.setRecipient],
   );
-  const scopedComposerControl =
-    conversation && selectComposerControl(composerControl, conversation._id)
-      ? composerControl
-      : undefined;
   const feedObservedTurn = showMessageInput && !guest && effectiveIsOwner;
+  const { control: scopedComposerControl, feeder: steerClaimFeeder } =
+    useSessionComposerControl(
+      conversation?._id,
+      currentUser?._id,
+      composerControl,
+      showMessageInput &&
+        !(guest || newSessionPage || onSendOverride || onSubmitWithIntent),
+    );
   const ownerComposerMounted = !!(
     showMessageInput &&
     conversation &&
@@ -6922,6 +6926,7 @@ const ConversationViewInner = function ConversationView(
                                       conversationId={conversation?._id}
                                     />
                                   )}
+                                  {steerClaimFeeder}
                                   {isDragging &&
                                     !isHostedAgentType(
                                       conversation?.agent_type,
@@ -9561,7 +9566,7 @@ const ConversationViewInner = function ConversationView(
                                               <NonOwnerMessageInput
                                                 conversation={conversation}
                                                 composerControl={
-                                                  composerControl
+                                                  scopedComposerControl
                                                 }
                                                 onForkReply={handleForkReply}
                                                 autoFocusInput={autoFocusInput}
@@ -9624,12 +9629,7 @@ const ConversationViewInner = function ConversationView(
                                                     !newSessionPage
                                                   }
                                                   composerControl={
-                                                    guest ||
-                                                    newSessionPage ||
-                                                    onSendOverride ||
-                                                    onSubmitWithIntent
-                                                      ? undefined
-                                                      : scopedComposerControl
+                                                    scopedComposerControl
                                                   }
                                                   status={conversation.status}
                                                   embedded={embedded}

@@ -18,7 +18,11 @@ import {
 // useMutation; the multiplayer simulator (docs/architecture/multiplayer-sim-harness.md)
 // wires the same two functions to a simulated client. One copy of the ack
 // protocol and of the failure rules, whoever transports the call.
-import { StaleDispatchBindingError, type DispatchFn } from "@platform/engine";
+import {
+  CommandReceiptRejectedError,
+  StaleDispatchBindingError,
+  type DispatchFn,
+} from "@platform/engine";
 import { outboxAccountId } from "../store/idb-cache";
 import { stampDeliveryReceipts } from "./syncDeliveryReceipts";
 import { toast } from "sonner";
@@ -108,9 +112,28 @@ export function makeDispatchBinding(
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
+        if (
+          action === "controlSteerComposer" &&
+          args?.[1]?.kind !== "send" &&
+          (res?.status === "refused" || res?.status === "stale")
+        ) {
+          const error = new CommandReceiptRejectedError({
+            code: "STEER_CONTROL_REFUSED",
+            message: "Control request refused",
+          });
+          settle({ err: error });
+          throw error;
+        }
         settle({ ok: true });
         if (action === "answerFencedPrompt" && typeof args?.[0] === "string")
           useInboxStore.getState().acceptFencedPromptAnswer(args[0]);
+        if (
+          lockIds?.size &&
+          (action === "controlSteerComposer" || action === "changeCollabGrant")
+        )
+          useInboxStore
+            .getState()
+            .settleCollabCommand(action, args, res, lockIds);
         if (detailWrite && detailAccountIsCurrent(detailWrite) && docId) {
           const id = docId;
           if (action === "archiveDoc")

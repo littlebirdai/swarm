@@ -1,11 +1,18 @@
-export type TurnExpectation = { kind: "turn"; turn: string | null };
+import type { SteerTurn } from "../../store/steer-composer-state";
+
+export type TurnExpectation = {
+  kind: "turn";
+  turn: string | null;
+  address?: SteerTurn;
+  batonToken?: number | null;
+};
 
 type Driver = { id: string; name: string };
 
 export type SendState =
   | { kind: "submitting" | "saved" | "waiting-for-machine" | "with-agent" }
   | { kind: "waiting-for-driver"; driver: string }
-  | { kind: "in-doubt" | "stale" | "refused" | "suggested" };
+  | { kind: "in-doubt" | "stale" | "refused" | "unsaved" | "suggested" };
 
 export type ComposerControlFacts = {
   viewerId: string;
@@ -15,6 +22,12 @@ export type ComposerControlFacts = {
   takeoverPending: boolean;
   driveRequested: boolean;
   sendState: SendState | null;
+  expected?: TurnExpectation;
+  canSteer?: boolean;
+  canTakeOver?: boolean;
+  canInterrupt?: boolean;
+  canCancelTakeover?: boolean;
+  live?: true;
 };
 
 export type ComposerPayload = {
@@ -22,6 +35,7 @@ export type ComposerPayload = {
   imageIds?: string[];
   quoteIds?: string[];
   typedWords?: string;
+  clientId?: string;
 };
 
 export type ComposerControlCommand =
@@ -81,6 +95,8 @@ function sendStatus(state: SendState | null): string | null {
       return "Turn ended";
     case "refused":
       return "Send refused";
+    case "unsaved":
+      return "Could not save draft yet";
     case "suggested":
       return "Suggested";
     case undefined:
@@ -102,13 +118,24 @@ export function composerControlModel(facts: ComposerControlFacts) {
       ? facts.role === "suggester"
         ? "suggest"
         : null
-      : retryWithQueue || facts.takeoverPending || otherDrives
+      : retryWithQueue ||
+          facts.takeoverPending ||
+          otherDrives ||
+          (facts.turn !== null && facts.canSteer === false)
         ? "queue"
         : "send",
     request: !canQueue ? (facts.driveRequested ? "requested" : "ask") : null,
     canQueue,
-    interrupt: facts.turn !== null && (owner || (canQueue && mine)),
-    takeover: takingOver ? "cancel" : owner && otherDrives ? "takeover" : null,
+    interrupt:
+      facts.turn !== null &&
+      (facts.canInterrupt ?? (owner || (canQueue && mine))),
+    takeover: takingOver
+      ? facts.canCancelTakeover === false
+        ? null
+        : "cancel"
+      : owner && otherDrives && facts.canTakeOver !== false
+        ? "takeover"
+        : null,
     takeoverStatus: facts.takeoverPending
       ? "Taking over · Waiting for the machine"
       : null,

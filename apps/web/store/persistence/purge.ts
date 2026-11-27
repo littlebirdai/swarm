@@ -9,7 +9,7 @@ import {
 import { dropPendingMessageWrites } from "./message-cache";
 import { writeOwnerStamp } from "./ownership";
 import { clearPendingInputJournal } from "./pendingInputJournal";
-import { PENDING_INPUT_PREFIX } from "./schema";
+import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "./schema";
 
 // Sign-out purge: drop every locally persisted row (collections, messages,
 // meta, parked outbox). The caller owns navigation/reload afterwards.
@@ -61,7 +61,10 @@ async function purgeLocalCacheSteps(
     try {
       kept = await db.meta
         .where("key")
-        .startsWith(`${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`)
+        .startsWithAnyOf(
+          `${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`,
+          `${COMPOSER_RETRY_PREFIX}${keepPendingInputFor}:`,
+        )
         .toArray();
     } catch {
       kept = [];

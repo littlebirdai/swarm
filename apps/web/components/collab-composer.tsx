@@ -2,7 +2,10 @@
 
 import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
+import {
+  useCollabRequests,
+  useCollabSendLevel,
+} from "../hooks/use-collab-grants";
 import { useMutation, useConvexAuth } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -408,16 +411,9 @@ export const CollabComposer = memo(function CollabComposer({
   const draftScope = useRef<string | null>(null);
   const activeControl = !!control;
   const visibleScope = useRef<string | null>(convKey);
-  // Skip until the conversation is a real server row: a freshly-created
-  // optimistic stub is keyed by its session UUID, which the v.id("conversations")
-  // validator rejects (crashing the page). A stub has no grants to read anyway.
-  const access = useQueryNoThrow(
-    api.collab.mySendAccess,
-    isConvexId(conversation._id.toString())
-      ? { conversation_id: convId }
-      : "skip",
-  ).data;
-  const requestAccess = useMutation(api.collab.requestSendAccess);
+  const access = useCollabSendLevel(
+    isAuthenticated && !control?.facts.live ? convKey : undefined,
+  );
   const sendToSession = useMutation(api.pendingMessages.sendSessionMessage);
 
   const [message, setLocalMessage] = useState(() =>
@@ -508,7 +504,7 @@ export const CollabComposer = memo(function CollabComposer({
 
   const level: SendLevel = !isAuthenticated
     ? "anonymous"
-    : ((access?.level as SendLevel) ?? "shared");
+    : (access ?? "shared");
   const canSend = control
     ? !!control.send
     : level === "granted" || level === "team" || level === "owner";
@@ -587,14 +583,11 @@ export const CollabComposer = memo(function CollabComposer({
     present,
   );
 
-  async function handleRequest() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await requestAccess({ conversation_id: convId });
-    } finally {
-      setBusy(false);
-    }
+  function handleRequest() {
+    void useInboxStore
+      .getState()
+      .changeCollabGrant({ kind: "request", conversationId: convKey })
+      .catch((error) => toast.error(serverErrorText(error)));
   }
 
   async function handleSend(together = false, queue = false) {
@@ -607,7 +600,16 @@ export const CollabComposer = memo(function CollabComposer({
       (control && (!control.send || control.isSubmitting()))
     )
       return;
-    const mine = attachReviewToMessage(convKey, draft.current).trim();
+    const consumeBatch: (() => void)[] = [];
+    const defer = control?.facts.live
+      ? consumeBatch.push.bind(consumeBatch)
+      : undefined;
+    const mine = attachReviewToMessage(
+      convKey,
+      draft.current,
+      undefined,
+      defer,
+    ).trim();
     const body = together ? composeJointTurn(me, mine, candidates) : mine;
     if (!body) return;
     if (control) {
@@ -615,8 +617,15 @@ export const CollabComposer = memo(function CollabComposer({
       if (!kind) return;
       const complete = control.begin(kind);
       if (!complete) return;
-      setMessage("");
-      flushDraftWrite(convKey);
+      const sentDraft = draft.current;
+      const clearSubmitted = () => {
+        consumeBatch.forEach((consume) => consume());
+        if (visibleScope.current !== convKey || draft.current !== sentDraft)
+          return;
+        setMessage("");
+        flushDraftWrite(convKey);
+      };
+      if (!control.facts.live) clearSubmitted();
       const accepted = await complete(
         () => ({ text: body }),
         (payload) => {
@@ -626,6 +635,7 @@ export const CollabComposer = memo(function CollabComposer({
           return true;
         },
         { text: body },
+        clearSubmitted,
       );
       if (accepted && together) claimSent(candidates);
       return;
@@ -713,7 +723,12 @@ export const CollabComposer = memo(function CollabComposer({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const { key, isComposing, keyCode } = e.nativeEvent;
     if (control && (isComposing || keyCode === 229)) return;
-    if (control?.interrupt && key === "Escape") {
+    if (
+      control?.interrupt &&
+      key === "Escape" &&
+      !e.shiftKey &&
+      !draft.current
+    ) {
       e.preventDefault();
       e.stopPropagation();
       void control.act({ kind: "interrupt", expected: control.expected });
@@ -1021,14 +1036,9 @@ export const CollabComposer = memo(function CollabComposer({
               <button
                 type="button"
                 onClick={handleRequest}
-                disabled={busy}
                 className="shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border border-sol-cyan/50 bg-sol-cyan/15 text-sol-cyan hover:bg-sol-cyan/25 disabled:opacity-50"
               >
-                {busy ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ShieldQuestion className="w-3.5 h-3.5" />
-                )}
+                <ShieldQuestion className="w-3.5 h-3.5" />
                 {level === "denied" || level === "revoked"
                   ? "Request again"
                   : "Request to send"}
@@ -1050,19 +1060,9 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
 }: {
   conversationId: string;
 }) {
-  const convId = conversationId as Id<"conversations">;
-  // See CollabComposer: skip while the conversation is still an optimistic stub
-  // (session-UUID id) — its v.id("conversations") validator would otherwise throw.
-  const requests = useQueryNoThrow(
-    api.collab.collabRequests,
-    isConvexId(conversationId) ? { conversation_id: convId } : "skip",
-  ).data;
-  const decide = useMutation(api.collab.decideSendAccess);
-  const revoke = useMutation(api.collab.revokeSendAccess);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  const pending = (requests ?? []).filter((r) => r.status === "requested");
-  const granted = (requests ?? []).filter((r) => r.status === "granted");
+  const requests = useCollabRequests(conversationId);
+  const pending = requests.filter((r) => r.status === "requested");
+  const granted = requests.filter((r) => r.status === "granted");
   const meId = useInboxStore((s) =>
     s.currentUser?._id ? String(s.currentUser._id) : null,
   );
@@ -1071,15 +1071,6 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
   );
   if (pending.length === 0 && granted.length === 0 && suggestions.length === 0)
     return null;
-
-  async function act(fn: () => Promise<unknown>, id: string) {
-    setBusyId(id);
-    try {
-      await fn();
-    } finally {
-      setBusyId(null);
-    }
-  }
 
   return (
     <div className="bg-sol-bg pt-1.5">
@@ -1099,24 +1090,30 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
             </span>
             <button
               onClick={() =>
-                act(
-                  () => decide({ grant_id: r.grant_id, allow: true }),
-                  r.grant_id,
-                )
+                void useInboxStore
+                  .getState()
+                  .changeCollabGrant({
+                    kind: "decide",
+                    grantId: r.grant_id,
+                    allow: true,
+                  })
+                  .catch((error) => toast.error(serverErrorText(error)))
               }
-              disabled={busyId === r.grant_id}
               className="shrink-0 h-7 px-3 rounded-full text-xs font-medium border border-sol-green/50 bg-sol-green/20 text-sol-green hover:bg-sol-green/30 disabled:opacity-50 transition-colors"
             >
               Allow
             </button>
             <button
               onClick={() =>
-                act(
-                  () => decide({ grant_id: r.grant_id, allow: false }),
-                  r.grant_id,
-                )
+                void useInboxStore
+                  .getState()
+                  .changeCollabGrant({
+                    kind: "decide",
+                    grantId: r.grant_id,
+                    allow: false,
+                  })
+                  .catch((error) => toast.error(serverErrorText(error)))
               }
-              disabled={busyId === r.grant_id}
               className="shrink-0 h-7 px-3 rounded-full text-xs font-medium border border-sol-border text-sol-text-muted hover:bg-sol-bg-alt disabled:opacity-50 transition-colors"
             >
               Deny
@@ -1135,9 +1132,14 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
             </span>
             <button
               onClick={() =>
-                act(() => revoke({ grant_id: r.grant_id }), r.grant_id)
+                void useInboxStore
+                  .getState()
+                  .changeCollabGrant({
+                    kind: "revoke",
+                    grantId: r.grant_id,
+                  })
+                  .catch((error) => toast.error(serverErrorText(error)))
               }
-              disabled={busyId === r.grant_id}
               className="shrink-0 h-6 px-2.5 rounded-full text-meta font-medium border border-sol-border text-sol-text-dim hover:text-sol-red hover:border-sol-red/40 disabled:opacity-50 transition-colors"
             >
               Revoke

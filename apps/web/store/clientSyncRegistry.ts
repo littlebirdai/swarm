@@ -6,8 +6,9 @@ import { LIVE_SYNC_COLLECTIONS } from "./clientSyncRegistry.live";
 import { DATA_SYNC_COLLECTIONS } from "./clientSyncRegistry.data";
 import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
+import * as collabRegistry from "./client-sync-registry.collab";
 import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
-import { FENCED_PROMPT_SYNC_COLLECTIONS } from "./client-sync-registry.fenced-prompts";
+import * as fencedPromptRegistry from "./client-sync-registry.fenced-prompts";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
 import {
   thinCachedPullRequestDetail,
@@ -1766,14 +1767,8 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { kind: "list" },
     feeds: ["managedSessions.getAggregateMetrics"],
   },
-  ...FENCED_PROMPT_SYNC_COLLECTIONS,
-  // Pending tool-permission requests, per conversation. Each conversation's
-  // push is the complete pending set for THAT conversation, so the feeder
-  // syncs with pruneAbsentScope for it (a resolved permission leaves the
-  // pending query and must leave the store). Persisted so the decision queue
-  // paints permission cards at boot; readers hide rows past the 2h window.
-  // localFirst: approve/deny (store resolvePermission) removes the row, and
-  // the exclude it plants keeps a racing push from bringing the card back.
+  ...fencedPromptRegistry.FENCED_PROMPT_SYNC_COLLECTIONS,
+  ...collabRegistry.COLLAB_SYNC_COLLECTIONS,
   pendingPermissions: {
     persistence: { kind: "collection", key: "pendingPermissions" },
     hydration: { phase: "deferred" },
@@ -2770,8 +2765,8 @@ export const REPLICATION_CLASSIFICATION: Record<
   forcedMoveOptions: "local",
   sessionMetricsAggregate: "shared",
   pendingPermissions: "shared",
-  fencedPromptAddresses: "local",
-  fencedObservedTurns: "local",
+  ...fencedPromptRegistry.replication,
+  ...collabRegistry.replication,
   permissionRules: "shared",
   guestSuggestions: "shared",
   pendingMessageStatus: "shared",

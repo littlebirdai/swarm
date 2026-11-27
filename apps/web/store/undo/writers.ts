@@ -323,6 +323,12 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
 
 /** Local-first keys off the patch rail that need no writer, with the reason. */
 export const LOCAL_ONLY_UNDO_KEYS: Record<string, string> = {
+  collabAccess:
+    "Written by changeCollabGrant to request access. The server reconciles the request and the action is never undoable.",
+  collabRequests:
+    "Written by changeCollabGrant to allow, deny or revoke access. These are live grant changes and are never undoable.",
+  fencedSteerClaims:
+    "Written by controlSteerComposer to request, cancel or take control of the current turn. These actions are never undoable.",
   fencedPromptAddresses:
     "Only the local submission marker changes. The agent acts on the answer once it arrives.",
   anchors:

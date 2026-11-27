@@ -18,3 +18,8 @@ export const FENCED_PROMPT_SYNC_COLLECTIONS = {
     sync: { isDelta: true, deepFields: ["observed_turn"] },
   },
 } as const satisfies Record<string, ClientSyncRegistryEntry>;
+
+export const replication = {
+  fencedPromptAddresses: "local",
+  fencedObservedTurns: "local",
+} as const;

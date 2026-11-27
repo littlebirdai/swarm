@@ -16789,7 +16789,7 @@
     "react/immutability": 2,
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 5,
-    "swarm/no-comments": 94
+    "swarm/no-comments": 89
   },
   "apps/web/components/comments/AnchorPlacementNote.tsx": {
     "swarm/no-comments": 10,
@@ -18789,7 +18789,7 @@
   "apps/web/components/message-input.tsx": {
     "react-hooks/exhaustive-deps": 12,
     "swarm/ime-safe-key-handlers": 16,
-    "swarm/no-comments": 596,
+    "swarm/no-comments": 582,
     "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/messageMarkdown.tsx": {
@@ -22348,7 +22348,7 @@
   },
   "apps/web/hooks/useMySends.ts": {
     "react/immutability": 1,
-    "swarm/no-comments": 37
+    "swarm/no-comments": 35
   },
   "apps/web/hooks/useNarrowStage.ts": {
     "swarm/no-comments": 1
@@ -25992,7 +25992,7 @@
     "swarm/no-comments": 32
   },
   "apps/web/lib/reviewActions.ts": {
-    "swarm/no-comments": 106
+    "swarm/no-comments": 96
   },
   "apps/web/lib/reviewNav.test.ts": {
     "swarm/no-comments": 7
@@ -27387,7 +27387,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/store/__tests__/idbIncrementalPersist.test.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 25
   },
   "apps/web/store/__tests__/inbox-hydration.test.ts": {
     "swarm/no-comments": 7
@@ -28021,7 +28021,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/clientSyncRegistry.ts": {
-    "swarm/no-comments": 899
+    "swarm/no-comments": 892
   },
   "apps/web/store/composeSlice.ts": {
     "swarm/no-comments": 28
@@ -28085,7 +28085,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5050
+    "swarm/no-comments": 5047
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -28223,7 +28223,7 @@
     "swarm/no-comments": 57
   },
   "apps/web/store/sync-replication.ts": {
-    "swarm/no-comments": 102
+    "swarm/no-comments": 101
   },
   "apps/web/store/syncActivity.ts": {
     "swarm/no-comments": 26
