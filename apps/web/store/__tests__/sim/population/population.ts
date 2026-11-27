@@ -77,8 +77,8 @@ if (values.json) {
       "heuristic retries/user write": result.heuristicRetriesPerScopeWrite.user,
       "heuristic retries/interest write":
         result.heuristicRetriesPerScopeWrite.interest ?? 0,
-      "session events/device mean": Number(
-        result.sessionEventsPerDevice.mean.toFixed(2),
+      "refused scopes/device mean": Number(
+        result.refusedScopesPerDevice.mean.toFixed(2),
       ),
       "events/device mean": result.eventsPerDevice.mean,
       "events/device p95": result.eventsPerDevice.p95,
@@ -87,6 +87,6 @@ if (values.json) {
     })),
   );
   console.log(
-    "Note: population simulation uses polling; reactive getHeads re-run cost (no re-run on flush/heartbeat) is measured separately.",
+    "Note: population simulation uses polling; reactive getHeads behavior is tested separately.",
   );
 }

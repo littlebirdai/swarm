@@ -750,10 +750,7 @@ export const getRange = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return { actions: [], nextFrom: args.from, hasMore: false };
     const scopes = await heldKeysFor(ctx, userId);
-    const rangeOpts = { allowHotConversationRead: true };
-    if (
-      !(await canReadSyncScope(ctx, userId, scopes, args.scope_key, rangeOpts))
-    ) {
+    if (!(await canReadSyncScope(ctx, userId, scopes, args.scope_key))) {
       // Not an error (a client can race a scope_removed), but it must be
       // DISTINGUISHABLE from an empty caught-up scope: the applier treats it as
       // scope revocation (purge + drop cursor), and the applier's heads-absence

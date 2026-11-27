@@ -64,7 +64,7 @@ describe("computeHomeScope", () => {
     ).toBe(`project:${P1}`);
   });
 
-  test("returns session:<id> for team-accessible records linked to a conversation without project_id", () => {
+  test("returns dir:<team> for team-accessible records linked to a conversation without project_id", () => {
     expect(
       computeHomeScope({
         user_id: U1,
@@ -72,7 +72,7 @@ describe("computeHomeScope", () => {
         workspace: `team:${T1}`,
         created_from_conversation_id: C1,
       }),
-    ).toBe(`session:${C1}`);
+    ).toBe(`dir:${T1}`);
 
     expect(
       computeHomeScope({
@@ -81,7 +81,7 @@ describe("computeHomeScope", () => {
         workspace: `team:${T1}`,
         related_conversation_ids: [C2],
       }),
-    ).toBe(`session:${C2}`);
+    ).toBe(`dir:${T1}`);
   });
 
   test("returns dir:<team> for team-accessible records with neither project nor conversation", () => {
@@ -148,7 +148,7 @@ describe("computeHomeScope", () => {
           team_id: team,
           created_from_conversation_id: sharedConv,
         }),
-      ).toBe(`session:${sharedConv}`);
+      ).toBe(`dir:${team}`);
 
       let gets = 0;
       const countingCtx = {
@@ -167,7 +167,7 @@ describe("computeHomeScope", () => {
           workspace: `team:${team}`,
           created_from_conversation_id: sharedConv,
         }),
-      ).toBe(`session:${sharedConv}`);
+      ).toBe(`dir:${team}`);
       expect(gets).toBe(0);
     });
   });
@@ -209,9 +209,9 @@ describe("scopesForChange", () => {
       scopesForChange("plans", {
         owner_user_id: U1,
         workspace: `team:${T1}`,
-        home_scope: `session:${C1}`,
+        home_scope: `project:${P1}`,
       }),
-    ).toEqual([`user:${U1}`, `team:${T1}`, `session:${C1}`]);
+    ).toEqual([`user:${U1}`, `team:${T1}`, `project:${P1}`]);
 
     expect(
       scopesForChange("docs", {
@@ -297,6 +297,10 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       channel_id: setup.channel,
       content: "hello off",
     });
+    const voiceResult = await client.mutation(api.chat.startVoiceBurst, {
+      channel_id: setup.channel,
+      room_key: "room-off-1",
+    });
     await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
     await t.run(async (ctx) => {
@@ -304,10 +308,12 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       const plan = await ctx.db.get(createdPlan.id);
       const doc = await ctx.db.get(createdDoc.id);
       const msg = await ctx.db.get(messageResult.message_id);
+      const voiceMsg = await ctx.db.get(voiceResult.message_id);
       expect(task?.home_scope).toBeUndefined();
       expect(plan?.home_scope).toBeUndefined();
       expect(doc?.home_scope).toBeUndefined();
       expect(msg?.home_scope).toBeUndefined();
+      expect(voiceMsg?.home_scope).toBeUndefined();
       const actions = await ctx.db.query("sync_actions").collect();
       expect(
         actions.some(
@@ -415,6 +421,15 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       channel_id: setup.channel,
       content: "hello on",
     });
+    const replyResult = await client.mutation(api.chat.sendMessage, {
+      channel_id: setup.channel,
+      thread_root_id: messageResult.message_id,
+      content: "thread reply on",
+    });
+    const voiceResult = await client.mutation(api.chat.startVoiceBurst, {
+      channel_id: setup.channel,
+      room_key: "room-on-1",
+    });
     await client.mutation(api.tasks.webUpdate, {
       short_id: teamTask.short_id,
       project_id: setup.p2,
@@ -428,6 +443,8 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       const doc = await ctx.db.get(teamDoc.id);
       const patchedDoc = await ctx.db.get(setup.preFlagDoc);
       const msg = await ctx.db.get(messageResult.message_id);
+      const replyMsg = await ctx.db.get(replyResult.message_id);
+      const voiceMsg = await ctx.db.get(voiceResult.message_id);
 
       expect(task?.home_scope).toBe(`project:${setup.p2}`);
       expect(pTask?.home_scope).toBe(`user:${setup.user}`);
@@ -435,6 +452,8 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       expect(doc?.home_scope).toBe(`dir:${setup.team}`);
       expect(patchedDoc?.home_scope).toBe(`project:${setup.p1}`);
       expect(msg?.home_scope).toBe(`channel:${setup.channel}`);
+      expect(replyMsg?.home_scope).toBe(`channel:${setup.channel}`);
+      expect(voiceMsg?.home_scope).toBe(`channel:${setup.channel}`);
 
       const actions = await ctx.db.query("sync_actions").collect();
       const taskP1 = actions.filter(
@@ -488,7 +507,7 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       });
       const recomputedTask = await ctx.db.get(setup.convTask);
       expect(recomputedTask?.workspace).toBe(`team:${setup.team}`);
-      expect(recomputedTask?.home_scope).toBe(`session:${setup.privConv}`);
+      expect(recomputedTask?.home_scope).toBe(`dir:${setup.team}`);
 
       const trackedDb = makeChangeTrackedDb(ctx.db);
       const replaceSource = await ctx.db.get(teamTask.id);
@@ -519,5 +538,146 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
         ),
       ).toBe(true);
     });
+  });
+
+  test("syncOutbox.getReceipts enforces heldKeys and canReadSyncScope across flag states", async () => {
+    const t = serverTest();
+    const setup = await t.run(async (ctx) => {
+      const rows = fixtureRows(ctx.db, "outbox-receipts");
+      const member = await rows.user({ name: "Member" });
+      const outsider = await rows.user({ name: "Outsider" });
+      const team = await rows.team({ name: "OutboxTeam" });
+      await rows.membership(member, team);
+      const teamProj = await ctx.db.insert("projects", {
+        user_id: member,
+        team_id: team,
+        workspace: `team:${team}`,
+        title: "Accessible project",
+        status: "active",
+        created_at: 1,
+        updated_at: 1,
+      });
+      const privProj = await ctx.db.insert("projects", {
+        user_id: outsider,
+        workspace: `user:${outsider}`,
+        title: "Foreign project",
+        status: "active",
+        created_at: 1,
+        updated_at: 1,
+      });
+
+      const insertSlot = async (
+        scope_key: string,
+        entity_id: string,
+        position: number,
+        delivered_revision: number,
+      ) =>
+        await ctx.db.insert("sync_outbox", {
+          scope_key,
+          entity_type: "tasks",
+          entity_id,
+          revision: delivered_revision,
+          delivered_revision,
+          position,
+          pending: false,
+          updated_at: 1,
+          op: "upsert",
+        });
+
+      const teamSlot = await insertSlot(`team:${team}`, "e-team", 10, 2);
+      const dirSlot = await insertSlot(`dir:${team}`, "e-dir", 11, 3);
+      const projSlot = await insertSlot(`project:${teamProj}`, "e-proj", 12, 4);
+      const privProjSlot = await insertSlot(
+        `project:${privProj}`,
+        "e-priv",
+        13,
+        5,
+      );
+      const sessionSlot = await insertSlot("session:conv_any", "e-sess", 14, 6);
+
+      return {
+        member,
+        outsider,
+        team,
+        teamProj,
+        teamSlot,
+        dirSlot,
+        projSlot,
+        privProjSlot,
+        sessionSlot,
+      };
+    });
+
+    const memberClient = asUser(t, setup.member);
+    const outsiderClient = asUser(t, setup.outsider);
+    const request = [
+      { id: setup.teamSlot, revision: 1 },
+      { id: setup.dirSlot, revision: 1 },
+      { id: setup.projSlot, revision: 1 },
+      { id: setup.privProjSlot, revision: 1 },
+      { id: setup.sessionSlot, revision: 1 },
+    ];
+
+    delete process.env.SWARM_INTEREST_SCOPES;
+    const memberOff = await memberClient.query(api.syncOutbox.getReceipts, {
+      receipts: request,
+    });
+    expect(memberOff).toEqual([
+      {
+        id: setup.teamSlot,
+        revision: 2,
+        scope_key: `team:${setup.team}`,
+        position: 10,
+      },
+      { id: setup.dirSlot, revision: 1, revoked: true },
+      { id: setup.projSlot, revision: 1, revoked: true },
+      { id: setup.privProjSlot, revision: 1, revoked: true },
+      { id: setup.sessionSlot, revision: 1, revoked: true },
+    ]);
+
+    const outsiderOff = await outsiderClient.query(api.syncOutbox.getReceipts, {
+      receipts: request.slice(0, 3),
+    });
+    expect(outsiderOff).toEqual([
+      { id: setup.teamSlot, revision: 1, revoked: true },
+      { id: setup.dirSlot, revision: 1, revoked: true },
+      { id: setup.projSlot, revision: 1, revoked: true },
+    ]);
+
+    process.env.SWARM_INTEREST_SCOPES = "1";
+    const memberOn = await memberClient.query(api.syncOutbox.getReceipts, {
+      receipts: request,
+    });
+    expect(memberOn).toEqual([
+      {
+        id: setup.teamSlot,
+        revision: 2,
+        scope_key: `team:${setup.team}`,
+        position: 10,
+      },
+      {
+        id: setup.dirSlot,
+        revision: 3,
+        scope_key: `dir:${setup.team}`,
+        position: 11,
+      },
+      {
+        id: setup.projSlot,
+        revision: 4,
+        scope_key: `project:${setup.teamProj}`,
+        position: 12,
+      },
+      { id: setup.privProjSlot, revision: 1, revoked: true },
+      { id: setup.sessionSlot, revision: 1, revoked: true },
+    ]);
+
+    const outsiderOn = await outsiderClient.query(api.syncOutbox.getReceipts, {
+      receipts: request.slice(0, 3),
+    });
+    expect(outsiderOn).toEqual([
+      { id: setup.teamSlot, revision: 1, revoked: true },
+      { id: setup.dirSlot, revision: 1, revoked: true },
+      { id: setup.projSlot, revision: 1, revoked: true },
+    ]);
   });
 });

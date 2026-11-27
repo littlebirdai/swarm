@@ -610,15 +610,4 @@ export const conversationTables = {
       searchField: "idle_summary",
       filterFields: ["user_id"],
     }),
-
-  conversation_access: defineTable({
-    conversation_id: v.id("conversations"),
-    user_id: v.id("users"),
-    owner_user_id: v.optional(v.id("users")),
-    team_id: v.optional(v.id("teams")),
-    is_private: v.optional(v.boolean()),
-    auto_shared: v.optional(v.boolean()),
-    team_visibility: v.optional(v.string()),
-    started_at: v.optional(v.number()),
-  }).index("by_conversation", ["conversation_id"]),
 };

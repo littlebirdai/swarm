@@ -1,6 +1,5 @@
 import type { Id } from "../_generated/dataModel";
 import type { ChangeScope } from "../changeLog";
-import { canOwnerOrTeamAccess } from "../privacy";
 import {
   accessStampFor,
   authorizedFor,
@@ -36,7 +35,6 @@ export async function canReadSyncScope(
   userId: Id<"users">,
   heldKeys: ReadonlySet<string>,
   scopeKey: string,
-  options?: { allowHotConversationRead?: boolean },
 ): Promise<boolean> {
   if (!scopeKey) return false;
   if (heldKeys.has(scopeKey)) return true;
@@ -56,39 +54,6 @@ export async function canReadSyncScope(
       uid,
       heldKeys,
     );
-  }
-  if (scopeKey.startsWith("session:")) {
-    const cid = ctx.db.normalizeId("conversations", scopeKey.slice(8));
-    if (!cid) return false;
-    const access = await ctx.db
-      .query("conversation_access")
-      .withIndex("by_conversation", (q: any) => q.eq("conversation_id", cid))
-      .first();
-    if (access) {
-      const convShape = {
-        _id: access.conversation_id,
-        user_id: access.user_id,
-        owner_user_id: access.owner_user_id,
-        team_id: access.team_id,
-        is_private: access.is_private,
-        auto_shared: access.auto_shared,
-        team_visibility: access.team_visibility,
-        started_at: access.started_at,
-      };
-      return await canOwnerOrTeamAccess(ctx, userId, convShape);
-    }
-    if (options?.allowHotConversationRead) {
-      const conv = await ctx.db.get(cid);
-      if (!conv) return false;
-      return await canOwnerOrTeamAccess(ctx, userId, conv);
-    }
-    const owner = await ctx.db
-      .query("session_owners")
-      .withIndex("by_conversation_user", (q: any) =>
-        q.eq("conversation_id", cid).eq("user_id", userId),
-      )
-      .first();
-    return !!owner;
   }
   if (scopeKey.startsWith("channel:")) {
     const chId = ctx.db.normalizeId("chat_channels", scopeKey.slice(8));
@@ -145,11 +110,7 @@ export async function resolveHeadsScopes(
   for (const scopeKey of requestedScopes) {
     if (seen.has(scopeKey)) continue;
     seen.add(scopeKey);
-    if (
-      await canReadSyncScope(ctx, userId, heldKeys, scopeKey, {
-        allowHotConversationRead: false,
-      })
-    ) {
+    if (await canReadSyncScope(ctx, userId, heldKeys, scopeKey)) {
       allowed.push(scopeKey);
     }
   }

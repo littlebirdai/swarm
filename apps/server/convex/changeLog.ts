@@ -30,11 +30,6 @@ import {
   type AccessStamp,
 } from "./lib/accessKeys";
 import {
-  deleteConversationAccess,
-  ensureConversationAccessById,
-  syncConversationAccess,
-} from "./lib/conversationAccess";
-import {
   countBucket,
   moveProjectCount,
   touchesProjectCount,
@@ -98,14 +93,6 @@ const SCOPE_FIELDS = new Set([
   "home_scope",
 ]);
 const HOME_SCOPE_WORK_TABLES = new Set(["tasks", "plans", "docs"]);
-const CONV_ACCESS_FIELDS = new Set([
-  "user_id",
-  "owner_user_id",
-  "team_id",
-  "is_private",
-  "auto_shared",
-  "team_visibility",
-]);
 const HOME_SCOPE_FIELDS = new Set([
   "user_id",
   "team_id",
@@ -327,9 +314,6 @@ export function makeChangeTrackedDb(
           scope,
           null,
         );
-        if (table === "conversations") {
-          await syncConversationAccess(rawDb, { _id: id, ...doc });
-        }
         // Stamp the stored ACCESS key at the one chokepoint every tracked insert
         // passes through (review): raw insert sites (doc/project/template task
         // creates) still mint rows without `workspace`, and every such row would
@@ -359,13 +343,6 @@ export function makeChangeTrackedDb(
             await rawDb.patch(id, stampPatch);
             doc = { ...doc, ...stampPatch };
           }
-        }
-        if (
-          interestScopesEnabled() &&
-          typeof doc?.home_scope === "string" &&
-          doc.home_scope.startsWith("session:")
-        ) {
-          await ensureConversationAccessById(rawDb, doc.home_scope.slice(8));
         }
         if (table === "tasks" && countBucket(doc))
           await moveProjectCount({ db: rawDb }, null, await rawDb.get(id));
@@ -423,19 +400,13 @@ export function makeChangeTrackedDb(
         !!table &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
         Object.keys(fields).some((k) => HOME_SCOPE_FIELDS.has(k));
-      const updatesConvAccess =
-        interestScopesEnabled() &&
-        table === "conversations" &&
-        Object.keys(fields).some((k) => CONV_ACCESS_FIELDS.has(k));
       const movesScope =
         !!table &&
         (Object.keys(fields).some((k) => SCOPE_FIELDS.has(k)) || updatesHome);
       const movesAgent = table === "conversations" && "agent_type" in fields;
       const movesCount = table === "tasks" && touchesProjectCount(fields);
       const preDoc =
-        movesScope || movesAgent || movesCount || updatesConvAccess
-          ? await rawDb.get(id)
-          : null;
+        movesScope || movesAgent || movesCount ? await rawDb.get(id) : null;
       // Every writer passes here, so a conversation can never cross between
       // hosted and local, whichever mutation writes agent_type first.
       if (movesAgent) assertAgentTypeKept(preDoc, fields.agent_type);
@@ -456,13 +427,6 @@ export function makeChangeTrackedDb(
         }
       }
       const res = await rawDb.patch(id, fields);
-      if (updatesConvAccess && preDoc) {
-        await syncConversationAccess(rawDb, {
-          ...preDoc,
-          ...fields,
-          _id: id,
-        });
-      }
       if (movesCount)
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
@@ -524,16 +488,6 @@ export function makeChangeTrackedDb(
                 ),
               );
             }
-            if (
-              interestScopesEnabled() &&
-              typeof fullDoc?.home_scope === "string" &&
-              fullDoc.home_scope.startsWith("session:")
-            ) {
-              await ensureConversationAccessById(
-                rawDb,
-                fullDoc.home_scope.slice(8),
-              );
-            }
             const syncScope = syncScopeFromStamp(stamp, fullDoc);
             await emitSyncActions(
               rawDb,
@@ -588,16 +542,6 @@ export function makeChangeTrackedDb(
         };
       }
       const res = await rawDb.replace(id, doc);
-      if (table === "conversations") {
-        await syncConversationAccess(rawDb, { ...doc, _id: id });
-      }
-      if (
-        interestScopesEnabled() &&
-        typeof doc?.home_scope === "string" &&
-        doc.home_scope.startsWith("session:")
-      ) {
-        await ensureConversationAccessById(rawDb, doc.home_scope.slice(8));
-      }
       if (table === "tasks")
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
@@ -656,10 +600,8 @@ export function makeChangeTrackedDb(
       if (table === "tasks" && preDoc)
         await moveProjectCount({ db: rawDb }, preDoc, null);
       // Changes stories built from a deleted session lose it in this transaction.
-      if (table === "conversations") {
-        await deleteConversationAccess(rawDb, id);
+      if (table === "conversations")
         await withdrawDeletedConversation({ db: rawDb }, id);
-      }
       if (table && scope) {
         // `undefined`: find the entity's existing upsert row and flip it to a
         // delete tombstone, rather than inserting a duplicate.

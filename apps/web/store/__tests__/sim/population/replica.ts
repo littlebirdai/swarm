@@ -23,9 +23,6 @@ export function interestScopesForPerson(person: Person): string[] {
     ...person.follows.map(
       (project) => `project:${fixtureId("projects", project)}`,
     ),
-    ...person.followsSessions.map(
-      (session) => `session:${fixtureId("conversations", session)}`,
-    ),
   ];
 }
 
@@ -50,13 +47,13 @@ export function populationReplica(
       ? [...interestScopesForPerson(person), ...extraDeniedScopes]
       : undefined;
   const encoder = new TextEncoder();
+  const refused = new Set<string>();
   const totals = {
     person: person.id,
     eventsByEntity: {} as Record<string, number>,
     events: 0,
     teamEvents: 0,
     interestEvents: 0,
-    sessionEvents: 0,
     bytes: 0,
     rangeBytes: 0,
     taskIdsRefetched: 0,
@@ -82,11 +79,8 @@ export function populationReplica(
         const scope = String(args.scope_key);
         if (scope.startsWith("team:"))
           totals.teamEvents += result.actions.length;
-        else if (!scope.startsWith("user:")) {
+        else if (!scope.startsWith("user:"))
           totals.interestEvents += result.actions.length;
-          if (scope.startsWith("session:"))
-            totals.sessionEvents += result.actions.length;
-        }
       }
       return result;
     },
@@ -98,6 +92,12 @@ export function populationReplica(
         api.syncLog.getHeads,
         subscribedScopes ? { scopes: subscribedScopes } : {},
       );
+      if (subscribedScopes) {
+        const returned = new Set(heads.map((h) => h.scope_key));
+        for (const requested of subscribedScopes) {
+          if (!returned.has(requested)) refused.add(requested);
+        }
+      }
       await runInWindow(window, async () => {
         const purgedTeams = new Set<string>();
         for (const head of heads) await catchUpScope(meter, head, purgedTeams);
@@ -122,6 +122,7 @@ export function populationReplica(
         : 0;
       return {
         ...totals,
+        refusedScopes: refused.size,
         rows: tasks.length,
         staleDocTitles: [...expectedDocTitles].filter(
           ([id, title]) => docs[id]?.title !== title,

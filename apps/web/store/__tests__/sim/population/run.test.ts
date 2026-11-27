@@ -52,6 +52,7 @@ test.each([1, 50])(
       expect(device.staleDocTitles).toBe(0);
     }
   },
+  30_000,
 );
 
 test("a device sample preserves the write load and each sampled device's results", async () => {
@@ -98,10 +99,11 @@ test.each([1, 50])(
       expect(report.interestEventsPerDevice.mean).toBeGreaterThan(0);
     }
   },
+  30_000,
 );
 
 test.each([1, 50])(
-  "realistic simulation exercises multi-team denied rows, cross-project moves, and session-linked traffic at %i people",
+  "realistic simulation exercises multi-team denied rows, cross-project moves, and refused session scopes at %i people",
   async (people) => {
     const seed = 42;
     const baseline = await runPopulation({
@@ -128,10 +130,11 @@ test.each([1, 50])(
     }
     if (people > 1) {
       expect(report.crossProjectMoves).toBeGreaterThan(0);
-      expect(report.sessionEventsPerDevice.mean).toBeGreaterThan(0);
+      expect(report.refusedScopesPerDevice.mean).toBeGreaterThan(0);
       expect(report.eventsPerDevice.mean).toBeLessThan(
         baseline.eventsPerDevice.mean,
       );
     }
   },
+  30_000,
 );

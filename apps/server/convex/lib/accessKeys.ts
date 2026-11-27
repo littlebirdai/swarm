@@ -281,8 +281,6 @@ export function computeHomeScope(
       : computeWorkspaceKey(record as any, linkedConv as any);
   if (!ws.startsWith("team:")) return `user:${record.user_id}`;
   if (record.project_id) return `project:${record.project_id}`;
-  const convId = linkedConversationId(record);
-  if (convId) return `session:${convId}`;
   return `dir:${ws.slice(5)}`;
 }
 

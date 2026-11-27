@@ -23,7 +23,7 @@ export function fixtureId<
 export function populationTables(
   model: ReturnType<typeof population>,
   at: number,
-  options?: { realistic?: boolean; includeConversationAccess?: boolean },
+  options?: { realistic?: boolean },
 ) {
   const realistic = !!options?.realistic;
   const multiTeam = realistic && model.people.length >= 2;
@@ -189,19 +189,6 @@ export function populationTables(
     });
   }
 
-  const conversation_access = options?.includeConversationAccess
-    ? conversations.map((conv, index) => ({
-        _id: `popconvacc${index.toString(36).padStart(5, "0")}`.padEnd(32, "0"),
-        _creationTime: at,
-        conversation_id: conv._id,
-        user_id: conv.user_id,
-        team_id: conv.team_id,
-        is_private: conv.is_private,
-        team_visibility: conv.team_visibility,
-        started_at: conv.started_at,
-      }))
-    : [];
-
   return {
     users,
     teams,
@@ -209,7 +196,6 @@ export function populationTables(
     projects,
     docs,
     conversations,
-    ...(options?.includeConversationAccess ? { conversation_access } : {}),
     tasks,
     managed_sessions: model.sessions
       .filter(({ active }) => active)
@@ -254,6 +240,7 @@ export async function saveTask(
       api_token: options.apiToken,
       workspace: "team",
       team_id: fixtureId("teams", 0),
+      project_id: fixtureId("projects", event.project),
       conversation_id: String(fixtureId("conversations", event.person.id * 2)),
       title: `Review session changes from agent ${event.agent}`,
       description: "Check the session output and record the result.",

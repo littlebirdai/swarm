@@ -2,7 +2,6 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { api } from "./_generated/api";
-import { syncConversationAccess } from "./lib/conversationAccess";
 import {
   canReadSyncScope,
   MAX_HEADS_SCOPES,
@@ -74,12 +73,10 @@ describe("interest scopes never widen workspace access", () => {
         is_private: false,
         team_visibility: "full",
       });
-      await syncConversationAccess(ctx.db, await ctx.db.get(pubConv));
       const privConv = await rows.conversation(owner, {
         team_id: team,
         is_private: true,
       });
-      await syncConversationAccess(ctx.db, await ctx.db.get(privConv));
       const pubChan = await ctx.db.insert("chat_channels", {
         team_id: team,
         name: "general",
@@ -152,13 +149,13 @@ describe("interest scopes never widen workspace access", () => {
       `team:${setup.team}`,
       `dir:${setup.team}`,
       `project:${setup.teamProj}`,
-      `session:${setup.pubConv}`,
       `channel:${setup.pubChan}`,
     ]);
 
     for (const forbidden of [
       `user:${setup.owner}`,
       `project:${setup.privProj}`,
+      `session:${setup.pubConv}`,
       `session:${setup.privConv}`,
       `channel:${setup.privChan}`,
     ]) {
@@ -350,7 +347,6 @@ describe("interest scopes never widen workspace access", () => {
         team_visibility: "full",
         share_token: "share-tok-1",
       });
-      await syncConversationAccess(ctx.db, await ctx.db.get(sharedConv));
 
       const mismatchChan = await ctx.db.insert("chat_channels", {
         team_id: teamA,
@@ -533,6 +529,7 @@ describe("interest scopes never widen workspace access", () => {
       await ctx.db.delete(membershipId);
     });
     await assertDenied(memberAClient, `channel:${setup.privChan}`);
+    await assertDenied(memberAClient, `session:${setup.sharedConv}`);
     await assertDenied(
       asUser(t, setup.outsider),
       `session:${setup.sharedConv}`,
@@ -556,7 +553,6 @@ describe("interest scopes never widen workspace access", () => {
         is_private: false,
         team_visibility: "full",
       });
-      await syncConversationAccess(ctx.db, await ctx.db.get(conv));
       await rows.token(owner, "owner-tok");
       await rows.session(owner, {
         session_id: "sess-react-1",
@@ -567,8 +563,7 @@ describe("interest scopes never widen workspace access", () => {
     });
 
     const readTables = new Set<string>();
-    const readAccessRowIdsBefore = await t.run(async (ctx) => {
-      const ids: string[] = [];
+    await t.run(async (ctx) => {
       const trackedDb = {
         normalizeId: ctx.db.normalizeId.bind(ctx.db),
         get: async (id: any) => {
@@ -576,50 +571,24 @@ describe("interest scopes never widen workspace access", () => {
           if (doc && ctx.db.normalizeId("conversations", id)) {
             readTables.add("conversations");
           }
-          ids.push(String(id));
           return doc;
         },
         query: (table: string) => {
           readTables.add(table);
           const q = (ctx.db as any).query(table);
           return {
-            withIndex: (name: string, fn: any) => {
-              const iq = q.withIndex(name, fn);
-              return {
-                first: async () => {
-                  const row = await iq.first();
-                  if (row) ids.push(String(row._id));
-                  return row;
-                },
-                collect: async () => {
-                  const rows = await iq.collect();
-                  for (const r of rows) ids.push(String(r._id));
-                  return rows;
-                },
-              };
-            },
+            withIndex: (name: string, fn: any) => q.withIndex(name, fn),
           };
         },
       };
       const resolved = await resolveHeadsScopes(
         { db: trackedDb },
         setup.teammate,
-        [`session:${setup.conv}`],
+        [`session:${setup.conv}`, `dir:${setup.team}`],
       );
-      expect([...resolved.scopes]).toEqual([`session:${setup.conv}`]);
-      return ids;
+      expect([...resolved.scopes]).toEqual([`dir:${setup.team}`]);
     });
     expect(readTables.has("conversations")).toBe(false);
-
-    const accessBefore = await t.run(async (ctx) => {
-      const row = await ctx.db
-        .query("conversation_access")
-        .withIndex("by_conversation", (q) =>
-          q.eq("conversation_id", setup.conv),
-        )
-        .first();
-      return row ? { ...row } : null;
-    });
 
     const ownerClient = asUser(t, setup.owner);
     const teammateClient = asUser(t, setup.teammate);
@@ -640,23 +609,14 @@ describe("interest scopes never widen workspace access", () => {
     });
     await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
-    const accessAfterFlush = await t.run(async (ctx) => {
-      const row = await ctx.db
-        .query("conversation_access")
-        .withIndex("by_conversation", (q) =>
-          q.eq("conversation_id", setup.conv),
-        )
-        .first();
-      return row ? { ...row } : null;
-    });
-    expect(accessAfterFlush).toEqual(accessBefore);
-    expect(readAccessRowIdsBefore).toContain(String(accessBefore?._id));
-
-    const headsAfterFlush = await teammateClient.query(api.syncLog.getHeads, {
-      scopes: [`session:${setup.conv}`],
-    });
-    expect(headsAfterFlush.heads).toEqual([
-      { scope_key: `session:${setup.conv}`, position: 0, floor: 0 },
+    const deniedSessionHeads = await teammateClient.query(
+      api.syncLog.getHeads,
+      {
+        scopes: [`session:${setup.conv}`, `dir:${setup.team}`],
+      },
+    );
+    expect(deniedSessionHeads.heads).toEqual([
+      { scope_key: `dir:${setup.team}`, position: 0, floor: 0 },
     ]);
 
     const task = await ownerClient.mutation(api.tasks.create, {
@@ -669,10 +629,10 @@ describe("interest scopes never widen workspace access", () => {
     await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
     const headsAfterTask = await teammateClient.query(api.syncLog.getHeads, {
-      scopes: [`session:${setup.conv}`],
+      scopes: [`dir:${setup.team}`],
     });
     expect(headsAfterTask.heads).toEqual([
-      { scope_key: `session:${setup.conv}`, position: 1, floor: 0 },
+      { scope_key: `dir:${setup.team}`, position: 1, floor: 0 },
     ]);
 
     await ownerClient.mutation(api.conversations.setPrivacyBySessionId, {
@@ -681,24 +641,13 @@ describe("interest scopes never widen workspace access", () => {
     });
     await t.finishAllScheduledFunctions(() => jest.runAllTimers());
 
-    const lockedHeads = await teammateClient.query(api.syncLog.getHeads, {
-      scopes: [`session:${setup.conv}`],
-    });
-    expect(lockedHeads.heads).toEqual([]);
-    const lockedRange = await teammateClient.query(api.syncLog.getRange, {
-      scope_key: `session:${setup.conv}`,
-      from: 0,
-      limit: 20,
-    });
-    expect(lockedRange.authorized).toBe(false);
-
     const actionsAfterLock = await t.run(async (ctx) => {
       return await ctx.db.query("sync_actions").collect();
     });
     expect(
       actionsAfterLock.some(
         (a) =>
-          a.scope_key === `session:${setup.conv}` &&
+          a.scope_key === `dir:${setup.team}` &&
           a.entity_id === String(task.id) &&
           a.op === "delete",
       ),
@@ -711,10 +660,13 @@ describe("interest scopes never widen workspace access", () => {
           a.op === "delete",
       ),
     ).toBe(true);
+    expect(
+      actionsAfterLock.some((a) => a.scope_key === `session:${setup.conv}`),
+    ).toBe(false);
 
     const countBeforeUpdate = actionsAfterLock.filter(
       (a) =>
-        a.scope_key === `session:${setup.conv}` ||
+        a.scope_key === `dir:${setup.team}` ||
         a.scope_key === `team:${setup.team}`,
     ).length;
 
@@ -729,7 +681,7 @@ describe("interest scopes never widen workspace access", () => {
     });
     const countAfterUpdate = actionsAfterFollowUp.filter(
       (a) =>
-        a.scope_key === `session:${setup.conv}` ||
+        a.scope_key === `dir:${setup.team}` ||
         a.scope_key === `team:${setup.team}`,
     ).length;
     expect(countAfterUpdate).toBe(countBeforeUpdate);

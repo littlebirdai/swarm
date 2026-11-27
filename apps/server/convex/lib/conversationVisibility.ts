@@ -15,7 +15,6 @@ import { roleDropForVisibility } from "./sessionTell";
 import { recomputeWorkspaceForConversation } from "./access";
 import { recordAuthorityEvent } from "./authorityEvents";
 import { invalidateForConversation } from "./changesDirty";
-import { syncConversationAccess } from "./conversationAccess";
 import { restampDecisionTeams } from "./decisionTeam";
 
 type AccessCtx = { db: any; scheduler?: Scheduler };
@@ -83,7 +82,6 @@ export async function patchConversationVisibility(
     String(updates.team_id ?? "") !== String(conversation.team_id ?? "")
   )
     await restampDecisionTeams(ctx, conversation._id);
-  await syncConversationAccess(ctx.db, after);
   return recomputeWorkspaceForConversation(ctx, after);
 }
 

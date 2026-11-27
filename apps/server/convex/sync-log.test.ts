@@ -678,6 +678,25 @@ describe("source guards", () => {
       ).length,
     ).toBe(1);
   });
+  test("every chat_messages insert goes through insertChatMessage (home_scope stamp)", () => {
+    const chatSources = readdirSync(DIR)
+      .concat(readdirSync(join(DIR, "lib")).map((f) => `lib/${f}`))
+      .concat(readdirSync(join(DIR, "schema")).map((f) => `schema/${f}`))
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    const offenders = chatSources.filter(
+      (f) =>
+        f !== "lib/chatRows.ts" &&
+        /\.insert\(\s*"chat_messages"/.test(readFileSync(join(DIR, f), "utf8")),
+    );
+    expect(offenders).toEqual([]);
+    expect(
+      (
+        readFileSync(join(DIR, "lib", "chatRows.ts"), "utf8").match(
+          /\.insert\(\s*"chat_messages"/g,
+        ) ?? []
+      ).length,
+    ).toBe(1);
+  });
   test("visibleInTeamList agrees with the stamp predicate", async () => {
     const { visibleInTeamList } = await import("./lib/access");
     await withSyncStore(async ({ db, users, teams }) => {

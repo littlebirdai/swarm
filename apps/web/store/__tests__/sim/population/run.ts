@@ -90,10 +90,7 @@ export async function runPopulation(config: {
     let headWrites = 0;
     let drainTransactions = 0;
     const backend = makeSimBackend({
-      tables: populationTables(model, T0, {
-        realistic,
-        includeConversationAccess: mode === "interest",
-      }),
+      tables: populationTables(model, T0, { realistic }),
       now,
       mintId: (table, n) =>
         `popsim${table.replaceAll("_", "")}${n.toString(36).padStart(5, "0")}`.padEnd(
@@ -278,7 +275,7 @@ export async function runPopulation(config: {
               },
             );
             tasks.set(event.agent, shortId);
-            if (!event.privateTask && (!realistic || event.agent % 4 !== 1)) {
+            if (!event.privateTask) {
               let seen = projectsByShortId.get(shortId);
               if (!seen) {
                 seen = new Set<string>();
@@ -339,11 +336,6 @@ export async function runPopulation(config: {
       const followedProjects = new Set(
         person.follows.map((project) => String(fixtureId("projects", project))),
       );
-      const followedSessionScopes = new Set(
-        person.followsSessions.map(
-          (session) => `session:${fixtureId("conversations", session)}`,
-        ),
-      );
       if (mode !== "interest") {
         if (!realistic) return device.result(expectedTitles, expectedDocTitles);
         const visibleTasks = new Set(
@@ -361,11 +353,6 @@ export async function runPopulation(config: {
           .filter((task) => {
             if (task.user_id === userId) return true;
             if (task.workspace !== teamWorkspace) return false;
-            if (
-              task.home_scope &&
-              followedSessionScopes.has(String(task.home_scope))
-            )
-              return true;
             if (
               task.project_id !== undefined &&
               followedProjects.has(String(task.project_id))
@@ -469,8 +456,8 @@ export async function runPopulation(config: {
       interestEventsPerDevice: distribution(
         measurements.map(({ interestEvents }) => interestEvents),
       ),
-      sessionEventsPerDevice: distribution(
-        measurements.map(({ sessionEvents }) => sessionEvents),
+      refusedScopesPerDevice: distribution(
+        measurements.map(({ refusedScopes }) => refusedScopes),
       ),
       bytesPerDevice: distribution(measurements.map(({ bytes }) => bytes)),
       rowsPerDevice: distribution(measurements.map(({ rows }) => rows)),

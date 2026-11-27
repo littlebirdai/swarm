@@ -7,7 +7,9 @@ import {
   makeSyncAckCollector,
   syncLogDisabled,
 } from "./syncLog";
+import type { Id } from "./_generated/dataModel";
 import { heldKeysFor } from "./lib/accessKeys";
+import { canReadSyncScope } from "./lib/interestScopes";
 import { pendingJob } from "./lib/pendingJob";
 import type { DatabaseReader } from "./_generated/server";
 import { scheduleDrain } from "./syncOutboxWriter";
@@ -143,12 +145,17 @@ export async function readDeliveryReceipts(
   db: any,
   receipts: Array<{ id: string; revision: number }>,
   heldKeys: ReadonlySet<string>,
+  userId?: Id<"users">,
 ) {
   return Promise.all(
     receipts.slice(0, 100).map(async ({ id, revision }) => {
       const row = await db.get(id);
-      if (!row || !heldKeys.has(row.scope_key))
-        return { id, revision, revoked: true as const };
+      const allowed =
+        !!row &&
+        (heldKeys.has(row.scope_key) ||
+          (!!userId &&
+            (await canReadSyncScope({ db }, userId, heldKeys, row.scope_key))));
+      if (!allowed) return { id, revision, revoked: true as const };
       return {
         id,
         revision: row.delivered_revision,
@@ -172,6 +179,7 @@ export const getReceipts = query({
       ctx.db,
       receipts,
       new Set(await heldKeysFor(ctx, userId)),
+      userId,
     );
   },
 });
