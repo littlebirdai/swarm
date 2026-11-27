@@ -1,6 +1,13 @@
 import { expect, mock, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { currentHeartbeatSessions } from "../daemon.js";
+import {
+  currentHeartbeatSessions,
+  runHeartbeatFlush,
+  setSyncServiceForTests,
+  trackSessionPaneForTests,
+} from "../daemon.js";
+import { strictStub } from "../test-helpers/strictStub.js";
+import type { SyncService } from "../syncService.js";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { functionBlock } from "../test-helpers/sourceRegion.js";
 import { fixture, item } from "./codex-owned-pilot-fixture.js";
@@ -433,3 +440,63 @@ test("the app-server exit sends stopped status and releases ownership", async ()
     await f.dispose();
   }
 });
+
+test.each([undefined, "1"])(
+  "the relay flag %s preserves the owned lease and legacy heartbeat during an outage",
+  async (flag) => {
+    const outage = Promise.withResolvers<Response>();
+    const grant = mock((signal: AbortSignal) => {
+      signal.addEventListener("abort", () => outage.reject(signal.reason), {
+        once: true,
+      });
+      return outage.promise;
+    });
+    const f = fixture("pilot", true, "receipt", { flag, grant });
+    const immediate = spyOn(globalThis, "setImmediate");
+    const timers = fakeTimers(30_000);
+    const write = mock(
+      async (
+        _rows: Parameters<SyncService["heartbeatManagedSessionsBatch"]>[0],
+      ) => ({ updated: 1 }),
+    );
+    trackSessionPaneForTests("legacy-pane", "fixture-pane");
+    setSyncServiceForTests(
+      strictStub<SyncService>("legacy heartbeat", {
+        heartbeatManagedSessionsBatch: write,
+      }),
+    );
+    try {
+      f.initial([item(f.pilotRequest)]);
+      await f.runtime.start();
+      expect(
+        immediate.mock.calls.filter(
+          ([callback]) => callback.name === "launchRelayPublisher",
+        ),
+      ).toHaveLength(flag ? 1 : 0);
+      if (flag)
+        await until(() => grant.mock.calls.length === 1, "relay grant begins");
+
+      timers.tick(30_000);
+      await until(
+        () => f.actions.includes("edge:renew"),
+        "the Convex lease renews",
+      );
+      await runHeartbeatFlush();
+      await f.runtime.processWorkUpdate([]);
+      expect(write.mock.calls).toEqual([[[{ session_id: "legacy-pane" }]]]);
+      expect(
+        f.actions.filter((action) => action === "edge:renew"),
+      ).toHaveLength(1);
+      expect(
+        f.actions.filter((action) => action === "edge:hello"),
+      ).toHaveLength(flag ? 1 : 0);
+      expect(grant).toHaveBeenCalledTimes(flag ? 1 : 0);
+    } finally {
+      immediate.mockRestore();
+      trackSessionPaneForTests("legacy-pane", null);
+      setSyncServiceForTests(null);
+      timers.restore();
+      await f.dispose();
+    }
+  },
+);

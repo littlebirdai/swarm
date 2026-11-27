@@ -26,6 +26,8 @@ import { FileExecutionOperationJournal } from "./local-journal.js";
 import {
   parseDeliverySettleRequest,
   parseDeliveryStartRequest,
+  parseHelloRequest,
+  parseRelayGrantRequest,
   type CanonicalEvent,
   type DeliverySettleRequest,
   type PermitsNextResponse,
@@ -125,6 +127,10 @@ export function fixture(
   selected = "pilot",
   enabled = true,
   useReceiptPeer: false | "receipt" | "receipt-before-reply" = false,
+  relay?: {
+    flag?: string;
+    grant: (signal: AbortSignal) => Promise<Response>;
+  },
 ) {
   const directory = mkdtempSync(join(tmpdir(), "owned-codex-recovery-"));
   const appServer = fake(directory, "owned-recovery");
@@ -330,6 +336,7 @@ export function fixture(
       {
         CODECAST_FENCED_EXECUTION_V1: flag ? "1" : "0",
         CODECAST_CODEX_OWNED_PILOT_SESSION: selected,
+        CODECAST_RELAY_LIVENESS_PUBLISH: relay?.flag,
       },
     );
   }
@@ -455,6 +462,32 @@ export function fixture(
         const operation = new URL(String(input)).pathname.split("/").at(-1);
         const body = JSON.parse(String(init?.body));
         actions.push(`edge:${operation}`);
+        if (operation === "hello" && relay) {
+          expect(parseHelloRequest(body).ok).toBe(true);
+          expect(body.capabilities).toEqual(["relay_session_liveness"]);
+          return Response.json({
+            status: "ok",
+            version: 1,
+            policy: {
+              revision: 1,
+              heartbeat_interval_ms: 30_000,
+              uplink_interval_ms: 30_000,
+              limits: {
+                max_batch_events: 32,
+                max_batch_bytes: 100_000,
+                max_blob_bytes: 100_000,
+              },
+              capabilities: ["relay_session_liveness"],
+            },
+          });
+        }
+        if (operation === "relay-grant" && relay) {
+          expect(parseRelayGrantRequest(body).ok).toBe(true);
+          expect(body.sessions).toEqual([
+            { session: "pilot", run: 1, fencing_token: lease },
+          ]);
+          return relay.grant(init!.signal!);
+        }
         if (operation === "claim") {
           return (
             claimResponses.shift() ??

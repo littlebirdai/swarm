@@ -32,9 +32,11 @@ Return the public relay WebSocket URL with the grant from server deployment conf
 
 The machine publisher uses an Effect runtime in `packages/edge-client`. Its relay handshake offers only `capabilities: ["session_liveness"]`, which excludes fan-out of viewer presence, cursors, and baton signals. Publish after the relay accepts the hub subscription and publish again after reconnect.
 
-The viewer can exclude `session_liveness` from the relay handshake. The client still needs a readiness hook or a queue for machine publications before the subscription is ready. `machine_liveness` is deferred. [Relay client](../../packages/relay-client/src/index.ts) · [Relay fan-out](../../packages/relay/src/connection.ts).
+The viewer can exclude `session_liveness` from the relay handshake. The relay client tells the publisher when it can send on a subscription. `machine_liveness` is deferred. [Relay client](../../packages/relay-client/src/index.ts) · [Relay fan-out](../../packages/relay/src/connection.ts).
 
-The relay keeps no signal store or replay buffer, so a new subscriber needs a fresh signal. The default lifetime is 15 seconds, and grant deadlines can shorten it. Publish often enough to refresh the signal before it expires. `HEARTBEAT_FLUSH_INTERVAL_MS` is 30 seconds, so the Convex heartbeat cannot provide that cadence. [Relay defaults](../../apps/relay/src/config.ts) · [Heartbeat constants](../../packages/sessions/src/agentStatus.ts).
+The relay keeps no signal store or replay buffer, so a new subscriber needs a fresh signal. The default lifetime is 15 seconds, and grant deadlines can shorten it. The publisher sends at most once per five seconds per session. The relay assigns sequence numbers per connection. A change to the run or fence starts a new connection. `HEARTBEAT_FLUSH_INTERVAL_MS` is 30 seconds, so the Convex heartbeat cannot provide that cadence. [Relay defaults](../../apps/relay/src/config.ts) · [Heartbeat constants](../../packages/sessions/src/agentStatus.ts).
+
+The daemon publisher is off by default. Set `CODECAST_RELAY_LIVENESS_PUBLISH=1` to enable it for the fenced run of the owned Codex pilot. The publisher requests grants only when the Edge handshake offers the relay capability. The daemon keeps its Convex lease renewal and heartbeat calls.
 
 The web presence provider mounts in every window. Run inbox-wide subscriptions on the sync host only. Start with up to 64 visible, eligible session hubs and leave room for ordinary presence.
 
@@ -48,7 +50,7 @@ Set `VITE_RELAY_INBOX_LIVENESS=1` to enable the web inbox contact indicator. The
 
 The sync host watches up to 64 mounted inbox sessions. The target query checks full conversation access and the current fenced binding. Relay subscription grants repeat the conversation access check. A run or binding change removes the old observation. Followers use the replicated Convex facts.
 
-The contact indicator reads window-local inbox store slices that are not persisted or replicated. Each relay heartbeat makes zero IndexedDB writes, including when the liveness lane flushes. The legacy Convex heartbeat fixture writes one row for a changed lease deadline. Convex still owns expiry, status, placement, and the digest. Relay contact can add an indicator while the durable lease is live. It cannot extend that lease. The machine publisher and durable epoch contract remain separate steps.
+The contact indicator reads window-local inbox store slices that are not persisted or replicated. Each relay heartbeat makes zero IndexedDB writes, including when the liveness lane flushes. The legacy Convex heartbeat fixture writes one row for a changed lease deadline. Convex still owns expiry, status, placement, and the digest. Relay contact can add an indicator while the durable lease is live. It cannot extend that lease. The durable epoch contract remains a separate step.
 
 ## Inbox contract and field ownership
 

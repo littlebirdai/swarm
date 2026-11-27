@@ -584,6 +584,7 @@
       },
       "devDependencies": {
         "@babel/core": "^7.29.0",
+        "@codecast/edge-client": "workspace:*",
         "@codecast/edge-contract": "workspace:*",
         "@codecast/test-helpers": "workspace:*",
         "@sentry/vite-plugin": "^5.1.1",
@@ -800,6 +801,8 @@
       "dependencies": {
         "@codecast/edge-contract": "workspace:*",
         "@codecast/effect-kit": "workspace:*",
+        "@codecast/relay-client": "workspace:*",
+        "@codecast/relay-contract": "workspace:*",
         "effect": "catalog:",
       },
     },

@@ -5,6 +5,7 @@ import {
   type ReadyBinding,
 } from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
+import type { startRelayLiveness } from "@codecast/edge-client/relay-liveness";
 import {
   EDGE_PROTOCOL_VERSION as v,
   parseClaimResponse,
@@ -136,7 +137,11 @@ export function createCodexOwnedPilot(
     options.log("[owned-codex] pilot requires daemon auth");
     return;
   }
-  return new CodexOwnedPilot(conversationId, options);
+  return new CodexOwnedPilot(
+    conversationId,
+    options,
+    env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
+  );
 }
 
 export class CodexOwnedPilot {
@@ -166,10 +171,13 @@ export class CodexOwnedPilot {
   private progressAtRenewal = 0;
   private consecutiveLivenessMisses = 0;
   private controller = new AbortController();
+  private relay?: ReturnType<typeof startRelayLiveness>;
+  private leaseDeadline = 0;
 
   constructor(
     readonly conversationId: string,
     private readonly options: PilotOptions,
+    private readonly relayEnabled: boolean,
   ) {}
 
   selects(conversationId: string, epoch = 1): boolean {
@@ -411,6 +419,7 @@ export class CodexOwnedPilot {
     request: EnsureBindingRequest,
   ): Promise<void> {
     const previousClaim = this.claim;
+    const started = performance.now();
     this.claiming ??= this.edge(
       "claim",
       {
@@ -427,6 +436,7 @@ export class CodexOwnedPilot {
           `Owned Codex pilot could not claim the run: ${claim.status}`,
         );
       this.claim = claim;
+      this.leaseDeadline = started + claim.lease_ms;
       return claim;
     });
     const claim = await this.claiming;
@@ -519,6 +529,52 @@ export class CodexOwnedPilot {
     await recovery;
     this.controller.signal.throwIfAborted();
     this.deliveryReady = true;
+    this.startRelayContact(claim, binding);
+  }
+
+  private startRelayContact(claim: ClaimGrant, binding: ReadyBinding): void {
+    const { bearer, siteUrl, log } = this.options;
+    if (!this.relayEnabled || !bearer) return;
+    const { signal } = this.controller;
+    const launchRelayPublisher = () => {
+      void Promise.all([
+        import("@codecast/edge-client"),
+        import("@codecast/edge-client/relay-liveness"),
+      ])
+        .then(([{ createHttpEdgeTransport }, { startRelayLiveness }]) => {
+          if (signal.aborted) return;
+          this.relay = startRelayLiveness(
+            {
+              transport: createHttpEdgeTransport(
+                new URL("/edge/v1/", siteUrl),
+                {
+                  Authorization: `Bearer ${bearer}`,
+                },
+              ),
+              hello: {
+                machine: binding.ownerDeviceId,
+                boot: binding.daemonBootId,
+                providers: [
+                  { name: provider.agent, version: provider.version },
+                ],
+                runtimes: [{ host: "daemon", isolation: "app-server" }],
+                capacity: {
+                  memory_total_bytes: 0,
+                  memory_available_bytes: 0,
+                  live_agents: 1,
+                },
+              },
+            },
+            signal,
+            [{ ...deliveryFence(claim), deadline: this.leaseDeadline }],
+          );
+          return this.relay.running;
+        })
+        .catch(() => {
+          if (!signal.aborted) log("[owned-codex] relay liveness stopped");
+        });
+    };
+    setImmediate(launchRelayPublisher).unref();
   }
 
   async drain(
@@ -665,6 +721,7 @@ export class CodexOwnedPilot {
             );
           throw new Error("Owned Codex app-server stopped responding");
         }
+        const started = performance.now();
         const result = await this.edge(
           "renew",
           { v, ...deliveryFence(claim) },
@@ -673,6 +730,10 @@ export class CodexOwnedPilot {
         );
         if (result.status !== "renewed")
           throw new Error("Owned Codex lease expired");
+        this.leaseDeadline = started + result.lease_ms;
+        this.relay?.update([
+          { ...deliveryFence(claim), deadline: this.leaseDeadline },
+        ]);
         this.progressAtRenewal = progress;
         this.scheduleRenewal(claim, result.lease_ms);
       })();

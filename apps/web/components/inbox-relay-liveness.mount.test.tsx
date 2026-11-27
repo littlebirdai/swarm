@@ -2,6 +2,13 @@ import { expect, jest, spyOn, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { getFunctionName } from "convex/server";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import {
+  parseRelayServerFrame,
+  type RelayGrantClaims,
+  type RelayServerFrame,
+} from "../../../packages/relay-contract/src/index";
+import { startRelayLiveness } from "@codecast/edge-client/relay-liveness";
+import { createHmac } from "node:crypto";
 import { rowHeartbeatAliveAt } from "@codecast/inbox/inboxProjection";
 import { act, useState } from "react";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
@@ -30,19 +37,19 @@ const viewerId = "viewer" as Id<"users">;
 const device = "fixture-machine";
 
 const otherRowId = "j7other".padEnd(32, "0") as Id<"conversations">;
-const row = (id: string) =>
+const row = (id: string, now = inboxNow) =>
   webBuilders(`relay-inbox-${id}`).session.build({
     _id: id,
     agent_type: "codex",
     agent_status: "idle",
-    updated_at: inboxNow - 2 * 60 * 60 * 1000,
+    updated_at: now - 2 * 60 * 60 * 1000,
     owner_device_id: device,
-    liveness_lease_end: inboxNow + 120_000,
+    liveness_lease_end: now + 120_000,
   });
 
-function InboxRelayView({ second = false, first = true }) {
+function InboxRelayView({ second = false, first = true, now = inboxNow }) {
   useSyncInboxRelayLiveness();
-  const [cards] = useState(() => [row(inboxRowId), row(otherRowId)]);
+  const [cards] = useState(() => [row(inboxRowId, now), row(otherRowId, now)]);
   return cards.map((session, index) =>
     (index === 0 ? first : second) ? (
       <SessionCard
@@ -67,22 +74,28 @@ function inboxRelayView(props: Parameters<typeof InboxRelayView>[0] = {}) {
   );
 }
 
-function mountInboxRelay({ follower = false, node = inboxRelayView() } = {}) {
+function mountInboxRelay({
+  follower = false,
+  now = inboxNow,
+  socket = TestSocket,
+  grant = ok,
+  node = inboxRelayView({ now }),
+} = {}) {
   return mountWeb(node, {
     authenticated: true,
-    clock: true,
+    clock: now === inboxNow,
     setup(backend, store) {
-      jest.setSystemTime(inboxNow);
+      if (now === inboxNow) jest.setSystemTime(now);
       store.currentUser = { _id: viewerId };
       store.syncRole = follower ? "follower" : "host";
-      window.WebSocket = TestSocket;
+      window.WebSocket = socket;
       Object.defineProperty(navigator, "onLine", { value: true });
-      store.syncTable("sessions", [row(inboxRowId), row(otherRowId)]);
+      store.syncTable("sessions", [row(inboxRowId, now), row(otherRowId, now)]);
       backend.set(api.relayGrants.inboxTargets, {
         viewer: viewerId,
         targets: [{ id: inboxRowId, run: 2, machine: device }],
       });
-      backend.mutation(api.relayGrants.mint, ok);
+      backend.mutation(api.relayGrants.mint, grant);
     },
   });
 }
@@ -343,3 +356,242 @@ test("a follower card records no visibility and its relay skips session liveness
   expect(ui.store.getState().relayInboxCards).toEqual({});
   expect(ui.backend.queryRequests).toHaveLength(0);
 });
+
+test("a machine heartbeat goes through the relay to the inbox card", async () => {
+  const key = Buffer.alloc(32, 23);
+  const ready = Promise.withResolvers<URL>();
+  const server = Bun.spawn(
+    [
+      process.execPath,
+      import.meta.dir + "/../../relay/test/kernel-grant-peer.ts",
+    ],
+    {
+      env: {
+        ...process.env,
+        RELAY_AUDIENCE: "inbox-test",
+        RELAY_HMAC_KEY: key.toString("base64url"),
+        RELAY_HOST: "127.0.0.1",
+        RELAY_PORT: "0",
+      },
+      stdin: "pipe",
+      stdout: "ignore",
+      stderr: "inherit",
+      ipc: (url) => ready.resolve(new URL(String(url))),
+    },
+  );
+  function mint(claims: RelayGrantClaims) {
+    const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+    const message = `v1.${payload}`;
+    const mac = createHmac("sha256", key).update(message).digest("base64url");
+    return `${message}.${mac}`;
+  }
+  const controller = new AbortController();
+  let grantSeq = 0;
+  type Contact = Extract<RelayServerFrame, { type: "session_liveness" }>;
+  const contacts: Array<{ frame: Contact; at: number }> = [];
+  const secondHub = { kind: "session", id: otherRowId } as const;
+  const subscribed = new Set<string>();
+  const socket = class extends WebSocket {
+    constructor(url: string | URL) {
+      super(url);
+      this.addEventListener("message", ({ data }) => {
+        const parsed = parseRelayServerFrame(data);
+        if (!parsed.ok) return;
+        const frame = parsed.value;
+        if (frame.type === "subscription" && frame.status === "subscribed")
+          subscribed.add(frame.hub.id);
+        if (frame.type === "session_liveness")
+          contacts.push({ frame, at: performance.now() });
+      });
+    }
+  };
+  const ttl = 30_000;
+  const issuedAt = Date.now();
+  let publisher: ReturnType<typeof startRelayLiveness> | undefined;
+  let ui: Awaited<ReturnType<typeof mountInboxRelay>> | undefined;
+  try {
+    const address = await Promise.race([
+      ready.promise,
+      server.exited.then((code) => {
+        throw new Error(`Relay fixture exited with ${code}`);
+      }),
+    ]);
+    const wsUrl = new URL("/relay", address);
+    wsUrl.protocol = "ws:";
+    process.env.VITE_RELAY_URL = wsUrl.href;
+    process.env.VITE_RELAY_INBOX_LIVENESS = "1";
+    const mount = await mountInboxRelay({
+      now: issuedAt,
+      node: inboxRelayView({ now: issuedAt, second: true }),
+      socket,
+      grant: {
+        ...ok,
+        token: mint({
+          v: 1,
+          audience: "inbox-test",
+          subject: { kind: "user", id: viewerId },
+          issued_at_ms: issuedAt,
+          expires_at_ms: issuedAt + ttl,
+          grant_seq: 1,
+          grants: [inboxHub, secondHub].map((hub) => ({ ...hub, publish: [] })),
+        }),
+      },
+    });
+    ui = mount;
+    await act(() =>
+      mount.backend.set(api.relayGrants.inboxTargets, {
+        viewer: viewerId,
+        targets: [inboxHub, secondHub].map(({ id }) => ({
+          id,
+          run: 2,
+          machine: device,
+        })),
+      }),
+    );
+    const subscribedBy = performance.now() + 3000;
+    while (subscribed.size < 2 && performance.now() < subscribedBy)
+      await Bun.sleep(20);
+    expect(subscribed.size).toBe(2);
+    expect(contactDot(mount.container)).toBeNull();
+    const deadline = performance.now() + ttl;
+    const leases = (run: number, ids = [inboxRowId]) =>
+      ids.map((session) => ({
+        session,
+        run,
+        fencing_token: `fence-${run}`,
+        deadline,
+      }));
+    publisher = startRelayLiveness(
+      {
+        hello: {
+          machine: device,
+          boot: "boot",
+          capacity: {
+            memory_total_bytes: 0,
+            memory_available_bytes: 0,
+            live_agents: 1,
+          },
+          providers: [],
+          runtimes: [],
+        },
+        WebSocket: class extends WebSocket {
+          constructor() {
+            super(wsUrl);
+          }
+        },
+        async transport(operation, request) {
+          if (operation === "hello") {
+            return {
+              status: 200,
+              body: {
+                status: "ok",
+                version: 1,
+                policy: {
+                  revision: 1,
+                  heartbeat_interval_ms: 30_000,
+                  uplink_interval_ms: 30_000,
+                  limits: {
+                    max_batch_events: 32,
+                    max_batch_bytes: 100_000,
+                    max_blob_bytes: 100_000,
+                  },
+                  capabilities: ["relay_session_liveness"],
+                },
+              },
+            };
+          }
+          if (operation !== "relay-grant" || !("sessions" in request))
+            throw new Error(`Unexpected Edge request: ${operation}`);
+          if (grantSeq === 0)
+            expect(request.sessions.map(({ session }) => session)).toEqual([
+              inboxRowId,
+              otherRowId,
+            ]);
+          for (const lease of request.sessions)
+            expect(lease.fencing_token).toBe(`fence-${lease.run}`);
+          const at = Date.now();
+          return {
+            status: 200,
+            body: {
+              status: "ok",
+              v: 1,
+              url: "wss://relay.test/relay",
+              ttl_ms: ttl,
+              token: mint({
+                v: 1,
+                audience: "inbox-test",
+                subject: { kind: "machine", id: device },
+                issued_at_ms: at,
+                expires_at_ms: at + ttl,
+                grant_seq: ++grantSeq,
+                grants: request.sessions.map(({ session, run }) => ({
+                  kind: "session",
+                  id: session,
+                  run,
+                  publish: ["session_liveness"],
+                })),
+              }),
+            },
+          };
+        },
+      },
+      controller.signal,
+      leases(2, [inboxRowId, otherRowId]),
+    );
+    async function waitForContacts(count: number) {
+      await act(async () => {
+        const end = performance.now() + 11_000;
+        while (contacts.length < count && performance.now() < end)
+          await Bun.sleep(20);
+      });
+      expect(contacts).toHaveLength(count);
+    }
+    await waitForContacts(2);
+    const [first] = contacts;
+    expect(contacts.map(({ frame }) => frame.seq)).toEqual([1, 2]);
+    expect(contacts.map(({ frame }) => frame.hub.id).sort()).toEqual(
+      [inboxRowId, otherRowId].sort(),
+    );
+    for (const { frame } of contacts) {
+      expect(frame.machine_id).toBe(device);
+      expect(frame.run).toBe(2);
+      expect(frame.ttl_ms).toBeGreaterThan(0);
+      expect(frame.ttl_ms).toBeLessThanOrEqual(15_000);
+    }
+    expect(contactDot(mount.container)).not.toBeNull();
+    await waitForContacts(4);
+    expect(contacts.map(({ frame }) => frame.seq)).toEqual([1, 2, 3, 4]);
+    for (const id of [inboxRowId, otherRowId]) {
+      const beats = contacts.filter(({ frame }) => frame.hub.id === id);
+      expect(beats).toHaveLength(2);
+      const interval = beats[1].at - beats[0].at;
+      expect(interval).toBeGreaterThanOrEqual(4_950);
+      expect(interval).toBeLessThan(8_000);
+      expect(beats[1].frame.connection_id).toBe(first.frame.connection_id);
+    }
+    await act(() =>
+      mount.backend.set(api.relayGrants.inboxTargets, {
+        viewer: viewerId,
+        targets: [{ id: inboxRowId, run: 3, machine: device }],
+      }),
+    );
+    expect(contactDot(mount.container)).toBeNull();
+    publisher.update(leases(3));
+    await waitForContacts(5);
+    const afterRunChange = contacts[4];
+    expect(afterRunChange.frame).toMatchObject({ run: 3, seq: 1 });
+    expect(afterRunChange.frame.connection_id).not.toBe(
+      first.frame.connection_id,
+    );
+    expect(contactDot(mount.container)).not.toBeNull();
+  } finally {
+    controller.abort();
+    await publisher?.running.catch(() => {});
+    try {
+      await ui?.close();
+    } finally {
+      server.stdin.end();
+      await server.exited;
+    }
+  }
+}, 30_000);

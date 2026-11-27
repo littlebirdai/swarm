@@ -17,6 +17,7 @@ import type {
   TakeoverAckRequest,
   TakeoverAckResponse,
   TakeoverFence,
+  RelayGrantRequest,
   ReleaseRequest,
   ReleaseResponse,
   RenewRequest,
@@ -26,6 +27,7 @@ import type {
 export type EdgeRequests = {
   hello: HelloRequest;
   heartbeat: HeartbeatRequest;
+  "relay-grant": RelayGrantRequest;
   claim: ClaimRequest;
   renew: RenewRequest;
   release: ReleaseRequest;
