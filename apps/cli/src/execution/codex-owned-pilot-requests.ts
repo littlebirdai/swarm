@@ -1,11 +1,94 @@
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   FENCED_RUNTIME_CAPABILITIES,
   parseStartedDeliveryPermit,
   type ReadyBinding,
   type StartedDeliveryPermit,
 } from "@codecast/agent-clients/executionBinding";
+import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import type { RuntimeDriver } from "./driver.js";
 import type { RuntimeStartRequest } from "./types.js";
+
+export type FixtureStartFailure = {
+  operationId: string;
+  daemonBootId: string;
+  retryable: boolean;
+};
+
+export function resolveFailedStartClaim(
+  failed: FixtureStartFailure,
+  args: Record<string, unknown>,
+) {
+  if (!failed.retryable) {
+    return {
+      state: "busy" as const,
+      operationId: failed.operationId,
+      failure: {
+        code: "START_NOT_RETRYABLE",
+        message:
+          "binding state start-failed-before-effect does not authorize startup",
+      },
+    };
+  }
+  if (failed.operationId !== String(args.proposed_operation_id)) {
+    return {
+      state: "rejected" as const,
+      failure: {
+        code: "START_RETRY_OPERATION_MISMATCH",
+        message:
+          "a proven pre-effect retry must reuse the exact durable operation id",
+      },
+    };
+  }
+  return {
+    state: "claimed" as const,
+    operationId: failed.operationId,
+    recovery:
+      failed.daemonBootId !== String(args.daemon_boot_id)
+        ? {
+            state: "recovering" as const,
+            previousDaemonBootId: failed.daemonBootId,
+            previousBootTerminated: true,
+          }
+        : { state: "fresh" as const },
+  };
+}
+
+export function createFixturePeerIo(directory: string) {
+  let commandIndex = 0;
+  async function sendFrame(command: object) {
+    const name = String(++commandIndex).padStart(6, "0");
+    const barrier = `barrier:${name}`;
+    const temporary = join(directory, `${name}.tmp`);
+    writeFileSync(temporary, JSON.stringify({ ...command, barrier }));
+    renameSync(temporary, join(directory, `${name}.command`));
+    await until(
+      () => existsSync(join(directory, barrier)),
+      "fake app-server consumes the frame",
+    );
+  }
+  function providerRequests() {
+    const effects = join(directory, "effects");
+    if (!existsSync(effects)) return [];
+    return readFileSync(effects, "utf8")
+      .split("\n")
+      .slice(0, -1)
+      .map((line) => {
+        const {
+          message,
+        }: { message: { method: string; params: Record<string, unknown> } } =
+          JSON.parse(line);
+        return message;
+      });
+  }
+  function deliveryRequests() {
+    return providerRequests().filter(
+      ({ method }) => method === "turn/start" || method === "turn/steer",
+    );
+  }
+  return { sendFrame, providerRequests, deliveryRequests };
+}
 
 export function legacyFixtureDriver(actions: string[]): RuntimeDriver {
   return {

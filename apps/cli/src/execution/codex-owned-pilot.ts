@@ -173,23 +173,18 @@ export class CodexOwnedPilot {
   forgetConversation(conversationId: string): void {
     this.registry.forgetConversation(conversationId);
   }
-
   pruneParkedEpochs(conversationId: string, currentEpoch: number): void {
     this.registry.pruneOlderEpochs(conversationId, currentEpoch);
   }
-
   parkedRecord(conversationId: string, epoch: number): ParkRecord | undefined {
     return this.registry.get(conversationId, epoch);
   }
-
   parkedCount(): number {
     return this.registry.size;
   }
-
   selects(conversationId: string, epoch = 1): boolean {
     return conversationId === this.conversationId && epoch === this.epoch;
   }
-
   get closed(): boolean {
     return this.stopping;
   }
@@ -372,15 +367,15 @@ export class CodexOwnedPilot {
       ownsCheckpoint: ownsCodexCheckpoint,
       start: (request) => {
         if (!this.handlesRequest(request)) return;
-        if (this.stopped) {
+        if (this.stopped)
           return Promise.resolve({
             state: "failed-before-effect",
             failure: {
               code: "OWNED_CODEX_STOPPED",
               message: "Owned Codex pilot is stopped",
+              retryable: true,
             },
           });
-        }
         return this.pilotFor(request)?.start(request);
       },
       stop: (binding) => this.pilotOwning(binding)?.close(),
@@ -425,6 +420,13 @@ export class CodexOwnedPilot {
     return started.result;
   }
 
+  private resetUnclaimed(): void {
+    if (this.stopping) return;
+    this.claiming = undefined;
+    this.controller = new AbortController();
+    this.activation = undefined;
+  }
+
   activate(
     binding: ReadyBinding,
     request: EnsureBindingRequest,
@@ -443,11 +445,7 @@ export class CodexOwnedPilot {
           await this.close();
         } else {
           await this.cleanup();
-          if (!this.stopping) {
-            this.claiming = undefined;
-            this.controller = new AbortController();
-            this.activation = undefined;
-          }
+          this.resetUnclaimed();
         }
         throw error;
       },
@@ -707,6 +705,7 @@ export class CodexOwnedPilot {
         this.options.log(
           `[owned-codex] lease renewal failed: ${String(error)}`,
         );
+        if (!this.deliveryReady && !this.stopping) this.markParkFailure();
         void this.close().catch(() => {});
       });
     }, duration / 2);
@@ -719,7 +718,7 @@ export class CodexOwnedPilot {
     retryAfterMs?: number,
     onReport?: () => void,
   ): Promise<void> {
-    this.parkFailure = { retryAfterMs };
+    this.markParkFailure(retryAfterMs);
     onReport?.();
     await reportPilotFailure(
       this.options.display,
@@ -727,6 +726,11 @@ export class CodexOwnedPilot {
       binding,
       message,
     );
+    if (!this.onClose && !this.claim) {
+      await this.cleanup();
+      this.resetUnclaimed();
+      return;
+    }
     await this.close();
   }
 

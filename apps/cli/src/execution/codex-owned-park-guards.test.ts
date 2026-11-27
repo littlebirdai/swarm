@@ -340,6 +340,7 @@ test("stop during an ensureBinding await makes no new child or timer", async () 
       failure: {
         code: "OWNED_CODEX_STOPPED",
         message: "Owned Codex pilot is stopped",
+        retryable: true,
       },
     });
     const legacyStart = await f.driver.start(f.legacyRequest);

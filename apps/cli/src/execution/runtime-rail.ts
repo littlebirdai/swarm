@@ -405,7 +405,8 @@ export class DaemonExecutionRuntime {
           this.stopPilotPoll(conversationId);
           if (poll.singleClaimAttempt) {
             pilot.markParkFailure(error.retryAfterMs);
-            await pilot.close().catch(() => {});
+            if (pilot !== this.codexOwnedPilot)
+              await pilot.close().catch(() => {});
           } else {
             await this.failPilotLeaseRetry(pilot, current.binding, error);
           }
@@ -662,7 +663,8 @@ export class DaemonExecutionRuntime {
         if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
           if (poll.singleClaimAttempt) {
             pilot.markParkFailure(error.retryAfterMs);
-            await pilot.close().catch(() => {});
+            if (pilot !== this.codexOwnedPilot)
+              await pilot.close().catch(() => {});
           } else {
             await this.failPilotLeaseRetry(pilot, binding, error);
           }

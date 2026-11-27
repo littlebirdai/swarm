@@ -1,12 +1,5 @@
 import { expect, spyOn } from "bun:test";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -14,18 +7,21 @@ import {
   type ReadyBinding,
   type StartedDeliveryPermit,
 } from "@codecast/agent-clients/executionBinding";
-import { fake, until } from "../../../../tests/codex-driver-parity/peers.js";
+import { fake } from "../../../../tests/codex-driver-parity/peers.js";
 import type { RetryQueue } from "../retryQueue.js";
 import type { SyncService } from "../syncService.js";
 import { strictStub } from "../test-helpers/strictStub.js";
 import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import {
   bindingFor,
+  createFixturePeerIo,
   item,
   legacyFixtureDriver,
   pending,
   request,
+  resolveFailedStartClaim,
   started,
+  type FixtureStartFailure,
 } from "./codex-owned-pilot-requests.js";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import type { RuntimeDriver } from "./driver.js";
@@ -73,40 +69,11 @@ export function fixture(
     ),
     directory,
   ] as const;
-  let commandIndex = 0;
   let resumedTurn: string | undefined;
   let receiptReplay: Promise<void> | undefined;
   let refuseBlobs = false;
-  async function sendFrame(command: object) {
-    const name = String(++commandIndex).padStart(6, "0");
-    const barrier = `barrier:${name}`;
-    const temporary = join(directory, `${name}.tmp`);
-    writeFileSync(temporary, JSON.stringify({ ...command, barrier }));
-    renameSync(temporary, join(directory, `${name}.command`));
-    await until(
-      () => existsSync(join(directory, barrier)),
-      "fake app-server consumes the frame",
-    );
-  }
-  function providerRequests() {
-    const effects = join(directory, "effects");
-    if (!existsSync(effects)) return [];
-    return readFileSync(effects, "utf8")
-      .split("\n")
-      .slice(0, -1)
-      .map((line) => {
-        const {
-          message,
-        }: { message: { method: string; params: Record<string, unknown> } } =
-          JSON.parse(line);
-        return message;
-      });
-  }
-  function deliveryRequests() {
-    return providerRequests().filter(
-      ({ method }) => method === "turn/start" || method === "turn/steer",
-    );
-  }
+  const { sendFrame, providerRequests, deliveryRequests } =
+    createFixturePeerIo(directory);
   const actions: string[] = [];
   const logs: string[] = [];
   const pilotRequest = request("pilot", directory);
@@ -319,6 +286,7 @@ export function fixture(
   ]);
   const emptyAfterDelivery = new Set<string>();
   const bootRegistrations: Record<string, unknown>[] = [];
+  const startFailures = new Map<string, FixtureStartFailure>();
   const transport: ExecutionConvexTransport = {
     async executionControlQuery() {
       return initial;
@@ -346,11 +314,26 @@ export function fixture(
         }
         if (!row) throw new Error(`Missing binding ${key}`);
         if (row[1]) return { state: "ready", binding: row[1] };
+        const failed = startFailures.get(key);
+        if (failed) {
+          const result = resolveFailedStartClaim(failed, args);
+          if (result.state === "claimed") startFailures.delete(key);
+          return result;
+        }
         return {
           state: "claimed",
           operationId: row[0].operationId,
           recovery: { state: "fresh" },
         };
+      }
+      if (name === "publishStartFailedBeforeEffect" && row) {
+        actions.push(`start-failed-before-effect:${key}:${args.failure_code}`);
+        startFailures.set(key, {
+          operationId: String(args.operation_id),
+          daemonBootId: String(args.daemon_boot_id),
+          retryable: args.failure_retryable === true,
+        });
+        return { accepted: true };
       }
       if (name === "publishReadyBinding" && row) {
         row[1] = {

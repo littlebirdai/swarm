@@ -1,5 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
+import { ownsCodexCheckpoint } from "./codex-owned-pilot.js";
 import { fixture, item } from "./codex-owned-pilot-fixture.js";
 
 const retryAfterMs = 1_337;
@@ -336,6 +337,180 @@ test("a provider error emitted during resume survives after the pilot clears its
     ]);
   } finally {
     clock?.restore();
+    await f.dispose();
+  }
+});
+
+test("stop during claimStart persists retryable failure and a restarted runtime starts cleanly", async () => {
+  const f = fixture(null, true, "receipt", true);
+  try {
+    const paused = f.pauseNextClaimStart();
+    const first = f.runtime.processWorkUpdate([item(f.newRequest)]);
+    await paused.started;
+
+    const stopping = f.runtime.stop();
+    paused.release();
+    await Promise.all([first, stopping]);
+
+    expect(f.actions).toContain(
+      "start-failed-before-effect:new:1:OWNED_CODEX_STOPPED",
+    );
+    expect(f.actions.some((action) => action.startsWith("legacy-start:"))).toBe(
+      false,
+    );
+    expect(f.actions.filter((action) => action === "edge:claim")).toEqual([]);
+
+    const restarted = f.createRuntime("restarted-boot");
+    await restarted.runtime.processWorkUpdate([
+      item({ ...f.newRequest, daemonBootId: "restarted-boot" }),
+    ]);
+
+    const ready = f.ready(f.newRequest);
+    expect(ownsCodexCheckpoint(ready.handle)).toBe(true);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      1,
+    );
+    expect(f.actions.some((action) => action.startsWith("legacy-start:"))).toBe(
+      false,
+    );
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("the legacy single-session pilot stays resumable after single-claim busy and exhausted resume", async () => {
+  const f = fixture();
+  const realNow = Date.now;
+  let offsetMs = 0;
+  const nowSpy = spyOn(Date, "now").mockImplementation(
+    () => realNow() + offsetMs,
+  );
+  let clock: ReturnType<typeof interceptRetries> | undefined;
+  try {
+    f.claimResponses.push(new Response(null, { status: 503 }));
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.pilotRequest),
+        resumeGeneration: 1,
+        nextDeliverySequence: 1,
+      },
+    ]);
+    expect(f.pilot.closed).toBe(false);
+    expect(f.pilot.parkedRecord("pilot", 1)?.failures).toBe(1);
+
+    offsetMs += 5_000;
+    f.claimResponses.push(
+      Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+    );
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.pilotRequest),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    expect(f.pilot.closed).toBe(false);
+    expect(f.pilot.parkedRecord("pilot", 1)?.failures).toBe(2);
+
+    clock = interceptRetries();
+    for (let i = 0; i < 9; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.pilotRequest),
+        resumeGeneration: 2,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    let executed = 0;
+    while (executed < clock.retries.length) {
+      clock.retries[executed++]!.run();
+      await f.runtime.processWorkUpdate([]);
+    }
+    expect(clock.retries).toHaveLength(8);
+    expect(f.pilot.closed).toBe(false);
+    expect(f.pilot.parkedRecord("pilot", 1)?.failures).toBe(1);
+
+    const claimsBeforeGen3 = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.pilotRequest),
+        resumeGeneration: 3,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      claimsBeforeGen3 + 1,
+    );
+    expect(f.pilot.parkedRecord("pilot", 1)).toBeUndefined();
+  } finally {
+    clock?.restore();
+    nowSpy.mockRestore();
+    await f.dispose();
+  }
+});
+
+test("a lease renewal failure during activation parks with a failure", async () => {
+  const f = fixture(null, true, "receipt", true);
+  try {
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest), nextDeliverySequence: 1 },
+    ]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+
+    f.enqueue(1, false, "new");
+    f.claimResponses.push(
+      Response.json({
+        v: 1,
+        status: "granted",
+        session: "new",
+        run: 1,
+        fencing_token: "edge-lease",
+        lease_ms: 10,
+        last_pane_instance: 0,
+        last_event_seq: 1,
+      }),
+    );
+    f.rejectRenewalAfter(Promise.resolve());
+    const permitPause = f.pauseNextPermitRead();
+    const resuming = f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    await permitPause.started;
+    await until(
+      () => f.logs.some((line) => line.includes("lease renewal failed")),
+      "renewal fails during activation",
+    );
+    permitPause.resume();
+    await resuming;
+
+    const record = f.pilot.parkedRecord("new", 1);
+    expect(record?.failures).toBe(1);
+    expect(record?.notBeforeMs).toBeGreaterThan(Date.now());
+    const claimsAfterFail = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim")).toHaveLength(
+      claimsAfterFail,
+    );
+  } finally {
     await f.dispose();
   }
 });
