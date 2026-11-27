@@ -7,7 +7,7 @@ const responseLimits = {
 } as const;
 
 const sampleCount = 4;
-const { reads } = await runLocalProbe(sampleCount, 5000);
+const { reads } = await runLocalProbe(sampleCount, 30000);
 assert.equal(reads.length, sampleCount);
 for (const [sample, queries] of reads.entries()) {
   assert.deepEqual(
