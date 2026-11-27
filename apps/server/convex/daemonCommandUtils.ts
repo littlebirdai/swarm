@@ -468,7 +468,9 @@ export async function resumeConversationSession(
 
   if (await requestOwnedCodexResume(ctx, conversation)) {
     if (isClosedSession(conversation))
-      await ctx.db.patch(conversationId, { inbox_dismissed_at: undefined });
+      await patchConversationLifecycle(ctx, conversationId, {
+        inbox_dismissed_at: undefined,
+      });
     return { deduplicated: true };
   }
 
