@@ -357,3 +357,90 @@ test("an explicit resume backs off after two busy lease responses", async () => 
     await f.dispose();
   }
 });
+
+test("exhausting busy lease retries publishes a session error, closes the child, and waits for a change before retrying", async () => {
+  const f = fixture(null, true, "receipt", true);
+  const schedule = globalThis.setTimeout;
+  const retryAfterMs = 1_337;
+  const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);
+  const retries: { delay: number; run(): void }[] = [];
+  let timer: ReturnType<typeof spyOn> | undefined;
+  try {
+    await f.runtime.processWorkUpdate([item(f.newRequest)]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+    f.permitSessions.length = 0;
+    f.statuses.length = 0;
+    f.sessionErrors.length = 0;
+    timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const handle = schedule(callback, delay, ...args);
+      if (delay !== undefined && expectedDelays.has(delay)) {
+        clearTimeout(handle);
+        retries.push({ delay, run: () => callback(...args) });
+      }
+      return handle;
+    }) as typeof setTimeout);
+    for (let i = 0; i < 9; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    const baseClaims = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    const work = [{ ...item(f.newRequest, binding), resumeGeneration: 1 }];
+    await f.runtime.processWorkUpdate(work);
+    const child = f.pilot.pilotFor(f.newRequest)!;
+    expect(child.closed).toBe(false);
+
+    let executed = 0;
+    while (executed < retries.length) {
+      retries[executed++]!.run();
+      await f.runtime.processWorkUpdate([]);
+    }
+
+    expect(retries.map(({ delay }) => delay)).toEqual([
+      1_337, 2_674, 5_348, 10_696, 21_392, 30_000, 30_000, 30_000,
+    ]);
+    const claimsAfterExhaustion = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    expect(claimsAfterExhaustion - baseClaims).toBe(9);
+    expect(child.closed).toBe(true);
+    expect(f.statuses).toEqual(["stopped"]);
+    expect(f.sessionErrors).toEqual([
+      {
+        conversationId: "new",
+        error:
+          "Could not resume Codex session: the previous run still holds its lease.",
+        force: true,
+      },
+    ]);
+
+    await f.runtime.processWorkUpdate(work);
+    await f.runtime.processWorkUpdate([item(f.newRequest, binding)]);
+    expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
+      claimsAfterExhaustion,
+    );
+    expect(retries).toHaveLength(8);
+
+    f.claimResponses.push(
+      Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+    );
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), resumeGeneration: 2 },
+    ]);
+    expect(retries).toHaveLength(9);
+    expect(f.pilot.pilotFor(f.newRequest)).not.toBe(child);
+    retries[8]!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(f.permitSessions).toEqual(["new", "new"]);
+  } finally {
+    timer?.mockRestore();
+    await f.dispose();
+  }
+});

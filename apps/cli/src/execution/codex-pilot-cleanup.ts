@@ -1,7 +1,28 @@
+import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
 import type {
   ProviderAdapterClient,
   ProviderOwnedSession,
 } from "@codecast/provider-adapter";
+import type { PilotOptions } from "./codex-pilot-settings.js";
+
+export async function reportPilotFailure(
+  display: PilotOptions["display"],
+  log: (message: string) => void,
+  binding: ReadyBinding,
+  message: string,
+): Promise<void> {
+  display.sendAgentStatus(
+    display.syncService,
+    binding.conversationId,
+    binding.runtimeId,
+    "stopped",
+  );
+  await display.syncService
+    .setSessionError(binding.conversationId, message, { force: true })
+    .catch((error) => {
+      log(`[owned-codex] session error update failed: ${String(error)}`);
+    });
+}
 
 export async function closeOwnedProvider(
   log: (message: string) => void,

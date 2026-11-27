@@ -41,7 +41,11 @@ import {
 } from "./codex-pilot-delivery.js";
 import { CodexPilotEvents } from "./codex-pilot-events.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
-import { closeOwnedProvider, closePilots } from "./codex-pilot-cleanup.js";
+import {
+  closeOwnedProvider,
+  closePilots,
+  reportPilotFailure,
+} from "./codex-pilot-cleanup.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
 import type {
@@ -720,6 +724,16 @@ export class CodexOwnedPilot {
       });
     }, duration / 2);
     this.renewal.unref();
+  }
+
+  async failResume(binding: ReadyBinding, message: string): Promise<void> {
+    await reportPilotFailure(
+      this.options.display,
+      this.options.log,
+      binding,
+      message,
+    );
+    await this.close();
   }
 
   close(): Promise<void> {

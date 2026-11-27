@@ -558,6 +558,9 @@ export class DaemonExecutionRuntime {
             this.schedulePilotLeaseRetry(poll, current.request, error)
           )
             return;
+          this.stopPilotPoll(conversationId);
+          await this.failPilotLeaseRetry(pilot, current.binding, error);
+          return;
         }
         this.stopPilotPoll(conversationId);
         throw error;
@@ -633,6 +636,24 @@ export class DaemonExecutionRuntime {
     return true;
   }
 
+  private async failPilotLeaseRetry(
+    pilot: CodexOwnedPilot,
+    binding: ReadyBinding,
+    error: CodexPilotLeaseBusy,
+  ): Promise<void> {
+    this.onLog(`[owned-codex] resume lease retry exhausted: ${String(error)}`);
+    await pilot
+      .failResume(
+        binding,
+        "Could not resume Codex session: the previous run still holds its lease.",
+      )
+      .catch((closeError) => {
+        this.onLog(
+          `[owned-codex] exhausted resume cleanup failed: ${String(closeError)}`,
+        );
+      });
+  }
+
   private schedulePilotPoll(
     pilot: CodexOwnedPilot,
     binding: ReadyBinding,
@@ -674,7 +695,7 @@ export class DaemonExecutionRuntime {
         }
         this.stopPilotPoll(conversationId);
       });
-      this.workChain = next.catch((error) => {
+      this.workChain = next.catch(async (error) => {
         if (this.pilotPolls.get(conversationId) !== poll) return;
         if (
           poll.resumeRequested &&
@@ -683,6 +704,10 @@ export class DaemonExecutionRuntime {
         )
           return;
         this.stopPilotPoll(conversationId);
+        if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
+          await this.failPilotLeaseRetry(pilot, binding, error);
+          return;
+        }
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });
       void this.workChain.then(() => {

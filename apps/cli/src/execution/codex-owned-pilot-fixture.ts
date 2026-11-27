@@ -163,6 +163,11 @@ export function fixture(
   let questionWrite: Promise<void> | undefined;
   let renewal: Promise<void> | undefined;
   const statuses: string[] = [];
+  const sessionErrors: Array<{
+    conversationId: string;
+    error?: string;
+    force?: boolean;
+  }> = [];
   function createPilot(flag = enabled) {
     return createCodexOwnedPilot(
       {
@@ -211,6 +216,13 @@ export function fixture(
               const removed = promptPermissions.delete(rowId);
               if (removed) cancelledPermissions.push(rowId);
               return removed;
+            },
+            async setSessionError(conversationId, error, opts) {
+              sessionErrors.push({
+                conversationId,
+                error,
+                force: opts?.force,
+              });
             },
             getClient() {
               return strictStub<ReturnType<SyncService["getClient"]>>(
@@ -601,6 +613,7 @@ export function fixture(
     deliveryRequests,
     providerRequests,
     statuses,
+    sessionErrors,
     exitProvider() {
       process.kill(
         Number(readFileSync(join(directory, "pid"), "utf8")),
