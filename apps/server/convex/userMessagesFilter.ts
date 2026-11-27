@@ -206,6 +206,8 @@ export function approxMessageBytes(m: FilterableMessage): number {
   return n;
 }
 
+export const NAV_PROMPT_LIVE_SINCE = Date.UTC(2026, 10, 5, 12);
+
 export function filterUserMessages(
   userMsgs: FilterableMessage[],
 ): FilteredUserMessage[] {

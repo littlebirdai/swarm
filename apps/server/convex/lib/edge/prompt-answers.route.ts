@@ -402,3 +402,31 @@ export async function finishPromptAnswer(
   await ctx.db.patch(row._id, { finished_at: Date.now() });
   return { v: v1, status: "recorded" };
 }
+
+export async function firstUnansweredOpenTurnPrompt(
+  ctx: Reader,
+  conversation: Doc<"conversations">,
+): Promise<{ kind: "question" | "permission"; prompt_id: string } | null> {
+  const opened = await openPromptTurn(ctx, conversation);
+  if (!opened) return null;
+  const { binding, lease, turn } = opened;
+  const details = new Map(
+    (turn.prompt_details ?? []).map((detail) => [detail.prompt_id, detail]),
+  );
+  for (const promptId of turn.prompt_ids) {
+    const answer = await recordedAnswer(ctx, {
+      conversation_id: conversation._id,
+      run: binding.epoch,
+      lease_id: lease._id,
+      turn_id: turn.id,
+      prompt_id: promptId,
+    });
+    if (answer) continue;
+    const detail = details.get(promptId);
+    return {
+      kind: detail?.kind ?? "question",
+      prompt_id: promptId,
+    };
+  }
+  return null;
+}

@@ -18,6 +18,7 @@
     "components/conversation/__tests__/fenced-prompt-answer.mount.test.tsx",
     "components/conversation/__tests__/prompt-baton-authority.mount.test.tsx",
     "components/conversation/__tests__/fenced-permission-acceptance.mount.test.tsx",
+    "components/conversation/__tests__/late-join-summary-panel.mount.test.tsx",
     "components/terminal/team-terminal.mount.test.tsx",
     "components/relay-presence-provider.mount.test.tsx",
     "components/inbox-relay-liveness.mount.test.tsx",

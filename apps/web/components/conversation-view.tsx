@@ -249,6 +249,12 @@ import {
   type HandoffInfo,
 } from "./OwnersBadge";
 import { ThreadSuggestions } from "./org/SuggestionSet";
+import { LateJoinSummaryPanel } from "./conversation/late-join-summary-panel";
+import {
+  hasLateJoinUpdates,
+  isLateJoinSummaryEnabled,
+  useLateJoinSummary,
+} from "../hooks/use-late-join-summary";
 import { TmuxAttachPill } from "./TmuxAttachPill";
 import { useAttachCopy } from "../hooks/useAttachCopy";
 import { SessionDaemonChip, SessionHooksOffChip } from "./DaemonStatusChip";
@@ -871,6 +877,9 @@ const ConversationViewInner = function ConversationView(
       ? { conversation_id: convexConvId, ...shareTokenArg(convexConvId) }
       : "skip",
   ).data;
+  const lateJoinEnabled = isLateJoinSummaryEnabled();
+  const [lateJoinReachedBottom, setLateJoinReachedBottom] = useState(false);
+  const sawAwayFromBottomRef = useRef(false);
   const renamingSessionId = useInboxStore((s) => s.renamingSessionId);
   const isRenaming = renamingSessionId === conversation?._id;
   const [renameDraft, setRenameDraft] = useState("");
@@ -3942,6 +3951,21 @@ const ConversationViewInner = function ConversationView(
     ],
   );
 
+  const handleJumpToLateJoinAnchor = useCallback(
+    (messageId: string, timestamp: number) => {
+      sawAwayFromBottomRef.current = true;
+      const inTimeline = timeline.some(
+        (item) => item.type === "message" && item.data._id === messageId,
+      );
+      if (inTimeline || !onJumpToTimestamp) {
+        scrollToMessageById(messageId);
+      } else {
+        onJumpToTimestamp(timestamp);
+      }
+    },
+    [timeline, scrollToMessageById, onJumpToTimestamp],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
@@ -4033,6 +4057,15 @@ const ConversationViewInner = function ConversationView(
         })
       ) {
         setUserScrolled(false);
+      }
+
+      if (!isAtBottom || paginationPropsRef.current.hasMoreBelow) {
+        sawAwayFromBottomRef.current = true;
+      } else if (
+        !jumpPendingRef.current &&
+        (sawAwayFromBottomRef.current || readerMovingDown)
+      ) {
+        setLateJoinReachedBottom(true);
       }
 
       if (scrollProgressRef.current && !jumpPendingRef.current) {
@@ -6793,6 +6826,18 @@ const ConversationViewInner = function ConversationView(
     conversation.fork_status !== "copying" &&
     !(conversation.message_count ?? 0) &&
     !runLogEnded;
+  const lateJoinSummary = useLateJoinSummary(
+    convexConvId ?? null,
+    lateJoinEnabled && !guest && !newSessionPage,
+  );
+  useWatchEffect(() => {
+    setLateJoinReachedBottom(false);
+    sawAwayFromBottomRef.current = false;
+  }, [
+    conversation?._id,
+    lateJoinSummary?.anchor.message_id,
+    lateJoinSummary?.anchor.changed_at,
+  ]);
   const [newSessionFootSlot, setNewSessionFootSlot] =
     useState<HTMLElement | null>(null);
   const [newSessionBelowSlot, setNewSessionBelowSlot] =
@@ -8863,6 +8908,15 @@ const ConversationViewInner = function ConversationView(
                                         />
                                       </ErrorBoundary>
                                     )}
+                                  {lateJoinEnabled &&
+                                    !guest &&
+                                    !lateJoinReachedBottom &&
+                                    hasLateJoinUpdates(lateJoinSummary) && (
+                                      <LateJoinSummaryPanel
+                                        summary={lateJoinSummary}
+                                        onJump={handleJumpToLateJoinAnchor}
+                                      />
+                                    )}
                                   <div
                                     className={`flex-1 min-h-0 relative flex ${isImageLightboxActive ? "invisible" : ""}`}
                                   >
@@ -10080,6 +10134,7 @@ const ConversationViewInner = function ConversationView(
                                               setGuestStayAtTop(false);
                                               onJumpToEnd();
                                             } else {
+                                              setLateJoinReachedBottom(true);
                                               setGuestStayAtTop(false);
                                               setUserScrolled(false);
                                               paginationCooldownRef.current =
