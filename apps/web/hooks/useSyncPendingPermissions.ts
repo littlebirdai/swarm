@@ -48,7 +48,7 @@ export function useSyncPendingPermissions(
 }
 
 const permSig = (p: any) =>
-  `${p.status}|${p.tool_name}|${p.arguments_preview ?? ""}|${p.resolved_at ?? ""}`;
+  `${p.status}|${p.tool_name}|${p.arguments_preview ?? ""}|${p.resolved_at ?? ""}|${p.fenced_prompt_id ?? ""}|${p.fenced_prompt_turn_id ?? ""}`;
 const byCreatedAsc = (a: any, b: any) =>
   (a.created_at ?? 0) - (b.created_at ?? 0);
 

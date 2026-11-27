@@ -10,7 +10,9 @@ import { allowAllLedger } from "./consequential/ledgers";
 import { useInboxStore } from "../store/inboxStore";
 import { useFencedPromptAddresses } from "../hooks/use-sync-fenced-prompt-addresses";
 import {
+  type FencedPromptAddress,
   findFencedPromptAddress,
+  promptAnswererLabel,
   submitFencedPromptAnswer,
 } from "../store/fenced-prompt-answer";
 import { formatToolName } from "@codecast/render/toolNames";
@@ -65,32 +67,24 @@ export const PERMISSION_SKIP_TOOLS: ReadonlySet<string> = new Set([
   "TaskGet",
 ]);
 
-type Permission = {
-  _id: Id<"pending_permissions">;
+export type Permission = Omit<
+  PermissionViewItem<Id<"pending_permissions">>,
+  "answerer"
+> & {
   conversation_id?: string;
-  fenced_prompt_id?: string;
   fenced_prompt_turn_id?: string;
-  tool_name: string;
-  arguments_preview?: string;
-  status: "pending" | "approved" | "denied" | "cancelled";
   created_at: number;
   responded_at?: number;
-  suggestions?: unknown[];
-  subagent_type?: string;
-  subagent_conversation_id?: string;
-  safety_check?: boolean;
-  intent?: string;
-  removals?: PermissionRemoval[];
-  rule_request?: PermissionRuleRequest;
 };
 
 /** The fields the view renders. A real row satisfies it, and so does a fixture with a plain string id. */
 export type PermissionViewItem<PId extends string = string> = {
   _id: PId;
+  answerer?: FencedPromptAddress["answerer"];
   fenced_prompt_id?: string;
   tool_name: string;
   arguments_preview?: string;
-  status: Permission["status"];
+  status: "pending" | "approved" | "denied" | "cancelled";
   /** Claude Code's permission_suggestions: what "Always allow" would add. */
   suggestions?: unknown[];
   /** The subagent that asked, by type; absent when the session's own agent did. */
@@ -151,17 +145,21 @@ export function PermissionSourceTag({
 }: {
   permission: Pick<
     PermissionViewItem,
-    "subagent_type" | "subagent_conversation_id" | "safety_check"
+    "subagent_type" | "subagent_conversation_id" | "safety_check" | "answerer"
   >;
   className?: string;
 }) {
   const tags = permissionSourceTags(permission);
-  if (tags.length === 0) return null;
+  const answerLabel = promptAnswererLabel(permission.answerer);
+  if (tags.length === 0 && !answerLabel) return null;
   const subagentConv = permission.subagent_conversation_id;
   return (
     <span
       className={`flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${className}`}
     >
+      {answerLabel && (
+        <span className="text-sol-text-muted">{answerLabel}</span>
+      )}
       {tags.map((t) => {
         const tone =
           t.kind === "subagent"
@@ -337,6 +335,7 @@ export function PermissionRow({
   if (permission.status !== "pending") return null;
 
   const preview = permission.arguments_preview;
+  const blocked = inflight || permission.answerer?.can_answer === false;
 
   return (
     <div className="group hover:bg-sol-yellow/[0.04] transition-colors">
@@ -361,7 +360,7 @@ export function PermissionRow({
         {!preview && <span className="flex-1" />}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
-            disabled={inflight}
+            disabled={blocked}
             onClick={onApprove}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
@@ -374,7 +373,7 @@ export function PermissionRow({
           />
           {!denying && (
             <button
-              disabled={inflight}
+              disabled={blocked}
               onClick={() =>
                 permission.fenced_prompt_id ? onDeny() : setDenying(true)
               }
@@ -386,7 +385,7 @@ export function PermissionRow({
         </div>
       </div>
       <PermissionContext permission={permission} />
-      {denying && !permission.fenced_prompt_id && !inflight && (
+      {denying && !permission.fenced_prompt_id && !blocked && (
         <DenyReason onDeny={onDeny} onCancel={() => setDenying(false)} />
       )}
       {preview && isExpanded && (
@@ -402,8 +401,6 @@ export function PermissionRow({
     </div>
   );
 }
-
-const NO_INFLIGHT: ReadonlySet<string> = new Set();
 
 export function PermissionStack({
   permissions,
@@ -434,25 +431,23 @@ export function PermissionStack({
     const address = addressFor(permission);
     return address ? address.submitted || address.accepted : ready;
   });
-  const pending = permissions.filter(
-    (permission) =>
-      permission.status === "pending" && !settled.includes(permission),
-  );
-  const waiting = new Set(
-    pending
-      .filter(
-        (permission) => permission.fenced_prompt_id && !addressFor(permission),
-      )
-      .map(({ _id }) => _id),
-  );
-
+  const waiting = new Set<Id<"pending_permissions">>();
+  const pending = permissions
+    .filter((row) => row.status === "pending" && !settled.includes(row))
+    .map((row) => {
+      const address = addressFor(row);
+      if (row.fenced_prompt_id && !address) waiting.add(row._id);
+      return { ...row, answerer: address?.answerer };
+    });
+  const blocked = (row: PermissionViewItem<Id<"pending_permissions">>) =>
+    waiting.has(row._id) || row.answerer?.can_answer === false;
   const decide = (
     id: Id<"pending_permissions">,
     status: "approved" | "denied",
     opts?: { message?: string; remember?: boolean },
   ) => {
     const permission = pending.find(({ _id }) => _id === id);
-    if (!permission) return;
+    if (!permission || blocked(permission)) return;
     if (!permission.fenced_prompt_id) {
       resolvePermission(id, status, opts);
       return;
@@ -485,7 +480,7 @@ export function PermissionStack({
       tag === "INPUT" ||
       tag === "TEXTAREA" ||
       (e.target as HTMLElement)?.isContentEditable ||
-      pending.length === 0
+      pending.every(blocked)
     )
       return;
     if (matchesAction(e, "permission.approve")) {
@@ -512,7 +507,7 @@ export function PermissionStack({
       )}
       <PermissionStackView
         pending={pending}
-        inflight={waiting.size ? waiting : NO_INFLIGHT}
+        inflight={waiting}
         onApprove={handleApprove}
         onDeny={handleDeny}
         onAlwaysAllow={
@@ -560,7 +555,9 @@ export function PermissionStackView<PId extends string>({
   const modern = useIsModernStyle();
 
   if (pending.length === 0) return null;
-  const allInFlight = pending.every(({ _id }) => inflight.has(_id));
+  const blocked = (row: PermissionViewItem) =>
+    inflight.has(row._id) || row.answerer?.can_answer === false;
+  const allBlocked = pending.every(blocked);
   // Modern: the loud ask card with 32px answers (CONV-20); the keys and the writes stay PermissionStack's.
   if (modern)
     return (
@@ -636,7 +633,7 @@ export function PermissionStackView<PId extends string>({
           <div className="ml-auto flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => onApprove(p._id)}
-              disabled={inflight.has(p._id)}
+              disabled={blocked(p)}
               className="px-2.5 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors disabled:opacity-40 disabled:pointer-events-none"
             >
               {inflight.has(p._id) ? "..." : "Approve"}
@@ -663,17 +660,19 @@ export function PermissionStackView<PId extends string>({
                 onClick={() =>
                   p.fenced_prompt_id ? onDeny(p._id) : setDenying(true)
                 }
-                disabled={inflight.has(p._id)}
+                disabled={blocked(p)}
                 className={DENY_CLASS}
               >
                 Deny
               </button>
             )}
           </div>
-          <span className="text-meta text-sol-text-dim flex-shrink-0 hidden sm:flex items-center gap-1">
-            <MenuKeyCaps action="permission.approve" className="contents" />/
-            <MenuKeyCaps action="permission.deny" className="contents" />
-          </span>
+          {!allBlocked && (
+            <span className="text-meta text-sol-text-dim flex-shrink-0 hidden sm:flex items-center gap-1">
+              <MenuKeyCaps action="permission.approve" className="contents" />/
+              <MenuKeyCaps action="permission.deny" className="contents" />
+            </span>
+          )}
         </div>
         <PermissionContext permission={p} />
         {preview && isLong && (
@@ -683,7 +682,7 @@ export function PermissionStackView<PId extends string>({
             </span>
           </div>
         )}
-        {denying && !p.fenced_prompt_id && !inflight.has(p._id) && (
+        {denying && !p.fenced_prompt_id && !blocked(p) && (
           <DenyReason
             onDeny={(message) => onDeny(p._id, message)}
             onCancel={() => setDenying(false)}
@@ -711,7 +710,7 @@ export function PermissionStackView<PId extends string>({
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
           <button
             onClick={onApproveAll}
-            disabled={allInFlight}
+            disabled={allBlocked}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-green/40 text-sol-green hover:bg-sol-green hover:text-sol-bg transition-colors"
           >
             Approve all
@@ -730,7 +729,7 @@ export function PermissionStackView<PId extends string>({
           {allowAllReview}
           <button
             onClick={onDenyAll}
-            disabled={allInFlight}
+            disabled={allBlocked}
             className="px-2 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-border/40 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors"
           >
             Deny all
@@ -775,16 +774,18 @@ export function PermissionStackView<PId extends string>({
         ))}
       </div>
 
-      <div className="flex items-center justify-center gap-3 py-0.5 border-t border-sol-yellow/8">
-        <span className="text-meta text-sol-text-dim flex items-center gap-1">
-          <MenuKeyCaps action="permission.approve" className="contents" />
-          approve all
-        </span>
-        <span className="text-meta text-sol-text-dim flex items-center gap-1">
-          <MenuKeyCaps action="permission.deny" className="contents" />
-          deny all
-        </span>
-      </div>
+      {!allBlocked && (
+        <div className="flex items-center justify-center gap-3 py-0.5 border-t border-sol-yellow/8">
+          <span className="text-meta text-sol-text-dim flex items-center gap-1">
+            <MenuKeyCaps action="permission.approve" className="contents" />
+            approve all
+          </span>
+          <span className="text-meta text-sol-text-dim flex items-center gap-1">
+            <MenuKeyCaps action="permission.deny" className="contents" />
+            deny all
+          </span>
+        </div>
+      )}
     </div>
   );
 }

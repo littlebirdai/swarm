@@ -20,6 +20,7 @@ import { sentByCall } from "../../../lib/modernAskSent";
 import { useFencedPromptAddresses } from "../../../hooks/use-sync-fenced-prompt-addresses";
 import {
   findFencedPromptAddress,
+  promptAnswererLabel,
   submitFencedPromptAnswer,
 } from "../../../store/fenced-prompt-answer";
 import { useInboxStore } from "../../../store/inboxStore";
@@ -68,12 +69,17 @@ export function ModernAskUserQuestion({
   const { fencedTurnId } = parsedInput;
   const { ready, rows } = useFencedPromptAddresses(
     conversationId,
-    Boolean(fencedTurnId && onSendMessage && !result),
+    Boolean(
+      fencedTurnId &&
+      !result &&
+      (onSendMessage || import.meta.env.VITE_SWARM_TURN_BATON === "1"),
+    ),
   );
   const address = fencedTurnId
     ? findFencedPromptAddress(rows, tool.id, fencedTurnId, "question")
     : undefined;
   const inputQuestions = parsedInput.questions ?? [];
+  const answerLabel = promptAnswererLabel(address?.answerer);
   const addressQuestions = address?.questions ?? [];
   const secret =
     inputQuestions.some(({ isSecret }) => isSecret) ||
@@ -108,7 +114,7 @@ export function ModernAskUserQuestion({
     !(awaitingAddress && ready);
   const interactive =
     open &&
-    !!onSendMessage &&
+    (address?.answerer?.can_answer ?? !!onSendMessage) &&
     !awaitingAddress &&
     (!address || !!ownsQuestions);
 
@@ -117,7 +123,7 @@ export function ModernAskUserQuestion({
     payload = buildPollPayload(questions, sels),
   ) => {
     if (address) {
-      if (!ownsQuestions || secret) return;
+      if (!interactive) return;
       const answers = Object.fromEntries(
         questions.map((question, index) => [
           question.id!,
@@ -245,11 +251,13 @@ export function ModernAskUserQuestion({
             key={qi}
             kicker={q.header}
             aside={
-              qi === 0 && deadline
-                ? `Auto-denies in ${deadline.left}`
-                : multiQuestion
-                  ? `${qi + 1} of ${questions.length}`
-                  : undefined
+              qi === 0 && answerLabel
+                ? answerLabel
+                : qi === 0 && deadline
+                  ? `Auto-denies in ${deadline.left}`
+                  : multiQuestion
+                    ? `${qi + 1} of ${questions.length}`
+                    : undefined
             }
             question={q.question}
             detail={q.detail}

@@ -96,6 +96,7 @@ const submissionSignature = (row: FencedPromptAddress) =>
     row.feedAbsent,
     row.answerSummary,
     row.questions,
+    row.answerer,
   ]);
 
 export function useFencedPromptAddresses(

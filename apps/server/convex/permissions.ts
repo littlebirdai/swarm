@@ -1,7 +1,6 @@
 import { edgePromptAnswer } from "./schema/edge-prompt-answers.tables";
 import { permissionRemovalValidator } from "./lib/permissionRemoval";
 import { settlePermissionProposals, viewerSeesDetail } from "./teamSuggestions";
-import { redactSecrets } from "./redact";
 import { mutation, query, internalMutation } from "./functions";
 import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
@@ -18,6 +17,11 @@ import {
   promptAddress,
   queuePromptAnswer,
 } from "./lib/edge/prompt-answers.route";
+import { checkConversationAccess } from "./privacy";
+import {
+  sharedPromptPermissionsEnabled,
+  sharedPermissionRows,
+} from "./lib/edge/prompt-authority.rules";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import {
   boundedRuleRequest,
@@ -251,7 +255,7 @@ export const listAnswerablePromptAddresses = query({
       await getAuthUserId(ctx),
       false,
     );
-    return prompts;
+    return prompts.filter((prompt) => prompt.answerer?.can_answer !== false);
   },
 });
 
@@ -589,13 +593,18 @@ export const getPendingPermissions = query({
     const runner = conversation.user_id.toString() === userId.toString();
     // A bot-run session's prompts are answered from that account's own view,
     // which never shows a person's proposal, so nobody is offered one.
-    if (
+    const proposer =
       !runner &&
-      (!args.as_proposer ||
-        (await ctx.db.get(conversation.user_id))?.is_bot ||
-        !(await viewerSeesDetail(ctx, userId, conversation)))
-    )
-      return [];
+      args.as_proposer &&
+      !(await ctx.db.get(conversation.user_id))?.is_bot &&
+      (await viewerSeesDetail(ctx, userId, conversation));
+    const sharedFenced =
+      !runner &&
+      args.as_proposer &&
+      fencedPromptAnswersEnabled() &&
+      (await sharedPromptPermissionsEnabled(ctx, conversation)) &&
+      (await checkConversationAccess(ctx, userId, conversation)) !== "denied";
+    if (!runner && !proposer && !sharedFenced) return [];
 
     // Safety net: hide pending rows older than 2 hours. The daemon's local
     // handler cancels rows on its own timeout (~1h), but if the daemon was
@@ -618,16 +627,7 @@ export const getPendingPermissions = query({
     if (runner) return live;
     // What a proposer needs to pick an answer, with secrets in the command
     // redacted the way the transcript's own tool inputs are.
-    return live.map((p) => ({
-      _id: p._id,
-      _creationTime: p._creationTime,
-      conversation_id: p.conversation_id,
-      session_id: p.session_id,
-      tool_name: p.tool_name,
-      arguments_preview: redactSecrets(p.arguments_preview),
-      status: p.status,
-      created_at: p.created_at,
-    }));
+    return sharedPermissionRows(live, !!proposer, !!sharedFenced);
   },
 });
 

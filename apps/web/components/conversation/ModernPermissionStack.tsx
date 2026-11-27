@@ -128,10 +128,13 @@ export function ModernPermissionStack<PId extends string>({
     </Button>
   );
 
+  const blocked = (row: PermissionViewItem) =>
+    inflight.has(row._id) || row.answerer?.can_answer === false;
+  const allBlocked = pending.every(blocked);
   if (pending.length === 1) {
     const p = pending[0];
     const rules = alwaysAllowLabels(p);
-    const busy = inflight.has(p._id);
+    const unavailable = blocked(p);
     return (
       <ModernAskCard
         kicker={
@@ -140,14 +143,14 @@ export function ModernPermissionStack<PId extends string>({
             <PermissionSourceTag permission={p} />
           </>
         }
-        aside={keys}
+        aside={allBlocked ? undefined : keys}
         question={`Allow ${formatToolName(p.tool_name) || p.tool_name}?`}
         data-permission-card="modern"
         className="!my-1"
       >
         <PermissionContext permission={p} />
         <Preview text={p.arguments_preview} />
-        {denying === p._id && !p.fenced_prompt_id && !busy ? (
+        {denying === p._id && !p.fenced_prompt_id && !unavailable ? (
           <DenyWithReason
             onDeny={(message) => onDeny(p._id, message)}
             onCancel={() => setDenying(null)}
@@ -158,7 +161,7 @@ export function ModernPermissionStack<PId extends string>({
               type="button"
               size="md"
               variant="primary"
-              disabled={busy}
+              disabled={unavailable}
               onClick={() => onApprove(p._id)}
             >
               Approve
@@ -184,7 +187,7 @@ export function ModernPermissionStack<PId extends string>({
               type="button"
               size="md"
               variant="outline"
-              disabled={busy}
+              disabled={unavailable}
               onClick={() =>
                 p.fenced_prompt_id ? onDeny(p._id) : setDenying(p._id)
               }
@@ -199,7 +202,6 @@ export function ModernPermissionStack<PId extends string>({
   }
 
   const sameTool = pending.every((p) => p.tool_name === pending[0].tool_name);
-  const allInFlight = pending.every(({ _id }) => inflight.has(_id));
   return (
     <ModernAskCard
       kicker={
@@ -207,7 +209,7 @@ export function ModernPermissionStack<PId extends string>({
           <ToolName name={pending[0].tool_name} className="font-mono" />
         ) : undefined
       }
-      aside={keys}
+      aside={allBlocked ? undefined : keys}
       question={`Allow ${pending.length} calls?`}
       data-permission-card="modern"
       className="!my-1"
@@ -236,7 +238,7 @@ export function ModernPermissionStack<PId extends string>({
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={inflight.has(p._id)}
+                disabled={blocked(p)}
                 onClick={() => onApprove(p._id)}
               >
                 Approve
@@ -245,7 +247,7 @@ export function ModernPermissionStack<PId extends string>({
                 type="button"
                 size="sm"
                 variant="ghost"
-                disabled={inflight.has(p._id)}
+                disabled={blocked(p)}
                 onClick={() =>
                   p.fenced_prompt_id
                     ? onDeny(p._id)
@@ -256,14 +258,12 @@ export function ModernPermissionStack<PId extends string>({
               </Button>
             </div>
             {openId === p._id && <Preview text={p.arguments_preview} />}
-            {denying === p._id &&
-              !p.fenced_prompt_id &&
-              !inflight.has(p._id) && (
-                <DenyWithReason
-                  onDeny={(message) => onDeny(p._id, message)}
-                  onCancel={() => setDenying(null)}
-                />
-              )}
+            {denying === p._id && !p.fenced_prompt_id && !blocked(p) && (
+              <DenyWithReason
+                onDeny={(message) => onDeny(p._id, message)}
+                onCancel={() => setDenying(null)}
+              />
+            )}
           </li>
         ))}
       </ul>
@@ -273,7 +273,7 @@ export function ModernPermissionStack<PId extends string>({
           size="md"
           variant="primary"
           onClick={onApproveAll}
-          disabled={allInFlight}
+          disabled={allBlocked}
         >
           Approve all
         </Button>
@@ -283,7 +283,7 @@ export function ModernPermissionStack<PId extends string>({
           size="md"
           variant="outline"
           onClick={onDenyAll}
-          disabled={allInFlight}
+          disabled={allBlocked}
         >
           Deny all
         </Button>

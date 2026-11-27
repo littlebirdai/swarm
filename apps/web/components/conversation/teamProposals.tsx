@@ -14,6 +14,7 @@ import {
 } from "../../hooks/useTeamProposals";
 import { proposalText } from "../../lib/steering";
 import { AvatarImg } from "../../lib/avatarCache";
+import { PermissionStack, type Permission } from "../permission-card";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 const firstName = (n: string) => n.split(/\s+/)[0] || n;
@@ -170,32 +171,36 @@ export function MyProposalStatus({
 export function TeammatePermissions({
   permissions,
 }: {
-  permissions: Array<{
-    _id: string;
-    tool_name: string;
-    arguments_preview?: string;
-  }>;
+  permissions: Permission[];
 }) {
   const ctx = useTeamProposalRole();
   const propose = useInboxStore((s) => s.proposePermission);
   const me = useMyName();
-  if (!ctx || permissions.length === 0) return null;
+  const fenced = permissions.filter(
+    (permission) => permission.fenced_prompt_id,
+  );
+  const proposals = ctx
+    ? permissions.filter((permission) => !permission.fenced_prompt_id)
+    : [];
+  if (fenced.length === 0 && proposals.length === 0) return null;
   return (
     <div data-teammate-permissions className="space-y-1.5">
-      {permissions.map((p) => (
-        <TeammatePermissionRow
-          key={p._id}
-          permission={p}
-          onPropose={(d) => {
-            const key = newProposalKey();
-            proposeOrExplain(
-              propose(ctx.conversationId, p._id, d, key, me),
-              key,
-              ctx.conversationId,
-            );
-          }}
-        />
-      ))}
+      {fenced.length > 0 && <PermissionStack permissions={fenced} />}
+      {ctx &&
+        proposals.map((p) => (
+          <TeammatePermissionRow
+            key={p._id}
+            permission={p}
+            onPropose={(d) => {
+              const key = newProposalKey();
+              proposeOrExplain(
+                propose(ctx.conversationId, p._id, d, key, me),
+                key,
+                ctx.conversationId,
+              );
+            }}
+          />
+        ))}
     </div>
   );
 }
