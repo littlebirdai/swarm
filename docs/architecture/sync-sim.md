@@ -43,7 +43,21 @@ A filtered run takes about 15 seconds on a loaded laptop, most of it importing t
 
 Typecheck the harness with `cast check sim` (its tsconfig adds bun types and covers the legacy sims and `apps/web/scripts/sim.ts`). The convex half is in `cast check convex`.
 
-The [population simulation](../../apps/web/store/__tests__/sim/population/README.md) measures team fan-out at 1, 50, and 500 people. Its guide has the baseline, the limits of the retry estimate, and the commands for table and JSON output.
+## Population baseline
+
+The population simulation uses one team and a seeded graph of project and session follows. The current sync log sends team changes to every member's device, regardless of follows. Each device also holds its owner's personal scope. The workload includes heartbeats, transcript writes, task changes, and doc edits.
+
+Seed 42, one simulated minute. Events per device use the mean. Drain lag uses p95.
+
+| People | Devices measured | Writes | Events per device | Modeled retries per write | p95 drain lag | Wall time |
+| -----: | ---------------: | -----: | ----------------: | ------------------------: | ------------: | --------: |
+|      1 |                1 |      8 |             10.00 |                    0.0000 |         25 ms |    0.48 s |
+|     50 |               50 |    413 |            226.80 |                    0.0194 |         25 ms |    1.51 s |
+|    500 |               20 |  4,062 |          2,191.35 |                    0.0556 |         25 ms |    5.13 s |
+
+Wall time comes from the standalone driver on macOS arm64 with Bun 1.4.4. CI runs the 1- and 50-person cases. The 500-person run is opt-in. All 500 people write, and the driver measures a seeded sample of 20 devices.
+
+These are simulation results. The in-process server serializes writes, so retries use a 5 ms contention model. Drain lag uses virtual time and ends at outbox delivery. Events per device count sync-log actions only. See the [population simulation guide](../../apps/web/store/__tests__/sim/population/README.md) for the workload, metric definitions, and repeatable commands.
 
 ## Layers
 

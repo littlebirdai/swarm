@@ -1,46 +1,37 @@
 import { expect, test } from "bun:test";
 import { DURATION_MS, PEAK_START_MS, population } from "./model";
 
-test("the seed reproduces project follows, activity and device order", () => {
+test("the seed reproduces project and session follows, activity and device order", () => {
   const model = population(42, 50);
   expect(population(42, 50)).toEqual(model);
   expect(population(43, 50).people).not.toEqual(model.people);
-  expect(population(43, 50).activity.map(({ at }) => at)).not.toEqual(
-    model.activity.map(({ at }) => at),
-  );
+  expect(population(43, 50).background).not.toEqual(model.background);
   expect(new Set(model.deviceOrder.map(({ id }) => id)).size).toBe(50);
 });
 
-test("projects cluster by team and most work uses a home project", () => {
+test("members follow a few projects and active peer sessions in those projects", () => {
   const model = population(42, 500);
-  expect(model.teams.map(({ members }) => members.length)).toEqual([
-    400, 30, 30, 30, 10,
-  ]);
+  const followedProjects = new Set<number>();
+  const followedSessions = new Set<number>();
   for (const person of model.people) {
+    const own = model.sessions.filter(({ owner }) => owner === person.id);
+    expect(own.map(({ active }) => active)).toEqual([true, false]);
     expect(person.follows.length).toBeGreaterThanOrEqual(1);
     expect(person.follows.length).toBeLessThanOrEqual(4);
-    expect(new Set(person.follows).size).toBe(person.follows.length);
-    expect(
-      person.follows.every(
-        (project) => model.projects[project].team === person.team,
-      ),
-    ).toBe(true);
+    expect(person.followsSessions.length).toBeGreaterThanOrEqual(2);
+    expect(person.followsSessions.length).toBeLessThanOrEqual(5);
+    for (const id of person.follows) followedProjects.add(id);
+    for (const id of person.followsSessions) {
+      const session = model.sessions[id];
+      expect(session.owner).not.toBe(person.id);
+      expect(session.active).toBe(true);
+      expect(person.follows).toContain(session.project);
+      followedSessions.add(id);
+    }
   }
-  const primaryProjects = new Set(
-    model.people.map(({ follows }) => follows[0]),
-  );
-  expect(primaryProjects.size).toBeGreaterThan(30);
-  const atHome = model.activity.filter(
-    ({ person, project }) => person.follows[0] === project,
-  );
-  expect(atHome.length / model.activity.length).toBeGreaterThan(0.75);
-  expect(atHome.length / model.activity.length).toBeLessThan(0.95);
-  const small = population(42, 10);
-  for (const person of small.people) {
-    expect(new Set(person.follows)).toEqual(
-      new Set(small.teams.find(({ id }) => id === person.team)?.projects),
-    );
-  }
+  expect(followedProjects.size).toBeGreaterThan(30);
+  expect(followedSessions.size).toBeGreaterThan(250);
+  expect(population(42, 1).people[0].followsSessions).toEqual([]);
 });
 
 test("half of the agents work at about one change per minute with a fivefold peak", () => {
@@ -60,7 +51,9 @@ test("half of the agents work at about one change per minute with a fivefold pea
         at >= 0 && at < DURATION_MS && (i === 0 || at >= activity[i - 1].at),
     ),
   ).toBe(true);
-  expect(
-    activity.every(({ project, person }) => person.follows.includes(project)),
-  ).toBe(true);
+  const home = activity.filter(
+    ({ project, person }) => person.follows[0] === project,
+  );
+  expect(home.length / activity.length).toBeGreaterThan(0.75);
+  expect(home.length / activity.length).toBeLessThan(0.95);
 });

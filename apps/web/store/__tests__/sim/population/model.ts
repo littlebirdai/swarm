@@ -5,13 +5,24 @@ export const DURATION_MS = 60_000;
 export const PEAK_START_MS = 48_000;
 export const PEAK_MULTIPLIER = 5;
 const AGENTS_PER_MEMBER = 5;
-const SOLO_AGENTS = 20;
+const SESSIONS_PER_PERSON = 2;
 
 export type Person = {
   id: number;
-  team: number | null;
   follows: number[];
+  followsSessions: number[];
 };
+
+export type Session = {
+  id: number;
+  owner: number;
+  project: number;
+  active: boolean;
+};
+
+export type BackgroundActivity =
+  | { at: number; kind: "heartbeat" | "message"; session: Session }
+  | { at: number; kind: "doc"; person: Person; project: number };
 
 export type Activity = {
   at: number;
@@ -25,51 +36,79 @@ export function population(seed: number, peopleCount: number) {
   const graphRng = makeRng(fnv1a32(`${seed}:graph`));
   const activityRng = makeRng(fnv1a32(`${seed}:activity`));
   const sampleRng = makeRng(fnv1a32(`${seed}:sample`));
-  const solo = peopleCount === 1;
-  const agentsPerPerson = solo ? SOLO_AGENTS : AGENTS_PER_MEMBER;
-  const mainTeamSize = Math.ceil(peopleCount * 0.8);
-  const teamOf = (id: number) =>
-    id < mainTeamSize ? 0 : 1 + Math.floor((id - mainTeamSize) / 30);
-  const teams = Array.from(
-    { length: solo ? 0 : teamOf(peopleCount - 1) + 1 },
-    (_, id) => ({
-      id,
-      members: [] as number[],
-      projects: [] as number[],
-    }),
-  );
-  if (!solo) {
-    for (let id = 0; id < peopleCount; id++) teams[teamOf(id)].members.push(id);
-  }
-  const teamProjects = teams.flatMap((team) =>
-    Array.from(
-      { length: Math.max(1, Math.ceil(team.members.length / 12)) },
-      () => ({ team: team.id }),
-    ),
-  );
-  teamProjects.forEach(({ team }, id) => teams[team].projects.push(id));
-  const projects = solo ? [{ team: null }] : teamProjects;
-
+  const backgroundRng = makeRng(fnv1a32(`${seed}:background`));
+  const projectCount = Math.ceil(peopleCount / 12);
+  const projects = Array.from({ length: projectCount }, (_, id) => id);
   const people = Array.from({ length: peopleCount }, (_, id): Person => {
-    const team = solo ? null : teamOf(id);
-    const available = team === null ? [0] : teams[team].projects;
-    const home = available[Math.floor(graphRng() * available.length)];
+    const home = Math.floor(graphRng() * projectCount);
     const follows = new Set([home]);
-    if (peopleCount < 50) {
-      for (const project of available) follows.add(project);
-    } else {
-      const extra = 1 + Math.floor(graphRng() * 3);
-      for (let i = 0; i < extra; i++) {
-        follows.add(available[Math.floor(graphRng() ** 2 * available.length)]);
-      }
+    const extra = 1 + Math.floor(graphRng() * 3);
+    for (let i = 0; i < extra; i++) {
+      follows.add(Math.floor(graphRng() ** 2 * projectCount));
     }
-    return { id, team, follows: [...follows] };
+    return { id, follows: [...follows], followsSessions: [] };
   });
+  const sessions = people.flatMap(({ id: owner, follows }) =>
+    Array.from({ length: SESSIONS_PER_PERSON }, (_, index): Session => ({
+      id: owner * SESSIONS_PER_PERSON + index,
+      owner,
+      project: follows[0],
+      active: index === 0,
+    })),
+  );
+  const activeSessions = sessions.filter(({ active }) => active);
+  const sessionsByProject = projects.map((project) =>
+    activeSessions.filter((session) => session.project === project),
+  );
+  for (const person of people) {
+    const peers = person.follows
+      .flatMap((project) => sessionsByProject[project])
+      .filter(({ owner }) => owner !== person.id);
+    person.followsSessions = peers
+      .map(({ id }, rank) => ({
+        id,
+        rank: rank / (peers.length + 1) + graphRng(),
+      }))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 2 + Math.floor(graphRng() * 4))
+      .map(({ id }) => id);
+  }
+
+  const background: BackgroundActivity[] = [];
+  for (const session of activeSessions) {
+    const firstBeat = Math.floor(backgroundRng() * 30_000);
+    for (const offset of [0, 30_000]) {
+      background.push({ at: firstBeat + offset, kind: "heartbeat", session });
+    }
+    const firstMessage = Math.floor(backgroundRng() * PEAK_START_MS);
+    background.push({ at: firstMessage, kind: "message", session });
+    if (backgroundRng() < 0.35) {
+      background.push({
+        at:
+          PEAK_START_MS +
+          Math.floor(backgroundRng() * (DURATION_MS - PEAK_START_MS)),
+        kind: "message",
+        session,
+      });
+    }
+  }
+  for (const person of people) {
+    if (person.id === 0 || backgroundRng() < 0.3) {
+      const project =
+        person.follows[Math.floor(backgroundRng() * person.follows.length)];
+      background.push({
+        at: Math.floor(backgroundRng() * DURATION_MS),
+        kind: "doc",
+        person,
+        project,
+      });
+    }
+  }
 
   const agents = people.flatMap((person) =>
-    Array.from({ length: agentsPerPerson }, (_, index) => ({
+    Array.from({ length: AGENTS_PER_MEMBER }, (_, index) => ({
       person,
-      agent: person.id * agentsPerPerson + index,
+      agent: person.id * AGENTS_PER_MEMBER + index,
       rank: activityRng(),
     })),
   );
@@ -83,7 +122,7 @@ export function population(seed: number, peopleCount: number) {
           ? 0
           : Math.floor(activityRng() * person.follows.length)
       ];
-    const privateTask = activityRng() < 0.1 || solo;
+    const privateTask = activityRng() < 0.1;
     const phases = [
       { start: 0, end: PEAK_START_MS, speed: 1 },
       { start: PEAK_START_MS, end: DURATION_MS, speed: PEAK_MULTIPLIER },
@@ -106,10 +145,12 @@ export function population(seed: number, peopleCount: number) {
     .map((person) => ({ person, rank: sampleRng() }))
     .sort((a, b) => a.rank - b.rank)
     .map(({ person }) => person);
+  background.sort((a, b) => a.at - b.at);
   return {
-    teams,
     projects,
     people,
+    sessions,
+    background,
     activity,
     deviceOrder,
     workingAgents: working.length,

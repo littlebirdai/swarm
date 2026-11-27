@@ -15,7 +15,7 @@ import {
 } from "../realm";
 import { DURATION_MS, PEAK_START_MS, population } from "./model";
 import { populationReplica } from "./replica";
-import { fixtureId, populationTables } from "./workload";
+import { fixtureId, populationTables, runBackground } from "./workload";
 
 const POLL_MS = 1500;
 const CONTENTION_WINDOW_MS = 5;
@@ -42,7 +42,14 @@ export async function runPopulation(config: {
   const model = population(config.seed, config.people);
   installRealm(config.seed);
   try {
-    const saves = model.activity.length;
+    const writes = {
+      task: model.activity.length,
+      doc: 0,
+      heartbeat: 0,
+      message: 0,
+    };
+    for (const event of model.background) writes[event.kind]++;
+    const saves = writes.task + writes.doc + writes.heartbeat + writes.message;
     const lag: number[] = [];
     const lastHeadWrite = new Map<string, number>();
     const lastSlotDelivery = new Map<string, number>();
@@ -58,10 +65,11 @@ export async function runPopulation(config: {
           "0",
         ),
       rngFor: (seq) => stream(`population:server:${seq}`),
-      modules: { population: () => import("./workload") },
+      modules: {
+        population: () => import("./workload"),
+        userSends: () => import("@codecast/convex/convex/userSends"),
+      },
       onSchedule: (job: ScheduledJob) => {
-        if (job.name !== "syncOutbox:drain")
-          throw new Error(`Unexpected job ${job.name}`);
         const isContinuation = job.due === now();
         const { id } = job.args as { id: string };
         net.enqueue("sched", {
@@ -69,6 +77,13 @@ export async function runPopulation(config: {
           label: job.name,
           producer: job.name,
           run: async () => {
+            if (job.name !== "syncOutbox:drain") {
+              const callCount = backend.calls.length;
+              await backend.runScheduled(job);
+              const call = backend.calls[callCount];
+              if (call && !call.ok) throw new Error(call.error ?? job.name);
+              return;
+            }
             const slot: OutboxSlot | null = await backend.db.get(id);
             if (!slot) throw new Error(`Missing outbox slot ${id}`);
             const { scope_key: scope } = slot;
@@ -133,6 +148,23 @@ export async function runPopulation(config: {
     const devices = model.deviceOrder
       .slice(0, config.devices)
       .map((person) => populationReplica(backend, person));
+    const clients = model.people.map(({ id }) =>
+      backend.clientFor({ kind: "user", userId: fixtureId("users", id) }),
+    );
+    for (const event of model.background) {
+      net.enqueue("background", {
+        due: T0 + event.at,
+        label: event.kind,
+        producer: "population",
+        run: () =>
+          runBackground(
+            clients[
+              event.kind === "doc" ? event.person.id : event.session.owner
+            ],
+            event,
+          ),
+      });
+    }
     const tasks = new Map<number, Id<"tasks">>();
     for (const event of model.activity) {
       net.enqueue("save", {
@@ -147,9 +179,7 @@ export async function runPopulation(config: {
                 ? { task: tasks.get(event.agent) }
                 : {}),
               user: fixtureId("users", event.person.id),
-              ...(event.person.team === null
-                ? {}
-                : { team: fixtureId("teams", event.person.team) }),
+              team: fixtureId("teams", 0),
               project: fixtureId("projects", event.project),
               agent: event.agent,
               privateTask: event.privateTask,
@@ -169,7 +199,7 @@ export async function runPopulation(config: {
         },
       });
     }
-    await net.drain({ horizonMs: DURATION_MS + POLL_MS });
+    await net.drain({ horizonMs: 2 * DURATION_MS + POLL_MS });
     if (
       net.queued((channel) => !channel.startsWith("timer:")) ||
       backend.db._tables.sync_outbox?.some((slot: OutboxSlot) => slot.pending)
@@ -181,8 +211,18 @@ export async function runPopulation(config: {
     const expectedTitles = new Map(
       taskRows.map(({ _id, title }) => [_id, title]),
     );
-    const measurements = devices.map((device) => device.result(expectedTitles));
-    const baselineSaves = model.activity.filter(
+    const expectedDocTitles = new Map<string, string>();
+    for (const event of model.background) {
+      if (event.kind === "doc")
+        expectedDocTitles.set(
+          fixtureId("docs", event.project),
+          `Project ${event.project} notes at ${event.at}`,
+        );
+    }
+    const measurements = devices.map((device) =>
+      device.result(expectedTitles, expectedDocTitles),
+    );
+    const baselineSaves = [...model.activity, ...model.background].filter(
       ({ at }) => at < PEAK_START_MS,
     ).length;
     return {
@@ -192,7 +232,9 @@ export async function runPopulation(config: {
       peakStartMs: PEAK_START_MS,
       pollMs: POLL_MS,
       contentionWindowMs: CONTENTION_WINDOW_MS,
-      teams: model.teams.length,
+      teams: 1,
+      sessions: model.sessions.length,
+      writes,
       projects: model.projects.length,
       workingAgents: model.workingAgents,
       saves,
