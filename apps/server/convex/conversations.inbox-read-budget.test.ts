@@ -4,6 +4,7 @@ import { makeFakeDb, schemaIndexes } from "./testDb";
 import {
   _resetChildAuqProbeCacheForTests,
   computeInboxSessions,
+  inboxForCLI,
 } from "./conversations";
 import {
   INBOX_WINDOW_CAPS,
@@ -337,6 +338,87 @@ describe("listInboxSessions read budget on a full account", () => {
     console.log(`CLI watch on a cold full account: ${calls} db calls`);
     expect(calls).toBeLessThan(4096);
   });
+
+  test.each([200, 500])(
+    "the dense watch fits its budget including filing and unique work references (limit %s)",
+    async (limit) => {
+      const fixture = full();
+      const now = Date.now();
+      const topLevel = fixture.data.conversations.filter((row) =>
+        fixture.windowOf.has(row._id),
+      );
+      fixture.data.plans = topLevel.map((row) => {
+        row.active_plan_id = "plan-" + row._id;
+        return {
+          _id: row.active_plan_id,
+          short_id: "pl-" + row._id,
+          title: "Unique plan",
+        };
+      });
+      fixture.data.tasks = topLevel.map((row) => {
+        row.active_task_id = "task-" + row._id;
+        return {
+          _id: row.active_task_id,
+          short_id: "ct-" + row._id,
+          title: "Unique task",
+        };
+      });
+      for (const row of fixture.data.managed_sessions)
+        row.agent_status = "working";
+      for (const row of fixture.data.conversations
+        .filter((row) => row.is_subagent)
+        .slice(0, 300)) {
+        fixture.data.managed_sessions.push({
+          _id: "managed-" + row._id,
+          conversation_id: row._id,
+          user_id: row.user_id,
+          agent_status: "working",
+          last_heartbeat: now,
+        });
+      }
+      const data = {
+        ...fixture.data,
+        inbox_buckets: topLevel.map((row) => ({
+          _id: "bucket-" + row._id,
+          user_id: ME,
+          name: "Filed",
+        })),
+        bucket_assignments: topLevel.map((row) => ({
+          _id: "assignment-" + row._id,
+          user_id: ME,
+          bucket_id: "bucket-" + row._id,
+          conversation_id: row._id,
+        })),
+      };
+      const { db, calls } = countingDb(
+        makeFakeDb(data, { indexes: schemaIndexes(schema as any) }),
+      );
+      const auth = {
+        getUserIdentity: async () => ({ subject: ME + "|session" }),
+      };
+      _resetChildAuqProbeCacheForTests();
+      const result = await (inboxForCLI as any)._handler(
+        { db, auth },
+        {
+          api_token: "unused",
+          watch: true,
+          show_all: true,
+          limit,
+        },
+      );
+      expect(result.sessions).toHaveLength(200);
+      expect(
+        result.sessions.every(
+          (row: any) =>
+            row.active_plan && row.active_task && row.label === "Filed",
+        ),
+      ).toBe(true);
+      console.log(
+        `CLI watch on a dense account including its page: ${calls()} db calls`,
+      );
+      expect(calls()).toBeLessThan(4096);
+    },
+  );
 
   test("no row a window admits goes missing without its window in truncated, and the rows match the pre-change code", async () => {
     const fixture = full();

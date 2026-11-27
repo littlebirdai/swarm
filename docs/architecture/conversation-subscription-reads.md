@@ -53,10 +53,13 @@ on transcript changes.
 ## CLI watch reads
 
 The unfiltered personal subscription used by `cast sessions -w` ranks the
-existing inbox windows before applying its display limit. It loads status
+existing inbox windows before selecting up to 200 rows. Plan, task, role,
+and owner details are read only for those rows. It loads status
 and decisions for eligible rows and for children that can change a visible
-parent's status. Dismissed and stashed rows skip those reads unless requested
-with `--all`. Foreign-run sessions use one liveness lookup per visible row.
+parent's status, including a child's pending decision. Dismissed and
+stashed rows skip those reads unless requested
+with `--all` or retained as a killed pin. Foreign-run sessions use one
+liveness lookup per visible row.
 
 The watch returns each displayed row's label. Its `labels` summary is empty
 because the stream does not show counts for archived conversations. For
@@ -64,6 +67,8 @@ daemon-wide liveness it reads `users.daemon_last_seen` and considers the
 managed rows it covers. An unrelated legacy heartbeat can keep a row live
 in the ordinary inbox until the user-wide daemon heartbeat catches up
 with it. The watch reads bounded recent heartbeat ranges, at most 256
-cold session lookups, and bounded pending decision ranges. On accounts
+cold session lookups in pinned-first and then recent order, and at most
+128 child transcript probes on a run. Pending decisions use bounded
+indexes, with a batched viewer lookup for large candidate sets. On accounts
 that exceed those bounds, older facts can affect the ordinary inbox
 without appearing in the watch.

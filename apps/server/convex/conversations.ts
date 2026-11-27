@@ -10564,15 +10564,9 @@ async function enrichInboxSessionRow(
   let lastMsgRole = conv.last_message_role;
   let lastUserMessage = conv.last_message_preview || null;
 
-  // Fallback for un-backfilled conversations: single query to get last message
+  let lastMsg: any;
   if (!lastMsgRole && conv.message_count > 0) {
-    const lastMsg = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) =>
-        q.eq("conversation_id", conv._id),
-      )
-      .order("desc")
-      .first();
+    lastMsg = await newestMessage(ctx, conv._id);
     if (lastMsg) {
       lastMsgRole = lastMsg.role;
       if (lastMsg.role === "user" && lastMsg.content?.trim()) {
@@ -10653,13 +10647,7 @@ async function enrichInboxSessionRow(
     (!isIdle || agentStatus === "hibernated") &&
     conv.message_count > 0
   ) {
-    const lastMsg = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) =>
-        q.eq("conversation_id", conv._id),
-      )
-      .order("desc")
-      .first();
+    if (lastMsg === undefined) lastMsg = await newestMessage(ctx, conv._id);
     if (
       lastMsg?.role === "assistant" &&
       lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")
@@ -10991,20 +10979,18 @@ async function enrichInboxSessionRow(
       conv.handed_off_from_conversation_id?.toString() || null,
     handed_off_to_conversation_id:
       conv.handed_off_to_conversation_id?.toString() || null,
-    handed_off_from_details: await handoffLinkDetails(
-      getDoc,
-      conv.handed_off_from_conversation_id,
-    ),
-    handed_off_to_details: await handoffLinkDetails(
-      getDoc,
-      conv.handed_off_to_conversation_id,
-    ),
+    handed_off_from_details: skip?.refs
+      ? null
+      : await handoffLinkDetails(getDoc, conv.handed_off_from_conversation_id),
+    handed_off_to_details: skip?.refs
+      ? null
+      : await handoffLinkDetails(getDoc, conv.handed_off_to_conversation_id),
     agent_team_name: conv.agent_team_name ?? null,
     agent_name: conv.agent_name ?? null,
     parent_message_uuid: conv.parent_message_uuid || null,
     icon: conv.icon,
     icon_color: conv.icon_color,
-    ...(await identityFieldsOf(conv, getDoc)),
+    ...(skip?.refs ? {} : await identityFieldsOf(conv, getDoc)),
     team_id: conv.team_id ?? null,
     is_private: conv.is_private ?? false,
     // The team feed reads the viewer's own sharing level off this row
@@ -11797,8 +11783,8 @@ export async function scanInboxConversations(
         shouldShowInInbox(row) &&
         (opts.watchedWindow?.showAll ||
           (!belowFoldFor(fold, row) &&
-            !row.inbox_stashed_at &&
-            !row.inbox_dismissed_at)),
+            (row.inbox_killed_at ||
+              (!row.inbox_stashed_at && !row.inbox_dismissed_at)))),
     );
   let poolChildren: any[] = [];
   let scopedChildren: Map<string, any[]> | undefined;
@@ -11826,8 +11812,7 @@ export async function scanInboxConversations(
     const liveness = await readCliWatchLiveness(
       ctx.db,
       userId,
-      watched.filter((row) => row.user_id === userId).map((row) => row._id),
-      new Set(children.flat().map((row) => row._id)),
+      [...watched, ...children.flat()],
       now,
     );
     maps = sessionMapsFromManagedRows(
@@ -11982,6 +11967,7 @@ export async function computeInboxSessions(
   hidden_count: number;
   truncated: InboxTruncation[];
   hot_ids?: Set<string>;
+  watchSources?: ReadonlyMap<string, Doc<"conversations">>;
 }> {
   // The CLI uses liveness to classify work-state. The web base subscription
   // opts out and gets those facts through the sessionsLiveness overlay.
@@ -11990,9 +11976,11 @@ export async function computeInboxSessions(
   // awaiting_input / is_idle — fields stripInboxLiveness nulls when liveness is
   // excluded, so on that path the read is pure waste. The web's live
   // subscription gets those fields from the sessionsLiveness overlay instead.
-  const enrichSkip: InboxEnrichSkip | undefined = includeLiveness
-    ? opts._skip
-    : { ...(opts._skip ?? {}), auq: true };
+  const enrichSkip = opts.watchedWindow
+    ? { ...opts._skip, refs: true }
+    : includeLiveness
+      ? opts._skip
+      : { ...opts._skip, auq: true };
   // The projection clock: every window bound, the cluster cut and every
   // liveness threshold compare against the minute, so two executions inside
   // one minute over the same data are byte identical (sync-convergence C2).
@@ -12009,11 +11997,6 @@ export async function computeInboxSessions(
     watchedWindow: opts.watchedWindow ? { showAll: opts.show_all } : undefined,
   });
   const { conversations, maps, truncated, pinnedOverflowIds } = scan;
-  // The child rows whose fast fields the overlay owns (see the scan's
-  // subagentWindow). A child outside the window keeps message_count and
-  // updated_at on its list row: the overlay never sees it, so a stripped row
-  // would stay null on the client forever (an idle Agent-tool subagent showed
-  // an idle age of 20705 days — Date.now() minus nothing).
   const overlayOwnedChildIds = new Set<string>(
     scan.recentSubagents.map((c: any) => c._id.toString()),
   );
@@ -12021,10 +12004,6 @@ export async function computeInboxSessions(
   let hiddenCount = 0;
   const results: any[] = [];
   const childRowIds = new Set<string>();
-  // Parked rows skip the per-row children scan (see enrichInboxSessionRow), so
-  // their implementation-session pointer resolves from the candidate pool
-  // instead — a recently active plan-handoff child is already in the recent
-  // window, zero extra reads. Newest child wins, matching the scan's order.
   const implHandoffByParent = new Map<string, any>();
   for (const c of conversations) {
     if (
@@ -12038,13 +12017,7 @@ export async function computeInboxSessions(
         implHandoffByParent.set(pid, c);
     }
   }
-  // One memoized get for every per-row reference (plan/task/workflow run, the
-  // acting bot, run-by / owner users): rows share these ids heavily, and each
-  // duplicate read counts against the same system-operation budget.
   const getDoc = makeMemoGet(ctx);
-  // Rows are independent — enrich them concurrently (sequential per-row awaits
-  // made this heartbeat-hot path slow enough to time out under load; see
-  // computeSessionsLiveness). Assembly below stays in candidate order.
   const includeKilled = !!opts.includeKilled && !!opts.namedOnly;
   const shownConvs = conversations.filter(
     (conv) =>
@@ -12056,16 +12029,6 @@ export async function computeInboxSessions(
     scan.watched && new Set(scan.watched.map((row) => String(row._id)));
   const enrichedRows = await Promise.all(
     shownConvs.map(async (conv) => {
-      // Deliberately-filed rows (label extras, sessions assigned to me by another
-      // account) never cluster-hide: an assignment routes a session into my inbox
-      // on purpose, and it stays there until I dismiss it — otherwise a decision
-      // handed over on Friday is silently gone by Monday while `cast sessions`
-      // with explicit ids still lists it as needs input. Owned rows are a
-      // deliberate window in the shared selection (C4), so they are fold-exempt
-      // for the same reason.
-      // Pinned rows past the newest INBOX_PINNED_CHILDREN_SCAN skip the children
-      // scan unless the caller asked for everything: children are never counted,
-      // and the scan was the read that hit the system-operation limit.
       const rowSkip =
         watchedIds && !watchedIds.has(String(conv._id))
           ? { ...enrichSkip, auq: true, children: true, refs: true }
@@ -12091,27 +12054,19 @@ export async function computeInboxSessions(
             title: impl.title,
           };
       }
-      // The scan holds my owner rows (the owner window plus any extra id it
-      // admitted past that window's cap), so no per-row lookup here.
-      await stampInboxViewerFields(
-        row,
-        conv,
-        userId,
-        await scan.ownerRowFor(conv),
-        getDoc,
-      );
-      if (opts.watchedWindow && conv.owner_user_id === userId)
-        row.owned_by_me = true;
+      if (opts.watchedWindow)
+        row.owned_by_me = scan.ownedByMeIds.has(String(conv._id));
+      else
+        await stampInboxViewerFields(
+          row,
+          conv,
+          userId,
+          await scan.ownerRowFor(conv),
+          getDoc,
+        );
       return { conv, row, subagentChildren, dismissed, stashed, hidden };
     }),
   );
-  // The stamp for a subagent child row, assembled below and applied where the
-  // children are emitted. A child never reaches the enriched top-level rows —
-  // shouldShowInInbox drops subagents from the candidate set — so the emission
-  // under its parent is the ONLY one it gets, and leaving it stampless made
-  // every `cast sessions <subagent-id>` throw in tallyInboxRows and lose the
-  // whole inbox with it (ct-49761). Null when the caller didn't ask for a
-  // projection: the web base list must never carry a bucket (C1).
   let stampChildRow: ((child: any, row: any) => void) | null = null;
   if (opts.projection && includeLiveness) {
     // The same placement the liveness overlay stamps (computeSessionsLiveness):
@@ -12139,11 +12094,14 @@ export async function computeInboxSessions(
         if (!watchedIds.has(id)) childrenByParent.delete(id);
     const pendingDecisionIds =
       scan.watched || opts.namedOnly
-        ? await readCliAskingSessions(
-            ctx.db,
-            userId,
-            scan.watched ?? conversations,
-          )
+        ? await readCliAskingSessions(ctx.db, userId, [
+            ...(scan.watched ?? conversations),
+            ...[...childrenByParent.values()]
+              .flat()
+              .filter(
+                (child) => !child.inbox_killed_at && !isClosedSession(child),
+              ),
+          ])
         : await loadPendingDecisionConvIds(ctx, userId);
     const { asking: askingParents } = await buildAskingParents(
       ctx,
@@ -12151,6 +12109,8 @@ export async function computeInboxSessions(
       maps,
       now,
       pendingDecisionIds,
+      undefined,
+      opts.watchedWindow ? 128 : undefined,
     );
     for (const r of enrichedRows) {
       const cid = r.conv._id.toString();
@@ -12307,6 +12267,13 @@ export async function computeInboxSessions(
     hidden_count: hiddenCount,
     truncated: truncatedList(truncated),
     ...(hotIds ? { hot_ids: hotIds } : {}),
+    ...(opts.watchedWindow
+      ? {
+          watchSources: new Map(
+            shownConvs.map((conv) => [String(conv._id), conv]),
+          ),
+        }
+      : {}),
   };
 }
 
@@ -12770,6 +12737,7 @@ export async function buildAskingParents(
   // child the scan did not return joins the pool only while it is live
   // (hydrateLivePool), so its ask leaves with its heartbeat.
   pooledAt: (cid: string, t: number) => boolean = () => true,
+  maxProbes = Infinity,
 ): Promise<{
   asking: Set<string>;
   probedAuqOpen: Map<string, boolean>;
@@ -12832,7 +12800,7 @@ export async function buildAskingParents(
             asking.add(pid);
             break;
           }
-        } else {
+        } else if (probes.length < maxProbes) {
           probes.push({ pid, cid, convId: c._id, key });
         }
       }
@@ -13822,6 +13790,39 @@ export function tallyInboxRows(
   return { counts, rows };
 }
 
+async function readCliWatchPage(
+  ctx: QueryCtx,
+  viewer: Id<"users">,
+  page: ReturnType<typeof tallyInboxRows>["rows"],
+  sources: ReadonlyMap<string, Doc<"conversations">>,
+) {
+  const getDoc = makeMemoGet(ctx);
+  await Promise.all(
+    page.map(async (row) => {
+      const source = sources.get(row.id);
+      if (!source) return;
+      const [plan, task, runner, owner, identity] = await Promise.all([
+        source.active_plan_id ? getDoc(source.active_plan_id) : null,
+        source.active_task_id ? getDoc(source.active_task_id) : null,
+        source.user_id === viewer
+          ? resolveActingAuthor(ctx, source, getDoc)
+          : getDoc(source.user_id),
+        source.owner_user_id ? getDoc(source.owner_user_id) : null,
+        identityFieldsOf(source, getDoc),
+      ]);
+      if (plan)
+        row.active_plan = { short_id: plan.short_id, title: plan.title };
+      if (task)
+        row.active_task = { short_id: task.short_id, title: task.title };
+      row.run_by = runner?.name ?? runner?.email ?? null;
+      if (identity.role)
+        row.role = { name: identity.role.name, handle: identity.role.handle };
+      if (source.owner_user_id)
+        row.owner = { name: owner?.name ?? null, email: owner?.email ?? null };
+    }),
+  );
+}
+
 // CLI-facing inbox: the same fully-enriched, per-user session set the web inbox
 // renders (computeInboxSessions), collapsed to a single `work_state` per row via
 // the shared classifier and sorted most-actionable-first. Powers `cast monitor`
@@ -13869,11 +13870,6 @@ export const inboxForCLI = query({
             : undefined,
       );
 
-    // --label: resolve the filed conversation ids up front. Labels exist to park
-    // old sessions, which the inbox's recency window misses — so the filed set is
-    // hydrated INTO the inbox (extraConvIds) instead of merely filtering it, the
-    // same policy as feedForCLI's resolveLabelConvIds path. Same-named buckets
-    // merge into one label, so collect every matching bucket id.
     let labelConvIds: Set<string> | null = null;
     if (args.label) {
       const matched = matchBucketByName(activeBuckets, args.label);
@@ -13893,25 +13889,21 @@ export const inboxForCLI = query({
     }
 
     const extraConvIds = [...(labelConvIds ?? []), ...requestedIds];
-    // Named sessions only (`cast sessions <id> …`, above all its -w watches,
-    // which agents keep open on their workers): read just those rows instead of
-    // building the whole inbox and filtering it, so a watch re-runs when its
-    // own sessions change rather than on every write to any of ~2,000 rows.
     const namedOnly =
       (scopedWatch ? hasRefs : requestedIds.size > 0) && !labelConvIds;
-    let { sessions, hidden_count } = await computeInboxSessions(ctx, userId, {
-      show_all: !!args.show_all,
-      extraConvIds: extraConvIds.length ? extraConvIds : undefined,
-      projection: true,
-      watchedWindow,
-      namedOnly,
-      includeKilled: !!args.include_killed,
-    });
+    let { sessions, hidden_count, watchSources } = await computeInboxSessions(
+      ctx,
+      userId,
+      {
+        show_all: !!args.show_all,
+        extraConvIds: extraConvIds.length ? extraConvIds : undefined,
+        projection: true,
+        watchedWindow,
+        namedOnly,
+        includeKilled: !!args.include_killed,
+      },
+    );
 
-    // Project bounding (label views): scope the inbox to one project so labels
-    // and their counts reflect the caller's cwd, not their whole filing cabinet.
-    // Overlap in either direction — a cwd deeper inside the repo still claims
-    // the repo's sessions, and a session created in a subdir still counts.
     if (args.project_path) {
       const bound = args.project_path;
       sessions = sessions.filter(
@@ -13953,7 +13945,10 @@ export const inboxForCLI = query({
     });
 
     const limit = args.limit ?? 200;
-    const page = rows.slice(0, limit);
+    const page = rows.slice(
+      0,
+      watchSources ? Math.max(0, Math.min(200, limit)) : limit,
+    );
     if (scopedWatch) {
       const { labelByConv: labels } = await readCliFiling(
         ctx.db,
@@ -13961,6 +13956,7 @@ export const inboxForCLI = query({
         page.map((row) => row.id as Id<"conversations">),
       );
       for (const row of page) row.label = labels.get(row.id) ?? null;
+      if (watchSources) await readCliWatchPage(ctx, userId, page, watchSources);
     }
 
     const nameToConvIds = new Map<string, Set<string>>();
