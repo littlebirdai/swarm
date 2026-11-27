@@ -10,7 +10,9 @@ import {
 import { startTimedDocRetention } from "../timed-doc-retention";
 
 test("a week of live writes settles to the fresh-cache cap without dropping protected docs", () => {
-  const restore = replaceGlobals({ document: { visibilityState: "visible" } });
+  const restore = replaceGlobals({
+    document: Object.assign(new EventTarget(), { hidden: false }),
+  });
   const store = __createInboxStoreForTests();
   const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
   process.env.VITE_CACHE_EVICTION_METADATA = "1";
@@ -73,7 +75,7 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
 test("the first batch waits for quiet", () => {
   if (process.env.VITE_TIMED_DOC_CAPS !== "1") return;
   const restore = replaceGlobals({
-    document: { visibilityState: "visible" },
+    document: Object.assign(new EventTarget(), { hidden: false }),
     performance: { now: () => Date.now() },
   });
   const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
@@ -89,6 +91,51 @@ test("the first batch waits for quiet", () => {
     expect(store.getState().docDetails[id]).toBeDefined();
     jest.advanceTimersByTime(401);
     expect(store.getState().docDetails[id]).toBeUndefined();
+  } finally {
+    sweep.stop();
+    jest.useRealTimers();
+    restore();
+    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
+    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
+  }
+});
+
+test("hidden windows cancel the timer, resume immediately, and cannot restart after stop", () => {
+  const document = Object.assign(new EventTarget(), { hidden: true });
+  const restore = replaceGlobals({ document });
+  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
+  process.env.VITE_CACHE_EVICTION_METADATA = "1";
+  const enabled = process.env.VITE_TIMED_DOC_CAPS === "1";
+  const store = __createInboxStoreForTests();
+  let attempts = 0;
+  jest.useFakeTimers();
+  const sweep = startTimedDocRetention(store.getState, () => {
+    attempts++;
+    return false;
+  });
+  const show = (visible: boolean) => {
+    document.hidden = !visible;
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+  try {
+    expect(jest.getTimerCount()).toBe(0);
+    show(true);
+    jest.advanceTimersByTime(0);
+    expect(attempts).toBe(enabled ? 1 : 0);
+    expect(jest.getTimerCount()).toBe(enabled ? 1 : 0);
+    show(false);
+    sweep.soon();
+    expect(jest.getTimerCount()).toBe(0);
+    jest.advanceTimersByTime(10 * 60_000);
+    expect(attempts).toBe(enabled ? 1 : 0);
+    show(true);
+    jest.advanceTimersByTime(0);
+    expect(attempts).toBe(enabled ? 2 : 0);
+    sweep.stop();
+    sweep.soon();
+    show(false);
+    show(true);
+    expect(jest.getTimerCount()).toBe(0);
   } finally {
     sweep.stop();
     jest.useRealTimers();

@@ -14,3 +14,5 @@ export async function readCachedDocDetails(): Promise<
 export function persistedDocDetailWorkspace(_id: string): string | undefined {
   return undefined;
 }
+
+export function compactPersistedDocDetails(_ids: readonly string[]): void {}

@@ -1,11 +1,13 @@
 import { isConvexId } from "../lib/entityLinks";
 import { isDetailPinned } from "../lib/detail-rows";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../lib/inputQuiet";
+import { whileWindowVisible } from "../lib/windowVisibleWork";
 import { timedDocCapsEnabled, withCacheEvictions } from "./cache-eviction";
 import {
   partitionDocDetailRetention,
   pendingDocDetailIds,
 } from "./cacheRetention";
+import { compactPersistedDocDetails } from "./doc-detail-disk";
 import { _hydrating } from "./persistence/hydration";
 import type { InboxStoreState } from "./inboxStore";
 
@@ -24,6 +26,8 @@ export function startTimedDocRetention(
   if (!timedDocCapsEnabled() || typeof document === "undefined")
     return { soon() {}, stop() {} };
 
+  const visibility = document;
+  let stopped = false;
   let timer: ReturnType<typeof setTimeout>;
   let sweep:
     | {
@@ -36,11 +40,12 @@ export function startTimedDocRetention(
 
   const schedule = (delay: number) => {
     clearTimeout(timer);
-    timer = setTimeout(step, delay);
+    if (!stopped && !visibility.hidden) timer = setTimeout(step, delay);
   };
 
   function step() {
-    if (document.visibilityState === "hidden" || !canSweep()) {
+    if (stopped || visibility.hidden) return;
+    if (!canSweep()) {
       sweep = undefined;
       schedule(SWEEP_MS);
       return;
@@ -87,25 +92,32 @@ export function startTimedDocRetention(
         ? [{ key: "docDetails", id, observed }]
         : [];
     });
-    if (evictions.length)
-      withCacheEvictions(evictions, () =>
-        state.dropRows(
-          "docDetails",
-          evictions.map(({ id }) => id),
-        ),
+    if (evictions.length) {
+      const ids = evictions.map(({ id }) => id);
+      withCacheEvictions(evictions, () => state.dropRows("docDetails", ids));
+      compactPersistedDocDetails(
+        ids.filter((id) => !getState().docDetails[id]),
       );
+    }
 
     if (done) sweep = undefined;
     schedule(done ? SWEEP_MS : YIELD_MS);
   }
 
-  schedule(0);
+  const pause = whileWindowVisible(() => {
+    schedule(0);
+    return () => {
+      sweep = undefined;
+      clearTimeout(timer);
+    };
+  });
   return {
     soon() {
       if (!sweep) schedule(0);
     },
     stop() {
-      clearTimeout(timer);
+      stopped = true;
+      pause();
     },
   };
 }

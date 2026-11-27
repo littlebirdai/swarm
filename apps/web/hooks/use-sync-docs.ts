@@ -417,8 +417,8 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   ).data;
 
   useLayoutEffect(() => {
-    if (pin && id && authenticated) return pinDetailRows("docDetails", [id]);
-  }, [id, pin, authenticated, account]);
+    if (pin && id) return pinDetailRows("docDetails", [id]);
+  }, [id, pin, account]);
 
   useLayoutEffect(() => {
     if (

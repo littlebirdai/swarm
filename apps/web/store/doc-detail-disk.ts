@@ -15,3 +15,12 @@ export function readCachedDocDetails(): Promise<
 export function persistedDocDetailWorkspace(id: string): string | undefined {
   return lastPersisted.get("docDetails")?.get(id)?.workspace;
 }
+
+export function compactPersistedDocDetails(ids: readonly string[]): void {
+  const shadow = lastPersisted.get("docDetails");
+  if (!shadow) return;
+  for (const id of ids) {
+    const row = shadow.get(id);
+    if (row) shadow.set(id, { _id: id, workspace: row.workspace });
+  }
+}

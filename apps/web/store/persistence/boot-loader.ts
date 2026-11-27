@@ -235,9 +235,16 @@ export async function loadCache(
               pendingDocDetailIds(hydrateCtx.pending),
             )
           : retain(rows, Date.now());
-        rows = keep;
-        if (!memoryOnly && drop.length)
+        if (memoryOnly && drop.length) {
+          const dropped = new Set(drop);
+          for (const row of rows) {
+            if (dropped.has(row._id))
+              shadow.set(row._id, { _id: row._id, workspace: row.workspace });
+          }
+        } else if (drop.length) {
           void deleteInBatches(table, drop.filter(unchanged));
+        }
+        rows = keep;
       }
       if (rows.length > 0) {
         const map: Record<string, any> = {};

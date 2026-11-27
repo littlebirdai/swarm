@@ -664,17 +664,23 @@ test.each([false, true])(
   },
 );
 
-test("a mounted document pins its detail until it unmounts", async () => {
-  process.env[flag] = "1";
-  const ui = await mountWeb(<Body />, {
-    authenticated: true,
-    setup(backend) {
-      backend.set(api.taskMining.webGetDocDetail, row);
-    },
-  });
-  expect(isDetailPinned("docDetails", id)).toBe(
-    process.env.VITE_TIMED_DOC_CAPS === "1",
-  );
-  await ui.rerender(null);
-  expect(isDetailPinned("docDetails", id)).toBe(false);
-});
+test.each([true, false])(
+  "a mounted document pins its detail until it unmounts (authenticated: %s)",
+  async (authenticated) => {
+    process.env[flag] = "1";
+    const ui = await mountWeb(<Body />, {
+      authenticated,
+      setup(backend) {
+        backend.set(api.taskMining.webGetDocDetail, row);
+      },
+    });
+    ui.store.getState().syncRecord("docDetails", id, row);
+    await act(async () => flushSyncPublishes());
+    expect(ui.container.textContent).toBe(row.content);
+    expect(isDetailPinned("docDetails", id)).toBe(
+      process.env.VITE_TIMED_DOC_CAPS === "1",
+    );
+    await ui.rerender(null);
+    expect(isDetailPinned("docDetails", id)).toBe(false);
+  },
+);
