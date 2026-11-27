@@ -7,7 +7,10 @@ import {
   partitionDocDetailRetention,
   pendingDocDetailIds,
 } from "./cacheRetention";
-import { compactPersistedDocDetails } from "./doc-detail-disk";
+import {
+  compactPersistedDocDetails,
+  pruneCachedDocDetails,
+} from "./doc-detail-disk";
 import { _hydrating } from "./persistence/hydration";
 import type { InboxStoreState } from "./inboxStore";
 
@@ -22,12 +25,20 @@ function* docIds(rows: InboxStoreState["docDetails"]): Generator<string, void> {
 export function startTimedDocRetention(
   getState: () => InboxStoreState,
   canSweep: () => boolean,
+  ownsDisk: () => boolean = () => false,
 ) {
   if (!timedDocCapsEnabled() || typeof document === "undefined")
     return { soon() {}, stop() {} };
 
   const visibility = document;
   let stopped = false;
+  let pruning = false;
+  const canPrune = () =>
+    !stopped &&
+    !visibility.hidden &&
+    ownsDisk() &&
+    !_hydrating &&
+    msUntilInputQuiet(TYPING_QUIET_MS) <= 0;
   let timer: ReturnType<typeof setTimeout>;
   let sweep:
     | {
@@ -100,7 +111,25 @@ export function startTimedDocRetention(
       );
     }
 
-    if (done) sweep = undefined;
+    if (done) {
+      sweep = undefined;
+      if (!pruning && canPrune()) {
+        pruning = true;
+        void pruneCachedDocDetails(canPrune, () => {
+          const live = getState();
+          const pending = pendingDocDetailIds(live.pending);
+          return (id) =>
+            !!live.docDetails[id] ||
+            !!live.docs[id]?.pinned ||
+            pending.has(id) ||
+            isDetailPinned("docDetails", id);
+        })
+          .catch(() => {})
+          .finally(() => {
+            pruning = false;
+          });
+      }
+    }
     schedule(done ? SWEEP_MS : YIELD_MS);
   }
 

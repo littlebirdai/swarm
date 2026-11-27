@@ -384,6 +384,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // a paint cache the live detail query reconciles.
   docDetails: {
     persistence: { kind: "collection", key: "docDetails" },
+    indexes: "_id, _cachedAt, [workspace+_id]",
     hydration: { phase: "deferred", onRead: true },
     localFirst: false,
     feeds: ["taskMining.webGetDocDetail"],

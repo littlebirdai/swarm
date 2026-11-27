@@ -598,7 +598,11 @@ export function startSyncReplication(opts: {
         authority.detail,
         collectCompleteDocCrawlAbsences,
       );
-      const retention = startTimedDocRetention(useInboxStore.getState, current);
+      const retention = startTimedDocRetention(
+        useInboxStore.getState,
+        current,
+        current,
+      );
       const stop = () => {
         active = false;
         retention.stop();
@@ -748,6 +752,7 @@ export function startSyncReplication(opts: {
   const retention = startTimedDocRetention(
     useInboxStore.getState,
     () => !stopped && detailAccountIsCurrent(account) && !!details?.canSweep(),
+    () => details?.ownsDisk() === true,
   );
   setDeferredSharedCacheSource("joining");
   startFollower();
