@@ -75,8 +75,15 @@ until the first two steps pass together.
    Releasing the lease closes the window. An ambiguous slot stays held for
    evidence review during successor preparation. While the recorded lease
    and window are live, an identical outcome can return a duplicate receipt
-   without changing the slot. The window uses a
-   provisional server constant of 10 seconds.
+   without changing the slot.
+
+   With `CODECAST_FORCED_DEVICE_MOVE_V1` on, the recorded lease determines
+   the deadline. The window ends when that lease expires or 30 seconds
+   after the move is recorded, whichever is earlier. An authenticated
+   source stop or replacement boot closes it immediately. A missing,
+   expired, or released lease gives no window. A forced move closes the
+   window at once. With the flag off, an internal normal move keeps the
+   10-second limit and still ends at lease expiry if that comes first.
 
 2. **Prepare and activate.** Authorize successor creation from the move
    record and the destination credentials. The source lease token stays
@@ -113,9 +120,8 @@ until the first two steps pass together.
    cross-account readiness and cleanup, and a claim before or after start.
    Test each legacy writer with and without the execution protocol.
 
-Before you enable moves, choose the settlement window duration. Define how
-to recover a stopped source if the destination fails after preparation or
-after a partial retarget.
+Before you enable moves, define how to recover a stopped source if the
+destination fails after preparation or after a partial retarget.
 
 ## Force a move when the source is unavailable
 
