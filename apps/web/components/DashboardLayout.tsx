@@ -1,5 +1,6 @@
 import { SeatKillDialog } from "./org/SeatKillDialog";
 import { PendingAgentFeatures } from "./onboarding/usePendingAgentFeatures";
+import { useSyncInboxRelayLiveness } from "../hooks/use-sync-inbox-relay-liveness";
 import { LiveRunsCheck } from "../hooks/useLiveRunsCheck";
 import {
   useSyncMetricSeries,
@@ -715,8 +716,14 @@ function HostFeeders() {
       <PendingAgentFeatures />
       <MachineResourceFeeders />
       <SessionCardPullRequestsFeeder />
+      <InboxRelayLivenessFeeder />
     </>
   );
+}
+
+function InboxRelayLivenessFeeder() {
+  useSyncInboxRelayLiveness();
+  return null;
 }
 
 // The pull requests every session card draws as chips (lib/sessionPullRequests):

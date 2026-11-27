@@ -331,3 +331,13 @@ describe("the useSyncCore import closure is Hermes-safe", () => {
     expect(offenders).toEqual([]);
   }, 120_000);
 });
+
+test("inbox relay visibility wakes only its own web feeder", () => {
+  const inbox = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
+  const layout = read(join(WEB_ROOT, "components", "DashboardLayout.tsx"));
+  expect(inbox).not.toContain("useSyncInboxRelayLiveness");
+  expect(layout).toContain("<InboxRelayLivenessFeeder />");
+  expect(layout).toMatch(
+    /function InboxRelayLivenessFeeder\(\) \{\s+useSyncInboxRelayLiveness\(\);\s+return null;/,
+  );
+});

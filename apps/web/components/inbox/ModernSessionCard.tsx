@@ -606,7 +606,7 @@ export function ModernSessionCardView({
                 {line.reason}
               </span>
             )}
-            <InboxCardIndicators session={session} now={now} />
+            <InboxCardIndicators session={session} />
             {isFavorite && (
               <button
                 type="button"

@@ -1,6 +1,7 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex, useConvexAuth } from "convex/react";
 import { useMemo, useState, type ReactNode } from "react";
+import { useIsSyncHost } from "../hooks/use-sync-role";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
   RelayPresenceContext,
@@ -23,8 +24,8 @@ function ActiveRelayPresence({
   const viewerId = useInboxStore((store) => store.currentUser?._id);
   const account = isAuthenticated ? viewerId : undefined;
   const scope = useMemo(
-    () => (account ? { account, url, convex } : null),
-    [account, url, convex],
+    () => (account ? { account, url, convex, inboxLiveness } : null),
+    [account, url, convex, inboxLiveness],
   );
   const [connection, setConnection] = useState<{
     scope: NonNullable<typeof scope>;
@@ -33,7 +34,7 @@ function ActiveRelayPresence({
 
   useWatchEffect(() => {
     if (!scope || typeof window.WebSocket !== "function") return;
-    const { account, url, convex } = scope;
+    const { account, url, convex, inboxLiveness } = scope;
     const lifetime = new AbortController();
     const load = async () => {
       const { createRelayClient } = await import("@codecast/relay-client");
@@ -111,7 +112,7 @@ function ActiveRelayPresence({
       lifetime.abort();
       setConnection(null);
     };
-  }, [scope, inboxLiveness]);
+  }, [scope]);
 
   const client =
     scope && connection?.scope === scope ? connection.client : null;
@@ -119,6 +120,7 @@ function ActiveRelayPresence({
 }
 
 export function RelayPresenceProvider({ children }: { children: ReactNode }) {
+  const isSyncHost = useIsSyncHost();
   const url = relayPresenceUrl(
     import.meta.env.VITE_RELAY_PRESENCE,
     import.meta.env.VITE_RELAY_URL,
@@ -126,7 +128,9 @@ export function RelayPresenceProvider({ children }: { children: ReactNode }) {
   return url ? (
     <ActiveRelayPresence
       url={url.href}
-      inboxLiveness={import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"}
+      inboxLiveness={
+        isSyncHost && import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"
+      }
     >
       {children}
     </ActiveRelayPresence>

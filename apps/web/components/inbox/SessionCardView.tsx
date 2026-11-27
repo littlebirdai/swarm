@@ -1118,7 +1118,7 @@ export function SessionCardView({
                   shepherdedId={session.pr_status?.pr_id}
                   max={session.pr_status ? 0 : 1}
                 />
-                <InboxCardIndicators session={session} now={now} />
+                <InboxCardIndicators session={session} />
                 {isFork(session) && (
                   <span
                     data-simple-hide

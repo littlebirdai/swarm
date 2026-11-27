@@ -1,27 +1,46 @@
 import { useContext, useMemo } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
   RelayPresenceContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
-import {
-  setInboxRelayContact,
-  useInboxRelayLiveness,
-} from "../store/inbox-relay-liveness";
 import { useInboxStore } from "../store/inboxStore";
+import { makeCollectionSig } from "../store/wakeSig";
 import { useIsSyncHost } from "./use-sync-role";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
 const limit = 64;
+const visibleSig = makeCollectionSig<number>(() => "");
+const visibleIds = (cards: Record<string, number>) =>
+  Object.keys(cards).slice(0, limit) as Id<"conversations">[];
+
+function makeVisibleSelector() {
+  let previous: string | undefined;
+  let ids: Id<"conversations">[] = [];
+  return (state: ReturnType<typeof useInboxStore.getState>) => {
+    const signature = visibleSig(state.relayInboxCards);
+    if (signature !== previous) {
+      previous = signature;
+      ids = visibleIds(state.relayInboxCards);
+    }
+    return ids;
+  };
+}
+
+const emptyIds: Id<"conversations">[] = [];
+const noVisibleCards = () => emptyIds;
 
 type Target = { id: string; run: number; machine: string };
 
 function watchInboxRelay(client: RelayPresenceClient, viewer: string) {
   const active = new Map<string, { target: Target; off: () => void }>();
-  return (targets: readonly Target[]) => {
+  let resolved: readonly Target[] = [];
+  return (ids: readonly string[], latest?: readonly Target[]) => {
+    const visible = new Set(ids);
+    resolved = (latest ?? resolved).filter(({ id }) => visible.has(id));
+    const targets = resolved;
     const next = new Map(targets.map((target) => [target.id, target]));
     for (const [id, { target, off }] of active) {
       const replacement = next.get(id);
@@ -32,7 +51,7 @@ function watchInboxRelay(client: RelayPresenceClient, viewer: string) {
         continue;
       active.delete(id);
       off();
-      setInboxRelayContact(id);
+      useInboxStore.getState().setInboxRelayContact(id);
     }
     for (const target of targets) {
       const { id, run, machine } = target;
@@ -46,19 +65,20 @@ function watchInboxRelay(client: RelayPresenceClient, viewer: string) {
             signal.hub.id !== id
           )
             return;
+          const store = useInboxStore.getState();
           if (
             type === "removed" ||
             signal.run !== run ||
             signal.machine_id !== machine
           ) {
-            const current = useInboxRelayLiveness.getState().contacts[id];
+            const current = store.relayInboxContacts[id];
             if (
               current?.connection === signal.connection_id &&
               current.sequence <= signal.seq
             )
-              setInboxRelayContact(id);
+              store.setInboxRelayContact(id);
           } else {
-            setInboxRelayContact(id, {
+            store.setInboxRelayContact(id, {
               viewer,
               machine,
               connection: signal.connection_id,
@@ -79,14 +99,9 @@ export function useSyncInboxRelayLiveness() {
   const account = useInboxStore((state) => state.currentUser?._id);
   const viewer =
     isHost && client?.inboxViewer === account ? client?.inboxViewer : undefined;
-  const ids = useInboxRelayLiveness(
-    useShallow((state) =>
-      viewer
-        ? (Object.keys(state.visible).slice(0, limit) as Id<"conversations">[])
-        : [],
-    ),
-  );
-  const { data } = useQueryNoThrow(
+  const selectVisibleIds = useMemo(() => makeVisibleSelector(), []);
+  const ids = useInboxStore(viewer ? selectVisibleIds : noVisibleCards);
+  const { data, error } = useQueryNoThrow(
     api.relayGrants.inboxTargets,
     viewer && ids.length > 0 ? { ids } : "skip",
   );
@@ -96,10 +111,10 @@ export function useSyncInboxRelayLiveness() {
   );
   useWatchEffect(() => () => watch?.([]), [watch]);
   useWatchEffect(() => {
-    watch?.(
-      data?.viewer === viewer && data
-        ? data.targets.filter(({ id }) => ids.includes(id))
-        : [],
-    );
-  }, [watch, data, viewer, ids]);
+    const targets =
+      error || data === null || (data && data.viewer !== viewer)
+        ? []
+        : data?.targets;
+    watch?.(ids, targets);
+  }, [watch, data, error, viewer, ids]);
 }

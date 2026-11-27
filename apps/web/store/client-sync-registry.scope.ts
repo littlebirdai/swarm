@@ -20,6 +20,8 @@ import type { ClientSyncStoreKey } from "./clientSyncRegistry";
 // fails when a selector returns the inactive one's rows.
 export type DataScope = "workspace" | "team" | "viewer" | "entity";
 export const DATA_SCOPE = {
+  relayInboxCards: "viewer",
+  relayInboxContacts: "viewer",
   repoBrowse: "entity",
   repoBrowseAccess: "entity",
   settingsData: "viewer",
