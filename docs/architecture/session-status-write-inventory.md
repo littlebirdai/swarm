@@ -105,7 +105,7 @@ The hosted start calls the shared writer for its managed-session row. The common
 
 The shared writer stores the status and inbox fields for starts, forks, daemon reports, device moves, and restarts. It also stores the kill, close, and stash changes from `killConversation`, `applyHideTransition`, and `hideNestedChildren`. CLI visibility and retirement use it for their first inbox patch. A blocked pin uses it to clear the stash and dismissal.
 
-`dispatch.applyPatches` uses the shared writer for generic conversation patches and for clearing the kill stamp on restore. The favorite view path writes the same conversation fields and then updates the favorite view. Mixed patches keep their original fields together.
+`conversations.patchConversation` and `dispatch.applyPatches` use the shared writer for generic conversation patches. Dispatch also uses it to clear the kill stamp on restore. The favorite view path writes the same conversation fields and then updates the favorite view. Mixed patches keep their original fields together.
 
 `createConversation` uses the shared writer for the active ingest row and the parent status and dismissal stamp on a plan handoff.
 

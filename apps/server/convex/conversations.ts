@@ -15621,7 +15621,7 @@ export const patchConversation = mutation({
     if (await pinCapExceeded(ctx, userId, conv, patch))
       throw new Error(PIN_CAP_ERROR);
     if (Object.keys(patch).length > 0) {
-      await ctx.db.patch(args.id, patch);
+      await patchConversationLifecycle(ctx, args.id, patch);
     }
   },
 });
