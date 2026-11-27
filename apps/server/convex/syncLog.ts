@@ -12,7 +12,7 @@
 // Cargo (docs/architecture/sync-log-cargo.md): rows carry the changed fields as
 // a merge patch plus an access stamp; getRange projects each row per caller.
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, type DatabaseReader } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { ChangeEntity, ChangeScope } from "./changeLog";
 import {
@@ -701,6 +701,14 @@ export async function emitScopeAction(
 // ── Read side ────────────────────────────────────────────────────────────────
 
 const DEFAULT_RANGE_LIMIT = 500;
+
+export async function readInboxCheckpoint(
+  db: DatabaseReader,
+  scope: string,
+): Promise<{ scope: string; position: number }> {
+  const head = await headFor(db, scope);
+  return { scope, position: head?.position ?? 0 };
+}
 
 // The caller's scope heads. Tiny payload — this is the live subscription that wakes the
 // client applier; it re-runs on tracked writes only (never on heartbeats or messages).

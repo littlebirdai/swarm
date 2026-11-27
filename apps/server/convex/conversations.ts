@@ -27,7 +27,7 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./functions";
-import { syncLogDisabled } from "./syncLog";
+import { readInboxCheckpoint, syncLogDisabled } from "./syncLog";
 import { v, type GenericValidator, type ObjectType } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
 import {
@@ -12259,7 +12259,6 @@ export async function computeInboxSessions(
     ...(hotIds ? { hot_ids: hotIds } : {}),
   };
 }
-
 export const listInboxSessions = query({
   args: {
     show_all: v.optional(v.boolean()),
@@ -12278,6 +12277,7 @@ export const listInboxSessions = query({
     // asks for it, so a change re-sends the recent rows and a hash, not the
     // whole working set. One-shot fetches leave it off and get every row.
     split: v.optional(v.boolean()),
+    checkpoint: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -12291,10 +12291,14 @@ export const listInboxSessions = query({
       fastFieldsInOverlay: args.fast_fields_in_overlay,
       splitHot: args.split,
     });
+    if (args.checkpoint && !args.split)
+      return {
+        ...result,
+        checkpoint: await readInboxCheckpoint(ctx.db, `user:${userId}`),
+      };
     return args.split ? splitInboxList(result) : result;
   },
 });
-
 // The split forms. `now` is the projection epoch, as every inbox clock is, so
 // two executions inside one minute stay byte identical (sync-convergence C2).
 export function splitInboxList(result: {

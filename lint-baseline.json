@@ -23670,7 +23670,7 @@
     "swarm/no-comments": 11
   },
   "apps/web/lib/__tests__/syncCoreParity.guard.test.ts": {
-    "swarm/no-comments": 62
+    "swarm/no-comments": 60
   },
   "apps/web/lib/__tests__/syncLogCargo.test.ts": {
     "swarm/no-comments": 5

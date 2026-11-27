@@ -25,6 +25,7 @@ const MAX_RETRY_DELAY_MS = 60_000;
 
 type Recovery = {
   promise: Promise<boolean>;
+  immediate: boolean;
   resolve: (applied: boolean) => void;
 };
 
@@ -56,12 +57,13 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
       },
       Math.max(
         Math.max(nextAt.current, retryAt) - Date.now(),
-        Math.random() * RECOVERY_INTERVAL_MS,
+        pending.immediate ? 0 : Math.random() * RECOVERY_INTERVAL_MS,
       ),
     );
   }
 
   async function read(recovery: Recovery) {
+    recovery.immediate = false;
     nextAt.current = Date.now() + RECOVERY_INTERVAL_MS;
     const controller = new AbortController();
     active = controller;
@@ -127,7 +129,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
     recovery?.resolve(applied);
   }
 
-  function request(): Promise<boolean> {
+  function request(immediate = false): Promise<boolean> {
     if (disposed) return Promise.resolve(false);
     healthy = false;
     if (!pending) {
@@ -135,7 +137,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
       const promise = new Promise<boolean>((finish) => {
         resolve = finish;
       });
-      pending = { promise, resolve };
+      pending = { promise, resolve, immediate };
     }
     arm();
     return pending.promise;
@@ -202,6 +204,7 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   kind: SplitKind | null,
   error: Error | undefined,
   apply: (data: FunctionReturnType<Q>) => boolean,
+  bootstrap = false,
 ) {
   const convex = useConvex();
   const lost = useServerIdentityLost();
@@ -227,11 +230,12 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
       nextAt,
     );
     recovery.current = controller;
+    if (bootstrap) void controller.request(true);
     return () => {
       recovery.current = null;
       controller.dispose();
     };
-  }, [convex, reference, args, kind, apply, lost]);
+  }, [convex, reference, args, kind, apply, lost, bootstrap]);
 
   useWatchEffect(() => {
     if (error) void recovery.current?.request();

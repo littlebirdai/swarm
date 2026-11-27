@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex } from "convex/react";
 import {
@@ -7,7 +8,10 @@ import {
   claimsViewer,
   isConvexId,
 } from "../store/inboxStore";
-import { batchGet } from "./use-sync-change-feed";
+import { batchGet, scopeMetaKey } from "./use-sync-change-feed";
+import { useInboxRecovery } from "./use-inbox-recovery";
+import { useServerAuthenticated } from "./useServerAuthSettled";
+import { useWatchEffect } from "./useWatchEffect";
 import { useConvexSync } from "./useConvexSync";
 import { useIsSyncHost } from "./use-sync-role";
 import { useSplitQueryNoThrow } from "./useSplitQuery";
@@ -123,12 +127,17 @@ export const LIST_INBOX_SESSIONS_ARGS = {
   fast_fields_in_overlay: true,
 } as const;
 
-export function useLiveInboxSessions() {
+const SNAPSHOT_ARGS = {
+  ...LIST_INBOX_SESSIONS_ARGS,
+  checkpoint: true,
+} as const;
+
+export function useLiveInboxSessions(logSnapshot = false) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
   const { data: inboxSessions, error } = useSplitQueryNoThrow(
     api.conversations.listInboxSessions,
-    isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip",
+    isSyncHost && !logSnapshot ? LIST_INBOX_SESSIONS_ARGS : "skip",
     "list",
   );
   useFeederError("conversations.listInboxSessions", error);
@@ -145,5 +154,57 @@ export function useLiveInboxSessions() {
     { coalesceMs: 300 },
   );
 
-  return { data: inboxSessions, error };
+  const scope = useInboxStore((state) => {
+    const id = state.currentUser?._id;
+    return logSnapshot && id ? `user:${id}` : null;
+  });
+  const cursorReady = useInboxStore(
+    (state) =>
+      scope !== null &&
+      state.syncMeta[scopeMetaKey(scope)]?.cursor !== undefined,
+  );
+  const reset = useInboxStore((state) =>
+    scope ? (state.crawlResets[scope] ?? 0) : 0,
+  );
+  const authenticated = useServerAuthenticated();
+  const [snapshotScope, setSnapshotScope] = useState<string | null>(null);
+  const snapshotActive = isSyncHost && authenticated && cursorReady;
+  const { request } = useInboxRecovery(
+    api.conversations.listInboxSessions,
+    snapshotActive ? SNAPSHOT_ARGS : "skip",
+    null,
+    undefined,
+    useCallback(
+      (
+        data: FunctionReturnType<typeof api.conversations.listInboxSessions>,
+      ) => {
+        if (
+          scope === null ||
+          !("checkpoint" in data) ||
+          data.checkpoint?.scope !== scope
+        )
+          return false;
+        const state = useInboxStore.getState();
+        if (
+          `user:${state.currentUser?._id}` !== scope ||
+          state.syncRole === "follower"
+        )
+          return false;
+        const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
+        if (cursor !== data.checkpoint.position) return false;
+        if (!applyInboxListPayload(data, convex)) return false;
+        setSnapshotScope(scope);
+        return true;
+      },
+      [convex, scope],
+    ),
+    true,
+  );
+  useWatchEffect(() => {
+    if (snapshotActive && reset > 0) void request();
+  }, [request, reset, snapshotActive]);
+  const loading = logSnapshot
+    ? isSyncHost && (scope === null || snapshotScope !== scope)
+    : inboxSessions === undefined && !error;
+  return { data: inboxSessions, error, loading };
 }

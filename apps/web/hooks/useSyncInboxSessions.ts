@@ -348,7 +348,7 @@ export function runInboxFloorStep(
 
 const PERSONAL_LIVENESS_ARGS = {};
 
-export function useSyncInboxSessions() {
+export function useSyncInboxSessions(logSnapshot = false) {
   // Wire the store's server dispatch (split out so a screen can ensure dispatch
   // without these inbox subscriptions — see useEnsureDispatch).
   useEnsureDispatch();
@@ -414,11 +414,15 @@ export function useSyncInboxSessions() {
   // prefetch (instant clicks). The shared payload
   // carries null liveness (include_liveness:false), so the idle/needs-input sound
   // stays on the sessionsLiveness overlay below where liveness actually changes.
-  const { data: inboxSessions, error: inboxError } = useLiveInboxSessions();
+  const {
+    data: inboxSessions,
+    error: inboxError,
+    loading,
+  } = useLiveInboxSessions(logSnapshot);
 
   useInboxRecovery(
     api.conversations.listInboxSessions,
-    isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip",
+    isSyncHost && !logSnapshot ? LIST_INBOX_SESSIONS_ARGS : "skip",
     "list",
     inboxError,
     useCallback(
@@ -644,10 +648,8 @@ export function useSyncInboxSessions() {
   // A failed subscription is not a cold open still loading: the chip must not
   // spin on a server error the cache already covers.
   useWatchEffect(() => {
-    useInboxStore
-      .getState()
-      .setLiveLoading("sessions", inboxSessions === undefined && !inboxError);
-  }, [inboxSessions, inboxError]);
+    useInboxStore.getState().setLiveLoading("sessions", loading);
+  }, [loading]);
 
   // BACKGROUND RECONCILE — backfill every inbox session beyond the live window.
   // CRAWL ONLY: we never seed the live listInboxSessions subscription from the
