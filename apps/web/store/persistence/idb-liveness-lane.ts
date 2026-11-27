@@ -203,13 +203,18 @@ export function flushLivenessWrites() {
   }
   if (!writes.length && !metaPuts.length && !writeSyncMeta) return;
   const { db } = lane;
+  const write = db.transaction(
+    "rw",
+    [...writes.map((w) => w.table), db.meta],
+    async () => {
+      for (const { table, puts } of writes) await table.bulkPut(puts);
+      for (const row of metaPuts) await db.meta.put(row);
+      if (writeSyncMeta)
+        await db.meta.put({ key: "syncMeta", value: state.syncMeta });
+    },
+  );
   inFlightLivenessWrites++;
-  db.transaction("rw", [...writes.map((w) => w.table), db.meta], async () => {
-    for (const { table, puts } of writes) await table.bulkPut(puts);
-    for (const row of metaPuts) await db.meta.put(row);
-    if (writeSyncMeta)
-      await db.meta.put({ key: "syncMeta", value: state.syncMeta });
-  })
+  write
     .catch(() => {})
     .finally(() => {
       inFlightLivenessWrites--;

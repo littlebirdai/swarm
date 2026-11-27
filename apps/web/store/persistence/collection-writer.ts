@@ -52,9 +52,9 @@ let inFlightCollectionWrites = 0;
 
 const metaWriter = createCoalescedWriter((key, value) => {
   pendingMetaKeys.delete(key);
+  const write = db.meta.put({ key, value });
   inFlightMetaWrites++;
-  db.meta
-    .put({ key, value })
+  write
     .catch(() => {})
     .finally(() => {
       inFlightMetaWrites--;
@@ -155,11 +155,12 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           // One transaction so a row is never momentarily absent: removed rows
           // and changed rows commit together, and unchanged rows are never
           // touched. Replaces the old clear()+bulkPut full-table rewrite.
-          inFlightCollectionWrites++;
-          db.transaction("rw", table, async () => {
+          const write = db.transaction("rw", table, async () => {
             if (deletes.length) await table.bulkDelete(deletes);
             if (puts.length) await table.bulkPut(puts);
-          })
+          });
+          inFlightCollectionWrites++;
+          write
             .catch(() => {})
             .finally(() => {
               inFlightCollectionWrites--;
@@ -212,8 +213,9 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
       // waited for a quiet spell was lost with a page killed in between, and the reload showed a stale push
       // over its own parked write. (A big write plants a few hundred locks, never one per field it touches.)
+      const write = writePendingEntries(patches, state.pending);
       inFlightCollectionWrites++;
-      pendingWrite = writePendingEntries(patches, state.pending)
+      pendingWrite = write
         .catch(() => {})
         .finally(() => {
           inFlightCollectionWrites--;
