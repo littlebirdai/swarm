@@ -18,6 +18,7 @@ import {
 import { MESSAGE_PAGE_SIZE } from "../store/cacheRetention";
 import {
   hasEvictableMessagesOverBudget,
+  messageMemoryBudgetEnabled,
   retainOpenMessageView,
 } from "../store/store-eviction";
 import { useConvexSync } from "./useConvexSync";
@@ -135,8 +136,15 @@ export function useConversationMessages(
     const release = retainOpenMessageView(conversationId);
     return () => {
       release();
-      if (hasEvictableMessagesOverBudget(useInboxStore.getState()))
+      if (messageMemoryBudgetEnabled()) {
+        queueMicrotask(() => {
+          const state = useInboxStore.getState();
+          if (hasEvictableMessagesOverBudget(state, conversationId))
+            state.trimMessageCache();
+        });
+      } else if (hasEvictableMessagesOverBudget(useInboxStore.getState())) {
         queueMicrotask(() => useInboxStore.getState().trimMessageCache());
+      }
     };
   }, [conversationId, prewarm]);
   const canQuery = isConvexId(conversationId);

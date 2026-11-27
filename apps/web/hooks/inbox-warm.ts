@@ -14,6 +14,7 @@ import {
 import {
   hasEvictableMessagesOverBudget,
   MESSAGE_CACHE_BUDGET_BYTES,
+  messageMemoryBudgetEnabled,
   messageWarmState,
 } from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
@@ -202,14 +203,15 @@ function finishWarm(inFlight: Set<string>, id: string): void {
   inFlight.delete(id);
   if (
     inFlight !== messageWarmState.inFlight ||
-    useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES
+    (!messageMemoryBudgetEnabled() &&
+      useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES)
   )
     return;
   queueMicrotask(() => {
     const state = useInboxStore.getState();
     if (
       inFlight === messageWarmState.inFlight &&
-      hasEvictableMessagesOverBudget(state)
+      hasEvictableMessagesOverBudget(state, id)
     )
       state.trimMessageCache();
   });

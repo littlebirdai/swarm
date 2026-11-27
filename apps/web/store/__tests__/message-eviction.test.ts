@@ -116,7 +116,7 @@ test("protects open panes, pending sends, queued sends and streaming conversatio
       "pane",
       "pending",
       "queued",
-      "recent",
+      ...(process.env.VITE_MESSAGE_MEMORY_BUDGET === "1" ? [] : ["recent"]),
       "stream",
     ]);
     expect(store.getState().pendingMessages.queued).toBeUndefined();
@@ -132,7 +132,7 @@ test("protects open panes, pending sends, queued sends and streaming conversatio
   }
 });
 
-test("keeps inline-only images and strips redundant bytes from stored attachment references", () => {
+test("an open reader keeps inline-only images and strips redundant bytes from attached references", () => {
   const store = __createInboxStoreForTests();
   const inline = { media_type: "image/png", data: "aW1hZ2U=" };
   const backed = {
@@ -144,17 +144,26 @@ test("keeps inline-only images and strips redundant bytes from stored attachment
     ...row(1),
     images: [inline, { ...backed, data: "aW1hZ2U=" }],
   };
-  store.getState().setMessages("image-chat", [message], {}, "cache");
-  store.getState().setUserMessages("image-chat", [message], "cache");
-  expect(store.getState().messages["image-chat"][0].images).toEqual([
-    inline,
-    backed,
-  ]);
-  expect(store.getState().userMessages["image-chat"][0].images).toEqual([
-    inline,
-    backed,
-  ]);
-  expect(message.images[1].data).toBe("aW1hZ2U=");
+  const release = retainOpenMessageView("image-chat");
+  try {
+    store.getState().setMessages("image-chat", [message], {}, "cache");
+    store.getState().setUserMessages("image-chat", [message], "cache");
+    expect(store.getState().messages["image-chat"][0].images).toEqual([
+      inline,
+      backed,
+    ]);
+    expect(store.getState().userMessages["image-chat"][0].images).toEqual([
+      inline,
+      backed,
+    ]);
+    expect(message.images[1].data).toBe("aW1hZ2U=");
+  } finally {
+    release();
+  }
+  store.getState().trimMessageCache();
+  expect(store.getState().messages["image-chat"] === undefined).toBe(
+    process.env.VITE_MESSAGE_MEMORY_BUDGET === "1",
+  );
 });
 
 test("incremental byte counts match a full recount after edits, deletions and rekeys", () => {
@@ -347,6 +356,7 @@ test("session updates do not schedule a trim if only protected conversations are
 test("a tail write that clears its pending echo keeps the newly loaded transcript", async () => {
   const original = useInboxStore.getState();
   const id = "echoed-conversation";
+  const release = retainOpenMessageView(id);
   const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
   useInboxStore.setState({
     currentUser: { _id: "echo-owner" },
@@ -368,6 +378,7 @@ test("a tail write that clears its pending echo keeps the newly loaded transcrip
     expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
     await flushPendingMessageJournal();
   } finally {
+    release();
     useInboxStore.setState(original);
     db.close();
     restoreGlobals();
@@ -398,4 +409,22 @@ test("equal view times evict the oldest updated session first", () => {
     "incoming",
     "newest",
   ]);
+});
+
+test("an oversized unobserved transcript cannot keep the cache above its byte budget", () => {
+  const store = __createInboxStoreForTests();
+  const contents = "x".repeat(MESSAGE_CACHE_BUDGET_BYTES / 2);
+  store.getState().setMessages("oversized", [row(1, contents)], {}, "cache");
+  const actual = store.getState();
+  const bytes = Object.values(recount(actual)).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  expect(actual.messageCacheBytes).toBe(bytes);
+  if (process.env.VITE_MESSAGE_MEMORY_BUDGET === "1") {
+    expect(bytes).toBeLessThanOrEqual(MESSAGE_CACHE_BUDGET_BYTES);
+    expect(actual.messages.oversized).toBeUndefined();
+  } else {
+    expect(bytes).toBeGreaterThan(MESSAGE_CACHE_BUDGET_BYTES);
+  }
 });

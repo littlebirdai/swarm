@@ -411,3 +411,35 @@ test.each(["disk read", "snapshot"] as const)(
     }
   },
 );
+
+test("an inline-only image leaves memory after its reader unmounts", async () => {
+  const mounted = await mountWeb(<Transcript />);
+  const image = { media_type: "image/png", data: "aW1hZ2U=" };
+  try {
+    await act(async () => {
+      mounted.store.getState().setMessages(
+        sessionId,
+        [
+          {
+            _id: "image",
+            role: "user",
+            content: "",
+            timestamp: 1,
+            images: [image],
+          },
+        ],
+        {},
+        "cache",
+      );
+    });
+    expect(mounted.store.getState().messages[sessionId]?.[0].images).toEqual([
+      image,
+    ]);
+    await mounted.rerender(null);
+    expect(Boolean(mounted.store.getState().messages[sessionId])).toBe(
+      process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
+    );
+  } finally {
+    await mounted.close();
+  }
+});
