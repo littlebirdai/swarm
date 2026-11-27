@@ -43,6 +43,7 @@
     "@codecast/docs": "workspace:*",
     "@codecast/edge-client": "workspace:*",
     "@codecast/edge-contract": "workspace:*",
+    "@codecast/edge-supervisor": "workspace:*",
     "@codecast/entities": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
