@@ -452,7 +452,7 @@ test("warming stays available after inline eviction below the byte budget", () =
   }
 });
 
-test.each(["stream", "send", "panel"] as const)(
+test.each(["stream", "send", "send with transcript update", "panel"] as const)(
   "an inline transcript below the budget leaves memory when %s protection lifts",
   async (protection) => {
     const id = "held-image-chat";
@@ -475,15 +475,18 @@ test.each(["stream", "send", "panel"] as const)(
       messageCacheBytes: 0,
       messageCacheBytesByConversation: {},
       sessions: protection === "stream" ? { [id]: session } : {},
-      pendingMessages:
-        protection === "send"
-          ? { [id]: [{ ...row(now, "pending"), _isOptimistic: true }] }
-          : {},
+      pendingMessages: protection.startsWith("send")
+        ? { [id]: [{ ...row(now, "pending"), _isOptimistic: true }] }
+        : {},
       queuedMessages: {},
       sidePanelSessionId: protection === "panel" ? id : null,
     });
     try {
       const image = { media_type: "image/png", data: "aW1hZ2U=" };
+      if (protection === "send with transcript update")
+        useInboxStore
+          .getState()
+          .setMessages("neighbor", [row(2, "Before")], {}, "cache");
       useInboxStore
         .getState()
         .setMessages(id, [{ ...row(1), images: [image] }], {}, "cache");
@@ -497,8 +500,13 @@ test.each(["stream", "send", "panel"] as const)(
         useInboxStore.setState({
           sessions: { [id]: { ...session, agent_status: "idle" } },
         });
-      else if (protection === "send")
-        useInboxStore.setState({ pendingMessages: {} });
+      else if (protection.startsWith("send"))
+        useInboxStore.setState((state) => ({
+          pendingMessages: {},
+          ...(protection === "send with transcript update"
+            ? { messages: { ...state.messages, neighbor: [row(2, "Edited")] } }
+            : {}),
+        }));
       else useInboxStore.setState({ sidePanelSessionId: null });
       await Promise.resolve();
       expect(Boolean(useInboxStore.getState().messages[id])).toBe(

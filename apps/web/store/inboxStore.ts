@@ -22203,6 +22203,7 @@ export function clearProtectedInboxMemory(): void {
   resetDetailInvalidations();
   messageWarmState.full = false;
   messageWarmState.coldIds.clear();
+  messageWarmState.inlineEvictedAtCount.clear();
   messageWarmState.inFlight = new Set();
   messageWarmState.rowTried.clear();
   messageWarmState.syncedCount.clear();
@@ -22433,8 +22434,7 @@ if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
     const protectionChanged =
       state.sessions !== prev.sessions ||
-      (state.pendingMessages !== prev.pendingMessages &&
-        state.messages === prev.messages) ||
+      state.pendingMessages !== prev.pendingMessages ||
       state.queuedMessages !== prev.queuedMessages ||
       state.pendingSessionCreates !== prev.pendingSessionCreates ||
       state.currentSessionId !== prev.currentSessionId ||

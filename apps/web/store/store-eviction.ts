@@ -23,6 +23,7 @@ export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
 export const messageWarmState = {
   full: false,
   coldIds: new Set<string>(),
+  inlineEvictedAtCount: new Map<string, number>(),
   inFlight: new Set<string>(),
   rowTried: new Set<string>(),
   syncedCount: new Map<string, number>(),
@@ -261,6 +262,10 @@ export function evictInactiveMessages(
       : (releasedIds ?? Object.keys(draft.messageCacheBytesByConversation));
     for (const id of ids) {
       if (canEvictMessages(draft, id, now) && hasInlineOnlyImages(draft, id)) {
+        messageWarmState.inlineEvictedAtCount.set(
+          id,
+          draft.sessions[id]?.message_count ?? 0,
+        );
         dropCachedMessages(draft, id);
         if (overBudget) messageWarmState.full = true;
       }
