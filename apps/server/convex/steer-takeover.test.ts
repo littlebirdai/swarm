@@ -7,6 +7,7 @@ import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import {
   boot,
+  leaseMs,
   machine,
   setupRunLease,
   start,
@@ -15,7 +16,7 @@ import {
   observed,
   steerDeliveryFixture,
 } from "../test-helpers/steer-delivery.testkit";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const flags = [
   "SWARM_TURN_BATON",
@@ -148,6 +149,39 @@ test("the owner takes an unstarted baton immediately and retires the exact fence
     intent: "steer",
     baton_token: 1,
   });
+});
+
+test("a recorded takeover retry is stale after a newer baton claim", async () => {
+  const f = await setup();
+  const taken = await f.takeover();
+  expect(taken.status).toBe("granted");
+  const fence = await f.next();
+  if (fence.status !== "takeover_fence")
+    throw new Error("Expected takeover fence");
+  const { fence_id, turn, baton_token } = fence;
+  expect(await f.acknowledge({ fence_id, turn, baton_token })).toMatchObject({
+    status: "recorded",
+  });
+  expect(await f.takeover()).toEqual(taken);
+
+  setSystemTime(new Date(start + 10_000));
+  expect(
+    await f.t.mutation(
+      internal.edgeRunLease.renew,
+      f.requestFence(f.fence.fencing_token),
+    ),
+  ).toMatchObject({ status: "renewed" });
+  setSystemTime(new Date(start + leaseMs + 1));
+  await f.send("claim-after-expiry", observed);
+  expect(await f.query()).toMatchObject({
+    holder: { id: f.owner },
+    baton_token: 2,
+  });
+
+  expect(await f.takeover()).toEqual({ status: "stale" });
+  const replacement = await f.takeover(2);
+  expect(replacement.status).toBe("granted");
+  expect(replacement.fence_id).not.toBe(taken.fence_id);
 });
 
 test("a claimed steer is checked again before a permit is reissued", async () => {

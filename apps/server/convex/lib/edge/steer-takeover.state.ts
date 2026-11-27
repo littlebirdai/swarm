@@ -181,7 +181,8 @@ export async function startSteerTakeover(
   if (
     previous?.owner === owner &&
     previous.previous_holder === expectedHolder &&
-    previous.baton_token === expectedToken
+    previous.baton_token === expectedToken &&
+    (previous.state === "pending" || row?.token === previous.new_baton_token)
   )
     return {
       status: previous.state === "pending" ? "pending" : "granted",
