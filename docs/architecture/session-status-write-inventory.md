@@ -161,10 +161,13 @@ The replay covers workflow starts from the web and CLI, progress reports, and th
 | `pendingMessageWrites.ts` | `pendingMessageWrites.insertPendingMessageRow` | Enqueue creates one `pending` or `held` row. Fenced enqueue and risk resend also store the allocated delivery identity.    | `inbox.submitted` initializes the row. An explicit ambiguity resend needs a distinct delivery identity.                    |
 | [Status writer]           | `pendingMessageWrites.releaseQueuedRows`       | An explicit release or a turn settle makes queued `held` rows pending in the existing order. Standing holds stay in place. | `inbox.released` releases each held row. The caller decides which rows a turn settle releases.                             |
 | [Status writer]           | `orgRoles.performRetireRole`                   | Keeping the standing session releases all its held rows. Retiring it cancels them before it removes seat markers.          | `inbox.released` or `inbox.cancelled` applies to each row.                                                                 |
+| [Status writer]           | `pendingMessages.enqueuePendingMessage`        | New input releases deferred rows after it queues the new row. End-of-turn messages stay held.                              | `inbox.released` releases held input. The caller decides which rows a new send releases.                                   |
+| [Status writer]           | `pendingMessages.cancelPendingMessageForUser`  | Cancels an eligible fenced row and clears its attempt pointer before it checks the queue flag.                             | `inbox.cancelled` cancels unstarted input. The legacy caller also refuses a claimed row.                                   |
+| [Status writer]           | `pendingMessages.mergeQueuedForUser`           | Updates the earlier row, then cancels the absorbed row and links it to the earlier row.                                    | `inbox.cancelled` can cancel an unstarted row. The contract has no fact that also combines message content and provenance. |
 
 The replay confirms that legacy acknowledgments clear the queue flag when no row remains `pending`, even if an unverified `injected` row remains. A started delivery keeps its slot in the reducer until evidence settles it. The retirement replay confirms that both held rows are cancelled before the standing session is decommissioned.
 
-The server insertion guard requires the raw enqueue insert in `pendingMessageWrites.ts`. The deferred release, merge, and fenced cancellation writes in `pendingMessages.ts` also remain direct writes.
+The server insertion guard requires the raw enqueue insert in `pendingMessageWrites.ts`.
 
 ## Pending-message healers
 
