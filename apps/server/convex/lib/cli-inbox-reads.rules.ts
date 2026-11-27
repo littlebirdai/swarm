@@ -65,44 +65,52 @@ export async function readCliFiling(
   return { assignments, activeBuckets, labelByConv, bucketNameById };
 }
 
+const WATCH_DECISIONS_PER_SESSION = 8;
+const WATCH_INBOX_DECISIONS = 1024;
+
 export async function readCliAskingSessions(
   db: DatabaseReader,
   userId: Id<"users">,
-  parents: readonly { _id: Id<"conversations"> }[],
-  children: ReadonlyMap<string, readonly { _id: Id<"conversations"> }[]>,
+  rows: readonly { _id: Id<"conversations"> }[],
 ): Promise<Set<string>> {
-  const ids = new Set(
-    [...parents, ...[...children.values()].flat()].map((row) => row._id),
-  );
-  const asking = await Promise.all(
-    [...ids].map(async (id) => {
-      const decisions = db
-        .query("session_decisions")
-        .withIndex("by_conversation_status", (q) =>
-          q.eq("conversation_id", id).eq("status", "pending"),
-        );
-      for await (const decision of decisions) {
-        if (!isStackedAsk(decision)) continue;
-        if (!decision.asked_user_ids && decision.user_id === userId) return id;
-        if (
-          decision.asked_user_ids &&
-          !decision.asked_user_ids.includes(userId)
-        )
-          continue;
-        const inbox = await db
-          .query("decision_inbox")
-          .withIndex("by_decision", (q) => q.eq("decision_id", decision._id))
-          .filter((q) =>
-            q.and(
-              q.eq(q.field("user_id"), userId),
-              q.eq(q.field("status"), "pending"),
-            ),
+  const decisions = (
+    await Promise.all(
+      rows.map(({ _id }) =>
+        db
+          .query("session_decisions")
+          .withIndex("by_conversation_status", (q) =>
+            q.eq("conversation_id", _id).eq("status", "pending"),
           )
-          .first();
-        if (inbox) return id;
-      }
-      return null;
-    }),
+          .order("desc")
+          .take(WATCH_DECISIONS_PER_SESSION),
+      ),
+    )
+  )
+    .flat()
+    .filter(isStackedAsk);
+  const assigned = decisions.filter((row) =>
+    row.asked_user_ids?.includes(userId),
   );
-  return new Set(asking.filter((id) => id !== null));
+  const inbox = new Set(
+    assigned.length
+      ? (
+          await db
+            .query("decision_inbox")
+            .withIndex("by_user_status", (q) =>
+              q.eq("user_id", userId).eq("status", "pending"),
+            )
+            .order("desc")
+            .take(WATCH_INBOX_DECISIONS)
+        ).map((row) => row.decision_id)
+      : [],
+  );
+  return new Set(
+    decisions
+      .filter((row) =>
+        row.asked_user_ids === undefined
+          ? row.user_id === userId
+          : row.asked_user_ids.includes(userId) && inbox.has(row._id),
+      )
+      .map((row) => row.conversation_id),
+  );
 }

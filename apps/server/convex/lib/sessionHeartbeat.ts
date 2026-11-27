@@ -161,6 +161,85 @@ export async function indexedInboxSessionRows(
   return { ...(await snapshot()), withHistory };
 }
 
+const WATCH_RECENT_ROWS = 2048;
+const WATCH_COLD_SESSIONS = 256;
+
+export async function readCliWatchLiveness(
+  db: Reader["db"],
+  userId: Id<"users">,
+  parents: readonly Id<"conversations">[],
+  children: ReadonlySet<Id<"conversations">>,
+  now: number,
+) {
+  const leases = inboxLeaseWritesEnabled();
+  const visible = new Set([...parents, ...children]);
+  const [user, recent, leased, sideBeats] = await Promise.all([
+    db.get(userId),
+    visible.size
+      ? db
+          .query("managed_sessions")
+          .withIndex("by_user_heartbeat", (q) =>
+            q
+              .eq("user_id", userId)
+              .gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS),
+          )
+          .order("desc")
+          .take(WATCH_RECENT_ROWS)
+      : [],
+    leases && visible.size
+      ? db
+          .query("managed_sessions")
+          .withIndex("by_user_inbox_lease_heartbeat", (q) =>
+            q.eq("user_id", userId).eq("liveness_lease.expired", false),
+          )
+          .order("desc")
+          .take(WATCH_RECENT_ROWS)
+      : [],
+    !leases && visible.size
+      ? db
+          .query("session_heartbeats")
+          .withIndex("by_user_heartbeat", (q) =>
+            q
+              .eq("user_id", userId)
+              .gt("heartbeat_at", now - HEARTBEAT_ALIVE_MS),
+          )
+          .order("desc")
+          .take(WATCH_RECENT_ROWS)
+      : [],
+  ]);
+  const hot = [...recent, ...leased].filter(
+    (row) => row.conversation_id && visible.has(row.conversation_id),
+  );
+  const hotIds = new Set(hot.map((row) => row.conversation_id));
+  const history = await Promise.all(
+    [...visible]
+      .filter((id) => !hotIds.has(id))
+      .slice(0, WATCH_COLD_SESSIONS)
+      .map((id) =>
+        db
+          .query("managed_sessions")
+          .withIndex("by_conversation_user", (q) =>
+            q.eq("conversation_id", id).eq("user_id", userId),
+          )
+          .order("desc")
+          .take(8),
+      ),
+  );
+  const managed = new Map(
+    [...history.flat(), ...hot].map((row) => [row._id, row]),
+  );
+  const sessions = [...managed.values()].sort(
+    (a, b) => a._creationTime - b._creationTime,
+  );
+  const beatsById = new Map(
+    sideBeats.map((row) => [row.managed_session_id, row.heartbeat_at]),
+  );
+  const beats = leases
+    ? await inboxHeartbeatsFor({ db }, sessions)
+    : sessions.map((row) => resolveHeartbeat(row, beatsById.get(row._id)));
+  return { sessions, beats, daemonLastSeen: user?.daemon_last_seen };
+}
+
 export async function heartbeatOf(
   ctx: Reader,
   session: ManagedHeartbeat | null | undefined,

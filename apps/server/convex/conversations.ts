@@ -11,6 +11,7 @@ import {
   inboxUserHeartbeatRows,
   indexedInboxLivenessEnabled,
   indexedInboxSessionRows,
+  readCliWatchLiveness,
 } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
@@ -10189,43 +10190,27 @@ export async function buildNamedSessionMaps(
   userId: Id<"users">,
   convs: any[],
   now: number,
-  watchedWindow?: { showAll?: boolean; pinnedOverflowIds: ReadonlySet<string> },
-): Promise<{
-  maps: InboxSessionMaps;
-  children: any[];
-  childrenByParent: Map<string, any[]>;
-}> {
+): Promise<{ maps: InboxSessionMaps; children: any[] }> {
   // Two links make a child: parent_conversation_id (subagents, orphans, the
   // range enrichment reads) and spawned_by_conversation_id (agent team
   // teammates, whose asks surface on the lead through rollupParentIdOf).
-  const childrenByParent = new Map<string, any[]>();
   const childLists = await Promise.all(
-    convs.map(async (conv) => {
-      if (
-        watchedWindow &&
-        (!shouldShowInInbox(conv) ||
-          conv.inbox_dismissed_at ||
-          conv.inbox_stashed_at ||
-          !(conv.message_count > 0) ||
-          (!watchedWindow.showAll &&
-            watchedWindow.pinnedOverflowIds.has(conv._id.toString())))
-      )
-        return [];
-      const [children, spawned] = await Promise.all([
-        readInboxChildren(ctx.db, conv._id),
-        watchedWindow
-          ? []
-          : ctx.db
-              .query("conversations")
-              .withIndex("by_spawned_by", (q: any) =>
-                q.eq("spawned_by_conversation_id", conv._id),
-              )
-              .order("desc")
-              .take(NAMED_TEAMMATE_CAP),
-      ]);
-      childrenByParent.set(conv._id.toString(), children);
-      return [...children, ...spawned];
-    }),
+    convs.flatMap((conv: any) => [
+      ctx.db
+        .query("conversations")
+        .withIndex("by_parent_conversation_id", (q: any) =>
+          q.eq("parent_conversation_id", conv._id),
+        )
+        .order("desc")
+        .take(20),
+      ctx.db
+        .query("conversations")
+        .withIndex("by_spawned_by", (q: any) =>
+          q.eq("spawned_by_conversation_id", conv._id),
+        )
+        .order("desc")
+        .take(NAMED_TEAMMATE_CAP),
+    ]),
   );
   const covered = new Map<string, any>();
   for (const c of [...convs, ...childLists.flat()])
@@ -10262,7 +10247,6 @@ export async function buildNamedSessionMaps(
       user?.daemon_last_seen,
     ),
     children: childLists.flat(),
-    childrenByParent,
   };
 }
 
@@ -11306,6 +11290,7 @@ export async function scanInboxConversations(
   // pooled, for groupPoolChildren. Never rows of their own.
   poolChildren: any[];
   scopedChildren?: Map<string, any[]>;
+  watched?: any[];
 }> {
   const dismissedCutoff = now - INBOX_DISMISSED_WINDOW_MS;
   const sessionWindowCutoff = now - INBOX_SESSION_WINDOW_MS;
@@ -11550,11 +11535,6 @@ export async function scanInboxConversations(
   const myOwnerRowById = new Map<string, any>(
     ownerRows.map((r: any) => [r.conversation_id.toString(), r]),
   );
-  // The owner window holds my newest INBOX_WINDOW_CAP owner rows, and the
-  // lookup range my newest INBOX_OWNER_LOOKUP_CAP. While the lookup range is
-  // complete, absence from it is the answer; once it overflowed, absence
-  // proves nothing, and a row it missed is read by id (the read byIds and the
-  // floor make), so one row reads one owner row whichever feeder served it.
   const ownerLookupById = new Map<string, any>(
     ownerLookupRows.map((r: any) => [r.conversation_id.toString(), r]),
   );
@@ -11563,6 +11543,10 @@ export async function scanInboxConversations(
     const idStr = conv._id.toString();
     const held = myOwnerRowById.get(idStr);
     if (held) return Promise.resolve(held);
+    if (opts.watchedWindow && conv.owner_user_id === userId) {
+      ownedByMeIds.add(idStr);
+      return Promise.resolve(null);
+    }
     const looked = ownerLookupById.get(idStr);
     if (looked) {
       ownedByMeIds.add(idStr);
@@ -11786,9 +11770,36 @@ export async function scanInboxConversations(
     }
   }
 
-  // The named path's children: liveness for them, and the teammates the full
-  // scan's windows would have pooled, so a teammate's ask still surfaces on
-  // its lead (groupPoolChildren) without the teammate becoming a row here.
+  const uidStr = userId.toString();
+  const selectionInput: any[] = [];
+  for (const c of opts.namedOnly ? [] : conversations) {
+    const idStr = c._id.toString();
+    if (c.user_id.toString() !== uidStr && !ownedByMeIds.has(idStr)) continue;
+    selectionInput.push(
+      ownedByMeIds.has(idStr) ? { ...c, owned_by_me: true } : c,
+    );
+  }
+  const selection = selectWorkingSet(selectionInput, now);
+  for (const kind of selection.truncated) truncated.add(kind);
+  const { cutoff: clusterCutoff, belowFold } = computeFold(selection.members);
+
+  const fold = {
+    belowFold,
+    clusterCutoff,
+    selectionIds: new Set(selection.members.keys()),
+    deliberateIds,
+    ownedByMeIds,
+  };
+  const watched =
+    opts.watchedWindow &&
+    conversations.filter(
+      (row) =>
+        shouldShowInInbox(row) &&
+        (opts.watchedWindow?.showAll ||
+          (!belowFoldFor(fold, row) &&
+            !row.inbox_stashed_at &&
+            !row.inbox_dismissed_at)),
+    );
   let poolChildren: any[] = [];
   let scopedChildren: Map<string, any[]> | undefined;
   let maps: InboxSessionMaps;
@@ -11797,19 +11808,34 @@ export async function scanInboxConversations(
     | undefined;
   if (!opts.includeLiveness) {
     maps = EMPTY_INBOX_MAPS;
-  } else if (opts.watchedWindow) {
-    const scoped = await buildNamedSessionMaps(
-      ctx,
-      userId,
-      conversations,
-      now,
-      {
-        ...opts.watchedWindow,
-        pinnedOverflowIds,
-      },
+  } else if (watched) {
+    const children = await Promise.all(
+      watched.map((row) =>
+        row.message_count > 0 &&
+        !row.inbox_dismissed_at &&
+        !row.inbox_stashed_at &&
+        (opts.watchedWindow?.showAll ||
+          !pinnedOverflowIds.has(row._id.toString()))
+          ? readInboxChildren(ctx.db, row._id)
+          : [],
+      ),
     );
-    maps = scoped.maps;
-    scopedChildren = scoped.childrenByParent;
+    scopedChildren = new Map(
+      watched.map((row, index) => [row._id.toString(), children[index]]),
+    );
+    const liveness = await readCliWatchLiveness(
+      ctx.db,
+      userId,
+      watched.filter((row) => row.user_id === userId).map((row) => row._id),
+      new Set(children.flat().map((row) => row._id)),
+      now,
+    );
+    maps = sessionMapsFromManagedRows(
+      liveness.sessions,
+      liveness.beats,
+      now,
+      liveness.daemonLastSeen,
+    );
   } else if (opts.namedOnly) {
     const named = await buildNamedSessionMaps(ctx, userId, conversations, now);
     maps = named.maps;
@@ -11840,46 +11866,18 @@ export async function scanInboxConversations(
   // an owned foreign-run session's daemon rows belong to the running account,
   // so merge its liveness per-conversation or the row would always classify as
   // dead/idle even while the runner's agent is actively working.
-  const foreignConvs = conversations.filter(
+  const foreignConvs = (watched || conversations).filter(
     (c) => c.user_id.toString() !== userId.toString(),
   );
   if (opts.includeLiveness && !loadIndexedLiveness && foreignConvs.length > 0) {
     await mergeForeignConversationLiveness(ctx, maps, foreignConvs, now);
   }
 
-  // The fold cutoff comes from the SHARED selection + fold (sync-convergence
-  // C4): selectWorkingSet over the caller's own and owned rows (teammate rows
-  // are outside the personal selection — team scope is outside the compare),
-  // then computeFold's 12h gap cut over the recent-only members. Pinned,
-  // dismissed, stashed and owned rows are deliberate and neither fold nor
-  // bridge a gap; deliberately-filed rows (label extras, sessions assigned to
-  // me) are outside the selection and fold-exempt on every channel — which is
-  // what makes inboxForCLI's cutoff identical to the overlay's even when the
-  // CLI hydrates extras the overlay never sees. A window the selection
-  // overflows names itself in `truncated` like the scan's own caps.
-  const uidStr = userId.toString();
-  const selectionInput: any[] = [];
-  // Named rows are deliberate: outside the selection, so they never fold.
-  for (const c of opts.namedOnly ? [] : conversations) {
-    const idStr = c._id.toString();
-    if (c.user_id.toString() !== uidStr && !ownedByMeIds.has(idStr)) continue;
-    selectionInput.push(
-      ownedByMeIds.has(idStr) ? { ...c, owned_by_me: true } : c,
-    );
-  }
-  const selection = selectWorkingSet(selectionInput, now);
-  for (const kind of selection.truncated) truncated.add(kind);
-  const { cutoff: clusterCutoff, belowFold } = computeFold(selection.members);
-
   return {
     conversations,
     maps,
     loadIndexedLiveness,
-    deliberateIds,
-    clusterCutoff,
-    selectionIds: new Set(selection.members.keys()),
-    belowFold,
-    ownedByMeIds,
+    ...fold,
     myOwnerRowById,
     ownerRowFor,
     truncated,
@@ -11887,6 +11885,7 @@ export async function scanInboxConversations(
     recentSubagents,
     poolChildren,
     scopedChildren,
+    watched: watched || undefined,
   };
 }
 
@@ -12053,6 +12052,8 @@ export async function computeInboxSessions(
       (includeKilled &&
         shouldShowInInbox({ ...conv, inbox_killed_at: undefined })),
   );
+  const watchedIds =
+    scan.watched && new Set(scan.watched.map((row) => String(row._id)));
   const enrichedRows = await Promise.all(
     shownConvs.map(async (conv) => {
       // Deliberately-filed rows (label extras, sessions assigned to me by another
@@ -12066,9 +12067,11 @@ export async function computeInboxSessions(
       // scan unless the caller asked for everything: children are never counted,
       // and the scan was the read that hit the system-operation limit.
       const rowSkip =
-        !opts.show_all && pinnedOverflowIds.has(conv._id.toString())
-          ? { ...(enrichSkip ?? {}), children: true }
-          : enrichSkip;
+        watchedIds && !watchedIds.has(String(conv._id))
+          ? { ...enrichSkip, auq: true, children: true, refs: true }
+          : !opts.show_all && pinnedOverflowIds.has(conv._id.toString())
+            ? { ...(enrichSkip ?? {}), children: true }
+            : enrichSkip;
       const { row, subagentChildren, dismissed, stashed, hidden } =
         await enrichInboxSessionRow(
           ctx,
@@ -12097,6 +12100,8 @@ export async function computeInboxSessions(
         await scan.ownerRowFor(conv),
         getDoc,
       );
+      if (opts.watchedWindow && conv.owner_user_id === userId)
+        row.owned_by_me = true;
       return { conv, row, subagentChildren, dismissed, stashed, hidden };
     }),
   );
@@ -12129,13 +12134,15 @@ export async function computeInboxSessions(
     }
     // Decisions FIRST: a parent already asking through a pending `cast decide`
     // never spends child message probes (see buildAskingParents).
+    if (watchedIds)
+      for (const id of childrenByParent.keys())
+        if (!watchedIds.has(id)) childrenByParent.delete(id);
     const pendingDecisionIds =
-      opts.watchedWindow || opts.namedOnly
+      scan.watched || opts.namedOnly
         ? await readCliAskingSessions(
             ctx.db,
             userId,
-            conversations,
-            childrenByParent,
+            scan.watched ?? conversations,
           )
         : await loadPendingDecisionConvIds(ctx, userId);
     const { asking: askingParents } = await buildAskingParents(
@@ -12223,7 +12230,7 @@ export async function computeInboxSessions(
     // Don't surface subagents under a dismissed/stashed parent — they used to be
     // invisible (parent was excluded from the idle query entirely) and
     // exposing them now would make active buckets pick them up as orphans.
-    if (r.dismissed || r.stashed) continue;
+    if (opts.watchedWindow || r.dismissed || r.stashed) continue;
     for (const child of r.subagentChildren) {
       if (topLevelIds.has(child._id.toString())) continue;
       const childRow = await buildSubagentChildRow(

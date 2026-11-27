@@ -311,6 +311,33 @@ describe("listInboxSessions read budget on a full account", () => {
     expect(calls).toBeLessThanOrEqual(READ_BUDGET);
   });
 
+  test.each([false, true])(
+    "the CLI watch stays inside the system-operation limit with show_all=%s",
+    async (show_all) => {
+      const { calls, result } = await run(full(), {
+        ...CLI,
+        watchedWindow: true,
+        show_all,
+      });
+      console.log(`CLI watch on a full account: ${calls} db calls`);
+      expect(calls).toBeLessThan(4096);
+      for (const window of WINDOWS) expect(result.truncated).toContain(window);
+    },
+  );
+
+  test("the CLI watch bounds historical lookups on a full account with cold sessions", async () => {
+    const fixture = full();
+    for (const row of fixture.data.managed_sessions)
+      row.last_heartbeat -= 24 * 60 * MIN;
+    const { calls } = await run(fixture, {
+      ...CLI,
+      watchedWindow: true,
+      show_all: true,
+    });
+    console.log(`CLI watch on a cold full account: ${calls} db calls`);
+    expect(calls).toBeLessThan(4096);
+  });
+
   test("no row a window admits goes missing without its window in truncated, and the rows match the pre-change code", async () => {
     const fixture = full();
     expectNoSilentDrop(

@@ -514,6 +514,8 @@ test("user-wide CLI watch reads the inbox window and the filing of its result pa
   const legacy = await read(false);
   expect(after.result.sessions).toEqual(legacy.result.sessions);
   expect(after.result.counts).toEqual(legacy.result.counts);
+  expect(after.result.labels).toEqual([]);
+  expect(legacy.result.labels).toEqual([{ name: "Current", count: 2201 }]);
   expect(after.reads.size).toBe(before.reads.size);
   expect(archived.some((id) => after.reads.has(id))).toBe(false);
   expect(archived.every((id) => legacy.reads.has(id))).toBe(true);
@@ -590,4 +592,42 @@ test("a CLI watch stays scoped when the owner lookup window overflows", async ()
   const missing = await read(true, ["missing-id"]);
   expect(missing.result.sessions).toEqual([]);
   expect(missing.reads.size).toBeLessThan(10);
+});
+
+test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async () => {
+  process.env.INBOX_LIVENESS_LEASES = "0";
+  const t = serverTest({});
+  const { user, conversation, unrelated } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "CLI watch daemon health");
+    const user = await rows.user();
+    const conversation = await rows.conversation(user, {
+      updated_at: now - 1000,
+      message_count: 1,
+      last_message_role: "assistant",
+    });
+    const unrelated = await rows.session(user, {
+      last_heartbeat: now - HEARTBEAT_ALIVE_MS - 5000,
+    });
+    return { user, conversation, unrelated };
+  });
+  const read = (watch: boolean) =>
+    recordDocuments(() =>
+      asUser(t, user).query(api.conversations.inboxForCLI, {
+        api_token: token,
+        watch,
+      }),
+    );
+  const legacy = await read(false);
+  const watched = await read(true);
+  expect(legacy.result.sessions).toMatchObject([
+    { id: conversation, is_live: true },
+  ]);
+  expect(watched.result.sessions).toMatchObject([
+    { id: conversation, is_live: false },
+  ]);
+  expect(watched.reads.has(unrelated)).toBe(false);
+  await t.run(({ db }) => db.patch(user, { daemon_last_seen: now }));
+  expect((await read(true)).result.sessions).toMatchObject([
+    { id: conversation, is_live: true },
+  ]);
 });
