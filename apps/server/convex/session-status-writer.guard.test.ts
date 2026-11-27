@@ -78,15 +78,21 @@ function directPatches(file: string, fields: RegExp) {
       node.expression.expression.name.text === "db"
     ) {
       const payload = node.arguments.at(-1);
-      if (payload && ts.isObjectLiteralExpression(payload)) {
-        const keys = payload.properties
-          .map((property) => property.name?.getText(source) ?? "")
-          .filter((name) => fields.test(name));
-        if (keys.length)
-          sites.push(
-            `${node.arguments[0].getText(source)}: ${keys.sort().join(", ")}`,
-          );
-      }
+      const keys =
+        payload && ts.isObjectLiteralExpression(payload)
+          ? payload.properties.map((property) =>
+              ts.isSpreadAssignment(property)
+                ? property.expression.getText(source)
+                : property.name && ts.isStringLiteral(property.name)
+                  ? property.name.text
+                  : (property.name?.getText(source) ?? ""),
+            )
+          : [payload?.getText(source) ?? ""];
+      const matched = keys.filter((name) => fields.test(name));
+      if (matched.length)
+        sites.push(
+          `${node.arguments[0].getText(source)}: ${matched.sort().join(", ")}`,
+        );
     }
     ts.forEachChild(node, visit);
   };
@@ -105,4 +111,28 @@ test("moved pending status patches go through the status writer", () => {
     "role._id: status",
     "role._id: status",
   ]);
+});
+
+test("moved inbox placement and thread pin patches go through the status writer", () => {
+  const fields =
+    /^(?:inbox_(?:dismissed_at|stashed_at|pinned_at|adopted_at|snoozed_until|deferred_at|killed_at)|thread_state(?:_\w+)?|clearedThreadStateFields\(\))$/;
+  const files = [
+    "agentTasks.ts",
+    "anchors.ts",
+    "conversations.ts",
+    "daemonCommandUtils.ts",
+    "debugTmp.ts",
+    "dispatch.ts",
+    "favoriteViewWrites.ts",
+    "inboxFilters.ts",
+    "lib/agentTaskRows.ts",
+    "lib/orgSessionFiling.ts",
+    "migrations.ts",
+    "sessionGoals.ts",
+    "sessionOwnership.ts",
+  ];
+  const remaining = files.flatMap((file) =>
+    directPatches(file, fields).map((patch) => `${file} ${patch}`),
+  );
+  expect(remaining).toEqual(["inboxFilters.ts conv._id: inbox_adopted_at"]);
 });
