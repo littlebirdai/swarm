@@ -2,7 +2,6 @@ import {
   makeSimBackend,
   type ScheduledJob,
 } from "@codecast/convex/convex/simBackend.testing";
-import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { Net } from "../net";
 import {
   advance,
@@ -15,12 +14,28 @@ import {
 } from "../realm";
 import { DURATION_MS, PEAK_START_MS, population } from "./model";
 import { populationReplica } from "./replica";
-import { fixtureId, populationTables } from "./workload";
+import {
+  fixtureId,
+  populationTables,
+  runBackground,
+  saveTask,
+} from "./workload";
 
 const POLL_MS = 1500;
 const CONTENTION_WINDOW_MS = 5;
 
-type OutboxSlot = { scope_key: string; updated_at: number; pending: boolean };
+type OutboxSlot = { scope_key: string; pending: boolean };
+type ScopeClass = "team" | "user";
+
+function scopeClass(scope: string): ScopeClass {
+  if (scope.startsWith("team:")) return "team";
+  if (scope.startsWith("user:")) return "user";
+  throw new Error(`Unexpected sync scope ${scope}`);
+}
+
+function ratio(numerator: number, denominator: number) {
+  return denominator ? Number((numerator / denominator).toFixed(4)) : 0;
+}
 
 function distribution(values: number[]) {
   if (!values.length) return { min: 0, mean: 0, p50: 0, p95: 0, max: 0 };
@@ -42,11 +57,19 @@ export async function runPopulation(config: {
   const model = population(config.seed, config.people);
   installRealm(config.seed);
   try {
-    const saves = model.activity.length;
-    const lag: number[] = [];
-    const lastHeadWrite = new Map<string, number>();
-    const lastSlotDelivery = new Map<string, number>();
-    let modeledRetries = 0;
+    const writes = {
+      task: model.activity.length,
+      doc: 0,
+      heartbeat: 0,
+      message: 0,
+    };
+    for (const event of model.background) writes[event.kind]++;
+    const saves = writes.task + writes.doc + writes.heartbeat + writes.message;
+    const drainJobBySlot = new Map<string, string>();
+    const deliveryByJob = new Map<string, number>();
+    const scopeWrites = { team: 0, user: 0 };
+    const nearbyCanceledDrains = { team: 0, user: 0 };
+    const headIds = new Set<string>();
     let headWrites = 0;
     let drainTransactions = 0;
     const backend = makeSimBackend({
@@ -58,17 +81,25 @@ export async function runPopulation(config: {
           "0",
         ),
       rngFor: (seq) => stream(`population:server:${seq}`),
-      modules: { population: () => import("./workload") },
+      modules: {
+        userSends: () => import("@codecast/convex/convex/userSends"),
+      },
       onSchedule: (job: ScheduledJob) => {
-        if (job.name !== "syncOutbox:drain")
-          throw new Error(`Unexpected job ${job.name}`);
         const isContinuation = job.due === now();
         const { id } = job.args as { id: string };
+        if (job.name === "syncOutbox:drain") drainJobBySlot.set(id, job.id);
         net.enqueue("sched", {
           due: job.due,
           label: job.name,
           producer: job.name,
           run: async () => {
+            if (job.name !== "syncOutbox:drain") {
+              const callCount = backend.calls.length;
+              await backend.runScheduled(job);
+              const call = backend.calls[callCount];
+              if (call && !call.ok) throw new Error(call.error ?? job.name);
+              return;
+            }
             const slot: OutboxSlot | null = await backend.db.get(id);
             if (!slot) throw new Error(`Missing outbox slot ${id}`);
             const { scope_key: scope } = slot;
@@ -77,15 +108,13 @@ export async function runPopulation(config: {
                 await backend.db.system.get(job.id);
               const previous =
                 scheduled?.state.kind === "canceled"
-                  ? lastSlotDelivery.get(id)
-                  : scheduled?.state.kind === "pending" && slot.pending
-                    ? lastHeadWrite.get(scope)
-                    : undefined;
+                  ? deliveryByJob.get(job.id)
+                  : undefined;
               if (
                 previous !== undefined &&
                 now() - previous < CONTENTION_WINDOW_MS
               )
-                modeledRetries++;
+                nearbyCanceledDrains[scopeClass(scope)]++;
             }
             const callCount = backend.calls.length;
             const patchCount: number = backend.db._patched.length;
@@ -97,23 +126,17 @@ export async function runPopulation(config: {
             drainTransactions++;
             const patches: { _id: string; patch: Record<string, unknown> }[] =
               backend.db._patched.slice(patchCount);
-            const headIds = new Set<string>(
-              (backend.db._tables.sync_heads ?? []).map(
-                (row: { _id: string }) => row._id,
-              ),
-            );
-            const writes =
-              backend.db._inserted
-                .slice(insertCount)
-                .filter((row: { table: string }) => row.table === "sync_heads")
-                .length + patches.filter((row) => headIds.has(row._id)).length;
-            if (writes) lastHeadWrite.set(scope, now());
-            headWrites += writes;
+            for (const insert of backend.db._inserted.slice(insertCount)) {
+              if (insert.table === "sync_heads") {
+                headIds.add(insert._id);
+                headWrites++;
+              }
+            }
             for (const { _id, patch } of patches) {
+              if (headIds.has(_id)) headWrites++;
               if ("delivered_revision" in patch) {
-                const delivered: OutboxSlot = await backend.db.get(_id);
-                lastSlotDelivery.set(_id, now());
-                lag.push(now() - delivered.updated_at);
+                const deliveredJob = drainJobBySlot.get(_id);
+                if (deliveredJob) deliveryByJob.set(deliveredJob, now());
               }
             }
           },
@@ -133,30 +156,59 @@ export async function runPopulation(config: {
     const devices = model.deviceOrder
       .slice(0, config.devices)
       .map((person) => populationReplica(backend, person));
-    const tasks = new Map<number, Id<"tasks">>();
+    const clients = model.people.map(({ id }) =>
+      backend.clientFor({ kind: "user", userId: fixtureId("users", id) }),
+    );
+    async function measureWrite(write: () => Promise<void>) {
+      const patchCount = backend.db._patched.length;
+      const insertCount = backend.db._inserted.length;
+      await write();
+      const scopes = new Set<string>();
+      for (const { table, doc } of backend.db._inserted.slice(insertCount)) {
+        if (table === "sync_outbox") scopes.add(doc.scope_key);
+      }
+      for (const { _id, patch } of backend.db._patched.slice(patchCount)) {
+        if (
+          patch.pending === true &&
+          typeof patch.scope_key === "string" &&
+          backend.db.normalizeId("sync_outbox", _id)
+        )
+          scopes.add(patch.scope_key);
+      }
+      for (const scope of scopes) scopeWrites[scopeClass(scope)]++;
+    }
+
+    for (const event of model.background) {
+      net.enqueue("background", {
+        due: T0 + event.at,
+        label: event.kind,
+        producer: "population",
+        run: () =>
+          measureWrite(() =>
+            runBackground(
+              clients[
+                event.kind === "doc" ? event.person.id : event.session.owner
+              ],
+              event,
+            ),
+          ),
+      });
+    }
+    const tasks = new Map<number, string>();
     for (const event of model.activity) {
       net.enqueue("save", {
         due: T0 + event.at,
         label: "save task",
         producer: "agent",
-        run: async () => {
-          const task: Id<"tasks"> = await backend.runInternal(
-            "population:saveTask",
-            {
-              ...(tasks.has(event.agent)
-                ? { task: tasks.get(event.agent) }
-                : {}),
-              user: fixtureId("users", event.person.id),
-              ...(event.person.team === null
-                ? {}
-                : { team: fixtureId("teams", event.person.team) }),
-              project: fixtureId("projects", event.project),
-              agent: event.agent,
-              privateTask: event.privateTask,
-            },
-          );
-          tasks.set(event.agent, task);
-        },
+        run: () =>
+          measureWrite(async () => {
+            const shortId = await saveTask(
+              clients[event.person.id],
+              event,
+              tasks.get(event.agent),
+            );
+            tasks.set(event.agent, shortId);
+          }),
       });
     }
     for (let at = 0; at <= DURATION_MS + POLL_MS; at += POLL_MS) {
@@ -169,7 +221,7 @@ export async function runPopulation(config: {
         },
       });
     }
-    await net.drain({ horizonMs: DURATION_MS + POLL_MS });
+    await net.drain({ horizonMs: 2 * DURATION_MS + POLL_MS });
     if (
       net.queued((channel) => !channel.startsWith("timer:")) ||
       backend.db._tables.sync_outbox?.some((slot: OutboxSlot) => slot.pending)
@@ -181,8 +233,18 @@ export async function runPopulation(config: {
     const expectedTitles = new Map(
       taskRows.map(({ _id, title }) => [_id, title]),
     );
-    const measurements = devices.map((device) => device.result(expectedTitles));
-    const baselineSaves = model.activity.filter(
+    const expectedDocTitles = new Map<string, string>();
+    for (const event of model.background) {
+      if (event.kind === "doc")
+        expectedDocTitles.set(
+          fixtureId("docs", event.project),
+          `Project ${event.project} notes at ${event.at}`,
+        );
+    }
+    const measurements = devices.map((device) =>
+      device.result(expectedTitles, expectedDocTitles),
+    );
+    const baselineSaves = [...model.activity, ...model.background].filter(
       ({ at }) => at < PEAK_START_MS,
     ).length;
     return {
@@ -192,7 +254,9 @@ export async function runPopulation(config: {
       peakStartMs: PEAK_START_MS,
       pollMs: POLL_MS,
       contentionWindowMs: CONTENTION_WINDOW_MS,
-      teams: model.teams.length,
+      teams: 1,
+      sessions: model.sessions.length,
+      writes,
       projects: model.projects.length,
       workingAgents: model.workingAgents,
       saves,
@@ -200,9 +264,13 @@ export async function runPopulation(config: {
       peakSaves: saves - baselineSaves,
       headWrites,
       drainTransactions,
-      modeledRetries,
-      modeledRetriesPerWrite: saves ? modeledRetries / saves : 0,
-      drainLagMs: distribution(lag),
+      headWritesPerDrain: ratio(headWrites, drainTransactions),
+      scopeWrites,
+      nearbyCanceledDrains,
+      heuristicRetriesPerScopeWrite: {
+        team: ratio(nearbyCanceledDrains.team, scopeWrites.team),
+        user: ratio(nearbyCanceledDrains.user, scopeWrites.user),
+      },
       eventsPerDevice: distribution(measurements.map(({ events }) => events)),
       teamEventsPerDevice: distribution(
         measurements.map(({ teamEvents }) => teamEvents),

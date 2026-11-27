@@ -2,66 +2,66 @@ import { expect, test } from "bun:test";
 import { population } from "./model";
 import { runPopulation } from "./run";
 
-test("every device receives one event per eligible scope and holds its visible tasks", async () => {
-  const config = { people: 10, devices: 10, seed: 23 };
-  const report = await runPopulation(config);
-  const { activity, people } = population(config.seed, config.people);
-  const shared = activity.filter(({ privateTask }) => !privateTask);
-  expect(shared.length).toBeLessThan(activity.length);
-  expect(shared.length).toBeGreaterThan(0);
-  expect(report.saves).toBe(activity.length);
-  expect(new Set(activity.map(({ agent }) => agent)).size).toBeLessThan(
-    activity.length,
-  );
-  expect(report.drainLagMs.max).toBe(25);
-  for (const device of report.measurements) {
-    const teamEvents = shared.filter(
-      ({ person }) => person.team === device.team,
-    );
-    const personalEvents = activity.filter(
-      ({ person }) => person.id === device.person,
-    );
-    expect(device.teamEvents).toBe(teamEvents.length);
-    expect(device.events).toBe(teamEvents.length + personalEvents.length);
-    expect(device.rangeBytes).toBeGreaterThan(device.events);
-    expect(device.bytes).toBeGreaterThan(device.rangeBytes);
-    expect(device.rows).toBe(
-      new Set([...teamEvents, ...personalEvents].map(({ agent }) => agent))
-        .size,
-    );
-    expect(device.staleTaskTitles).toBe(0);
-    expect(device.taskIdsRefetched).toBe(device.rows);
-    expect(people[device.person].team).toBe(device.team);
-  }
-  expect(report.headWrites).toBe(activity.length + shared.length);
-});
+test.each([1, 50])(
+  "the team-wide baseline delivers shared changes at %i people",
+  async (people) => {
+    const seed = 42;
+    const model = population(seed, people);
+    const report = await runPopulation({ people, devices: people, seed });
+    expect(report.teams).toBe(1);
+    expect(report.sessions).toBe(people * 2);
+    expect(report.writes.heartbeat).toBe(people * 2);
+    expect(report.writes.message).toBeGreaterThanOrEqual(people);
+    expect(report.writes.doc).toBeGreaterThan(0);
+    const shared = model.activity.filter(({ privateTask }) => !privateTask);
+    const sharedTasks = new Set(shared.map(({ agent }) => agent));
+    const sharedChanges = report.measurements[0].teamEvents;
+    expect(sharedChanges).toBeGreaterThan(shared.length);
+    expect(report.scopeWrites).toEqual({
+      team: shared.length + report.writes.doc,
+      user: model.activity.length + report.writes.doc + people,
+    });
+    expect(report.measurements).toHaveLength(people);
+    if (people > 1) {
+      expect(
+        model.people.some((person) =>
+          model.background.some(
+            (event) =>
+              event.kind === "doc" && !person.follows.includes(event.project),
+          ),
+        ),
+      ).toBe(true);
+      expect(report.headWritesPerDrain).toBeGreaterThan(1);
+      expect(report.heuristicRetriesPerScopeWrite.team).toBeGreaterThan(
+        report.heuristicRetriesPerScopeWrite.user,
+      );
+    }
+    for (const device of report.measurements) {
+      const own = model.activity.filter(
+        ({ person }) => person.id === device.person,
+      );
+      expect(device.teamEvents).toBe(sharedChanges);
+      expect(device.eventsByEntity.tasks).toBe(shared.length + own.length);
+      expect(device.eventsByEntity.docs).toBeGreaterThan(0);
+      if (people === 1 || own.length > 0)
+        expect(device.eventsByEntity.conversations).toBeGreaterThan(0);
+      expect(device.rows).toBe(
+        new Set([...sharedTasks, ...own.map(({ agent }) => agent)]).size,
+      );
+      expect(device.staleTaskTitles).toBe(0);
+      expect(device.staleDocTitles).toBe(0);
+    }
+  },
+);
 
-test("a device sample preserves all write load and the exact results for sampled devices", async () => {
+test("a device sample preserves the write load and each sampled device's results", async () => {
   const config = { people: 10, devices: 10, seed: 23 };
   const full = await runPopulation(config);
   const sample = await runPopulation({ ...config, devices: 3 });
-  expect(sample.saves).toBe(full.saves);
+  expect(sample.writes).toEqual(full.writes);
   expect(sample.headWrites).toBe(full.headWrites);
-  expect(sample.modeledRetries).toBe(full.modeledRetries);
-  expect(sample.drainLagMs).toEqual(full.drainLagMs);
+  expect(sample.scopeWrites).toEqual(full.scopeWrites);
+  expect(sample.nearbyCanceledDrains).toEqual(full.nearbyCanceledDrains);
+  expect(sample.headWritesPerDrain).toBe(full.headWritesPerDrain);
   expect(sample.measurements).toEqual(full.measurements.slice(0, 3));
-});
-
-test("solo writes use only the personal scope of ten working agents", async () => {
-  const report = await runPopulation({ people: 1, devices: 1, seed: 42 });
-  expect(report.workingAgents).toBe(10);
-  expect(report.teams).toBe(0);
-  expect(report.headWrites).toBe(report.saves);
-  expect(report.measurements[0]).toMatchObject({
-    team: null,
-    teamEvents: 0,
-    events: report.saves,
-    rows: 10,
-  });
-});
-
-test("batched drains cancel overlapping same-scope jobs", async () => {
-  const report = await runPopulation({ people: 10, devices: 10, seed: 42 });
-  expect(report.drainTransactions).toBeLessThan(report.headWrites);
-  expect(report.modeledRetries).toBeGreaterThan(0);
 });

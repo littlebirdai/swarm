@@ -25,7 +25,7 @@ export function populationReplica(backend: SimBackend, person: Person) {
   const encoder = new TextEncoder();
   const totals = {
     person: person.id,
-    team: person.team,
+    eventsByEntity: {} as Record<string, number>,
     events: 0,
     teamEvents: 0,
     bytes: 0,
@@ -46,6 +46,10 @@ export function populationReplica(backend: SimBackend, person: Person) {
       if (name === "syncLog:getRange") {
         totals.rangeBytes += bytes;
         totals.events += result.actions.length;
+        for (const { entity_type } of result.actions) {
+          totals.eventsByEntity[entity_type] =
+            (totals.eventsByEntity[entity_type] ?? 0) + 1;
+        }
         if (String(args.scope_key).startsWith("team:"))
           totals.teamEvents += result.actions.length;
       }
@@ -64,11 +68,18 @@ export function populationReplica(backend: SimBackend, person: Person) {
         for (const head of heads) await catchUpScope(meter, head, purgedTeams);
       });
     },
-    result(expectedTitles: ReadonlyMap<string, string>) {
-      const tasks = Object.values(window.store.getState().tasks);
+    result(
+      expectedTitles: ReadonlyMap<string, string>,
+      expectedDocTitles: ReadonlyMap<string, string>,
+    ) {
+      const { tasks: taskRows, docs } = window.store.getState();
+      const tasks = Object.values(taskRows);
       return {
         ...totals,
         rows: tasks.length,
+        staleDocTitles: [...expectedDocTitles].filter(
+          ([id, title]) => docs[id]?.title !== title,
+        ).length,
         staleTaskTitles: tasks.filter(
           ({ _id, title }) => expectedTitles.get(String(_id)) !== title,
         ).length,
