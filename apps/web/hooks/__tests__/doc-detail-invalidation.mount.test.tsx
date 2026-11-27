@@ -9,7 +9,7 @@ import { _reopenForTests, db } from "../../store/persistence/db";
 import { writeOwnerStamp } from "../../store/persistence/ownership";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { pending } from "../../test-helpers/testConvex";
-import { performUndo } from "../../store/undoStack";
+import { performUndo, withoutUndo } from "../../store/undoStack";
 import { afterEach, expect, jest, mock, spyOn, test } from "bun:test";
 import {
   MAX_OUTBOX_BOOT_ATTEMPTS,
@@ -678,91 +678,105 @@ test.each([false, true])(
   },
 );
 
-test.each(["give up", "age out", "unwired"] as const)(
-  "a dropped archive refreshes the open body (%s)",
-  async (mode) => {
-    process.env[flag] = "1";
-    const ui = await mountWeb(<Body />, {
-      authenticated: true,
-      setup(backend) {
-        backend.set(api.taskMining.webGetDocDetail, row);
-      },
-      expectedConsoleErrors:
-        mode === "give up"
-          ? [
-              /dispatch failed after retries: archiveDoc/,
-              /dispatch failed after retries: archiveDoc/,
-            ]
-          : mode === "age out"
-            ? [/dropping .* parked "archiveDoc"/]
+test.each([
+  "give up",
+  "age out",
+  "unwired",
+  "live refusal",
+  "replay refusal",
+  "no reader",
+] as const)("a dropped archive refreshes the open body (%s)", async (mode) => {
+  process.env[flag] = "1";
+  const refusal = mode === "live refusal" || mode === "replay refusal";
+  const unwired = mode === "unwired" || mode === "no reader";
+  const ui = await mountWeb(mode === "no reader" ? null : <Body />, {
+    authenticated: true,
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+    },
+    expectedConsoleErrors:
+      mode === "give up"
+        ? [
+            /dispatch failed after retries: archiveDoc/,
+            /dispatch failed after retries: archiveDoc/,
+          ]
+        : mode === "age out"
+          ? [/dropping .* parked "archiveDoc"/]
+          : refusal
+            ? [/dispatch failed after retries: archiveDoc/]
             : [],
-    });
-    const state = ui.store.getState();
-    const queue = new Map<string, OutboxEntry>();
-    const store = state as typeof state & {
-      _setOutbox: (
-        enqueue: ((entry: OutboxEntry) => void) | null,
-        remove: ((id: string) => void) | null,
-        load: (() => Promise<OutboxEntry[]>) | null,
-      ) => void;
-    };
-    const retired = Promise.withResolvers<void>();
-    const send = makeDispatchBinding(async () => {
-      throw new Error("connection down");
-    });
-    try {
-      setDetailInvalidationReporter(undefined, async () => row);
-      store._setDispatch(null);
-      if (mode === "unwired") store._setOutbox(null, null, null);
-      else {
-        store._setOutbox(
-          (entry) => {
-            queue.set(
-              entry.id,
-              mode === "age out"
-                ? {
-                    ...entry,
-                    queuedAt: undefined,
-                    ts: Date.now() - OUTBOX_MAX_REPLAY_AGE_MS - 1,
-                  }
-                : { ...entry, attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1 },
-            );
-          },
-          (id) => {
-            queue.delete(id);
-            retired.resolve();
-          },
-          async () => [...queue.values()],
-        );
-      }
-      store._setDispatchError(applyDispatchFailure);
-      await act(async () => {
-        state.syncRecord("docs", id, row);
-        void state.archiveDoc(id);
-        expect(ui.store.getState().docDetails[id]).toBeUndefined();
-      });
-      if (mode !== "unwired") {
-        expect(ui.container.textContent).toBe("No body");
-        jest.useFakeTimers();
-        await act(async () => {
-          store._setDispatch(send);
-        });
-        if (mode === "give up")
-          for (const delay of [1000, 2000, 4000])
-            await act(async () => {
-              jest.advanceTimersByTime(delay);
-            });
-        await act(async () => retired.promise);
-      }
-      await act(async () => flushSyncPublishes());
-      if (mode === "give up")
-        expect(ui.store.getState().docs[id]).toBeDefined();
-      expect(ui.container.textContent).toBe(row.content);
-    } finally {
-      jest.useRealTimers();
-      store._setDispatch(null);
-      store._setDispatchError(() => {});
-      store._setOutbox(null, null, null);
+  });
+  const state = ui.store.getState();
+  const queue = new Map<string, OutboxEntry>();
+  const store = state as typeof state & {
+    _setOutbox: (
+      enqueue: ((entry: OutboxEntry) => void) | null,
+      remove: ((id: string) => void) | null,
+      load: (() => Promise<OutboxEntry[]>) | null,
+    ) => void;
+  };
+  const retired = Promise.withResolvers<void>();
+  const send = makeDispatchBinding(async () => {
+    throw new Error(
+      refusal ? "Uncaught Error: Not authorized" : "connection down",
+    );
+  });
+  try {
+    setDetailInvalidationReporter(undefined, async () => row);
+    store._setDispatch(null);
+    if (unwired) store._setOutbox(null, null, null);
+    else {
+      store._setOutbox(
+        (entry) => {
+          queue.set(
+            entry.id,
+            mode === "age out"
+              ? {
+                  ...entry,
+                  queuedAt: undefined,
+                  ts: Date.now() - OUTBOX_MAX_REPLAY_AGE_MS - 1,
+                }
+              : { ...entry, attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1 },
+          );
+        },
+        (id) => {
+          queue.delete(id);
+          retired.resolve();
+        },
+        async () => [...queue.values()],
+      );
     }
-  },
-);
+    store._setDispatchError(applyDispatchFailure);
+    if (mode === "live refusal") store._setDispatch(send);
+    await act(async () => {
+      state.syncRecord("docs", id, row);
+      withoutUndo(() => {
+        void state.archiveDoc(id);
+      });
+      expect(ui.store.getState().docDetails[id]).toBeUndefined();
+    });
+    if (!unwired && mode !== "live refusal") {
+      expect(ui.container.textContent).toBe("No body");
+      jest.useFakeTimers();
+      await act(async () => {
+        store._setDispatch(send);
+      });
+      if (mode === "give up")
+        for (const delay of [1000, 2000, 4000])
+          await act(async () => {
+            jest.advanceTimersByTime(delay);
+          });
+    }
+    if (!unwired) await act(async () => retired.promise);
+    await act(async () => flushSyncPublishes());
+    expect(ui.store.getState().docs[id]?.title).toBe(row.title);
+    expect(ui.store.getState().pending[`docs:${id}`]).toBeUndefined();
+    if (mode === "no reader") expect(canHydrateDetail(id)).toBe(true);
+    else expect(ui.container.textContent).toBe(row.content);
+  } finally {
+    jest.useRealTimers();
+    store._setDispatch(null);
+    store._setDispatchError(() => {});
+    store._setOutbox(null, null, null);
+  }
+});

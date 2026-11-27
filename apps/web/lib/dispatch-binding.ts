@@ -3,15 +3,15 @@ import {
   cacheEvictionEnabled,
   timedDocCapsEnabled,
 } from "../store/cache-eviction";
-import { persistDetailInvalidation } from "../store/doc-detail-authority";
+import { removeVerifiedArchivedBody } from "./archive-detail-fallback";
 import {
   detailAccountIsCurrent,
   detailReadIsCurrent,
   detailReadPosition,
   fetchFreshDocDetail,
-  hasFreshDocDetailReader,
   invalidateDetailReads,
   reportDetailInvalidation,
+  revalidateDroppedDocArchive,
 } from "../store/doc-detail-cache";
 // The store's server dispatch binding and its failure handler, outside React.
 //
@@ -110,6 +110,12 @@ export function makeDispatchBinding(
       action === "restoreArchivedDoc" && docId && timedDocCapsEnabled()
         ? useInboxStore.getState().pending[`docs:${docId}`]
         : undefined;
+    const detailOwner = detailWrite
+      ? (meta?.outbox?.accountId ?? outboxAccountId())
+      : null;
+    const dispatchedAt = detailWrite
+      ? (meta?.outbox?.queuedAt ?? Date.now())
+      : 0;
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
@@ -135,13 +141,24 @@ export function makeDispatchBinding(
           useInboxStore
             .getState()
             .settleCollabCommand(action, args, res, lockIds);
-        if (detailWrite && detailAccountIsCurrent(detailWrite) && docId) {
+        if (
+          detailWrite &&
+          detailAccountIsCurrent(detailWrite) &&
+          detailOwner === outboxAccountId() &&
+          docId
+        ) {
           const id = docId;
           if (action === "archiveDoc") {
-            const ids = [id];
-            if (!reportDetailInvalidation({ ids, cause: "archive" }))
-              return persistDetailInvalidation(ids, () =>
-                detailAccountIsCurrent(detailWrite),
+            if (
+              detailReadIsCurrent(id, detailWrite) &&
+              !reportDetailInvalidation({ ids: [id], cause: "archive" }) &&
+              detailOwner
+            )
+              return removeVerifiedArchivedBody(
+                id,
+                detailOwner,
+                dispatchedAt,
+                detailWrite,
               )
                 .catch(() => {})
                 .then(() => res);
@@ -177,10 +194,9 @@ export function makeDispatchBinding(
           detailAccountIsCurrent(detailWrite) &&
           docId &&
           timedDocCapsEnabled() &&
-          isPermanentDispatchError(err) &&
-          hasFreshDocDetailReader()
+          isPermanentDispatchError(err)
         )
-          invalidateDetailReads([docId]);
+          revalidateDroppedDocArchive(docId);
         throw err;
       },
     );

@@ -1,3 +1,4 @@
+import { cacheEvictionEnabled } from "./cache-eviction";
 import { revalidateDroppedDocArchive } from "./doc-detail-cache";
 import { captureException } from "./pendingInputError";
 import { outboxAccountId, persistPendingMessageChanges } from "./idb-cache";
@@ -627,21 +628,16 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
+  rollbackDroppedOutboxEntry: (entry) =>
+    entry.action === "archiveDoc" && cacheEvictionEnabled(),
   onDroppedOutboxEntry(entry, pending) {
     const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
-    if (entry.action !== "archiveDoc" || typeof id !== "string") return;
-    const key = `docs:${id}`;
-    const current = pending?.[key];
     if (
-      current?.type === "exclude" &&
-      current.lock !== undefined &&
-      !entry.locks?.some(
-        ({ key: lockedKey, lock }) =>
-          lockedKey === key && lock === current.lock,
-      )
+      entry.action === "archiveDoc" &&
+      typeof id === "string" &&
+      pending?.[`docs:${id}`]?.type !== "exclude"
     )
-      return;
-    revalidateDroppedDocArchive(id);
+      revalidateDroppedDocArchive(id);
   },
   outboxCoalesceKeys: OUTBOX_COALESCE_KEYS,
   transformReplayPatches: stripStalePointerFromReplay,

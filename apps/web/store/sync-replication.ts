@@ -104,6 +104,13 @@ export function stopSyncReplication(): void {
   running?.stop();
 }
 
+export function canWriteSharedDocDetails(principalId: string): boolean {
+  if (useInboxStore.getState().syncRole !== "host") return false;
+  if (!transportAvailable()) return true;
+  const status = running?.status();
+  return status?.holdsLock === true && status.principalId === principalId;
+}
+
 const SYNCLOG_META_PREFIX = syncLogScopeMetaKey("");
 
 // A follower's mut: its action's writes as the host should apply them. A

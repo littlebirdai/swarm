@@ -471,6 +471,7 @@ export type PlatformConfig = {
   // Repeated writes that rewrite the same logical value each time. Only
   // register actions whose args carry the COMPLETE new value for the key.
   outboxAccountId?: () => string | null;
+  rollbackDroppedOutboxEntry?: (entry: OutboxEntry) => boolean;
   onDroppedOutboxEntry?: (
     entry: OutboxEntry,
     pending: Readonly<Record<string, PendingEntry | undefined>>,

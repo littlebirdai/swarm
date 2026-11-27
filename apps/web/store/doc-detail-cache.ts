@@ -15,7 +15,11 @@ type CrawlReporter = (
   position: Position,
 ) => Promise<void>;
 
-function freshDetailCache(account = 0, listeners = new Set<() => void>()) {
+function freshDetailCache(
+  account = 0,
+  listeners = new Set<() => void>(),
+  readers = new Map<string, number>(),
+) {
   return {
     account,
     revision: 0,
@@ -27,6 +31,7 @@ function freshDetailCache(account = 0, listeners = new Set<() => void>()) {
       { barrier: number; promise: Promise<CachedResult> }
     >(),
     listeners,
+    readers,
     readFresh: undefined as ((id: string) => Promise<CachedResult>) | undefined,
     report: undefined as Reporter | undefined,
     reportCrawl: undefined as CrawlReporter | undefined,
@@ -108,6 +113,7 @@ export function resetDetailInvalidations(): void {
   detailCache = freshDetailCache(
     detailCache.account + 1,
     detailCache.listeners,
+    detailCache.readers,
   );
 }
 
@@ -132,8 +138,29 @@ export function hasFreshDocDetailReader(): boolean {
 }
 
 export function revalidateDroppedDocArchive(id: string): void {
-  if (cacheEvictionEnabled() && detailCache.readFresh)
+  if (
+    cacheEvictionEnabled() &&
+    detailCache.readFresh &&
+    detailCache.readers.has(id)
+  )
     invalidateDetailReads([id]);
+}
+
+export function retainDocDetailReader(id: string): () => void {
+  const readers = detailCache.readers;
+  readers.set(id, (readers.get(id) ?? 0) + 1);
+  return () => {
+    const count = readers.get(id) ?? 0;
+    if (count > 1) readers.set(id, count - 1);
+    else readers.delete(id);
+  };
+}
+
+export function readDocDetailForInvalidation(
+  id: string,
+  fallback: () => Promise<CachedResult>,
+): Promise<CachedResult> {
+  return detailCache.readFresh?.(id) ?? fallback();
 }
 
 export function fetchFreshDocDetail(id: string): Promise<CachedResult> {
@@ -174,6 +201,7 @@ export function __detailCacheSimSlots() {
     confirmed: new Map(cache.confirmed),
     reads: new Map(cache.reads),
     listeners: new Set(cache.listeners),
+    readers: new Map(cache.readers),
   });
   return {
     get: () => ({ detailCache: copy(detailCache) }),

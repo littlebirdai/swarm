@@ -1,11 +1,13 @@
 import { useInboxStore } from "./inboxStore";
 import { withCacheEvictions } from "./cache-eviction";
 import {
+  detailAccountIsCurrent,
   detailInvalidationRevision,
   detailReadIsCurrent,
   detailReadPosition,
   invalidateDetailReads,
   reportDetailInvalidation,
+  setDetailInvalidationReporter,
   type DetailInvalidation,
 } from "./doc-detail-cache";
 import {
@@ -158,4 +160,28 @@ export async function verifyDetailInvalidation(
     }),
   );
   return current() ? confirmed.filter((id): id is string => id !== null) : [];
+}
+
+export function startLocalDocAuthority(
+  authority: DetailAuthorityReader,
+): () => void {
+  const account = detailReadPosition();
+  let active = true;
+  const current = () => active && detailAccountIsCurrent(account);
+  setDetailInvalidationReporter(
+    (evidence) => {
+      if (!current()) return false;
+      if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
+      void verifyDetailInvalidation(authority, evidence, current)
+        .then((ids) => persistDetailInvalidation(ids, current))
+        .catch(() => {});
+      return true;
+    },
+    authority.detail,
+    collectCompleteDocCrawlAbsences,
+  );
+  return () => {
+    active = false;
+    setDetailInvalidationReporter();
+  };
 }

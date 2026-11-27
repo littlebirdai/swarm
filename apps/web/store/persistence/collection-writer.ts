@@ -209,14 +209,28 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
 export async function deleteInvalidatedDocDetails(
   ids: readonly string[],
   current: (id: string) => boolean,
+  archive?: { accountId: string; dispatchedAt: number },
 ): Promise<string[]> {
   if (!persistenceOwned()) return [];
   const table = COLLECTION_TABLES.docDetails;
   const shadow = lastPersisted.get("docDetails");
   const previous = new Map(ids.map((id) => [id, shadow?.get(id)]));
-  const deleted = await db.transaction("rw", table, async () => {
+  const tables = archive ? [table, db.dispatchOutbox] : [table];
+  const deleted = await db.transaction("rw", tables, async () => {
+    const restores = new Set<string>();
+    if (archive) {
+      for (const entry of await db.dispatchOutbox.toArray()) {
+        if (
+          entry.action === "restoreArchivedDoc" &&
+          (!entry.accountId || entry.accountId === archive.accountId) &&
+          entry.ts >= archive.dispatchedAt &&
+          typeof entry.args?.[0] === "string"
+        )
+          restores.add(entry.args[0]);
+      }
+    }
     if (!persistenceOwned()) return [];
-    const confirmed = ids.filter(current);
+    const confirmed = ids.filter((id) => !restores.has(id) && current(id));
     if (confirmed.length) await table.bulkDelete(confirmed);
     return confirmed;
   });

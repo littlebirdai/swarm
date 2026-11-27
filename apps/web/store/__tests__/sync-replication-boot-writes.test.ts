@@ -1,6 +1,10 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
+<<<<<<< HEAD
 import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
+=======
+import { registerArchiveFallbackCases } from "./fixtures/archive-fallback-cases";
+>>>>>>> 486d12855 (fix: verify archive cache deletion and rollback)
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import {
   afterAll,
@@ -728,48 +732,7 @@ registerTimedDocReplicationCases({
   readMutations: () => mutations,
 });
 
-test("archive replay removes the cached body before retiring the outbox entry", async () => {
-  const before = process.env.VITE_CACHE_EVICTION_METADATA;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  const { makeDispatchBinding } = await import("../../lib/dispatch-binding");
-  const { resetDetailInvalidations } = await import("../doc-detail-cache");
-  const { loadCache } = await import("../persistence/boot-loader");
-  const id = sessionId(43);
-  const detail = { _id: id, content: "Archived body", updated_at: Date.now() };
-  resetDetailInvalidations();
-  try {
-    await COLLECTION_TABLES.docDetails.put(detail);
-    await db.dispatchOutbox.put({
-      id: "archive-replay",
-      accountId: TEST_PRINCIPAL,
-      action: "archiveDoc",
-      args: [id],
-      patches: undefined,
-      result: null,
-      ts: Date.now(),
-    });
-    await bootCache();
-    const store = state() as ReturnType<typeof state> & {
-      _hasBootOutboxDrained: () => boolean;
-    };
-    store._setDispatch(
-      makeDispatchBinding(async ({ action, args }) => {
-        expect(action).toBe("archiveDoc");
-        expect(args).toEqual([id]);
-        return null;
-      }),
-    );
-    await waitFor(store._hasBootOutboxDrained);
-    expect(await db.dispatchOutbox.count()).toBe(0);
-    expect(await COLLECTION_TABLES.docDetails.get(id)).toBeUndefined();
-    expect((await loadCache(["docDetails"]))?.docDetails?.[id]).toBeUndefined();
-  } finally {
-    state()._setDispatch(null);
-    resetDetailInvalidations();
-    if (before === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = before;
-  }
-});
+await registerArchiveFallbackCases({ bootCache, waitFor });
 
 test("deferred hydration does not restore the body of an archive in flight", async () => {
   const before = process.env.VITE_CACHE_EVICTION_METADATA;
