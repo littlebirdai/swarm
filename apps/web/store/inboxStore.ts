@@ -7856,9 +7856,8 @@ function dropGuestKnock(draft: any, guestId: string): void {
     draft.roomKnocks = knocks.filter((k) => k.guest_id !== guestId);
 }
 
-// RegisteredCollectionSlots: every collection in CLIENT_SYNC_REGISTRY gets a
-// typed `Record<string, any>` slot here by registration alone; the explicit
-// fields below narrow the ones with a real row type.
+type SteerComposerStore = ReturnType<typeof createSteerComposerSlice>;
+
 export interface InboxStoreState
   extends
     ChatSliceState,
@@ -7873,18 +7872,14 @@ export interface InboxStoreState
     OpsSliceActions,
     ReturnType<typeof createReadingAnchorsSlice>,
     FencedPromptAnswerActions,
-    ReturnType<typeof createSteerComposerSlice>,
+    SteerComposerStore,
     LiveArtifactsSliceActions,
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
     ComposeSliceState,
     Omit<
       RegisteredCollectionSlots,
-      | keyof ChatSliceState
-      | keyof OrgSliceState
-      | "fencedSteerClaims"
-      | "collabAccess"
-      | "collabRequests"
+      keyof (ChatSliceState & OrgSliceState & SteerComposerStore)
     > {
   sessions: Record<string, InboxSession>;
   pending: Record<string, PendingEntry>;

@@ -1,11 +1,18 @@
-import "../../store/__tests__/fixtures/signedInPrincipal";
+import { installSignedInPrincipal } from "../../store/__tests__/fixtures/signedInPrincipal";
+import {
+  AUTH_JWT_STORAGE_KEY,
+  issueFakeToken,
+} from "../../store/__tests__/fixtures/fakeAuthToken";
 import { expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
+import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { _reopenForTests } from "../../store/idb-cache";
 import { db } from "../../store/persistence/db";
-import { writePatchesToIDB } from "../../store/persistence/collection-writer";
+import { setHydrating } from "../../store/persistence/hydration";
+import { COMPOSER_RETRY_PREFIX } from "../../store/persistence/composer-retry-journal";
+import { replicationPersistence } from "../../store/storage-transport";
 import type { OutboxEntry } from "@platform/engine";
 import { CollabRequestBanner } from "../collab-composer";
 import {
@@ -14,10 +21,7 @@ import {
 } from "../../hooks/use-live-composer-control";
 import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
-import {
-  composerRetryDraftKey,
-  type SteerClaimState,
-} from "../../store/steer-composer-state";
+import { type SteerClaimState } from "../../store/steer-composer-state";
 import {
   button,
   collaborator,
@@ -28,10 +32,22 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { mountWeb } from "../../test-helpers/mountWeb";
 
 const mount = createComposerMount(mountWeb);
+const signedInViewer = "b".repeat(32) as Id<"users">;
+installSignedInPrincipal(signedInViewer);
+const principalStorage = localStorage;
+await _reopenForTests({ indexedDB, IDBKeyRange });
+
+async function settleRecoveryWrites() {
+  await act(async () => {
+    await db.meta.count();
+    await db.meta.count();
+  });
+}
+
 let nextId = 0;
 function claimState(): SteerClaimState {
   const _id = (++nextId).toString().padStart(32, "a") as Id<"conversations">;
-  const viewer = "b".repeat(32) as Id<"users">;
+  const viewer = signedInViewer;
   return {
     _id,
     viewer,
@@ -59,6 +75,13 @@ function Composer({
   row: SteerClaimState;
   enabled?: boolean;
 }) {
+  useLayoutEffect(
+    () =>
+      replaceGlobals({
+        dispatchEvent: window.dispatchEvent.bind(window),
+      }),
+    [],
+  );
   const control = useLiveComposerControl(
     enabled ? row._id : undefined,
     row.viewer,
@@ -90,7 +113,13 @@ async function show(
     },
   });
   await act(async () => flushSyncPublishes());
-  return ui;
+  return {
+    ...ui,
+    async press(...args: Parameters<typeof ui.press>) {
+      await ui.press(...args);
+      await settleRecoveryWrites();
+    },
+  };
 }
 
 async function publishClaim(
@@ -389,70 +418,135 @@ test("the collaborator only interrupts on plain Escape with an empty draft", asy
   ).toHaveLength(1);
 });
 
-test("a reloaded composer restores a send in doubt with the original command", async () => {
+function persistedRetries(row: SteerClaimState) {
+  return db.meta
+    .where("key")
+    .startsWith(`${COMPOSER_RETRY_PREFIX}${row.viewer}:${row._id}:`)
+    .toArray();
+}
+
+test("a follower reload recovers the committed command, and acceptance deletes it from IndexedDB", async () => {
   const row = claimState();
   const ui = await show(row);
-  type State = ReturnType<typeof useInboxStore.getState>;
-  const store = useInboxStore.getState() as State & {
-    _setIDBWrite: (write: typeof writePatchesToIDB) => void;
-  };
-  const restoreDispatch = replaceGlobals({
-    dispatchEvent: window.dispatchEvent.bind(window),
-  });
-  const saved = await (async () => {
-    try {
-      await _reopenForTests({ indexedDB, IDBKeyRange });
-      await db.meta.delete("drafts");
-      store._setIDBWrite(writePatchesToIDB);
-      const reply = Promise.withResolvers<{ status: string }>();
-      const beforeDispatch = Promise.withResolvers<
-        State["drafts"] | undefined
-      >();
-      ui.backend.mutation(api.dispatch.dispatch, async ({ action }) => {
-        if (action !== "controlSteerComposer") return {};
-        const drafts = await db.meta.get("drafts");
-        beforeDispatch.resolve(drafts?.value);
-        return reply.promise;
-      });
-      await ui.type("Keep this across reload");
-      await ui.press("Enter");
-      const drafts = await beforeDispatch.promise;
-      const original = ui.backend.mutations.find(
-        ({ args }) =>
-          !!args &&
-          typeof args === "object" &&
-          "action" in args &&
-          args.action === "controlSteerComposer",
-      )?.args;
-      expect(original).toBeDefined();
-      expect(drafts![composerRetryDraftKey(row._id)]?.retries).toHaveLength(1);
-      expect(ui.box().value).toBe("");
-      return { drafts: drafts!, original };
-    } finally {
-      restoreDispatch();
+  const store = useInboxStore.getState();
+  const follower = replicationPersistence(useInboxStore.getState);
+  (
+    store as typeof store & {
+      _setIDBWrite: (write: typeof follower.followerWrite) => void;
     }
-  })();
+  )._setIDBWrite(follower.followerWrite);
+  const reply = Promise.withResolvers<{ status: string }>();
+  const beforeDispatch =
+    Promise.withResolvers<Awaited<ReturnType<typeof persistedRetries>>>();
+  ui.backend.mutation(api.dispatch.dispatch, async ({ action }) => {
+    if (action !== "controlSteerComposer") return {};
+    beforeDispatch.resolve(await persistedRetries(row));
+    return reply.promise;
+  });
+  await ui.type("Keep this across reload");
+  await ui.press("Enter");
+  const saved = await beforeDispatch.promise;
+  const original = ui.backend.mutations.at(-1)?.args;
+  expect(original).toBeDefined();
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.value).toMatchObject({
+    payload: { text: "Keep this across reload" },
+  });
+  expect(ui.box().value).toBe("");
   await ui.close();
 
-  const reloaded = await mount(<Composer row={row} />, {
-    setup(backend) {
-      useInboxStore.setState({ drafts: saved.drafts });
-      backend.set(api.permissions.listAnswerablePromptAddresses, []);
-      backend.set(api.collab.steerClaimState, row);
-      backend.mutation(api.dispatch.dispatch, { status: "acknowledged" });
-    },
-  });
-  await act(async () => flushSyncPublishes());
+  const reloaded = await show(row);
+  await settleRecoveryWrites();
   const retry = reloaded.container.querySelector(
     '[aria-label="Draft to retry"]',
-  )!;
-  expect(retry.textContent).toContain("Keep this across reload");
+  );
+  expect(retry?.textContent).toContain("Keep this across reload");
   expect(reloaded.backend.mutations).toHaveLength(0);
   await act(async () => button(reloaded.container, "Retry").click());
-  expect(reloaded.backend.mutations.at(-1)?.args).toEqual(saved.original);
+  await settleRecoveryWrites();
+  expect(reloaded.backend.mutations.at(-1)?.args).toEqual(original);
+  expect(await persistedRetries(row)).toEqual([]);
   expect(
-    useInboxStore.getState().drafts[composerRetryDraftKey(row._id)],
-  ).toBeUndefined();
+    reloaded.container.querySelector('[aria-label="Draft to retry"]'),
+  ).toBeNull();
+});
+
+test.each([
+  { owner: true, hydrating: true },
+  { owner: false, hydrating: true },
+  { owner: true, hydrating: false },
+])(
+  "the editor keeps its draft without writable storage (%j)",
+  async ({ owner, hydrating }) => {
+    const row = { ...claimState(), owner };
+    const ui = await show(row);
+    setHydrating(hydrating);
+    if (!hydrating)
+      principalStorage.setItem(
+        AUTH_JWT_STORAGE_KEY,
+        issueFakeToken("different-account"),
+      );
+    try {
+      await ui.type("Still in the editor");
+      await ui.press("Enter");
+      expect(ui.box().value).toBe("Still in the editor");
+      expect(
+        ui.backend.mutations.some(
+          ({ args }) =>
+            (args as { action?: string } | undefined)?.action ===
+            "controlSteerComposer",
+        ),
+      ).toBe(false);
+      expect(await persistedRetries(row)).toEqual([]);
+    } finally {
+      setHydrating(false);
+      principalStorage.setItem(
+        AUTH_JWT_STORAGE_KEY,
+        issueFakeToken(signedInViewer),
+      );
+    }
+  },
+);
+
+test("a redacted recovery retries the same client id and turn address", async () => {
+  const row = { ...claimState(), owner: false };
+  const ui = await show(row);
+  const credentials = `ghp_${"a".repeat(36)}`;
+  const reply = Promise.withResolvers<{ status: string }>();
+  ui.backend.mutation(api.dispatch.dispatch, ({ action }) =>
+    action === "controlSteerComposer" ? reply.promise : {},
+  );
+  await ui.type(`Use ${credentials}`);
+  await ui.press("Enter");
+  const original = ui.backend.mutations.find(
+    ({ args }) =>
+      (args as { action?: string } | undefined)?.action ===
+      "controlSteerComposer",
+  )?.args as { args: [string, { clientId: string; observed: unknown }] };
+  expect(original.args[1].clientId).toBeTruthy();
+  expect((await persistedRetries(row))[0]?.value.command).toMatchObject({
+    clientId: original.args[1].clientId,
+    text: "Use [redacted:github-token]",
+  });
+  expect(JSON.stringify(await persistedRetries(row))).not.toContain(
+    credentials,
+  );
+  await ui.close();
+  const reloaded = await show(row);
+  await settleRecoveryWrites();
+  await act(async () => button(reloaded.container, "Retry").click());
+  await settleRecoveryWrites();
+  expect(reloaded.backend.mutations.at(-1)?.args).toMatchObject({
+    action: "controlSteerComposer",
+    args: [
+      row._id,
+      {
+        clientId: original.args[1].clientId,
+        observed: original.args[1].observed,
+        text: "Use [redacted:github-token]",
+      },
+    ],
+  });
 });
 
 test.each(["retry", "dismiss"] as const)(
@@ -499,6 +593,7 @@ test.each(["retry", "dismiss"] as const)(
     expect(sends).toHaveLength(4);
     const initial = sends[0];
     expect(ui.container.textContent).toContain("Delivery in doubt");
+    await settleRecoveryWrites();
     expect(parkedSteers()).toEqual([]);
     online = true;
     await act(async () =>
@@ -507,6 +602,7 @@ test.each(["retry", "dismiss"] as const)(
         resolution === "retry" ? "Retry" : "Dismiss",
       ).click(),
     );
+    await settleRecoveryWrites();
     expect(
       ui.container.querySelector('[aria-label="Draft to retry"]'),
     ).toBeNull();
@@ -516,6 +612,7 @@ test.each(["retry", "dismiss"] as const)(
     } else {
       expect(sends).toHaveLength(4);
     }
+    expect(await persistedRetries(row)).toEqual([]);
     expect(parkedSteers()).toEqual([]);
   },
 );

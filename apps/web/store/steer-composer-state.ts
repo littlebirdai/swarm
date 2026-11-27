@@ -1,5 +1,4 @@
 import { asyncAction, sync } from "./mutativeMiddleware";
-import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import type { InboxStoreState } from "./inboxStore";
 import type { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
@@ -58,12 +57,11 @@ export type ComposerObservation = { key: string };
 export type ComposerRetry = {
   id: string;
   payload: ComposerPayload;
-  command?: ComposerControlCommand;
+  command?: Extract<
+    ComposerControlCommand,
+    { kind: "send" | "queue" | "suggest" }
+  >;
 };
-export function composerRetryDraftKey(conversationId: string) {
-  return `steer-retry:${conversationId}`;
-}
-
 export type ComposerOutcome = {
   observation: ComposerObservation;
   completed: ReadonlySet<ComposerControlCommandKey>;
@@ -84,14 +82,9 @@ type State = {
   collabRequests: Record<string, CollabRequest>;
   composerOperations: Record<string, ComposerOperation>;
 };
-type Draft = State & Pick<InboxStoreState, "pending" | "drafts">;
+type Draft = State & Pick<InboxStoreState, "pending">;
 type SteerComposerSlice = State & {
   updateComposerOperation: (id: string, value: ComposerOperation) => void;
-  updateComposerRetry: (
-    conversation: string,
-    id: string,
-    retry?: ComposerRetry,
-  ) => void;
   changeCollabGrant: (command: CollabGrantCommand) => Promise<unknown>;
   controlSteerComposer: (
     convId: string,
@@ -121,18 +114,6 @@ export function canStopSteerCommand(row: SteerClaimState, expected: SteerTurn) {
   );
 }
 
-function safeRetry(retry: ComposerRetry): ComposerRetry {
-  const { text, typedWords } = retry.payload;
-  const safeText = withoutSecrets(text);
-  const safeTyped =
-    typedWords === undefined ? undefined : withoutSecrets(typedWords);
-  if (safeText === text && safeTyped === typedWords) return retry;
-  return {
-    id: retry.id,
-    payload: { ...retry.payload, text: safeText, typedWords: safeTyped },
-  };
-}
-
 export function createSteerComposerSlice(get: () => Store): SteerComposerSlice {
   return {
     fencedSteerClaims: {},
@@ -145,20 +126,6 @@ export function createSteerComposerSlice(get: () => Store): SteerComposerSlice {
       value: ComposerOperation,
     ) {
       this.composerOperations[id] = value;
-    }),
-    updateComposerRetry: sync(function (
-      this: Draft,
-      conversation: string,
-      id: string,
-      retry?: ComposerRetry,
-    ) {
-      const key = composerRetryDraftKey(conversation);
-      const previous = (this.drafts[key]?.retries ?? []) as ComposerRetry[];
-      if (!retry && !previous.some((row) => row.id === id)) return;
-      const rows = previous.filter((row) => row.id !== id);
-      if (retry) rows.push(safeRetry(retry));
-      if (rows.length) this.drafts[key] = { retries: rows };
-      else delete this.drafts[key];
     }),
     changeCollabGrant: asyncAction(function (
       this: Draft,

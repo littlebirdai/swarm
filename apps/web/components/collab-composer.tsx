@@ -606,10 +606,16 @@ export const CollabComposer = memo(function CollabComposer({
     if (control) {
       const kind = queue && control.canQueue ? "queue" : control.send;
       if (!kind) return;
-      const complete = control.begin(kind, { text: body });
+      const complete = control.begin(kind);
       if (!complete) return;
-      setMessage("");
-      flushDraftWrite(convKey);
+      const sentDraft = draft.current;
+      const clearSubmitted = () => {
+        if (visibleScope.current !== convKey || draft.current !== sentDraft)
+          return;
+        setMessage("");
+        flushDraftWrite(convKey);
+      };
+      if (!control.facts.live) clearSubmitted();
       const accepted = await complete(
         () => ({ text: body }),
         (payload) => {
@@ -619,6 +625,7 @@ export const CollabComposer = memo(function CollabComposer({
           return true;
         },
         { text: body },
+        clearSubmitted,
       );
       if (accepted && together) claimSent(candidates);
       return;

@@ -18789,7 +18789,7 @@
   "apps/web/components/message-input.tsx": {
     "react-hooks/exhaustive-deps": 12,
     "swarm/ime-safe-key-handlers": 16,
-    "swarm/no-comments": 596,
+    "swarm/no-comments": 588,
     "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/messageMarkdown.tsx": {
@@ -28085,7 +28085,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5050
+    "swarm/no-comments": 5047
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4

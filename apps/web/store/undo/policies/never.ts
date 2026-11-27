@@ -113,7 +113,6 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   sendMessage: SEND,
   controlSteerComposer: SEND,
   updateComposerOperation: INTERNAL,
-  updateComposerRetry: DRAFT,
   changeCollabGrant: SEND,
   dispatchChatSend: SEND,
   addComment: SEND,

@@ -1,3 +1,4 @@
+import { COMPOSER_RETRY_PREFIX } from "./composer-retry-journal";
 import { recordCacheEvent } from "../cache-events";
 import { resetCollectionWrites } from "./collection-writer";
 import {
@@ -61,7 +62,10 @@ async function purgeLocalCacheSteps(
     try {
       kept = await db.meta
         .where("key")
-        .startsWith(`${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`)
+        .startsWithAnyOf(
+          `${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`,
+          `${COMPOSER_RETRY_PREFIX}${keepPendingInputFor}:`,
+        )
         .toArray();
     } catch {
       kept = [];
