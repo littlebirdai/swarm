@@ -10,6 +10,11 @@ import {
 } from "@codecast/sessions/agentStatus";
 import { conversationSessionsBeatingSince } from "./lib/sessionHeartbeat";
 import { recordDocuments } from "../test-helpers/document-reads.testkit";
+import {
+  makeSessionStartsDb,
+  sessionStartOf,
+  syncSessionStart,
+} from "./lib/sessionStarts";
 import { api, internal } from "./_generated/api";
 import {
   asUser,
@@ -630,4 +635,98 @@ test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async 
   expect((await read(true)).result.sessions).toMatchObject([
     { id: conversation, is_live: true },
   ]);
+});
+
+test("streamed transcript writes do not invalidate the narrow pending queue", async () => {
+  const t = serverTest(true);
+  const flag = "CODECAST_NARROW_PENDING_QUEUE_READS";
+  const original = process.env[flag];
+  const { owner, sender, guest, unredeemed, conversation_id } = await t.run(
+    async ({ db }) => {
+      const rows = fixtureRows(
+        makeSessionStartsDb(db, db),
+        "pending queue read set",
+      );
+      const owner = await rows.user();
+      const sender = await rows.user();
+      const guest = await rows.user();
+      const unredeemed = await rows.user();
+      const conversation_id = await rows.conversation(owner, {
+        share_token: "original",
+      });
+      await db.insert("share_redemptions", {
+        conversation_id,
+        user_id: guest,
+        token: "original",
+        created_at: now,
+      });
+      await db.insert("pending_messages", {
+        conversation_id,
+        from_user_id: sender,
+        owner_user_id: owner,
+        content: "Queued message",
+        status: "pending",
+        created_at: now,
+        retry_count: 0,
+      });
+      return { owner, sender, guest, unredeemed, conversation_id };
+    },
+  );
+  const read = (viewer = guest) =>
+    asUser(t, viewer).query(api.pendingMessages.getConversationPendingMessage, {
+      conversation_id,
+    });
+  try {
+    delete process.env[flag];
+    const legacy = await recordDocuments(() => read());
+    expect(legacy.reads.has(conversation_id)).toBe(true);
+    process.env[flag] = "1";
+    await t.run(async ({ db }) => {
+      const start = await sessionStartOf(db, conversation_id);
+      await db.patch(start!._id, { queue_access: undefined });
+    });
+    const fallback = await recordDocuments(() => read());
+    expect(fallback.result).toEqual(legacy.result);
+    expect(fallback.reads.has(conversation_id)).toBe(true);
+    expect(await read(unredeemed)).toBeNull();
+    await t.run(({ db }) => syncSessionStart(db, conversation_id));
+
+    const narrow = await recordDocuments(() => read());
+    expect(narrow.result).toEqual(legacy.result);
+    expect(narrow.result?.inflight).toEqual([
+      expect.objectContaining({
+        content: "Queued message",
+        from_user_id: sender,
+      }),
+    ]);
+    expect(narrow.reads.has(conversation_id)).toBe(false);
+    expect(await read(unredeemed)).toBeNull();
+
+    for (let i = 1; i <= 4; i++) {
+      const streamed = await recordDocuments(() =>
+        asUser(t, owner).mutation(api.messages.addMessage, {
+          conversation_id,
+          role: "assistant",
+          content: `Streamed update ${i}`,
+          message_uuid: `stream-${i}`,
+          timestamp: now + i,
+        }),
+      );
+      expect(streamed.writes.has(conversation_id)).toBe(true);
+      expect([...narrow.reads].filter((id) => streamed.writes.has(id))).toEqual(
+        [],
+      );
+    }
+    expect(await read()).toEqual(narrow.result);
+
+    await t.run(({ db }) =>
+      makeSessionStartsDb(db, db).patch(conversation_id, {
+        share_token: "rotated",
+      }),
+    );
+    expect(await read()).toBeNull();
+  } finally {
+    if (original === undefined) delete process.env[flag];
+    else process.env[flag] = original;
+  }
 });

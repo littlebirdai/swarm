@@ -2524,7 +2524,18 @@ export const getConversationPendingMessage = query({
 
     // The owner of this conversation sees the "delivering…" indicator for ANY in-flight message
     // on it (including one a teammate sent them); the sender also sees their own outgoing one.
-    const conversation = await ctx.db.get(args.conversation_id);
+    const start =
+      process.env.CODECAST_NARROW_PENDING_QUEUE_READS === "1"
+        ? await sessionStartOf(ctx.db, args.conversation_id)
+        : null;
+    const conversation = start?.queue_access
+      ? {
+          ...start.queue_access,
+          _id: args.conversation_id,
+          user_id: start.user_id,
+          started_at: start.started_at,
+        }
+      : await ctx.db.get(args.conversation_id);
     const isOwner = conversation?.user_id?.toString() === authUserId.toString();
     const visible = msgs.filter(
       (m) => isOwner || m.from_user_id.toString() === authUserId.toString(),

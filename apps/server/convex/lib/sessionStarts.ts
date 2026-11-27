@@ -27,6 +27,8 @@ const CARD_FIELDS = [
 ] as const;
 const DERIVED_FROM = [
   "user_id",
+  "owner_user_id",
+  "share_token",
   "team_id",
   "is_private",
   "auto_shared",
@@ -76,6 +78,13 @@ export function sessionStartFields(conv: Doc<"conversations">) {
     card: cardOf(conv),
     daemon_delivery: daemonDeliveryStateOf(conv),
     execution_safety_blocked: isConversationSafetyBlocked(conv),
+    queue_access: {
+      is_private: conv.is_private,
+      team_id: conv.team_id,
+      team_visibility: conv.team_visibility,
+      owner_user_id: conv.owner_user_id,
+      share_token: conv.share_token,
+    },
   };
 }
 
@@ -108,7 +117,12 @@ const same = (row: any, next: ReturnType<typeof sessionStartFields>) =>
   row.daemon_delivery?.owner_device_id ===
     next.daemon_delivery.owner_device_id &&
   row.execution_safety_blocked === next.execution_safety_blocked &&
-  sameCard(row.card, next.card);
+  sameCard(row.card, next.card) &&
+  row.queue_access?.is_private === next.queue_access.is_private &&
+  row.queue_access?.team_id === next.queue_access.team_id &&
+  row.queue_access?.team_visibility === next.queue_access.team_visibility &&
+  row.queue_access?.owner_user_id === next.queue_access.owner_user_id &&
+  row.queue_access?.share_token === next.queue_access.share_token;
 
 /** Re-derive one conversation's row from what it is now: write it, rewrite it, or drop it with the conversation. */
 export async function syncSessionStart(

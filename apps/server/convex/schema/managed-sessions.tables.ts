@@ -168,6 +168,15 @@ export const sessionStartTables = {
         blocked: v.boolean(),
       }),
     ),
+    queue_access: v.optional(
+      v.object({
+        is_private: v.boolean(),
+        team_id: v.optional(v.id("teams")),
+        team_visibility: v.optional(v.string()),
+        owner_user_id: v.optional(v.id("users")),
+        share_token: v.optional(v.string()),
+      }),
+    ),
   })
     .index("by_conversation", ["conversation_id"])
     .index("by_visible_team_started", ["visible_team_id", "started_at"])
