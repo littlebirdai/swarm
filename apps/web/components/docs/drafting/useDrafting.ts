@@ -1,3 +1,4 @@
+import { useDeferredCache } from "../../../hooks/use-deferred-cache";
 import { useCallback, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import type { Editor } from "@tiptap/core";
@@ -36,6 +37,7 @@ export type TrimSummary = {
  * written through the store's updateDoc like any other doc field).
  */
 export function useDrafting(docId: string) {
+  useDeferredCache("docDetails", !!docId);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);

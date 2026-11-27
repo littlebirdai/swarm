@@ -1,3 +1,4 @@
+import { denyDeferredDoc, useDeferredCache } from "./use-deferred-cache";
 import { cacheEvictionEnabled } from "../store/cache-eviction";
 import {
   acceptRecoveryFeed,
@@ -381,6 +382,7 @@ function refreshInvalidatedDocDetail(id: string) {
 }
 
 export function useSyncDocDetail(id?: string) {
+  useDeferredCache("docDetails", !!id);
   const enabled = cacheEvictionEnabled();
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
@@ -413,7 +415,10 @@ export function useSyncDocDetail(id?: string) {
               ids: [id],
               cause: detail === null ? "access" : "archive",
             });
-          if (!reported) useInboxStore.getState().dropDocDetail(id);
+          if (!reported) {
+            denyDeferredDoc(id);
+            useInboxStore.getState().dropDocDetail(id);
+          }
         } else if (detail) {
           if (enabled && !canHydrateDetail(id)) refreshInvalidatedDocDetail(id);
           else syncAuthorizedDocDetail(id, detail);

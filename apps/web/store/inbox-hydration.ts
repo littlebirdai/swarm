@@ -1,5 +1,9 @@
 import { desktopWindowKeys } from "./desktop-panel-keys";
 import { followerPersistencePatches } from "./followerPersistence";
+import {
+  deferredCacheReadsEnabled,
+  HYDRATION_EAGER_DEFERRED_KEYS,
+} from "./deferred-cache-policy";
 import { cacheEvictionEnabled } from "./cache-eviction";
 import { canHydrateDetail } from "./doc-detail-cache";
 import type { StoreApi } from "zustand";
@@ -405,9 +409,12 @@ async function hydrateInboxCacheFromIDB(
   }
 
   const scope = heldKeys && new Set<string>(heldKeys);
-  const deferredKeys = scope
-    ? HYDRATION_DEFERRED_KEYS.filter((key) => scope.has(key))
+  const eagerDeferredKeys = deferredCacheReadsEnabled()
+    ? HYDRATION_EAGER_DEFERRED_KEYS
     : HYDRATION_DEFERRED_KEYS;
+  const deferredKeys = scope
+    ? eagerDeferredKeys.filter((key) => scope.has(key))
+    : eagerDeferredKeys;
   const cached = scope
     ? await cacheStorage.loadCache(
         HYDRATION_CRITICAL_READ_KEYS.filter((key) => scope.has(key)),

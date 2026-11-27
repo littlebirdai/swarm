@@ -1,6 +1,11 @@
+import {
+  deferredCacheReadsEnabled,
+  HYDRATION_EAGER_DEFERRED_KEYS,
+} from "../deferred-cache-policy";
 import { authPrincipal } from "../../lib/authPrincipal";
 import {
   COLLECTION_RETENTION,
+  MAX_CACHED_MY_SENDS,
   expireExcludeTombstones,
   partitionSessionRetention,
 } from "../cacheRetention";
@@ -39,6 +44,34 @@ function ensureCacheOwnership(): Promise<string | null> {
   return resolveOwnership(purgeLocalCache);
 }
 
+async function readRetainedMySends() {
+  const table = COLLECTION_TABLES.mySends;
+  const epoch = authPrincipal.epoch();
+  return db.transaction("rw", table, async () => {
+    const count = await table.count();
+    if (
+      count <= MAX_CACHED_MY_SENDS ||
+      count !== (await table.orderBy("timestamp").count())
+    )
+      return table.toArray();
+    const latest = await table
+      .orderBy("timestamp")
+      .reverse()
+      .limit(MAX_CACHED_MY_SENDS)
+      .toArray();
+    const cutoff = latest.at(-1).timestamp;
+    const newer = latest.filter((row) => row.timestamp > cutoff);
+    const tied = await table.where("timestamp").equals(cutoff).toArray();
+    const remaining = MAX_CACHED_MY_SENDS - newer.length;
+    if (epoch === authPrincipal.epoch()) {
+      await table.where("timestamp").below(cutoff).delete();
+      if (remaining < tied.length)
+        await table.bulkDelete(tied.slice(remaining).map((row) => row._id));
+    }
+    return [...newer, ...tied.slice(0, remaining)];
+  });
+}
+
 export async function loadCache(
   keys?: readonly string[],
   context: Record<string, any> = {},
@@ -47,7 +80,8 @@ export async function loadCache(
     const phase =
       keys === HYDRATION_CRITICAL_READ_KEYS
         ? "critical"
-        : keys === HYDRATION_DEFERRED_KEYS
+        : keys === HYDRATION_DEFERRED_KEYS ||
+            keys === HYDRATION_EAGER_DEFERRED_KEYS
           ? "deferred"
           : undefined;
     if (phase === "deferred") setHydrationReadPhase(phase);
@@ -80,6 +114,7 @@ export async function loadCache(
         queuedMessages: queuedMessagesFromPending(pendingMessages),
       };
     }
+    const epoch = authPrincipal.epoch();
     const result: Record<string, any> = {};
     let hasData = false;
 
@@ -92,7 +127,11 @@ export async function loadCache(
     const [collectionResults, metaRows, pending] = await Promise.all([
       Promise.all(
         collectionEntries.map(([key, table]) =>
-          timeBootRead(phase, key, () => table.toArray()),
+          timeBootRead(phase, key, () =>
+            key === "mySends" && deferredCacheReadsEnabled()
+              ? readRetainedMySends()
+              : table.toArray(),
+          ),
         ),
       ),
       timeBootRead(phase, "meta", () =>
@@ -109,6 +148,7 @@ export async function loadCache(
           )
         : undefined,
     ]);
+    if (epoch !== authPrincipal.epoch()) return null;
     if (!retiredMetaSwept) {
       retiredMetaSwept = true;
       void db.meta.bulkDelete(RETIRED_META_KEYS).catch(() => {});

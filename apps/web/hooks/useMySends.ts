@@ -1,3 +1,4 @@
+import { useDeferredCache } from "./use-deferred-cache";
 // What the viewer typed into sessions, newest first: the Messages feed's data.
 //
 // The rows live in `mySends` (store/clientSyncRegistry), persisted, and the
@@ -61,6 +62,7 @@ export function useMySends(): {
   loadingOlder: boolean;
   loadOlder: () => void;
 } {
+  useDeferredCache("mySends");
   const convex = useConvex();
   const authSettled = useServerAuthSettled();
   const coll = useInboxStore((s) => (s as any).mySends) as

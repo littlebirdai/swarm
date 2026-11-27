@@ -228,6 +228,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/idb-collection-diff.ts:snapshotDrops": DISK_LEDGER,
   "store/idb-collection-diff.ts:landedSnapshots": DISK_LEDGER,
   "store/idb-collection-diff.ts:persistedCollections": CONSTANT,
+  "store/deferred-cache-policy.ts:HYDRATION_ON_READ_KEYS": CONSTANT,
   "store/clientSyncRegistry.ts:REPLICATED_COLLECTION_SET": CONSTANT,
   "store/clientSyncRegistry.ts:REPLICATED_TABLE_SET": CONSTANT,
   "store/meetingBotsSlice.ts:MEETING_BOT_FINAL": CONSTANT,
