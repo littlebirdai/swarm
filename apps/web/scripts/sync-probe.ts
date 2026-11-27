@@ -8,6 +8,7 @@ import { catchUp, scopeMetaKey } from "../hooks/use-sync-change-feed";
 import { useInboxStore } from "../store/inboxStore";
 import { flushSyncPublishes } from "../store/syncTransaction";
 import { summarizeSyncProbe, timeSyncProbe } from "./sync-probe-timing";
+import { syncProbeAnalytics } from "./sync-probe-metrics";
 
 async function runLocalProbe(samples: number, timeoutMs: number) {
   const backend = serverTest();
@@ -153,6 +154,8 @@ if (import.meta.main) {
     options: {
       samples: { type: "string", default: "30" },
       "timeout-ms": { type: "string", default: "5000" },
+      "interval-ms": { type: "string" },
+      "publish-metrics": { type: "boolean" },
     },
   });
   const samples = Number(values.samples);
@@ -165,7 +168,39 @@ if (import.meta.main) {
   )
     throw new Error("Use positive integers for --samples and --timeout-ms");
   try {
+    const intervalMs = Number(values["interval-ms"]);
+    if (values["interval-ms"] !== undefined) {
+      if (!Number.isSafeInteger(intervalMs) || intervalMs < 60_000)
+        throw new Error("--interval-ms must be an integer of at least 60000");
+      syncProbeAnalytics(process.env);
+      while (true) {
+        const worker = Bun.spawn(
+          [
+            process.execPath,
+            import.meta.path,
+            "--samples",
+            String(samples),
+            "--timeout-ms",
+            String(timeoutMs),
+            "--publish-metrics",
+          ],
+          { stdout: "inherit", stderr: "inherit" },
+        );
+        if ((await worker.exited) !== 0)
+          console.error("Sync probe batch failed");
+        await delay(intervalMs);
+      }
+    }
+    const metrics = values["publish-metrics"]
+      ? syncProbeAnalytics(process.env)
+      : undefined;
     const result = await runLocalProbe(samples, timeoutMs);
+    if (metrics)
+      await metrics.capturePersonless("sync_save_to_screen", {
+        samples: result.samples,
+        p50_ms: result.durations.total.p50,
+        p95_ms: result.durations.total.p95,
+      });
     console.log(
       JSON.stringify({ mode: "in-process", unit: "ms", ...result }, null, 2),
     );
