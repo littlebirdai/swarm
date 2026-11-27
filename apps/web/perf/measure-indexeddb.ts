@@ -1,8 +1,9 @@
 import type Dexie from "dexie";
 
-export function measureIndexedDB(db: Dexie) {
+export function measureIndexedDB(db: Dexie, countWriteBytes = false) {
   const reads = new Map<string, number>();
   const writes = new Map<string, number>();
+  const writtenBytes = new Map<string, number>();
   const add = (counts: Map<string, number>, table: string, rows: number) =>
     counts.set(table, (counts.get(table) ?? 0) + rows);
 
@@ -59,6 +60,21 @@ export function measureIndexedDB(db: Dexie) {
                     ? request.keys.length
                     : request.values.length;
               add(writes, name, rows);
+              if (countWriteBytes) {
+                const payload =
+                  request.type === "deleteRange"
+                    ? undefined
+                    : request.type === "delete"
+                      ? request.keys
+                      : request.values;
+                const bytes =
+                  payload?.reduce<number>(
+                    (total, value) =>
+                      total + Buffer.byteLength(JSON.stringify(value) ?? ""),
+                    0,
+                  ) ?? Infinity;
+                add(writtenBytes, name, bytes);
+              }
               return table.mutate(request);
             },
           };
@@ -67,5 +83,5 @@ export function measureIndexedDB(db: Dexie) {
     },
   });
 
-  return { reads, writes };
+  return { reads, writes, writtenBytes };
 }

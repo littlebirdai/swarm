@@ -87,7 +87,10 @@ async function measureRetention() {
   }
 }
 
-async function measureWrites(writes: Map<string, number>) {
+async function measureWrites({
+  writes,
+  writtenBytes,
+}: ReturnType<typeof measureIndexedDB>) {
   const convId = id(0);
   const tail = budgetTail();
   const messageRows = db.conversationMessageRows;
@@ -108,7 +111,7 @@ async function measureWrites(writes: Map<string, number>) {
     committed.slice(-2).map((row) => row.message),
     [edited, appended],
   );
-  checkStoreBudget("Streamed batch row writes", sumRows(writes));
+  checkStoreBudget("Streamed batch row writes", sum(writes));
 
   const { sessions, conversations } = COLLECTION_TABLES;
   const cachedSessions = Array.from({ length: 500 }, (_, index) =>
@@ -126,9 +129,23 @@ async function measureWrites(writes: Map<string, number>) {
   state().syncTable("conversations", Object.values(cached.conversations), {
     isDelta: false,
   });
+  const pending = Object.fromEntries(
+    Array.from({ length: 400 }, (_, index) => [
+      `sessions:${id(index + 1)}:title`,
+      { type: "field" as const, value: `Queued rename ${index + 1}`, ts: now },
+    ]),
+  );
+  useInboxStore.setState({ pending });
+  await writePatchesToIDB(
+    [{ op: "replace", path: ["pending"], value: pending }],
+    state(),
+  );
+  const cachedPending = await loadCache(["pending"]);
+  assert.deepEqual(cachedPending?.pending, pending);
   state()._setIDBWrite(writePatchesToIDB);
   state()._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
   writes.clear();
+  writtenBytes.clear();
 
   state().renameSession(convId, "Renamed");
   const saved = await db.transaction(
@@ -136,6 +153,7 @@ async function measureWrites(writes: Map<string, number>) {
     sessions,
     conversations,
     db.meta,
+    db.pendingEntries,
     db.dispatchOutbox,
     async () =>
       Promise.all([
@@ -147,12 +165,16 @@ async function measureWrites(writes: Map<string, number>) {
   assert.equal(saved[0]?.title, "Renamed");
   assert.equal(saved[1]?.title, "Renamed");
   assert.equal(saved[2][0]?.action, "renameSession");
-  checkStoreBudget("Rename action row writes", sumRows(writes));
+  checkStoreBudget("Rename action row writes", sum(writes));
+  checkStoreBudget(
+    "Rename action write bytes with pending entries",
+    sum(writtenBytes),
+  );
   state()._setIDBWrite(null);
 }
 
-function sumRows(counts: Map<string, number>) {
-  return [...counts.values()].reduce((sum, rows) => sum + rows, 0);
+function sum(counts: Map<string, number>) {
+  return [...counts.values()].reduce((total, count) => total + count, 0);
 }
 
 async function measureFollower() {
@@ -206,12 +228,12 @@ checkStoreBudget("Task list bytes", bytes.tasks);
 checkStoreBudget("Pull request list bytes", bytes.pullRequests);
 measureMessages();
 
-const { writes } = measureIndexedDB(db);
+const measurement = measureIndexedDB(db, true);
 await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
 try {
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
-  await measureWrites(writes);
+  await measureWrites(measurement);
   await measureRetention();
 } finally {
   db.close();
