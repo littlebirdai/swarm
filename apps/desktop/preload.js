@@ -147,6 +147,8 @@ if (process.isMainFrame && trustedShellUrl(globalThis.location.href, origins)) {
     // the human has just clicked in it. Absent on older builds.
     raiseApp: (pid) => ipcRenderer.invoke("raise-app", pid),
     isPeopleWindow: process.argv.includes("--people-window"),
+    isPaletteWindow: process.argv.includes("--palette-window"),
+    isAgentDockWindow: process.argv.includes("--agent-dock-window"),
     openPeopleWindow: () => ipcRenderer.invoke("open-people-window"),
     // With a voice host the buddy list is the WALL, a shape of that window;
     // opening it is a standing arrangement the host takes up, and this puts it

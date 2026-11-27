@@ -8,7 +8,7 @@ import {
   loadFlowSettingsPage,
   loadFlowsPage,
 } from "./earlyRoutes";
-import { Providers } from "./providers";
+import { AppProviders } from "./app-providers";
 import { TransparentWindowLayout } from "./layouts/TransparentWindowLayout";
 import { SettingsLayout } from "./layouts/SettingsLayout";
 import DashboardShell from "./layouts/DashboardShell";
@@ -330,7 +330,7 @@ export function App() {
   useMentionLinkNavigation();
   return (
     <Suspense fallback={<BootFallback />}>
-      <Providers>
+      <AppProviders>
         <ErrorBoundary name="App" level="panel">
           <Suspense fallback={<RouteFallback screen />}>
             <Routes>
@@ -2213,7 +2213,7 @@ export function App() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
-      </Providers>
+      </AppProviders>
     </Suspense>
   );
 }

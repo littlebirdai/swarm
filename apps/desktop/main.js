@@ -2522,6 +2522,7 @@ function createPaletteWindow() {
     hasShadow: false,
     webPreferences: {
       ...preloadPrefs(),
+      additionalArguments: ["--palette-window"],
     },
   });
 

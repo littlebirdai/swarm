@@ -27126,6 +27126,9 @@
   "apps/web/src/App.tsx": {
     "swarm/no-comments": 37
   },
+  "apps/web/src/app-providers.tsx": {
+    "swarm/no-comments": 4
+  },
   "apps/web/src/boot.tsx": {
     "swarm/no-comments": 77
   },
@@ -27171,7 +27174,7 @@
   "apps/web/src/providers.tsx": {
     "react/purity": 1,
     "react/refs": 4,
-    "swarm/no-comments": 16
+    "swarm/no-comments": 12
   },
   "apps/web/src/routes.manifest.test.ts": {
     "swarm/no-comments": 94

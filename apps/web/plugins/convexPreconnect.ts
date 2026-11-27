@@ -3,7 +3,7 @@ import type { Plugin } from "vite";
 /**
  * A preconnect to the Convex deployment in index.html's <head>, so DNS and TLS
  * to it are done by the time the client opens its socket at the end of boot
- * (src/providers.tsx) instead of starting then.
+ * (src/app-providers.tsx) instead of starting then.
  *
  * Read from the build's env with lib/convexUrl.ts's fallback: that module
  * reads import.meta.env, which the config's own bundle does not have.

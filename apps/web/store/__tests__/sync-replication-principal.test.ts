@@ -120,6 +120,25 @@ describe("startSyncReplication", () => {
     expect((window as any).__syncReplication().principalId).toBe("userA");
   });
 
+  it("opens the scoped channel only after an elected desktop host enables it", async () => {
+    const shell = g.window.__CODECAST_ELECTRON__;
+    const before = process.env.VITE_DESKTOP_PANEL_SCOPE;
+    g.window.__CODECAST_ELECTRON__ = {};
+    process.env.VITE_DESKTOP_PANEL_SCOPE = "1";
+    try {
+      startSyncReplication({ eligible: true, principalId: "userA" });
+      const channel = `${replicationChannelName("userA")}:scope`;
+      expect(hub.opened).not.toContain(channel);
+      await Promise.resolve();
+      expect(hub.opened).toContain(channel);
+    } finally {
+      if (shell === undefined) delete g.window.__CODECAST_ELECTRON__;
+      else g.window.__CODECAST_ELECTRON__ = shell;
+      if (before === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
+      else process.env.VITE_DESKTOP_PANEL_SCOPE = before;
+    }
+  });
+
   it("stopSyncReplication ends the old account's transport and leaves the window a host", async () => {
     startSyncReplication({ eligible: false, principalId: "userA" });
     stopSyncReplication();

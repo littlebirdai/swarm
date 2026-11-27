@@ -1,3 +1,5 @@
+import { desktopWindowKeys } from "./desktop-panel-keys";
+import { followerPersistencePatches } from "./followerPersistence";
 import { cacheEvictionEnabled } from "./cache-eviction";
 import { canHydrateDetail } from "./doc-detail-cache";
 import type { StoreApi } from "zustand";
@@ -237,7 +239,15 @@ async function hydrateInboxCacheFromIDB(
   // then on every step here is a no-op and the store stays as the clear left it.
   const superseded = () => epoch !== currentHydrationEpoch();
 
-  (useInboxStore.getState() as any)._setIDBWrite(writePatchesToIDB);
+  const heldKeys = desktopWindowKeys();
+  (useInboxStore.getState() as any)._setIDBWrite(
+    heldKeys
+      ? (patches: Parameters<typeof writePatchesToIDB>[0], state: object) => {
+          const local = followerPersistencePatches(patches);
+          if (local.length) return writePatchesToIDB(local, state);
+        }
+      : writePatchesToIDB,
+  );
   (useInboxStore.getState() as any)._setOutbox(
     enqueueDispatch,
     removeDispatch,
@@ -394,7 +404,15 @@ async function hydrateInboxCacheFromIDB(
     }
   }
 
-  const cached = await cacheStorage.loadCache(HYDRATION_CRITICAL_READ_KEYS);
+  const scope = heldKeys && new Set<string>(heldKeys);
+  const deferredKeys = scope
+    ? HYDRATION_DEFERRED_KEYS.filter((key) => scope.has(key))
+    : HYDRATION_DEFERRED_KEYS;
+  const cached = scope
+    ? await cacheStorage.loadCache(
+        HYDRATION_CRITICAL_READ_KEYS.filter((key) => scope.has(key)),
+      )
+    : await cacheStorage.loadCache(HYDRATION_CRITICAL_READ_KEYS);
   if (superseded()) return false;
 
   // Strip stale large fields from cached conversations (git_diff, git_diff_staged, available_skills)
@@ -472,7 +490,7 @@ async function hydrateInboxCacheFromIDB(
   if (ownId && !st.lastFocusedConversationId) {
     useInboxStore.setState({ lastFocusedConversationId: ownId });
   }
-  if (!st.currentSessionId) {
+  if (!scope && !st.currentSessionId) {
     // A fresh open onto the feed home goes to the new-session page
     // (DashboardLayout opens it) rather than back to the last conversation.
     // Decided from the address the window opened on: by now the tab shell
@@ -507,7 +525,7 @@ async function hydrateInboxCacheFromIDB(
   // message JSON on the JS thread right after first paint, and load hundreds
   // of conversations into memory for the eviction cap to fight back out.
   const focusId = useInboxStore.getState().currentSessionId;
-  if (focusId) await ensureHydrated(focusId);
+  if (focusId && !scope) await ensureHydrated(focusId);
   if (superseded()) return false;
 
   if (!useInboxStore.getState().clientStateInitialized) {
@@ -522,11 +540,11 @@ async function hydrateInboxCacheFromIDB(
   // hydrate and persist. setTimeout fires (throttled) even when hidden.
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
   if (superseded()) return false;
-  const deferred = await cacheStorage.loadCache(HYDRATION_DEFERRED_KEYS, {
+  const deferred = await cacheStorage.loadCache(deferredKeys, {
     pending: cached?.pending,
   });
   if (superseded()) return false;
-  apply(deferred, HYDRATION_DEFERRED_KEYS);
+  apply(deferred, deferredKeys);
   // Re-enable IDB write-through only AFTER the deferred collections land.
   // If a live delta arrives while write-through is open but the store still
   // holds just the windowed payload (tasks' 300, sessions' ~30d), then

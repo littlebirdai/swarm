@@ -50,6 +50,15 @@ export function isPaletteWindow(): boolean {
   );
 }
 
+export function desktopPanelKind() {
+  if (typeof window === "undefined") return;
+  const shell = window.__CODECAST_ELECTRON__;
+  if (shell?.isPaletteWindow) return "palette";
+  if (shell?.isPeopleWindow) return "people";
+  if (shell?.isCallPanelWindow) return "call-panel";
+  if (shell?.isAgentDockWindow) return "agent-dock";
+}
+
 export function getWindowRole() {
   if (isCallPanelWindow()) return "call_panel";
   if (isPaletteWindow()) return "palette";
