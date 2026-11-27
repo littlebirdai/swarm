@@ -1,4 +1,5 @@
 import Dexie from "dexie";
+import type { PendingEntry } from "@platform/engine";
 import { DOCS_SHOTS } from "../../lib/docsShots/flag";
 import { recordCacheEvent } from "../cache-events";
 import { conversationsToRows } from "./migrations/conversationsToRows";
@@ -29,6 +30,7 @@ type ConversationMessageMeta = {
 
 class CacheDB extends Dexie {
   meta!: Dexie.Table<{ key: string; value: any }, string>;
+  pendingEntries!: Dexie.Table<{ key: string; value: PendingEntry }, string>;
   conversationMessageMeta!: Dexie.Table<ConversationMessageMeta, string>;
   conversationMessageRows!: Dexie.Table<
     ConversationMessageRow,
@@ -47,6 +49,15 @@ class CacheDB extends Dexie {
       // Keep this callback on the current version for users who skip releases.
       .upgrade(async (tx) => {
         await conversationsToRows(tx);
+        const meta = tx.table("meta");
+        const pending = await meta.get("pending");
+        if (pending) {
+          const rows = Object.entries(pending.value ?? {}).map(
+            ([key, value]) => ({ key, value }),
+          );
+          if (rows.length) await tx.table("pendingEntries").bulkPut(rows);
+          await meta.delete("pending");
+        }
         // Legacy navigator rows would have no transcript metadata for pruning.
         if (tx.idbtrans.db.objectStoreNames.contains("conversationMessages")) {
           await tx.table("conversationUserMessages").clear();

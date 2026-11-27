@@ -16,7 +16,8 @@ const pending = {
 async function legacyDatabase() {
   const indexedDB = new IDBFactory();
   const legacy = new Dexie(db.name, { indexedDB, IDBKeyRange });
-  legacy.version(111).stores({ ...COLLECTION_INDEXES, ...SYSTEM_TABLES });
+  const { pendingEntries: _, ...legacySystemTables } = SYSTEM_TABLES;
+  legacy.version(111).stores({ ...COLLECTION_INDEXES, ...legacySystemTables });
   await legacy.meta.bulkPut([
     {
       key: "conversations",
@@ -34,7 +35,10 @@ test("upgrades the legacy map to rows and keeps the pending locks", async () => 
 
   expect(await db.table("conversations").toArray()).toEqual(rows);
   expect(await db.meta.get("conversations")).toBeUndefined();
-  expect((await db.meta.get("pending"))?.value).toEqual(pending);
+  expect(await db.meta.get("pending")).toBeUndefined();
+  expect(await db.pendingEntries.toArray()).toEqual(
+    Object.entries(pending).map(([key, value]) => ({ key, value })),
+  );
 });
 
 test("aborting after the row puts rolls back the upgrade and allows an exact retry", async () => {

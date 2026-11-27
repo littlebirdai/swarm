@@ -24,10 +24,14 @@ const limits = {
   "Retained settingsData": { measured: 1, margin: 0 },
   "Retained mySends": { measured: 10000, margin: 0 },
   "First paint read groups": { measured: 21, margin: 0 },
-  "First paint IndexedDB tables": { measured: 20, margin: 0 },
+  "First paint IndexedDB tables": { measured: 21, margin: 0 },
   "First paint IndexedDB rows": { measured: 2_822, margin: 0 },
   "Streamed batch row writes": { measured: 4, margin: 0 },
-  "Rename action row writes": { measured: 4, margin: 0 },
+  "Rename action row writes": { measured: 6, margin: 0 },
+  "Rename action write bytes with pending entries": {
+    measured: 1_836,
+    margin: 18,
+  },
   "Follower populated collections": { measured: 138, margin: 0 },
 } as const;
 

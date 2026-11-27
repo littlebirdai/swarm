@@ -89,13 +89,25 @@ export async function loadCache(
     const metaKeys = (keys ?? [...META_KEYS]).filter((key) =>
       META_KEYS.has(key),
     );
-    const [collectionResults, metaRows] = await Promise.all([
+    const [collectionResults, metaRows, pending] = await Promise.all([
       Promise.all(
         collectionEntries.map(([key, table]) =>
           timeBootRead(phase, key, () => table.toArray()),
         ),
       ),
-      timeBootRead(phase, "meta", () => db.meta.bulkGet(metaKeys)),
+      timeBootRead(phase, "meta", () =>
+        db.meta.bulkGet(metaKeys.filter((key) => key !== "pending")),
+      ),
+      !wanted || wanted.has("pending")
+        ? timeBootRead(phase, "meta", async () =>
+            Object.fromEntries(
+              (await db.pendingEntries.toArray()).map(({ key, value }) => [
+                key,
+                value,
+              ]),
+            ),
+          )
+        : undefined,
     ]);
     if (!retiredMetaSwept) {
       retiredMetaSwept = true;
@@ -105,6 +117,11 @@ export async function loadCache(
     // Meta lookup first — the session and conversation retention pass needs
     // liveInboxIdList and lastFocusedConversationId from the same snapshot.
     const metaByKey: Record<string, any> = { ...context };
+    if (pending && Object.keys(pending).length) {
+      result.pending = pending;
+      metaByKey.pending = pending;
+      hasData = true;
+    }
     for (const row of metaRows) {
       if (row) metaByKey[row.key] = row.value;
     }
