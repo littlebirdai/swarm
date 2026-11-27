@@ -1,8 +1,7 @@
-import { v } from "convex/values";
-import { internalMutation } from "@codecast/convex/convex/functions";
+import { computeWorkspaceKey } from "@codecast/convex/convex/lib/accessKeys";
 import type { Doc, Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { SimClient } from "@codecast/convex/convex/simBackend.testing";
-import type { BackgroundActivity, population } from "./model";
+import type { Activity, BackgroundActivity, population } from "./model";
 
 export function fixtureId<
   Table extends
@@ -25,7 +24,17 @@ export function populationTables(
   at: number,
 ) {
   const team = fixtureId("teams", 0);
-  const workspace = `team:${team}` as const;
+  const projectOwners = model.projects.map(
+    (project) =>
+      model.people.find(({ follows }) => follows[0] === project)?.id ?? project,
+  );
+  const projectScope = (project: number) => {
+    const owner = {
+      user_id: fixtureId("users", projectOwners[project]),
+      team_id: team,
+    };
+    return { ...owner, workspace: computeWorkspaceKey(owner, null) };
+  };
   return {
     users: model.people.map(({ id }) => ({
       _id: fixtureId("users", id),
@@ -45,9 +54,7 @@ export function populationTables(
     projects: model.projects.map((id): Doc<"projects"> => ({
       _id: fixtureId("projects", id),
       _creationTime: at,
-      user_id: fixtureId("users", 0),
-      team_id: team,
-      workspace,
+      ...projectScope(id),
       title: `Project ${id}`,
       status: "active",
       created_at: at,
@@ -56,9 +63,7 @@ export function populationTables(
     docs: model.projects.map((id): Doc<"docs"> => ({
       _id: fixtureId("docs", id),
       _creationTime: at,
-      user_id: fixtureId("users", 0),
-      team_id: team,
-      workspace,
+      ...projectScope(id),
       project_id: fixtureId("projects", id),
       title: `Project ${id} notes`,
       content: "Project progress",
@@ -99,41 +104,32 @@ export function populationTables(
   };
 }
 
-export const saveTask = internalMutation({
-  args: {
-    task: v.optional(v.id("tasks")),
-    user: v.id("users"),
-    team: v.id("teams"),
-    project: v.id("projects"),
-    agent: v.number(),
-    privateTask: v.boolean(),
-  },
-  handler: async (ctx, { task, user, team, project, agent, privateTask }) => {
-    const at = Date.now();
-    if (task) {
-      await ctx.db.patch(task, {
-        title: `Verify the project changes from agent ${agent}`,
-        updated_at: at,
-      });
-      return task;
-    }
-    return ctx.db.insert("tasks", {
-      user_id: user,
-      team_id: team,
-      workspace: privateTask ? `user:${user}` : `team:${team}`,
-      project_id: project,
-      short_id: `ct-${agent + 1}`,
-      title: `Review the project changes from agent ${agent}`,
-      description: "Run the project checks and record the result in the task.",
-      task_type: "task",
-      source: "agent",
-      status: "in_progress",
-      priority: "medium",
-      created_at: at,
-      updated_at: at,
+export async function saveTask(
+  client: SimClient,
+  event: Activity,
+  shortId?: string,
+): Promise<string> {
+  if (shortId) {
+    await client.mutation("tasks:webUpdate", {
+      short_id: shortId,
+      title: `Verify the project changes from agent ${event.agent}`,
     });
-  },
-});
+    return shortId;
+  }
+  const task = await client.mutation("tasks:webCreate", {
+    ...(event.privateTask
+      ? { workspace: "personal" }
+      : {
+          workspace: "team",
+          team_id: fixtureId("teams", 0),
+          project_id: fixtureId("projects", event.project),
+        }),
+    title: `Review the project changes from agent ${event.agent}`,
+    description: "Run the project checks and record the result in the task.",
+    status: "in_progress",
+  });
+  return task.short_id;
+}
 
 export async function runBackground(
   client: SimClient,

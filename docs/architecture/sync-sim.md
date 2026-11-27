@@ -47,17 +47,31 @@ Typecheck the harness with `cast check sim` (its tsconfig adds bun types and cov
 
 The population simulation uses one team and a seeded graph of project and session follows. The current sync log sends team changes to every member's device, regardless of follows. Each device also holds its owner's personal scope. The workload includes heartbeats, transcript writes, task changes, and doc edits.
 
-Seed 42, one simulated minute. Events per device use the mean. Drain lag uses p95.
+Seed 42, one simulated minute. These are simulation results.
 
-| People | Devices measured | Writes | Events per device | Modeled retries per write | p95 drain lag | Wall time |
-| -----: | ---------------: | -----: | ----------------: | ------------------------: | ------------: | --------: |
-|      1 |                1 |      8 |             10.00 |                    0.0000 |         25 ms |    0.48 s |
-|     50 |               50 |    413 |            226.80 |                    0.0194 |         25 ms |    1.51 s |
-|    500 |               20 |  4,062 |          2,191.35 |                    0.0556 |         25 ms |    5.13 s |
+| People | Devices measured | Mean events per device | Head writes per drain | Heuristic retries per team-scope write | Heuristic retries per user-scope write | Wall time |
+| -----: | ---------------: | ---------------------: | --------------------: | -------------------------------------: | -------------------------------------: | --------: |
+|      1 |                1 |                     10 |                     1 |                                      0 |                                      0 |    0.23 s |
+|     50 |               50 |                  226.8 |                1.0621 |                                 0.0315 |                                 0.0034 |    1.09 s |
+|    500 |               20 |                2192.15 |                1.3091 |                                 0.1016 |                                      0 |    4.79 s |
 
-Wall time comes from the standalone driver on macOS arm64 with Bun 1.4.4. CI runs the 1- and 50-person cases. The 500-person run is opt-in. All 500 people write, and the driver measures a seeded sample of 20 devices.
+Wall time comes from the standalone driver on macOS arm64 with Bun 1.4.4.
 
-These are simulation results. The in-process server serializes writes, so retries use a 5 ms contention model. Drain lag uses virtual time and ends at outbox delivery. Events per device count sync-log actions only. See the [population simulation guide](../../apps/web/store/__tests__/sim/population/README.md) for the workload, metric definitions, and repeatable commands.
+**Events per device** count actual actions in the sync log. The count includes both team and personal copies. Direct heartbeat and transcript feeds and bootstrap snapshots are outside this measure.
+
+**Head writes per drain** divides committed inserts and patches to `sync_heads` during drains by the number of executed drain transactions. A value above 1 shows that a drain delivered more than one head write on average. The simulator serializes database calls and advances the clock between calls. Real queueing, scheduler lag, and retry latency are outside the model.
+
+**Heuristic retries per scope write** report team and user scopes separately. The numerator counts a canceled drain whose scheduled time was less than 5 ms after a different drain delivered its slot. The denominator counts workload writes that enqueued at least one action in that scope, once per distinct scope per transaction. Heartbeats contribute no outbox writes. Transcript writes contribute only when they enqueue a sync-log action, which stays in the user scope. This heuristic does not measure Convex OCC retries. It excludes save-versus-drain conflicts on `by_scope_pending` and write-versus-write conflicts.
+
+From `apps/web`, run the baseline with these commands. CI runs the 1- and 50-person cases. The opt-in 500-person run includes writes from all 500 people and measures 20 seeded devices.
+
+```sh
+bun --smol store/__tests__/sim/population/population.ts --people 1 --devices 1 --seed 42 --json
+bun --smol store/__tests__/sim/population/population.ts --people 50 --devices 50 --seed 42 --json
+bun --smol store/__tests__/sim/population/population.ts --people 500 --devices 20 --seed 42 --json
+```
+
+The [population simulation guide](../../apps/web/store/__tests__/sim/population/README.md) gives the workload details and test command.
 
 ## Layers
 

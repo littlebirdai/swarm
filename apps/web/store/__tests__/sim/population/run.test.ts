@@ -13,11 +13,14 @@ test.each([1, 50])(
     expect(report.writes.heartbeat).toBe(people * 2);
     expect(report.writes.message).toBeGreaterThanOrEqual(people);
     expect(report.writes.doc).toBeGreaterThan(0);
-    expect(report.drainLagMs.p95).toBe(25);
     const shared = model.activity.filter(({ privateTask }) => !privateTask);
     const sharedTasks = new Set(shared.map(({ agent }) => agent));
     const sharedChanges = report.measurements[0].teamEvents;
     expect(sharedChanges).toBeGreaterThan(shared.length);
+    expect(report.scopeWrites).toEqual({
+      team: shared.length + report.writes.doc,
+      user: model.activity.length + report.writes.doc + people,
+    });
     expect(report.measurements).toHaveLength(people);
     if (people > 1) {
       expect(
@@ -28,8 +31,10 @@ test.each([1, 50])(
           ),
         ),
       ).toBe(true);
-      expect(report.drainTransactions).toBeLessThan(report.headWrites);
-      expect(report.modeledRetriesPerWrite).toBeGreaterThan(0);
+      expect(report.headWritesPerDrain).toBeGreaterThan(1);
+      expect(report.heuristicRetriesPerScopeWrite.team).toBeGreaterThan(
+        report.heuristicRetriesPerScopeWrite.user,
+      );
     }
     for (const device of report.measurements) {
       const own = model.activity.filter(
@@ -55,7 +60,8 @@ test("a device sample preserves the write load and each sampled device's results
   const sample = await runPopulation({ ...config, devices: 3 });
   expect(sample.writes).toEqual(full.writes);
   expect(sample.headWrites).toBe(full.headWrites);
-  expect(sample.modeledRetries).toBe(full.modeledRetries);
-  expect(sample.drainLagMs).toEqual(full.drainLagMs);
+  expect(sample.scopeWrites).toEqual(full.scopeWrites);
+  expect(sample.nearbyCanceledDrains).toEqual(full.nearbyCanceledDrains);
+  expect(sample.headWritesPerDrain).toBe(full.headWritesPerDrain);
   expect(sample.measurements).toEqual(full.measurements.slice(0, 3));
 });
