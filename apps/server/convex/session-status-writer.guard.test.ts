@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 const allowed: Record<string, string> = {
   "anchors.ts": "session projection",
@@ -59,4 +60,49 @@ test("distinctive session status fields stay in known files", () => {
     if (keyOrAssignment.test(code)) unexpected.push(file);
   }
   expect(unexpected.sort()).toEqual([]);
+});
+
+function directPatches(file: string, fields: RegExp) {
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(join(import.meta.dir, file), "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const sites: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "patch" &&
+      ts.isPropertyAccessExpression(node.expression.expression) &&
+      node.expression.expression.name.text === "db"
+    ) {
+      const payload = node.arguments.at(-1);
+      if (payload && ts.isObjectLiteralExpression(payload)) {
+        const keys = payload.properties
+          .map((property) => property.name?.getText(source) ?? "")
+          .filter((name) => fields.test(name));
+        if (keys.length)
+          sites.push(
+            `${node.arguments[0].getText(source)}: ${keys.sort().join(", ")}`,
+          );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return sites.sort();
+}
+
+test("moved pending status patches go through the status writer", () => {
+  const fields = /^(?:status|delivered_at|delivery_status)$/;
+  expect(directPatches("managedSessions.ts", fields)).toEqual([]);
+  expect(directPatches("pendingMessageWrites.ts", fields)).toEqual([]);
+  expect(directPatches("orgRoles.ts", fields)).toEqual([
+    "retiring._id: status",
+    "role._id: status",
+    "role._id: status",
+    "role._id: status",
+  ]);
 });
