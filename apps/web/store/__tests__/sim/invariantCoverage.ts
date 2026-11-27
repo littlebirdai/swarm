@@ -46,6 +46,8 @@ export const NOT_COMPARED: Readonly<Record<string, string>> = {
   currentUser:
     "set by the window's boot from the world, not fed by a query the sim mounts",
   drafts: "local composer text, no server truth",
+  fencedObservedTurns:
+    "the owner's current turn observation from useSyncFencedPromptAddresses, a per-conversation feeder the sim does not mount",
   reviewComments: "local inline review notes, no server truth",
   blockedReviveRequestedAt:
     "a TTL overlay the store expires lazily at the next revive; a stale entry is inert, and the placement it gates is compared by INV-sessions-mine",
