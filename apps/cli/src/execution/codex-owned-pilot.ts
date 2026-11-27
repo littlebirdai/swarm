@@ -42,6 +42,8 @@ import {
 import { CodexPilotEvents } from "./codex-pilot-events.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import {
+  applyPilotDisplayEffect,
+  clearPilotFailure,
   closeOwnedProvider,
   closePilots,
   reportPilotFailure,
@@ -112,6 +114,7 @@ export class CodexOwnedPilot {
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
   private resumeGeneration = 0;
+  private deliverySequence = 0;
   private activation?: Promise<void>;
   private closing?: Promise<void>;
   private renewal?: ReturnType<typeof setTimeout>;
@@ -123,7 +126,10 @@ export class CodexOwnedPilot {
   private relay?: ReturnType<typeof startRelayLiveness>;
   private leaseDeadline = 0;
   private readonly children = new Map<string, CodexOwnedPilot>();
-  private readonly parkedGenerations = new Map<string, number>();
+  private readonly parked = new Map<
+    string,
+    { generation: number; deliverySequence: number }
+  >();
 
   constructor(
     readonly conversationId: string | undefined,
@@ -174,7 +180,10 @@ export class CodexOwnedPilot {
         epoch,
         (closed) => {
           this.children.delete(key);
-          this.parkedGenerations.set(key, closed.resumeGeneration);
+          this.parked.set(key, {
+            generation: closed.resumeGeneration,
+            deliverySequence: closed.deliverySequence,
+          });
         },
       );
       child.useReceiptJournal(this.delivery.receiptJournal);
@@ -183,21 +192,35 @@ export class CodexOwnedPilot {
     return child;
   }
 
-  async resumePilotFor(request: EnsureBindingRequest, generation = 0) {
+  async resumePilotFor(
+    request: EnsureBindingRequest,
+    generation = 0,
+    deliverySequence = 0,
+  ) {
     const { conversationId, epoch } = request.target;
     const key = JSON.stringify([conversationId, epoch]);
-    const parked = this.parkedGenerations.get(key);
-    if (parked !== undefined && generation <= parked) return;
+    const parked = this.parked.get(key);
+    if (
+      parked !== undefined &&
+      generation <= parked.generation &&
+      deliverySequence <= parked.deliverySequence
+    )
+      return;
     let pilot = this.pilotFor(request);
     if (!pilot || pilot === this) return pilot;
     if (pilot.closed) {
-      if (generation <= pilot.resumeGeneration) return;
+      if (
+        generation <= pilot.resumeGeneration &&
+        deliverySequence <= pilot.deliverySequence
+      )
+        return;
       await pilot.close();
       pilot = this.pilotFor(request);
       if (!pilot) return;
     }
-    this.parkedGenerations.delete(key);
+    this.parked.delete(key);
     pilot.resumeGeneration = Math.max(pilot.resumeGeneration, generation);
+    pilot.deliverySequence = Math.max(pilot.deliverySequence, deliverySequence);
     return pilot;
   }
 
@@ -534,6 +557,11 @@ export class CodexOwnedPilot {
     await recovery;
     this.controller.signal.throwIfAborted();
     this.deliveryReady = true;
+    await clearPilotFailure(
+      this.options.display,
+      this.options.log,
+      claim.session,
+    );
     this.startRelayContact(claim, binding);
   }
 
@@ -589,8 +617,7 @@ export class CodexOwnedPilot {
     binding: ReadyBinding,
     model: string | undefined,
   ): Promise<void> {
-    const { syncService, retryQueue, conversationCache, ...display } =
-      this.options.display;
+    const { syncService, sendAgentStatus } = this.options.display;
     const { conversationId, runtimeId } = binding;
     for await (const event of session.events) {
       this.controller.signal.throwIfAborted();
@@ -603,7 +630,7 @@ export class CodexOwnedPilot {
       await this.delivery.observe(event, session, this.controller.signal);
       await this.promptCards
         .publish(event, claim, session, syncService, () => {
-          display.sendAgentStatus(
+          sendAgentStatus(
             syncService,
             conversationId,
             runtimeId,
@@ -619,50 +646,13 @@ export class CodexOwnedPilot {
         .publish(
           runtimeId,
           event,
-          async (effect) => {
-            switch (effect.type) {
-              case "statusChanged": {
-                const status =
-                  display.mapCodexAppServerThreadStatusToAgentStatus(
-                    effect.status,
-                  );
-                if (status)
-                  display.sendAgentStatus(
-                    syncService,
-                    conversationId,
-                    runtimeId,
-                    status,
-                  );
-                break;
-              }
-              case "threadNameUpdated":
-                await syncService.updateTitle(conversationId, effect.name);
-                break;
-              case "itemStarted":
-                await display.trackTmuxSpawns(
-                  [effect.message],
-                  conversationId,
-                  syncService,
-                  conversationCache,
-                );
-                break;
-              case "error":
-                await syncService.setSessionError(
-                  conversationId,
-                  effect.message,
-                  { force: true },
-                );
-                break;
-              case "messages":
-                await display.syncMessagesBatch(
-                  effect.messages,
-                  conversationId,
-                  syncService,
-                  retryQueue,
-                );
-                break;
-            }
-          },
+          (effect) =>
+            applyPilotDisplayEffect(
+              this.options.display,
+              conversationId,
+              runtimeId,
+              effect,
+            ),
           model,
         )
         .catch((error) =>

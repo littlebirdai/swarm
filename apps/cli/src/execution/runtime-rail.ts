@@ -206,6 +206,7 @@ interface ExecutionWorkItem {
   conversationId: string;
   currentEpoch: number;
   resumeGeneration?: number;
+  nextDeliverySequence?: number;
   pendingEpoch?: number;
   pendingPolicy?: "drain-current" | "cancel-unstarted";
   bindings: BindingWork[];
@@ -280,6 +281,14 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
               "resume generation",
             ),
           }),
+      ...(item.nextDeliverySequence === undefined
+        ? {}
+        : {
+            nextDeliverySequence: integer(
+              item.nextDeliverySequence,
+              "next delivery sequence",
+            ),
+          }),
       ...(item.pendingEpoch === undefined
         ? {}
         : { pendingEpoch: integer(item.pendingEpoch, "pending epoch") }),
@@ -328,6 +337,7 @@ export class DaemonExecutionRuntime {
       sendNew: boolean;
       awaitingSuccessor: boolean;
       resumeRequested: boolean;
+      resumeGeneration: number;
       leaseRetry?: { attempts: number; delayMs: number };
     }
   >();
@@ -516,12 +526,14 @@ export class DaemonExecutionRuntime {
         ? await this.codexOwnedPilot?.resumePilotFor(
             current.request,
             item.resumeGeneration,
+            item.nextDeliverySequence,
           )
         : undefined;
     if (current?.state === "ready" && pilot?.owns(current.binding)) {
       const { conversationId } = current.binding;
       const awaitingSuccessor = Boolean(successor && policy);
       const sendNew = !awaitingSuccessor || policy === "drain-current";
+      const generation = item.resumeGeneration ?? 0;
       let poll = this.pilotPolls.get(conversationId);
       if (
         poll?.pilot !== pilot ||
@@ -534,11 +546,20 @@ export class DaemonExecutionRuntime {
           awaitingSuccessor,
           sendNew,
           resumeRequested: false,
+          resumeGeneration: generation,
         };
         this.pilotPolls.set(conversationId, poll);
       }
       poll.awaitingSuccessor = awaitingSuccessor;
       poll.sendNew = sendNew;
+      if (generation > poll.resumeGeneration) {
+        poll.resumeGeneration = generation;
+        if (poll.leaseRetry) {
+          clearTimeout(poll.timer);
+          poll.timer = undefined;
+          poll.leaseRetry = undefined;
+        }
+      }
       poll.resumeRequested ||= Boolean(item.resumeGeneration);
       if (poll.leaseRetry && poll.timer) return;
       let idle: boolean;

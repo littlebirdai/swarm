@@ -3,7 +3,63 @@ import type {
   ProviderAdapterClient,
   ProviderOwnedSession,
 } from "@codecast/provider-adapter";
+import type { CodexPilotDisplayEffect } from "./codex-pilot-display.js";
 import type { PilotOptions } from "./codex-pilot-settings.js";
+
+export async function clearPilotFailure(
+  display: PilotOptions["display"],
+  log: (message: string) => void,
+  conversationId: string,
+): Promise<void> {
+  await display.syncService
+    .setSessionError(conversationId, undefined, { force: true })
+    .catch((error) => {
+      log(`[owned-codex] session error clear failed: ${String(error)}`);
+    });
+}
+
+export async function applyPilotDisplayEffect(
+  options: PilotOptions["display"],
+  conversationId: string,
+  runtimeId: string,
+  effect: CodexPilotDisplayEffect,
+): Promise<void> {
+  const { syncService, retryQueue, conversationCache, ...display } = options;
+  switch (effect.type) {
+    case "statusChanged": {
+      const status = display.mapCodexAppServerThreadStatusToAgentStatus(
+        effect.status,
+      );
+      if (status)
+        display.sendAgentStatus(syncService, conversationId, runtimeId, status);
+      break;
+    }
+    case "threadNameUpdated":
+      await syncService.updateTitle(conversationId, effect.name);
+      break;
+    case "itemStarted":
+      await display.trackTmuxSpawns(
+        [effect.message],
+        conversationId,
+        syncService,
+        conversationCache,
+      );
+      break;
+    case "error":
+      await syncService.setSessionError(conversationId, effect.message, {
+        force: true,
+      });
+      break;
+    case "messages":
+      await display.syncMessagesBatch(
+        effect.messages,
+        conversationId,
+        syncService,
+        retryQueue,
+      );
+      break;
+  }
+}
 
 export async function reportPilotFailure(
   display: PilotOptions["display"],

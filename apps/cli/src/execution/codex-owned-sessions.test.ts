@@ -439,6 +439,264 @@ test("exhausting busy lease retries publishes a session error, closes the child,
     retries[8]!.run();
     await f.runtime.processWorkUpdate([]);
     expect(f.permitSessions).toEqual(["new", "new"]);
+    expect(f.sessionErrors).toEqual([
+      {
+        conversationId: "new",
+        error:
+          "Could not resume Codex session: the previous run still holds its lease.",
+        force: true,
+      },
+      {
+        conversationId: "new",
+        error: undefined,
+        force: true,
+      },
+    ]);
+  } finally {
+    timer?.mockRestore();
+    await f.dispose();
+  }
+});
+
+test("a new pending delivery wakes a child parked by a crash or exhausted retries while unchanged updates stay parked", async () => {
+  const f = fixture(null, true, "receipt", true);
+  const schedule = globalThis.setTimeout;
+  const retryAfterMs = 1_337;
+  const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);
+  const retries: { delay: number; run(): void }[] = [];
+  let timer: ReturnType<typeof spyOn> | undefined;
+  try {
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest), nextDeliverySequence: 1 },
+    ]);
+    const binding = f.ready(f.newRequest);
+    const crashed = f.pilot.pilotFor(f.newRequest)!;
+    const pid = crashed.getProcessId();
+    expect(pid).toBeNumber();
+    process.kill(pid!, "SIGTERM");
+    await until(() => crashed.closed, "crashed child closes and parks");
+
+    const claimsAfterCrash = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), nextDeliverySequence: 1 },
+    ]);
+    expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
+      claimsAfterCrash,
+    );
+
+    f.enqueue(1, false, "new");
+    const afterCrashDelivery = f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), nextDeliverySequence: 2 },
+    ]);
+    await until(
+      () => f.deliveryRequests().length === 1,
+      "fresh child sends message queued after crash",
+    );
+    const afterCrash = f.pilot.pilotFor(f.newRequest)!;
+    expect(afterCrash).not.toBe(crashed);
+    expect(f.deliveryRequests()[0]?.params?.clientUserMessageId).toBe(
+      "codecast-delivery:delivery-1",
+    );
+    await f.sendFrame({
+      frame: {
+        method: "item/completed",
+        params: {
+          threadId: f.deliveryThread,
+          turnId: "actual-turn-1",
+          item: {
+            type: "userMessage",
+            id: "provider-item-1",
+            clientId: "codecast-delivery:delivery-1",
+            content: f.deliveryRequests()[0]?.params?.input,
+          },
+        },
+      },
+    });
+    await afterCrashDelivery;
+    await until(
+      () =>
+        f.events.some(
+          (e) => e.kind === "receipt" && e.body.delivery_id === "delivery-1",
+        ),
+      "daemon records receipt for delivery-1",
+    );
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), nextDeliverySequence: 2 },
+    ]);
+    expect(f.settlements).toContainEqual(
+      expect.objectContaining({
+        delivery_id: "delivery-1",
+        outcome: "applied",
+      }),
+    );
+
+    await f.driver.stop(binding);
+    f.sessionErrors.length = 0;
+    timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const handle = schedule(callback, delay, ...args);
+      if (delay !== undefined && expectedDelays.has(delay)) {
+        clearTimeout(handle);
+        retries.push({ delay, run: () => callback(...args) });
+      }
+      return handle;
+    }) as typeof setTimeout);
+    for (let i = 0; i < 9; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    const exhaustedWork = [
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 2,
+      },
+    ];
+    await f.runtime.processWorkUpdate(exhaustedWork);
+    const exhausted = f.pilot.pilotFor(f.newRequest)!;
+    let executed = 0;
+    while (executed < retries.length) {
+      retries[executed++]!.run();
+      await f.runtime.processWorkUpdate([]);
+    }
+    expect(exhausted.closed).toBe(true);
+    const claimsAfterExhaustion = f.actions.filter(
+      (action) => action === "edge:claim",
+    ).length;
+
+    await f.runtime.processWorkUpdate(exhaustedWork);
+    expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
+      claimsAfterExhaustion,
+    );
+
+    f.enqueue(2, false, "new");
+    const afterExhaustionDelivery = f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    await until(
+      () => f.deliveryRequests().length === 2,
+      "fresh child sends message queued after retry exhaustion",
+    );
+    expect(f.pilot.pilotFor(f.newRequest)).not.toBe(exhausted);
+    expect(f.deliveryRequests()[1]?.params?.clientUserMessageId).toBe(
+      "codecast-delivery:delivery-2",
+    );
+    await f.sendFrame({
+      frame: {
+        method: "item/completed",
+        params: {
+          threadId: f.deliveryThread,
+          turnId: "actual-turn-1",
+          item: {
+            type: "userMessage",
+            id: "provider-item-2",
+            clientId: "codecast-delivery:delivery-2",
+            content: f.deliveryRequests()[1]?.params?.input,
+          },
+        },
+      },
+    });
+    await afterExhaustionDelivery;
+    await until(
+      () =>
+        f.events.some(
+          (e) => e.kind === "receipt" && e.body.delivery_id === "delivery-2",
+        ),
+      "daemon records receipt for delivery-2",
+    );
+    await f.runtime.processWorkUpdate([
+      {
+        ...item(f.newRequest, binding),
+        resumeGeneration: 1,
+        nextDeliverySequence: 3,
+      },
+    ]);
+    expect(f.settlements).toContainEqual(
+      expect.objectContaining({
+        delivery_id: "delivery-2",
+        outcome: "applied",
+      }),
+    );
+    expect(f.sessionErrors.at(-1)).toEqual({
+      conversationId: "new",
+      error: undefined,
+      force: true,
+    });
+  } finally {
+    timer?.mockRestore();
+    await f.dispose();
+  }
+});
+
+test("advancing resumeGeneration during a busy-lease backoff resets the retry budget", async () => {
+  const f = fixture(null, true, "receipt", true);
+  const schedule = globalThis.setTimeout;
+  const retryAfterMs = 1_337;
+  const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);
+  const retries: { delay: number; run(): void }[] = [];
+  let timer: ReturnType<typeof spyOn> | undefined;
+  try {
+    await f.runtime.processWorkUpdate([item(f.newRequest)]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+    f.permitSessions.length = 0;
+    f.sessionErrors.length = 0;
+    timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback: (...args: unknown[]) => void,
+      delay?: number,
+      ...args: unknown[]
+    ) => {
+      const handle = schedule(callback, delay, ...args);
+      if (delay !== undefined && expectedDelays.has(delay)) {
+        clearTimeout(handle);
+        retries.push({ delay, run: () => callback(...args) });
+      }
+      return handle;
+    }) as typeof setTimeout);
+    for (let i = 0; i < 10; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), resumeGeneration: 1 },
+    ]);
+    const child = f.pilot.pilotFor(f.newRequest)!;
+    for (let i = 0; i < 7; i++) {
+      retries[i]!.run();
+      await f.runtime.processWorkUpdate([]);
+    }
+    expect(retries).toHaveLength(8);
+    expect(child.closed).toBe(false);
+
+    await f.runtime.processWorkUpdate([
+      { ...item(f.newRequest, binding), resumeGeneration: 2 },
+    ]);
+    expect(retries).toHaveLength(9);
+    expect(retries[8]!.delay).toBe(retryAfterMs);
+    expect(child.closed).toBe(false);
+    expect(f.sessionErrors).toEqual([]);
+
+    retries[8]!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(retries).toHaveLength(10);
+    expect(retries[9]!.delay).toBe(retryAfterMs * 2);
+    expect(child.closed).toBe(false);
+    expect(f.sessionErrors).toEqual([]);
+
+    retries[9]!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(f.permitSessions).toEqual(["new", "new"]);
   } finally {
     timer?.mockRestore();
     await f.dispose();
