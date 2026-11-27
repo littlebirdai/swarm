@@ -88,7 +88,7 @@ test("a second account purges pending locks left by a stale window after sign-ou
   } finally {
     installSignedInPrincipal();
     authPrincipal.check();
-    await authPrincipal.resolve();
+    await loadCache(["pending"]);
     db.close();
   }
 });
