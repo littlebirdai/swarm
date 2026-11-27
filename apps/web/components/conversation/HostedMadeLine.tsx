@@ -1,4 +1,6 @@
-import { useDeferredCache } from "../../hooks/use-deferred-cache";
+import { timedDocCapsEnabled } from "../../store/cache-eviction";
+import { isConvexId } from "../../lib/entityLinks";
+import { useDocDetail } from "../../hooks/use-sync-docs";
 // A hosted receipt whose one step made one thing ("Set up the routine
 // Morning stretch"), as one line: the step's words with the thing's live name
 // as the link, and the thing's state now when it has changed since (a routine
@@ -10,7 +12,6 @@ import { useDeferredCache } from "../../hooks/use-deferred-cache";
 // and its opening lines, one tap from the whole thing.
 import Link from "next/link";
 import { useEntityResolution } from "../../lib/entityDisplay";
-import { useInboxStore } from "../../store/inboxStore";
 import { notePreview, numericColumns, routineState } from "../../lib/madeLine";
 export {
   madeLineParts,
@@ -32,12 +33,11 @@ export function HostedNoteCard({
 }) {
   const r = useEntityResolution(refId);
   const docId = refId.replace(/^doc:/i, "");
-  useDeferredCache("docDetails", !!docId);
-  const cached = useInboxStore(
-    (s) =>
-      (s.docDetails as Record<string, { content?: string } | undefined>)[docId]
-        ?.content,
+  const { detail } = useDocDetail(
+    docId,
+    timedDocCapsEnabled() && isConvexId(docId),
   );
+  const cached = detail?.content;
   const preview = notePreview(cached ?? r.entity?.content, r.fullLabel);
   return (
     <Link

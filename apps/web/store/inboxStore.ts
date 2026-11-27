@@ -729,6 +729,7 @@ import { isTriggerEditable } from "../lib/triggerEditable";
 import {
   isDetailKey,
   isDetailPinned,
+  resetDetailPins,
   pullRequestDetailRow,
   taskCommentsRow,
   thinPullRequestRow,
@@ -2438,6 +2439,9 @@ export type TaskDetail = TaskItem & {
 export type DocItem = {
   _id: string;
   title: string;
+  display_title?: string;
+  conversation_id?: string;
+  cli_edited_at?: number;
   content: string;
   doc_type: string;
   source: string;
@@ -22204,6 +22208,7 @@ const currentHydrationEpoch = () => hydrationEpoch;
 export function clearProtectedInboxMemory(): void {
   deferredCache.resetDeferredCacheWindow();
   hydrationEpoch++;
+  resetDetailPins();
   resetDetailInvalidations();
   messageWarmState.full = false;
   messageWarmState.coldIds.clear();

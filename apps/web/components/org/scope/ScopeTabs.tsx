@@ -18,7 +18,7 @@ import { useOrgSessionsUnder } from "../../../hooks/useOrgSessionsUnder";
 import type { ScopeRef } from "../../../hooks/useScopeQueries";
 import { ScopeFeed } from "./ScopeFeed";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
-import { useSyncDocDetailWithCache } from "../../../hooks/use-sync-docs";
+import { useDocDetail } from "../../../hooks/use-sync-docs";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   useInboxStore,
@@ -857,8 +857,7 @@ function RoleDoc({
   editable: boolean;
   backHref: string;
 }) {
-  const { cacheReady } = useSyncDocDetailWithCache(docId);
-  const detail = useInboxStore((s) => s.docDetails[docId]) as any;
+  const { detail, cacheReady } = useDocDetail(docId);
   const listItem = useInboxStore((s) => s.docs[docId]) as any;
   const doc = detail || listItem;
   if (!doc || (!detail && !cacheReady))

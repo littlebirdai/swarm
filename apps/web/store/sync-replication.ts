@@ -19,6 +19,7 @@ import {
   detailReadPosition,
   setDetailInvalidationReporter,
 } from "./doc-detail-cache";
+import { startTimedDocRetention } from "./timed-doc-retention";
 import { createDetailInvalidationTransport } from "./detail-invalidation-transport";
 import {
   hideInvalidatedDetails,
@@ -597,8 +598,10 @@ export function startSyncReplication(opts: {
         authority.detail,
         collectCompleteDocCrawlAbsences,
       );
+      const retention = startTimedDocRetention(useInboxStore.getState, current);
       const stop = () => {
         active = false;
+        retention.stop();
         setDetailInvalidationReporter();
         running = null;
       };
@@ -684,6 +687,7 @@ export function startSyncReplication(opts: {
         details?.enterSolo();
         setDeferredSharedCacheSource("disk");
         setRole("host");
+        retention.soon();
       }
     }, SOLO_FALLBACK_MS);
   };
@@ -705,6 +709,7 @@ export function startSyncReplication(opts: {
             persistence.followerWrite,
           );
           setActionTee(followerActionTee(channel, selfId));
+          retention.soon();
         } else {
           setDeferredSharedCacheSource("joining");
           armSoloFallback();
@@ -737,8 +742,13 @@ export function startSyncReplication(opts: {
     persistence.persistSkipped();
     details?.promote();
     setDeferredSharedCacheSource("disk");
+    retention.soon();
   };
 
+  const retention = startTimedDocRetention(
+    useInboxStore.getState,
+    () => !stopped && detailAccountIsCurrent(account) && !!details?.canSweep(),
+  );
   setDeferredSharedCacheSource("joining");
   startFollower();
 
@@ -747,6 +757,7 @@ export function startSyncReplication(opts: {
   const stop = () => {
     if (stopped) return;
     stopped = true;
+    retention.stop();
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();
     host?.stop();

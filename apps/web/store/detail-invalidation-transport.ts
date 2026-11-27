@@ -278,6 +278,9 @@ export function createDetailInvalidationTransport(opts: Options) {
 
   return {
     channel,
+    canSweep(): boolean {
+      return opts.host() ? compatible() : !!soloChecks || !!compatibleHost;
+    },
     report(evidence: DetailInvalidation): boolean {
       if (!opts.current()) return false;
       const host = opts.host();

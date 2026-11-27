@@ -1,0 +1,99 @@
+import { expect, jest, test } from "bun:test";
+import { pinDetailRows } from "../../lib/detail-rows";
+import { noteInputForTests } from "../../lib/inputQuiet";
+import { replaceGlobals } from "../../test-helpers/globals";
+import { partitionDocDetailRetention } from "../cacheRetention";
+import {
+  __createInboxStoreForTests,
+  type InboxStoreState,
+} from "../inboxStore";
+import { startTimedDocRetention } from "../timed-doc-retention";
+
+test("a week of live writes settles to the fresh-cache cap without dropping protected docs", () => {
+  const restore = replaceGlobals({ document: { visibilityState: "visible" } });
+  const store = __createInboxStoreForTests();
+  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
+  process.env.VITE_CACHE_EVICTION_METADATA = "1";
+  const enabled = process.env.VITE_TIMED_DOC_CAPS === "1";
+  const now = Date.now();
+  const day = 86_400_000;
+  const history: InboxStoreState["docDetails"][string][] = [];
+  const pinned = "j".repeat(32);
+  const pending = "k".repeat(32);
+  const release = pinDetailRows("docDetails", [pinned]);
+  let notifications = 0;
+  store.subscribe(() => notifications++);
+  store.setState({
+    pending: {
+      [`docs:${pending}:title`]: { type: "field", ts: 1, value: "draft" },
+    },
+  });
+  jest.useFakeTimers();
+  const sweep = startTimedDocRetention(store.getState, () => true);
+  try {
+    const add = (id: string, updated_at: number) => {
+      const row = {
+        _id: id,
+        updated_at,
+        title: id,
+      } as InboxStoreState["docDetails"][string];
+      history.push(row);
+      store.getState().syncRecord("docDetails", id, row);
+    };
+    add(pinned, now - day * 31);
+    add(pending, now - day * 31);
+    for (let d = 0; d < 7; d++) {
+      for (let i = 0; i < 50; i++) {
+        const id = `m${String(d * 50 + i).padStart(31, "0")}`;
+        add(id, now + d * day + i);
+      }
+      jest.advanceTimersByTime(day);
+    }
+    const fresh = partitionDocDetailRetention(
+      history,
+      Date.now(),
+      new Set([pinned, pending]),
+    );
+    expect(Object.keys(store.getState().docDetails).sort()).toEqual(
+      (enabled ? fresh.keep : history).map((row) => row._id).sort(),
+    );
+    const writes = notifications;
+    jest.advanceTimersByTime(10 * 60_000);
+    expect(notifications).toBe(writes);
+  } finally {
+    sweep.stop();
+    jest.useRealTimers();
+    release();
+    restore();
+    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
+    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
+  }
+});
+
+test("the first batch waits for quiet", () => {
+  if (process.env.VITE_TIMED_DOC_CAPS !== "1") return;
+  const restore = replaceGlobals({
+    document: { visibilityState: "visible" },
+    performance: { now: () => Date.now() },
+  });
+  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
+  process.env.VITE_CACHE_EVICTION_METADATA = "1";
+  const store = __createInboxStoreForTests();
+  const id = "l".repeat(32);
+  store.getState().syncRecord("docDetails", id, { _id: id, updated_at: 1 });
+  jest.useFakeTimers();
+  noteInputForTests();
+  const sweep = startTimedDocRetention(store.getState, () => true);
+  try {
+    jest.advanceTimersByTime(0);
+    expect(store.getState().docDetails[id]).toBeDefined();
+    jest.advanceTimersByTime(401);
+    expect(store.getState().docDetails[id]).toBeUndefined();
+  } finally {
+    sweep.stop();
+    jest.useRealTimers();
+    restore();
+    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
+    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
+  }
+});

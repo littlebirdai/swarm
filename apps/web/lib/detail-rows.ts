@@ -68,7 +68,10 @@ export const isDetailKey = (key: string): key is DetailKey =>
 // What is on screen in this window: each mounted reader of a detail row pins
 // it (useTaskComments, usePullRequestDetail, useSyncTaskThreads), and a
 // pinned row is never evicted, whatever the cap and whichever window asked.
-const pins: Record<DetailKey, Map<string, number>> = {
+type PinnableDetailKey = DetailKey | "docDetails";
+
+const pins: Record<PinnableDetailKey, Map<string, number>> = {
+  docDetails: new Map(),
   taskComments: new Map(),
   pullRequestDetails: new Map(),
   deployReach: new Map(),
@@ -78,7 +81,7 @@ const pins: Record<DetailKey, Map<string, number>> = {
 
 /** Hold these rows while a surface shows them. Returns the release. */
 export function pinDetailRows(
-  key: DetailKey,
+  key: PinnableDetailKey,
   ids: readonly string[],
 ): () => void {
   const held = pins[key];
@@ -93,12 +96,13 @@ export function pinDetailRows(
 }
 
 export function isDetailPinned(key: string, id: string): boolean {
-  return isDetailKey(key) && pins[key].has(id);
+  return (key === "docDetails" || isDetailKey(key)) && pins[key].has(id);
 }
 
 /** Test seam. */
 export function resetDetailPins(): void {
-  for (const held of Object.values(pins)) held.clear();
+  for (const key of Object.keys(pins) as PinnableDetailKey[])
+    pins[key] = new Map();
 }
 
 /**

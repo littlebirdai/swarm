@@ -1,6 +1,9 @@
 import { useDeferredCache } from "./use-deferred-cache";
 import { noteDeferredDocEdit } from "../store/deferred-cache-policy";
-import { cacheEvictionEnabled } from "../store/cache-eviction";
+import {
+  cacheEvictionEnabled,
+  timedDocCapsEnabled,
+} from "../store/cache-eviction";
 import {
   acceptRecoveryFeed,
   canHydrateDetail,
@@ -12,8 +15,15 @@ import {
   reportCompleteDocCrawl,
   subscribeDetailInvalidations,
 } from "../store/doc-detail-cache";
+import { pinDetailRows } from "../lib/detail-rows";
 import { useServerAuthenticated } from "./useServerAuthSettled";
-import { useSyncExternalStore, useCallback, useRef, useState } from "react";
+import {
+  useSyncExternalStore,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
@@ -387,9 +397,11 @@ function refreshInvalidatedDocDetail(id: string) {
     .catch(() => {});
 }
 
-export function useSyncDocDetailWithCache(id?: string) {
+function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const cacheReady = useDeferredCache("docDetails", !!id);
   const enabled = cacheEvictionEnabled();
+  const pin = timedDocCapsEnabled();
+  const { account, revision } = detailReadPosition();
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
@@ -401,8 +413,26 @@ export function useSyncDocDetailWithCache(id?: string) {
   );
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
-    id && !isStubDoc(id) && (!enabled || authenticated) ? { id } : "skip",
+    id && subscribe && !isStubDoc(id) && (!enabled || authenticated) ? { id } : "skip",
   ).data;
+
+  useLayoutEffect(() => {
+    if (pin && id && authenticated) return pinDetailRows("docDetails", [id]);
+  }, [id, pin, authenticated, account]);
+
+  useLayoutEffect(() => {
+    if (
+      pin &&
+      id &&
+      authenticated &&
+      data?._id === id &&
+      data.archived_at === undefined &&
+      detailReadIsCurrent(id, { account, revision }) &&
+      canHydrateDetail(id) &&
+      !useInboxStore.getState().docDetails[id]
+    )
+      syncAuthorizedDocDetail(id, data);
+  }, [id, pin, authenticated, data, account, revision]);
 
   useWatchEffect(() => {
     if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);
@@ -437,4 +467,10 @@ export function useSyncDocDetailWithCache(id?: string) {
 
 export function useSyncDocDetail(id?: string) {
   return useSyncDocDetailWithCache(id).detailResult;
+}
+
+export function useDocDetail(id: string, subscribe = true) {
+  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id, subscribe);
+  const detail = useInboxStore((state) => state.docDetails[id]);
+  return { detail, detailResult, cacheReady };
 }

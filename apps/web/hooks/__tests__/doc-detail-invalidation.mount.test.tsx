@@ -24,7 +24,6 @@ import {
 import { startSyncReplication } from "../../store/sync-replication";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { mountWeb } from "../../test-helpers/mountWeb";
-import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { hideInvalidatedDetails } from "../../store/doc-detail-authority";
 import {
@@ -32,7 +31,8 @@ import {
   resetDetailInvalidations,
   setDetailInvalidationReporter,
 } from "../../store/doc-detail-cache";
-import { useSyncDocDetail, useSyncDocsPaginated } from "../use-sync-docs";
+import { useDocDetail, useSyncDocsPaginated } from "../use-sync-docs";
+import { isDetailPinned } from "../../lib/detail-rows";
 
 const flag = "VITE_CACHE_EVICTION_METADATA";
 const original = process.env[flag];
@@ -51,8 +51,8 @@ afterEach(() => {
 });
 
 function Body() {
-  useSyncDocDetail(id);
-  const body = useInboxStore((state) => state.docDetails[id]?.content);
+  const { detail } = useDocDetail(id);
+  const body = detail?.content;
   return <p>{body ?? "No body"}</p>;
 }
 
@@ -663,3 +663,18 @@ test.each([false, true])(
     }
   },
 );
+
+test("a mounted document pins its detail until it unmounts", async () => {
+  process.env[flag] = "1";
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+    },
+  });
+  expect(isDetailPinned("docDetails", id)).toBe(
+    process.env.VITE_TIMED_DOC_CAPS === "1",
+  );
+  await ui.rerender(null);
+  expect(isDetailPinned("docDetails", id)).toBe(false);
+});

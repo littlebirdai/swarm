@@ -1,4 +1,5 @@
-import { useDeferredCache } from "../../../hooks/use-deferred-cache";
+import { timedDocCapsEnabled } from "../../../store/cache-eviction";
+import { useDocDetail } from "../../../hooks/use-sync-docs";
 import { useCallback, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import type { Editor } from "@tiptap/core";
@@ -37,7 +38,6 @@ export type TrimSummary = {
  * written through the store's updateDoc like any other doc field).
  */
 export function useDrafting(docId: string) {
-  useDeferredCache("docDetails", !!docId);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -45,18 +45,16 @@ export function useDrafting(docId: string) {
   const [trim, setTrim] = useState<TrimSummary | null>(null);
   const runLab = useAction(api.docLab.run);
 
+  const { detail } = useDocDetail(docId, timedDocCapsEnabled());
   const s = useTrackedStore([
     (st) => st.clientState.ui?.doc_drafting,
-    (st) => (st.docDetails[docId] as any)?.overflow,
     (st) => (st.docs[docId] as any)?.overflow,
     (st) => (st.docs[docId] as any)?.workspace,
     (st) => st.teams,
   ]);
   const enabled = !!s.clientState.ui?.doc_drafting;
   const overflow: string =
-    (s.docDetails[docId] as any)?.overflow ??
-    (s.docs[docId] as any)?.overflow ??
-    "";
+    (detail as any)?.overflow ?? (s.docs[docId] as any)?.overflow ?? "";
   // The Lab sends the doc to Anthropic: a regulated team's doc gets the line instead (the server refuses it too).
   const workspace: string = (s.docs[docId] as any)?.workspace ?? "";
   const labTeam = workspace.startsWith("team:")

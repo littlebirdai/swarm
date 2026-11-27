@@ -8,7 +8,7 @@ import {
   type DocItem,
 } from "../../../store/inboxStore";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
-import { useSyncDocDetailWithCache } from "../../../hooks/use-sync-docs";
+import { useDocDetail } from "../../../hooks/use-sync-docs";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
 import { DetailSplitLayout } from "../../../components/DetailSplitLayout";
 import { AuthGuard } from "../../../components/AuthGuard";
@@ -113,11 +113,7 @@ function DocDetailContent() {
   const openLinkedSession = useOpenLinkedSession();
   const id = params.id as string;
 
-  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id);
-
-  const detail = useInboxStore((s) => s.docDetails[id]) as
-    | DocDetail
-    | undefined;
+  const { detail, detailResult, cacheReady } = useDocDetail(id);
   const listItem = useInboxStore((s) => s.docs[id]) as DocDetail | undefined;
   // Backlinks and child pages are LISTS, so they read through the sanctioned
   // workspace reader — the store caches docs from every workspace viewed.

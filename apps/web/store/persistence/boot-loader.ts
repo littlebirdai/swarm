@@ -1,3 +1,4 @@
+import { timedDocCapsEnabled } from "../cache-eviction";
 import {
   deferredCacheReadsEnabled,
   deferredSharedCacheSource,
@@ -8,6 +9,8 @@ import { authPrincipal } from "../../lib/authPrincipal";
 import {
   COLLECTION_RETENTION,
   MAX_CACHED_MY_SENDS,
+  pendingDocDetailIds,
+  partitionDocDetailRetention,
   expireExcludeTombstones,
   partitionSessionRetention,
 } from "../cacheRetention";
@@ -224,9 +227,17 @@ export async function loadCache(
       // Collections that bound themselves at boot (COLLECTION_RETENTION).
       const retain = COLLECTION_RETENTION[key];
       if (retain && rows.length > 0) {
-        const { keep, drop } = retain(rows, Date.now());
+        const memoryOnly = key === "docDetails" && timedDocCapsEnabled();
+        const { keep, drop } = memoryOnly
+          ? partitionDocDetailRetention(
+              rows,
+              Date.now(),
+              pendingDocDetailIds(hydrateCtx.pending),
+            )
+          : retain(rows, Date.now());
         rows = keep;
-        if (drop.length) void deleteInBatches(table, drop.filter(unchanged));
+        if (!memoryOnly && drop.length)
+          void deleteInBatches(table, drop.filter(unchanged));
       }
       if (rows.length > 0) {
         const map: Record<string, any> = {};
