@@ -14,10 +14,10 @@ import { checkConversationAccess } from "../../privacy";
 import {
   collaborativePromptAnswersEnabled,
   acceptsRoutineAnswer,
+  currentPromptBinding,
   promptAnswerer,
   promptAuthority,
 } from "./prompt-authority.rules";
-import { isConversationSafetyBlocked } from "../../conversationSafety";
 import { isFreshTurnProjection, ownedRun } from "./runLease";
 
 type PromptPosition = {
@@ -50,42 +50,10 @@ async function openPromptTurn(
   conversation: Doc<"conversations">,
   expected?: { run: number; lease_id?: Id<"run_leases"> },
 ) {
-  const { _id: conversation_id, user_id: owner } = conversation;
-  if (
-    conversation.execution_protocol_state !== "fenced" ||
-    !conversation.owner_device_id ||
-    isConversationSafetyBlocked(conversation)
-  )
-    return null;
-  const head = await ctx.db
-    .query("conversation_execution_heads")
-    .withIndex("by_conversation", (q) =>
-      q.eq("conversation_id", conversation_id),
-    )
-    .unique();
-  if (
-    head?.owner_user_id !== owner ||
-    head.protocol_state !== "fenced" ||
-    head.current_epoch === undefined ||
-    (expected && head.current_epoch !== expected.run) ||
-    head.device_move !== undefined
-  )
-    return null;
-  const run = head.current_epoch;
-  const binding = await ctx.db
-    .query("execution_bindings")
-    .withIndex("by_conversation_epoch", (q) =>
-      q.eq("conversation_id", conversation_id).eq("epoch", run),
-    )
-    .unique();
-  if (
-    !binding ||
-    !binding.claim_id ||
-    binding.owner_user_id !== owner ||
-    binding.owner_device_id !== conversation.owner_device_id
-  )
-    return null;
-  const claimId = binding.claim_id;
+  const current = await currentPromptBinding(ctx, conversation, expected?.run);
+  if (!current) return null;
+  const { head, binding, claimId } = current;
+  const { conversation_id, epoch: run } = binding;
   const [lease, projection] = await Promise.all([
     expected?.lease_id
       ? ctx.db.get(expected.lease_id)

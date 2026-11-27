@@ -4,6 +4,7 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { act } from "react";
 import { mountWeb } from "../../../test-helpers/mountWeb";
 import type { FencedPromptAddress } from "../../../store/fenced-prompt-answer";
+import { ThemeContext } from "../../ThemeProvider";
 import { PermissionCard } from "../../permission-card";
 import { ModernAskUserQuestion } from "../blocks/modern-ask-user-question";
 
@@ -134,49 +135,76 @@ test("a baton holder submits a routine question through its exact address withou
   }
 });
 
-test("an escalation card identifies the owner and enables only that viewer", async () => {
-  const row = address(permissionPromptId, "permission");
-  const web = await mountWeb(
-    <PermissionCard
-      permission={{
-        _id: permissionId,
-        conversation_id: conversationId,
-        fenced_prompt_id: permissionPromptId,
-        fenced_prompt_turn_id: row.turn_id,
-        tool_name: "Deploy",
-        status: "pending",
-        created_at: 1,
-      }}
-    />,
-    {
-      authenticated: true,
-      dispatch: true,
-      setup(backend) {
-        backend.set(
-          query,
-          promptFeed([
-            { ...row, answerer: { name: "Session owner", can_answer: false } },
-          ]),
-        );
-        backend.mutation(api.dispatch.dispatch, null);
+test.each(["classic", "modern"] as const)(
+  "a read-only %s escalation card has no busy marker or shortcut hints",
+  async (visualStyle) => {
+    const row = address(permissionPromptId, "permission");
+    const web = await mountWeb(
+      <ThemeContext.Provider
+        value={{
+          theme: "light",
+          toggleTheme: () => {},
+          visualStyle,
+          setVisualStyle: () => {},
+        }}
+      >
+        <PermissionCard
+          permission={{
+            _id: permissionId,
+            conversation_id: conversationId,
+            fenced_prompt_id: permissionPromptId,
+            fenced_prompt_turn_id: row.turn_id,
+            tool_name: "Deploy",
+            status: "pending",
+            created_at: 1,
+          }}
+        />
+      </ThemeContext.Provider>,
+      {
+        authenticated: true,
+        dispatch: true,
+        setup(backend) {
+          backend.set(
+            query,
+            promptFeed([
+              {
+                ...row,
+                answerer: { name: "Session owner", can_answer: false },
+              },
+            ]),
+          );
+          backend.mutation(api.dispatch.dispatch, null);
+        },
       },
-    },
-  );
-  expect(web.container.textContent).toContain("Answers · Session owner");
-  expect(button(web.container, "Deny").disabled).toBe(true);
-  await act(async () =>
-    web.backend.set(
-      query,
-      promptFeed([
-        { ...row, answerer: { name: "Session owner", can_answer: true } },
-      ]),
-    ),
-  );
-  expect(web.container.textContent).toContain("Answers · You");
-  await act(async () => button(web.container, "Approve").click());
-  expect(web.backend.mutations).toHaveLength(1);
-  expect(web.backend.mutations[0]?.args).toMatchObject({
-    action: "answerFencedPrompt",
-    args: [row._id, { prompt_id: permissionPromptId }],
-  });
-});
+    );
+    expect(web.container.textContent).toContain("Answers · Session owner");
+    expect(web.container.textContent).not.toContain("...");
+    expect(button(web.container, "Approve").disabled).toBe(true);
+    expect(button(web.container, "Deny").disabled).toBe(true);
+    expect(web.container.querySelectorAll("kbd")).toHaveLength(0);
+    await act(async () => {
+      for (const key of ["y", "n"]) {
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true }),
+        );
+      }
+    });
+    expect(web.backend.mutations).toHaveLength(0);
+    await act(async () =>
+      web.backend.set(
+        query,
+        promptFeed([
+          { ...row, answerer: { name: "Session owner", can_answer: true } },
+        ]),
+      ),
+    );
+    expect(web.container.textContent).toContain("Answers · You");
+    expect(web.container.querySelectorAll("kbd")).toHaveLength(2);
+    await act(async () => button(web.container, "Approve").click());
+    expect(web.backend.mutations).toHaveLength(1);
+    expect(web.backend.mutations[0]?.args).toMatchObject({
+      action: "answerFencedPrompt",
+      args: [row._id, { prompt_id: permissionPromptId }],
+    });
+  },
+);

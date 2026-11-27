@@ -31,7 +31,7 @@ const approval = { behavior: "allow" } as const;
 const stale =
   "The prompt has closed or you no longer have permission to answer it.";
 
-async function setup() {
+async function setup(batonCapable = true) {
   const f = await setupRunLease();
   const { holder, viewer, stranger, claim } = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "prompt baton roles");
@@ -40,9 +40,10 @@ async function setup() {
     const stranger = await rows.user();
     await db.patch(f.conversation, { share_token: "readable-prompt" });
     const binding = (await db.get(f.binding))!;
-    await db.patch(f.binding, {
-      capabilities: [...binding.capabilities!, STEER_BATON_CAPABILITY],
-    });
+    if (batonCapable)
+      await db.patch(f.binding, {
+        capabilities: [...binding.capabilities!, STEER_BATON_CAPABILITY],
+      });
     for (const user_id of [holder, viewer])
       await db.insert("share_redemptions", {
         conversation_id: f.conversation,
@@ -189,6 +190,7 @@ async function setup() {
     ...f,
     base,
     append,
+    address,
     holder,
     claim,
     viewer,
@@ -245,6 +247,78 @@ test("a verified routine question names the driver and only the driver can answe
     ).toBe(false);
 });
 
+function putEscalationPermission(f: Awaited<ReturnType<typeof setup>>) {
+  return f.t.run(({ db }) =>
+    db.insert("pending_permissions", {
+      conversation_id: f.conversation,
+      session_id: "session",
+      fenced_prompt_id: "escalation",
+      fenced_prompt_turn_id: "turn",
+      tool_name: "Deploy",
+      arguments_preview: "unshared preview",
+      status: "pending",
+      created_at: start,
+    }),
+  );
+}
+
+async function addHolderToSessionTeam(f: Awaited<ReturnType<typeof setup>>) {
+  await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "prompt baton team");
+    const team = await rows.team();
+    await rows.membership(f.owner, team, { visibility: "full" });
+    await rows.membership(f.holder, team, { visibility: "full" });
+    await db.patch(f.conversation, {
+      team_id: team,
+      is_private: false,
+      team_visibility: "full",
+    });
+  });
+}
+
+test("taking inbox ownership gives a teammate no authority over escalations or secrets", async () => {
+  const f = await setup();
+  await addHolderToSessionTeam(f);
+  const teammate = asUser(f.t, f.holder);
+  const change = await teammate.mutation(api.sessionOwnership.setSessionOwner, {
+    session_id: f.conversation,
+    owner: "me",
+  });
+  expect(change.ok).toBe(true);
+  expect(await f.t.run(({ db }) => db.get(f.conversation))).toMatchObject({
+    owner_user_id: f.holder,
+    user_id: f.owner,
+  });
+  await expect(f.holderSeat.answer("escalation", approval)).rejects.toThrow(
+    stale,
+  );
+  await expect(f.holderSeat.answer("secret", null)).rejects.toThrow(stale);
+  expect(await f.rows()).toEqual([]);
+  await f.ownerSeat.answer("escalation", approval);
+  await f.ownerSeat.answer("secret", null);
+  expect(await f.next()).toMatchObject({
+    status: "command",
+    args: { by: { kind: "person", id: f.owner }, answer: approval },
+  });
+});
+
+test("an incapable fenced run keeps the original teammate permission proposal card", async () => {
+  const f = await setup(false);
+  await addHolderToSessionTeam(f);
+  const permission = await putEscalationPermission(f);
+  const rows = await f.holderSeat.pendingPermissions();
+  expect(rows).toMatchObject([
+    {
+      _id: permission,
+      status: "pending",
+      arguments_preview: "unshared preview",
+    },
+  ]);
+  expect(rows[0]).not.toHaveProperty("fenced_prompt_id");
+  expect(rows[0]).not.toHaveProperty("fenced_prompt_turn_id");
+  expect(await f.holderSeat.feed()).toEqual({ prompts: [], turn: null });
+});
+
 test("the owner answers escalation prompts even while a collaborator holds the baton", async () => {
   const f = await setup();
   for (const prompt of ["escalation", "unverified", "secret"]) {
@@ -261,18 +335,7 @@ test("the owner answers escalation prompts even while a collaborator holds the b
       }),
     );
   }
-  const permission = await f.t.run(({ db }) =>
-    db.insert("pending_permissions", {
-      conversation_id: f.conversation,
-      session_id: "session",
-      fenced_prompt_id: "escalation",
-      fenced_prompt_turn_id: f.base.turn,
-      tool_name: "Deploy",
-      arguments_preview: "unshared preview",
-      status: "pending",
-      created_at: start,
-    }),
-  );
+  const permission = await putEscalationPermission(f);
   expect(await f.viewerSeat.pendingPermissions()).toMatchObject([
     { _id: permission, fenced_prompt_id: "escalation", arguments_preview: "" },
   ]);
@@ -289,21 +352,41 @@ test("the owner answers escalation prompts even while a collaborator holds the b
   ]);
 });
 
-test("concurrent answers settle once and a new answerer cannot answer the same address again", async () => {
+test.each(["unverified", "secret"])(
+  "the holder is refused when answering a %s question directly",
+  async (prompt) => {
+    const f = await setup();
+    await expect(f.holderSeat.answer(prompt, routine)).rejects.toThrow(stale);
+    expect(await f.rows()).toEqual([]);
+  },
+);
+
+test("concurrent answers across baton expiry settle once for two authorized actors", async () => {
   const f = await setup();
-  const concurrent = await Promise.allSettled([
-    f.holderSeat.answer("routine", routine),
-    f.ownerSeat.answer("routine", routine),
-  ]);
-  expect(concurrent.map(({ status }) => status)).toEqual([
-    "fulfilled",
-    "rejected",
-  ]);
+  const admitted = Promise.withResolvers<void>();
+  const commit = Promise.withResolvers<void>();
+  const winner = asUser(f.t, f.holder).run(async (ctx) => {
+    const answer = await ctx.runMutation(api.permissions.answerPrompt, {
+      ...f.address("routine"),
+      answer: routine,
+    });
+    admitted.resolve();
+    await commit.promise;
+    return answer;
+  });
+  await Promise.race([admitted.promise, winner]);
   setSystemTime(new Date(start + 5_001));
-  await expect(f.ownerSeat.answer("routine", routine)).rejects.toThrow(
-    "This prompt already has an answer.",
-  );
-  expect(await f.rows()).toHaveLength(1);
+  const loser = f.ownerSeat.answer("routine", routine);
+  commit.resolve();
+  const [accepted, refused] = await Promise.allSettled([winner, loser]);
+  expect(accepted.status).toBe("fulfilled");
+  expect(refused).toEqual({
+    status: "rejected",
+    reason: expect.objectContaining({
+      data: "This prompt already has an answer.",
+    }),
+  });
+  expect(await f.rows()).toMatchObject([{ actor_user_id: f.holder }]);
 });
 
 test("the owner can answer after the holder expires and stale holders and prompts are refused", async () => {

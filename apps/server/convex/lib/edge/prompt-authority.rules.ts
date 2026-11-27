@@ -2,6 +2,7 @@ import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
+import { isConversationSafetyBlocked } from "../../conversationSafety";
 import { redactSecrets } from "../../redact";
 import { canSendProductMessage } from "../../pendingMessages";
 import { findClaim } from "../claims";
@@ -19,17 +20,71 @@ export function collaborativePromptAnswersEnabled() {
   return process.env.SWARM_TURN_BATON === "1";
 }
 
+export async function currentPromptBinding(
+  ctx: Pick<QueryCtx, "db">,
+  conversation: Doc<"conversations">,
+  expectedRun?: number,
+) {
+  const { _id: conversation_id, user_id: owner } = conversation;
+  if (
+    conversation.execution_protocol_state !== "fenced" ||
+    !conversation.owner_device_id ||
+    isConversationSafetyBlocked(conversation)
+  )
+    return null;
+  const head = await ctx.db
+    .query("conversation_execution_heads")
+    .withIndex("by_conversation", (q) =>
+      q.eq("conversation_id", conversation_id),
+    )
+    .unique();
+  if (
+    head?.owner_user_id !== owner ||
+    head.protocol_state !== "fenced" ||
+    head.current_epoch === undefined ||
+    (expectedRun !== undefined && head.current_epoch !== expectedRun) ||
+    head.device_move !== undefined
+  )
+    return null;
+  const run = head.current_epoch;
+  const binding = await ctx.db
+    .query("execution_bindings")
+    .withIndex("by_conversation_epoch", (q) =>
+      q.eq("conversation_id", conversation_id).eq("epoch", run),
+    )
+    .unique();
+  if (
+    !binding ||
+    !binding.claim_id ||
+    binding.owner_user_id !== owner ||
+    binding.owner_device_id !== conversation.owner_device_id
+  )
+    return null;
+  return { head, binding, claimId: binding.claim_id };
+}
+
+function supportsPromptBaton(binding: Doc<"execution_bindings"> | undefined) {
+  return binding?.capabilities?.includes(STEER_BATON_CAPABILITY) === true;
+}
+
+export async function sharedPromptPermissionsEnabled(
+  ctx: Pick<QueryCtx, "db">,
+  conversation: Doc<"conversations">,
+) {
+  if (!collaborativePromptAnswersEnabled()) return false;
+  return supportsPromptBaton(
+    (await currentPromptBinding(ctx, conversation))?.binding,
+  );
+}
+
 export async function promptAuthority(
   ctx: Pick<QueryCtx, "db">,
   opened: OpenedPrompt,
 ) {
   const { conversation, binding, projectionVersion, turn } = opened;
-  if (
-    !collaborativePromptAnswersEnabled() ||
-    !binding.capabilities?.includes(STEER_BATON_CAPABILITY)
-  )
+  if (!collaborativePromptAnswersEnabled() || !supportsPromptBaton(binding))
     return null;
-  const owner = conversation.owner_user_id ?? conversation.user_id;
+  const owner = conversation.user_id;
   let holder: Id<"users"> | null = null;
   if (projectionVersion === TURN_STARTER_PROJECTION_VERSION) {
     const claim = await findClaim(ctx.db, {

@@ -19,7 +19,7 @@ import {
 } from "./lib/edge/prompt-answers.route";
 import { checkConversationAccess } from "./privacy";
 import {
-  collaborativePromptAnswersEnabled,
+  sharedPromptPermissionsEnabled,
   sharedPermissionRows,
 } from "./lib/edge/prompt-authority.rules";
 import { runnerDeviceOf } from "./lib/runnerDevice";
@@ -602,8 +602,7 @@ export const getPendingPermissions = query({
       !runner &&
       args.as_proposer &&
       fencedPromptAnswersEnabled() &&
-      collaborativePromptAnswersEnabled() &&
-      conversation.execution_protocol_state === "fenced" &&
+      (await sharedPromptPermissionsEnabled(ctx, conversation)) &&
       (await checkConversationAccess(ctx, userId, conversation)) !== "denied";
     if (!runner && !proposer && !sharedFenced) return [];
 

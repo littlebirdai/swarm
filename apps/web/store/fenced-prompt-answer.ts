@@ -15,10 +15,6 @@ export type FencedPromptAddress = FunctionReturnType<
   answerSummary?: Record<string, string>;
 };
 
-export function canUsePromptAddress(address: FencedPromptAddress | undefined) {
-  return !!address && address.answerer?.can_answer !== false;
-}
-
 export function promptAnswererLabel(answerer: FencedPromptAddress["answerer"]) {
   return answerer
     ? `Answers · ${answerer.can_answer ? "You" : answerer.name}`
