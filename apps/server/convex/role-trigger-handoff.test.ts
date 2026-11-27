@@ -1,15 +1,21 @@
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
+  asUser,
   countDatabaseReads,
   scheduledJobs,
   serverTest,
   type ServerTest,
 } from "../test-helpers/database.testkit";
+import { seedSeat, undoRetirement } from "../test-helpers/role-trigger.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import type { FunctionArgs } from "convex/server";
 import { api, internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
-import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
+import type { Id } from "./_generated/dataModel";
+import {
+  cancelTasksOriginatingFrom,
+  handRoleTriggersToRunner,
+  patchTask,
+} from "./lib/agentTaskRows";
 
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
@@ -37,88 +43,6 @@ async function oldRunnerClaims(
       daemon_id: "old-daemon",
       task_id,
     });
-}
-
-async function seedSeat(
-  t: ServerTest,
-  triggerCount: number,
-  prompt = "Check in",
-) {
-  return t.run(async ({ db }) => {
-    const fixtures = fixtureRows(db, "role-trigger-handoff");
-    const oldRunner = await fixtures.user();
-    const runner = await fixtures.user();
-    const otherSeat = await fixtures.conversation(oldRunner);
-    const seat = await fixtures.conversation(runner, {
-      armed_trigger_kind: "once",
-    });
-    async function roleAt(conversation: typeof seat, handle: string) {
-      const anchor = await db.insert("anchors", {
-        conversation_id: conversation,
-        scope_type: "user",
-        scope_user_id: oldRunner,
-        host_user_id: oldRunner,
-        bot_user_id: oldRunner,
-        name: handle,
-        status: "active",
-        created_at: 1,
-      });
-      return db.insert("org_roles", {
-        anchor_id: anchor,
-        short_id: handle,
-        scope_type: "user",
-        scope_user_id: oldRunner,
-        host_user_id: oldRunner,
-        name: handle,
-        handle,
-        scope: { project_ids: [], plan_ids: [] },
-        reports_to: { kind: "user", user_id: oldRunner },
-        status: "active",
-        created_by: oldRunner,
-        created_at: 1,
-        updated_at: 1,
-      });
-    }
-    const role = await roleAt(seat, "seated-role");
-    const otherRole = await roleAt(otherSeat, "other-role");
-    const trigger = (data: Partial<Doc<"agent_tasks">> = {}) =>
-      db.insert("agent_tasks", {
-        user_id: oldRunner,
-        originating_conversation_id: seat,
-        title: "Follow up",
-        prompt,
-        mode: "apply",
-        schedule_type: "once",
-        status: "scheduled",
-        created_at: 1,
-        retry_count: 0,
-        run_count: 0,
-        ...data,
-      });
-    const personal = await trigger();
-    const offSeat = await trigger({ role_id: otherRole });
-    const alreadyOwned = await trigger({ user_id: runner, role_id: role });
-    const moved = [];
-    for (let i = 0; i < triggerCount; i++) {
-      moved.push(
-        await trigger({
-          role_id: role,
-          schedule_type: i === triggerCount - 1 ? "recurring" : "once",
-        }),
-      );
-    }
-    return {
-      seat,
-      runner,
-      oldRunner,
-      moved,
-      personal,
-      offSeat,
-      alreadyOwned,
-      role,
-      otherSeat,
-    };
-  });
 }
 
 test("handoff keeps owner writes in trigger order and repairs the kind after the first write", async () => {
@@ -486,5 +410,374 @@ test("handoff retains a standing witness beyond the scan budget before the first
   await t.run(async ({ db }) => {
     expect((await db.get(last))?.user_id).toBe(runner);
     expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
+  });
+});
+
+test("small retirement cancels in trigger order and repairs the kind after each change", async () => {
+  const t = serverTest({});
+  const { seat, role, moved, alreadyOwned } = await seedSeat(t, 3);
+  await t.run(async (ctx) => {
+    await ctx.db.patch(seat, { armed_trigger_kind: "standing" });
+    await ctx.db.patch(alreadyOwned, { status: "failed" });
+    await ctx.db.patch(moved[0], { schedule_type: "recurring" });
+    await ctx.db.patch(moved[2], { schedule_type: "once" });
+    const writes: unknown[] = [];
+    const dbReads = countDatabaseReads(ctx.db);
+    const db = {
+      ...dbReads.db,
+      patch: (async (id, patch) => {
+        writes.push([id, patch]);
+        await ctx.db.patch(id, patch);
+      }) as typeof ctx.db.patch,
+    };
+    const owner = (await ctx.db.get(role))!.host_user_id;
+    await cancelTasksOriginatingFrom(
+      { ...ctx, db },
+      seat,
+      {
+        role,
+        by: owner,
+        keepTitle: "Seat routine",
+      },
+      async () => {
+        throw new Error("Small retirement scheduled work");
+      },
+    );
+    const patch = { status: "cancelled" };
+    expect(writes).toEqual([
+      [moved[0], patch],
+      [seat, { armed_trigger_kind: "once" }],
+      [moved[1], patch],
+      [moved[2], patch],
+    ]);
+    expect(
+      dbReads.reads.filter((table) => table === "agent_tasks"),
+    ).toHaveLength(1);
+  });
+});
+
+test.each(["keep", "retire"] as const)(
+  "a 500-trigger retirement that chooses %s finishes under default limits and is repeatable",
+  async (standing_session) => {
+    const t = serverTest({});
+    const {
+      seat,
+      runner,
+      oldRunner,
+      role,
+      moved,
+      alreadyOwned,
+      personal,
+      offSeat,
+    } = await seedSeat(t, 500);
+    const retire = () =>
+      asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+        role_id: role,
+        standing_session,
+      });
+    await t.run(async ({ db }) => {
+      await db.patch(alreadyOwned, { status: "completed" });
+      await db.patch(moved[0], { status: "paused" });
+      await db.patch(moved[1], { status: "running" });
+    });
+    expect(await retire()).toMatchObject({
+      status: "retired",
+      pending_trigger_cancellation: true,
+    });
+    expect(
+      (await t.run(({ db }) => db.get(seat)))?.inbox_killed_at,
+    ).toBeUndefined();
+    const cancel = internal.orgRoles.continueRoleTriggerCancellation;
+    expect(await scheduledJobs(t, cancel)).toHaveLength(1);
+    expect((await retire()).cancelled_triggers).toBe(0);
+    expect(await scheduledJobs(t, cancel)).toHaveLength(1);
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    expect(await scheduledJobs(t, cancel)).toHaveLength(4);
+    await t.run(async ({ db }) => {
+      const tasks = await db
+        .query("agent_tasks")
+        .withIndex("by_originating_conversation", (q) =>
+          q.eq("originating_conversation_id", seat),
+        )
+        .collect();
+      const kept = standing_session === "keep";
+      const cancelled = tasks.filter((task) => task.status === "cancelled");
+      expect(cancelled.map((task) => task._id)).toEqual(
+        kept ? moved : [personal, offSeat, ...moved],
+      );
+      expect(tasks.find((task) => task._id === alreadyOwned)).toMatchObject({
+        user_id: runner,
+        status: "completed",
+      });
+      const standing = await db.get(seat);
+      expect(standing?.armed_trigger_kind).toBe(kept ? "once" : "none");
+      expect(Boolean(standing?.inbox_killed_at)).toBe(!kept);
+      const changes = await db
+        .query("org_changes")
+        .withIndex("by_subject", (q) => q.eq("subject.id", role))
+        .collect();
+      expect(new Set(changes.map((change) => change.batch)).size).toBe(1);
+      expect(
+        changes.flatMap((change) =>
+          (change.writes ?? [])
+            .filter(
+              (write) =>
+                write.table === "agent_tasks" &&
+                write.after.status === "cancelled",
+            )
+            .map((write) => write.id),
+        ),
+      ).toEqual(cancelled.map((task) => task._id));
+    });
+    expect((await retire()).cancelled_triggers).toBe(0);
+    expect(await scheduledJobs(t, cancel)).toHaveLength(4);
+  },
+);
+
+test("retirement during a paged handoff cancels the rest under their existing owner", async () => {
+  const t = serverTest({});
+  const { seat, runner, oldRunner, role, moved } = await seedSeat(t, 500);
+  const last = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [last]);
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect((await t.run(({ db }) => db.get(moved[0])))?.user_id).toBe(runner);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "retire",
+  });
+  expect(await claim(last)).toBeNull();
+  expect((await t.run(({ db }) => db.get(last)))?.status).toBe("scheduled");
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await scheduledJobs(t, continuation)).toHaveLength(2);
+  await t.run(async ({ db }) => {
+    expect(await db.get(moved[0])).toMatchObject({
+      status: "cancelled",
+      user_id: runner,
+    });
+    expect(await db.get(last)).toMatchObject({
+      status: "cancelled",
+      user_id: oldRunner,
+    });
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("none");
+  });
+});
+
+test("a repeated cancellation cursor does not schedule a second chain", async () => {
+  const t = serverTest({});
+  const { role, oldRunner, moved } = await seedSeat(t, 500);
+  const cancel = internal.orgRoles.continueRoleTriggerCancellation;
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, { role_id: role });
+  const [first] = await scheduledJobs(t, cancel);
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect(await scheduledJobs(t, cancel)).toHaveLength(2);
+  await t.mutation(cancel, first.args[0]);
+  expect(await scheduledJobs(t, cancel)).toHaveLength(2);
+  const late = await t.run(async ({ db }) => {
+    const { _id, _creationTime, ...task } = (await db.get(moved.at(-1)!))!;
+    return db.insert("agent_tasks", task);
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await scheduledJobs(t, cancel)).toHaveLength(4);
+  expect((await t.run(({ db }) => db.get(late)))?.status).toBe("cancelled");
+});
+
+test("the cancellation projection follows a kept trigger edited after its page", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, personal, offSeat } = await seedSeat(t, 500);
+  await t.run(({ db }) => db.patch(personal, { schedule_type: "recurring" }));
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  const late = await t.run(async (ctx) => {
+    const personalRow = (await ctx.db.get(personal))!;
+    const { _id, _creationTime, ...copy } = personalRow;
+    const lateId = await ctx.db.insert("agent_tasks", {
+      ...copy,
+      role_id: role,
+      schedule_type: "once",
+    });
+    await patchTask(ctx, personalRow, { status: "paused" });
+    return lateId;
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect((await db.get(personal))?.status).toBe("paused");
+    expect((await db.get(offSeat))?.status).toBe("scheduled");
+    expect((await db.get(late))?.status).toBe("scheduled");
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("once");
+  });
+});
+
+test("retire after undo replaces the pending keep cancellation", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, moved, personal } = await seedSeat(t, 500);
+  const owner = asUser(t, oldRunner);
+  const retire = (standing_session: "keep" | "retire") =>
+    owner.mutation(api.orgRoles.retire, { role_id: role, standing_session });
+  const cancel = internal.orgRoles.continueRoleTriggerCancellation;
+  await retire("keep");
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  expect((await t.run(({ db }) => db.get(moved[0])))?.status).toBe("cancelled");
+  await undoRetirement(t, oldRunner, role);
+  expect((await t.run(({ db }) => db.get(moved[0])))?.status).toBe("scheduled");
+  await retire("retire");
+  expect(await scheduledJobs(t, cancel)).toHaveLength(3);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(personal)).toMatchObject({ status: "cancelled" });
+    expect(await db.get(moved.at(-1)!)).toMatchObject({ status: "cancelled" });
+    const row = (await db.get(role))!;
+    expect(await db.get(row.anchor_id!)).toMatchObject({
+      status: "decommissioned",
+    });
+    expect(await db.get(seat)).toMatchObject({
+      armed_trigger_kind: "none",
+      inbox_killed_at: expect.any(Number),
+    });
+  });
+});
+
+test("kept seat hands its other active role to the runner after cancellation", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved, offSeat } = await seedSeat(
+    t,
+    500,
+  );
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await t.run(async (ctx) => {
+    const task = (await ctx.db.get(offSeat))!;
+    const otherRole = (await ctx.db.get(task.role_id!))!;
+    await ctx.db.patch(otherRole.anchor_id!, { conversation_id: seat });
+    await handRoleTriggersToRunner(ctx, seat);
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(offSeat)).toMatchObject({
+      user_id: runner,
+      status: "scheduled",
+    });
+    expect(await db.get(moved.at(-1)!)).toMatchObject({ status: "cancelled" });
+    expect((await db.get(seat))?.inbox_killed_at).toBeUndefined();
+  });
+});
+
+test("a claim after undo no longer waits for the cancelled retirement", async () => {
+  const t = serverTest({});
+  const { role, oldRunner, runner, moved, seat } = await seedSeat(t, 500);
+  const due = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [due]);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  expect(await claim(due)).toBeNull();
+  expect(await t.run(({ db }) => db.get(due))).toMatchObject({
+    user_id: runner,
+    status: "scheduled",
+  });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    expect(await db.get(moved[0])).toMatchObject({
+      user_id: runner,
+      status: "scheduled",
+    });
+    expect((await db.get(seat))?.armed_trigger_kind).toBe("standing");
+  });
+});
+
+test("undoing retirement resumes the superseded handoff without a new claim", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved } = await seedSeat(t, 500);
+  await t.run((ctx) => handRoleTriggersToRunner(ctx, seat));
+  jest.runOnlyPendingTimers();
+  await t.finishInProgressScheduledFunctions();
+  const last = moved.at(-1)!;
+  expect((await t.run(({ db }) => db.get(last)))?.user_id).toBe(oldRunner);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect(await t.run(({ db }) => db.get(last))).toMatchObject({
+    status: "scheduled",
+    user_id: runner,
+  });
+});
+
+test("two keep retirements on one seat both drain and repair its armed kind", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, moved, personal, offSeat } = await seedSeat(
+    t,
+    500,
+  );
+  const anotherRole = await t.run(async ({ db }) => {
+    await db.patch(offSeat, { schedule_type: "recurring" });
+    const id = (await db.get(offSeat))!.role_id!;
+    const anchor = (await db.get(id))!.anchor_id!;
+    await db.patch(anchor, { conversation_id: seat });
+    return id;
+  });
+  for (const role_id of [role, anotherRole])
+    await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+      role_id,
+      standing_session: "keep",
+    });
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  await t.run(async ({ db }) => {
+    for (const id of [offSeat, ...moved])
+      expect((await db.get(id))?.status).toBe("cancelled");
+    expect((await db.get(personal))?.status).toBe("scheduled");
+    expect(await db.get(seat)).toMatchObject({ armed_trigger_kind: "once" });
+    expect((await db.get(seat))?.inbox_killed_at).toBeUndefined();
+  });
+});
+
+test("undo before page one repairs the kind after a claim already moved the last trigger", async () => {
+  const t = serverTest({});
+  const { seat, role, oldRunner, runner, moved } = await seedSeat(t, 150);
+  const due = moved.at(-1)!;
+  const claim = await oldRunnerClaims(t, role, oldRunner, [due]);
+  await t.run(async ({ db }) => {
+    for (const id of moved.slice(0, -1))
+      await db.patch(id, { user_id: runner });
+    await db.patch(seat, { armed_trigger_kind: "none" });
+  });
+  expect(await claim(due)).toBeNull();
+  expect(await scheduledJobs(t, continuation)).toHaveLength(1);
+  expect((await t.run(({ db }) => db.get(due)))?.user_id).toBe(runner);
+  await asUser(t, oldRunner).mutation(api.orgRoles.retire, {
+    role_id: role,
+    standing_session: "keep",
+  });
+  await undoRetirement(t, oldRunner, role);
+  await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+  expect((await t.run(({ db }) => db.get(seat)))?.armed_trigger_kind).toBe(
+    "standing",
+  );
+});
+
+test("handoff ignores cancellation keys for other seats inside the index range", async () => {
+  const t = serverTest({});
+  const { seat, runner, moved } = await seedSeat(t, 1);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("system_config", {
+      key: `role-trigger-cancellation:${seat}0`,
+      value: "",
+      updated_at: 1,
+    });
+    await handRoleTriggersToRunner(ctx, seat);
+    expect((await ctx.db.get(moved[0]))?.user_id).toBe(runner);
   });
 });

@@ -1,8 +1,3 @@
-// The agent_tasks writes a conversation's lifecycle needs: the one patch path
-// (patchTask, which keeps conversations.armed_trigger_kind true), a kill's
-// cancel and its undo, and stamping a run's conversation. Kept apart from
-// agentTasks.ts so conversations.ts and cleanup.ts can call them without
-// importing agentTasks, which reaches the big import cycle (ct-92432).
 import type { Doc, Id } from "../_generated/dataModel";
 import type { DatabaseReader } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -16,32 +11,34 @@ import { runParentOf } from "@codecast/triggers/triggerLifecycle";
 import { hostedHomeStamp } from "../assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
 import { getDocumentSize, v } from "convex/values";
-
+export const RETIRED_TRIGGER_HOME = Symbol();
 export type TaskCtx = {
   db: any;
+  [RETIRED_TRIGGER_HOME]?: Id<"conversations">;
   scheduler?: {
     runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown>;
   };
 };
-
-// Recompute conversations.armed_trigger_kind for one home from EVERY trigger
-// that injects into it (several can), and write it only when it changed — the
-// field is semantic, so each write is a sync-log action. This is the single
-// writer; every lifecycle transition below routes its patch through patchTask
-// so the denormalized answer can never lag the agent_tasks rows the inbox no
-// longer reads (sync-convergence C1).
 export async function refreshArmedTriggerKind(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<void> {
-  const kind = armedTriggerKindFor(
-    await tasksOriginatedBy(ctx, conversationId),
-  );
+  const tasks = await tasksOriginatedBy(ctx, conversationId);
   const conv = await ctx.db.get(conversationId);
-  await writeArmedTriggerKind(ctx, conv, kind);
+  await writeArmedTriggerKind(ctx, conv, armedTriggerKindFor(tasks));
+  for await (const { row, state } of activeCancellations(
+    ctx.db,
+    conversationId,
+  )) {
+    const boundary = state.seenThrough;
+    if (boundary === null) continue;
+    const kind = armedTriggerKindFor(
+      tasks.filter((task) => task._creationTime <= boundary),
+    );
+    if (kind !== state.kind) await writeSweep(ctx, row._id, { ...state, kind });
+  }
 }
-
-async function writeArmedTriggerKind(
+export async function writeArmedTriggerKind(
   ctx: TaskCtx,
   conv: Doc<"conversations"> | null,
   kind: ArmedTriggerKind,
@@ -50,12 +47,12 @@ async function writeArmedTriggerKind(
   if ((conv.armed_trigger_kind ?? "none") === kind) return;
   await ctx.db.patch(conv._id, { armed_trigger_kind: kind });
 }
-
-// Patch a trigger and keep its home's armed_trigger_kind in step.
+type TriggerRestamp = (task: Doc<"agent_tasks">) => Promise<void>;
 export async function patchTask(
   ctx: TaskCtx,
   task: Doc<"agent_tasks">,
   patch: Record<string, any>,
+  restamp?: TriggerRestamp,
 ) {
   if ("originating_conversation_id" in patch) {
     patch = {
@@ -67,7 +64,8 @@ export async function patchTask(
     };
   }
   await ctx.db.patch(task._id, patch);
-  if (task.originating_conversation_id)
+  if (restamp) await restamp(task);
+  else if (task.originating_conversation_id)
     await refreshArmedTriggerKind(ctx, task.originating_conversation_id);
   const next = { ...task, ...patch };
   if (("run_at" in patch || "status" in patch) && next.status === "scheduled")
@@ -228,6 +226,7 @@ export async function cancelTasksBoundToConversation(
   userId: Id<"users">,
   conversationId: Id<"conversations">,
 ): Promise<number> {
+  if (ctx[RETIRED_TRIGGER_HOME] === conversationId) return 0;
   let cancelled = 0;
   for (const task of await runnerTasksOriginatedBy(
     ctx,
@@ -251,19 +250,12 @@ export async function cancelTasksBoundToConversation(
   }
   return cancelled;
 }
-
-// The tasks one conversation originated, read through the conversation's own
-// index. A kill and its undo run this once per session in the tree; scanning
-// the runner's tasks by status instead read their whole trigger history each
-// time (2.3 MB per session for a heavy user), so undoing the kill of a session
-// with a handful of subagents read 19 MB in one mutation and was refused.
 export async function tasksOriginatedBy(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<Doc<"agent_tasks">[]> {
   return await triggersForConversation(ctx.db, conversationId).collect();
 }
-
 function triggersForConversation(
   db: DatabaseReader,
   conversationId: Id<"conversations">,
@@ -274,7 +266,6 @@ function triggersForConversation(
       q.eq("originating_conversation_id", conversationId),
     );
 }
-
 export async function runnerTasksOriginatedBy(
   ctx: TaskCtx,
   userId: Id<"users">,
@@ -284,9 +275,6 @@ export async function runnerTasksOriginatedBy(
     (task) => task.user_id.toString() === userId.toString(),
   );
 }
-
-/** The session a role is seated in: its anchor's conversation, read as a
- *  leaf (orgRoles.standingConversationOf reaches the big import cycle). */
 export async function roleSeatOf(
   ctx: TaskCtx,
   roleId: Id<"org_roles"> | undefined,
@@ -294,26 +282,15 @@ export async function roleSeatOf(
   const seat = await roleSeatId(ctx, roleId);
   return seat ? await ctx.db.get(seat) : null;
 }
-
 async function roleSeatId(
   ctx: TaskCtx,
   roleId: Id<"org_roles"> | undefined,
 ): Promise<Id<"conversations"> | null> {
   const role = roleId ? await ctx.db.get(roleId) : null;
+  if (role?.status === "retired") return null;
   const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
   return anchor?.conversation_id ?? null;
 }
-
-// A role's triggers belong to its standing session, so they fire as the
-// account that runs it: that account's daemon claims them (getDueTasks reads
-// by user_id), runs their precheck on the session's machine and injects as
-// the session's owner (sendMessageToSession). The session changes hands when
-// it moves across accounts (a role move, a failover, a device claim), and a
-// trigger left under the old account fired from the wrong daemon and was
-// refused at every firing (ct-95585). Only a trigger whose home IS its role's
-// seat follows the seat: a role trigger pointed anywhere else is never handed
-// to whoever owns that session, so nobody can choose a teammate's machine to
-// run it on. A person's own trigger on a session is theirs and keeps its owner.
 export async function roleTriggerRunnerOf(
   ctx: TaskCtx,
   task: Pick<
@@ -326,9 +303,6 @@ export async function roleTriggerRunnerOf(
     ? seat.user_id
     : null;
 }
-
-/** The seat of a role trigger that lives on it; null for a person's trigger
- *  or a role trigger left anywhere else. */
 export async function seatOfRoleTrigger(
   ctx: TaskCtx,
   task: Pick<Doc<"agent_tasks">, "role_id" | "originating_conversation_id">,
@@ -358,32 +332,46 @@ export async function rewriterOf(
     ? { userId: seat.user_id, seat: true }
     : { userId: task.user_id, seat: false };
 }
-
 const HANDOFF_PAGE_ROWS = 128;
 const HANDOFF_PAGE_BYTES = 1_000_000;
 const HANDOFF_KIND_ROWS = 4096;
 const HANDOFF_KIND_BYTES = 4_000_000;
-
+async function smallTriggerSet(db: DatabaseReader, seat: Id<"conversations">) {
+  const tasks: Doc<"agent_tasks">[] = [];
+  let bytes = 0;
+  for await (const task of triggersForConversation(db, seat)) {
+    tasks.push(task);
+    bytes += getDocumentSize(task);
+    if (tasks.length >= HANDOFF_PAGE_ROWS || bytes >= HANDOFF_PAGE_BYTES)
+      return null;
+  }
+  return tasks;
+}
 export async function handRoleTriggersToRunner(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
+  repairAll = false,
 ): Promise<number> {
   const seat: Doc<"conversations"> | null = await ctx.db.get(conversationId);
-  if (!seat) return 0;
-  return handRoleTriggersForSeat(ctx, seat, false);
+  return seat ? handRoleTriggersForSeat(ctx, seat, repairAll) : 0;
 }
-
 export async function handClaimedRoleTriggerToRunner(
   ctx: TaskCtx,
   task: Doc<"agent_tasks">,
 ): Promise<boolean> {
+  const home = task.originating_conversation_id;
+  if (home) {
+    for await (const { row, state } of activeCancellations(ctx.db, home)) {
+      if (shouldCancelForRetirement(task, state, row._creationTime))
+        return true;
+    }
+  }
   const seat = await seatOfRoleTrigger(ctx, task);
   if (!seat || seat.user_id === task.user_id) return false;
   await ctx.db.patch(task._id, { user_id: seat.user_id });
   await handRoleTriggersForSeat(ctx, seat, true);
   return true;
 }
-
 type RoleHandoff = {
   jobId: Id<"_scheduled_functions">;
   runner: Id<"users">;
@@ -391,79 +379,115 @@ type RoleHandoff = {
   started: boolean;
   cursor?: string | null;
 };
-
-function readRoleHandoff(row: Doc<"system_config">): RoleHandoff {
-  return JSON.parse(row.value) as RoleHandoff;
+const sweepKey = (seat: Id<"conversations">, kind = "handoff") =>
+  `role-trigger-${kind}:${seat}`;
+function scheduledSweep(db: DatabaseReader, key: string) {
+  return db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
 }
-
-async function writeRoleHandoff(
+async function* activeCancellations(
+  db: DatabaseReader,
+  seat: Id<"conversations">,
+) {
+  const key = sweepKey(seat, "cancellation");
+  const rows = db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.gte("key", key).lt("key", `${key};`));
+  for await (const row of rows) {
+    if (row.key !== key && !row.key.startsWith(`${key}:`)) continue;
+    const state = readSweep(row);
+    if (
+      "role" in state &&
+      (await sweepIsActive(db, state.jobId)) &&
+      (await db.get(state.role))?.status === "retired"
+    )
+      yield { row, state };
+  }
+}
+export function readSweep(
+  row: Doc<"system_config">,
+): RoleHandoff | TriggerCancellation {
+  return JSON.parse(row.value) as RoleHandoff | TriggerCancellation;
+}
+async function sweepIsActive(
+  db: DatabaseReader,
+  id: Id<"_scheduled_functions">,
+) {
+  const job = await db.system.get(id);
+  return job?.state.kind === "pending" || job?.state.kind === "inProgress";
+}
+export async function writeSweep(
   ctx: TaskCtx,
   id: Id<"system_config">,
-  state: RoleHandoff,
+  state: RoleHandoff | TriggerCancellation,
 ): Promise<void> {
   await ctx.db.patch(id, { value: JSON.stringify(state) });
 }
-
+function createSweep(ctx: TaskCtx, key: string): Promise<Id<"system_config">> {
+  return ctx.db.insert("system_config", {
+    key,
+    value: "",
+    updated_at: Date.now(),
+  });
+}
+export function triggerPage(
+  db: DatabaseReader,
+  seat: Id<"conversations">,
+  cursor: string | null,
+) {
+  return triggersForConversation(db, seat).paginate({
+    numItems: HANDOFF_PAGE_ROWS,
+    maximumBytesRead: HANDOFF_PAGE_BYTES,
+    cursor,
+  });
+}
 async function handRoleTriggersForSeat(
   ctx: TaskCtx,
   seat: Doc<"conversations">,
   claimed: boolean,
 ): Promise<number> {
-  const key = `role-trigger-handoff:${seat._id}`;
-  const db: DatabaseReader = ctx.db;
-  const handoff = await db
-    .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .unique();
+  for await (const _ of activeCancellations(ctx.db, seat._id)) return 0;
+  const handoff = await scheduledSweep(ctx.db, sweepKey(seat._id));
   if (handoff) {
-    const state = readRoleHandoff(handoff);
-    if (state.runner === seat.user_id) {
-      const job = await db.system.get(state.jobId);
+    const state = readSweep(handoff);
+    if (!("role" in state) && state.runner === seat.user_id) {
       if (
         (claimed || state.started === false) &&
-        (job?.state.kind === "pending" || job?.state.kind === "inProgress")
+        (await sweepIsActive(ctx.db, state.jobId))
       ) {
-        if (claimed && !state.claimed) {
-          await writeRoleHandoff(ctx, handoff._id, { ...state, claimed });
-        }
+        if (claimed && !state.claimed)
+          await writeSweep(ctx, handoff._id, { ...state, claimed });
         return 0;
       }
       claimed ||= state.claimed;
     }
     await ctx.db.delete(handoff._id);
   }
-  const tasks: Doc<"agent_tasks">[] = [];
-  let bytes = 0;
-  for await (const task of triggersForConversation(ctx.db, seat._id)) {
-    tasks.push(task);
-    bytes += getDocumentSize(task);
-    if (tasks.length >= HANDOFF_PAGE_ROWS || bytes >= HANDOFF_PAGE_BYTES) {
-      if (!ctx.scheduler)
-        throw new Error("Trigger handoff requires a scheduler");
-      const handoffId: Id<"system_config"> = await ctx.db.insert(
-        "system_config",
-        { key, value: "", updated_at: Date.now() },
-      );
-      const jobId = (await ctx.scheduler.runAfter(
-        0,
-        internal.lib.agentTaskRows.continueRoleTriggerHandoff,
-        {
-          conversationId: seat._id,
-          runner: seat.user_id,
-          cursor: null,
-          repair: "pending",
-          handoffId,
-        },
-      )) as Id<"_scheduled_functions">;
-      await writeRoleHandoff(ctx, handoffId, {
-        jobId,
+  const tasks = await smallTriggerSet(ctx.db, seat._id);
+  if (!tasks) {
+    if (!ctx.scheduler) throw new Error("Trigger handoff requires a scheduler");
+    const handoffId = await createSweep(ctx, sweepKey(seat._id));
+    const jobId = (await ctx.scheduler.runAfter(
+      0,
+      internal.lib.agentTaskRows.continueRoleTriggerHandoff,
+      {
+        conversationId: seat._id,
         runner: seat.user_id,
-        claimed,
-        started: false,
         cursor: null,
-      });
-      return 0;
-    }
+        repair: "pending",
+        handoffId,
+      },
+    )) as Id<"_scheduled_functions">;
+    await writeSweep(ctx, handoffId, {
+      jobId,
+      runner: seat.user_id,
+      claimed,
+      started: false,
+      cursor: null,
+    });
+    return 0;
   }
   const repairKind = () =>
     writeArmedTriggerKind(ctx, seat, armedTriggerKindFor(tasks));
@@ -475,7 +499,6 @@ async function handRoleTriggersForSeat(
     claimed ? undefined : repairKind,
   );
 }
-
 async function handRoleTriggerPage(
   ctx: TaskCtx,
   seat: Doc<"conversations">,
@@ -498,7 +521,6 @@ async function handRoleTriggerPage(
   }
   return handed;
 }
-
 export const continueRoleTriggerHandoff = internalMutation({
   args: {
     handoffId: v.optional(v.id("system_config")),
@@ -517,18 +539,15 @@ export const continueRoleTriggerHandoff = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     const handoff = args.handoffId && (await ctx.db.get(args.handoffId));
     if (args.handoffId && !handoff) return;
-    const state = handoff ? readRoleHandoff(handoff) : null;
+    const state = handoff ? readSweep(handoff) : null;
+    if (state && "role" in state) return;
     if (state?.cursor !== undefined && state.cursor !== args.cursor) return;
     const seat = await ctx.db.get(args.conversationId);
     if (!seat || seat.user_id !== args.runner) {
       if (handoff) await ctx.db.delete(handoff._id);
       return;
     }
-    const page = await triggersForConversation(ctx.db, seat._id).paginate({
-      numItems: HANDOFF_PAGE_ROWS,
-      maximumBytesRead: HANDOFF_PAGE_BYTES,
-      cursor: args.cursor,
-    });
+    const page = await triggerPage(ctx.db, seat._id, args.cursor);
     const pageKind =
       args.repair === "done" ? undefined : armedTriggerKindFor(page.page);
     const seenKind =
@@ -597,7 +616,7 @@ export const continueRoleTriggerHandoff = internalMutation({
         },
       );
       if (handoff && state) {
-        await writeRoleHandoff(ctx, handoff._id, {
+        await writeSweep(ctx, handoff._id, {
           ...state,
           jobId,
           started: true,
@@ -609,37 +628,103 @@ export const continueRoleTriggerHandoff = internalMutation({
     }
   },
 });
-
-/** Cancel every open task a conversation originated (a retired standing role's
- *  routines): cancelled, not completed, so nothing re-arms them. Returns the count. */
-// `only` narrows the cancel to the tasks a caller owns (a seat's own routine),
-// leaving whatever else the person armed on the thread alone.
+type Retirement = {
+  role: Id<"org_roles">;
+  by: Id<"users">;
+  keepTitle?: string;
+};
+type TriggerCancellation = Retirement & {
+  batchKey: string;
+  jobId: Id<"_scheduled_functions">;
+  cursor: string | null;
+  kind: ArmedTriggerKind;
+  seenThrough: number | null;
+};
+export function shouldCancelForRetirement(
+  task: Doc<"agent_tasks">,
+  retirement: Retirement,
+  started?: number,
+) {
+  return (
+    task.status !== "cancelled" &&
+    task.status !== "completed" &&
+    task.status !== "failed" &&
+    (retirement.keepTitle === undefined ||
+      ((started === undefined || task._creationTime <= started) &&
+        (task.title === retirement.keepTitle ||
+          task.role_id === retirement.role)))
+  );
+}
+export async function cancelRetirementPage(
+  ctx: TaskCtx,
+  tasks: Doc<"agent_tasks">[],
+  restamp: TriggerRestamp = async () => {},
+) {
+  const stopped = [];
+  for (const task of tasks) {
+    await patchTask(ctx, task, { status: "cancelled" }, restamp);
+    stopped.push({ agent_task_id: String(task._id), title: task.title });
+  }
+  return stopped;
+}
 export async function cancelTasksOriginatingFrom(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
-  now = Date.now(),
-  only?: (task: any) => boolean,
-): Promise<number> {
-  let cancelled = 0;
-  for (const task of await tasksOriginatedBy(ctx, conversationId)) {
-    if (
-      task.status === "cancelled" ||
-      task.status === "completed" ||
-      task.status === "failed"
-    )
-      continue;
-    if (only && !only(task)) continue;
-    await patchTask(ctx, task, { status: "cancelled", updated_at: now });
-    cancelled++;
+  retirement: Retirement,
+  prepareBatch: (sweepId: Id<"system_config">) => Promise<string>,
+) {
+  if (retirement.keepTitle === undefined)
+    ctx[RETIRED_TRIGGER_HOME] = conversationId;
+  const seatKey = sweepKey(conversationId, "cancellation");
+  const roleKey = `${seatKey}:${retirement.role}`;
+  const key = retirement.keepTitle === undefined ? seatKey : roleKey;
+  for (const priorKey of [seatKey, roleKey]) {
+    const row = await scheduledSweep(ctx.db, priorKey);
+    if (!row) continue;
+    const state = readSweep(row);
+    if (priorKey === key || ("role" in state && state.role === retirement.role))
+      await ctx.db.delete(row._id);
   }
-  return cancelled;
+  const tasks = await smallTriggerSet(ctx.db, conversationId);
+  if (!tasks) {
+    if (!ctx.scheduler)
+      throw new Error("Trigger cancellation requires a scheduler");
+    const handoff = await scheduledSweep(ctx.db, sweepKey(conversationId));
+    if (handoff) await ctx.db.delete(handoff._id);
+    const sweepId = await createSweep(ctx, key);
+    const batchKey = await prepareBatch(sweepId);
+    const jobId = (await ctx.scheduler.runAfter(
+      0,
+      internal.orgRoles.continueRoleTriggerCancellation,
+      { conversationId, sweepId, cursor: null },
+    )) as Id<"_scheduled_functions">;
+    await writeSweep(ctx, sweepId, {
+      ...retirement,
+      batchKey,
+      jobId,
+      cursor: null,
+      kind: "none",
+      seenThrough: null,
+    });
+    return null;
+  }
+  const cancelling = tasks.filter((task) =>
+    shouldCancelForRetirement(task, retirement),
+  );
+  let seat: Doc<"conversations"> | null = await ctx.db.get(conversationId);
+  const remaining = { none: 0, once: 0, standing: 0 };
+  for (const task of tasks) remaining[armedTriggerKindOf(task)]++;
+  return cancelRetirementPage(ctx, cancelling, async (task) => {
+    remaining[armedTriggerKindOf(task)]--;
+    const kind = remaining.standing
+      ? "standing"
+      : remaining.once
+        ? "once"
+        : "none";
+    await writeArmedTriggerKind(ctx, seat, kind);
+    if (seat) seat = { ...seat, armed_trigger_kind: kind };
+  });
 }
-
-// The mirror of cancelTasksBoundToConversation: re-arm the schedules a kill
-// canceled, called on the un-kill transition (web restore / undo, cast
-// undismiss). Only tasks stamped canceled_on_kill_at qualify — a schedule that
-// completed naturally stays completed. Reuses applyReactivate, which also
-// clears the stamp so a second restore is a no-op.
 export async function reactivateTasksCanceledOnKill(
   ctx: TaskCtx,
   userId: Id<"users">,

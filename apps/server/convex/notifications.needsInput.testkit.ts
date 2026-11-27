@@ -58,6 +58,10 @@ export function createCtx(seed: Record<string, Rec[]>) {
           ranges.push((r) => (r[field] ?? 0) > val);
           return q;
         },
+        lt(field: string, val: any) {
+          ranges.push((r) => (r[field] ?? 0) < val);
+          return q;
+        },
       };
       let desc = false;
       // .filter(q => q.eq(q.field("role"), "user")) — the one filter shape the
@@ -80,6 +84,9 @@ export function createCtx(seed: Record<string, Rec[]>) {
         return rows;
       };
       const chain: any = {
+        async *[Symbol.asyncIterator]() {
+          yield* run();
+        },
         withIndex(_name: string, builder?: (q: any) => unknown) {
           if (builder) builder(q);
           return chain;
