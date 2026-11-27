@@ -31,7 +31,7 @@ const approval = { behavior: "allow" } as const;
 const stale =
   "The prompt has closed or you no longer have permission to answer it.";
 
-async function setup(batonCapable = true) {
+async function setup(batonCapable = true, negotiated = false) {
   const f = await setupRunLease();
   const { holder, viewer, stranger, claim } = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "prompt baton roles");
@@ -70,6 +70,10 @@ async function setup(batonCapable = true) {
   });
   const lease = await f.claim("prompt-baton-run");
   if (lease.status !== "granted") throw new Error("Expected run lease");
+  if (negotiated)
+    await f.t.run(({ db }) =>
+      db.patch(f.binding, { edge_capabilities: [STEER_BATON_CAPABILITY] }),
+    );
   const base = {
     v: 1,
     session: f.conversation,
@@ -210,7 +214,7 @@ async function setup(batonCapable = true) {
 }
 
 test("a verified routine question names the driver and only the driver can answer", async () => {
-  const f = await setup();
+  const f = await setup(false, true);
   for (const [seat, allowed] of [
     [f.ownerSeat, false],
     [f.holderSeat, true],
