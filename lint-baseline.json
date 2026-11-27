@@ -4669,7 +4669,7 @@
     "swarm/no-comments": 49
   },
   "apps/cli/src/syncService.ts": {
-    "swarm/no-comments": 298
+    "swarm/no-comments": 294
   },
   "apps/cli/src/syncService.updateSessionId.test.ts": {
     "swarm/no-comments": 3
