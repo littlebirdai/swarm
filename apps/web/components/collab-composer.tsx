@@ -78,13 +78,6 @@ import { flushDraftWrite, scheduleDraftWrite } from "../lib/pendingDraftWrites";
 import { useComposerControl } from "./conversation/use-composer-control";
 import { SessionControlStrip } from "./conversation/session-control-strip";
 import type { ComposerControlFlag } from "./conversation/composer-control-model";
-// ── Live composer co-presence ────────────────────────────────────────────────
-// Thin wrapper over the shared doc_presence hook (hooks/useDocPresence) keyed by a
-// synthetic "compose:<conversationId>" id, so each side sees who else is in the box
-// and the words they're forming — the "type with me" signal. Broadcast is gated by
-// the hook: a collaborator always announces themselves (forceBroadcast), and so
-// does an owner of a session with another owner; a sole owner only announces
-// once a collaborator has actually appeared, so a solo session writes nothing.
 
 function useComposerPresence(
   conversationId: string,

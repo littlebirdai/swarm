@@ -16792,7 +16792,7 @@
     "react/immutability": 2,
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 5,
-    "swarm/no-comments": 89
+    "swarm/no-comments": 77
   },
   "apps/web/components/comments/AnchorPlacementNote.tsx": {
     "swarm/no-comments": 10,
@@ -28088,7 +28088,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5047
+    "swarm/no-comments": 5042
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
