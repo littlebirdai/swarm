@@ -8660,7 +8660,7 @@
     "swarm/no-comments": 39
   },
   "apps/server/convex/changeLog.ts": {
-    "swarm/no-comments": 103
+    "swarm/no-comments": 95
   },
   "apps/server/convex/changes.ts": {
     "swarm/no-comments": 70
@@ -9041,7 +9041,7 @@
     "swarm/no-comments": 8
   },
   "apps/server/convex/conversations.ts": {
-    "swarm/no-comments": 2660
+    "swarm/no-comments": 2649
   },
   "apps/server/convex/conversations.updateProjectPath.test.ts": {
     "swarm/no-comments": 8
@@ -10116,6 +10116,9 @@
   },
   "apps/server/convex/lib/huddleGrace.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/server/convex/lib/inboxSessionsQuery.ts": {
+    "swarm/no-comments": 11
   },
   "apps/server/convex/lib/ingestGroups.mirror.test.ts": {
     "swarm/no-comments": 3
@@ -21768,7 +21771,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
-    "swarm/no-comments": 209,
+    "swarm/no-comments": 152,
     "swarm/no-direct-use-effect": 2
   },
   "apps/web/hooks/use-sync-docs.ts": {
@@ -22263,7 +22266,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/hooks/useLiveInboxSessions.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 19
   },
   "apps/web/hooks/useLiveRoomCount.ts": {
     "swarm/no-comments": 5
@@ -23670,7 +23673,7 @@
     "swarm/no-comments": 11
   },
   "apps/web/lib/__tests__/syncCoreParity.guard.test.ts": {
-    "swarm/no-comments": 62
+    "swarm/no-comments": 60
   },
   "apps/web/lib/__tests__/syncLogCargo.test.ts": {
     "swarm/no-comments": 5

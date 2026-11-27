@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex } from "convex/react";
 import {
@@ -7,7 +8,12 @@ import {
   claimsViewer,
   isConvexId,
 } from "../store/inboxStore";
-import { batchGet } from "./use-sync-change-feed";
+import { scopeMetaKey } from "./use-sync-change-feed";
+import { settleDisownClaims } from "./sync-feed-rows";
+export { settleDisownClaims } from "./sync-feed-rows";
+import { coverInboxSnapshot } from "./inbox-replay-lane";
+import { useInboxRecovery } from "./use-inbox-recovery";
+import { useServerAuthenticated } from "./useServerAuthSettled";
 import { useConvexSync } from "./useConvexSync";
 import { useIsSyncHost } from "./use-sync-role";
 import { useSplitQueryNoThrow } from "./useSplitQuery";
@@ -50,26 +56,6 @@ export function leftClaimingViewer(
       !!state.sessions[id] &&
       claimsViewer(state.sessions[id], meId),
   );
-}
-
-// byIds settles which: it admits exactly the runner and the owner set, so a
-// returned row lands with the server's stamps (still mine), and an omitted id
-// is no longer mine and only its claim clears. Never a prune: the session may
-// still be on my team board through the team list.
-export async function settleDisownClaims(
-  convex: any,
-  ids: string[],
-): Promise<void> {
-  const rows = await batchGet(convex, "sessions", ids);
-  const store = useInboxStore.getState();
-  if (rows.length)
-    store.syncTable(
-      "sessions",
-      rows as unknown as InboxSession[],
-      { isDelta: true } as any,
-    );
-  const present = new Set(rows.map((r: any) => String(r._id)));
-  store.clearDisownedClaims(ids.filter((id) => !present.has(id)));
 }
 
 /**
@@ -123,12 +109,17 @@ export const LIST_INBOX_SESSIONS_ARGS = {
   fast_fields_in_overlay: true,
 } as const;
 
-export function useLiveInboxSessions() {
+const SNAPSHOT_ARGS = {
+  ...LIST_INBOX_SESSIONS_ARGS,
+  checkpoint: true,
+} as const;
+
+export function useLiveInboxSessions(logSnapshot = false) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
   const { data: inboxSessions, error } = useSplitQueryNoThrow(
     api.conversations.listInboxSessions,
-    isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip",
+    isSyncHost && !logSnapshot ? LIST_INBOX_SESSIONS_ARGS : "skip",
     "list",
   );
   useFeederError("conversations.listInboxSessions", error);
@@ -145,5 +136,77 @@ export function useLiveInboxSessions() {
     { coalesceMs: 300 },
   );
 
-  return { data: inboxSessions, error };
+  const scope = useInboxStore((state) => {
+    const id = state.currentUser?._id;
+    return logSnapshot && id ? `user:${id}` : null;
+  });
+  const cursorReady = useInboxStore(
+    (state) =>
+      scope !== null &&
+      state.syncMeta[scopeMetaKey(scope)]?.cursor !== undefined,
+  );
+  const reset = useInboxStore((state) =>
+    scope ? (state.crawlResets[scope] ?? 0) : 0,
+  );
+  const authenticated = useServerAuthenticated();
+  const [snapshotScope, setSnapshotScope] = useState<string | null>(null);
+  const snapshotActive = isSyncHost && authenticated && cursorReady;
+  useInboxRecovery(
+    api.conversations.listInboxSessions,
+    snapshotActive ? SNAPSHOT_ARGS : "skip",
+    null,
+    undefined,
+    useCallback(
+      async (
+        data: FunctionReturnType<typeof api.conversations.listInboxSessions>,
+        signal: AbortSignal,
+      ) => {
+        if (
+          scope === null ||
+          !("checkpoint" in data) ||
+          data.checkpoint?.scope !== scope
+        )
+          return false;
+        const { position } = data.checkpoint;
+        const currentState = () => {
+          const state = useInboxStore.getState();
+          const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
+          if (
+            signal.aborted ||
+            `user:${state.currentUser?._id}` !== scope ||
+            state.syncRole === "follower" ||
+            (state.crawlResets[scope] ?? 0) !== reset ||
+            cursor === undefined ||
+            position < cursor
+          )
+            return null;
+          return { state, cursor };
+        };
+        const before = currentState();
+        if (!before || !Array.isArray(data.sessions)) return false;
+        const ids = new Set<string>(
+          data.sessions.map((row) => String(row._id)),
+        );
+        const left = leftClaimingViewer(
+          before.state,
+          before.state.liveInboxIds,
+          ids,
+        );
+        if (left.length) await settleDisownClaims(convex, left, signal);
+        const current = currentState();
+        if (!current || !applyInboxListPayload(data)) return false;
+        if (current.cursor < position)
+          coverInboxSnapshot(convex, scope, position, ids);
+        setSnapshotScope(scope);
+        return true;
+      },
+      [convex, scope, reset],
+    ),
+    reset,
+    scope ?? undefined,
+  );
+  const loading = logSnapshot
+    ? isSyncHost && (scope === null || snapshotScope !== scope)
+    : inboxSessions === undefined && !error;
+  return { data: inboxSessions, error, loading };
 }

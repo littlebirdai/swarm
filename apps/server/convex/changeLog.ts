@@ -204,14 +204,7 @@ export async function emitChange(
 // post-write conversation, whose grants now name the new owner, so getRange
 // projects it as an upsert for them. A runner who is also an owner already
 // holds the conversation in that scope, so nothing is appended for them.
-//
-// Owner REMOVAL emits nothing, on purpose. A revocation delete in the departed
-// owner's scope reaches their client as a held-row delete: a byIds probe, then
-// a durable exclude that prunes the row from their team board even when the
-// session is still team-visible to them. Disown keeps its own path: the row
-// leaves their inbox list, and their client asks byIds about it without
-// pruning (web settleDisownClaims): a returned row keeps its stamps, an
-// omitted one loses only its ownership claim.
+
 async function emitOwnerAdded(
   rawDb: any,
   collector: SyncAckCollector | null,
@@ -483,6 +476,13 @@ export function makeChangeTrackedDb(
         rawDb.normalizeId("team_memberships", id)
           ? await rawDb.get(id)
           : null;
+      const ownerDoc =
+        !table &&
+        !membershipDoc &&
+        !syncLogDisabled() &&
+        rawDb.normalizeId?.("session_owners", id)
+          ? await rawDb.get(id)
+          : null;
       // Read scope BEFORE the row is gone.
       const preDoc = table ? await rawDb.get(id) : null;
       const scope = table ? scopeFromDoc(preDoc) : null;
@@ -519,6 +519,22 @@ export function makeChangeTrackedDb(
           String(membershipDoc.team_id),
           "scope_removed",
         );
+      }
+      if (ownerDoc?.user_id && ownerDoc?.conversation_id) {
+        const conv = await rawDb.get(ownerDoc.conversation_id);
+        if (
+          conv?.user_id &&
+          String(conv.user_id) !== String(ownerDoc.user_id)
+        ) {
+          await appendSyncAction(
+            rawDb,
+            collector,
+            userScopeKey(String(ownerDoc.user_id)),
+            "session_owner",
+            `session-owner:${ownerDoc.conversation_id}`,
+            "scope_removed",
+          );
+        }
       }
       return res;
     },

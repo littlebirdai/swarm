@@ -28,6 +28,7 @@ import {
   type MutationCtx,
 } from "./functions";
 import { syncLogDisabled } from "./syncLog";
+import { defineInboxSessionsQuery } from "./lib/inboxSessionsQuery";
 import { v, type GenericValidator, type ObjectType } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
 import {
@@ -336,7 +337,6 @@ import {
   isNonEmptyMessage,
 } from "./lib/conversationBasics";
 export { generateShareToken, isNonEmptyMessage };
-
 // The narrow shape every search consumer actually reads. Both tiers project
 // to it so the mirror and the deep index are interchangeable downstream
 // (_id is the real messages id either way — deep links depend on it).
@@ -12260,40 +12260,10 @@ export async function computeInboxSessions(
   };
 }
 
-export const listInboxSessions = query({
-  args: {
-    show_all: v.optional(v.boolean()),
-    // Live subscription opts out of heartbeat-derived liveness (it rides the
-    // separate `sessionsLiveness` overlay) so heartbeats stop re-pushing the whole
-    // inbox. Defaults to true so older / un-redeployed clients that read liveness
-    // straight off this query keep working unchanged.
-    include_liveness: v.optional(v.boolean()),
-    // Opt-in: omit message_count/updated_at from rows (they ride sessionsLiveness).
-    fast_fields_in_overlay: v.optional(v.boolean()),
-    // Ignored cache-buster: lets the recovery poll force a real round-trip
-    // instead of being served the live subscription's stalled cache. See the
-    // matching `_probe` arg on users.getCurrentUser.
-    _probe: v.optional(v.number()),
-    // The split wire form (packages/inbox/src/inboxSplit.ts): the live subscription
-    // asks for it, so a change re-sends the recent rows and a hash, not the
-    // whole working set. One-shot fetches leave it off and get every row.
-    split: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId)
-      return args.split
-        ? splitInboxList({ sessions: [], hidden_count: 0, truncated: [] })
-        : { sessions: [], hidden_count: 0, truncated: [] };
-    const result = await computeInboxSessions(ctx, userId, {
-      show_all: args.show_all,
-      includeLiveness: args.include_liveness,
-      fastFieldsInOverlay: args.fast_fields_in_overlay,
-      splitHot: args.split,
-    });
-    return args.split ? splitInboxList(result) : result;
-  },
-});
+export const listInboxSessions = defineInboxSessionsQuery(
+  computeInboxSessions,
+  splitInboxList,
+);
 
 // The split forms. `now` is the projection epoch, as every inbox clock is, so
 // two executions inside one minute stay byte identical (sync-convergence C2).

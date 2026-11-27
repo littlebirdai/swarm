@@ -440,10 +440,11 @@ async function allocatePosition(
 // existing ACTIVE row in this scope (there is at most one, by this very rule) is moved
 // Lifecycle rows (a scope for a user, a member for a team) carry no cargo and
 // never coalesce: each one is an event the client acts on in order.
-export type LifecycleEntity = "scope" | "member";
+export type LifecycleEntity = "scope" | "member" | "session_owner";
 const LIFECYCLE_ENTITIES: ReadonlySet<string> = new Set<LifecycleEntity>([
   "scope",
   "member",
+  "session_owner",
 ]);
 export function isLifecycleEntity(
   entityType: string,

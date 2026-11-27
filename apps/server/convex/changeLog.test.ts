@@ -281,7 +281,7 @@ describe("makeChangeTrackedDb: session owners fan-out", () => {
     expect(row.patch).toMatchObject({ inbox_pinned_at: 5 });
   });
 
-  test("removing an owner emits nothing in the departed owner's scope, and later writes stop reaching it", async () => {
+  test("removing an owner emits only a personal revocation and later writes stop reaching that scope", async () => {
     const c = await ownedConversation();
     const row = await c.addOwner();
     const before = await c.readSync(`user:${c.peer}`);
@@ -290,7 +290,14 @@ describe("makeChangeTrackedDb: session owners fan-out", () => {
       await writer.delete(row);
       await writer.patch(c.conv, { title: "renamed" });
     });
-    expect(await c.readSync(`user:${c.peer}`)).toEqual(before);
+    expect(await c.readSync(`user:${c.peer}`)).toEqual([
+      ...before,
+      expect.objectContaining({
+        entity_type: "session_owner",
+        entity_id: `session-owner:${c.conv}`,
+        op: "scope_removed",
+      }),
+    ]);
     expect(
       (await c.readSync(`user:${c.user}`))[0].access_grants,
     ).toBeUndefined();

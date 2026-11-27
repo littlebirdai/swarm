@@ -11,36 +11,25 @@ import { planCargoApply } from "../lib/syncLogCargo";
 import { track } from "../lib/analytics";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { onSyncWake } from "./syncWake";
+import {
+  checkReplaySignal,
+  inboxReplaySignal,
+  inboxSnapshotCoverage,
+  resetInboxReplayLanes,
+  retireInboxSnapshot,
+  withInboxReplayLane,
+  withReplayTimeout,
+} from "./inbox-replay-lane";
 import { beginSyncInflight } from "../store/syncActivity";
-
-// Sync-log client applier — the single catch-up path.
-// Design: docs/architecture/sync-log-migration.md (pl-399, D7).
-//
-// The server keeps an append-only, per-scope action log with gap-free positions
-// (convex/syncLog.ts). This hook holds one persisted cursor per scope
-// (`synclog:v1:<scope_key>` in syncMeta) and, on every wake signal, replays
-// (cursor, head]. Rows carry their changed fields (cargo, sync-log-cargo E6):
-// a patch with a base row applies directly through the store's pending-aware
-// merge, and byIds is used only for deletes of ids this replica holds (deletion
-// truth is authorized absence — a scope-move revocation delete can never remove
-// a row the viewer still holds through another scope), rows with no cargo or no
-// base, partial cargo, and enrichment triggers (joins the replica cannot derive).
-//
-// Wake signals: a tiny getHeads live subscription (re-runs on semantic writes
-// only — the interceptor's churn exemption keeps message-flush bumps out),
-// debounced; plus visibility/focus/online and a slow interval, none of which
-// are correctness dependencies — the cursor makes catch-up exact whenever it
-// runs. The old Date.now()+overlap change feed survives in two roles here: a
-// one-time upgrade BRIDGE (a warm cache drains getChangesSince from its legacy
-// cursor, carrying the hard deletes of the away window, then the cursor is
-// dropped once the log cursors are stamped; a cursor older than
-// LEGACY_BRIDGE_MAX_AGE_MS resyncs every scope instead) and the dev-only directional
-// shadow comparator (localStorage SYNCLOG_SHADOW=1) that asserts the log path
-// is a superset of the legacy feed.
+import {
+  batchGet,
+  queryReplay,
+  settleDisownClaims,
+  type Collection,
+} from "./sync-feed-rows";
 
 const api = _api as any;
-
-type Collection = "sessions" | "tasks" | "docs" | "plans" | "projects";
+export { batchGet, chunkIds, BYIDS_CHUNK } from "./sync-feed-rows";
 
 const ENTITY_COLLECTION: Record<string, Collection> = {
   conversations: "sessions",
@@ -98,16 +87,23 @@ function cargoEnabled(): boolean {
 async function queryRange(
   convex: any,
   args: Record<string, any>,
+  signal: AbortSignal,
 ): Promise<any> {
   const withCargo = cargoEnabled();
   try {
-    return await convex.query(api.syncLog.getRange, {
-      ...args,
-      ...(withCargo ? { cargo: true } : {}),
-    });
+    return await queryReplay(
+      convex,
+      api.syncLog.getRange,
+      {
+        ...args,
+        ...(withCargo ? { cargo: true } : {}),
+      },
+      signal,
+    );
   } catch (e: any) {
     const msg = String(e?.message ?? e);
     if (
+      !signal.aborted &&
       withCargo &&
       /ArgumentValidationError/i.test(msg) &&
       /cargo/.test(msg)
@@ -116,7 +112,7 @@ async function queryRange(
       console.warn(
         "[syncLog] server lacks cargo — falling back to thin ranges",
       );
-      return await convex.query(api.syncLog.getRange, args);
+      return await queryReplay(convex, api.syncLog.getRange, args, signal);
     }
     throw e;
   }
@@ -155,59 +151,6 @@ export function planFeedApply(
   return plan;
 }
 
-// Every server-side *byIds query hard-caps its input at 300 ids (they
-// `ids.slice(0, 300)`). Fetch in ≤300-id chunks so ids past the cap are never
-// silently un-fetched — an un-returned id is treated as "gone or no longer
-// visible" and would be pruned.
-export const BYIDS_CHUNK = 300;
-
-export function chunkIds(
-  ids: string[],
-  size: number = BYIDS_CHUNK,
-): string[][] {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size)
-    chunks.push(ids.slice(i, i + size));
-  return chunks;
-}
-
-async function batchGetChunk(
-  convex: any,
-  coll: Collection,
-  ids: string[],
-): Promise<any[]> {
-  switch (coll) {
-    case "sessions":
-      return (
-        (await convex.query(api.conversations.getInboxSessionsByIds, { ids }))
-          ?.sessions ?? []
-      );
-    case "tasks":
-      return (await convex.query(api.tasks.webGetByIds, { ids }))?.items ?? [];
-    case "docs":
-      return (await convex.query(api.docs.webGetByIds, { ids }))?.docs ?? [];
-    case "plans":
-      return (await convex.query(api.plans.webGetByIds, { ids })) ?? [];
-    case "projects":
-      return (await convex.query(api.projects.webGetByIds, { ids })) ?? [];
-  }
-}
-
-// Per-collection batch fetch of CURRENT state for a set of ids. Each returns rows
-// in the exact shape its live channel syncs, so syncTable merges them cleanly.
-export async function batchGet(
-  convex: any,
-  coll: Collection,
-  ids: string[],
-): Promise<any[]> {
-  if (!ids.length) return [];
-  const rows: any[] = [];
-  for (const chunk of chunkIds(ids)) {
-    rows.push(...(await batchGetChunk(convex, coll, chunk)));
-  }
-  return rows;
-}
-
 // Stage two: fetch current state for a set of per-collection ids, overlay what
 // the authorized query returned, prune what it omitted. Shared by the log
 // applier, the legacy bridge and the sessions floor's warm-cache probe; apply
@@ -222,7 +165,7 @@ export async function batchGet(
 export async function applyEntityIds(
   convex: any,
   idsByCollection: Record<Collection, string[]>,
-  opts: { fromLog?: boolean } = {},
+  opts: { fromLog?: boolean; signal?: AbortSignal } = {},
 ): Promise<Set<string>> {
   const applied = new Set<string>();
   const store = useInboxStore.getState();
@@ -231,8 +174,10 @@ export async function applyEntityIds(
     if (!ids?.length) continue;
     // Lift any prior exclude so a re-shared / restored entity isn't skipped by
     // the delta merge, THEN overlay current state.
+    checkReplaySignal(opts.signal);
     store.clearFeedExcludes(coll, ids);
-    const rows = await batchGet(convex, coll, ids);
+    const rows = await batchGet(convex, coll, ids, opts.signal);
+    checkReplaySignal(opts.signal);
     const state = useInboxStore.getState();
     let admitted = rows;
     if (coll === "sessions" && opts.fromLog) {
@@ -302,9 +247,11 @@ async function applyLogPage(
   actions: LogAction[],
   upTo: number,
   purgedTeams: Set<string>,
+  signal: AbortSignal,
 ): Promise<void> {
   const store = useInboxStore.getState();
   const entityActions: LogAction[] = [];
+  const disowned = new Set<string>();
   for (const a of actions) {
     if (a.entity_type === "scope") {
       if (a.op === "scope_removed") {
@@ -336,6 +283,12 @@ async function applyLogPage(
       }
       continue;
     }
+    if (a.entity_type === "session_owner") {
+      const prefix = "session-owner:";
+      if (a.op === "scope_removed" && a.entity_id.startsWith(prefix))
+        disowned.add(a.entity_id.slice(prefix.length));
+      continue;
+    }
     entityActions.push(a);
   }
   store.retireAckedPending(scopeKey, upTo);
@@ -345,6 +298,8 @@ async function applyLogPage(
   // goes through the byIds path exactly as before. Dedupe keeps the LAST
   // action per entity (planFeedApply's rule), so a coalesced page applies once.
   const byIds: FeedChange[] = [];
+  const covered = inboxSnapshotCoverage(convex, scopeKey);
+  const refreshCovered: string[] = [];
   const latest = new Map<string, LogAction>();
   for (const a of entityActions)
     latest.set(`${a.entity_type}:${a.entity_id}`, a);
@@ -362,7 +317,20 @@ async function applyLogPage(
   }> = [];
   for (const a of latest.values()) {
     const coll = ENTITY_COLLECTION[a.entity_type];
-    if (!coll) continue;
+    if (
+      !coll ||
+      (coll === "sessions" && a.op === "upsert" && disowned.has(a.entity_id))
+    )
+      continue;
+    if (
+      coll === "sessions" &&
+      covered &&
+      a.position <= covered.position &&
+      covered.ids.has(a.entity_id)
+    ) {
+      if (a.op === "upsert") refreshCovered.push(a.entity_id);
+      continue;
+    }
     const existing = heldRow(state, coll, a.entity_id);
     if (a.op !== "upsert") {
       // A delete for an id this replica does not hold has nothing to prune and
@@ -429,8 +397,19 @@ async function applyLogPage(
   state.noteSyncLogApply(direct, byIds.length);
   tallyApply(direct, byIds.length);
   if (byIds.length)
-    await applyEntityIds(convex, planFeedApply(byIds), { fromLog: true });
+    await applyEntityIds(convex, planFeedApply(byIds), {
+      fromLog: true,
+      signal,
+    });
+  if (refreshCovered.length) {
+    const rows = await batchGet(convex, "sessions", refreshCovered, signal);
+    checkReplaySignal(signal);
+    if (rows.length) store.syncTable("sessions", rows, { isDelta: true });
+  }
+  if (disowned.size) await settleDisownClaims(convex, [...disowned], signal);
+  checkReplaySignal(signal);
   store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor: upTo });
+  retireInboxSnapshot(convex, scopeKey, upTo);
 }
 
 // synclog_apply telemetry (E6/E10 acceptance signal): the direct-vs-refetch
@@ -501,7 +480,9 @@ export async function catchUpScope(
   convex: any,
   head: ScopeHead,
   purgedTeams: Set<string>,
+  account = inboxReplaySignal(convex),
 ): Promise<void> {
+  checkReplaySignal(account);
   const store = useInboxStore.getState();
   const metaKey = scopeMetaKey(head.scope_key);
   const meta = store.syncMeta[metaKey];
@@ -521,11 +502,14 @@ export async function catchUpScope(
   for (let page = 0; page < MAX_RANGE_PAGES && from < head.position; page++) {
     // Cargo opt-in rides the range call (this client applies patches);
     // localStorage SYNCLOG_CARGO_OFF is the client-side kill switch.
-    const res: any = await queryRange(convex, {
-      scope_key: head.scope_key,
-      from,
-      limit: RANGE_LIMIT,
-    });
+    const res = await withReplayTimeout(account, (signal) =>
+      queryRange(
+        convex,
+        { scope_key: head.scope_key, from, limit: RANGE_LIMIT },
+        signal,
+      ),
+    );
+    checkReplaySignal(account);
     if (!res) return;
     if (res.authorized === false) {
       // Membership revoked and we raced the scope_removed action (or it was
@@ -543,17 +527,23 @@ export async function catchUpScope(
       return;
     }
     if (res.actions?.length) {
-      await applyLogPage(
-        convex,
-        head.scope_key,
-        res.actions,
-        res.nextFrom,
-        purgedTeams,
+      await withInboxReplayLane(convex, head.scope_key, account, (lane) =>
+        withReplayTimeout(lane, (signal) =>
+          applyLogPage(
+            convex,
+            head.scope_key,
+            res.actions,
+            res.nextFrom,
+            purgedTeams,
+            signal,
+          ),
+        ),
       );
     } else if (typeof res.nextFrom === "number" && res.nextFrom > from) {
       useInboxStore
         .getState()
         .recordSyncMeta(scopeMetaKey(head.scope_key), { cursor: res.nextFrom });
+      retireInboxSnapshot(convex, head.scope_key, res.nextFrom);
     } else if (!res.hasMore) {
       // Empty range below a moving head (coalescing moved rows past us):
       // nothing left to apply — the head subscription will wake us again.
@@ -567,31 +557,32 @@ export async function catchUpScope(
   }
 }
 
-// One-time upgrade bridge: drain the legacy getChangesSince feed from its
-// persisted cursor, so hard deletes and kills from the away window reach a warm
-// cache exactly once. Returns whether the drain COMPLETED (no legacy cursor, or
-// reached !hasMore). The caller — never this function — drops the legacy
-// cursor, and only after the scope cursors are stamped: clearing here would
-// leave a crash window (tab closes between clear and stamp) where the next run
-// has neither cursor and cold-stamps past the away window's deletes. An
-// incomplete drain (failed query, page cap) keeps the advanced cursor and
-// resumes next run. The legacy query stays deployed for old bundles regardless.
-async function drainLegacyBridge(convex: any): Promise<boolean> {
+async function drainLegacyBridge(
+  convex: any,
+  account: AbortSignal,
+): Promise<boolean> {
   const store = useInboxStore.getState();
   const legacy = store.syncMeta[LEGACY_META_KEY];
   if (!legacy?.cursor) return true;
   let since = Math.max(0, legacy.cursor - LEGACY_OVERLAP_MS);
   try {
     for (let page = 0; page < LEGACY_MAX_PAGES; page++) {
-      const res: any = await convex.query(api.changeFeed.getChangesSince, {
-        since,
-        limit: LEGACY_FEED_LIMIT,
-        _probe: Date.now(),
-      });
-      if (!res) return false; // retry next run from the checkpointed cursor
+      const res = await withReplayTimeout(account, (signal) =>
+        queryReplay(
+          convex,
+          api.changeFeed.getChangesSince,
+          { since, limit: LEGACY_FEED_LIMIT, _probe: Date.now() },
+          signal,
+        ),
+      );
+      checkReplaySignal(account);
+      if (!res) return false;
       if (res.changes?.length) {
-        await applyEntityIds(convex, planFeedApply(res.changes));
+        await withReplayTimeout(account, (signal) =>
+          applyEntityIds(convex, planFeedApply(res.changes), { signal }),
+        );
       }
+      checkReplaySignal(account);
       if (typeof res.nextSince === "number" && res.nextSince > since) {
         useInboxStore
           .getState()
@@ -604,20 +595,23 @@ async function drainLegacyBridge(convex: any): Promise<boolean> {
     // An incomplete drain is this function's ordinary contract (the caller
     // keeps the legacy cursor); a throw here must not escape past the scope
     // loop and hold every floor closed (review).
-    console.warn("[syncLog] legacy bridge drain failed", e);
+    if (!account.aborted)
+      console.warn("[syncLog] legacy bridge drain failed", e);
     return false;
   }
   return false; // page cap hit with more remaining — resume next run
 }
 
-export async function catchUp(convex: any): Promise<void> {
+export async function catchUp(
+  convex: any,
+  account = inboxReplaySignal(convex),
+): Promise<void> {
   const runStart = Date.now();
   const store = useInboxStore.getState();
-  // Heads FIRST, bridge second: the bridge then drains to "now", past every
-  // captured head, so a cold cursor stamped at a captured head leaves no window
-  // between the drained watermark and the stamp (review C10). Writes after the
-  // capture have higher positions and are replayed by the log next run.
-  const res: any = await convex.query(api.syncLog.getHeads, {});
+  const res = await withReplayTimeout(account, (signal) =>
+    queryReplay(convex, api.syncLog.getHeads, {}, signal),
+  );
+  checkReplaySignal(account);
   if (!res) return;
   const heads: ScopeHead[] = res.heads ?? [];
   const legacyCursor = store.syncMeta[LEGACY_META_KEY]?.cursor;
@@ -630,7 +624,8 @@ export async function catchUp(convex: any): Promise<void> {
     hadLegacy && runStart - legacyCursor > LEGACY_BRIDGE_MAX_AGE_MS;
   const drainComplete = legacyStale
     ? heads.length > 0
-    : await drainLegacyBridge(convex);
+    : await drainLegacyBridge(convex, account);
+  if (account.aborted) return;
   // Sequential by design: one serialized apply pipeline (design D7), so a stale
   // stage-two fetch can never land after a fresher one. `purgedTeams` fences a
   // scope revoked mid-run — its stale head must not restamp the cursor the
@@ -648,12 +643,6 @@ export async function catchUp(convex: any): Promise<void> {
         : Math.max(0, head.position - cursor),
     );
   }
-  // Each scope is isolated (review): one scope whose replay fails every run
-  // (a range page the server cannot serve, a poisoned byIds row) must not stop
-  // the others from replaying, and must not hold every floor closed. Its own
-  // cursor stays safe either way — a cold scope records its cursor
-  // synchronously before any await, and a warm scope keeps its older, lower
-  // cursor — so the scope is stamped whenever it has a cursor after its turn.
   for (const head of heads) {
     if (
       head.scope_key.startsWith("team:") &&
@@ -662,9 +651,10 @@ export async function catchUp(convex: any): Promise<void> {
       continue;
     try {
       if (legacyStale) resetScopeForResync(head);
-      else await catchUpScope(convex, head, purgedTeams);
+      else await catchUpScope(convex, head, purgedTeams, account);
     } catch (e) {
-      console.warn("[syncLog] scope catch-up failed", head.scope_key, e);
+      if (!account.aborted)
+        console.warn("[syncLog] scope catch-up failed", head.scope_key, e);
     } finally {
       // A failed scope must not leave the pill lit forever; the next wake retries.
       useInboxStore.getState().setSyncLogLag(head.scope_key, 0);
@@ -674,6 +664,7 @@ export async function catchUp(convex: any): Promise<void> {
     // that commits after the floor's query has a position above the cursor
     // and is replayed; one before it is in the floor. A revoked scope has no
     // cursor (the purge dropped it) and is not stamped.
+    if (account.aborted) return;
     const s = useInboxStore.getState();
     if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
       s.stampSyncLogScope(head.scope_key);
@@ -703,15 +694,9 @@ export async function catchUp(convex: any): Promise<void> {
   if (hadLegacy && drainComplete) {
     useInboxStore.getState().clearSyncMeta(LEGACY_META_KEY);
   }
-  await shadowCompare(convex, runStart);
+  await shadowCompare(convex, runStart, account);
 }
 
-// Directional shadow comparator (design D11, dev only): assert the log path is a
-// SUPERSET of the legacy feed over the same window — an id the old feed reports
-// that the log path neither applied this run nor already holds is a log gap.
-// Conversations are whitelisted (the churn exemption makes their counter-only
-// divergence expected). Flag-gated; old-feed noise cannot mask log gaps because
-// the check only fires one way.
 let shadowApplied: Set<string> | null = null;
 function noteShadowApplied(keys: Iterable<string>): void {
   if (shadowApplied) for (const k of keys) shadowApplied.add(k);
@@ -761,7 +746,11 @@ export function __changeFeedSimSlots() {
   };
 }
 
-async function shadowCompare(convex: any, runStart: number): Promise<void> {
+async function shadowCompare(
+  convex: any,
+  runStart: number,
+  account: AbortSignal,
+): Promise<void> {
   if (!shadowEnabled()) {
     shadowApplied = null;
     return;
@@ -769,11 +758,15 @@ async function shadowCompare(convex: any, runStart: number): Promise<void> {
   const applied = shadowApplied ?? new Set<string>();
   shadowApplied = new Set(); // window resets each run
   try {
-    const res: any = await convex.query(api.changeFeed.getChangesSince, {
-      since: runStart - 60_000,
-      limit: 1000,
-      _probe: Date.now(),
-    });
+    const res = await withReplayTimeout(account, (signal) =>
+      queryReplay(
+        convex,
+        api.changeFeed.getChangesSince,
+        { since: runStart - 60_000, limit: 1000, _probe: Date.now() },
+        signal,
+      ),
+    );
+    checkReplaySignal(account);
     const store = useInboxStore.getState() as any;
     const gaps: string[] = [];
     for (const c of res?.changes ?? []) {
@@ -796,16 +789,10 @@ async function shadowCompare(convex: any, runStart: number): Promise<void> {
   }
 }
 
-/**
- * One catch-up at a time for a client: a wake that arrives mid-run queues
- * exactly one follow-up. The hook and the multiplayer simulator's windows
- * both drive catch-up through this. `onSettled` runs after each pass, before
- * a queued follow-up starts.
- */
 export function createCatchUpRunner(
   convex: any,
   opts: { onError?: (e: unknown) => void; onSettled?: () => void } = {},
-): () => void {
+) {
   let running = false;
   let rerun = false;
   const run = () => {
@@ -818,10 +805,13 @@ export function createCatchUpRunner(
     running = true;
     // The digest compare's quiescence gate: a range replay is in flight.
     const release = beginSyncInflight("range");
-    catchUp(convex)
-      .catch(
-        opts.onError ?? ((e) => console.warn("[syncLog] catch-up failed", e)),
-      )
+    const account = inboxReplaySignal(convex);
+    catchUp(convex, account)
+      .catch((error) => {
+        if (account.aborted) return;
+        if (opts.onError) opts.onError(error);
+        else console.warn("[syncLog] catch-up failed", error);
+      })
       .finally(() => {
         release();
         running = false;
@@ -832,7 +822,12 @@ export function createCatchUpRunner(
         }
       });
   };
-  return run;
+  return Object.assign(run, {
+    cancel() {
+      rerun = false;
+      resetInboxReplayLanes(convex);
+    },
+  });
 }
 
 export function useSyncChangeFeed(): void {
@@ -883,7 +878,14 @@ export function useSyncChangeFeed(): void {
     win?.addEventListener?.("focus", run);
     win?.addEventListener?.("online", run);
     const offWake = onSyncWake(run);
+    const offAccount = useInboxStore.subscribe((next, previous) => {
+      if (next.currentUser?._id === previous.currentUser?._id) return;
+      resetInboxReplayLanes(convex);
+      if (next.currentUser?._id) run();
+    });
     return () => {
+      offAccount();
+      run.cancel();
       clearInterval(id);
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -894,5 +896,5 @@ export function useSyncChangeFeed(): void {
       win?.removeEventListener?.("focus", run);
       win?.removeEventListener?.("online", run);
     };
-  }, [hydrated, run]);
+  }, [convex, hydrated, run]);
 }

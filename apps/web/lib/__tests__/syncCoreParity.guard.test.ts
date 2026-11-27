@@ -49,7 +49,8 @@ describe("useSyncCore owns the full feeder mount set", () => {
 
   test("every core feeder is mounted inside useSyncCore", () => {
     for (const feeder of CORE_FEEDERS) {
-      expect(coreSrc.includes(`${feeder}();`)).toBe(true);
+      const args = feeder === "useSyncInboxSessions" ? "logSnapshot" : "";
+      expect(coreSrc.includes(`${feeder}(${args});`)).toBe(true);
     }
   });
 
@@ -86,23 +87,27 @@ describe("useSyncCore owns the full feeder mount set", () => {
     // constant when this window hosts its own feeds, "skip" as a follower
     // (docs/architecture/sync-host.md).
     expect(
-      /\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
+      /\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
         live,
       ),
     ).toBe(true);
     const syncSrc = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
     expect(
-      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
+      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
         syncSrc,
       ),
     ).toBe(true);
-    // No hand-built listInboxSessions args anywhere in the two files: every
-    // call is either the constant or the constant + probe token.
+    expect(live).toMatch(
+      /const SNAPSHOT_ARGS = \{\s*\.\.\.LIST_INBOX_SESSIONS_ARGS,\s*checkpoint: true,?\s*\}/,
+    );
+    expect(live).toMatch(
+      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*snapshotActive \? SNAPSHOT_ARGS : "skip"/,
+    );
     for (const src of [live, syncSrc]) {
       for (const line of codeLines(src)
         .join("\n")
         .match(/[^\n]*listInboxSessions,\s*[^\n]*/g) ?? []) {
-        expect(line.includes("LIST_INBOX_SESSIONS_ARGS")).toBe(true);
+        expect(line).toMatch(/LIST_INBOX_SESSIONS_ARGS|SNAPSHOT_ARGS/);
       }
     }
   });

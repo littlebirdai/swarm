@@ -173,11 +173,12 @@ export async function queryInboxRecovery<Q extends FunctionReference<"query">>(
   args: FunctionArgs<Q>,
   kind: SplitKind | null,
   signal: AbortSignal,
+  probeAt = Date.now(),
 ): Promise<FunctionReturnType<Q>> {
   const value = await queryWithSignal(
     convex,
     query,
-    { ...args, _probe: Date.now() },
+    { ...args, _probe: probeAt },
     signal,
   );
   if (kind && !signal.aborted) {
