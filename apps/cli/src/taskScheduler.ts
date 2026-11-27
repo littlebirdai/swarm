@@ -615,6 +615,7 @@ export class TaskScheduler {
           task.originating_conversation_id,
           wrappedPrompt,
           "scheduler",
+          `local-trigger:${task._id}:${claimed.run_count ?? task.run_count ?? 0}`,
         );
         this.log(
           `Injected prompt into conversation ${task.originating_conversation_id.toString().slice(-8)} for task "${task.title}"`,

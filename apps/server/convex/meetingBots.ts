@@ -904,7 +904,7 @@ export const applyChatLine = internalMutation({
     }
     const speaker = await speakerOf(ctx, bot, args.bot_id, args.participant);
     const teammate = !speaker.speaker_id.startsWith("recall:");
-    await insertRoomRow(ctx, {
+    const rowId = await insertRoomRow(ctx, {
       room_key: t.room_key,
       team_id: t.team_id,
       user_id: teammate ? (speaker.speaker_id as Id<"users">) : bot.user_id,
@@ -913,7 +913,7 @@ export const applyChatLine = internalMutation({
       ...(teammate ? {} : { author_name: speaker.speaker_name }),
     });
     await ctx.db.patch(t._id, { last_beat: now });
-    await relayLineToFeeds(ctx, t._id, speaker.speaker_name, text);
+    await relayLineToFeeds(ctx, t._id, rowId, speaker.speaker_name, text);
     return { written: true };
   },
 });

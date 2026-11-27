@@ -83,6 +83,7 @@ import {
   personName,
   roleMayHoldSession,
 } from "./sessionOwnership";
+import { wakeRoleArgs, type WakeRoleArgs } from "./lib/org-role-wake.rules";
 import { sessionsOwnedBy } from "./lib/orgOwnership";
 import {
   notifySessionAssigned,
@@ -4006,7 +4007,7 @@ async function performSetAuthorityCore(
 export async function performWakeRole(
   ctx: any,
   userId: Id<"users">,
-  args: { role_id: string; message: string; from_session?: string },
+  args: WakeRoleArgs,
 ): Promise<any> {
   const role = await requireRole(ctx, userId, args.role_id, "access");
   const conv = await standingConversationOf(ctx, role);
@@ -4017,6 +4018,7 @@ export async function performWakeRole(
     target: conv,
     from,
     body: args.message,
+    client_id: args.client_id,
     direct: !from,
   });
   return {
@@ -4593,12 +4595,7 @@ export const setCaps = mutation({
     }),
 });
 export const wake = mutation({
-  args: {
-    api_token: v.optional(v.string()),
-    role_id: v.string(),
-    message: v.string(),
-    from_session: v.optional(v.string()),
-  },
+  args: wakeRoleArgs,
   handler: async (ctx, { api_token, ...args }) =>
     performWakeRole(ctx, await requireCaller(ctx, api_token), args),
 });

@@ -808,6 +808,7 @@ describe("what the worker reads and writes", () => {
         room_key: "session:conv1",
         text: "Why does refresh race?",
         speaker: "Ada",
+        client_id: "ask-1",
       }),
     ).toBe(true);
     const [sent] = ctx._scheduled.filter(
@@ -815,6 +816,7 @@ describe("what the worker reads and writes", () => {
     );
     expect(sent.args.as_user).toBe("ua");
     expect(sent.args.to).toBe("conv1");
+    expect(sent.args.client_id).toBe("huddle-voice:ask-1");
     expect(sent.args.body).toContain("from Ada");
     expect(sent.args.body).toEndWith("Why does refresh race?");
     // Its answer is one the voice will say.

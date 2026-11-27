@@ -103,6 +103,7 @@ export const MAX_COMMENT_CHARS = 2000;
 
 // Slugs and keys come from a leaf module so other features (guest call
 // links) mint unguessable strings the same way without loading this graph.
+import { sha256Hex } from "./lib/hash";
 import { newSecret, newSlug } from "./lib/slug";
 
 // ---------------------------------------------------------------------------
@@ -1353,8 +1354,9 @@ async function deliverCommentsToSession(
   ctx: MutationCtx,
   artifact: Doc<"artifacts">,
   list: DeliverableComment[],
+  clientId: string,
 ): Promise<boolean> {
-  return (await sendCommentsToSession(ctx, artifact, list)).ok;
+  return (await sendCommentsToSession(ctx, artifact, list, clientId)).ok;
 }
 
 // The same send, with why it failed and whether the message waits.
@@ -1362,6 +1364,7 @@ async function sendCommentsToSession(
   ctx: MutationCtx,
   artifact: Doc<"artifacts">,
   list: DeliverableComment[],
+  clientId: string,
 ): Promise<
   { ok: true; waiting: SendWaiting | null } | { ok: false; reason: string }
 > {
@@ -1374,6 +1377,7 @@ async function sendCommentsToSession(
     await performSessionSend(ctx, artifact.user_id, {
       to: artifact.session_conversation_id.toString(),
       body,
+      client_id: clientId,
     });
     return { ok: true, waiting };
   } catch (error) {
@@ -1953,6 +1957,7 @@ export const submitComments = mutation({
           author_email: email,
           author_role: role,
         })),
+        `artifact-comment-batch:${artifact._id}:${batchId}`,
       ));
 
     const insertedIds: Id<"artifact_comments">[] = [];
@@ -2087,6 +2092,7 @@ export const deliverPendingComments = mutation({
         author_email: c.author_email,
         author_role: sendableRole(c, artifact.user_id, teammates)!,
       })),
+      `artifact-comments:${artifact._id}:${await sha256Hex(JSON.stringify(pending.map((c) => c._id).sort()))}`,
     );
     if (!sent.ok) {
       return {

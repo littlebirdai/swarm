@@ -151,6 +151,7 @@ describe("delivery from a published page", () => {
     expect(pending[0]).toMatchObject({
       conversation_id: p.conversation,
       from_user_id: p.owner,
+      client_id: `artifact-comment-batch:${p.artifact}:${comments[0].batch_id}`,
     });
     expect(pending[0].content).toContain("From your user, the page's owner:");
     expect(pending[0].content).not.toContain("UNTRUSTED");

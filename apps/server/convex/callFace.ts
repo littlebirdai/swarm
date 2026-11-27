@@ -282,6 +282,7 @@ export const ask = internalMutation({
     room_key: v.string(),
     text: v.string(),
     speaker: v.optional(v.string()),
+    client_id: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<boolean> => {
     const feed = await liveFeed(ctx, args.conversation_id, args.room_key);
@@ -291,6 +292,7 @@ export const ask = internalMutation({
     await ctx.scheduler.runAfter(0, internal.transcripts.deliverToSession, {
       as_user: feed.added_by,
       to: String(feed.conversation_id),
+      client_id: args.client_id ? `huddle-voice:${args.client_id}` : undefined,
       body: `${huddleVoiceAskHeader(who.character.name, args.speaker ?? null)}\n\n${args.text}`,
     });
     return true;
@@ -348,6 +350,7 @@ export async function handleFaceRequest(
       ...base,
       text,
       speaker: body.speaker || undefined,
+      client_id: body.client_id || undefined,
     });
   else if (body?.op === "said" && text)
     out = await ctx.runMutation(internal.callFace.said, { ...base, text });

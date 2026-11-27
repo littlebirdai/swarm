@@ -148,6 +148,7 @@ export async function notifyLiveComments(
         });
         await enqueuePendingMessage(ctx, conv, caller.userId, {
           content: brief,
+          client_id: `doc-comment:${doc._id}:${c.key}`,
           human: true,
         });
         // The thread tracks the ask wherever it was made: a reply's ask stamps the root,

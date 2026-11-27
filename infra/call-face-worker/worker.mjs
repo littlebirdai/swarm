@@ -25,6 +25,7 @@
 // TAVUS_PAL_ID (an echo PAL on LiveKit transport), and for realtime
 // OPENAI_API_KEY, CONVEX_SITE_URL, FACE_WORKER_SECRET. FACE_AGENT_NAME
 // registers a test instance under another name, out of prod's dispatches.
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   AutoSubscribe,
@@ -295,6 +296,7 @@ async function runRealtime(ctx, meta, face) {
           await convex("ask", meta, room, {
             text: request,
             speaker: speaker?.name || "",
+            client_id: randomUUID(),
           });
           return "Handed to your session. Tell the room briefly that you are on it.";
         },

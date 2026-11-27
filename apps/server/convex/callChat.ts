@@ -333,7 +333,7 @@ export const post = mutation({
     const named = args.transcript_id
       ? await ctx.db.get(args.transcript_id)
       : null;
-    await insertRoomRow(ctx, {
+    const rowId = await insertRoomRow(ctx, {
       room_key: args.room_key,
       team_id: auth.teamId,
       user_id: userId,
@@ -349,6 +349,7 @@ export const post = mutation({
     await relayLineToFeeds(
       ctx,
       live._id,
+      rowId,
       poster?.name ?? poster?.email ?? "Someone",
       text,
       attachments.map((a) => a.storage_id),
@@ -365,6 +366,7 @@ export const post = mutation({
 export async function relayLineToFeeds(
   ctx: any,
   transcriptId: Id<"transcripts">,
+  messageId: Id<"call_chat_messages">,
   name: string,
   text: string,
   imageIds: Id<"_storage">[] = [],
@@ -382,6 +384,7 @@ export async function relayLineToFeeds(
       as_user: feed.added_by,
       to: String(feed.conversation_id),
       body: `${huddleChatLineHeader(name)}\n\n${line}`,
+      client_id: `huddle-chat:${messageId}`,
       image_storage_ids: imageIds.length > 0 ? imageIds : undefined,
     });
   }

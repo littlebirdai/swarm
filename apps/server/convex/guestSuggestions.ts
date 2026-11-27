@@ -135,7 +135,10 @@ export async function sendGuestSuggestionFor(
   const body = (editedBody ?? row.body).trim();
   if (!body) throw new Error("The message is empty");
   const now = Date.now();
+  const client_id = `suggestion:${row._id}`;
   if (row.kind === "answer") {
+    if (conversation.execution_protocol_state === "fenced")
+      throw new Error("Answer the question on its card");
     // Only someone who may press the question card itself submits an answer
     // to it: the runner or the primary owner (an assigned owner proposes).
     if (!answerers(conversation).has(String(userId)))
@@ -164,6 +167,7 @@ export async function sendGuestSuggestionFor(
         : body;
     await enqueuePendingMessage(ctx, conversation, userId, {
       content,
+      client_id,
       human: true,
     });
     const rivals = await ctx.db
@@ -196,12 +200,14 @@ export async function sendGuestSuggestionFor(
         : `${row.guest_name}, edited by ${personName(owner)}`;
     await enqueuePendingMessage(ctx, conversation, row.author_user_id, {
       content: formatUserMessage(name, body),
+      client_id,
       human: true,
       ...(row.queued ? { queue: true } : {}),
     });
   } else {
     await enqueuePendingMessage(ctx, conversation, userId, {
       content: guestMessageContent(row.guest_name, body),
+      client_id,
       human: true,
     });
   }

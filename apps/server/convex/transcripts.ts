@@ -1773,7 +1773,6 @@ async function scheduleHuddleDigest(
   const target = huddleDigestTarget(t.room_key);
   const filmed = callFilmed(t);
   if (!target || (t.last_seq <= 0 && !filmed)) return;
-  const video = filmed ? await huddleVideoStretches(ctx, t) : null;
   let summary = verdict.summary ?? t.summary ?? null;
   if (!summary && verdict.summary_status === "skipped") {
     const segs = await ctx.db
@@ -1790,7 +1789,7 @@ async function scheduleHuddleDigest(
     summary,
     actionItems: verdict.action_items ?? t.action_items ?? [],
     summaryStatus: verdict.summary_status,
-    video,
+    video: filmed ? await huddleVideoStretches(ctx, t) : null,
   };
   if (target.kind === "chat") {
     await ctx.scheduler.runAfter(0, internal.chat.postCallDigest, {
@@ -1805,6 +1804,7 @@ async function scheduleHuddleDigest(
   await ctx.scheduler.runAfter(0, internal.transcripts.deliverToSession, {
     as_user: t.started_by,
     to: target.conversationId,
+    client_id: `huddle-digest:${t._id}`,
     body: formatHuddleSummaryTag(String(t._id), digest, {
       callRef: t.short_id ?? null,
       heardLive: t.routes.some(
