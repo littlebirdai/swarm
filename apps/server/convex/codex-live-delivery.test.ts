@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { parsePermitsNextResponse } from "@codecast/edge-contract";
 import { asUser } from "../test-helpers/database.testkit";
@@ -7,8 +7,10 @@ import {
   machine,
   setupRunLease,
 } from "../test-helpers/run-lease.testkit";
+import { recordDocuments } from "../test-helpers/document-reads.testkit";
 import { api } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
+import { makeSessionStartsDb, syncSessionStart } from "./lib/sessionStarts";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
 const originalFlag = process.env[flag];
@@ -123,4 +125,71 @@ test("a composer send changes the selected Codex work result and becomes an edge
   });
   delete process.env[flag];
   expect(await listWork(f, f.conversation)).toEqual(legacyWork);
+});
+
+test("the projected execution work feed ignores transcript writes and still tracks safety", async () => {
+  jest.useFakeTimers();
+  const cardFlag = "EXECUTION_WORK_SESSION_CARD";
+  const prior = process.env[cardFlag];
+  try {
+    const f = await setupRunLease();
+    const insert = (i: number) =>
+      asUser(f.t, f.owner).mutation(api.messages.addMessage, {
+        conversation_id: f.conversation,
+        role: "assistant",
+        content: `Working update ${i}`,
+        message_uuid: `work-feed-${i}`,
+        timestamp: Date.now() + i,
+      });
+    delete process.env[cardFlag];
+    const legacy = await recordDocuments(() => listWork(f));
+    expect(legacy.result).toHaveLength(1);
+    expect(legacy.reads.has(f.conversation)).toBe(true);
+    process.env[cardFlag] = "1";
+    const unbackfilled = await recordDocuments(() => listWork(f));
+    expect(unbackfilled.result).toEqual(legacy.result);
+    expect(unbackfilled.reads.has(f.conversation)).toBe(true);
+
+    await f.t.run(({ db }) => syncSessionStart(db, f.conversation));
+    delete process.env[cardFlag];
+    expect(
+      (await recordDocuments(() => listWork(f))).reads.has(f.conversation),
+    ).toBe(true);
+    process.env[cardFlag] = "1";
+    const scoped = await recordDocuments(() => listWork(f));
+    expect(scoped.result).toEqual(legacy.result);
+    expect(scoped.reads.has(f.conversation)).toBe(false);
+    for (let i = 0; i < 4; i++) {
+      const ingest = await recordDocuments(() => insert(i));
+      expect(ingest.writes.has(f.conversation)).toBe(true);
+      expect([...ingest.writes].filter((id) => scoped.reads.has(id))).toEqual(
+        [],
+      );
+    }
+
+    for (const block of [
+      { pending_api_error_kind: "safety" as const },
+      {
+        session_error:
+          "Safety stop: This request was blocked by our safety systems.",
+      },
+    ]) {
+      await f.t.run(({ db }) =>
+        makeSessionStartsDb(db, db).patch(f.conversation, block),
+      );
+      expect(await listWork(f)).toEqual([]);
+      await f.t.run(({ db }) =>
+        makeSessionStartsDb(db, db).patch(f.conversation, {
+          pending_api_error_kind: undefined,
+          session_error: undefined,
+        }),
+      );
+      expect(await listWork(f)).toEqual(legacy.result);
+    }
+  } finally {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    if (prior === undefined) delete process.env[cardFlag];
+    else process.env[cardFlag] = prior;
+  }
 });

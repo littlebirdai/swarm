@@ -157,6 +157,7 @@ export const sessionStartTables = {
         standing_role_id: v.optional(v.id("org_roles")),
       }),
     ),
+    execution_safety_blocked: v.optional(v.boolean()),
     // What the daemon's pending-message query needs to decide delivery (the
     // owning device and whether delivery is blocked), so that subscription
     // reads this row and not the conversation. Absent until

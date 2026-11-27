@@ -16,6 +16,7 @@ import {
   requireProtocolVersion,
   wireIsolation,
 } from "./execution-binding.validators";
+import { sessionStartOf } from "./sessionStarts";
 
 export async function executionWorkFor(
   ctx: QueryCtx,
@@ -40,6 +41,7 @@ export async function executionWorkFor(
     )
     .collect();
   const work: any[] = [];
+  const useSessionCard = process.env.EXECUTION_WORK_SESSION_CARD === "1";
   const destinationHeads = boundToDevice
     ? (
         await Promise.all(
@@ -65,10 +67,16 @@ export async function executionWorkFor(
     ),
     ...destinationHeads,
   ]) {
-    const conversation = await ctx.db.get(
-      head.conversation_id as Id<"conversations">,
-    );
-    if (conversation && isConversationSafetyBlocked(conversation)) continue;
+    const conversationId = head.conversation_id as Id<"conversations">;
+    const card = useSessionCard
+      ? await sessionStartOf(ctx.db, conversationId)
+      : null;
+    if (card?.execution_safety_blocked === undefined) {
+      const conversation = await ctx.db.get(conversationId);
+      if (conversation && isConversationSafetyBlocked(conversation)) continue;
+    } else if (card.execution_safety_blocked) {
+      continue;
+    }
     if (head.protocol_version !== args.protocol_version) {
       fail(
         "EXECUTION_PROTOCOL_VERSION_MISMATCH",
