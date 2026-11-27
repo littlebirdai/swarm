@@ -1,4 +1,5 @@
 import { api as _api } from "@codecast/convex/convex/_generated/api";
+import { awaitReplayResult, checkReplaySignal } from "./inbox-replay-lane";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import { useInboxStore, type InboxSession } from "../store/inboxStore";
 
@@ -18,6 +19,19 @@ export function chunkIds(
   return chunks;
 }
 
+export async function queryReplay(
+  convex: any,
+  query: any,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<any> {
+  checkReplaySignal(signal);
+  if (!signal) return convex.query(query, args);
+  if (typeof convex.watchQuery === "function")
+    return queryWithSignal(convex, query, args, signal);
+  return awaitReplayResult(convex.query(query, args), signal);
+}
+
 async function batchGetChunk(
   convex: any,
   coll: Collection,
@@ -25,21 +39,41 @@ async function batchGetChunk(
   signal?: AbortSignal,
 ): Promise<any[]> {
   switch (coll) {
-    case "sessions": {
-      const query = api.conversations.getInboxSessionsByIds;
-      const reply = await (signal
-        ? queryWithSignal(convex, query, { ids }, signal)
-        : convex.query(query, { ids }));
-      return reply?.sessions ?? [];
-    }
+    case "sessions":
+      return (
+        (
+          await queryReplay(
+            convex,
+            api.conversations.getInboxSessionsByIds,
+            { ids },
+            signal,
+          )
+        )?.sessions ?? []
+      );
     case "tasks":
-      return (await convex.query(api.tasks.webGetByIds, { ids }))?.items ?? [];
+      return (
+        (await queryReplay(convex, api.tasks.webGetByIds, { ids }, signal))
+          ?.items ?? []
+      );
     case "docs":
-      return (await convex.query(api.docs.webGetByIds, { ids }))?.docs ?? [];
+      return (
+        (await queryReplay(convex, api.docs.webGetByIds, { ids }, signal))
+          ?.docs ?? []
+      );
     case "plans":
-      return (await convex.query(api.plans.webGetByIds, { ids })) ?? [];
+      return (
+        (await queryReplay(convex, api.plans.webGetByIds, { ids }, signal)) ??
+        []
+      );
     case "projects":
-      return (await convex.query(api.projects.webGetByIds, { ids })) ?? [];
+      return (
+        (await queryReplay(
+          convex,
+          api.projects.webGetByIds,
+          { ids },
+          signal,
+        )) ?? []
+      );
   }
 }
 

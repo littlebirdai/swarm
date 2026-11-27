@@ -21768,7 +21768,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
-    "swarm/no-comments": 203,
+    "swarm/no-comments": 152,
     "swarm/no-direct-use-effect": 2
   },
   "apps/web/hooks/use-sync-docs.ts": {

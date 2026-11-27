@@ -4,9 +4,14 @@ import { getFunctionName } from "convex/server";
 import { act } from "react";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { webBuilders } from "../../test-helpers/builders";
+import { syncInflightCount } from "../../store/syncActivity";
 import { useInboxStore } from "../../store/inboxStore";
 import { useLiveInboxSessions } from "../useLiveInboxSessions";
-import { scopeMetaKey, useSyncChangeFeed } from "../use-sync-change-feed";
+import {
+  catchUpScope,
+  scopeMetaKey,
+  useSyncChangeFeed,
+} from "../use-sync-change-feed";
 import { pending } from "../../test-helpers/testConvex";
 import { emitSyncWake } from "../syncWake";
 import { useQuery } from "convex/react";
@@ -21,7 +26,7 @@ function Inbox({ snapshot }: { snapshot: boolean }) {
 
 test("the host reads one positioned snapshot and retries only on recovery", async () => {
   const row = webBuilders("inbox-log-snapshot").session.build();
-  const position = 3;
+  let position = 3;
   const random = spyOn(Math, "random").mockReturnValue(0.5);
   try {
     const { backend, clock, container, store } = await mountWeb(
@@ -32,6 +37,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
           useInboxStore.setState({ syncRole: "host" });
           backend.set(api.syncLog.getHeads, { heads: [] });
           state.syncTable("currentUser", { _id: "viewer" });
+          state.syncTable("sessions", [{ ...row, title: "Current" }]);
           state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
           backend.set(api.conversations.listInboxSessions, () => ({
             sessions: [{ ...row, title: `Snapshot ${position}` }],
@@ -53,17 +59,21 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
     expect(reads()).toEqual([
       expect.objectContaining({ checkpoint: true, _probe: expect.any(Number) }),
     ]);
-    expect(store.getState().sessions[row._id]?.title).toBe("Snapshot 3");
+    expect(store.getState().sessions[row._id]?.title).toBe("Current");
+    expect(container.textContent).toBe("loading");
+    position = 4;
+    await clock!.advance(15_000);
+    expect(store.getState().sessions[row._id]?.title).toBe("Snapshot 4");
     expect(store.getState().syncMeta[scopeMetaKey(scope)]?.cursor).toBe(4);
     expect(container.textContent).toBe("ready");
     for (let i = 0; i < 3; i++) {
       await clock!.advance(20_000);
       await act(async () => backend.ping());
     }
-    expect(reads()).toHaveLength(1);
+    expect(reads()).toHaveLength(2);
     await act(async () => emitSyncWake());
     await clock!.advance(7_500);
-    expect(reads()).toHaveLength(2);
+    expect(reads()).toHaveLength(3);
   } finally {
     random.mockRestore();
   }
@@ -327,4 +337,207 @@ test("a replay gap starts a new snapshot before the old request finishes", async
     }),
   );
   expect(store.getState().sessions[row._id]?.title).toBe("Replacement");
+});
+
+function ReplayWithOptionalSnapshot({ show }: { show: boolean }) {
+  useSyncChangeFeed();
+  return show ? <Inbox snapshot /> : null;
+}
+
+test("disposing a queued snapshot releases its activity while replay is still waiting", async () => {
+  const row = webBuilders("dispose-queued-snapshot").session.build();
+  const ui = await mountWeb(<ReplayWithOptionalSnapshot show />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+      });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      backend.set(heads, headAt(5));
+      backend.set(range, {
+        actions: [
+          {
+            entity_type: "conversations",
+            entity_id: row._id,
+            position: 5,
+            op: "upsert",
+          },
+        ],
+        nextFrom: 5,
+        hasMore: false,
+      });
+      backend.set(byIds, pending);
+      backend.set(list, snapshotAt(5, [row]));
+    },
+  });
+  const before = syncInflightCount();
+  await ui.clock!.advance(1);
+  expect(syncInflightCount()).toBe(before + 1);
+  await ui.rerender(<ReplayWithOptionalSnapshot show={false} />);
+  expect(syncInflightCount()).toBe(before);
+  await act(async () => emitSyncWake());
+  await ui.rerender(<span />);
+  expect(syncInflightCount()).toBe(0);
+});
+
+test("a replay page times out and hands the lane to the waiting snapshot", async () => {
+  const row = webBuilders("timed-replay-lane").session.build({
+    title: "Snapshot",
+  });
+  const ui = await mountWeb(<Inbox snapshot />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({ syncRole: "host" });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      backend.set(heads, headAt(5));
+      backend.set(range, {
+        actions: [
+          {
+            entity_type: "conversations",
+            entity_id: row._id,
+            position: 5,
+            op: "upsert",
+          },
+        ],
+        nextFrom: 5,
+        hasMore: false,
+      });
+      backend.set(byIds, pending);
+      backend.set(list, snapshotAt(5, [row]));
+    },
+  });
+  let failure: unknown;
+  await act(async () => {
+    void catchUpScope(
+      ui.backend.client,
+      { scope_key: scope, position: 5, floor: 0 },
+      new Set(),
+    ).catch((error) => {
+      failure = error;
+    });
+  });
+  await ui.clock!.advance(1);
+  expect(ui.container.textContent).toBe("loading");
+  await ui.clock!.advance(19_999);
+  expect(failure).toEqual(new Error("Sync replay timed out"));
+  expect(ui.container.textContent).toBe("ready");
+  expect(syncInflightCount()).toBe(0);
+  await act(async () =>
+    ui.backend.set(byIds, { sessions: [{ ...row, title: "Late" }] }),
+  );
+  expect(ui.store.getState().sessions[row._id]?.title).toBe("Snapshot");
+  expect(ui.store.getState().syncMeta[scopeMetaKey(scope)]?.cursor).toBe(4);
+});
+
+test("changing accounts cancels the old replay and discards its late reply", async () => {
+  const old = webBuilders("old-account-replay").session.build();
+  const next = webBuilders("next-account-snapshot").session.build();
+  const newScope = "user:other";
+  const ui = await mountWeb(<InboxWithReplay />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+      });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      state.recordSyncMeta(scopeMetaKey(newScope), { cursor: 4 });
+      backend.set(heads, headAt(5));
+      backend.set(range, {
+        actions: [
+          {
+            entity_type: "conversations",
+            entity_id: old._id,
+            position: 5,
+            op: "upsert",
+          },
+        ],
+        nextFrom: 5,
+        hasMore: false,
+      });
+      backend.set(byIds, pending);
+      backend.set(list, snapshotAt(5, [old]));
+    },
+  });
+  await ui.clock!.advance(1);
+  expect(syncInflightCount()).toBe(2);
+  await act(async () => {
+    ui.backend.set(heads, {
+      heads: [{ scope_key: newScope, position: 4, floor: 0 }],
+    });
+    ui.backend.set(list, {
+      ...snapshotAt(4, [next]),
+      checkpoint: { scope: newScope, position: 4 },
+    });
+    ui.store.getState().syncTable("currentUser", { _id: "other" });
+  });
+  await ui.clock!.advance(1);
+  expect(syncInflightCount()).toBe(0);
+  expect(ui.store.getState().sessions[next._id]).toBeDefined();
+  await act(async () => ui.backend.set(byIds, { sessions: [old] }));
+  expect(ui.store.getState().sessions[old._id]).toBeUndefined();
+});
+
+test("switching accounts gives the first snapshot its own recovery interval", async () => {
+  const newScope = "user:other";
+  const row = webBuilders("immediate-new-account-snapshot").session.build();
+  const ui = await mountWeb(<Inbox snapshot />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({ syncRole: "host" });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      state.recordSyncMeta(scopeMetaKey(newScope), { cursor: 4 });
+      backend.set(heads, headAt(4));
+      backend.set(list, snapshotAt(4, []));
+    },
+  });
+  await ui.clock!.advance(1);
+  expect(ui.container.textContent).toBe("ready");
+  await act(async () => {
+    ui.backend.set(list, {
+      ...snapshotAt(4, [row]),
+      checkpoint: { scope: newScope, position: 4 },
+    });
+    ui.store.getState().syncTable("currentUser", { _id: "other" });
+  });
+  await ui.rerender(<Inbox snapshot />);
+  expect(ui.container.textContent).toBe("loading");
+  await ui.clock!.advance(1);
+  expect(ui.container.textContent).toBe("ready");
+  expect(ui.store.getState().sessions[row._id]).toBeDefined();
+});
+
+test("an interrupted ownership check is retried before the new live ids commit", async () => {
+  const row = webBuilders("interrupted-owner-snapshot").session.build({
+    user_id: "runner",
+    owner_user_id: "viewer",
+    owned_by_me: true,
+  });
+  const ui = await mountWeb(<Inbox snapshot />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({ syncRole: "host" });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.syncTable("sessions", [row]);
+      state.setLiveInboxIds([row._id]);
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      backend.set(heads, headAt(4));
+      backend.set(list, snapshotAt(4, []));
+      backend.set(byIds, pending);
+    },
+  });
+  await ui.clock!.advance(1);
+  await ui.clock!.advance(20_000);
+  expect(ui.store.getState().liveInboxIds.has(row._id)).toBe(true);
+  expect(syncInflightCount()).toBe(0);
+  await act(async () => ui.backend.set(byIds, { sessions: [] }));
+  await ui.clock!.advance(15_000);
+  expect(ui.store.getState().sessions[row._id]?.owned_by_me).toBe(false);
+  expect(ui.store.getState().liveInboxIds.has(row._id)).toBe(false);
+  expect(ui.container.textContent).toBe("ready");
 });

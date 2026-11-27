@@ -167,31 +167,36 @@ export function useLiveInboxSessions(logSnapshot = false) {
           data.checkpoint?.scope !== scope
         )
           return false;
-        const state = useInboxStore.getState();
-        if (
-          `user:${state.currentUser?._id}` !== scope ||
-          state.syncRole === "follower" ||
-          (state.crawlResets[scope] ?? 0) !== reset
-        )
-          return false;
-        const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
-        if (signal.aborted) return false;
-        const rows = applyInboxListPayload(data);
-        if (!rows) return false;
-        if ((cursor ?? 0) < data.checkpoint.position)
-          coverInboxSnapshot(
-            convex,
-            scope,
-            data.checkpoint.position,
-            rows.map((row) => String(row._id)),
-          );
+        const { position } = data.checkpoint;
+        const currentState = () => {
+          const state = useInboxStore.getState();
+          const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
+          if (
+            signal.aborted ||
+            `user:${state.currentUser?._id}` !== scope ||
+            state.syncRole === "follower" ||
+            (state.crawlResets[scope] ?? 0) !== reset ||
+            cursor === undefined ||
+            position < cursor
+          )
+            return null;
+          return { state, cursor };
+        };
+        const before = currentState();
+        if (!before || !Array.isArray(data.sessions)) return false;
+        const ids = new Set<string>(
+          data.sessions.map((row) => String(row._id)),
+        );
         const left = leftClaimingViewer(
-          state,
-          state.liveInboxIds,
-          useInboxStore.getState().liveInboxIds,
+          before.state,
+          before.state.liveInboxIds,
+          ids,
         );
         if (left.length) await settleDisownClaims(convex, left, signal);
-        if (signal.aborted) return false;
+        const current = currentState();
+        if (!current || !applyInboxListPayload(data)) return false;
+        if (current.cursor < position)
+          coverInboxSnapshot(convex, scope, position, ids);
         setSnapshotScope(scope);
         return true;
       },

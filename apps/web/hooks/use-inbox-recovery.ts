@@ -82,7 +82,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
     );
     const endActivity = beginSyncInflight("poll");
     let applied = false;
-    const fetchAndApply = async () => {
+    const fetchAndApply = async (signal: AbortSignal) => {
       if (signal.aborted || !canRead()) return false;
       const fresh = await queryInboxRecovery(
         convex,
@@ -114,10 +114,14 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
     };
     try {
       applied = await (snapshotScope
-        ? withInboxReplayLane(convex, snapshotScope, fetchAndApply)
-        : fetchAndApply());
+        ? withInboxReplayLane(convex, snapshotScope, signal, fetchAndApply)
+        : fetchAndApply(signal));
     } catch (error) {
-      if (!signal.aborted) console.warn("[inbox recovery] query failed", error);
+      if (
+        !signal.aborted &&
+        !(error instanceof Error && error.name === "AbortError")
+      )
+        console.warn("[inbox recovery] query failed", error);
     } finally {
       clearTimeout(timeout);
       active = null;
@@ -240,14 +244,17 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   const recovery = useRef<ReturnType<typeof startInboxRecovery> | null>(null);
   const nextAt = useRef(0);
   const lastProbe = useRef(0);
-  const previousGeneration = useRef(bootstrapGeneration);
+  const previous = useRef({ snapshotScope, bootstrapGeneration });
 
   useLayoutEffect(() => {
-    if (args === "skip" || lost) return;
-    if (previousGeneration.current !== bootstrapGeneration) {
-      previousGeneration.current = bootstrapGeneration;
+    if (
+      previous.current.bootstrapGeneration !== bootstrapGeneration ||
+      previous.current.snapshotScope !== snapshotScope
+    ) {
+      previous.current = { snapshotScope, bootstrapGeneration };
       nextAt.current = 0;
     }
+    if (args === "skip" || lost) return;
     const controller = startInboxRecovery<typeof reference>(
       convex,
       reference,
