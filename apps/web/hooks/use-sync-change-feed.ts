@@ -11,6 +11,11 @@ import { planCargoApply } from "../lib/syncLogCargo";
 import { track } from "../lib/analytics";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { onSyncWake } from "./syncWake";
+import {
+  inboxSnapshotCoverage,
+  retireInboxSnapshot,
+  withInboxReplayLane,
+} from "./inbox-replay-lane";
 import { beginSyncInflight } from "../store/syncActivity";
 import {
   batchGet,
@@ -304,6 +309,8 @@ async function applyLogPage(
   // goes through the byIds path exactly as before. Dedupe keeps the LAST
   // action per entity (planFeedApply's rule), so a coalesced page applies once.
   const byIds: FeedChange[] = [];
+  const covered = inboxSnapshotCoverage(convex, scopeKey);
+  const refreshCovered: string[] = [];
   const latest = new Map<string, LogAction>();
   for (const a of entityActions)
     latest.set(`${a.entity_type}:${a.entity_id}`, a);
@@ -326,6 +333,15 @@ async function applyLogPage(
       (coll === "sessions" && a.op === "upsert" && disowned.has(a.entity_id))
     )
       continue;
+    if (
+      coll === "sessions" &&
+      covered &&
+      a.position <= covered.position &&
+      covered.ids.has(a.entity_id)
+    ) {
+      if (a.op === "upsert") refreshCovered.push(a.entity_id);
+      continue;
+    }
     const existing = heldRow(state, coll, a.entity_id);
     if (a.op !== "upsert") {
       // A delete for an id this replica does not hold has nothing to prune and
@@ -393,8 +409,13 @@ async function applyLogPage(
   tallyApply(direct, byIds.length);
   if (byIds.length)
     await applyEntityIds(convex, planFeedApply(byIds), { fromLog: true });
+  if (refreshCovered.length) {
+    const rows = await batchGet(convex, "sessions", refreshCovered);
+    if (rows.length) store.syncTable("sessions", rows, { isDelta: true });
+  }
   if (disowned.size) await settleDisownClaims(convex, [...disowned]);
   store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor: upTo });
+  retireInboxSnapshot(convex, scopeKey, upTo);
 }
 
 // synclog_apply telemetry (E6/E10 acceptance signal): the direct-vs-refetch
@@ -507,17 +528,20 @@ export async function catchUpScope(
       return;
     }
     if (res.actions?.length) {
-      await applyLogPage(
-        convex,
-        head.scope_key,
-        res.actions,
-        res.nextFrom,
-        purgedTeams,
+      await withInboxReplayLane(convex, head.scope_key, () =>
+        applyLogPage(
+          convex,
+          head.scope_key,
+          res.actions,
+          res.nextFrom,
+          purgedTeams,
+        ),
       );
     } else if (typeof res.nextFrom === "number" && res.nextFrom > from) {
       useInboxStore
         .getState()
         .recordSyncMeta(scopeMetaKey(head.scope_key), { cursor: res.nextFrom });
+      retireInboxSnapshot(convex, head.scope_key, res.nextFrom);
     } else if (!res.hasMore) {
       // Empty range below a moving head (coalescing moved rows past us):
       // nothing left to apply — the head subscription will wake us again.

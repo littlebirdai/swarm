@@ -19,6 +19,7 @@ import { RECOVERY_FETCH_TIMEOUT_MS } from "./useRecoveryPoll";
 import { useServerIdentityLost } from "./useServerAuthSettled";
 import { queryInboxRecovery, type SplitKind } from "./useSplitQuery";
 import { useWatchEffect } from "./useWatchEffect";
+import { withInboxReplayLane } from "./inbox-replay-lane";
 
 const RECOVERY_INTERVAL_MS = 15_000;
 const MAX_RETRY_DELAY_MS = 60_000;
@@ -40,6 +41,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
   ) => boolean | Promise<boolean>,
   nextAt: { current: number },
   lastProbe: { current: number },
+  snapshotScope?: string,
 ) {
   let { isWebSocketConnected: connected, connectionCount } =
     convex.connectionState();
@@ -80,7 +82,8 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
     );
     const endActivity = beginSyncInflight("poll");
     let applied = false;
-    try {
+    const fetchAndApply = async () => {
+      if (signal.aborted || !canRead()) return false;
       const fresh = await queryInboxRecovery(
         convex,
         query,
@@ -89,8 +92,8 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
         signal,
         lastProbe.current,
       );
-      if (signal.aborted || !canRead()) return;
-      applied = await new Promise<boolean>((resolve, reject) => {
+      if (signal.aborted || !canRead()) return false;
+      return new Promise<boolean>((resolve, reject) => {
         let cancel: (() => void) | undefined;
         const abort = () => {
           cancel?.();
@@ -108,6 +111,11 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
           }
         }, 1500);
       });
+    };
+    try {
+      applied = await (snapshotScope
+        ? withInboxReplayLane(convex, snapshotScope, fetchAndApply)
+        : fetchAndApply());
     } catch (error) {
       if (!signal.aborted) console.warn("[inbox recovery] query failed", error);
     } finally {
@@ -217,6 +225,7 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
     signal: AbortSignal,
   ) => boolean | Promise<boolean>,
   bootstrapGeneration?: number,
+  snapshotScope?: string,
 ) {
   const convex = useConvex();
   const lost = useServerIdentityLost();
@@ -247,6 +256,7 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
       apply,
       nextAt,
       lastProbe,
+      snapshotScope,
     );
     recovery.current = controller;
     if (bootstrapGeneration !== undefined) void controller.request(true);
@@ -254,7 +264,16 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
       recovery.current = null;
       controller.dispose();
     };
-  }, [convex, reference, args, kind, apply, lost, bootstrapGeneration]);
+  }, [
+    convex,
+    reference,
+    args,
+    kind,
+    apply,
+    lost,
+    bootstrapGeneration,
+    snapshotScope,
+  ]);
 
   useWatchEffect(() => {
     if (error) void recovery.current?.request();

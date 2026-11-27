@@ -47,7 +47,7 @@ test("only the authenticated snapshot opt-in returns the caller's log checkpoint
   );
 });
 
-test("the snapshot cannot checkpoint writes that still have pending outbox slots", async () => {
+test("publishing a pending outbox revision puts it after the snapshot checkpoint", async () => {
   jest.useFakeTimers();
   onTestFinished(() => {
     jest.useRealTimers();
@@ -76,15 +76,64 @@ test("the snapshot cannot checkpoint writes that still have pending outbox slots
   });
   expect(await query()).toMatchObject({
     sessions: [expect.objectContaining({ _id: id, title: "Pending" })],
-    checkpoint: null,
+    checkpoint: { scope: `user:${viewer}`, position: 0 },
   });
   const slot = await t.run(({ db }) => db.query("sync_outbox").first());
   expect(slot?.pending).toBe(true);
   await t.mutation(internal.syncOutbox.drain, { id: slot!._id });
-  const drained = await query();
   expect(
-    "checkpoint" in drained ? drained.checkpoint?.position : null,
-  ).toBeGreaterThan(0);
+    await owner.query(api.syncLog.getRange, {
+      scope_key: `user:${viewer}`,
+      from: 0,
+    }),
+  ).toMatchObject({
+    actions: [
+      expect.objectContaining({ position: 1, entity_id: id, op: "upsert" }),
+    ],
+  });
+  expect(await query()).toMatchObject({
+    checkpoint: { scope: `user:${viewer}`, position: 1 },
+  });
+});
+
+test("a stranded outbox slot does not block snapshots while the log is disabled", async () => {
+  jest.useFakeTimers();
+  const disabled = process.env.SYNC_LOG_DISABLED;
+  delete process.env.SYNC_LOG_DISABLED;
+  onTestFinished(() => {
+    jest.useRealTimers();
+    if (disabled === undefined) delete process.env.SYNC_LOG_DISABLED;
+    else process.env.SYNC_LOG_DISABLED = disabled;
+  });
+  const t = serverTest();
+  const { viewer, id } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "disabled-inbox-checkpoint");
+    const viewer = await rows.user();
+    const id = await rows.conversation(viewer, {
+      title: "Before",
+      started_at: Date.now(),
+      updated_at: Date.now(),
+      message_count: 1,
+    });
+    return { viewer, id };
+  });
+  await t.mutation(internal.titleGeneration.setTitleAndSubtitle, {
+    conversation_id: id,
+    title: "Committed",
+  });
+  const slot = await t.run(({ db }) => db.query("sync_outbox").first());
+  expect(slot?.pending).toBe(true);
+  process.env.SYNC_LOG_DISABLED = "1";
+  await t.mutation(internal.syncOutbox.drain, { id: slot!._id });
+  expect((await t.run(({ db }) => db.get(slot!._id)))?.pending).toBe(true);
+  expect(
+    await asUser(t, viewer).query(api.conversations.listInboxSessions, {
+      checkpoint: true,
+    }),
+  ).toMatchObject({
+    sessions: [expect.objectContaining({ _id: id, title: "Committed" })],
+    checkpoint: { scope: `user:${viewer}`, position: 0 },
+  });
 });
 
 test("removing an owner revokes only their personal claim in the log", async () => {

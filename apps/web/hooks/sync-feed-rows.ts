@@ -1,4 +1,5 @@
 import { api as _api } from "@codecast/convex/convex/_generated/api";
+import { queryWithSignal } from "../lib/queryWithSignal";
 import { useInboxStore, type InboxSession } from "../store/inboxStore";
 
 const api = _api as any;
@@ -21,13 +22,16 @@ async function batchGetChunk(
   convex: any,
   coll: Collection,
   ids: string[],
+  signal?: AbortSignal,
 ): Promise<any[]> {
   switch (coll) {
-    case "sessions":
-      return (
-        (await convex.query(api.conversations.getInboxSessionsByIds, { ids }))
-          ?.sessions ?? []
-      );
+    case "sessions": {
+      const query = api.conversations.getInboxSessionsByIds;
+      const reply = await (signal
+        ? queryWithSignal(convex, query, { ids }, signal)
+        : convex.query(query, { ids }));
+      return reply?.sessions ?? [];
+    }
     case "tasks":
       return (await convex.query(api.tasks.webGetByIds, { ids }))?.items ?? [];
     case "docs":
@@ -43,11 +47,12 @@ export async function batchGet(
   convex: any,
   coll: Collection,
   ids: string[],
+  signal?: AbortSignal,
 ): Promise<any[]> {
   if (!ids.length) return [];
   const rows: any[] = [];
   for (const chunk of chunkIds(ids)) {
-    rows.push(...(await batchGetChunk(convex, coll, chunk)));
+    rows.push(...(await batchGetChunk(convex, coll, chunk, signal)));
   }
   return rows;
 }
@@ -55,11 +60,12 @@ export async function batchGet(
 export async function settleDisownClaims(
   convex: any,
   ids: string[],
+  signal?: AbortSignal,
 ): Promise<void> {
   const viewer = useInboxStore.getState().currentUser?._id;
-  const rows = await batchGet(convex, "sessions", ids);
+  const rows = await batchGet(convex, "sessions", ids, signal);
   const store = useInboxStore.getState();
-  if (viewer !== store.currentUser?._id) return;
+  if (signal?.aborted || viewer !== store.currentUser?._id) return;
   if (rows.length)
     store.syncTable(
       "sessions",

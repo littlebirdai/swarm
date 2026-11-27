@@ -6,7 +6,11 @@
 
 The sync host reads an authorized snapshot. The reply gives the viewer’s scope and the log position read in the same Convex transaction. The host merges the rows through the existing inbox applier. A replica can display its cache while the snapshot loads. The snapshot covers the window. The existing completeness crawl supplies older bodies after a cold boot or retention gap.
 
-Keep one ordered cursor per scope. Wait for the debounced replay cursor to reach the snapshot position. If the cursor has already passed it, request a new snapshot to avoid overwriting newer rows. Reuse the pending-write filters when a snapshot or replay reaches the store. The snapshot never moves the cursor. Replay can then apply all actions past the cursor, including writes committed during bootstrap. The server withholds the checkpoint while the scope has pending outbox slots. The host retries after backoff. This keeps a write from entering the replica through the snapshot and then again when the outbox publishes it.
+Read the published head before building the snapshot in the same transaction. A pending outbox revision has no published position yet. The drain gives it a position after this checkpoint, so a busy or disabled outbox does not block the snapshot.
+
+The snapshot request and application share a per-scope queue with complete replay pages. If a page is still applying or fetching by ID, the snapshot waits before sending its request. Replay may still read ranges while the snapshot is in flight. This keeps the snapshot from overwriting a page's newer rows.
+
+The snapshot never rewinds or advances the shared cursor. For rows in the snapshot, replay at or below the checkpoint does not put older cargo on screen. An upsert at these positions refreshes the current row by ID when authorized, which also settles fields protected by a pending write during the snapshot. Normal replay continues for newer actions, uncovered rows and ownership or scope revocations. A pending revision that the snapshot already saw can publish later. Its cargo assigns field values, so the same values can land again without changing the row.
 
 ## Changes and coverage
 

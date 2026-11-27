@@ -11,6 +11,7 @@ import {
 import { scopeMetaKey } from "./use-sync-change-feed";
 import { settleDisownClaims } from "./sync-feed-rows";
 export { settleDisownClaims } from "./sync-feed-rows";
+import { coverInboxSnapshot } from "./inbox-replay-lane";
 import { useInboxRecovery } from "./use-inbox-recovery";
 import { useServerAuthenticated } from "./useServerAuthSettled";
 import { useConvexSync } from "./useConvexSync";
@@ -113,29 +114,6 @@ const SNAPSHOT_ARGS = {
   checkpoint: true,
 } as const;
 
-async function waitForCheckpoint(
-  key: string,
-  position: number,
-  signal: AbortSignal,
-) {
-  const cursor = () => useInboxStore.getState().syncMeta[key]?.cursor;
-  if (!signal.aborted && (cursor() ?? -1) < position) {
-    await new Promise<void>((resolve) => {
-      const finish = () => {
-        off();
-        signal.removeEventListener("abort", finish);
-        resolve();
-      };
-      const off = useInboxStore.subscribe(() => {
-        const next = cursor();
-        if (next === undefined || next >= position) finish();
-      });
-      signal.addEventListener("abort", finish, { once: true });
-    });
-  }
-  return !signal.aborted && cursor() === position;
-}
-
 export function useLiveInboxSessions(logSnapshot = false) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
@@ -189,14 +167,6 @@ export function useLiveInboxSessions(logSnapshot = false) {
           data.checkpoint?.scope !== scope
         )
           return false;
-        if (
-          !(await waitForCheckpoint(
-            scopeMetaKey(scope),
-            data.checkpoint.position,
-            signal,
-          ))
-        )
-          return false;
         const state = useInboxStore.getState();
         if (
           `user:${state.currentUser?._id}` !== scope ||
@@ -205,14 +175,30 @@ export function useLiveInboxSessions(logSnapshot = false) {
         )
           return false;
         const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
-        if (signal.aborted || cursor !== data.checkpoint.position) return false;
-        if (!applyInboxListPayload(data, convex)) return false;
+        if (signal.aborted) return false;
+        const rows = applyInboxListPayload(data);
+        if (!rows) return false;
+        if ((cursor ?? 0) < data.checkpoint.position)
+          coverInboxSnapshot(
+            convex,
+            scope,
+            data.checkpoint.position,
+            rows.map((row) => String(row._id)),
+          );
+        const left = leftClaimingViewer(
+          state,
+          state.liveInboxIds,
+          useInboxStore.getState().liveInboxIds,
+        );
+        if (left.length) await settleDisownClaims(convex, left, signal);
+        if (signal.aborted) return false;
         setSnapshotScope(scope);
         return true;
       },
       [convex, scope, reset],
     ),
     reset,
+    scope ?? undefined,
   );
   const loading = logSnapshot
     ? isSyncHost && (scope === null || snapshotScope !== scope)

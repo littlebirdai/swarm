@@ -12285,17 +12285,17 @@ export const listInboxSessions = query({
       return args.split
         ? splitInboxList({ sessions: [], hidden_count: 0, truncated: [] })
         : { sessions: [], hidden_count: 0, truncated: [] };
+    const checkpoint =
+      args.checkpoint && !args.split
+        ? await readInboxCheckpoint(ctx.db, `user:${userId}`)
+        : undefined;
     const result = await computeInboxSessions(ctx, userId, {
       show_all: args.show_all,
       includeLiveness: args.include_liveness,
       fastFieldsInOverlay: args.fast_fields_in_overlay,
       splitHot: args.split,
     });
-    if (args.checkpoint && !args.split)
-      return {
-        ...result,
-        checkpoint: await readInboxCheckpoint(ctx.db, `user:${userId}`),
-      };
+    if (checkpoint) return { ...result, checkpoint };
     return args.split ? splitInboxList(result) : result;
   },
 });
