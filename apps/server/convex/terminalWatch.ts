@@ -1,3 +1,4 @@
+import { teamTerminalWatchEnabled } from "./lib/terminal-watch.flags";
 import { v } from "convex/values";
 import {
   isValidPaneTarget,
@@ -16,6 +17,7 @@ import { terminalPublisher } from "./lib/terminalPublisher";
 import {
   deleteTerminalShare,
   deleteTerminalViewer,
+  deleteTerminalWatchScreen,
   terminalWatchScreen,
   terminalWatchViewers,
 } from "./lib/terminalWatchRows";
@@ -126,6 +128,7 @@ async function viewerLease(
     share: Id<"terminal_watch_shares">;
   },
 ) {
+  if (!teamTerminalWatchEnabled()) return null;
   const share = await ctx.db.get(args.share);
   if (
     !share?.bound_at ||
@@ -153,6 +156,7 @@ async function viewerLease(
 export const status = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return null;
     const user = await getUserOrToken(ctx);
     if (!user) return null;
     const conversation = await ctx.db.get(args.conversation_id);
@@ -197,6 +201,7 @@ export const status = query({
 export const setSharing = mutation({
   args: { ...conversationArg, enabled: v.boolean() },
   handler: async (ctx, args) => {
+    if (args.enabled && !teamTerminalWatchEnabled()) return false;
     const user = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation || conversation.user_id !== user) return false;
@@ -249,6 +254,7 @@ export const setSharing = mutation({
 export const watchers = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return [];
     const user = await getUserOrToken(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!user || !conversation || conversation.user_id !== user) return [];
@@ -303,6 +309,7 @@ export const stopViewer = mutation({
 export const blockedViewers = query({
   args: conversationArg,
   handler: async (ctx, args) => {
+    if (!teamTerminalWatchEnabled()) return [];
     const user = await getUserOrToken(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (
@@ -395,10 +402,10 @@ export const watch = mutation({
     }
 
     const screen = await terminalWatchScreen(ctx.db, share._id);
+    const requestedAt = screen?.requested_at ?? share.last_stream_requested_at;
     if (
-      !screen ||
-      (now - (screen.seen_at ?? 0) > STREAM_STALE_MS &&
-        now - screen.requested_at >= DISPATCH_MS)
+      (!screen || now - (screen.seen_at ?? 0) > STREAM_STALE_MS) &&
+      (requestedAt === undefined || now - requestedAt >= DISPATCH_MS)
     ) {
       const device = await ctx.db.get(share.device);
       if (!device) return false;
@@ -469,6 +476,7 @@ async function deviceShare(
     share: Id<"terminal_watch_shares">;
   },
 ) {
+  if (!teamTerminalWatchEnabled()) return null;
   const user = await terminalPublisher(ctx, args.api_token, args.device_id);
   if (!user) return null;
   const share = await ctx.db.get(args.share);
@@ -544,7 +552,7 @@ export const cliPush = mutation({
       }
     }
     if (!watched) {
-      await ctx.db.delete(screen._id);
+      await deleteTerminalWatchScreen(ctx.db, screen, share);
       return { stop: true };
     }
 

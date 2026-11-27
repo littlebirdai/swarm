@@ -32,6 +32,11 @@ A turn written by several people is consecutive `<user-message from="Name">` par
 
 ## Share a terminal screen
 
+Team terminal watching is off by default. Set
+`CODECAST_TEAM_TERMINAL_WATCH=1` on the server to enable it. A machine owner
+then chooses which sessions to share. Turning the server flag off stops
+existing watches and denies new ones.
+
 Open **Team terminal** in the session and choose **Share terminal**. Teammates who can read the session can then see your terminal screen. Automatic hiding can miss secrets. Choose **Stop sharing terminal** to close the view for everyone.
 
 Deploy the Convex server changes before the web client that calls the team terminal endpoints.

@@ -67,6 +67,23 @@ export async function deleteTerminalShare(
   await db.delete(share._id);
 }
 
+export async function deleteTerminalWatchScreen(
+  db: DatabaseWriter,
+  screen: Doc<"terminal_watch_screens">,
+  share?: Doc<"terminal_watch_shares">,
+) {
+  const current = share ?? (await db.get(screen.share));
+  if (
+    current &&
+    (current.last_stream_requested_at === undefined ||
+      current.last_stream_requested_at < screen.requested_at)
+  )
+    await db.patch(current._id, {
+      last_stream_requested_at: screen.requested_at,
+    });
+  await db.delete(screen._id);
+}
+
 export async function deleteTerminalViewer(
   db: DatabaseWriter,
   viewer: Doc<"terminal_watch_viewers">,
@@ -76,5 +93,5 @@ export async function deleteTerminalViewer(
   const viewers = await terminalWatchViewers(db, viewer.share).collect();
   if (viewers.some((row) => !row.revoked && row.expires_at > now)) return;
   const screen = await terminalWatchScreen(db, viewer.share);
-  if (screen) await db.delete(screen._id);
+  if (screen) await deleteTerminalWatchScreen(db, screen);
 }

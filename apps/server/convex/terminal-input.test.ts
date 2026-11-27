@@ -3,9 +3,16 @@ import { PANE_MAX_PENDING_INPUT_BYTES } from "@codecast/daemon/terminalStream";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import { asUser } from "../test-helpers/database.testkit";
-import { deviceId, target } from "../test-helpers/terminal-watch.testkit";
+import {
+  enableTerminalWatchingForTests,
+  deviceId,
+  target,
+  terminalWatchFlag,
+} from "../test-helpers/terminal-watch.testkit";
 
 import { terminalTypingFixture as fixture } from "../test-helpers/terminal-typing.testkit";
+
+enableTerminalWatchingForTests();
 
 const typing = api.terminalInput;
 const flag = "CODECAST_TERMINAL_TYPING";
@@ -43,6 +50,30 @@ test("typing is off by default and leaves existing watch and own-device input av
       data: "61",
     }),
   ).toEqual({ ok: true });
+});
+
+test("typing grants cannot be created while team watching is disabled", async () => {
+  const f = await fixture();
+  expect(await f.report(1)).toMatchObject({ status: "ok" });
+  delete process.env[terminalWatchFlag];
+  expect(await f.grant()).toBe(false);
+  expect(
+    await f.t.run(({ db }) => db.query("terminal_typing_grants").collect()),
+  ).toEqual([]);
+
+  process.env[terminalWatchFlag] = "1";
+  expect(await f.focus()).toMatchObject({ status: "forbidden" });
+  expect(await f.grant()).toBe(true);
+  delete process.env[terminalWatchFlag];
+  expect(
+    await f.owner.mutation(typing.setTypingGrant, {
+      ...f.args,
+      user_id: f.ids.viewer,
+      enabled: false,
+    }),
+  ).toBe(true);
+  process.env[terminalWatchFlag] = "1";
+  expect(await f.focus()).toMatchObject({ status: "forbidden" });
 });
 
 test("one typist wins a simultaneous focus; a read grant alone cannot type", async () => {
