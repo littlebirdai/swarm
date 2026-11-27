@@ -181,6 +181,19 @@ test("takeover requires confirmation for the exact instance and cancel passes th
   });
 });
 
+test("an issued takeover fence keeps the waiting status without a cancel button", async () => {
+  const ui = await show({
+    ...claimState(),
+    holder: driver,
+    can_steer: false,
+    takeover_pending: true,
+    fence_id: null,
+  });
+  expect(ui.container.textContent).toContain("Waiting for the machine");
+  expect(ui.container.textContent).not.toContain("Cancel takeover");
+  expect(ui.container.textContent).not.toContain("Take over");
+});
+
 test("a stale send restores the draft and offers Queue", async () => {
   const row = claimState();
   const ui = await show(row, "stale");

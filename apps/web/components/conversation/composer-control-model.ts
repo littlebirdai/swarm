@@ -25,6 +25,7 @@ export type ComposerControlFacts = {
   expected?: TurnExpectation;
   canSteer?: boolean;
   canTakeOver?: boolean;
+  canCancelTakeover?: boolean;
   live?: true;
 };
 
@@ -124,7 +125,9 @@ export function composerControlModel(facts: ComposerControlFacts) {
     interrupt:
       !facts.live && facts.turn !== null && (owner || (canQueue && mine)),
     takeover: takingOver
-      ? "cancel"
+      ? facts.canCancelTakeover === false
+        ? null
+        : "cancel"
       : owner && otherDrives && facts.canTakeOver !== false
         ? "takeover"
         : null,

@@ -109,6 +109,7 @@ export function useLiveComposerControl(
           expected,
           canSteer: row.can_steer,
           canTakeOver: row.can_take_over,
+          canCancelTakeover: row.fence_id !== null,
           takeoverPending: row.takeover_pending,
           driveRequested: row.drive_requested,
           sendState: sendState(row),
