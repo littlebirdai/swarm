@@ -4,6 +4,7 @@ import type { Patch } from "mutative";
 import { writePendingEntries } from "./pending-entries";
 import { partitionSessionRetention } from "../cacheRetention";
 import {
+  _resetSnapshotLedger,
   createCoalescedWriter,
   deleteAllowed,
   diffCollection,
@@ -20,7 +21,12 @@ import {
   holdLivenessSyncMeta,
   resetLivenessLane,
 } from "./idb-liveness-lane";
-import { bindWindowFlush, COLLECTION_TABLES, db } from "./db";
+import {
+  bindWindowFlush,
+  COLLECTION_TABLES,
+  db,
+  registerTestReopen,
+} from "./db";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
@@ -283,3 +289,5 @@ export function resetCollectionWrites() {
   lastPersisted.clear();
   conversationRetentionDrops = new Set();
 }
+
+registerTestReopen(_resetSnapshotLedger);
