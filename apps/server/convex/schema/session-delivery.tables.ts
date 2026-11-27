@@ -360,6 +360,7 @@ export const sessionDeliveryTables = {
             v.literal("delivery-permit-v1"),
             v.literal("strict-agent-routing"),
             v.literal("runtime-inspection-v1"),
+            v.literal("steer-baton-v1"),
           ),
         ),
         status: v.union(
@@ -427,6 +428,7 @@ export const sessionDeliveryTables = {
       }),
     ),
     registered_at: v.number(),
+    owned_codex_new_sessions: v.optional(v.boolean()),
   }).index("by_user_device", ["user_id", "owner_device_id"]),
 
   // Ready-only fields are optional in storage and validated as a complete set
@@ -488,6 +490,7 @@ export const sessionDeliveryTables = {
         v.literal("delivery-permit-v1"),
         v.literal("strict-agent-routing"),
         v.literal("runtime-inspection-v1"),
+        v.literal("steer-baton-v1"),
       ),
     ),
     state: v.union(

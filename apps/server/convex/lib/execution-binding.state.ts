@@ -1,3 +1,4 @@
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX,
   type ReadyBinding,
@@ -365,14 +366,18 @@ export function watchesOwnedCodexInbox(
     "conversation_id" | "current_epoch"
   >,
   bindings: readonly { state: string; binding?: ReadyBinding }[],
+  ownsNewCodex: boolean,
 ): boolean {
   return (
     process.env.CODECAST_EDGE_DELIVERY_V1 === "1" &&
-    selectedConversation === String(head.conversation_id) &&
     bindings.some(
       ({ binding, state }) =>
         state === "ready" &&
-        binding?.epoch === 1 &&
+        binding !== undefined &&
+        ((selectedConversation === String(head.conversation_id) &&
+          binding.epoch === 1) ||
+          (ownsNewCodex &&
+            binding.capabilities.includes(STEER_BATON_CAPABILITY))) &&
         binding.epoch === head.current_epoch &&
         binding.actualAgent === "codex" &&
         binding.transport === "app-server" &&

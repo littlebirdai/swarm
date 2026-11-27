@@ -38,6 +38,7 @@ type ExecutionWorkHandshake = {
   protocolVersion: number;
   capabilities: readonly string[];
   ownedCodexConversationId?: string;
+  ownedCodexNewSessions?: boolean;
 };
 
 function executionWorkArguments(handshake: ExecutionWorkHandshake) {
@@ -46,6 +47,7 @@ function executionWorkArguments(handshake: ExecutionWorkHandshake) {
     daemon_boot_id: handshake.daemonBootId,
     protocol_version: handshake.protocolVersion,
     capabilities: [...handshake.capabilities],
+    ...(handshake.ownedCodexNewSessions && { owned_codex_new_sessions: true }),
     ...(handshake.ownedCodexConversationId === undefined
       ? {}
       : { owned_codex_conversation_id: handshake.ownedCodexConversationId }),
@@ -255,12 +257,14 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
   async registerBoot(input: {
     ownerDeviceId: string;
     daemonBootId: string;
+    ownedCodexNewSessions?: boolean;
   }): Promise<void> {
     await this.transport.executionControlMutation(
       "registerExecutionDaemonBoot",
       {
         owner_device_id: input.ownerDeviceId,
         daemon_boot_id: input.daemonBootId,
+        ...(input.ownedCodexNewSessions && { owned_codex_new_sessions: true }),
       },
     );
   }

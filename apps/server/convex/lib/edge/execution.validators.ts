@@ -5,6 +5,7 @@ export const capabilityValidator = v.union(
   v.literal("delivery-permit-v1"),
   v.literal("strict-agent-routing"),
   v.literal("runtime-inspection-v1"),
+  v.literal("steer-baton-v1"),
 );
 
 export const permitValidator = v.object({

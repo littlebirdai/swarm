@@ -14,7 +14,9 @@ export const FENCED_RUNTIME_CAPABILITIES = [
   "runtime-inspection-v1",
 ] as const;
 
-export type RuntimeCapability = (typeof FENCED_RUNTIME_CAPABILITIES)[number];
+export type RuntimeCapability =
+  | (typeof FENCED_RUNTIME_CAPABILITIES)[number]
+  | "steer-baton-v1";
 export type RuntimeTransport = AgentExecutionTransport;
 
 export interface IsolationSpec {
@@ -179,10 +181,13 @@ function requireCapabilities(
     throw new TypeError(`Invalid ready binding: ${field} must be an array`);
   }
   const normalized = [...new Set(candidate)].sort();
+  const base = normalized.filter(
+    (capability) => capability !== "steer-baton-v1",
+  );
   const required = [...FENCED_RUNTIME_CAPABILITIES].sort();
   if (
-    normalized.length !== required.length ||
-    normalized.some((capability, index) => capability !== required[index])
+    base.length !== required.length ||
+    base.some((capability, index) => capability !== required[index])
   ) {
     throw new TypeError(
       "Invalid ready binding: capabilities do not exactly match protocol v1",

@@ -1,3 +1,5 @@
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import { registeredDaemonBoot } from "./execution-daemon.state";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { isConversationSafetyBlocked } from "../conversationSafety";
@@ -28,12 +30,23 @@ export async function executionWorkFor(
     protocol_version: number;
     capabilities: Doc<"execution_bindings">["required_capabilities"];
     owned_codex_conversation_id?: string;
+    owned_codex_new_sessions?: boolean;
   },
 ) {
   requireNonEmpty(device, "ownerDeviceId");
   requireNonEmpty(args.daemon_boot_id, "daemonBootId");
   requireProtocolVersion(args.protocol_version);
   requireProtocolCapabilities(args.capabilities);
+  const baseCapabilities = args.capabilities.filter(
+    (capability) => capability !== STEER_BATON_CAPABILITY,
+  );
+  const boot =
+    boundToDevice && args.owned_codex_new_sessions
+      ? await registeredDaemonBoot(ctx, userId, device)
+      : null;
+  const ownsNewCodex =
+    boot?.daemon_boot_id === args.daemon_boot_id &&
+    boot.owned_codex_new_sessions === true;
   const heads = await (ctx.db as any)
     .query("conversation_execution_heads")
     .withIndex("by_owner_state", (q: any) =>
@@ -110,9 +123,16 @@ export async function executionWorkFor(
       )
         continue;
       if (
+        binding.required_capabilities.includes(STEER_BATON_CAPABILITY) &&
+        !ownsNewCodex
+      )
+        continue;
+      if (
         !capabilitiesEqual(
-          binding.required_capabilities ?? [],
-          args.capabilities,
+          binding.required_capabilities.filter(
+            (capability: string) => capability !== STEER_BATON_CAPABILITY,
+          ),
+          baseCapabilities,
         )
       ) {
         fail(
@@ -135,7 +155,10 @@ export async function executionWorkFor(
     }
     const intent = move ? undefined : head.successor_intent;
     const pendingIntent =
-      intent?.status === "pending" && intent.owner_device_id === device
+      intent?.status === "pending" &&
+      intent.owner_device_id === device &&
+      (ownsNewCodex ||
+        !intent.required_capabilities.includes(STEER_BATON_CAPABILITY))
         ? {
             intentId: intent.intent_id,
             expectedCurrentEpoch: intent.expected_current_epoch,
@@ -163,6 +186,23 @@ export async function executionWorkFor(
           }
         : undefined;
     if (bindings.length > 0 || pendingIntent) {
+      const watchesInbox = watchesOwnedCodexInbox(
+        args.owned_codex_conversation_id,
+        head,
+        bindings,
+        ownsNewCodex,
+      );
+      const turn =
+        watchesInbox && ownsNewCodex && head.current_epoch !== undefined
+          ? await ctx.db
+              .query("run_turn_projections")
+              .withIndex("by_conversation_run", (q) =>
+                q
+                  .eq("conversation_id", head.conversation_id)
+                  .eq("run", head.current_epoch!),
+              )
+              .unique()
+          : null;
       work.push({
         conversationId: String(head.conversation_id),
         currentEpoch: head.current_epoch,
@@ -170,13 +210,10 @@ export async function executionWorkFor(
         pendingPolicy: head.pending_policy,
         bindings,
         pendingIntent,
-        ...(watchesOwnedCodexInbox(
-          args.owned_codex_conversation_id,
-          head,
-          bindings,
-        )
+        ...(watchesInbox
           ? { nextDeliverySequence: head.next_conversation_sequence }
           : {}),
+        ...(turn ? { openTurn: turn.open_turn?.id ?? null } : {}),
       });
     }
   }

@@ -169,6 +169,28 @@ test("owned Codex RSS pushes the fleet over budget without making its thread par
   expect(picked.map(({ sessionId }) => sessionId)).toEqual(["legacy"]);
 });
 
+test("parkingMemoryRoots counts every owned Codex child PID without making them parkable", async () => {
+  const memory = await sampleParkingMemory(
+    100 * 1024,
+    parkingMemoryRoots(
+      new Map([
+        ["legacy", { pid: 20 }],
+        ["owned-a", { pid: 40 }],
+        ["owned-b", { pid: 50 }],
+      ]),
+      {
+        ownsThread: (id) => id === "owned-a" || id === "owned-b",
+        getProcessId: () => undefined,
+        getProcessIds: () => [30, 60],
+      },
+    ),
+    () => {},
+    async () => "20 2 20\n30 2 45\n40 30 5\n60 2 55\n50 60 10",
+  );
+  expect(memory?.usedBytes).toBe(135 * 1024);
+  expect([...(memory?.rssBySession ?? [])]).toEqual([["legacy", 20 * 1024]]);
+});
+
 test("invalid agent PIDs never trigger a process scan", async () => {
   let probes = 0;
   const memory = await sampleParkingMemory(

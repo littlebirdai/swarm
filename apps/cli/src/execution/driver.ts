@@ -64,6 +64,18 @@ export class RuntimeDriverRegistry {
     }
   }
 
+  supports(
+    agent: AgentClientId,
+    transport: RuntimeTransport,
+    capability: RuntimeCapability,
+  ): boolean {
+    return (
+      this.drivers
+        .get(driverKey(agent, transport))
+        ?.capabilities.includes(capability) === true
+    );
+  }
+
   resolve(agent: AgentClientId, transport: RuntimeTransport): RuntimeDriver {
     const driver = this.drivers.get(driverKey(agent, transport));
     if (!driver) {
