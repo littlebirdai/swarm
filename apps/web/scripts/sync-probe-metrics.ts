@@ -18,8 +18,11 @@ export function syncProbeAnalytics(
     catalog: CODECAST_EVENTS,
     env,
     optOutVars: [TELEMETRY_DISABLED_VAR],
-    fetch: (url, init) =>
-      fetchCapture(url, { ...init, signal: AbortSignal.timeout(5000) }),
+    fetch: ((url: Parameters<typeof fetch>[0], init?: RequestInit) =>
+      fetchCapture(url, {
+        ...init,
+        signal: AbortSignal.timeout(5000),
+      })) as typeof fetch,
   });
   if (analytics.optedOut) throw new Error("Sync probe telemetry is disabled");
   return analytics;

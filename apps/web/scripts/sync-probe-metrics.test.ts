@@ -9,10 +9,13 @@ const optedIn = {
 
 test("publishes both percentiles as a personless probe metric", async () => {
   const requests: Array<{ url: string; body: unknown }> = [];
-  const capture: typeof fetch = async (url, init) => {
+  const capture = (async (
+    url: Parameters<typeof fetch>[0],
+    init?: RequestInit,
+  ) => {
     requests.push({ url: String(url), body: JSON.parse(String(init?.body)) });
     return new Response(null, { status: 200 });
-  };
+  }) as typeof fetch;
   const metrics = syncProbeAnalytics(optedIn, capture);
   await metrics.capturePersonless("sync_save_to_screen", {
     samples: 30,
