@@ -9,7 +9,10 @@ import {
   TURN_STARTER_PROJECTION_VERSION,
   type TurnProjection,
 } from "@codecast/session-contract/turn-projection";
-import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import {
+  classifyPrompt,
+  STEER_BATON_CAPABILITY,
+} from "@codecast/edge-contract";
 import { findClaim } from "../claims";
 import { convexToJson } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -160,6 +163,7 @@ function projectPromptTurn(
   initial: TurnProjection,
   previousDetails: readonly PromptDetails[],
   events: readonly CanonicalEvent[],
+  batonEnabled: boolean,
 ) {
   let state = initial;
   let opened: TurnStarted | undefined;
@@ -189,7 +193,12 @@ function projectPromptTurn(
         )
           break;
         const prompt = details.get(data.prompt_id);
-        if (prompt?.kind !== "question" || prompt.questions) break;
+        if (
+          prompt?.kind !== "question" ||
+          prompt.questions ||
+          (prompt.routine_question && event.source !== "provider")
+        )
+          break;
         const questions = questionDetails(data.questions);
         if (questions) setDetails({ ...prompt, questions });
         break;
@@ -216,6 +225,11 @@ function projectPromptTurn(
               prompt_id,
               kind,
               ...(tool_call_id ? { tool_call_id } : {}),
+              ...(batonEnabled &&
+              event.source === "provider" &&
+              classifyPrompt(event.body, "question") === "routine"
+                ? { routine_question: true as const }
+                : {}),
             });
         } else if (
           event.kind === "prompt.settled" &&
@@ -319,6 +333,9 @@ export async function appendRunEvents(
       turn_ids: row?.turn_ids ?? [],
       open_turn: row?.open_turn ?? null,
     } as const;
+    const batonEnabled =
+      process.env.SWARM_TURN_BATON === "1" &&
+      binding.capabilities?.includes(STEER_BATON_CAPABILITY) === true;
     const {
       opened,
       open_turn: projectedTurn,
@@ -337,12 +354,10 @@ export async function appendRunEvents(
       },
       before.open_turn?.prompt_details ?? [],
       suffix,
+      batonEnabled,
     );
     let projection_version = TURN_PROJECTION_VERSION;
     let open_turn: OpenTurn | null = projectedTurn;
-    const batonEnabled =
-      process.env.SWARM_TURN_BATON === "1" &&
-      binding.capabilities?.includes(STEER_BATON_CAPABILITY);
     if (batonEnabled) {
       if (!open_turn) projection_version = TURN_STARTER_PROJECTION_VERSION;
       else if (opened) {

@@ -15,6 +15,16 @@ export type FencedPromptAddress = FunctionReturnType<
   answerSummary?: Record<string, string>;
 };
 
+export function canUsePromptAddress(address: FencedPromptAddress | undefined) {
+  return !!address && address.answerer?.can_answer !== false;
+}
+
+export function promptAnswererLabel(answerer: FencedPromptAddress["answerer"]) {
+  return answerer
+    ? `Answers · ${answerer.can_answer ? "You" : answerer.name}`
+    : undefined;
+}
+
 export interface FencedPromptAnswerActions {
   answerFencedPrompt: (rowId: string, args: AnswerArgs) => void;
   acceptFencedPromptAnswer: (rowId: string) => void;
@@ -169,7 +179,13 @@ export function submitFencedPromptAnswer(
 ): boolean {
   const { _id, conversation_id, run, lease_id, turn_id, prompt_id } = address;
   const current = store.fencedPromptAddresses[_id];
-  if (!current || current.submitted || current.accepted || current.feedAbsent)
+  if (
+    !current ||
+    current.submitted ||
+    current.accepted ||
+    current.feedAbsent ||
+    current.answerer?.can_answer === false
+  )
     return false;
   store.answerFencedPrompt(_id, {
     conversation_id,

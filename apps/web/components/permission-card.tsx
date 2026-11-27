@@ -10,7 +10,10 @@ import { allowAllLedger } from "./consequential/ledgers";
 import { useInboxStore } from "../store/inboxStore";
 import { useFencedPromptAddresses } from "../hooks/use-sync-fenced-prompt-addresses";
 import {
+  type FencedPromptAddress,
   findFencedPromptAddress,
+  canUsePromptAddress,
+  promptAnswererLabel,
   submitFencedPromptAnswer,
 } from "../store/fenced-prompt-answer";
 import { formatToolName } from "@codecast/render/toolNames";
@@ -65,32 +68,24 @@ export const PERMISSION_SKIP_TOOLS: ReadonlySet<string> = new Set([
   "TaskGet",
 ]);
 
-type Permission = {
-  _id: Id<"pending_permissions">;
+export type Permission = Omit<
+  PermissionViewItem<Id<"pending_permissions">>,
+  "answerer"
+> & {
   conversation_id?: string;
-  fenced_prompt_id?: string;
   fenced_prompt_turn_id?: string;
-  tool_name: string;
-  arguments_preview?: string;
-  status: "pending" | "approved" | "denied" | "cancelled";
   created_at: number;
   responded_at?: number;
-  suggestions?: unknown[];
-  subagent_type?: string;
-  subagent_conversation_id?: string;
-  safety_check?: boolean;
-  intent?: string;
-  removals?: PermissionRemoval[];
-  rule_request?: PermissionRuleRequest;
 };
 
 /** The fields the view renders. A real row satisfies it, and so does a fixture with a plain string id. */
 export type PermissionViewItem<PId extends string = string> = {
   _id: PId;
+  answerer?: FencedPromptAddress["answerer"];
   fenced_prompt_id?: string;
   tool_name: string;
   arguments_preview?: string;
-  status: Permission["status"];
+  status: "pending" | "approved" | "denied" | "cancelled";
   /** Claude Code's permission_suggestions: what "Always allow" would add. */
   suggestions?: unknown[];
   /** The subagent that asked, by type; absent when the session's own agent did. */
@@ -151,17 +146,21 @@ export function PermissionSourceTag({
 }: {
   permission: Pick<
     PermissionViewItem,
-    "subagent_type" | "subagent_conversation_id" | "safety_check"
+    "subagent_type" | "subagent_conversation_id" | "safety_check" | "answerer"
   >;
   className?: string;
 }) {
   const tags = permissionSourceTags(permission);
-  if (tags.length === 0) return null;
+  const answerLabel = promptAnswererLabel(permission.answerer);
+  if (tags.length === 0 && !answerLabel) return null;
   const subagentConv = permission.subagent_conversation_id;
   return (
     <span
       className={`flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${className}`}
     >
+      {answerLabel && (
+        <span className="text-sol-text-muted">{answerLabel}</span>
+      )}
       {tags.map((t) => {
         const tone =
           t.kind === "subagent"
@@ -441,7 +440,9 @@ export function PermissionStack({
   const waiting = new Set(
     pending
       .filter(
-        (permission) => permission.fenced_prompt_id && !addressFor(permission),
+        (permission) =>
+          permission.fenced_prompt_id &&
+          !canUsePromptAddress(addressFor(permission)),
       )
       .map(({ _id }) => _id),
   );
@@ -452,7 +453,7 @@ export function PermissionStack({
     opts?: { message?: string; remember?: boolean },
   ) => {
     const permission = pending.find(({ _id }) => _id === id);
-    if (!permission) return;
+    if (!permission || waiting.has(id)) return;
     if (!permission.fenced_prompt_id) {
       resolvePermission(id, status, opts);
       return;
@@ -485,7 +486,7 @@ export function PermissionStack({
       tag === "INPUT" ||
       tag === "TEXTAREA" ||
       (e.target as HTMLElement)?.isContentEditable ||
-      pending.length === 0
+      pending.every(({ _id }) => waiting.has(_id))
     )
       return;
     if (matchesAction(e, "permission.approve")) {
@@ -511,7 +512,10 @@ export function PermissionStack({
         </div>
       )}
       <PermissionStackView
-        pending={pending}
+        pending={pending.map((permission) => ({
+          ...permission,
+          answerer: addressFor(permission)?.answerer,
+        }))}
         inflight={waiting.size ? waiting : NO_INFLIGHT}
         onApprove={handleApprove}
         onDeny={handleDeny}

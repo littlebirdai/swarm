@@ -6,7 +6,7 @@ export const FENCED_PROMPT_SYNC_COLLECTIONS = {
     unprotectedFields: ["answerSummary"],
     sync: {
       isDelta: true,
-      deepFields: ["questions"],
+      deepFields: ["questions", "answerer"],
       preserveFields: ["accepted", "feedAbsent", "answerSummary"],
     },
     feeds: [

@@ -31,7 +31,7 @@ afterEach(() => {
   setSystemTime();
 });
 
-test("the owner receives a current steer observation and eligible collaborators see neither it nor the prompts", async () => {
+test("only the owner receives a steer observation, and collaborators see who can answer the prompt", async () => {
   const f = await setupRunLease();
   const lease = await f.claim("turn-feed-lease");
   if (lease.status !== "granted") throw new Error("Expected run lease");
@@ -127,7 +127,10 @@ test("the owner receives a current steer observation and eligible collaborators 
     prompts: [{ prompt_id: "next-prompt" }],
     turn: { _id: f.conversation, observed_turn },
   });
-  expect(await senderFeed()).toEqual({ prompts: [], turn: null });
+  expect(await senderFeed()).toMatchObject({
+    prompts: [{ prompt_id: "next-prompt", answerer: { can_answer: false } }],
+    turn: null,
+  });
   expect((await ownerFeed()).turn?.lease_remaining_ms).toBe(leaseMs);
   setSystemTime(new Date(start + 5_000));
   expect((await ownerFeed()).turn?.lease_remaining_ms).toBe(leaseMs - 5_000);
@@ -154,7 +157,10 @@ test("the owner receives a current steer observation and eligible collaborators 
     if (!head) throw new Error("Expected execution head");
     await db.patch(head._id, { admission_epoch: 2 });
   });
-  expect(await senderFeed()).toEqual({ prompts: [], turn: null });
+  expect(await senderFeed()).toMatchObject({
+    prompts: [{ prompt_id: "next-prompt", answerer: { can_answer: false } }],
+    turn: null,
+  });
   expect(await ownerFeed()).toMatchObject({
     prompts: [{ prompt_id: "next-prompt" }],
     turn: null,

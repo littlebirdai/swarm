@@ -10,6 +10,13 @@ import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { checkConversationAccess } from "../../privacy";
+import {
+  collaborativePromptAnswersEnabled,
+  acceptsRoutineAnswer,
+  promptAnswerer,
+  promptAuthority,
+} from "./prompt-authority.rules";
 import { isConversationSafetyBlocked } from "../../conversationSafety";
 import { isFreshTurnProjection, ownedRun } from "./runLease";
 
@@ -103,6 +110,7 @@ async function openPromptTurn(
   )
     return null;
   return {
+    conversation,
     binding,
     lease,
     lease_remaining_ms: lease.expires_at - now,
@@ -116,10 +124,11 @@ async function openPromptTurn(
 async function openPrompt(
   ctx: Reader,
   position: PromptTarget & { lease_id?: Id<"run_leases"> },
-  owner: Id<"users">,
+  owner?: Id<"users">,
 ) {
   const conversation = await ctx.db.get(position.conversation_id);
-  if (conversation?.user_id !== owner) return null;
+  if (!conversation || (owner !== undefined && conversation.user_id !== owner))
+    return null;
   const opened = await openPromptTurn(ctx, conversation, position);
   return opened?.turn.id === position.turn_id &&
     opened.turn.prompt_ids.includes(position.prompt_id)
@@ -127,11 +136,7 @@ async function openPrompt(
     : null;
 }
 
-function recordedAnswer(
-  ctx: Reader,
-  position: PromptPosition,
-  actor: Id<"users">,
-) {
+function recordedAnswer(ctx: Reader, position: PromptPosition) {
   const { conversation_id, run, lease_id, turn_id, prompt_id } = position;
   return ctx.db
     .query("edge_prompt_answers")
@@ -141,10 +146,25 @@ function recordedAnswer(
         .eq("run", run)
         .eq("lease_id", lease_id)
         .eq("turn_id", turn_id)
-        .eq("prompt_id", prompt_id)
-        .eq("actor_user_id", actor),
+        .eq("prompt_id", prompt_id),
     )
-    .unique();
+    .first();
+}
+
+type Opened = NonNullable<Awaited<ReturnType<typeof openPromptTurn>>>;
+
+async function promptAccess(ctx: Reader, opened: Opened, promptId: string) {
+  const authority = await promptAuthority(ctx, opened);
+  const prompt = opened.turn.prompt_details?.find(
+    ({ prompt_id }) => prompt_id === promptId,
+  );
+  return {
+    answerer: authority
+      ? promptAnswerer(authority, prompt)
+      : opened.conversation.user_id,
+    accepts: (answer: Doc<"edge_prompt_answers">["answer"]) =>
+      !authority || acceptsRoutineAnswer(prompt, answer),
+  };
 }
 
 export async function promptAddress(
@@ -153,10 +173,30 @@ export async function promptAddress(
   actor: Id<"users">,
 ) {
   if (!fencedPromptAnswersEnabled()) return null;
-  const opened = await openPrompt(ctx, target, actor);
-  if (!opened) return null;
+  const opened = await openPrompt(
+    ctx,
+    target,
+    collaborativePromptAnswersEnabled() ? undefined : actor,
+  );
+  if (
+    !opened ||
+    (await promptAccess(ctx, opened, target.prompt_id)).answerer !== actor
+  )
+    return null;
   const position = { ...target, lease_id: opened.lease._id };
-  return (await recordedAnswer(ctx, position, actor)) ? null : position;
+  return (await recordedAnswer(ctx, position)) ? null : position;
+}
+
+function answererName(
+  ctx: Reader,
+  names: Map<Id<"users">, Promise<string | undefined>>,
+  id: Id<"users">,
+) {
+  const name =
+    names.get(id) ??
+    ctx.db.get(id).then((user) => user?.name?.trim() || undefined);
+  names.set(id, name);
+  return name;
 }
 
 export async function answerablePromptAddresses(
@@ -167,15 +207,24 @@ export async function answerablePromptAddresses(
 ) {
   if (!actor) return { prompts: [], turn: null };
   const conversation = await ctx.db.get(conversationId);
-  if (
-    conversation?.execution_protocol_state !== "fenced" ||
-    conversation.user_id !== actor
-  )
+  if (conversation?.execution_protocol_state !== "fenced")
     return { prompts: [], turn: null };
   const mayAnswer = fencedPromptAnswersEnabled();
-  if (!mayAnswer && !maySteer) return { prompts: [], turn: null };
+  if (
+    (!mayAnswer && !maySteer) ||
+    (conversation.user_id !== actor &&
+      (!mayAnswer || !collaborativePromptAnswersEnabled()))
+  )
+    return { prompts: [], turn: null };
   const opened = await openPromptTurn(ctx, conversation);
   if (!opened) return { prompts: [], turn: null };
+  const authority = mayAnswer ? await promptAuthority(ctx, opened) : null;
+  if (
+    conversation.user_id !== actor &&
+    (!authority ||
+      (await checkConversationAccess(ctx, actor, conversation)) === "denied")
+  )
+    return { prompts: [], turn: null };
   const {
     binding,
     lease,
@@ -190,6 +239,7 @@ export async function answerablePromptAddresses(
       turn.prompt_ids.includes(prompt_id) &&
       (kind === "permission" || questions !== undefined),
   );
+  const names = new Map<Id<"users">, Promise<string | undefined>>();
   const addresses = await Promise.all(
     candidates.map(async (prompt) => {
       const position = {
@@ -199,19 +249,31 @@ export async function answerablePromptAddresses(
         turn_id: turn.id,
         prompt_id: prompt.prompt_id,
       };
-      if (await recordedAnswer(ctx, position, actor)) return null;
+      if (await recordedAnswer(ctx, position)) return null;
+      const user = authority ? promptAnswerer(authority, prompt) : undefined;
+      const answerer =
+        user && authority
+          ? {
+              can_answer: user === actor,
+              name:
+                (await answererName(ctx, names, user)) ??
+                (user === authority.owner ? "Session owner" : "Baton holder"),
+            }
+          : undefined;
       return {
         ...position,
         _id: JSON.stringify([lease._id, turn.id, prompt.prompt_id]),
         kind: prompt.kind,
         ...(prompt.tool_call_id ? { tool_call_id: prompt.tool_call_id } : {}),
         questions: prompt.questions ?? [],
+        ...(answerer && { answerer }),
       };
     }),
   );
   const prompts = addresses.filter((address) => address !== null);
   const observed_turn =
     maySteer &&
+    conversation.user_id === actor &&
     admitting &&
     projectionVersion === TURN_STARTER_PROJECTION_VERSION &&
     binding.capabilities?.includes(STEER_BATON_CAPABILITY) &&
@@ -265,16 +327,24 @@ export async function queuePromptAnswer(
 ): Promise<Id<"edge_prompt_answers">> {
   if (!fencedPromptAnswersEnabled())
     throw new ConvexError("FENCED_PROMPT_ANSWERS_DISABLED");
-  const opened = await openPrompt(ctx, position, actor);
-  if (!opened) throw new ConvexError("STALE_OR_UNAUTHORIZED_PROMPT");
-  if (await recordedAnswer(ctx, position, actor))
+  const opened = await openPrompt(
+    ctx,
+    position,
+    collaborativePromptAnswersEnabled() ? undefined : actor,
+  );
+  const access =
+    opened && (await promptAccess(ctx, opened, position.prompt_id));
+  if (!opened || access?.answerer !== actor)
+    throw new ConvexError("STALE_OR_UNAUTHORIZED_PROMPT");
+  if (await recordedAnswer(ctx, position))
     throw new ConvexError("PROMPT_ALREADY_ANSWERED");
+  if (!access.accepts(answer)) throw new ConvexError("INVALID_PROMPT_ANSWER");
   const parsed = command("pending", position, actor, answer, opened.lease);
   if (!parsed.ok || JSON.stringify(answer).length > 16_384)
     throw new ConvexError("INVALID_PROMPT_ANSWER");
   return ctx.db.insert("edge_prompt_answers", {
     ...position,
-    owner_user_id: actor,
+    owner_user_id: opened.conversation.user_id,
     actor_user_id: actor,
     device_id: opened.binding.owner_device_id,
     boot: opened.binding.daemon_boot_id,

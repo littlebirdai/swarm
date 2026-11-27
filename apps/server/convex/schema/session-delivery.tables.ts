@@ -581,6 +581,7 @@ export const sessionDeliveryTables = {
               prompt_id: v.string(),
               kind: v.union(v.literal("question"), v.literal("permission")),
               tool_call_id: v.optional(v.string()),
+              routine_question: v.optional(v.literal(true)),
               questions: v.optional(
                 v.array(v.object({ id: v.string(), is_secret: v.boolean() })),
               ),
