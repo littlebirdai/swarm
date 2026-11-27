@@ -38,6 +38,16 @@ const RESOLVED_DECISION_STATUSES = [
   "withdrawn",
 ] as const;
 
+const PERMISSION_SKIP_TOOLS = new Set([
+  "AskUserQuestion",
+  "EnterPlanMode",
+  "ExitPlanMode",
+  "TaskCreate",
+  "TaskUpdate",
+  "TaskList",
+  "TaskGet",
+]);
+
 type ChangedFileSummary = {
   path: string;
   count: number;
@@ -53,6 +63,7 @@ type DecisionSummary = {
 
 type OpenPromptSummary = {
   kind: "permission" | "question";
+  source: "pending_permission" | "fenced_turn" | "message";
   label: string;
   tool_name?: string;
   created_at: number;
@@ -135,6 +146,7 @@ async function readChangedFilesSince(
   ctx: QueryCtx,
   conversationId: Id<"conversations">,
   since: number,
+  includeSnapshots: boolean,
 ): Promise<{
   files: ChangedFileSummary[];
   total: number;
@@ -143,13 +155,15 @@ async function readChangedFilesSince(
   snapshotsTruncated: boolean;
 }> {
   const [rawSnapshots, rawFileChanges] = await Promise.all([
-    ctx.db
-      .query("tree_snapshots")
-      .withIndex("by_conversation_taken", (q) =>
-        q.eq("conversation_id", conversationId).gt("taken_at", since),
-      )
-      .order("desc")
-      .take(SNAPSHOT_SCAN_CAP + 1),
+    includeSnapshots
+      ? ctx.db
+          .query("tree_snapshots")
+          .withIndex("by_conversation_taken", (q) =>
+            q.eq("conversation_id", conversationId).gt("taken_at", since),
+          )
+          .order("desc")
+          .take(SNAPSHOT_SCAN_CAP + 1)
+      : Promise.resolve([]),
     ctx.db
       .query("file_changes")
       .withIndex("by_conversation_timestamp", (q) =>
@@ -217,7 +231,7 @@ async function readDecisionsSince(
       )
       .order("desc")
       .take(DECISIONS_SCAN_CAP + 1),
-    ...RESOLVED_DECISION_STATUSES.flatMap((status) => [
+    ...RESOLVED_DECISION_STATUSES.map((status) =>
       ctx.db
         .query("session_decisions")
         .withIndex("by_conversation_status_resolved", (q) =>
@@ -228,17 +242,12 @@ async function readDecisionsSince(
         )
         .order("desc")
         .take(DECISIONS_SCAN_CAP + 1),
-      ctx.db
-        .query("session_decisions")
-        .withIndex("by_conversation_status", (q) =>
-          q.eq("conversation_id", conversationId).eq("status", status),
-        )
-        .order("desc")
-        .take(DECISIONS_SCAN_CAP + 1),
-    ]),
+    ),
   ]);
 
-  let truncated = pendingRaw.length > DECISIONS_SCAN_CAP;
+  let truncated =
+    pendingRaw.length > DECISIONS_SCAN_CAP &&
+    pendingRaw[DECISIONS_SCAN_CAP - 1]!.created_at > since;
   const byId = new Map<string, Doc<"session_decisions">>();
   for (const d of pendingRaw.slice(0, DECISIONS_SCAN_CAP)) {
     if (d.created_at > since) {
@@ -246,12 +255,14 @@ async function readDecisionsSince(
     }
   }
   for (const bucket of resolvedBuckets) {
-    if (bucket.length > DECISIONS_SCAN_CAP) truncated = true;
+    if (
+      bucket.length > DECISIONS_SCAN_CAP &&
+      (bucket[DECISIONS_SCAN_CAP - 1]!.resolved_at ?? 0) > since
+    ) {
+      truncated = true;
+    }
     for (const d of bucket.slice(0, DECISIONS_SCAN_CAP)) {
-      if (
-        d.created_at > since ||
-        (d.resolved_at !== undefined && d.resolved_at > since)
-      ) {
+      if (d.resolved_at !== undefined && d.resolved_at > since) {
         byId.set(String(d._id), d);
       }
     }
@@ -369,6 +380,7 @@ async function readOpenPrompt(
 
     for (const p of pending) {
       if (p.created_at <= cutoff) continue;
+      if (PERMISSION_SKIP_TOOLS.has(p.tool_name)) continue;
       if (
         !permViewer.runner &&
         !permViewer.proposer &&
@@ -394,6 +406,7 @@ async function readOpenPrompt(
           : undefined;
       return {
         kind: "permission",
+        source: "pending_permission",
         label: intent || p.tool_name,
         tool_name: p.tool_name,
         created_at: p.created_at,
@@ -402,17 +415,51 @@ async function readOpenPrompt(
   }
 
   if (fencedState?.openPrompt) {
-    if (fencedState.openPrompt.kind !== "permission" || canReadPermission) {
+    if (fencedState.openPrompt.kind === "permission") {
+      if (!canReadPermission) return null;
       return {
-        kind: fencedState.openPrompt.kind,
-        label:
-          fencedState.openPrompt.kind === "permission"
-            ? "Permission"
-            : "Question",
+        kind: "permission",
+        source: "fenced_turn",
+        label: "Permission",
         created_at: conversation.updated_at,
       };
     }
-    return null;
+
+    const latestForFenced = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
+      .order("desc")
+      .first();
+    const askCall =
+      latestForFenced?.role === "assistant"
+        ? latestForFenced.tool_calls?.find(
+            (tc) =>
+              (tc.name === "AskUserQuestion" ||
+                tc.name === "ask_user_question") &&
+              tc.id === fencedState.openPrompt!.prompt_id,
+          )
+        : undefined;
+    if (askCall && latestForFenced) {
+      const parsed = parseAskUserQuestionInput(askCall.input);
+      if (parsed.expired) return null;
+      return {
+        kind: "question",
+        source: "fenced_turn",
+        label: parsed.label,
+        created_at: latestForFenced.timestamp,
+        message_id: latestForFenced._id,
+        timestamp: latestForFenced.timestamp,
+      };
+    }
+
+    return {
+      kind: "question",
+      source: "fenced_turn",
+      label: "Question",
+      created_at: conversation.updated_at,
+    };
   }
 
   if (fencedState?.allOpenTurnPromptsAnswered) {
@@ -463,6 +510,7 @@ async function readOpenPrompt(
       }
       return {
         kind: "question",
+        source: "message",
         label: parsed.label,
         created_at: latestMessage.timestamp,
         message_id: latestMessage._id,
@@ -494,10 +542,18 @@ export const get = query({
     if (!anchorMessage) return null;
 
     const since = anchorMessage.timestamp;
+    const canReadPrivateSections = access !== "shared";
     const [turns, files, decisions, openPrompt] = await Promise.all([
       countTurnsSince(ctx, conversation, since),
-      readChangedFilesSince(ctx, conversation_id, since),
-      readDecisionsSince(ctx, conversation_id, since),
+      readChangedFilesSince(
+        ctx,
+        conversation_id,
+        since,
+        canReadPrivateSections,
+      ),
+      canReadPrivateSections
+        ? readDecisionsSince(ctx, conversation_id, since)
+        : Promise.resolve({ items: [], total: 0, truncated: false }),
       readOpenPrompt(ctx, userId, conversation, access),
     ]);
 
@@ -521,6 +577,7 @@ export const get = query({
       decisions: decisions.items,
       decisions_total: decisions.total,
       decisions_truncated: decisions.truncated,
+      can_open_decisions: canReadPrivateSections,
       open_prompt: openPrompt,
     };
   },

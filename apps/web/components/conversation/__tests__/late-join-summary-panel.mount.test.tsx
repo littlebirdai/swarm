@@ -1,8 +1,11 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import type { LateJoinSummary } from "../../../hooks/use-late-join-summary";
+import {
+  useLateJoinSummary,
+  type LateJoinSummary,
+} from "../../../hooks/use-late-join-summary";
 import { mountWeb } from "../../../test-helpers/mountWeb";
 import { pending } from "../../../test-helpers/testConvex";
 import { ConversationView } from "../../conversation-view";
@@ -49,8 +52,10 @@ const populatedSummary: LateJoinSummary = {
   ],
   decisions_total: 1,
   decisions_truncated: false,
+  can_open_decisions: true,
   open_prompt: {
     kind: "permission",
+    source: "pending_permission",
     label: "Run unit tests",
     tool_name: "Bash",
     created_at: 5_000,
@@ -77,6 +82,7 @@ const emptySummary: LateJoinSummary = {
   decisions: [],
   decisions_total: 0,
   decisions_truncated: false,
+  can_open_decisions: true,
   open_prompt: null,
 };
 
@@ -349,11 +355,12 @@ test("queries once per conversation visit, renders truncated counts, links decis
   await ui.close();
 });
 
-test("open prompt button jumps to an inline AskUserQuestion or docked permission card", async () => {
+test("open prompt buttons and top prompt chip jump to an inline AskUserQuestion or docked permission card", async () => {
   const inlineSummary: LateJoinSummary = {
     ...populatedSummary,
     open_prompt: {
       kind: "question",
+      source: "message",
       label: "Which target should ship first?",
       created_at: 8_000,
       message_id: questionMsgId,
@@ -368,11 +375,18 @@ test("open prompt button jumps to an inline AskUserQuestion or docked permission
   const inlinePromptBtn = inlineUi.container.querySelector<HTMLButtonElement>(
     "[data-cc-late-join-prompt-jump]",
   );
+  const inlineChipBtn = inlineUi.container.querySelector<HTMLButtonElement>(
+    "[data-cc-late-join-prompt-badge]",
+  );
   expect(inlinePromptBtn).not.toBeNull();
+  expect(inlineChipBtn).not.toBeNull();
+  await act(async () => {
+    inlineChipBtn!.click();
+  });
   await act(async () => {
     inlinePromptBtn!.click();
   });
-  expect(inlineUi.jump.mock.calls).toEqual([[8_000]]);
+  expect(inlineUi.jump.mock.calls).toEqual([[8_000], [8_000]]);
   await inlineUi.close();
 
   const jumpToEnd = mock(() => {});
@@ -382,15 +396,187 @@ test("open prompt button jumps to an inline AskUserQuestion or docked permission
     hasMoreBelow: true,
     onJumpToEnd: jumpToEnd,
   });
-  const dockPromptBtn = dockUi.container.querySelector<HTMLButtonElement>(
-    "[data-cc-late-join-prompt-jump]",
+  const dockChipBtn = dockUi.container.querySelector<HTMLButtonElement>(
+    "[data-cc-late-join-prompt-badge]",
   );
   await act(async () => {
-    dockPromptBtn!.click();
+    dockChipBtn!.click();
   });
   expect(jumpToEnd).toHaveBeenCalledTimes(1);
   expect(
     dockUi.container.querySelector("[data-cc-late-join-summary]"),
   ).toBeNull();
   await dockUi.close();
+});
+
+test("clears pending_permission prompt on empty pendingPermissions without clearing fenced_turn permission", async () => {
+  const ui = await mountConversation({
+    flag: "1",
+    summary: populatedSummary,
+  });
+
+  expect(
+    ui.container.querySelector("[data-cc-late-join-prompt]"),
+  ).not.toBeNull();
+  await act(async () => {
+    ui.backend.set(api.permissions.getPendingPermissions, []);
+  });
+  expect(ui.container.querySelector("[data-cc-late-join-prompt]")).toBeNull();
+
+  await act(async () => {
+    ui.backend.set(api.lateJoinSummary.get, {
+      ...populatedSummary,
+      open_prompt: {
+        kind: "permission",
+        source: "fenced_turn",
+        label: "Permission",
+        created_at: 9_000,
+      },
+    });
+  });
+  await ui.rerender(
+    <ConversationView
+      conversation={{
+        _id: otherConversationId,
+        user_id: userId,
+        title: "Fenced session",
+        messages: [
+          {
+            _id: latestMsgId,
+            timestamp: 10_000,
+            role: "user",
+            content: "Update",
+          } as Message,
+        ],
+      }}
+      backHref="/"
+      hideHeader
+      showMessageInput={false}
+      autoFocusInput={false}
+      onJumpToTimestamp={ui.jump}
+    />,
+  );
+  await act(async () => {
+    ui.backend.set(api.permissions.getPendingPermissions, []);
+  });
+  expect(
+    ui.container.querySelector("[data-cc-late-join-prompt]"),
+  ).not.toBeNull();
+  await ui.close();
+});
+
+test("omits /decisions links when can_open_decisions is false", async () => {
+  const ui = await mountConversation({
+    flag: "1",
+    summary: { ...populatedSummary, can_open_decisions: false },
+  });
+  const panel = ui.container.querySelector("[data-cc-late-join-summary]");
+  expect(panel?.textContent).toContain("Keep summary behind flag?");
+  expect(panel?.querySelectorAll('a[href^="/decisions/"]')).toHaveLength(0);
+  await ui.close();
+});
+
+function HookProbe({
+  convId,
+  enabled,
+}: {
+  convId: Id<"conversations">;
+  enabled: boolean;
+}) {
+  const summary = useLateJoinSummary(convId, enabled);
+  return (
+    <div data-cc-hook-probe>
+      {summary ? summary.anchor.message_id : summary === null ? "null" : "wait"}
+    </div>
+  );
+}
+
+test("survives StrictMode double mount, enabled flicker, and retries at most once on failure", async () => {
+  process.env[FLAG] = "1";
+  const strictUi = await mountWeb(
+    <StrictMode>
+      <HookProbe convId={conversationId} enabled />
+    </StrictMode>,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend) {
+        backend.set(api.lateJoinSummary.get, pending);
+      },
+    },
+  );
+  expect(
+    strictUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toHaveLength(1);
+
+  await strictUi.rerender(
+    <StrictMode>
+      <HookProbe convId={conversationId} enabled={false} />
+    </StrictMode>,
+  );
+  await strictUi.rerender(
+    <StrictMode>
+      <HookProbe convId={conversationId} enabled />
+    </StrictMode>,
+  );
+  expect(
+    strictUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toHaveLength(1);
+
+  await act(async () => {
+    strictUi.backend.set(api.lateJoinSummary.get, populatedSummary);
+  });
+  expect(
+    strictUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
+  ).toBe(anchorMsgId);
+  await strictUi.close();
+
+  let attempt = 0;
+  const retryUi = await mountWeb(
+    <HookProbe convId={conversationId} enabled />,
+    {
+      authenticated: true,
+      dispatch: true,
+      setup(backend) {
+        backend.set(api.lateJoinSummary.get, () => {
+          attempt += 1;
+          if (attempt === 1) return new Error("transient outage");
+          return populatedSummary;
+        });
+      },
+    },
+  );
+  expect(
+    retryUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toHaveLength(2);
+  expect(
+    retryUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
+  ).toBe(anchorMsgId);
+  await retryUi.close();
+
+  const failUi = await mountWeb(<HookProbe convId={conversationId} enabled />, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend) {
+      backend.set(
+        api.lateJoinSummary.get,
+        () => new Error("persistent outage"),
+      );
+    },
+  });
+  expect(
+    failUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toHaveLength(2);
+  expect(
+    failUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
+  ).toBe("wait");
+  await failUi.close();
 });

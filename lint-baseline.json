@@ -16919,7 +16919,7 @@
   "apps/web/components/conversation-view.tsx": {
     "react-hooks/exhaustive-deps": 17,
     "swarm/ime-safe-key-handlers": 4,
-    "swarm/no-comments": 1023,
+    "swarm/no-comments": 1005,
     "swarm/no-native-title-with-aria-label": 6,
     "swarm/no-raw-resize-observer": 3
   },

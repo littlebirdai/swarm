@@ -250,12 +250,7 @@ import {
 } from "./OwnersBadge";
 import { ThreadSuggestions } from "./org/SuggestionSet";
 import { LateJoinSummaryPanel } from "./conversation/late-join-summary-panel";
-import {
-  hasLateJoinUpdates,
-  isLateJoinSummaryEnabled,
-  useLateJoinSummary,
-  type LateJoinSummary,
-} from "../hooks/use-late-join-summary";
+import { useLateJoinSummaryController } from "../hooks/use-late-join-summary";
 import { TmuxAttachPill } from "./TmuxAttachPill";
 import { useAttachCopy } from "../hooks/useAttachCopy";
 import { SessionDaemonChip, SessionHooksOffChip } from "./DaemonStatusChip";
@@ -313,13 +308,16 @@ import { ThreadStatePanel } from "./ThreadStatePanel";
 import { HighlightContext } from "./HighlightContext";
 import {
   instancesFromMatches,
+  markActive,
   planActivation,
+  searchMarksIn,
   skipDeadHit,
   stepIndex,
   walkSearchPages,
   type MatchInstance,
   type PendingHit,
 } from "../lib/conversationSearch";
+import { useDeferUntilSettled } from "../hooks/useDeferUntilSettled";
 import { FilePathContext } from "../lib/filePathLinks";
 import { WorktreesProvider } from "./worktree/WorktreesContext";
 import { SessionWorktreePills } from "./worktree/WorktreePill";
@@ -593,6 +591,11 @@ import { visibleInterval, whileWindowVisible } from "../lib/windowVisibleWork";
 import { VLIST_LEGACY } from "../lib/virtualList/legacyFlags";
 import { useScrollSeek } from "../hooks/useScrollSeek";
 import { adjustScrollForResizeRule } from "../lib/virtualList/resizeAdjust";
+import {
+  VIRT_HEIGHT_CACHE,
+  virtHeightKey,
+  recordVirtHeight,
+} from "../lib/virtualList/virtHeightCache";
 import { lazyNamed } from "../lib/lazyNamed";
 
 const MOMENT_FEATURES: readonly MomentFeature[] = [
@@ -635,73 +638,6 @@ const SessionHuddleButton = lazyNamed(
 const EMPTY_PENDING: any[] = [];
 const EMPTY_MESSAGES: any[] = [];
 const EMPTY_MATCH_INSTANCES: MatchInstance[] = [];
-
-/** Search marks for one message inside its virtualizer row. Scoped to the
- *  message's own block when it has one; a message folded into another row
- *  (condensed density) has none, so the whole row is the scope. */
-function searchMarksIn(
-  rowEl: Element | null,
-  messageId: string,
-): HTMLElement[] {
-  if (!rowEl) return [];
-  const scope = rowEl.querySelector(`#msg-${CSS.escape(messageId)}`) ?? rowEl;
-  return Array.from(
-    scope.querySelectorAll<HTMLElement>("mark[data-search-highlight]"),
-  );
-}
-
-/** Exactly one mark in the feed carries the active look (globals.css). */
-function markActive(container: Element, target: HTMLElement) {
-  container.querySelectorAll("mark[data-search-active]").forEach((m) => {
-    if (m !== target) m.removeAttribute("data-search-active");
-  });
-  target.setAttribute("data-search-active", "true");
-}
-
-// Skips a Convex query for the first paint after the keyed value (e.g. conversation id)
-// changes, then enables it on the next macrotask. Lets the message list paint before the
-// non-critical query cascade fires.
-function useDeferUntilSettled(key: string | null | undefined): boolean {
-  const [enabledKey, setEnabledKey] = useState<string | null | undefined>(key);
-  useWatchEffect(() => {
-    if (!key || enabledKey === key) return;
-    const id = setTimeout(() => setEnabledKey(key), 0);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return enabledKey === key;
-}
-
-// Persistent measured-height cache for the message virtualizer, keyed by the
-// stable per-item key (message _id) + collapse mode. It SURVIVES unmount, so
-// switching back to a conversation — or a row the virtualizer recycled while
-// scrolling — feeds estimateSize an accurate height instead of the flat ~200px
-// guess. That guess was the root of a cold switch's cost: every text row
-// estimated at 200, then corrected to its real height on measure, cascading
-// into ~120ms of @tanstack/react-virtual layout work (the dominant script in
-// the post-deferral switch trace). FIFO-capped so a long-lived tab stays bounded.
-const VIRT_HEIGHT_CACHE = new Map<string, number>();
-const VIRT_HEIGHT_CACHE_MAX = 8000;
-
-// cssZoomOf (lib/cssZoom): rect-derived lengths are screen px under the in-app
-// zoom and must be divided by it before mixing with the virtualizer's layout
-// px. Feeding raw rect heights into resizeItem at 50% zoom halved every
-// believed row height, overlapping all rows into settled garble.
-function virtHeightKey(itemKey: string | number, densityKey: string): string {
-  return `${itemKey}|${densityKey}`;
-}
-
-function recordVirtHeight(key: string, size: number) {
-  if (size <= 0) return; // 0-height rows are already exact via the heuristic; don't cache
-  if (
-    VIRT_HEIGHT_CACHE.size >= VIRT_HEIGHT_CACHE_MAX &&
-    !VIRT_HEIGHT_CACHE.has(key)
-  ) {
-    const oldest = VIRT_HEIGHT_CACHE.keys().next().value;
-    if (oldest !== undefined) VIRT_HEIGHT_CACHE.delete(oldest);
-  }
-  VIRT_HEIGHT_CACHE.set(key, size);
-}
 
 // The forwardRef render function itself. Never call it as a plain function
 // from another component: its hooks would then run on the caller's fiber, and
@@ -878,9 +814,14 @@ const ConversationViewInner = function ConversationView(
       ? { conversation_id: convexConvId, ...shareTokenArg(convexConvId) }
       : "skip",
   ).data;
-  const lateJoinEnabled = isLateJoinSummaryEnabled();
-  const [lateJoinReachedBottom, setLateJoinReachedBottom] = useState(false);
-  const sawAwayFromBottomRef = useRef(false);
+  const lateJoinNoteScrollRef = useRef<
+    (
+      isAtBottom: boolean,
+      moreBelow: boolean,
+      noPendingJump: boolean,
+      readerMovingDown: boolean,
+    ) => void
+  >(() => {});
   const renamingSessionId = useInboxStore((s) => s.renamingSessionId);
   const isRenaming = renamingSessionId === conversation?._id;
   const [renameDraft, setRenameDraft] = useState("");
@@ -3952,69 +3893,6 @@ const ConversationViewInner = function ConversationView(
     ],
   );
 
-  const handleJumpToLateJoinAnchor = useCallback(
-    (messageId: string, timestamp: number) => {
-      sawAwayFromBottomRef.current = true;
-      const inTimeline = timeline.some(
-        (item) => item.type === "message" && item.data._id === messageId,
-      );
-      if (inTimeline || !onJumpToTimestamp) {
-        scrollToMessageById(messageId);
-      } else {
-        onJumpToTimestamp(timestamp);
-      }
-    },
-    [timeline, scrollToMessageById, onJumpToTimestamp],
-  );
-
-  const handleJumpToLateJoinPrompt = useCallback(
-    (prompt: NonNullable<LateJoinSummary["open_prompt"]>) => {
-      if (prompt.message_id) {
-        sawAwayFromBottomRef.current = true;
-        const inTimeline = timeline.some(
-          (item) =>
-            item.type === "message" && item.data._id === prompt.message_id,
-        );
-        if (
-          inTimeline ||
-          !onJumpToTimestamp ||
-          prompt.timestamp === undefined
-        ) {
-          scrollToMessageById(prompt.message_id);
-        } else {
-          onJumpToTimestamp(prompt.timestamp);
-        }
-        return;
-      }
-      setLateJoinReachedBottom(true);
-      if (hasMoreBelow && onJumpToEnd) {
-        jumpDirectionRef.current = "end";
-        setJumpPending("end");
-        setGuestStayAtTop(false);
-        onJumpToEnd();
-      } else {
-        setGuestStayAtTop(false);
-        setUserScrolled(false);
-        paginationCooldownRef.current = Date.now() + 1000;
-        scrollToEdgeRef.current("bottom");
-        const dock = containerRef.current
-          ?.closest("main")
-          ?.querySelector<HTMLElement>("[data-cc-permission-dock]");
-        dock?.scrollIntoView?.({ block: "nearest" });
-      }
-    },
-    [
-      timeline,
-      scrollToMessageById,
-      onJumpToTimestamp,
-      hasMoreBelow,
-      onJumpToEnd,
-      setJumpPending,
-      setUserScrolled,
-      setGuestStayAtTop,
-    ],
-  );
-
   useImperativeHandle(
     ref,
     () => ({
@@ -4108,14 +3986,12 @@ const ConversationViewInner = function ConversationView(
         setUserScrolled(false);
       }
 
-      if (!isAtBottom || paginationPropsRef.current.hasMoreBelow) {
-        sawAwayFromBottomRef.current = true;
-      } else if (
-        !jumpPendingRef.current &&
-        (sawAwayFromBottomRef.current || readerMovingDown)
-      ) {
-        setLateJoinReachedBottom(true);
-      }
+      lateJoinNoteScrollRef.current(
+        isAtBottom,
+        Boolean(paginationPropsRef.current.hasMoreBelow),
+        !jumpPendingRef.current,
+        readerMovingDown,
+      );
 
       if (scrollProgressRef.current && !jumpPendingRef.current) {
         const ctx = scrollCtxRef.current;
@@ -6875,27 +6751,28 @@ const ConversationViewInner = function ConversationView(
     conversation.fork_status !== "copying" &&
     !(conversation.message_count ?? 0) &&
     !runLogEnded;
-  const lateJoinSummaryRaw = useLateJoinSummary(
-    convexConvId ?? null,
-    lateJoinEnabled && !guest && !newSessionPage && !lateJoinReachedBottom,
-  );
-  const lateJoinSummary = useMemo(() => {
-    if (!lateJoinSummaryRaw) return lateJoinSummaryRaw;
-    if (
-      lateJoinSummaryRaw.open_prompt?.kind === "permission" &&
-      pendingPermissionsRaw !== undefined &&
-      pendingPermissionsRaw.length === 0
-    ) {
-      return { ...lateJoinSummaryRaw, open_prompt: null };
-    }
-    return lateJoinSummaryRaw;
-  }, [lateJoinSummaryRaw, pendingPermissionsRaw]);
-  const lateJoinVisitKey = conversation?._id ? String(conversation._id) : null;
+  const lateJoin = useLateJoinSummaryController({
+    conversationId: convexConvId ?? null,
+    visitKey: conversation?._id ? String(conversation._id) : null,
+    guest,
+    newSessionPage,
+    pendingPermissionsRaw,
+    timeline,
+    scrollToMessageById,
+    onJumpToTimestamp,
+    hasMoreBelow,
+    onJumpToEnd,
+    setJumpPending,
+    setUserScrolled,
+    setGuestStayAtTop,
+    jumpDirectionRef,
+    paginationCooldownRef,
+    scrollToEdgeRef,
+    containerRef,
+  });
   useWatchEffect(() => {
-    if (lateJoinVisitKey === undefined) return;
-    setLateJoinReachedBottom(false);
-    sawAwayFromBottomRef.current = false;
-  }, [lateJoinVisitKey]);
+    lateJoinNoteScrollRef.current = lateJoin.noteScrollPosition;
+  }, [lateJoin.noteScrollPosition]);
   const [newSessionFootSlot, setNewSessionFootSlot] =
     useState<HTMLElement | null>(null);
   const [newSessionBelowSlot, setNewSessionBelowSlot] =
@@ -8966,18 +8843,13 @@ const ConversationViewInner = function ConversationView(
                                         />
                                       </ErrorBoundary>
                                     )}
-                                  {lateJoinEnabled &&
-                                    !guest &&
-                                    !lateJoinReachedBottom &&
-                                    hasLateJoinUpdates(lateJoinSummary) && (
-                                      <LateJoinSummaryPanel
-                                        summary={lateJoinSummary}
-                                        onJump={handleJumpToLateJoinAnchor}
-                                        onJumpPrompt={
-                                          handleJumpToLateJoinPrompt
-                                        }
-                                      />
-                                    )}
+                                  {lateJoin.visible && lateJoin.summary && (
+                                    <LateJoinSummaryPanel
+                                      summary={lateJoin.summary}
+                                      onJump={lateJoin.handleJumpAnchor}
+                                      onJumpPrompt={lateJoin.handleJumpPrompt}
+                                    />
+                                  )}
                                   <div
                                     className={`flex-1 min-h-0 relative flex ${isImageLightboxActive ? "invisible" : ""}`}
                                   >
@@ -10190,13 +10062,13 @@ const ConversationViewInner = function ConversationView(
                                               hasMoreBelow &&
                                               onJumpToEnd
                                             ) {
-                                              setLateJoinReachedBottom(true);
+                                              lateJoin.markReachedBottom();
                                               jumpDirectionRef.current = "end";
                                               setJumpPending("end");
                                               setGuestStayAtTop(false);
                                               onJumpToEnd();
                                             } else {
-                                              setLateJoinReachedBottom(true);
+                                              lateJoin.markReachedBottom();
                                               setGuestStayAtTop(false);
                                               setUserScrolled(false);
                                               paginationCooldownRef.current =

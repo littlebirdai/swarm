@@ -2,7 +2,8 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import type { TimelineItem } from "../components/conversation/types";
 import { useWatchEffect } from "./useWatchEffect";
 
 export type LateJoinSummary = NonNullable<
@@ -25,6 +26,8 @@ export function hasLateJoinUpdates(
   );
 }
 
+const MAX_RETRIES = 1;
+
 export function useLateJoinSummary(
   conversationId: Id<"conversations"> | null,
   enabled: boolean,
@@ -34,20 +37,33 @@ export function useLateJoinSummary(
     conversationId: string;
     summary: LateJoinSummary | null;
   } | null>(null);
-  const fetchedForRef = useRef<string | null>(null);
-  const visitRef = useRef(0);
+  const [retryTick, setRetryTick] = useState(0);
+  const currentTargetRef = useRef<string | null>(null);
+  const settledForRef = useRef<string | null>(null);
+  const retryCountRef = useRef<{ conversationId: string; count: number }>({
+    conversationId: "",
+    count: 0,
+  });
+  const inFlightRef = useRef<{
+    conversationId: string;
+    promise: Promise<LateJoinSummary | null>;
+  } | null>(null);
 
   useWatchEffect(() => {
     const target = conversationId ? String(conversationId) : null;
     if (!target) {
-      fetchedForRef.current = null;
-      visitRef.current += 1;
+      currentTargetRef.current = null;
+      settledForRef.current = null;
+      inFlightRef.current = null;
+      retryCountRef.current = { conversationId: "", count: 0 };
       setResult(null);
       return;
     }
-    if (fetchedForRef.current && fetchedForRef.current !== target) {
-      fetchedForRef.current = null;
-      visitRef.current += 1;
+    if (currentTargetRef.current !== target) {
+      currentTargetRef.current = target;
+      settledForRef.current = null;
+      inFlightRef.current = null;
+      retryCountRef.current = { conversationId: target, count: 0 };
       setResult(null);
     }
   }, [conversationId]);
@@ -55,25 +71,229 @@ export function useLateJoinSummary(
   useWatchEffect(() => {
     if (!enabled || !conversationId) return;
     const target = String(conversationId);
-    if (fetchedForRef.current === target) return;
-    fetchedForRef.current = target;
-    const visit = ++visitRef.current;
-    void convex
-      .query(api.lateJoinSummary.get, { conversation_id: conversationId })
-      .then((data) => {
-        if (visitRef.current === visit && fetchedForRef.current === target) {
-          setResult({ conversationId: target, summary: data ?? null });
+    if (settledForRef.current === target) return;
+
+    const ac = new AbortController();
+    let entry =
+      inFlightRef.current?.conversationId === target
+        ? inFlightRef.current
+        : null;
+    if (!entry) {
+      const promise = convex
+        .query(api.lateJoinSummary.get, { conversation_id: conversationId })
+        .then(
+          (data) => {
+            if (inFlightRef.current?.promise === promise) {
+              inFlightRef.current = null;
+            }
+            return (data ?? null) as LateJoinSummary | null;
+          },
+          (error) => {
+            if (inFlightRef.current?.promise === promise) {
+              inFlightRef.current = null;
+            }
+            throw error;
+          },
+        );
+      entry = { conversationId: target, promise };
+      inFlightRef.current = entry;
+    }
+
+    void entry.promise.then(
+      (summary) => {
+        if (ac.signal.aborted || currentTargetRef.current !== target) return;
+        settledForRef.current = target;
+        setResult({ conversationId: target, summary });
+      },
+      () => {
+        if (ac.signal.aborted || currentTargetRef.current !== target) return;
+        const retries =
+          retryCountRef.current.conversationId === target
+            ? retryCountRef.current.count
+            : 0;
+        if (retries < MAX_RETRIES) {
+          retryCountRef.current = {
+            conversationId: target,
+            count: retries + 1,
+          };
+          setRetryTick((n) => n + 1);
+        } else {
+          settledForRef.current = target;
         }
-      })
-      .catch(() => {});
+      },
+    );
+
     return () => {
-      visitRef.current += 1;
+      ac.abort();
     };
-  }, [enabled, conversationId, convex]);
+  }, [enabled, conversationId, convex, retryTick]);
 
   if (!enabled || !conversationId) return undefined;
   if (!result || result.conversationId !== String(conversationId)) {
     return undefined;
   }
   return result.summary;
+}
+
+export function useLateJoinSummaryController({
+  conversationId,
+  visitKey,
+  guest,
+  newSessionPage,
+  pendingPermissionsRaw,
+  timeline,
+  scrollToMessageById,
+  onJumpToTimestamp,
+  hasMoreBelow,
+  onJumpToEnd,
+  setJumpPending,
+  setUserScrolled,
+  setGuestStayAtTop,
+  jumpDirectionRef,
+  paginationCooldownRef,
+  scrollToEdgeRef,
+  containerRef,
+}: {
+  conversationId: Id<"conversations"> | null;
+  visitKey: string | null;
+  guest: boolean;
+  newSessionPage: boolean;
+  pendingPermissionsRaw: readonly unknown[] | undefined;
+  timeline: TimelineItem[];
+  scrollToMessageById: (id: string) => void;
+  onJumpToTimestamp?: (ts: number) => void;
+  hasMoreBelow?: boolean;
+  onJumpToEnd?: () => void;
+  setJumpPending: (v: "start" | "end" | null) => void;
+  setUserScrolled: (v: boolean) => void;
+  setGuestStayAtTop: (v: boolean) => void;
+  jumpDirectionRef: RefObject<"start" | "end" | null>;
+  paginationCooldownRef: RefObject<number>;
+  scrollToEdgeRef: RefObject<(edge: "top" | "bottom") => void>;
+  containerRef: RefObject<HTMLDivElement | null>;
+}) {
+  const enabled = isLateJoinSummaryEnabled();
+  const [reachedBottom, setReachedBottom] = useState(false);
+  const sawAwayFromBottomRef = useRef(false);
+
+  const summaryRaw = useLateJoinSummary(
+    conversationId,
+    enabled && !guest && !newSessionPage && !reachedBottom,
+  );
+
+  const summary = useMemo(() => {
+    if (!summaryRaw) return summaryRaw;
+    if (
+      summaryRaw.open_prompt?.source === "pending_permission" &&
+      pendingPermissionsRaw !== undefined &&
+      pendingPermissionsRaw.length === 0
+    ) {
+      return { ...summaryRaw, open_prompt: null };
+    }
+    return summaryRaw;
+  }, [summaryRaw, pendingPermissionsRaw]);
+
+  useWatchEffect(() => {
+    setReachedBottom(false);
+    sawAwayFromBottomRef.current = false;
+  }, [visitKey]);
+
+  const markReachedBottom = useCallback(() => {
+    setReachedBottom(true);
+  }, []);
+
+  const noteScrollPosition = useCallback(
+    (
+      isAtBottom: boolean,
+      moreBelow: boolean,
+      noPendingJump: boolean,
+      readerMovingDown: boolean,
+    ) => {
+      if (!isAtBottom || moreBelow) {
+        sawAwayFromBottomRef.current = true;
+      } else if (
+        noPendingJump &&
+        (sawAwayFromBottomRef.current || readerMovingDown)
+      ) {
+        setReachedBottom(true);
+      }
+    },
+    [],
+  );
+
+  const handleJumpAnchor = useCallback(
+    (messageId: string, timestamp: number) => {
+      sawAwayFromBottomRef.current = true;
+      const inTimeline = timeline.some(
+        (item) => item.type === "message" && item.data._id === messageId,
+      );
+      if (inTimeline || !onJumpToTimestamp) {
+        scrollToMessageById(messageId);
+      } else {
+        onJumpToTimestamp(timestamp);
+      }
+    },
+    [timeline, scrollToMessageById, onJumpToTimestamp],
+  );
+
+  const handleJumpPrompt = useCallback(
+    (prompt: NonNullable<LateJoinSummary["open_prompt"]>) => {
+      if (prompt.message_id) {
+        sawAwayFromBottomRef.current = true;
+        const inTimeline = timeline.some(
+          (item) =>
+            item.type === "message" && item.data._id === prompt.message_id,
+        );
+        if (
+          inTimeline ||
+          !onJumpToTimestamp ||
+          prompt.timestamp === undefined
+        ) {
+          scrollToMessageById(prompt.message_id);
+        } else {
+          onJumpToTimestamp(prompt.timestamp);
+        }
+        return;
+      }
+      setReachedBottom(true);
+      if (hasMoreBelow && onJumpToEnd) {
+        jumpDirectionRef.current = "end";
+        setJumpPending("end");
+        setGuestStayAtTop(false);
+        onJumpToEnd();
+      } else {
+        setGuestStayAtTop(false);
+        setUserScrolled(false);
+        paginationCooldownRef.current = Date.now() + 1000;
+        scrollToEdgeRef.current("bottom");
+        const dock = containerRef.current
+          ?.closest("main")
+          ?.querySelector<HTMLElement>("[data-cc-permission-dock]");
+        dock?.scrollIntoView?.({ block: "nearest" });
+      }
+    },
+    [
+      timeline,
+      scrollToMessageById,
+      onJumpToTimestamp,
+      hasMoreBelow,
+      onJumpToEnd,
+      jumpDirectionRef,
+      setJumpPending,
+      setUserScrolled,
+      setGuestStayAtTop,
+      paginationCooldownRef,
+      scrollToEdgeRef,
+      containerRef,
+    ],
+  );
+
+  return {
+    visible: enabled && !guest && !reachedBottom && hasLateJoinUpdates(summary),
+    summary,
+    markReachedBottom,
+    noteScrollPosition,
+    handleJumpAnchor,
+    handleJumpPrompt,
+  };
 }

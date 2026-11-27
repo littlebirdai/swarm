@@ -172,3 +172,21 @@ export function skipDeadHit(
     },
   };
 }
+
+export function searchMarksIn(
+  rowEl: Element | null,
+  messageId: string,
+): HTMLElement[] {
+  if (!rowEl) return [];
+  const scope = rowEl.querySelector(`#msg-${CSS.escape(messageId)}`) ?? rowEl;
+  return Array.from(
+    scope.querySelectorAll<HTMLElement>("mark[data-search-highlight]"),
+  );
+}
+
+export function markActive(container: Element, target: HTMLElement) {
+  container.querySelectorAll("mark[data-search-active]").forEach((m) => {
+    if (m !== target) m.removeAttribute("data-search-active");
+  });
+  target.setAttribute("data-search-active", "true");
+}

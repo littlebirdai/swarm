@@ -46,7 +46,7 @@ export function fencedPromptAnswersEnabled() {
 
 type PromptTarget = Omit<PromptPosition, "lease_id">;
 
-async function openPromptTurn(
+async function readBoundPromptTurn(
   ctx: Reader,
   conversation: Doc<"conversations">,
   expected?: { run: number; lease_id?: Id<"run_leases"> },
@@ -72,6 +72,18 @@ async function openPromptTurn(
       .unique(),
   ]);
   const now = Date.now();
+  return { head, binding, claimId, lease, projection, now };
+}
+
+async function openPromptTurn(
+  ctx: Reader,
+  conversation: Doc<"conversations">,
+  expected?: { run: number; lease_id?: Id<"run_leases"> },
+) {
+  const bound = await readBoundPromptTurn(ctx, conversation, expected);
+  if (!bound) return null;
+  const { head, binding, lease, projection, now } = bound;
+  const { epoch: run } = binding;
   if (
     !lease ||
     !isFreshTurnProjection(binding, lease, projection, now) ||
@@ -416,25 +428,14 @@ export async function readFencedPromptState(
   ctx: Reader,
   conversation: Doc<"conversations">,
 ): Promise<FencedPromptState | null> {
-  const opened = await openPromptTurn(ctx, conversation);
-  const current = opened
-    ? { binding: opened.binding, lease: opened.lease }
-    : await (async () => {
-        const bound = await currentPromptBinding(ctx, conversation);
-        if (!bound) return null;
-        const lease = await ctx.db
-          .query("run_leases")
-          .withIndex("by_conversation_claim", (q) =>
-            q
-              .eq("conversation_id", conversation._id)
-              .eq("claim_id", bound.claimId),
-          )
-          .unique();
-        return lease ? { binding: bound.binding, lease } : null;
-      })();
-  if (!current) return null;
+  const bound = await readBoundPromptTurn(ctx, conversation);
+  if (!bound?.lease) return null;
 
-  const { binding, lease } = current;
+  const { binding, lease, projection, now } = bound;
+  const openTurn =
+    projection && isFreshTurnProjection(binding, lease, projection, now)
+      ? projection.open_turn
+      : undefined;
   const isAnswered = async (turnId: string, promptId: string) =>
     Boolean(
       await recordedAnswer(ctx, {
@@ -446,11 +447,11 @@ export async function readFencedPromptState(
       }),
     );
 
-  if (!opened || opened.turn.prompt_ids.length === 0) {
+  if (!openTurn || openTurn.prompt_ids.length === 0) {
     return {
       run: binding.epoch,
       leaseId: lease._id,
-      hasOpenTurn: Boolean(opened),
+      hasOpenTurn: Boolean(openTurn),
       openPrompt: null,
       allOpenTurnPromptsAnswered: false,
       isAnswered,
@@ -458,17 +459,14 @@ export async function readFencedPromptState(
   }
 
   const details = new Map(
-    (opened.turn.prompt_details ?? []).map((detail) => [
-      detail.prompt_id,
-      detail,
-    ]),
+    (openTurn.prompt_details ?? []).map((detail) => [detail.prompt_id, detail]),
   );
   let openPrompt: {
     kind: "question" | "permission";
     prompt_id: string;
   } | null = null;
-  for (const promptId of opened.turn.prompt_ids) {
-    if (await isAnswered(opened.turn.id, promptId)) continue;
+  for (const promptId of openTurn.prompt_ids) {
+    if (await isAnswered(openTurn.id, promptId)) continue;
     const detail = details.get(promptId);
     openPrompt = {
       kind: detail?.kind ?? "question",

@@ -13,8 +13,19 @@ import {
   type LateJoinSummary,
 } from "../../hooks/use-late-join-summary";
 import { decisionHref } from "../../lib/decisionLinks";
-import { formatRelative } from "../../lib/utils";
 import { Button } from "../ui/button";
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+
+function formatElapsedRelative(ts: number, now: number): string {
+  const diff = now - ts;
+  if (diff < MINUTE_MS) return "just now";
+  if (diff < HOUR_MS) return `${Math.floor(diff / MINUTE_MS)}m ago`;
+  if (diff < DAY_MS) return `${Math.floor(diff / HOUR_MS)}h ago`;
+  return `${Math.floor(diff / DAY_MS)}d ago`;
+}
 
 function decisionTone(state: string): string {
   if (state === "pending") {
@@ -84,7 +95,7 @@ export function LateJoinSummaryPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2 text-meta">
             <span className="font-medium text-sol-text">
-              Since {formatRelative(summary.anchor.timestamp, now)}
+              Since {formatElapsedRelative(summary.anchor.timestamp, now)}
             </span>
             {summary.new_turns > 0 && (
               <span
@@ -178,29 +189,51 @@ export function LateJoinSummaryPanel({
               Decisions
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              {summary.decisions.slice(0, 4).map((decision) => (
-                <Link
-                  key={decision._id}
-                  href={decisionHref(decision)}
-                  data-cc-late-join-decision={decision._id}
-                  className="group flex min-w-0 items-center gap-1.5 rounded hover:bg-sol-bg/60"
-                >
-                  <span
-                    className={`shrink-0 rounded border px-1.5 py-0.5 text-mark ${decisionTone(decision.state)}`}
+              {summary.decisions.slice(0, 4).map((decision) =>
+                summary.can_open_decisions === false ? (
+                  <div
+                    key={decision._id}
+                    data-cc-late-join-decision={decision._id}
+                    className="flex min-w-0 items-center gap-1.5 rounded"
                   >
-                    {decision.state}
-                  </span>
-                  <span className="truncate text-sol-text group-hover:underline">
-                    {decision.title}
-                  </span>
-                  {decision.answer && (
-                    <span className="shrink-0 truncate text-sol-text-dim">
-                      · {decision.answer}
+                    <span
+                      className={`shrink-0 rounded border px-1.5 py-0.5 text-mark ${decisionTone(decision.state)}`}
+                    >
+                      {decision.state}
                     </span>
-                  )}
-                  <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-sol-text-dim opacity-0 group-hover:opacity-100" />
-                </Link>
-              ))}
+                    <span className="truncate text-sol-text">
+                      {decision.title}
+                    </span>
+                    {decision.answer && (
+                      <span className="shrink-0 truncate text-sol-text-dim">
+                        · {decision.answer}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    key={decision._id}
+                    href={decisionHref(decision)}
+                    data-cc-late-join-decision={decision._id}
+                    className="group flex min-w-0 items-center gap-1.5 rounded hover:bg-sol-bg/60"
+                  >
+                    <span
+                      className={`shrink-0 rounded border px-1.5 py-0.5 text-mark ${decisionTone(decision.state)}`}
+                    >
+                      {decision.state}
+                    </span>
+                    <span className="truncate text-sol-text group-hover:underline">
+                      {decision.title}
+                    </span>
+                    {decision.answer && (
+                      <span className="shrink-0 truncate text-sol-text-dim">
+                        · {decision.answer}
+                      </span>
+                    )}
+                    <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-sol-text-dim opacity-0 group-hover:opacity-100" />
+                  </Link>
+                ),
+              )}
               {(summary.decisions.length > 4 || extraDecisions > 0) && (
                 <span className="text-meta tabular-nums text-sol-text-dim">
                   +{Math.max(0, summary.decisions.length - 4) + extraDecisions}
