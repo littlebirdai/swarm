@@ -6,7 +6,8 @@ import { mountWeb } from "../../test-helpers/mountWeb";
 import { webBuilders } from "../../test-helpers/builders";
 import { useInboxStore } from "../../store/inboxStore";
 import { useLiveInboxSessions } from "../useLiveInboxSessions";
-import { scopeMetaKey } from "../use-sync-change-feed";
+import { scopeMetaKey, useSyncChangeFeed } from "../use-sync-change-feed";
+import { pending } from "../../test-helpers/testConvex";
 import { emitSyncWake } from "../syncWake";
 import { useQuery } from "convex/react";
 
@@ -95,4 +96,108 @@ test("the flag-off host still subscribes and an opted-in follower opens no inbox
   await act(async () => emitSyncWake());
   await clock!.advance(30_000);
   expect(reads()).toHaveLength(1);
+});
+
+function InboxWithReplay() {
+  useSyncChangeFeed();
+  const { loading } = useLiveInboxSessions(true);
+  return <span>{loading ? "loading" : "ready"}</span>;
+}
+
+test("one snapshot waits for the debounced replay cursor", async () => {
+  const row = webBuilders("inbox-replay-debounce").session.build();
+  const { backend, clock, store } = await mountWeb(<InboxWithReplay />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+      });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      backend.set(api.syncLog.getHeads, {
+        heads: [{ scope_key: scope, position: 4, floor: 0 }],
+      });
+      backend.set(api.conversations.listInboxSessions, {
+        sessions: [row],
+        hidden_count: 0,
+        truncated: [],
+        checkpoint: { scope, position: 5 },
+      });
+      backend.set(api.syncLog.getRange, {
+        actions: [],
+        nextFrom: 5,
+        hasMore: false,
+      });
+    },
+  });
+  await clock!.advance(1);
+  await act(async () =>
+    backend.set(api.syncLog.getHeads, {
+      heads: [{ scope_key: scope, position: 5, floor: 0 }],
+    }),
+  );
+  expect(store.getState().sessions[row._id]).toBeUndefined();
+  await clock!.advance(1500);
+  expect(store.getState().syncMeta[scopeMetaKey(scope)]?.cursor).toBe(5);
+  expect(store.getState().sessions[row._id]?._id).toBe(row._id);
+  expect(
+    backend.queryRequests.filter(
+      ({ name }) =>
+        name === getFunctionName(api.conversations.listInboxSessions),
+    ),
+  ).toHaveLength(1);
+});
+
+test("a replay gap starts a new snapshot before the old request finishes", async () => {
+  const row = webBuilders("inbox-gap-reset").session.build();
+  const list = api.conversations.listInboxSessions;
+  const reads = () =>
+    backend.queryRequests.filter(({ name }) => name === getFunctionName(list));
+  let firstProbe: number | undefined;
+  const { backend, clock, store } = await mountWeb(<InboxWithReplay />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+      });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
+      backend.set(api.syncLog.getHeads, {
+        heads: [{ scope_key: scope, position: 4, floor: 0 }],
+      });
+      backend.set(list, ({ _probe }) => {
+        firstProbe ??= _probe;
+        return _probe === firstProbe
+          ? pending
+          : {
+              sessions: [{ ...row, title: "Replacement" }],
+              hidden_count: 0,
+              truncated: [],
+              checkpoint: { scope, position: 8 },
+            };
+      });
+    },
+  });
+  await clock!.advance(1);
+  expect(reads()).toHaveLength(1);
+  await act(async () =>
+    backend.set(api.syncLog.getHeads, {
+      heads: [{ scope_key: scope, position: 8, floor: 7 }],
+    }),
+  );
+  await clock!.advance(1500);
+  await clock!.advance(1);
+  expect(reads()).toHaveLength(2);
+  expect(store.getState().sessions[row._id]?.title).toBe("Replacement");
+  await act(async () =>
+    backend.set(list, {
+      sessions: [{ ...row, title: "Superseded" }],
+      hidden_count: 0,
+      truncated: [],
+      checkpoint: { scope, position: 8 },
+    }),
+  );
+  expect(store.getState().sessions[row._id]?.title).toBe("Replacement");
 });

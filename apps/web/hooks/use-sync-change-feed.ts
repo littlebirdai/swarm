@@ -12,6 +12,11 @@ import { track } from "../lib/analytics";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { onSyncWake } from "./syncWake";
 import { beginSyncInflight } from "../store/syncActivity";
+import {
+  batchGet,
+  settleDisownClaims,
+  type Collection,
+} from "./sync-feed-rows";
 
 // Sync-log client applier — the single catch-up path.
 // Design: docs/architecture/sync-log-migration.md (pl-399, D7).
@@ -40,7 +45,7 @@ import { beginSyncInflight } from "../store/syncActivity";
 
 const api = _api as any;
 
-type Collection = "sessions" | "tasks" | "docs" | "plans" | "projects";
+export { batchGet, chunkIds, BYIDS_CHUNK } from "./sync-feed-rows";
 
 const ENTITY_COLLECTION: Record<string, Collection> = {
   conversations: "sessions",
@@ -155,59 +160,6 @@ export function planFeedApply(
   return plan;
 }
 
-// Every server-side *byIds query hard-caps its input at 300 ids (they
-// `ids.slice(0, 300)`). Fetch in ≤300-id chunks so ids past the cap are never
-// silently un-fetched — an un-returned id is treated as "gone or no longer
-// visible" and would be pruned.
-export const BYIDS_CHUNK = 300;
-
-export function chunkIds(
-  ids: string[],
-  size: number = BYIDS_CHUNK,
-): string[][] {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size)
-    chunks.push(ids.slice(i, i + size));
-  return chunks;
-}
-
-async function batchGetChunk(
-  convex: any,
-  coll: Collection,
-  ids: string[],
-): Promise<any[]> {
-  switch (coll) {
-    case "sessions":
-      return (
-        (await convex.query(api.conversations.getInboxSessionsByIds, { ids }))
-          ?.sessions ?? []
-      );
-    case "tasks":
-      return (await convex.query(api.tasks.webGetByIds, { ids }))?.items ?? [];
-    case "docs":
-      return (await convex.query(api.docs.webGetByIds, { ids }))?.docs ?? [];
-    case "plans":
-      return (await convex.query(api.plans.webGetByIds, { ids })) ?? [];
-    case "projects":
-      return (await convex.query(api.projects.webGetByIds, { ids })) ?? [];
-  }
-}
-
-// Per-collection batch fetch of CURRENT state for a set of ids. Each returns rows
-// in the exact shape its live channel syncs, so syncTable merges them cleanly.
-export async function batchGet(
-  convex: any,
-  coll: Collection,
-  ids: string[],
-): Promise<any[]> {
-  if (!ids.length) return [];
-  const rows: any[] = [];
-  for (const chunk of chunkIds(ids)) {
-    rows.push(...(await batchGetChunk(convex, coll, chunk)));
-  }
-  return rows;
-}
-
 // Stage two: fetch current state for a set of per-collection ids, overlay what
 // the authorized query returned, prune what it omitted. Shared by the log
 // applier, the legacy bridge and the sessions floor's warm-cache probe; apply
@@ -305,6 +257,7 @@ async function applyLogPage(
 ): Promise<void> {
   const store = useInboxStore.getState();
   const entityActions: LogAction[] = [];
+  const disowned = new Set<string>();
   for (const a of actions) {
     if (a.entity_type === "scope") {
       if (a.op === "scope_removed") {
@@ -336,6 +289,12 @@ async function applyLogPage(
       }
       continue;
     }
+    if (a.entity_type === "session_owner") {
+      const prefix = "session-owner:";
+      if (a.op === "scope_removed" && a.entity_id.startsWith(prefix))
+        disowned.add(a.entity_id.slice(prefix.length));
+      continue;
+    }
     entityActions.push(a);
   }
   store.retireAckedPending(scopeKey, upTo);
@@ -362,7 +321,11 @@ async function applyLogPage(
   }> = [];
   for (const a of latest.values()) {
     const coll = ENTITY_COLLECTION[a.entity_type];
-    if (!coll) continue;
+    if (
+      !coll ||
+      (coll === "sessions" && a.op === "upsert" && disowned.has(a.entity_id))
+    )
+      continue;
     const existing = heldRow(state, coll, a.entity_id);
     if (a.op !== "upsert") {
       // A delete for an id this replica does not hold has nothing to prune and
@@ -430,6 +393,7 @@ async function applyLogPage(
   tallyApply(direct, byIds.length);
   if (byIds.length)
     await applyEntityIds(convex, planFeedApply(byIds), { fromLog: true });
+  if (disowned.size) await settleDisownClaims(convex, [...disowned]);
   store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor: upTo });
 }
 

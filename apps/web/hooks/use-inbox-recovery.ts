@@ -34,8 +34,12 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
   query: Q,
   queryArgs: FunctionArgs<Q>,
   kind: SplitKind | null,
-  apply: (data: FunctionReturnType<Q>) => boolean,
+  apply: (
+    data: FunctionReturnType<Q>,
+    signal: AbortSignal,
+  ) => boolean | Promise<boolean>,
   nextAt: { current: number },
+  lastProbe: { current: number },
 ) {
   let { isWebSocketConnected: connected, connectionCount } =
     convex.connectionState();
@@ -64,7 +68,9 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
 
   async function read(recovery: Recovery) {
     recovery.immediate = false;
-    nextAt.current = Date.now() + RECOVERY_INTERVAL_MS;
+    const now = Date.now();
+    nextAt.current = now + RECOVERY_INTERVAL_MS;
+    lastProbe.current = Math.max(now, lastProbe.current + 1);
     const controller = new AbortController();
     active = controller;
     const { signal } = controller;
@@ -81,6 +87,7 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
         queryArgs,
         kind,
         signal,
+        lastProbe.current,
       );
       if (signal.aborted || !canRead()) return;
       applied = await new Promise<boolean>((resolve, reject) => {
@@ -93,7 +100,9 @@ function startInboxRecovery<Q extends FunctionReference<"query">>(
         cancel = whenInputQuiet(() => {
           signal.removeEventListener("abort", abort);
           try {
-            resolve(!signal.aborted && canRead() && apply(fresh));
+            resolve(
+              !signal.aborted && canRead() ? apply(fresh, signal) : false,
+            );
           } catch (error) {
             reject(error);
           }
@@ -203,8 +212,11 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   args: FunctionArgs<Q> | "skip",
   kind: SplitKind | null,
   error: Error | undefined,
-  apply: (data: FunctionReturnType<Q>) => boolean,
-  bootstrap = false,
+  apply: (
+    data: FunctionReturnType<Q>,
+    signal: AbortSignal,
+  ) => boolean | Promise<boolean>,
+  bootstrapGeneration?: number,
 ) {
   const convex = useConvex();
   const lost = useServerIdentityLost();
@@ -218,9 +230,15 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
   );
   const recovery = useRef<ReturnType<typeof startInboxRecovery> | null>(null);
   const nextAt = useRef(0);
+  const lastProbe = useRef(0);
+  const previousGeneration = useRef(bootstrapGeneration);
 
   useLayoutEffect(() => {
     if (args === "skip" || lost) return;
+    if (previousGeneration.current !== bootstrapGeneration) {
+      previousGeneration.current = bootstrapGeneration;
+      nextAt.current = 0;
+    }
     const controller = startInboxRecovery<typeof reference>(
       convex,
       reference,
@@ -228,14 +246,15 @@ export function useInboxRecovery<Q extends FunctionReference<"query">>(
       kind,
       apply,
       nextAt,
+      lastProbe,
     );
     recovery.current = controller;
-    if (bootstrap) void controller.request(true);
+    if (bootstrapGeneration !== undefined) void controller.request(true);
     return () => {
       recovery.current = null;
       controller.dispose();
     };
-  }, [convex, reference, args, kind, apply, lost, bootstrap]);
+  }, [convex, reference, args, kind, apply, lost, bootstrapGeneration]);
 
   useWatchEffect(() => {
     if (error) void recovery.current?.request();

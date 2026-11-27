@@ -8660,7 +8660,7 @@
     "swarm/no-comments": 39
   },
   "apps/server/convex/changeLog.ts": {
-    "swarm/no-comments": 103
+    "swarm/no-comments": 95
   },
   "apps/server/convex/changes.ts": {
     "swarm/no-comments": 70
@@ -21768,7 +21768,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
-    "swarm/no-comments": 209,
+    "swarm/no-comments": 203,
     "swarm/no-direct-use-effect": 2
   },
   "apps/web/hooks/use-sync-docs.ts": {
@@ -22263,7 +22263,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/hooks/useLiveInboxSessions.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 19
   },
   "apps/web/hooks/useLiveRoomCount.ts": {
     "swarm/no-comments": 5

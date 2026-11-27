@@ -157,6 +157,7 @@ export const counterAndSyncLogTables = {
       // scope_removed, emitted in the TEAM's scope, so every remaining
       // member's client drops that user's rows from its team caches.
       v.literal("member"),
+      v.literal("session_owner"),
     ),
     entity_id: v.string(),
     op: v.union(

@@ -8,10 +8,11 @@ import {
   claimsViewer,
   isConvexId,
 } from "../store/inboxStore";
-import { batchGet, scopeMetaKey } from "./use-sync-change-feed";
+import { scopeMetaKey } from "./use-sync-change-feed";
+import { settleDisownClaims } from "./sync-feed-rows";
+export { settleDisownClaims } from "./sync-feed-rows";
 import { useInboxRecovery } from "./use-inbox-recovery";
 import { useServerAuthenticated } from "./useServerAuthSettled";
-import { useWatchEffect } from "./useWatchEffect";
 import { useConvexSync } from "./useConvexSync";
 import { useIsSyncHost } from "./use-sync-role";
 import { useSplitQueryNoThrow } from "./useSplitQuery";
@@ -54,26 +55,6 @@ export function leftClaimingViewer(
       !!state.sessions[id] &&
       claimsViewer(state.sessions[id], meId),
   );
-}
-
-// byIds settles which: it admits exactly the runner and the owner set, so a
-// returned row lands with the server's stamps (still mine), and an omitted id
-// is no longer mine and only its claim clears. Never a prune: the session may
-// still be on my team board through the team list.
-export async function settleDisownClaims(
-  convex: any,
-  ids: string[],
-): Promise<void> {
-  const rows = await batchGet(convex, "sessions", ids);
-  const store = useInboxStore.getState();
-  if (rows.length)
-    store.syncTable(
-      "sessions",
-      rows as unknown as InboxSession[],
-      { isDelta: true } as any,
-    );
-  const present = new Set(rows.map((r: any) => String(r._id)));
-  store.clearDisownedClaims(ids.filter((id) => !present.has(id)));
 }
 
 /**
@@ -132,6 +113,29 @@ const SNAPSHOT_ARGS = {
   checkpoint: true,
 } as const;
 
+async function waitForCheckpoint(
+  key: string,
+  position: number,
+  signal: AbortSignal,
+) {
+  const cursor = () => useInboxStore.getState().syncMeta[key]?.cursor;
+  if (!signal.aborted && (cursor() ?? -1) < position) {
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        off();
+        signal.removeEventListener("abort", finish);
+        resolve();
+      };
+      const off = useInboxStore.subscribe(() => {
+        const next = cursor();
+        if (next === undefined || next >= position) finish();
+      });
+      signal.addEventListener("abort", finish, { once: true });
+    });
+  }
+  return !signal.aborted && cursor() === position;
+}
+
 export function useLiveInboxSessions(logSnapshot = false) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
@@ -169,14 +173,15 @@ export function useLiveInboxSessions(logSnapshot = false) {
   const authenticated = useServerAuthenticated();
   const [snapshotScope, setSnapshotScope] = useState<string | null>(null);
   const snapshotActive = isSyncHost && authenticated && cursorReady;
-  const { request } = useInboxRecovery(
+  useInboxRecovery(
     api.conversations.listInboxSessions,
     snapshotActive ? SNAPSHOT_ARGS : "skip",
     null,
     undefined,
     useCallback(
-      (
+      async (
         data: FunctionReturnType<typeof api.conversations.listInboxSessions>,
+        signal: AbortSignal,
       ) => {
         if (
           scope === null ||
@@ -184,25 +189,31 @@ export function useLiveInboxSessions(logSnapshot = false) {
           data.checkpoint?.scope !== scope
         )
           return false;
+        if (
+          !(await waitForCheckpoint(
+            scopeMetaKey(scope),
+            data.checkpoint.position,
+            signal,
+          ))
+        )
+          return false;
         const state = useInboxStore.getState();
         if (
           `user:${state.currentUser?._id}` !== scope ||
-          state.syncRole === "follower"
+          state.syncRole === "follower" ||
+          (state.crawlResets[scope] ?? 0) !== reset
         )
           return false;
         const cursor = state.syncMeta[scopeMetaKey(scope)]?.cursor;
-        if (cursor !== data.checkpoint.position) return false;
+        if (signal.aborted || cursor !== data.checkpoint.position) return false;
         if (!applyInboxListPayload(data, convex)) return false;
         setSnapshotScope(scope);
         return true;
       },
-      [convex, scope],
+      [convex, scope, reset],
     ),
-    true,
+    reset,
   );
-  useWatchEffect(() => {
-    if (snapshotActive && reset > 0) void request();
-  }, [request, reset, snapshotActive]);
   const loading = logSnapshot
     ? isSyncHost && (scope === null || snapshotScope !== scope)
     : inboxSessions === undefined && !error;

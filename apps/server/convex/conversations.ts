@@ -27,7 +27,8 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./functions";
-import { readInboxCheckpoint, syncLogDisabled } from "./syncLog";
+import { syncLogDisabled } from "./syncLog";
+import { readInboxCheckpoint } from "./lib/inbox-log-checkpoint";
 import { v, type GenericValidator, type ObjectType } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
 import {
@@ -336,7 +337,6 @@ import {
   isNonEmptyMessage,
 } from "./lib/conversationBasics";
 export { generateShareToken, isNonEmptyMessage };
-
 // The narrow shape every search consumer actually reads. Both tiers project
 // to it so the mirror and the deep index are interchangeable downstream
 // (_id is the real messages id either way — deep links depend on it).
