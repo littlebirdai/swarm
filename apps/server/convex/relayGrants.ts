@@ -17,10 +17,15 @@ import { internalMutation, mutation, query } from "./functions";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { inboxLeaseWritesEnabled } from "./lib/sessionHeartbeat";
 import { currentClaim } from "./lib/edge/runLease";
-import { canOwnerOrTeamAccess } from "./privacy";
+import { presenceIdentity } from "./lib/presence-identity";
+import { canOwnerOrTeamAccess, checkConversationAccess } from "./privacy";
 import { checkRateLimit, RateLimitError } from "./rateLimit";
 
 const TTL_MS = 60_000;
+const SHARED_TTL_MS = 15_000;
+const VIEWER_HUB_PREFIX = "viewer:";
+const VIEWER_SIGNALS = ["presence", "draft_cursor", "reading_cursor"] as const;
+const MAX_VIEWER_IDENTITIES = 32;
 const REQUESTS_PER_MINUTE = 120;
 const relayId = /^[A-Za-z0-9_:-]{1,128}$/u;
 const encoder = new TextEncoder();
@@ -28,6 +33,17 @@ const omittedHub = v.object({
   id: v.string(),
   reason: v.literal("inaccessible"),
 });
+
+export function viewerPresenceEnabled() {
+  return process.env.CODECAST_RELAY_VIEWER_PRESENCE === "1";
+}
+
+export function sharedViewerPresenceEnabled() {
+  return (
+    viewerPresenceEnabled() &&
+    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED === "1"
+  );
+}
 
 export const mint = mutation({
   args: {
@@ -76,14 +92,14 @@ export const mint = mutation({
       (jwtDeadlineMs !== undefined && !Number.isFinite(jwtDeadlineMs))
     )
       return { status: "unauthenticated" } as const;
-    const expiresAtMs = Math.floor(
+    const expiresAtMsMax = Math.floor(
       Math.min(
         now + TTL_MS,
         session?.expirationTime ?? Infinity,
         jwtDeadlineMs ?? Infinity,
       ),
     );
-    if (expiresAtMs <= now) return { status: "unauthenticated" } as const;
+    if (expiresAtMsMax <= now) return { status: "unauthenticated" } as const;
 
     try {
       const issuance = await checkRateLimit(
@@ -92,13 +108,41 @@ export const mint = mutation({
         "relayGrants.mint",
         REQUESTS_PER_MINUTE,
         1,
-        expiresAtMs,
+        expiresAtMsMax,
       );
       if (!issuance) return { status: "unavailable" } as const;
       const { issuedAtMs, sequence } = issuance;
       const grants: RelayGrantClaims["grants"] = [];
       const omitted: { id: string; reason: "inaccessible" }[] = [];
+      let hasSharedTier = false;
       for (const rawId of new Set(hubs.map((hub) => hub.id))) {
+        if (rawId.startsWith(VIEWER_HUB_PREFIX)) {
+          const convRaw = rawId.slice(VIEWER_HUB_PREFIX.length);
+          const id =
+            viewerPresenceEnabled() && relayId.test(rawId) && convRaw
+              ? ctx.db.normalizeId("conversations", convRaw)
+              : null;
+          const conversation = id ? await ctx.db.get(id) : null;
+          const access = conversation
+            ? await checkConversationAccess(ctx, userId, conversation)
+            : "denied";
+          if (
+            conversation &&
+            (access === "owner" ||
+              access === "team" ||
+              (access === "shared" && sharedViewerPresenceEnabled()))
+          ) {
+            if (access === "shared") hasSharedTier = true;
+            grants.push({
+              kind: "session",
+              id: `${VIEWER_HUB_PREFIX}${conversation._id}`,
+              publish: [...VIEWER_SIGNALS],
+            });
+          } else {
+            omitted.push({ id: rawId, reason: "inaccessible" });
+          }
+          continue;
+        }
         const id = relayId.test(rawId)
           ? ctx.db.normalizeId("conversations", rawId)
           : null;
@@ -117,6 +161,14 @@ export const mint = mutation({
         }
       }
       if (!grants.length) return { status: "denied", omitted } as const;
+      const expiresAtMs = Math.floor(
+        Math.min(
+          now + (hasSharedTier ? SHARED_TTL_MS : TTL_MS),
+          session?.expirationTime ?? Infinity,
+          jwtDeadlineMs ?? Infinity,
+        ),
+      );
+      if (expiresAtMs <= issuedAtMs) return { status: "unavailable" } as const;
       return {
         status: "ok",
         token: await signRelayGrant(config, {
@@ -134,6 +186,82 @@ export const mint = mutation({
         return { status: "rate_limited" } as const;
       throw new ConvexError("unavailable");
     }
+  },
+});
+
+export const viewerTarget = query({
+  args: { conversation_id: v.string() },
+  handler: async (ctx, { conversation_id }) => {
+    if (!viewerPresenceEnabled() || !relayGrantConfig()) return null;
+    const userId = await getAuthUserId(ctx);
+    if (!userId || !(await ctx.db.get(userId))) return null;
+    const id = ctx.db.normalizeId("conversations", conversation_id);
+    const conversation = id ? await ctx.db.get(id) : null;
+    if (!conversation) return null;
+    const access = await checkConversationAccess(ctx, userId, conversation);
+    if (access === "owner" || access === "team") {
+      return {
+        viewer: userId,
+        hub: `${VIEWER_HUB_PREFIX}${conversation._id}`,
+        tier: "member" as const,
+      };
+    }
+    if (access === "shared" && sharedViewerPresenceEnabled()) {
+      return {
+        viewer: userId,
+        hub: `${VIEWER_HUB_PREFIX}${conversation._id}`,
+        tier: "shared" as const,
+      };
+    }
+    return null;
+  },
+});
+
+export const viewerIdentities = query({
+  args: {
+    conversation_id: v.string(),
+    user_ids: v.array(v.string()),
+  },
+  handler: async (ctx, { conversation_id, user_ids }) => {
+    if (!viewerPresenceEnabled() || !relayGrantConfig()) return [];
+    const callerId = await getAuthUserId(ctx);
+    if (!callerId || !(await ctx.db.get(callerId))) return [];
+    const convId = ctx.db.normalizeId("conversations", conversation_id);
+    const conversation = convId ? await ctx.db.get(convId) : null;
+    if (!conversation) return [];
+    const callerAccess = await checkConversationAccess(
+      ctx,
+      callerId,
+      conversation,
+    );
+    if (
+      callerAccess === "denied" ||
+      (callerAccess === "shared" && !sharedViewerPresenceEnabled())
+    ) {
+      return [];
+    }
+    const identities = [];
+    for (const rawId of [...new Set(user_ids)].slice(
+      0,
+      MAX_VIEWER_IDENTITIES,
+    )) {
+      const uid = ctx.db.normalizeId("users", rawId);
+      if (!uid) continue;
+      const user = await ctx.db.get(uid);
+      if (!user) continue;
+      const access = await checkConversationAccess(ctx, uid, conversation);
+      if (
+        access === "denied" ||
+        (access === "shared" && !sharedViewerPresenceEnabled())
+      ) {
+        continue;
+      }
+      identities.push({
+        user_id: uid,
+        ...presenceIdentity(user),
+      });
+    }
+    return identities;
   },
 });
 

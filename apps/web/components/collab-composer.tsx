@@ -22,13 +22,13 @@ import {
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
 import { useWatchEffect } from "../hooks/useWatchEffect";
-import { useDocPresence, type PresenceRow } from "../hooks/useDocPresence";
+import { type PresenceRow } from "../hooks/useDocPresence";
+import { useComposerPresence } from "../hooks/use-composer-presence";
 import {
   composerPresenceEnabled,
   hasCoOwner,
   typingRows,
   presenceMember,
-  setCoPresent,
 } from "../lib/composerPresence";
 import { useOwnersFromStore } from "./OwnersBadge";
 import { useInboxStore } from "../store/inboxStore";
@@ -78,43 +78,6 @@ import { flushDraftWrite, scheduleDraftWrite } from "../lib/pendingDraftWrites";
 import { useComposerControl } from "./conversation/use-composer-control";
 import { SessionControlStrip } from "./conversation/session-control-strip";
 import type { ComposerControlFlag } from "./conversation/composer-control-model";
-
-function useComposerPresence(
-  conversationId: string,
-  draftText: string,
-  opts: { enabled: boolean; forceBroadcast: boolean },
-): PresenceRow[] {
-  // In a shared draft everyone's box holds the same words, so the row carries
-  // my caret instead of a draft of my own.
-  const shared = useSharedDraftStatus(conversationId);
-  // Where I am reading this transcript rides the same row, so the others can
-  // draw my face in their scroll gutter (ReadingMarks).
-  const anchor = useInboxStore((s) =>
-    s.viewAnchor?.conversationId === conversationId ? s.viewAnchor : null,
-  );
-  // The preview is the one copy of my words that leaves this box before send;
-  // a credential in it shows as its marker, the way the stored draft does.
-  const previewText = useMemo(
-    () => (shared.active ? "" : withoutSecrets(draftText)),
-    [shared.active, draftText],
-  );
-  const present = useDocPresence({
-    docId: `compose:${conversationId}`,
-    draftText: previewText,
-    cursor: shared.active ? shared.caret : null,
-    inDraft: shared.active,
-    anchor: anchor
-      ? { message_id: anchor.messageId, offset: anchor.offset }
-      : null,
-    enabled: opts.enabled,
-    forceBroadcast: opts.forceBroadcast,
-  });
-  useWatchEffect(() => {
-    setCoPresent(conversationId, present.length);
-    return () => setCoPresent(conversationId, 0);
-  }, [conversationId, present.length]);
-  return present;
-}
 
 // The line above a composer that says who else is in the box. Two states.
 // Someone is typing: the same strip the team chat composer wears (faces,
@@ -178,6 +141,7 @@ export function CollabPresenceBar({
   present,
   showHere,
   boxed = false,
+  presenceUnknown = false,
   joint,
   shared,
   chat,
@@ -185,6 +149,7 @@ export function CollabPresenceBar({
   present: PresenceRow[];
   showHere: boolean;
   boxed?: boolean;
+  presenceUnknown?: boolean;
   joint?: {
     candidates: JointCandidate[];
     mineEmpty: boolean;
@@ -209,6 +174,7 @@ export function CollabPresenceBar({
     !!writer ||
     typists.length > 0 ||
     !!chat ||
+    presenceUnknown ||
     (showHere && present.length > 0);
   const names = present.map((p) => p.user_name).join(", ");
   return (
@@ -255,6 +221,14 @@ export function CollabPresenceBar({
                 title={`${names} ${present.length > 1 ? "are" : "is"} here`}
               >
                 <PresenceFacepile present={present} size={18} />
+              </span>
+            ) : presenceUnknown ? (
+              <span
+                data-sv-presence-status="unknown"
+                role="status"
+                className="text-meta text-sol-text-dim"
+              >
+                Presence unknown
               </span>
             ) : null}
             {chat && (
@@ -304,6 +278,9 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
     enabled: true,
     forceBroadcast: coOwned,
   });
+  const presenceUnknown = useInboxStore(
+    (s) => s.relayViewerPresence[conversationId]?.status === "unknown",
+  );
   const shared = useSharedDraftStatus(conversationId);
   const people = useConversationChatPeople(conversationId, present);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -328,6 +305,7 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
         present={present}
         showHere={showHere}
         boxed
+        presenceUnknown={presenceUnknown}
         joint={
           ownSideQuestion || !allowJoint
             ? undefined
@@ -563,6 +541,9 @@ export const CollabComposer = memo(function CollabComposer({
     enabled: isAuthenticated,
     forceBroadcast: true,
   });
+  const presenceUnknown = useInboxStore(
+    (s) => s.relayViewerPresence[convKey]?.status === "unknown",
+  );
   const me = useInboxStore((s) => personName(s.currentUser));
   const { candidates, claimSent } = useJointComposer({
     conversationId: conversation._id.toString(),
@@ -909,6 +890,7 @@ export const CollabComposer = memo(function CollabComposer({
       <CollabPresenceBar
         present={present}
         showHere={!!conversation.share_token}
+        presenceUnknown={presenceUnknown}
         joint={
           canSendTogether && !steering
             ? {

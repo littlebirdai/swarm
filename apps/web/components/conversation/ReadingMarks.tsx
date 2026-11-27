@@ -4,6 +4,7 @@ import { memo, useRef, useState, type RefObject } from "react";
 import { useConvexAuth } from "convex/react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { usePresenceRows, type PresenceRow } from "../../hooks/useDocPresence";
+import { useSyncRelayViewerPresence } from "../../hooks/use-sync-relay-viewer-presence";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useTrackedStore } from "../../store/inboxStore";
@@ -24,9 +25,15 @@ import { teamMembersOf } from "../../lib/activeTeam";
 // case where that text is off screen: a pill above the composer that names
 // them and the direction, and takes you there.
 
-function useReaders(conversationId: string): PresenceRow[] {
+function useReaders(conversationId: string, messageId?: string): PresenceRow[] {
   const { isAuthenticated } = useConvexAuth();
-  return usePresenceRows(composeDocId(conversationId), isAuthenticated);
+  return usePresenceRows(
+    composeDocId(conversationId),
+    isAuthenticated,
+    messageId === undefined
+      ? { scope: "anchors" }
+      : { scope: "message", messageId },
+  );
 }
 
 function firstNames(rows: readonly PresenceRow[]): string {
@@ -83,7 +90,7 @@ export const ReaderFaces = memo(function ReaderFaces({
   conversationId: string;
   messageId: string;
 }) {
-  const here = useReaders(conversationId).filter(
+  const here = useReaders(conversationId, messageId).filter(
     (r) => r.anchor?.message_id === messageId,
   );
   const now = useCoarseNow(30_000);
@@ -132,6 +139,8 @@ export const ReadingMarks = memo(function ReadingMarks({
   top: number;
   bottom: number;
 }) {
+  const { isAuthenticated } = useConvexAuth();
+  useSyncRelayViewerPresence(conversationId, isAuthenticated);
   const idsRef = useRef(messageIds);
   idsRef.current = messageIds;
   const indexOf = (id: string) => idsRef.current.indexOf(id);

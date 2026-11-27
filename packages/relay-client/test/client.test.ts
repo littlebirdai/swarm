@@ -455,3 +455,52 @@ test("clears an expired subscription and reattaches it after the outstanding ren
   expect(socket.frames.at(-1)?.type).toBe("subscribe");
   client.close();
 });
+
+test("reports hub status transitions across connect, ready, disconnect, unavailable, and denied", async () => {
+  let mode: "ok" | "unavailable" | "denied" = "ok";
+  const statuses: string[] = [];
+  const { client, open, advance } = harness(
+    async (hubs) => {
+      if (mode === "unavailable") return { status: "unavailable" };
+      if (mode === "denied") {
+        return {
+          status: "denied",
+          omitted: hubs.map(({ id }) => ({
+            id,
+            reason: "inaccessible" as const,
+          })),
+        };
+      }
+      return fakeGrant;
+    },
+    0,
+    (hub, status) => {
+      statuses.push(`${hub.id}:${status}`);
+    },
+  );
+
+  const leave = client.subscribe(session, () => {});
+  expect(client.status(session)).toBe("connecting");
+  const first = await open();
+  subscribed(first);
+  expect(client.status(session)).toBe("ready");
+
+  first.ended(1006);
+  expect(client.status(session)).toBe("unavailable");
+
+  mode = "unavailable";
+  await advance(250);
+  expect(client.status(session)).toBe("unavailable");
+
+  mode = "denied";
+  await advance(500);
+  expect(client.status(session)).toBe("denied");
+  expect(statuses).toEqual([
+    `${session.id}:connecting`,
+    `${session.id}:ready`,
+    `${session.id}:unavailable`,
+    `${session.id}:denied`,
+  ]);
+  leave();
+  client.close();
+});

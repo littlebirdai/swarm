@@ -11,6 +11,7 @@ import {
 import { hubKey, observations, type RelayHandler } from "./observations";
 
 export type { RelayEvent, RelayHandler, RelaySignal } from "./observations";
+export type RelayHubStatus = "connecting" | "ready" | "unavailable" | "denied";
 export type RelayPublication = Exclude<
   Extract<RelayClientFrame, { hub: RelayHub }>,
   { type: "subscribe" | "unsubscribe" }
@@ -56,6 +57,7 @@ export type RelayClientOptions = {
   sessionLiveness?: boolean;
   capabilities?: readonly string[];
   onReady?(hub: RelayHub): void;
+  onStatus?(hub: RelayHub, status: RelayHubStatus): void;
   now(): number;
   setTimer(callback: () => void, delayMs: number): () => void;
   random(): number;
@@ -78,6 +80,7 @@ type Subscription = {
   retryAt: number;
   failures: number;
   status?: "pending" | "ready";
+  statusState: RelayHubStatus;
 };
 type Grant = { hub: RelayHub; expires: number; renew: number };
 type Request = {
@@ -141,13 +144,22 @@ export function createRelayClient(options: RelayClientOptions) {
     }
   }
 
+  function setStatus(sub: Subscription, next: RelayHubStatus) {
+    if (sub.statusState === next) return;
+    sub.statusState = next;
+    options.onStatus?.(sub.hub, next);
+  }
+
   function disconnect() {
     const previous = socket;
     const request = pending;
     socket = capabilities = pending = undefined;
     healthyAt = Infinity;
     grants.clear();
-    for (const sub of subscriptions.values()) sub.status = undefined;
+    for (const sub of subscriptions.values()) {
+      sub.status = undefined;
+      setStatus(sub, "unavailable");
+    }
     cancelTimer?.();
     cancelTimer = undefined;
     wakeAt = Infinity;
@@ -258,7 +270,10 @@ export function createRelayClient(options: RelayClientOptions) {
 
   function failBatch(request: Request) {
     pending = undefined;
-    for (const sub of request.hubs) defer(sub);
+    for (const sub of request.hubs) {
+      defer(sub);
+      setStatus(sub, "unavailable");
+    }
     request.controller.abort();
     drive();
   }
@@ -327,6 +342,7 @@ export function createRelayClient(options: RelayClientOptions) {
       sub.status = "ready";
       sub.failures = 0;
       sub.retryAt = -Infinity;
+      setStatus(sub, "ready");
       flush(key);
       if (sub.status === "ready") options.onReady?.(sub.hub);
     } else if (
@@ -336,6 +352,7 @@ export function createRelayClient(options: RelayClientOptions) {
       if (frame.status === "denied") defer(sub);
       else grants.delete(key);
       sub.status = undefined;
+      setStatus(sub, "unavailable");
       received.clear(key);
     }
     drive();
@@ -371,10 +388,13 @@ export function createRelayClient(options: RelayClientOptions) {
         if (subscriptions.get(key) !== sub) continue;
         sub.retryAt = Infinity;
         sub.status = undefined;
+        setStatus(sub, "denied");
         clearQueued(key);
         revoked.push(key);
-      } else if (omission || result.status === "denied") defer(sub);
-      else granted.push(sub);
+      } else if (omission || result.status === "denied") {
+        defer(sub);
+        setStatus(sub, "unavailable");
+      } else granted.push(sub);
     }
     for (const key of revoked) received.clear(key);
     if (pending !== request) return;
@@ -485,8 +505,10 @@ export function createRelayClient(options: RelayClientOptions) {
           handlers: new Set(),
           retryAt: -Infinity,
           failures: 0,
+          statusState: paused || stopped ? "unavailable" : "connecting",
         };
         subscriptions.set(key, sub);
+        options.onStatus?.(sub.hub, sub.statusState);
       }
       const own: RelayHandler = (event) => handler(event);
       sub.handlers.add(own);
@@ -543,6 +565,9 @@ export function createRelayClient(options: RelayClientOptions) {
       }
       if (canSend) retry();
     },
+    status(hub: RelayHub): RelayHubStatus | undefined {
+      return subscriptions.get(hubKey(hub))?.statusState;
+    },
     pause() {
       paused = true;
       disconnect();
@@ -550,6 +575,10 @@ export function createRelayClient(options: RelayClientOptions) {
     resume() {
       if (!paused) return;
       paused = false;
+      for (const sub of subscriptions.values()) {
+        if (sub.statusState === "unavailable" && sub.retryAt !== Infinity)
+          setStatus(sub, "connecting");
+      }
       drive();
     },
     close() {

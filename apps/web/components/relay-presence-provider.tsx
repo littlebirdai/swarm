@@ -1,3 +1,4 @@
+import type { RelayHubStatus } from "@codecast/relay-client";
 import { useConvex, useConvexAuth } from "convex/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useIsSyncHost } from "../hooks/use-sync-role";
@@ -38,6 +39,11 @@ function ActiveRelayPresence({
     const load = async () => {
       const { createRelayClient } = await import("@codecast/relay-client");
       if (lifetime.signal.aborted) return;
+      const statusListeners = new Map<
+        string,
+        Set<(status: RelayHubStatus) => void>
+      >();
+      const viewerFeedCounts = new Map<string, number>();
       const client = createRelayClient({
         getToken: (hubs, signal) =>
           useInboxStore
@@ -45,6 +51,14 @@ function ActiveRelayPresence({
             .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
+        onStatus(hub, status) {
+          if (hub.kind !== "session") return;
+          const listeners = statusListeners.get(hub.id);
+          if (!listeners) return;
+          for (const listener of [...listeners]) {
+            listener(status);
+          }
+        },
         now: () => performance.now(),
         setTimer(callback, delayMs) {
           const timer = setTimeout(callback, delayMs);
@@ -74,15 +88,54 @@ function ActiveRelayPresence({
         scope,
         client: {
           ...(inboxLiveness && { inboxViewer: account }),
-          subscribe(sessionId, handler) {
+          viewerAccount: account,
+          subscribe(sessionId, handler, onStatus) {
+            let unlisten: (() => void) | undefined;
+            if (onStatus) {
+              let set = statusListeners.get(sessionId);
+              if (!set) {
+                set = new Set();
+                statusListeners.set(sessionId, set);
+              }
+              set.add(onStatus);
+              unlisten = () => {
+                set.delete(onStatus);
+                if (set.size === 0) statusListeners.delete(sessionId);
+              };
+            }
             try {
-              return client.subscribe(
+              const unsubscribe = client.subscribe(
                 { kind: "session", id: sessionId },
                 handler,
               );
+              const current = client.status({ kind: "session", id: sessionId });
+              if (onStatus && current !== undefined) onStatus(current);
+              return () => {
+                unlisten?.();
+                unsubscribe();
+              };
             } catch {
+              unlisten?.();
               return () => {};
             }
+          },
+          status(sessionId) {
+            return client.status({ kind: "session", id: sessionId });
+          },
+          retainViewerFeed(conversationId, onRelease) {
+            viewerFeedCounts.set(
+              conversationId,
+              (viewerFeedCounts.get(conversationId) ?? 0) + 1,
+            );
+            return () => {
+              const next = (viewerFeedCounts.get(conversationId) ?? 1) - 1;
+              if (next > 0) {
+                viewerFeedCounts.set(conversationId, next);
+                return;
+              }
+              viewerFeedCounts.delete(conversationId);
+              onRelease();
+            };
           },
           publish: client.publish,
         },

@@ -146,6 +146,10 @@ export type ClientSyncRegistryEntry = {
 export const CLIENT_SYNC_REGISTRY = {
   relayInboxCards: { sync: {} },
   relayInboxContacts: { sync: {}, feeds: ["relayGrants.inboxTargets"] },
+  relayViewerPresence: {
+    sync: {},
+    feeds: ["relayGrants.viewerTarget", "relayGrants.viewerIdentities"],
+  },
   repoBrowse: {
     persistence: { kind: "collection", key: "repoBrowse", perWindow: true },
     indexes: "_id, scope, repository",
@@ -2609,6 +2613,7 @@ export const REPLICATION_CLASSIFICATION: Record<
 > = {
   relayInboxCards: "local",
   relayInboxContacts: "local",
+  relayViewerPresence: "local",
   repoBrowse: "local",
   repoBrowseAccess: "local",
   settingsData: "shared",

@@ -16789,7 +16789,7 @@
     "react/immutability": 2,
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 5,
-    "swarm/no-comments": 77
+    "swarm/no-comments": 71
   },
   "apps/web/components/comments/AnchorPlacementNote.tsx": {
     "swarm/no-comments": 10,
