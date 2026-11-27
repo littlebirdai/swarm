@@ -14,6 +14,7 @@ import {
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
+import { subagentEnded } from "./subagentFleet";
 
 const enrollment = "CODECAST_FENCED_NEW_SESSIONS_V1";
 const flags = [
@@ -386,20 +387,27 @@ test.each(paths)(
   },
 );
 
-test("a merge-back report queues one fenced delivery to the parent across replay", async () => {
+async function fencedMergeWorker(ownerDeviceId = machine) {
   const f = await fixture("quick");
   const worker = await f.t.run(({ db }) =>
     fixtureRows(db, "merge back worker").conversation(f.owner, {
       parent_conversation_id: f.conversation,
-      merge_back: { state: "pending", at: Date.now() },
+      merge_back_on_done: true,
+      worktree_path: "/worktree",
+      owner_device_id: ownerDeviceId,
     }),
   );
-  const report = () =>
+  const settle = (outcome: "done" | "blocked" = "done") =>
+    f.t.run(async (ctx) =>
+      subagentEnded(ctx, await ctx.db.get(worker), outcome),
+    );
+  const report = (state: "conflict" | "merged", attempt?: number) =>
     f.t.mutation(api.subagentFleet.reportMergeBack, {
       api_token: f.bearer,
       conversation_id: worker,
-      state: "conflict",
+      state,
       files: ["src/changed.ts"],
+      ...(attempt !== undefined && { attempt }),
     });
   const messages = () =>
     f.t.run(({ db }) =>
@@ -410,36 +418,83 @@ test("a merge-back report queues one fenced delivery to the parent across replay
         )
         .collect(),
     );
+  const readWorker = () => f.t.run(({ db }) => db.get(worker));
+  const attempts = () =>
+    f.t.run(async ({ db }) =>
+      (await db.query("daemon_commands").collect())
+        .filter((job) => job.command === "merge_back")
+        .map((job) => JSON.parse(job.args!).attempt),
+    );
+  return { worker, settle, report, messages, readWorker, attempts };
+}
 
-  await report();
-  expect(await f.t.run(({ db }) => db.get(worker))).toMatchObject({
-    merge_back: { state: "conflict", files: ["src/changed.ts"] },
+test("merge-back attempts started at the same time get distinct fenced delivery IDs", async () => {
+  const f = await fencedMergeWorker();
+  const now = Date.now();
+  jest.setSystemTime(now);
+  await f.settle();
+  expect(await f.readWorker()).toMatchObject({
+    merge_back: { state: "pending", at: now },
+    merge_back_attempt: 1,
   });
-  const queued = await messages();
-  expect(queued).toMatchObject([
+  await f.report("conflict");
+  const first = await f.messages();
+  expect(first).toMatchObject([
     {
-      from_conversation_id: worker,
+      from_conversation_id: f.worker,
       execution_epoch: 1,
       conversation_sequence: 1,
       delivery_status: "pending",
     },
   ]);
-  expect(queued[0]?.content).toContain("src/changed.ts");
-  expect(queued[0]?.client_id).toMatch(/^merge-back:/);
-  expect(queued[0]?.delivery_id).toBe(queued[0]?.client_id);
-  jest.setSystemTime(Date.now() + 1000);
-  await report();
-  expect(await messages()).toEqual(queued);
+  expect(first[0]?.content).toContain("src/changed.ts");
+  jest.setSystemTime(now + 1000);
+  await f.report("conflict");
+  expect(await f.messages()).toEqual(first);
+  jest.setSystemTime(now);
+  await f.settle();
+  expect(await f.readWorker()).toMatchObject({
+    merge_back: { state: "pending", at: now },
+    merge_back_attempt: 2,
+  });
+  expect(await f.attempts()).toEqual([1, 2]);
 
-  await f.t.run(({ db }) =>
-    db.patch(worker, { merge_back: { state: "pending", at: Date.now() } }),
-  );
-  await report();
-  const next = await messages();
+  await f.report("conflict", 1);
+  expect(await f.messages()).toEqual(first);
+  expect(await f.readWorker()).toMatchObject({
+    merge_back: { state: "pending" },
+  });
+  await f.report("merged", 2);
+  await f.report("merged", 2);
+  const next = await f.messages();
   expect(next).toHaveLength(2);
-  expect(next[1]?.conversation_sequence).toBe(2);
-  expect(next[1]?.delivery_id).not.toBe(queued[0]?.delivery_id);
+  expect(next[0]?.delivery_id).toBe(`merge-back:${f.worker}:attempt:1`);
+  expect(next[1]).toMatchObject({
+    conversation_sequence: 2,
+    delivery_id: `merge-back:${f.worker}:attempt:2`,
+  });
 });
+
+test.each([
+  ["failed", "done", "different-device"],
+  ["kept", "blocked", machine],
+] as const)(
+  "direct %s merge-backs at the same time have separate attempts",
+  async (state, outcome, device) => {
+    const f = await fencedMergeWorker(device);
+    jest.setSystemTime(Date.now());
+    await f.settle(outcome);
+    await f.settle(outcome);
+    expect(await f.readWorker()).toMatchObject({
+      merge_back: { state },
+      merge_back_attempt: 2,
+    });
+    expect((await f.messages()).map((row) => row.delivery_id)).toEqual([
+      `merge-back:${f.worker}:attempt:1`,
+      `merge-back:${f.worker}:attempt:2`,
+    ]);
+  },
+);
 
 test("adopting a fenced workspace anchor queues the role bootstrap", async () => {
   const f = await fixture("quick");

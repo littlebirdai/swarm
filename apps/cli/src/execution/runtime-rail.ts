@@ -304,6 +304,9 @@ export interface DaemonExecutionRuntimeOptions {
   onLog?: (message: string) => void;
 }
 
+const maxPilotLeaseRetries = 8;
+const maxPilotLeaseRetryDelayMs = 30_000;
+
 export class DaemonExecutionRuntime {
   readonly daemonBootId: string;
   readonly controlPlane: ConvexExecutionControlPlane;
@@ -324,6 +327,8 @@ export class DaemonExecutionRuntime {
       timer?: ReturnType<typeof setTimeout>;
       sendNew: boolean;
       awaitingSuccessor: boolean;
+      resumeRequested: boolean;
+      leaseRetry?: { attempts: number; delayMs: number };
     }
   >();
 
@@ -523,14 +528,23 @@ export class DaemonExecutionRuntime {
         poll.binding.epoch !== current.binding.epoch
       ) {
         this.stopPilotPoll(conversationId);
-        poll = { binding: current.binding, pilot, awaitingSuccessor, sendNew };
+        poll = {
+          binding: current.binding,
+          pilot,
+          awaitingSuccessor,
+          sendNew,
+          resumeRequested: false,
+        };
         this.pilotPolls.set(conversationId, poll);
       }
       poll.awaitingSuccessor = awaitingSuccessor;
       poll.sendNew = sendNew;
+      poll.resumeRequested ||= Boolean(item.resumeGeneration);
+      if (poll.leaseRetry && poll.timer) return;
       let idle: boolean;
       try {
         await pilot.activate(current.binding, current.request);
+        poll.leaseRetry = undefined;
         idle = await pilot.drain(
           current.binding,
           this.coordinator,
@@ -538,15 +552,12 @@ export class DaemonExecutionRuntime {
           sendNew,
         );
       } catch (error) {
-        if (item.resumeGeneration && error instanceof CodexPilotLeaseBusy) {
-          if (!poll.timer)
-            this.schedulePilotPoll(
-              pilot,
-              poll.binding,
-              current.request,
-              error.retryAfterMs,
-            );
-          return;
+        if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
+          if (
+            poll.timer ||
+            this.schedulePilotLeaseRetry(poll, current.request, error)
+          )
+            return;
         }
         this.stopPilotPoll(conversationId);
         throw error;
@@ -603,6 +614,25 @@ export class DaemonExecutionRuntime {
     this.pilotPolls.delete(conversationId);
   }
 
+  private schedulePilotLeaseRetry(
+    poll: NonNullable<ReturnType<typeof this.pilotPolls.get>>,
+    request: EnsureBindingRequest,
+    error: CodexPilotLeaseBusy,
+  ): boolean {
+    const attempts = (poll.leaseRetry?.attempts ?? 0) + 1;
+    if (attempts > maxPilotLeaseRetries) return false;
+    const delayMs = Math.min(
+      maxPilotLeaseRetryDelayMs,
+      Math.max(
+        error.retryAfterMs,
+        poll.leaseRetry ? poll.leaseRetry.delayMs * 2 : 250,
+      ),
+    );
+    poll.leaseRetry = { attempts, delayMs };
+    this.schedulePilotPoll(poll.pilot, poll.binding, request, delayMs);
+    return true;
+  }
+
   private schedulePilotPoll(
     pilot: CodexOwnedPilot,
     binding: ReadyBinding,
@@ -619,11 +649,13 @@ export class DaemonExecutionRuntime {
     poll.timer = setTimeout(() => {
       const next = this.workChain.then(async () => {
         if (this.pilotPolls.get(conversationId) !== poll) return;
+        poll.timer = undefined;
         if (pilot.closed) {
           this.stopPilotPoll(conversationId);
           return;
         }
         await pilot.activate(binding, request);
+        poll.leaseRetry = undefined;
         const idle = await pilot.drain(
           binding,
           this.coordinator,
@@ -643,13 +675,19 @@ export class DaemonExecutionRuntime {
         this.stopPilotPoll(conversationId);
       });
       this.workChain = next.catch((error) => {
-        if (this.pilotPolls.get(conversationId) === poll)
-          this.stopPilotPoll(conversationId);
+        if (this.pilotPolls.get(conversationId) !== poll) return;
+        if (
+          poll.resumeRequested &&
+          error instanceof CodexPilotLeaseBusy &&
+          this.schedulePilotLeaseRetry(poll, request, error)
+        )
+          return;
+        this.stopPilotPoll(conversationId);
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });
-      void this.workChain.then(() =>
-        this.schedulePilotPoll(pilot, binding, request),
-      );
+      void this.workChain.then(() => {
+        if (!poll.timer) this.schedulePilotPoll(pilot, binding, request);
+      });
     }, delay);
     poll.timer.unref();
   }

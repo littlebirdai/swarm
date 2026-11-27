@@ -3,7 +3,10 @@ import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
 import { parkingMemoryRoots, sampleParkingMemory } from "../memory-parking.js";
 import { fixture, item } from "./codex-owned-pilot-fixture.js";
-import { ownsCodexCheckpoint } from "./codex-owned-pilot.js";
+import {
+  type CodexOwnedPilot,
+  ownsCodexCheckpoint,
+} from "./codex-owned-pilot.js";
 
 test("a registered boot owns two Codex sessions and leaves an unmarked session on the legacy driver", async () => {
   const f = fixture(null, true, "receipt", true);
@@ -208,3 +211,149 @@ test.each(["online", "offline"])(
     }
   },
 );
+
+function cleanupHandles(pilot: CodexOwnedPilot) {
+  return pilot as unknown as {
+    session: import("@codecast/provider-adapter").ProviderOwnedSession;
+    adapter: import("@codecast/provider-adapter").ProviderAdapterClient;
+    delivery: { clearImages(): Promise<void> };
+  };
+}
+
+test("an unconfirmed child stays quarantined until its provider process is gone", async () => {
+  const f = fixture(null, true, "receipt", true);
+  try {
+    await f.runtime.processWorkUpdate([item(f.newRequest)]);
+    const binding = f.ready(f.newRequest);
+    const child = f.pilot.pilotFor(f.newRequest)!;
+    const { session, adapter, delivery } = cleanupHandles(child);
+    const dispose = adapter.dispose.bind(adapter);
+    const close = spyOn(session, "close").mockRejectedValue(
+      new Error("provider close rejected"),
+    );
+    const attemptedDisposal = spyOn(adapter, "dispose").mockRejectedValue(
+      new Error("dispose rejected"),
+    );
+    const images = spyOn(delivery, "clearImages");
+    try {
+      await expect(f.driver.stop(binding)).rejects.toThrow(
+        "cleanup could not be confirmed",
+      );
+      expect(attemptedDisposal).toHaveBeenCalledTimes(1);
+      expect(images).toHaveBeenCalledTimes(1);
+      expect(f.pilot.pilotFor(f.newRequest)).toBe(child);
+      expect(f.releasedSessions).toEqual([]);
+      const claims = f.actions.filter((action) => action === "edge:claim");
+      const resumed = { ...item(f.newRequest, binding), resumeGeneration: 1 };
+      await f.runtime.processWorkUpdate([resumed]);
+      expect(f.actions.filter((action) => action === "edge:claim")).toEqual(
+        claims,
+      );
+      expect(f.releasedSessions).toEqual([]);
+
+      await dispose();
+      expect(session.processGone?.()).toBe(true);
+      await f.runtime.processWorkUpdate([resumed]);
+      expect(f.releasedSessions).toEqual(["new"]);
+      expect(f.pilot.pilotFor(f.newRequest)).not.toBe(child);
+      expect(
+        f.actions.filter((action) => action === "edge:claim"),
+      ).toHaveLength(claims.length + 1);
+    } finally {
+      close.mockRestore();
+      attemptedDisposal.mockRestore();
+      images.mockRestore();
+      await dispose();
+    }
+  } finally {
+    await f.dispose();
+  }
+});
+
+test.each(["adapter", "images"])(
+  "confirmed provider stop releases its lease even if %s cleanup throws",
+  async (failingStep) => {
+    const f = fixture(null, true, "receipt", true);
+    try {
+      await f.runtime.processWorkUpdate([item(f.newRequest)]);
+      const child = f.pilot.pilotFor(f.newRequest)!;
+      const { adapter, delivery } = cleanupHandles(child);
+      const dispose = adapter.dispose.bind(adapter);
+      const adapterCleanup = spyOn(adapter, "dispose");
+      const images = spyOn(delivery, "clearImages");
+      try {
+        if (failingStep === "adapter") {
+          adapterCleanup.mockImplementation(async () => {
+            await dispose();
+            throw new Error("adapter disposal failed");
+          });
+        } else {
+          images.mockImplementation(() => {
+            throw new Error("image cleanup failed");
+          });
+        }
+        await f.driver.stop(f.ready(f.newRequest));
+        expect(adapterCleanup).toHaveBeenCalledTimes(1);
+        expect(images).toHaveBeenCalledTimes(1);
+        expect(f.releasedSessions).toEqual(["new"]);
+        expect(f.pilot.pilotFor(f.newRequest)).not.toBe(child);
+      } finally {
+        images.mockRestore();
+        adapterCleanup.mockRestore();
+      }
+    } finally {
+      await f.dispose();
+    }
+  },
+);
+
+test("an explicit resume backs off after two busy lease responses", async () => {
+  const f = fixture(null, true, "receipt", true);
+  const schedule = globalThis.setTimeout;
+  const retryAfterMs = 1_337;
+  const retries: { delay: number; run(): void }[] = [];
+  const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+    callback: (...args: unknown[]) => void,
+    delay?: number,
+    ...args: unknown[]
+  ) => {
+    const handle = schedule(callback, delay, ...args);
+    if (delay === retryAfterMs || delay === retryAfterMs * 2) {
+      clearTimeout(handle);
+      retries.push({ delay, run: () => callback(...args) });
+    }
+    return handle;
+  }) as typeof setTimeout);
+  try {
+    await f.runtime.processWorkUpdate([item(f.newRequest)]);
+    const binding = f.ready(f.newRequest);
+    await f.driver.stop(binding);
+    f.permitSessions.length = 0;
+    for (let i = 0; i < 2; i++) {
+      f.claimResponses.push(
+        Response.json({ v: 1, status: "busy", retry_after_ms: retryAfterMs }),
+      );
+    }
+    const work = [{ ...item(f.newRequest, binding), resumeGeneration: 1 }];
+    await f.runtime.processWorkUpdate(work);
+    expect(retries.map(({ delay }) => delay)).toEqual([retryAfterMs]);
+    const claims = f.actions.filter((action) => action === "edge:claim");
+    await f.runtime.processWorkUpdate(work);
+    expect(f.actions.filter((action) => action === "edge:claim")).toEqual(
+      claims,
+    );
+    retries[0]!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(retries.map(({ delay }) => delay)).toEqual([
+      retryAfterMs,
+      retryAfterMs * 2,
+    ]);
+    expect(f.permitSessions).toEqual([]);
+    retries[1]!.run();
+    await f.runtime.processWorkUpdate([]);
+    expect(f.permitSessions).toEqual(["new", "new"]);
+  } finally {
+    timer.mockRestore();
+    await f.dispose();
+  }
+});

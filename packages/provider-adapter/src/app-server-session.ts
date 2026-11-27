@@ -700,6 +700,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     getCheckpoint: () => threadId,
     getProcessId: transport.getProcessId,
     checkLiveness,
+    processGone: transport.processGone,
     getUnknownPayloadCount,
     recoveredReceipts: receipts.recovered,
     getPendingPrompts: () =>

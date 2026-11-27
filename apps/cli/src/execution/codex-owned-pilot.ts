@@ -41,6 +41,7 @@ import {
 } from "./codex-pilot-delivery.js";
 import { CodexPilotEvents } from "./codex-pilot-events.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
+import { closeOwnedProvider, closePilots } from "./codex-pilot-cleanup.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
 import type {
@@ -349,14 +350,10 @@ export class CodexOwnedPilot {
         if (this.claim || this.stopping) {
           await this.close();
         } else {
-          await (this.closing ??= this.closeOwned());
+          await this.cleanup();
           if (!this.stopping) {
-            this.session = undefined;
-            this.opening = undefined;
-            this.adapter = undefined;
             this.claiming = undefined;
             this.controller = new AbortController();
-            this.closing = undefined;
             this.activation = undefined;
           }
         }
@@ -592,6 +589,7 @@ export class CodexOwnedPilot {
       this.options.display;
     const { conversationId, runtimeId } = binding;
     for await (const event of session.events) {
+      this.controller.signal.throwIfAborted();
       this.streamProgress++;
       if (event.kind === "message.delta") continue;
       await this.events.appendEvent(
@@ -725,18 +723,25 @@ export class CodexOwnedPilot {
   }
 
   close(): Promise<void> {
-    if (this.stopping && this.closing) return this.closing;
     this.stopping = true;
-    return (this.closing = (this.closing ?? this.closeOwned()).finally(() =>
-      this.onClose?.(this),
+    return this.cleanup();
+  }
+
+  private cleanup(): Promise<void> {
+    return (this.closing ??= this.closeOwned().then(
+      () => {
+        if (this.stopping) this.onClose?.(this);
+        else this.closing = undefined;
+      },
+      (error) => {
+        this.closing = undefined;
+        throw error;
+      },
     ));
   }
 
-  async closeAll(): Promise<void> {
-    await Promise.all([
-      this.close(),
-      ...Array.from(this.children.values(), (pilot) => pilot.close()),
-    ]);
+  closeAll(): Promise<void> {
+    return closePilots([this, ...this.children.values()]);
   }
 
   private async closeOwned(): Promise<void> {
@@ -746,37 +751,41 @@ export class CodexOwnedPilot {
     await this.renewalTask?.catch(() => {});
     const session =
       (await this.opening?.catch(() => undefined)) ?? this.session;
-    this.session = undefined;
     this.opening = undefined;
-    const outcome = await session?.close();
-    await this.eventWriter;
-    await this.events.close();
-    if (this.conversationId) {
-      await this.promptCards
-        .closeAll(
-          this.conversationId,
+    const { stopped, disposed, cleanup } = await closeOwnedProvider(
+      this.options.log,
+      session,
+      this.adapter,
+    );
+    if (disposed) this.adapter = undefined;
+    if (stopped) await cleanup("event writer cleanup", () => this.eventWriter);
+    await cleanup("event cleanup", () => this.events.close());
+    const conversationId = this.conversationId;
+    if (conversationId) {
+      await cleanup("prompt card cleanup", () =>
+        this.promptCards.closeAll(
+          conversationId,
           Date.now(),
           this.options.display.syncService,
-        )
-        .catch((error) =>
-          this.options.log(
-            `[owned-codex] prompt card cleanup failed: ${String(error)}`,
-          ),
-        );
+        ),
+      );
     }
-    if (outcome && outcome.status !== "closed")
+    await cleanup("image cleanup", () => this.delivery.clearImages());
+    if (!stopped) {
+      this.session = session;
+      this.stopping = true;
       throw new Error("Owned Codex cleanup could not be confirmed");
-    await this.adapter?.dispose();
-    await this.delivery.clearImages();
-    if (this.claim && session) {
-      await this.edge(
-        "release",
-        { v, ...deliveryFence(this.claim) },
-        parseReleaseResponse,
-        AbortSignal.timeout(10_000),
-      ).catch((error) =>
-        this.options.log(
-          `[owned-codex] lease release failed: ${String(error)}`,
+    }
+    this.session = undefined;
+    this.adapter = undefined;
+    const claim = this.claim;
+    if (claim && session) {
+      await cleanup("lease release", () =>
+        this.edge(
+          "release",
+          { v, ...deliveryFence(claim) },
+          parseReleaseResponse,
+          AbortSignal.timeout(10_000),
         ),
       );
     }
