@@ -26,6 +26,7 @@ import {
   hideInvalidatedDetails,
   persistDetailInvalidation,
   verifyDetailInvalidation,
+  watchArchivedDocs,
   collectCompleteDocCrawlAbsences,
   type DetailAuthorityReader,
 } from "./doc-detail-authority";
@@ -623,6 +624,7 @@ export function startSyncReplication(opts: {
   let follower: ReplicationFollower | null = null;
   let host: ReplicationHost | null = null;
   let soloTimer: ReturnType<typeof setTimeout> | null = null;
+  let stopArchivedDocs: (() => void) | undefined;
   const lock = replicationLock(opts.principalId);
 
   const persistence = replicationPersistence(() => useInboxStore.getState());
@@ -727,6 +729,7 @@ export function startSyncReplication(opts: {
     details?.promote();
     setDeferredSharedCacheSource("disk");
     retention.soon();
+    if (details) stopArchivedDocs = watchArchivedDocs(details.report);
   };
 
   const retention = startTimedDocRetention(
@@ -743,6 +746,7 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     stopped = true;
     retention.stop();
+    stopArchivedDocs?.();
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();
     host?.stop();

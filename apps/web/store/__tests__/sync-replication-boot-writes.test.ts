@@ -1,10 +1,7 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
-<<<<<<< HEAD
 import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
-=======
 import { registerArchiveFallbackCases } from "./fixtures/archive-fallback-cases";
->>>>>>> 486d12855 (fix: verify archive cache deletion and rollback)
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import {
   afterAll,
@@ -732,7 +729,7 @@ registerTimedDocReplicationCases({
   readMutations: () => mutations,
 });
 
-await registerArchiveFallbackCases({ bootCache, waitFor });
+await registerArchiveFallbackCases({ bootCache, waitFor, holdHostLock });
 
 test("deferred hydration does not restore the body of an archive in flight", async () => {
   const before = process.env.VITE_CACHE_EVICTION_METADATA;

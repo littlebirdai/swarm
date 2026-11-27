@@ -1,3 +1,4 @@
+import { authPrincipal } from "../../lib/authPrincipal";
 import { cacheEvictionsFor, withoutEvictionPatches } from "../cache-eviction";
 import type { Patch } from "mutative";
 import { writePendingEntries } from "./pending-entries";
@@ -211,7 +212,8 @@ export async function deleteInvalidatedDocDetails(
   current: (id: string) => boolean,
   archive?: { accountId: string; dispatchedAt: number },
 ): Promise<string[]> {
-  if (!persistenceOwned()) return [];
+  const owner = archive?.accountId ?? authPrincipal.current();
+  if (!owner || !persistenceOwned()) return [];
   const table = COLLECTION_TABLES.docDetails;
   const shadow = lastPersisted.get("docDetails");
   const previous = new Map(ids.map((id) => [id, shadow?.get(id)]));
@@ -229,7 +231,7 @@ export async function deleteInvalidatedDocDetails(
           restores.add(entry.args[0]);
       }
     }
-    if (!persistenceOwned()) return [];
+    if (!persistenceOwned() || authPrincipal.current() !== owner) return [];
     const confirmed = ids.filter((id) => !restores.has(id) && current(id));
     if (confirmed.length) await table.bulkDelete(confirmed);
     return confirmed;

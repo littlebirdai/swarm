@@ -1,3 +1,4 @@
+import { authPrincipal } from "./authPrincipal";
 import { detailAuthorityReader } from "./detail-authority-client";
 import { desktopPanelKind } from "./windowRole";
 import { hideInvalidatedDetails } from "../store/doc-detail-authority";
@@ -26,6 +27,7 @@ export async function removeVerifiedArchivedBody(
       !desktopPanelKind() &&
       canWriteSharedDocDetails(accountId) &&
       accountId === outboxAccountId() &&
+      authPrincipal.current() === accountId &&
       detailReadIsCurrent(id, position) &&
       state.docs[id] === doc &&
       state.docDetails[id] === detail &&

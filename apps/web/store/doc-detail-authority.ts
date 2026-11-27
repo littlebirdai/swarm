@@ -1,3 +1,4 @@
+import { desktopPanelKind } from "../lib/windowRole";
 import { useInboxStore } from "./inboxStore";
 import { withCacheEvictions } from "./cache-eviction";
 import {
@@ -14,6 +15,7 @@ import {
   deleteInvalidatedDocDetails,
   persistedDocDetailWorkspace,
   readCachedDocDetails,
+  readCachedDocDetailIds,
 } from "./doc-detail-disk";
 
 type CachedDetail = { _id: string; workspace?: string; updated_at?: number };
@@ -162,26 +164,72 @@ export async function verifyDetailInvalidation(
   return current() ? confirmed.filter((id): id is string => id !== null) : [];
 }
 
+export function watchArchivedDocs(
+  report: (evidence: DetailInvalidation) => boolean,
+): () => void {
+  type Docs = ReturnType<typeof useInboxStore.getState>["docs"];
+  let previous: Docs | undefined;
+  let active = true;
+  let reading = false;
+  const apply = () => {
+    if (!active || reading || useInboxStore.getState().docs === previous)
+      return;
+    reading = true;
+    void readCachedDocDetailIds()
+      .catch(() => [])
+      .then((diskIds) => {
+        reading = false;
+        if (!active) return;
+        const { docs, docDetails } = useInboxStore.getState();
+        const ids = [
+          ...new Set([...diskIds, ...Object.keys(docDetails)]),
+        ].filter(
+          (id) =>
+            docs[id]?.archived_at != null &&
+            docs[id].archived_at !== previous?.[id]?.archived_at,
+        );
+        previous = docs;
+        if (ids.length) report({ ids, cause: "archive" });
+      });
+  };
+  const stop = useInboxStore.subscribe((state, before) => {
+    if (state.docs !== before.docs) apply();
+  });
+  apply();
+  return () => {
+    active = false;
+    stop();
+  };
+}
+
 export function startLocalDocAuthority(
   authority: DetailAuthorityReader,
 ): () => void {
   const account = detailReadPosition();
   let active = true;
   const current = () => active && detailAccountIsCurrent(account);
+  const verify = (evidence: DetailInvalidation) => {
+    if (!current()) return false;
+    void verifyDetailInvalidation(authority, evidence, current)
+      .then((ids) => persistDetailInvalidation(ids, current))
+      .catch(() => {});
+    return true;
+  };
   setDetailInvalidationReporter(
     (evidence) => {
       if (!current()) return false;
       if (evidence.cause !== "crawl") hideInvalidatedDetails(evidence.ids);
-      void verifyDetailInvalidation(authority, evidence, current)
-        .then((ids) => persistDetailInvalidation(ids, current))
-        .catch(() => {});
-      return true;
+      return verify(evidence);
     },
     authority.detail,
     collectCompleteDocCrawlAbsences,
   );
+  const stopWatching = desktopPanelKind()
+    ? undefined
+    : watchArchivedDocs(verify);
   return () => {
     active = false;
+    stopWatching?.();
     setDetailInvalidationReporter();
   };
 }
