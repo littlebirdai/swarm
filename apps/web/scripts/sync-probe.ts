@@ -1,7 +1,12 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { parseArgs } from "node:util";
+import { convexToJson, type Value } from "convex/values";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { getFunctionName, type FunctionReference } from "convex/server";
+import {
+  getFunctionName,
+  type FunctionReference,
+  type FunctionReturnType,
+} from "convex/server";
 import { asUser, serverTest } from "../../server/test-helpers/database.testkit";
 import { fixtureRows } from "../../server/test-helpers/rows.testkit";
 import { catchUp, scopeMetaKey } from "../hooks/use-sync-change-feed";
@@ -9,7 +14,7 @@ import { useInboxStore } from "../store/inboxStore";
 import { flushSyncPublishes } from "../store/syncTransaction";
 import { summarizeSyncProbe, timeSyncProbe } from "./sync-probe-timing";
 
-async function runLocalProbe(samples: number, timeoutMs: number) {
+export async function runLocalProbe(samples: number, timeoutMs: number) {
   const backend = serverTest();
   const token = crypto.randomUUID();
   const [ownerId, otherId] = await backend.run(async ({ db }) => {
@@ -86,8 +91,11 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
     flushSyncPublishes();
 
     const results = [];
+    const reads = [];
+    const encoder = new TextEncoder();
     for (let sample = 0; sample <= samples; sample++) {
       const title = `Sync probe ${sample + 1}`;
+      const queryReads: { name: string; response: Value }[] = [];
       const result = await timeSyncProbe(async (start, signal) => {
         start("save");
         await owner.mutation(api.docs.webUpdate, { id, title });
@@ -102,26 +110,24 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
           ) => {
             signal.throwIfAborted();
             const name = getFunctionName(reference);
-            if (name === "syncLog:getHeads") {
-              const heads = await owner.query(api.syncLog.getHeads, {});
-              signal.throwIfAborted();
-              const head = heads.heads.find(
-                (entry) => entry.scope_key === scopeKey,
-              );
-              if (head?.position !== position || position <= cursor)
-                throw new Error(
-                  "Probe delivery did not advance the personal head",
-                );
-              return heads;
-            }
             if (name === "syncLog:getRange" && !rangeStarted) {
               start("getRange");
               rangeStarted = true;
             }
-            const page = await owner.query(reference, args);
+            const response = await owner.query(reference, args);
             signal.throwIfAborted();
+            queryReads.push({ name, response });
+            if (name === "syncLog:getHeads") {
+              const head = (
+                response as FunctionReturnType<typeof api.syncLog.getHeads>
+              ).heads.find((entry) => entry.scope_key === scopeKey);
+              if (head?.position !== position || position <= cursor)
+                throw new Error(
+                  "Probe delivery did not advance the personal head",
+                );
+            }
             if (name === "syncLog:getRange") start("apply");
-            return page;
+            return response;
           },
         });
         signal.throwIfAborted();
@@ -134,9 +140,23 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
           throw new Error("Probe edit did not reach the client store");
         cursor = position;
       }, timeoutMs);
-      if (sample > 0) results.push(result);
+      if (sample > 0) {
+        results.push(result);
+        reads.push(
+          queryReads.map(({ name, response }) => ({
+            name,
+            responseBytes: encoder.encode(
+              JSON.stringify(convexToJson(response)),
+            ).length,
+          })),
+        );
+      }
     }
-    return { samples: results.length, durations: summarizeSyncProbe(results) };
+    return {
+      samples: results.length,
+      durations: summarizeSyncProbe(results),
+      reads,
+    };
   } catch (error) {
     failed = true;
     throw error;
