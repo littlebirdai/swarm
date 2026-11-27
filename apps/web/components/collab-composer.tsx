@@ -1,7 +1,17 @@
 "use client";
 
 import { withoutSecrets } from "@codecast/secrets/secretShapes";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { RelayPresenceContext } from "../lib/relay-presence-context";
+import { isRelayViewerPresenceUnknown } from "../store/relay-viewer-presence-slice";
 import {
   useCollabRequests,
   useCollabSendLevel,
@@ -278,8 +288,12 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
     enabled: true,
     forceBroadcast: coOwned,
   });
-  const presenceUnknown = useInboxStore(
-    (s) => s.relayViewerPresence[conversationId]?.status === "unknown",
+  const relayViewer = useContext(RelayPresenceContext)?.viewerAccount;
+  const presenceUnknown = useInboxStore((s) =>
+    isRelayViewerPresenceUnknown(
+      s.relayViewerPresence[conversationId],
+      relayViewer,
+    ),
   );
   const shared = useSharedDraftStatus(conversationId);
   const people = useConversationChatPeople(conversationId, present);
@@ -541,8 +555,9 @@ export const CollabComposer = memo(function CollabComposer({
     enabled: isAuthenticated,
     forceBroadcast: true,
   });
-  const presenceUnknown = useInboxStore(
-    (s) => s.relayViewerPresence[convKey]?.status === "unknown",
+  const relayViewer = useContext(RelayPresenceContext)?.viewerAccount;
+  const presenceUnknown = useInboxStore((s) =>
+    isRelayViewerPresenceUnknown(s.relayViewerPresence[convKey], relayViewer),
   );
   const me = useInboxStore((s) => personName(s.currentUser));
   const { candidates, claimSent } = useJointComposer({

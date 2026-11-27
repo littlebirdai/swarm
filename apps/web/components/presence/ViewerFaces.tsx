@@ -2,11 +2,11 @@ import { useContext } from "react";
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import { isConvexId } from "../../lib/entityLinks";
-import { RelayPresenceContext } from "../../lib/relay-presence-context";
 import {
-  isRelayViewerPresenceConfigured,
-  useSyncRelayViewerPresence,
-} from "../../hooks/use-sync-relay-viewer-presence";
+  RelayPresenceAvailableContext,
+  RelayPresenceContext,
+} from "../../lib/relay-presence-context";
+import { useSyncRelayViewerPresence } from "../../hooks/use-sync-relay-viewer-presence";
 import { useTrackedStore } from "../../store/inboxStore";
 import {
   isRelayViewerEntryActive,
@@ -98,15 +98,19 @@ export function ConversationViewers({
   className?: string;
 }) {
   const relayClient = useContext(RelayPresenceContext);
-  const relayConfigured = isRelayViewerPresenceConfigured();
+  const relayAvailable = useContext(RelayPresenceAvailableContext);
+  const useRelay = relayAvailable && isConvexId(conversationId);
   useSyncRelayViewerPresence(conversationId, isConvexId(conversationId));
   const viewerAccount = relayClient?.viewerAccount;
   const st = useTrackedStore([
     (s) => {
-      if (relayConfigured && isConvexId(conversationId)) {
+      if (useRelay) {
         const entry = s.relayViewerPresence[conversationId];
-        if (isRelayViewerEntryActive(entry, viewerAccount)) {
-          return `relay:${relayViewerPresenceSig(entry, teamMembersOf(s))}`;
+        if (entry && viewerAccount && entry.viewer === viewerAccount) {
+          if (entry.status === "denied") return "relay:denied";
+          if (isRelayViewerEntryActive(entry, viewerAccount)) {
+            return `relay:${relayViewerPresenceSig(entry, teamMembersOf(s))}`;
+          }
         }
         if (entry === undefined) return "relay:pending";
       }
@@ -117,11 +121,18 @@ export function ConversationViewers({
       );
     },
   ]);
-  const relayEntry =
-    relayConfigured && isConvexId(conversationId)
-      ? st.relayViewerPresence[conversationId]
-      : undefined;
-  if (isRelayViewerEntryActive(relayEntry, viewerAccount)) {
+  const relayEntry = useRelay
+    ? st.relayViewerPresence[conversationId]
+    : undefined;
+  if (
+    useRelay &&
+    relayEntry &&
+    viewerAccount &&
+    relayEntry.viewer === viewerAccount
+  ) {
+    if (relayEntry.status === "denied" || relayEntry.status === "connecting") {
+      return null;
+    }
     if (relayEntry.status === "unknown") {
       return (
         <span
@@ -134,21 +145,18 @@ export function ConversationViewers({
         </span>
       );
     }
-    if (relayEntry.status !== "ready") return null;
-    return (
-      <ViewerFaces
-        members={relayViewerFaceMembers(relayEntry, teamMembersOf(st))}
-        size={size}
-        max={max}
-        className={className}
-      />
-    );
+    if (relayEntry.status === "ready") {
+      return (
+        <ViewerFaces
+          members={relayViewerFaceMembers(relayEntry, teamMembersOf(st))}
+          size={size}
+          max={max}
+          className={className}
+        />
+      );
+    }
   }
-  if (
-    relayConfigured &&
-    isConvexId(conversationId) &&
-    relayEntry === undefined
-  ) {
+  if (useRelay && relayEntry === undefined) {
     return null;
   }
   const me = st.currentUser?._id?.toString?.() ?? null;

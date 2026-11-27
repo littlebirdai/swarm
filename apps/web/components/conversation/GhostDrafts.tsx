@@ -3,7 +3,6 @@
 import { memo } from "react";
 import { useConvexAuth } from "convex/react";
 import { usePresenceRows, type PresenceRow } from "../../hooks/useDocPresence";
-import { useSyncRelayViewerPresence } from "../../hooks/use-sync-relay-viewer-presence";
 import {
   composeDocId,
   isSuggestion,
@@ -30,7 +29,6 @@ export const GhostDrafts = memo(function GhostDrafts({
   populate?: (text: string, opts?: { append?: boolean }) => void;
 }) {
   const { isAuthenticated } = useConvexAuth();
-  useSyncRelayViewerPresence(conversationId, isAuthenticated);
   const ghosts = typingRows(
     usePresenceRows(composeDocId(conversationId), isAuthenticated, {
       scope: "draft",

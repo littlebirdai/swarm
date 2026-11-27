@@ -15,7 +15,8 @@ export function presenceIdentity(user: {
   image?: string;
   github_avatar_url?: string;
 }) {
-  const name = user.name || user.email || "Anonymous";
+  const localPart = user.email?.split("@")[0];
+  const name = user.name || localPart || "Anonymous";
   return {
     user_name: name,
     user_color: PRESENCE_COLORS[name.charCodeAt(0) % PRESENCE_COLORS.length],

@@ -19,7 +19,7 @@ import { inboxLeaseWritesEnabled } from "./lib/sessionHeartbeat";
 import { currentClaim } from "./lib/edge/runLease";
 import { presenceIdentity } from "./lib/presence-identity";
 import { canOwnerOrTeamAccess, checkConversationAccess } from "./privacy";
-import { checkRateLimit, RateLimitError } from "./rateLimit";
+import { checkRateLimit, isRateLimited, RateLimitError } from "./rateLimit";
 
 const TTL_MS = 60_000;
 const SHARED_TTL_MS = 15_000;
@@ -92,28 +92,21 @@ export const mint = mutation({
       (jwtDeadlineMs !== undefined && !Number.isFinite(jwtDeadlineMs))
     )
       return { status: "unauthenticated" } as const;
-    const expiresAtMsMax = Math.floor(
-      Math.min(
-        now + TTL_MS,
-        session?.expirationTime ?? Infinity,
-        jwtDeadlineMs ?? Infinity,
-      ),
-    );
-    if (expiresAtMsMax <= now) return { status: "unauthenticated" } as const;
-
-    try {
-      const issuance = await checkRateLimit(
+    if (
+      await isRateLimited(
         ctx,
         userId,
         "relayGrants.mint",
         REQUESTS_PER_MINUTE,
         1,
-        expiresAtMsMax,
-      );
-      if (!issuance) return { status: "unavailable" } as const;
-      const { issuedAtMs, sequence } = issuance;
+      )
+    )
+      return { status: "rate_limited" } as const;
+
+    try {
       const grants: RelayGrantClaims["grants"] = [];
       const omitted: { id: string; reason: "inaccessible" }[] = [];
+      const viewerGrantConvs = [];
       let hasSharedTier = false;
       for (const rawId of new Set(hubs.map((hub) => hub.id))) {
         if (rawId.startsWith(VIEWER_HUB_PREFIX)) {
@@ -133,6 +126,7 @@ export const mint = mutation({
               (access === "shared" && sharedViewerPresenceEnabled()))
           ) {
             if (access === "shared") hasSharedTier = true;
+            viewerGrantConvs.push(conversation._id);
             grants.push({
               kind: "session",
               id: `${VIEWER_HUB_PREFIX}${conversation._id}`,
@@ -160,7 +154,6 @@ export const mint = mutation({
           omitted.push({ id: rawId, reason: "inaccessible" });
         }
       }
-      if (!grants.length) return { status: "denied", omitted } as const;
       const expiresAtMs = Math.floor(
         Math.min(
           now + (hasSharedTier ? SHARED_TTL_MS : TTL_MS),
@@ -168,16 +161,45 @@ export const mint = mutation({
           jwtDeadlineMs ?? Infinity,
         ),
       );
-      if (expiresAtMs <= issuedAtMs) return { status: "unavailable" } as const;
+      if (expiresAtMs <= now) return { status: "unauthenticated" } as const;
+      const issuance = await checkRateLimit(
+        ctx,
+        userId,
+        "relayGrants.mint",
+        REQUESTS_PER_MINUTE,
+        1,
+        expiresAtMs,
+      );
+      if (!issuance) return { status: "unavailable" } as const;
+      if (!grants.length) return { status: "denied", omitted } as const;
+      const { issuedAtMs, sequence } = issuance;
+      const signed = await signRelayGrant(config, {
+        subject: { kind: "user", id: userId },
+        issued_at_ms: issuedAtMs,
+        grant_seq: sequence,
+        expires_at_ms: expiresAtMs,
+        grants,
+      });
+      for (const convId of viewerGrantConvs) {
+        const existingGrant = await ctx.db
+          .query("relay_viewer_grants")
+          .withIndex("by_conversation_user", (q) =>
+            q.eq("conversation_id", convId).eq("user_id", userId),
+          )
+          .first();
+        if (existingGrant) {
+          await ctx.db.patch(existingGrant._id, { expires_at: expiresAtMs });
+        } else {
+          await ctx.db.insert("relay_viewer_grants", {
+            conversation_id: convId,
+            user_id: userId,
+            expires_at: expiresAtMs,
+          });
+        }
+      }
       return {
         status: "ok",
-        token: await signRelayGrant(config, {
-          subject: { kind: "user", id: userId },
-          issued_at_ms: issuedAtMs,
-          grant_seq: sequence,
-          expires_at_ms: expiresAtMs,
-          grants,
-        }),
+        token: signed,
         ttl_ms: expiresAtMs - issuedAtMs,
         omitted,
       } as const;
@@ -240,6 +262,7 @@ export const viewerIdentities = query({
     ) {
       return [];
     }
+    const now = Date.now();
     const identities = [];
     for (const rawId of [...new Set(user_ids)].slice(
       0,
@@ -247,6 +270,13 @@ export const viewerIdentities = query({
     )) {
       const uid = ctx.db.normalizeId("users", rawId);
       if (!uid) continue;
+      const grant = await ctx.db
+        .query("relay_viewer_grants")
+        .withIndex("by_conversation_user", (q) =>
+          q.eq("conversation_id", conversation._id).eq("user_id", uid),
+        )
+        .first();
+      if (!grant || grant.expires_at <= now) continue;
       const user = await ctx.db.get(uid);
       if (!user) continue;
       const access = await checkConversationAccess(ctx, uid, conversation);

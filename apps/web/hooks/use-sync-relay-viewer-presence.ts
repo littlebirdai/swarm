@@ -2,21 +2,25 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { useContext, useMemo } from "react";
 import { teamMembersOf } from "../lib/activeTeam";
 import { isConvexId } from "../lib/entityLinks";
-import { relayPresenceUrl } from "../lib/relay-presence-config";
-import { RelayPresenceContext } from "../lib/relay-presence-context";
+import {
+  RelayPresenceAvailableContext,
+  RelayPresenceContext,
+  type RelayPresenceClient,
+} from "../lib/relay-presence-context";
 import { useInboxStore } from "../store/inboxStore";
 import { relayViewerUnknownIds } from "../store/relay-viewer-presence-slice";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
-export function isRelayViewerPresenceConfigured(): boolean {
-  return (
-    relayPresenceUrl(
-      import.meta.env.VITE_RELAY_PRESENCE,
-      import.meta.env.VITE_RELAY_URL,
-    ) !== null
-  );
-}
+type SharedViewerSubscription = {
+  count: number;
+  unsubscribe: () => void;
+};
+
+const viewerSubscriptions = new WeakMap<
+  RelayPresenceClient,
+  Map<string, SharedViewerSubscription>
+>();
 
 export function composeConversationId(docId: string): string | null {
   if (!docId.startsWith("compose:")) return null;
@@ -29,12 +33,12 @@ export function useRelayViewerTargetState(
   enabled: boolean,
 ) {
   const client = useContext(RelayPresenceContext);
-  const configured = isRelayViewerPresenceConfigured();
+  const available = useContext(RelayPresenceAvailableContext);
   const validId =
     conversationId && isConvexId(conversationId) ? conversationId : null;
   const account = client?.viewerAccount;
   const shouldQuery = Boolean(
-    configured && enabled && client && account && validId,
+    available && enabled && client && account && validId,
   );
 
   const target = useQueryNoThrow(
@@ -43,7 +47,12 @@ export function useRelayViewerTargetState(
   );
 
   const activeTarget =
-    enabled && client && account && validId && target.data?.viewer === account
+    available &&
+    enabled &&
+    client &&
+    account &&
+    validId &&
+    target.data?.viewer === account
       ? target.data
       : null;
 
@@ -86,14 +95,14 @@ export function useRelayViewerTargetState(
   }, [activeTarget, validId, identities.data, unknownIds]);
 
   return {
-    configured,
+    available,
     client,
     account,
     validId,
     target,
     activeTarget,
     disabled:
-      configured &&
+      available &&
       Boolean(client && account && validId && enabled) &&
       (Boolean(target.error) || target.data === null),
   };
@@ -103,51 +112,99 @@ export function useSubscribeRelayViewer(
   state: ReturnType<typeof useRelayViewerTargetState>,
   enabled: boolean,
 ) {
-  const { client, account, validId, target } = state;
+  const { available, client, account, validId, target } = state;
+  const targetError = Boolean(target.error);
+  const targetNull = target.data === null;
+  const targetData = target.data;
+  const targetViewer =
+    targetData && targetData.viewer === account ? targetData.viewer : null;
+  const targetHub = targetViewer ? targetData!.hub : null;
+  const targetTier = targetViewer ? targetData!.tier : null;
 
   useWatchEffect(() => {
-    if (!validId || !client || !account || !enabled) return;
-    const releaseFeed = client.retainViewerFeed?.(validId, () => {
-      useInboxStore.getState().clearRelayViewerPresence(validId);
-    });
-    return () => {
-      if (releaseFeed) releaseFeed();
-      else useInboxStore.getState().clearRelayViewerPresence(validId);
-    };
-  }, [client, account, validId, enabled]);
-
-  useWatchEffect(() => {
-    if (!validId || !client || !account || !enabled) return;
-    if (target.error || target.data === null) {
+    if (!available || !validId || !client || !account || !enabled) return;
+    if (targetError || targetNull) {
       useInboxStore
         .getState()
         .setRelayViewerStatus(validId, account, "", "disabled");
       return;
     }
-    const info = target.data;
-    if (!info || info.viewer !== account) return;
-    const { viewer, hub } = info;
-    const store = useInboxStore.getState();
-    store.setRelayViewerStatus(validId, viewer, hub, "connecting");
-    return client.subscribe(
-      hub,
-      (event) => {
+    if (!targetViewer || !targetHub || !targetTier) return;
+    let map = viewerSubscriptions.get(client);
+    if (!map) {
+      map = new Map();
+      viewerSubscriptions.set(client, map);
+    }
+    const subKey = `${validId}\0${targetViewer}\0${targetHub}\0${targetTier}`;
+    let shared = map.get(subKey);
+    if (!shared) {
+      useInboxStore
+        .getState()
+        .setRelayViewerStatus(validId, targetViewer, targetHub, "connecting");
+      let unsubscribe = () => {};
+      try {
+        unsubscribe = client.subscribe(
+          targetHub,
+          (event) => {
+            useInboxStore
+              .getState()
+              .applyRelayViewerEvent(
+                validId,
+                targetViewer,
+                targetHub,
+                event,
+                Date.now(),
+              );
+          },
+          (status, meta) => {
+            const mapped =
+              status === "unavailable"
+                ? meta?.terminal
+                  ? "disabled"
+                  : "unknown"
+                : status;
+            useInboxStore
+              .getState()
+              .setRelayViewerStatus(validId, targetViewer, targetHub, mapped);
+          },
+          { batchKey: targetTier },
+        );
+      } catch {
         useInboxStore
           .getState()
-          .applyRelayViewerEvent(validId, viewer, hub, event, Date.now());
-      },
-      (status) => {
-        useInboxStore
-          .getState()
-          .setRelayViewerStatus(
-            validId,
-            viewer,
-            hub,
-            status === "unavailable" ? "unknown" : status,
-          );
-      },
-    );
-  }, [client, account, validId, enabled, target.data, target.error]);
+          .setRelayViewerStatus(validId, targetViewer, targetHub, "unknown");
+      }
+      shared = { count: 0, unsubscribe };
+      map.set(subKey, shared);
+    }
+    shared.count += 1;
+    return () => {
+      shared.count -= 1;
+      if (shared.count > 0) return;
+      map.delete(subKey);
+      shared.unsubscribe();
+      const store = useInboxStore.getState();
+      const current = store.relayViewerPresence[validId];
+      if (
+        current &&
+        current.viewer === targetViewer &&
+        current.hub === targetHub
+      ) {
+        store.clearRelayViewerPresence(validId);
+      }
+    };
+  }, [
+    available,
+    client,
+    account,
+    validId,
+    enabled,
+    targetError,
+    targetNull,
+    targetViewer,
+    targetHub,
+    targetTier,
+  ]);
 }
 
 export function useSyncRelayViewerPresence(
@@ -157,7 +214,7 @@ export function useSyncRelayViewerPresence(
   const state = useRelayViewerTargetState(conversationId, enabled);
   useSubscribeRelayViewer(state, enabled);
   return {
-    configured: state.configured,
+    available: state.available,
     client: state.client,
     target: state.activeTarget,
     disabled: state.disabled,

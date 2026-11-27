@@ -1,54 +1,44 @@
-import { afterEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { Profiler, act, useRef } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import type { SharedDraftStatus } from "../../hooks/useSharedDraft";
 import { useLiveComposerControl } from "../../hooks/use-live-composer-control";
-import { useDocPresence } from "../../hooks/useDocPresence";
-import type { RelayHub } from "@codecast/relay-contract";
+import { useInboxStore } from "../../store/inboxStore";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import {
   ok,
   relayMountFixture,
   type RelaySocket,
 } from "../../test-helpers/relay-presence-testkit";
-import { CollabPresenceBar, OwnerComposerPresence } from "../collab-composer";
+import { OwnerComposerPresence } from "../collab-composer";
 import { ReaderFaces, ReadingMarks } from "../conversation/ReadingMarks";
 import { RelayPresenceProvider } from "../relay-presence-provider";
 import { ConversationViewers } from "./ViewerFaces";
-import {
-  DATA_SCOPE,
-  REPLICATION_CLASSIFICATION,
-  isPersistedClientStoreKey,
-} from "../../store/clientSyncRegistry";
-import { useInboxStore } from "../../store/inboxStore";
 
 const conversationId = "c".repeat(32) as Id<"conversations">;
 const teamId = "t".repeat(32) as Id<"teams">;
-const ownerId = "o".repeat(32) as Id<"users">;
+const ownerId = "m".repeat(32) as Id<"users">;
 const rosterPeerId = "r".repeat(32) as Id<"users">;
-const guestPeerId = "g".repeat(32) as Id<"users">;
-const firstMessageId = "m".repeat(32) as Id<"messages">;
-const secondMessageId = "n".repeat(32) as Id<"messages">;
+const guestPeerId = "z".repeat(32) as Id<"users">;
+const firstMessageId = "1".repeat(32) as Id<"messages">;
+const secondMessageId = "2".repeat(32) as Id<"messages">;
+type RelaySessionHub = { kind: "session"; id: string };
+
 const viewerHubId = `viewer:${conversationId}`;
-const viewerHub: RelayHub = { kind: "session", id: viewerHubId };
+const viewerHub: RelaySessionHub = { kind: "session", id: viewerHubId };
 
 const { sockets, WebSocket: TestSocket } = relayMountFixture();
-
-afterEach(() => {
-  delete process.env.VITE_RELAY_PRESENCE;
-  delete process.env.VITE_RELAY_URL;
-});
 
 function peerFrame(
   type: "presence" | "reading_cursor" | "draft_cursor",
   payload: Record<string, unknown>,
   seq: number,
   userId: string = rosterPeerId,
+  hub: RelaySessionHub = viewerHub,
 ) {
   return {
     v: 1 as const,
-    hub: viewerHub,
+    hub,
     type,
     user_id: userId,
     connection_id: `conn:${userId}`,
@@ -58,7 +48,7 @@ function peerFrame(
   };
 }
 
-function sendSubscribed(socket: RelaySocket, hub: RelayHub = viewerHub) {
+function sendSubscribed(socket: RelaySocket, hub: RelaySessionHub = viewerHub) {
   return socket.join(["presence", "draft_cursor", "reading_cursor"], hub);
 }
 
@@ -68,6 +58,8 @@ function publishedFrames(socket: RelaySocket, type?: string) {
     if (
       !kind ||
       kind === "auth" ||
+      kind === "connect" ||
+      kind === "grant_update" ||
       kind === "subscribe" ||
       kind === "unsubscribe"
     ) {
@@ -130,16 +122,47 @@ function defaultSteerClaim(
 
 async function mountSessionSurface(opts: {
   relayOn: boolean;
+  withoutProvider?: boolean;
+  withoutWebSocket?: boolean;
   viewerTarget: {
-    viewer: string;
+    viewer: Id<"users">;
     hub: string;
-    tier: "owner" | "member" | "shared";
+    tier: "member" | "shared";
   } | null;
-  legacyPresenceRows?: unknown[];
+  legacyPresenceRows?: Array<{
+    _id: string;
+    doc_id: string;
+    user_id: Id<"users">;
+    user_name: string;
+    user_color: string;
+    user_image?: string;
+    draft_text?: string;
+    cursor_pos?: number | null;
+    in_draft?: boolean;
+    can_send?: boolean;
+    anchor?: { message_id: string; offset: number };
+    anchor_at?: number;
+    claims?: Array<{
+      user_id: Id<"users">;
+      text: string;
+      at: number;
+      how?: string;
+    }>;
+    updated_at: number;
+  }>;
   rosterPeerViewing?: string;
-  sharedDraft?: SharedDraftStatus | null;
-  identities?: Array<{ user_id: string; user_name: string; color: string }>;
+  identities?: Array<{
+    user_id: Id<"users">;
+    user_name: string;
+    user_color: string;
+    user_image: string | undefined;
+  }>;
   anchor?: { messageId: string; offset: number } | null;
+  mintReply?: () =>
+    | typeof ok
+    | { status: "unavailable" }
+    | { status: "rate_limited" }
+    | { status: "denied"; omitted: never[] };
   onRenderCounts?: {
     viewers: () => void;
     readerFirst: () => void;
@@ -158,84 +181,97 @@ async function mountSessionSurface(opts: {
 
   function DriverProbe() {
     const control = useLiveComposerControl(conversationId, ownerId);
-    opts.onDriver?.(control?.shared?.facts.driver?.name ?? null);
-    return (
-      <span data-sv-driver-probe>
-        {control?.shared?.facts.driver?.name ?? "none"}
-      </span>
-    );
+    const driverName =
+      control && "shared" in control
+        ? (control.shared?.facts.driver?.name ?? null)
+        : null;
+    opts.onDriver?.(driverName);
+    return <span data-sv-driver-probe>{driverName ?? "none"}</span>;
   }
 
-  function Surface({ showSession = true }: { showSession?: boolean }) {
+  function Surface({
+    showSession = true,
+    showExtraReader = false,
+  }: {
+    showSession?: boolean;
+    showExtraReader?: boolean;
+  }) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
-    return (
-      <RelayPresenceProvider>
-        {showSession ? (
-          <div>
+    const body = showSession ? (
+      <div>
+        <Profiler
+          id="viewers"
+          onRender={() => {
+            opts.onRenderCounts?.viewers();
+          }}
+        >
+          <ConversationViewers conversationId={conversationId} />
+        </Profiler>
+        <DriverProbe />
+        <div ref={scrollRef}>
+          <div data-index={0}>
             <Profiler
-              id="viewers"
+              id="reader-first"
               onRender={() => {
-                opts.onRenderCounts?.viewers();
+                opts.onRenderCounts?.readerFirst();
               }}
             >
-              <ConversationViewers conversationId={conversationId} />
-            </Profiler>
-            <DriverProbe />
-            <div ref={scrollRef}>
-              <div data-index={0}>
-                <Profiler
-                  id="reader-first"
-                  onRender={() => {
-                    opts.onRenderCounts?.readerFirst();
-                  }}
-                >
-                  <ReaderFaces
-                    conversationId={conversationId}
-                    messageId={firstMessageId}
-                  />
-                </Profiler>
-              </div>
-              <div data-index={1}>
-                <Profiler
-                  id="reader-second"
-                  onRender={() => {
-                    opts.onRenderCounts?.readerSecond();
-                  }}
-                >
-                  <ReaderFaces
-                    conversationId={conversationId}
-                    messageId={secondMessageId}
-                  />
-                </Profiler>
-              </div>
-            </div>
-            <ReadingMarks
-              conversationId={conversationId}
-              scrollRef={scrollRef}
-              messageIds={[firstMessageId, secondMessageId]}
-              onJump={() => {}}
-              top={0}
-              bottom={0}
-            />
-            <Profiler
-              id="composer"
-              onRender={() => {
-                opts.onRenderCounts?.composer();
-              }}
-            >
-              <OwnerComposerPresence conversationId={conversationId} showHere />
+              <ReaderFaces
+                conversationId={conversationId}
+                messageId={firstMessageId}
+              />
             </Profiler>
           </div>
+          <div data-index={1}>
+            <Profiler
+              id="reader-second"
+              onRender={() => {
+                opts.onRenderCounts?.readerSecond();
+              }}
+            >
+              <ReaderFaces
+                conversationId={conversationId}
+                messageId={secondMessageId}
+              />
+            </Profiler>
+          </div>
+        </div>
+        {showExtraReader ? (
+          <ReaderFaces
+            conversationId={conversationId}
+            messageId={firstMessageId}
+          />
         ) : null}
-      </RelayPresenceProvider>
-    );
+        <ReadingMarks
+          conversationId={conversationId}
+          scrollRef={scrollRef}
+          messageIds={[firstMessageId, secondMessageId]}
+          onJump={() => {}}
+          top={0}
+          bottom={0}
+        />
+        <Profiler
+          id="composer"
+          onRender={() => {
+            opts.onRenderCounts?.composer();
+          }}
+        >
+          <OwnerComposerPresence conversationId={conversationId} showHere />
+        </Profiler>
+      </div>
+    ) : null;
+
+    if (opts.withoutProvider) return body;
+    return <RelayPresenceProvider>{body}</RelayPresenceProvider>;
   }
 
   const ui = await mountWeb(<Surface />, {
     authenticated: true,
     clock: true,
     setup(backend) {
-      window.WebSocket = TestSocket;
+      window.WebSocket = opts.withoutWebSocket
+        ? (undefined as unknown as typeof WebSocket)
+        : TestSocket;
       useInboxStore.setState({
         currentUser: {
           _id: ownerId,
@@ -263,11 +299,14 @@ async function mountSessionSurface(opts: {
         } as never,
         sessionReadAnchors: {
           [conversationId]: {
-            messageId: firstMessageId,
+            _id: conversationId,
+            user_id: ownerId,
+            message_id: firstMessageId,
             offset: 0.4,
-            savedAt: 100,
+            timestamp: 100,
+            changed_at: 100,
           },
-        } as never,
+        },
         drafts: {
           [conversationId]: {
             draft_message: "persisted draft",
@@ -285,15 +324,20 @@ async function mountSessionSurface(opts: {
       });
       backend.set(api.relayGrants.viewerTarget, opts.viewerTarget);
       backend.set(api.relayGrants.viewerIdentities, opts.identities ?? []);
-      backend.set(api.docSync.getPresence, opts.legacyPresenceRows ?? []);
-      backend.set(api.sharedDrafts.getStatus, opts.sharedDraft ?? null);
+      backend.set(
+        api.docSync.getPresence,
+        (opts.legacyPresenceRows ?? []) as never,
+      );
       backend.set(api.sessionOwnership.listOwners, {
+        short_id: "conv-short",
         conversation_id: conversationId,
         owners: [],
       });
-      backend.mutation(api.relayGrants.mint, ok);
-      backend.mutation(api.docSync.updatePresence, null);
-      backend.mutation(api.docSync.removePresence, null);
+      backend.mutation(api.relayGrants.mint, () =>
+        opts.mintReply ? opts.mintReply() : ok,
+      );
+      backend.mutation(api.docSync.updatePresence, undefined);
+      backend.mutation(api.docSync.removePresence, undefined);
     },
   });
 
@@ -303,7 +347,7 @@ async function mountSessionSurface(opts: {
 test("flag off uses Convex doc_presence and opens no relay viewer watch", async () => {
   const ui = await mountSessionSurface({
     relayOn: false,
-    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "owner" },
+    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
     rosterPeerViewing: conversationId,
     legacyPresenceRows: [
       {
@@ -311,7 +355,7 @@ test("flag off uses Convex doc_presence and opens no relay viewer watch", async 
         doc_id: `compose:${conversationId}`,
         user_id: rosterPeerId,
         user_name: "Bob Teammate",
-        color: "#00bcd4",
+        user_color: "#00bcd4",
         draft_text: "typing via convex",
         anchor: { message_id: firstMessageId, offset: 0.25 },
         cursor_pos: null,
@@ -346,6 +390,80 @@ test("flag off uses Convex doc_presence and opens no relay viewer watch", async 
   ).toBe(true);
 });
 
+test("missing RelayPresenceContext or missing WebSocket stays on Convex immediately", async () => {
+  const withoutProvider = await mountSessionSurface({
+    relayOn: true,
+    withoutProvider: true,
+    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
+    rosterPeerViewing: conversationId,
+    legacyPresenceRows: [
+      {
+        _id: "p1",
+        doc_id: `compose:${conversationId}`,
+        user_id: rosterPeerId,
+        user_name: "Bob Teammate",
+        user_color: "#00bcd4",
+        draft_text: "live via convex",
+        anchor: { message_id: firstMessageId, offset: 0.2 },
+        updated_at: Date.now(),
+      },
+    ],
+  });
+
+  expect(withoutProvider.sockets.length).toBe(0);
+  expect(
+    withoutProvider.backend.queryRequests.some(
+      (q) => q.name === "docSync:getPresence",
+    ),
+  ).toBe(true);
+  expect(
+    withoutProvider.container
+      .querySelector("[data-sv-viewers]")
+      ?.getAttribute("data-sv-viewers"),
+  ).toBe("1");
+  expect(
+    withoutProvider.container.querySelector("[data-sv-reader-faces]"),
+  ).not.toBeNull();
+  expect(withoutProvider.container.textContent).toContain("live via convex");
+  await withoutProvider.close();
+
+  const withoutSocket = await mountSessionSurface({
+    relayOn: true,
+    withoutWebSocket: true,
+    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
+    rosterPeerViewing: conversationId,
+    legacyPresenceRows: [
+      {
+        _id: "p2",
+        doc_id: `compose:${conversationId}`,
+        user_id: rosterPeerId,
+        user_name: "Bob Teammate",
+        user_color: "#00bcd4",
+        draft_text: "no websocket convex",
+        anchor: { message_id: firstMessageId, offset: 0.3 },
+        updated_at: Date.now(),
+      },
+    ],
+  });
+
+  expect(withoutSocket.sockets.length).toBe(0);
+  expect(
+    withoutSocket.backend.queryRequests.some(
+      (q) => q.name === "docSync:getPresence",
+    ),
+  ).toBe(true);
+  expect(
+    withoutSocket.container
+      .querySelector("[data-sv-viewers]")
+      ?.getAttribute("data-sv-viewers"),
+  ).toBe("1");
+  expect(
+    withoutSocket.container.querySelector("[data-sv-reader-faces]"),
+  ).not.toBeNull();
+  expect(withoutSocket.container.textContent).toContain("no websocket convex");
+  await withoutSocket.close();
+});
+
 test("server flag off falls back to doc_presence without opening a viewer relay subscription", async () => {
   const ui = await mountSessionSurface({
     relayOn: true,
@@ -356,7 +474,7 @@ test("server flag off falls back to doc_presence without opening a viewer relay 
         doc_id: `compose:${conversationId}`,
         user_id: rosterPeerId,
         user_name: "Bob Teammate",
-        color: "#00bcd4",
+        user_color: "#00bcd4",
         draft_text: "",
         anchor: { message_id: firstMessageId, offset: 0.1 },
         cursor_pos: null,
@@ -388,22 +506,113 @@ test("server flag off falls back to doc_presence without opening a viewer relay 
   await ui.close();
 });
 
-test("flag on routes presence and cursors over relay with zero doc_presence reads or writes", async () => {
+test("mint unavailable or rate_limited cancels automatic retries and falls back to Convex", async () => {
+  for (const terminalStatus of ["rate_limited", "unavailable"] as const) {
+    let mints = 0;
+    const ui = await mountSessionSurface({
+      relayOn: true,
+      viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
+      rosterPeerViewing: conversationId,
+      legacyPresenceRows: [
+        {
+          _id: "p-fallback",
+          doc_id: `compose:${conversationId}`,
+          user_id: rosterPeerId,
+          user_name: "Bob Teammate",
+          user_color: "#00bcd4",
+          anchor: { message_id: firstMessageId, offset: 0.4 },
+          updated_at: Date.now(),
+        },
+      ],
+      mintReply: () => {
+        mints++;
+        return { status: terminalStatus };
+      },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const mintsAfterFirst = mints;
+    await ui.clock!.advance(120_000);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mints).toBe(mintsAfterFirst);
+    expect(
+      ui.store.getState().relayViewerPresence[conversationId]?.status,
+    ).toBe("disabled");
+    expect(
+      ui.container
+        .querySelector("[data-sv-viewers]")
+        ?.getAttribute("data-sv-viewers"),
+    ).toBe("1");
+    expect(ui.container.querySelector("[data-sv-reader-faces]")).not.toBeNull();
+
+    await ui.close();
+  }
+});
+
+test("denied subscription hides viewer faces instead of falling back to roster", async () => {
   const ui = await mountSessionSurface({
     relayOn: true,
-    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "owner" },
+    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
+    rosterPeerViewing: conversationId,
+    legacyPresenceRows: [
+      {
+        _id: "p1",
+        doc_id: `compose:${conversationId}`,
+        user_id: rosterPeerId,
+        user_name: "Bob Teammate",
+        user_color: "#00bcd4",
+        anchor: { message_id: firstMessageId, offset: 0.4 },
+        updated_at: Date.now(),
+      },
+    ],
+  });
+  const [socket] = ui.sockets;
+  await act(() => {
+    socket.join(["presence", "reading_cursor"], viewerHub);
+    socket.message({
+      v: 1,
+      type: "subscription",
+      status: "denied",
+      hub: viewerHub,
+    });
+  });
+
+  expect(ui.store.getState().relayViewerPresence[conversationId]?.status).toBe(
+    "denied",
+  );
+  expect(ui.container.querySelector("[data-sv-viewers]")).toBeNull();
+  expect(ui.container.querySelector("[data-sv-reader-faces]")).toBeNull();
+  expect(
+    ui.container.querySelectorAll('[data-sv-presence-status="unknown"]').length,
+  ).toBe(0);
+
+  await ui.close();
+});
+
+test("flag on routes faces and reading_cursor over relay, publishes presence once per connect, and writes zero doc_presence anchors on scroll", async () => {
+  const ui = await mountSessionSurface({
+    relayOn: true,
+    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
     identities: [
-      { user_id: guestPeerId, user_name: "Carol Guest", color: "#22d3ee" },
+      {
+        user_id: guestPeerId,
+        user_name: "Carol Guest",
+        user_color: "#22d3ee",
+        user_image: undefined,
+      },
     ],
     anchor: { messageId: firstMessageId, offset: 0.45 },
   });
 
   expect(
-    ui.backend.queryRequests.some((q) => q.name === "docSync:getPresence"),
+    ui.backend.mutations.some((m) => m.name === "docSync:updatePresence"),
   ).toBe(false);
-  expect(ui.backend.mutations.some((m) => m.name.startsWith("docSync:"))).toBe(
-    false,
-  );
 
   expect(ui.sockets.length).toBe(1);
   const socket = ui.sockets[0];
@@ -416,7 +625,8 @@ test("flag on routes presence and cursors over relay with zero doc_presence read
         (f.hub as { id?: string } | undefined)?.id === viewerHubId,
     ),
   ).toBe(true);
-  expect(publishedFrames(socket, "presence").length).toBeGreaterThan(0);
+  expect(publishedFrames(socket, "presence")).toHaveLength(1);
+  expect(publishedFrames(socket, "draft_cursor")).toHaveLength(0);
 
   await act(() =>
     socket.message(
@@ -473,7 +683,7 @@ test("flag on routes presence and cursors over relay with zero doc_presence read
 
   await ui.clock!.advance(10);
   const initialReadingCount = publishedFrames(socket, "reading_cursor").length;
-  expect(initialReadingCount).toBeGreaterThan(0);
+  expect(initialReadingCount).toBe(1);
 
   await act(() => {
     ui.store.getState().setViewAnchor({
@@ -490,291 +700,32 @@ test("flag on routes presence and cursors over relay with zero doc_presence read
   await ui.clock!.advance(350);
   const afterThrottle = publishedFrames(socket, "reading_cursor");
   expect(afterThrottle.length).toBe(initialReadingCount + 1);
-  const lastSignal = afterThrottle.at(-1) as {
-    cursor?: { message_id: string; offset: number };
-  };
-  expect(lastSignal.cursor).toEqual({
+  expect(afterThrottle.at(-1)?.cursor).toEqual({
     message_id: secondMessageId,
     offset: 0.2,
   });
 
   expect(
-    ui.backend.queryRequests.some((q) => q.name === "docSync:getPresence"),
-  ).toBe(false);
-  expect(ui.backend.mutations.some((m) => m.name.startsWith("docSync:"))).toBe(
-    false,
-  );
-
-  await ui.rerender(<ui.Surface showSession={false} />);
-  expect(
-    publishedFrames(socket, "presence").some((f) => f.state === "left"),
-  ).toBe(true);
-  await ui.close();
-});
-
-test("relay failure drops UI to Presence unknown, preserves stored data, and recovers on reconnect", async () => {
-  const ui = await mountSessionSurface({
-    relayOn: true,
-    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "owner" },
-  });
-  const [socket] = ui.sockets;
-  await act(() => sendSubscribed(socket));
-  await act(() =>
-    socket.message(
-      peerFrame(
-        "presence",
-        { state: "active", in_draft: false },
-        1,
-        rosterPeerId,
-      ),
+    ui.backend.mutations.filter(
+      (m) =>
+        m.name === "docSync:updatePresence" &&
+        Boolean((m.args as { anchor?: unknown })?.anchor),
     ),
-  );
-  await act(() =>
-    socket.message(
-      peerFrame(
-        "reading_cursor",
-        { cursor: { message_id: firstMessageId, offset: 0.5 } },
-        2,
-        rosterPeerId,
-      ),
-    ),
-  );
-  expect(ui.container.querySelector("[data-sv-viewers]")).not.toBeNull();
-  expect(ui.container.querySelector("[data-sv-reader-faces]")).not.toBeNull();
+  ).toHaveLength(0);
+  expect(publishedFrames(socket, "draft_cursor")).toHaveLength(0);
 
   await act(() => socket.fail());
-
-  const unknownNodes = ui.container.querySelectorAll(
-    '[data-sv-presence-status="unknown"]',
-  );
-  expect(unknownNodes.length).toBeGreaterThanOrEqual(2);
-  expect(ui.container.textContent).toContain("Presence unknown");
-  expect(ui.container.querySelector("[data-sv-viewers]")).toBeNull();
-  expect(ui.container.querySelector("[data-sv-reader-faces]")).toBeNull();
-
-  expect(ui.store.getState().sessionReadAnchors[conversationId]).toEqual({
-    messageId: firstMessageId,
-    offset: 0.4,
-    savedAt: 100,
-  });
-  expect(ui.store.getState().drafts[conversationId]?.draft_message).toBe(
-    "persisted draft",
-  );
-
   await act(async () => {
     await ui.clock!.advance(1_500);
   });
   const reconnected = ui.sockets[1];
   expect(reconnected).toBeDefined();
   await act(() => sendSubscribed(reconnected));
-  await act(() =>
-    reconnected.message(
-      peerFrame(
-        "presence",
-        { state: "active", in_draft: false },
-        1,
-        rosterPeerId,
-      ),
-    ),
-  );
+  expect(publishedFrames(reconnected, "presence")).toHaveLength(1);
 
+  await ui.rerender(<ui.Surface showSession={false} />);
   expect(
-    ui.container.querySelectorAll('[data-sv-presence-status="unknown"]').length,
-  ).toBe(0);
-  expect(ui.container.querySelector("[data-sv-viewers]")).not.toBeNull();
-
-  await act(() =>
-    reconnected.message({
-      v: 1,
-      type: "subscription",
-      status: "denied",
-      hub: viewerHub,
-    }),
-  );
-  expect(ui.container.querySelector("[data-sv-viewers]")).toBeNull();
-
-  await ui.close();
-});
-
-test("claim row alone decides driver regardless of relay peers or relay failure", async () => {
-  let latestDriver: string | null = null;
-  const ui = await mountSessionSurface({
-    relayOn: true,
-    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "owner" },
-    onDriver: (name) => {
-      latestDriver = name;
-    },
-  });
-  const [socket] = ui.sockets;
-  expect(latestDriver).toBe("Owner User");
-
-  await act(() => sendSubscribed(socket));
-  await act(() =>
-    socket.message(
-      peerFrame(
-        "presence",
-        { state: "active", in_draft: true },
-        1,
-        rosterPeerId,
-      ),
-    ),
-  );
-  expect(latestDriver).toBe("Owner User");
-
-  await act(() => socket.fail());
-  expect(ui.container.textContent).toContain("Presence unknown");
-  expect(latestDriver).toBe("Owner User");
-
-  await ui.close();
-});
-
-test("composer keystrokes and peer anchor updates stay isolated across subscribers", async () => {
-  let viewersRenders = 0;
-  let readerFirstRenders = 0;
-  let readerSecondRenders = 0;
-  let composerRenders = 0;
-
-  const ui = await mountSessionSurface({
-    relayOn: true,
-    viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "owner" },
-    onRenderCounts: {
-      viewers: () => {
-        viewersRenders++;
-      },
-      readerFirst: () => {
-        readerFirstRenders++;
-      },
-      readerSecond: () => {
-        readerSecondRenders++;
-      },
-      composer: () => {
-        composerRenders++;
-      },
-    },
-  });
-  const [socket] = ui.sockets;
-  await act(() => sendSubscribed(socket));
-  await act(() =>
-    socket.message(
-      peerFrame(
-        "presence",
-        { state: "active", in_draft: false },
-        1,
-        rosterPeerId,
-      ),
-    ),
-  );
-
-  const beforeKeystroke = {
-    viewersRenders,
-    readerFirstRenders,
-    readerSecondRenders,
-    relaySlice: ui.store.getState().relayViewerPresence[conversationId],
-  };
-
-  await act(() => {
-    ui.store.getState().setDraft(conversationId, "hello");
-    ui.store.getState().setDraft(conversationId, "hello world");
-  });
-
-  expect(viewersRenders).toBe(beforeKeystroke.viewersRenders);
-  expect(readerFirstRenders).toBe(beforeKeystroke.readerFirstRenders);
-  expect(readerSecondRenders).toBe(beforeKeystroke.readerSecondRenders);
-  expect(ui.store.getState().relayViewerPresence[conversationId]).toBe(
-    beforeKeystroke.relaySlice,
-  );
-
-  const viewersBeforeCursor = viewersRenders;
-  const secondBeforeCursor = readerSecondRenders;
-  const composerBeforeCursor = composerRenders;
-
-  await act(() =>
-    socket.message(
-      peerFrame(
-        "reading_cursor",
-        { cursor: { message_id: firstMessageId, offset: 0.7 } },
-        2,
-        rosterPeerId,
-      ),
-    ),
-  );
-
-  expect(viewersRenders).toBe(viewersBeforeCursor);
-  expect(readerSecondRenders).toBe(secondBeforeCursor);
-  expect(composerRenders).toBe(composerBeforeCursor);
-  expect(readerFirstRenders).toBeGreaterThan(
-    beforeKeystroke.readerFirstRenders,
-  );
-
-  await ui.close();
-});
-
-test("relay viewer presence publishes draft_cursor with shared revision and classifies store slice", async () => {
-  expect(REPLICATION_CLASSIFICATION.relayViewerPresence).toBe("local");
-  expect(DATA_SCOPE.relayViewerPresence).toBe("entity");
-  expect(isPersistedClientStoreKey("relayViewerPresence")).toBe(false);
-
-  process.env.VITE_RELAY_PRESENCE = "1";
-  process.env.VITE_RELAY_URL = "wss://relay.test/relay";
-
-  function DraftReporter() {
-    useDocPresence({
-      docId: `compose:${conversationId}`,
-      inDraft: true,
-      cursor: 4,
-      cursorRevision: 7,
-      enabled: true,
-      forceBroadcast: false,
-    });
-    return (
-      <CollabPresenceBar
-        present={[]}
-        showHere={false}
-        presenceUnknown={false}
-      />
-    );
-  }
-
-  const ui = await mountWeb(
-    <RelayPresenceProvider>
-      <DraftReporter />
-    </RelayPresenceProvider>,
-    {
-      authenticated: true,
-      clock: true,
-      setup(backend) {
-        window.WebSocket = TestSocket;
-        useInboxStore.setState({
-          currentUser: { _id: ownerId, name: "Owner User" } as never,
-          clientState: {
-            ...useInboxStore.getState().clientState,
-            ui: {
-              ...useInboxStore.getState().clientState?.ui,
-              active_team_id: teamId,
-            },
-          } as never,
-          teamMembers: baseRoster() as never,
-        });
-        backend.set(api.relayGrants.viewerTarget, {
-          viewer: ownerId,
-          hub: viewerHubId,
-          tier: "shared",
-        });
-        backend.set(api.relayGrants.viewerIdentities, []);
-        backend.mutation(api.relayGrants.mint, ok);
-      },
-    },
-  );
-
-  const [socket] = sockets;
-  await act(() => sendSubscribed(socket));
-  const draftCursors = publishedFrames(socket, "draft_cursor");
-  expect(draftCursors.length).toBeGreaterThan(0);
-  expect(draftCursors[0].cursor).toEqual({
-    revision: 7,
-    anchor: 4,
-    head: 4,
-  });
-
+    publishedFrames(reconnected, "presence").some((f) => f.state === "left"),
+  ).toBe(true);
   await ui.close();
 });

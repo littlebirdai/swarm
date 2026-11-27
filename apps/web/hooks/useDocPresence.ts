@@ -5,19 +5,20 @@ import { api } from "@codecast/convex/convex/_generated/api";
 
 import { useWatchEffect } from "./useWatchEffect";
 import { teamMembersOf } from "../lib/activeTeam";
-import { RelayPresenceContext } from "../lib/relay-presence-context";
+import {
+  RelayPresenceAvailableContext,
+  RelayPresenceContext,
+} from "../lib/relay-presence-context";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import {
   isRelayViewerEntryActive,
   relayViewerAnchorsSig,
-  relayViewerDraftPresenceSig,
+  relayViewerHasPeers,
   relayViewerMessageAnchorSig,
-  relayViewerPresenceSig,
   relayViewerRows,
 } from "../store/relay-viewer-presence-slice";
 import {
   composeConversationId,
-  isRelayViewerPresenceConfigured,
   useRelayViewerTargetState,
   useSubscribeRelayViewer,
 } from "./use-sync-relay-viewer-presence";
@@ -76,16 +77,18 @@ export function usePresenceRows(
   filter?: PresenceRowsFilter,
 ): PresenceRow[] {
   const relayClient = useContext(RelayPresenceContext);
-  const relayConfigured = isRelayViewerPresenceConfigured();
+  const relayAvailable = useContext(RelayPresenceAvailableContext);
   const convId = composeConversationId(docId);
   const viewerAccount = relayClient?.viewerAccount;
   const scope = filter?.scope ?? "all";
   const messageId = filter?.messageId;
   const sharedRevision = filter?.sharedRevision;
+  const relayScope = scope === "anchors" || scope === "message";
+  const useRelay = Boolean(relayScope && convId && relayAvailable && enabled);
 
   const st = useTrackedStore([
     (s) => {
-      if (!convId || !relayConfigured || !enabled) return "";
+      if (!useRelay || !convId) return "";
       const entry = s.relayViewerPresence[convId];
       if (!entry) return "pending";
       const status = entry.status;
@@ -94,28 +97,16 @@ export function usePresenceRows(
       if (scope === "message" && messageId !== undefined) {
         return relayViewerMessageAnchorSig(entry, roster, messageId);
       }
-      if (scope === "anchors") {
-        return relayViewerAnchorsSig(entry, roster);
-      }
-      if (scope === "draft") {
-        return relayViewerDraftPresenceSig(entry, roster, sharedRevision);
-      }
-      return relayViewerPresenceSig(entry, roster);
+      return relayViewerAnchorsSig(entry, roster);
     },
   ]);
 
-  const entry =
-    convId && relayConfigured && enabled
-      ? st.relayViewerPresence[convId]
-      : undefined;
+  const entry = useRelay && convId ? st.relayViewerPresence[convId] : undefined;
   const relayActive =
-    Boolean(convId && relayConfigured && enabled) &&
-    isRelayViewerEntryActive(entry, viewerAccount);
+    useRelay && isRelayViewerEntryActive(entry, viewerAccount);
   const queryLegacy =
     enabled &&
-    (!convId ||
-      !relayConfigured ||
-      (entry !== undefined && entry.status === "disabled"));
+    (!useRelay || (entry !== undefined && entry.status === "disabled"));
 
   // Presence only decorates the editor: when the doc is gone or the viewer
   // lost access the query throws NOT_FOUND, and the editor's own doc read says
@@ -133,7 +124,9 @@ export function usePresenceRows(
     }
     return rows.length === 0 ? NO_ROWS : rows;
   }
-  if (convId && relayConfigured && entry === undefined) return NO_ROWS;
+  if (useRelay && (entry === undefined || entry.status === "denied")) {
+    return NO_ROWS;
+  }
   return legacyRows;
 }
 
@@ -163,23 +156,33 @@ export function useDocPresence(opts: {
   const convId = composeConversationId(docId);
   const viewerState = useRelayViewerTargetState(convId, enabled);
   const relayClient = viewerState.client;
+  const viewerAccount = relayClient?.viewerAccount;
   const targetHub = viewerState.activeTarget?.hub;
   const relayStatus = useInboxStore((s) =>
     convId ? s.relayViewerPresence[convId]?.status : undefined,
   );
-  const relayMode =
-    Boolean(convId && viewerState.configured) &&
-    (viewerState.activeTarget !== null || !viewerState.disabled);
+  const hasRelayPeers = useInboxStore((s) =>
+    convId
+      ? relayViewerHasPeers(s.relayViewerPresence[convId], viewerAccount)
+      : false,
+  );
+  const relayHandlesAnchor = Boolean(
+    convId &&
+    viewerState.available &&
+    enabled &&
+    !viewerState.disabled &&
+    relayStatus !== "disabled",
+  );
   const relayReady =
-    Boolean(targetHub && relayClient) && relayStatus === "ready";
+    Boolean(targetHub && relayClient && viewerState.available) &&
+    relayStatus === "ready";
   const update = useMutation(api.docSync.updatePresence);
   const remove = useMutation(api.docSync.removePresence);
   const present = usePresenceRows(docId, enabled, {
     scope: "all",
     sharedRevision: cursorRevision,
   });
-  const broadcast =
-    !relayMode && enabled && (forceBroadcast || present.length > 0);
+  const broadcast = enabled && (forceBroadcast || present.length > 0);
 
   const draftRef = useRef(draftText);
   draftRef.current = draftText;
@@ -189,31 +192,23 @@ export function useDocPresence(opts: {
   cursorRef.current = cursor;
   const inDraftRef = useRef(inDraft);
   inDraftRef.current = inDraft;
-  const hasPeers = present.length > 0;
   const relayLatestRef = useRef({
     anchor,
-    cursor,
-    cursorRevision,
-    inDraft,
-    hasPeers,
+    hasRelayPeers,
   });
   useWatchEffect(() => {
     relayLatestRef.current = {
       anchor,
-      cursor,
-      cursorRevision,
-      inDraft,
-      hasPeers,
+      hasRelayPeers,
     };
-  }, [anchor, cursor, cursorRevision, inDraft, hasPeers]);
+  }, [anchor, hasRelayPeers]);
   const sentReadingRef = useRef(false);
-  const sentDraftCursorRef = useRef(false);
 
   const push = () =>
     update({
       doc_id: docId,
       draft_text: draftRef.current,
-      anchor: anchorRef.current ?? undefined,
+      anchor: relayHandlesAnchor ? undefined : (anchorRef.current ?? undefined),
       cursor_pos: cursorRef.current ?? undefined,
       in_draft: inDraftRef.current || undefined,
     }).catch(() => {});
@@ -243,14 +238,14 @@ export function useDocPresence(opts: {
   }, [draftText, cursor, inDraft, broadcast, docId, update]);
   const anchorPushedAt = useRef(0);
   useWatchEffect(() => {
-    if (!broadcast || !anchorKey) return;
+    if (!broadcast || !anchorKey || relayHandlesAnchor) return;
     const wait = Math.max(0, 500 - (Date.now() - anchorPushedAt.current));
     const t = setTimeout(() => {
       anchorPushedAt.current = Date.now();
       push();
     }, wait);
     return () => clearTimeout(t);
-  }, [anchorKey, broadcast, docId, update]);
+  }, [anchorKey, broadcast, docId, relayHandlesAnchor, update]);
 
   useWatchEffect(() => {
     if (!relayReady || !enabled || !targetHub || !relayClient) return;
@@ -262,14 +257,14 @@ export function useDocPresence(opts: {
           hub,
           type: "presence",
           state: "active",
-          in_draft: relayLatestRef.current.inDraft,
+          in_draft: false,
         },
         RELAY_SIGNAL_TTL_MS,
       );
     };
     const publishReading = () => {
       const latest = relayLatestRef.current;
-      if (!latest.anchor || !latest.hasPeers) return;
+      if (!latest.anchor || !latest.hasRelayPeers) return;
       sentReadingRef.current = true;
       relayClient.publish(
         {
@@ -284,43 +279,16 @@ export function useDocPresence(opts: {
         RELAY_SIGNAL_TTL_MS,
       );
     };
-    const publishDraftCursor = () => {
-      const latest = relayLatestRef.current;
-      if (
-        !latest.inDraft ||
-        latest.cursor == null ||
-        latest.cursorRevision == null
-      )
-        return;
-      sentDraftCursorRef.current = true;
-      relayClient.publish(
-        {
-          v: 1,
-          hub,
-          type: "draft_cursor",
-          cursor: {
-            revision: latest.cursorRevision,
-            anchor: latest.cursor,
-            head: latest.cursor,
-          },
-        },
-        RELAY_SIGNAL_TTL_MS,
-      );
-    };
 
     publishPresence();
-    publishReading();
-    publishDraftCursor();
     const iv = setInterval(() => {
       publishPresence();
       publishReading();
-      publishDraftCursor();
     }, RELAY_REFRESH_MS);
 
     return () => {
       clearInterval(iv);
       sentReadingRef.current = false;
-      sentDraftCursorRef.current = false;
       relayClient.publish(
         {
           v: 1,
@@ -334,27 +302,13 @@ export function useDocPresence(opts: {
     };
   }, [relayReady, enabled, relayClient, targetHub]);
 
-  useWatchEffect(() => {
-    if (!relayReady || !enabled || !targetHub || !relayClient) return;
-    relayClient.publish(
-      {
-        v: 1,
-        hub: { kind: "session", id: targetHub },
-        type: "presence",
-        state: "active",
-        in_draft: inDraft,
-      },
-      RELAY_SIGNAL_TTL_MS,
-    );
-  }, [relayReady, enabled, relayClient, targetHub, inDraft]);
-
   const relayAnchorAt = useRef(0);
   const anchorMessageId = anchor?.message_id ?? null;
   const anchorOffset = anchor ? Number(anchor.offset.toFixed(2)) : null;
   useWatchEffect(() => {
     if (!relayReady || !enabled || !targetHub || !relayClient) return;
     const hub = { kind: "session" as const, id: targetHub };
-    if (!hasPeers || !anchorMessageId || anchorOffset === null) {
+    if (!hasRelayPeers || !anchorMessageId || anchorOffset === null) {
       if (sentReadingRef.current) {
         sentReadingRef.current = false;
         relayClient.publish(
@@ -368,7 +322,7 @@ export function useDocPresence(opts: {
     const publishAnchor = () => {
       relayAnchorAt.current = Date.now();
       const latest = relayLatestRef.current;
-      if (!latest.anchor || !latest.hasPeers) return;
+      if (!latest.anchor || !latest.hasRelayPeers) return;
       sentReadingRef.current = true;
       relayClient.publish(
         {
@@ -394,42 +348,9 @@ export function useDocPresence(opts: {
     enabled,
     relayClient,
     targetHub,
-    hasPeers,
+    hasRelayPeers,
     anchorMessageId,
     anchorOffset,
-  ]);
-
-  useWatchEffect(() => {
-    if (!relayReady || !enabled || !targetHub || !relayClient) return;
-    const hub = { kind: "session" as const, id: targetHub };
-    if (!inDraft || cursor == null || cursorRevision == null) {
-      if (sentDraftCursorRef.current) {
-        sentDraftCursorRef.current = false;
-        relayClient.publish(
-          { v: 1, hub, type: "draft_cursor", cursor: null },
-          0,
-        );
-      }
-      return;
-    }
-    sentDraftCursorRef.current = true;
-    relayClient.publish(
-      {
-        v: 1,
-        hub,
-        type: "draft_cursor",
-        cursor: { revision: cursorRevision, anchor: cursor, head: cursor },
-      },
-      RELAY_SIGNAL_TTL_MS,
-    );
-  }, [
-    relayReady,
-    enabled,
-    relayClient,
-    targetHub,
-    inDraft,
-    cursor,
-    cursorRevision,
   ]);
 
   useSubscribeRelayViewer(viewerState, enabled);

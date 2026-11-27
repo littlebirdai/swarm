@@ -103,6 +103,8 @@
     "components/pr/pull-request-body-detail.mount.test.tsx",
     "components/pr/PRDeploy.deploysLink.test.tsx",
     "components/pr/ReviewMenu.mount.test.tsx",
+    "components/presence/relay-viewer-presence.mount.test.tsx",
+    "components/presence/relay-viewer-presence.scope.mount.test.tsx",
     "components/settings/PasskeysSection.mount.test.tsx",
     "components/team/__tests__/WorkspaceSharePicker.empty.mount.test.tsx",
     "hooks/__tests__/inbox-log-snapshot.mount.test.tsx",

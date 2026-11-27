@@ -127,6 +127,7 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "projects", field: "owner_id", index: null },
     { table: "entity_conversations", field: "user_id", index: null },
     { table: "conversation_read_anchors", field: "user_id", index: "by_user" },
+    { table: "relay_viewer_grants", field: "user_id", index: "by_user" },
   ];
 
 // Tables we deliberately skip because they have no user-keyed index and are

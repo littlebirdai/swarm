@@ -2,6 +2,8 @@ import type {
   createRelayClient,
   RelayHandler,
   RelayHubStatus,
+  RelayHubStatusMeta,
+  RelaySubscribeOptions,
 } from "@codecast/relay-client";
 import { createContext } from "react";
 
@@ -11,7 +13,8 @@ export type RelayPresenceClient = {
   subscribe(
     sessionId: string,
     handler: RelayHandler,
-    onStatus?: (status: RelayHubStatus) => void,
+    onStatus?: (status: RelayHubStatus, meta?: RelayHubStatusMeta) => void,
+    options?: RelaySubscribeOptions,
   ): () => void;
   status(sessionId: string): RelayHubStatus | undefined;
   retainViewerFeed?: (
@@ -20,6 +23,8 @@ export type RelayPresenceClient = {
   ) => () => void;
   publish: ReturnType<typeof createRelayClient>["publish"];
 };
+
+export const RelayPresenceAvailableContext = createContext(false);
 
 export const RelayPresenceContext = createContext<RelayPresenceClient | null>(
   null,

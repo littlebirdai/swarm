@@ -30,6 +30,28 @@ export function rateLimitShardKey(endpoint: string, shard: number): string {
   return shard === 0 ? endpoint : `${endpoint}#${shard}`;
 }
 
+export async function isRateLimited(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  endpoint: string,
+  limit: number = WRITE_LIMIT,
+  count: number = 1,
+): Promise<boolean> {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const existing = await ctx.db
+    .query("rate_limits")
+    .withIndex("by_user_endpoint", (q) =>
+      q.eq("user_id", userId).eq("endpoint", endpoint),
+    )
+    .first();
+  return Boolean(
+    existing &&
+    existing.window_start >= windowStart &&
+    existing.request_count + count > limit,
+  );
+}
+
 export async function checkRateLimit(
   ctx: MutationCtx,
   userId: Id<"users">,

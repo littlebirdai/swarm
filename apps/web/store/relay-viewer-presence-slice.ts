@@ -134,9 +134,20 @@ function pruneConnectionIfEmpty(
   entry: RelayViewerSessionState,
   userId: string,
   connectionId: string,
+  force = true,
 ): void {
   const userConns = entry.connections[userId];
   if (!userConns) return;
+  const conn = userConns[connectionId];
+  if (
+    !force &&
+    conn &&
+    (conn.active ||
+      conn.reading !== undefined ||
+      conn.draftCursor !== undefined)
+  ) {
+    return;
+  }
   delete userConns[connectionId];
   if (Object.keys(userConns).length === 0) {
     delete entry.connections[userId];
@@ -172,12 +183,14 @@ export function applyRelayViewerSignal(
     if (signal.type === "reading_cursor") {
       if (conn.readingSeq <= signal.seq && conn.reading !== undefined) {
         conn.reading = undefined;
+        pruneConnectionIfEmpty(entry, userId, connId, false);
       }
       return;
     }
     if (signal.type === "draft_cursor") {
       if (conn.draftCursorSeq <= signal.seq && conn.draftCursor !== undefined) {
         conn.draftCursor = undefined;
+        pruneConnectionIfEmpty(entry, userId, connId, false);
       }
       return;
     }
@@ -210,6 +223,13 @@ export function applyRelayViewerSignal(
   }
 
   if (signal.type === "reading_cursor") {
+    if (signal.cursor === null) {
+      if (!conn || conn.readingSeq >= signal.seq) return;
+      conn.readingSeq = signal.seq;
+      conn.reading = undefined;
+      pruneConnectionIfEmpty(entry, userId, connId, false);
+      return;
+    }
     const target =
       conn ??
       ((entry.connections[userId] ??= {})[connId] = {
@@ -221,10 +241,6 @@ export function applyRelayViewerSignal(
       });
     if (target.readingSeq >= signal.seq) return;
     target.readingSeq = signal.seq;
-    if (signal.cursor === null) {
-      target.reading = undefined;
-      return;
-    }
     const samePos =
       target.reading &&
       target.reading.message_id === signal.cursor.message_id &&
@@ -238,6 +254,13 @@ export function applyRelayViewerSignal(
   }
 
   if (signal.type === "draft_cursor") {
+    if (signal.cursor === null) {
+      if (!conn || conn.draftCursorSeq >= signal.seq) return;
+      conn.draftCursorSeq = signal.seq;
+      conn.draftCursor = undefined;
+      pruneConnectionIfEmpty(entry, userId, connId, false);
+      return;
+    }
     const target =
       conn ??
       ((entry.connections[userId] ??= {})[connId] = {
@@ -249,7 +272,7 @@ export function applyRelayViewerSignal(
       });
     if (target.draftCursorSeq >= signal.seq) return;
     target.draftCursorSeq = signal.seq;
-    target.draftCursor = signal.cursor ?? undefined;
+    target.draftCursor = signal.cursor;
   }
 }
 
@@ -294,6 +317,25 @@ export function isRelayViewerEntryActive(
     entry.viewer === viewer &&
     entry.status !== "disabled" &&
     entry.status !== "denied",
+  );
+}
+
+export function isRelayViewerPresenceUnknown(
+  entry: RelayViewerSessionState | undefined,
+  viewer: string | undefined,
+): boolean {
+  return Boolean(
+    entry && viewer && entry.viewer === viewer && entry.status === "unknown",
+  );
+}
+
+export function relayViewerHasPeers(
+  entry: RelayViewerSessionState | undefined,
+  viewer: string | undefined,
+): boolean {
+  return Boolean(
+    isRelayViewerEntryActive(entry, viewer) &&
+    activeConnectionIds(entry).length > 0,
   );
 }
 
@@ -445,27 +487,6 @@ export function relayViewerPresenceSig(
     );
     parts.push(
       `${userId}:${inDraft ? 1 : 0}:${identity ? `${identity.user_name}:${identity.user_image ?? ""}` : "?"}`,
-    );
-  }
-  return `${entry.status}:${parts.length - 2}:${digestStrings(parts)}`;
-}
-
-export function relayViewerDraftPresenceSig(
-  entry: RelayViewerSessionState | undefined,
-  roster: readonly any[],
-  sharedRevision?: number | null,
-): string {
-  if (!entry) return "";
-  if (entry.status !== "ready") return entry.status;
-  const parts: string[] = [entry.status, String(sharedRevision ?? "")];
-  for (const userId of activeConnectionIds(entry)) {
-    const identity = resolveIdentity(userId, entry, roster);
-    if (!identity) continue;
-    const conns = entry.connections[userId] ?? {};
-    const inDraft = Object.values(conns).some((c) => c.active && c.inDraft);
-    const cursorPos = aggregateDraftCursor(conns, sharedRevision);
-    parts.push(
-      `${userId}:${inDraft ? 1 : 0}:${cursorPos ?? ""}:${identity.user_name}`,
     );
   }
   return `${entry.status}:${parts.length - 2}:${digestStrings(parts)}`;
