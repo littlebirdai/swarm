@@ -134,6 +134,7 @@ import {
 } from "@codecast/messages/jointMessage";
 import { quotesWaiting, stampQuotesSent } from "./quoteDrafts";
 import { pendingMessageMatchesProductIntent } from "./lib/pending-message-intent.rules";
+import { reportSenderGrantIfNeeded } from "./lib/senderGrantReport";
 
 export {
   MESSAGES_VIEW_CONTRACT_ID,
@@ -621,6 +622,7 @@ export async function enqueuePendingMessage(
     fromUserId,
     fields.content,
   );
+  await reportSenderGrantIfNeeded(ctx, conversation, fromUserId, fields);
 
   // A run's own log has no agent: a turn there would only start a fresh one
   // that asks what it is for (jx73gnf, 2026-10-23). Whatever is sent stays on

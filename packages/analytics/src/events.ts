@@ -275,6 +275,18 @@ export const CODECAST_EVENTS = defineCatalog({
   },
   call_rejoined: { attempts: COUNT, ms: COUNT },
   call_rejoin_failed: { attempts: COUNT, ms: COUNT },
+
+  sender_grant_report: {
+    conversation_id: { type: "string", max: 64 },
+    sender_kind: {
+      type: "string",
+      values: ["teammate", "agent"],
+    },
+    reason: {
+      type: "string",
+      values: ["personal_machine_no_grant", "unknown_machine"],
+    },
+  },
 });
 
 export type CodecastEventName = EventName<typeof CODECAST_EVENTS>;
