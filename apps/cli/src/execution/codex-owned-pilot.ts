@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { TerminalEventRejected } from "../terminal/terminal-lifecycle.js";
 import {
   OWNED_CODEX_CHECKPOINT_PREFIX as handlePrefix,
   type ReadyBinding,
@@ -24,9 +23,7 @@ import type {
   ResumeSpec,
   StartSpec,
 } from "@codecast/provider-contract";
-import { STABLE_ENV_MODE } from "@codecast/snippets/stableContext";
 import { CodexPilotDisplay } from "./codex-pilot-display.js";
-import { agentSpawnPath } from "../agentSpawnPath.js";
 import {
   checkpointOf,
   codexPilotSettings,
@@ -43,12 +40,16 @@ import { CodexPilotEvents } from "./codex-pilot-events.js";
 import { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
 import {
   ParkedPilotRegistry,
-  applyPilotDisplayEffect,
-  clearPilotFailure,
+  PilotErrorClearer,
   closeOwnedProvider,
   closePilots,
   createOwnedPilotDriver,
+  openOwnedProvider,
+  postOwnedEdgeResponse,
   reportPilotFailure,
+  startOwnedPilotSession,
+  writeOwnedPilotEvents,
+  type ParkRecord,
 } from "./codex-pilot-cleanup.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 import type { RuntimeDriver } from "./driver.js";
@@ -57,7 +58,6 @@ import type {
   RuntimeStartRequest,
   RuntimeStartResult,
 } from "./types.js";
-import { structuredFailure } from "./types.js";
 
 const provider = { agent: "codex", version: "0.153.4" } as const;
 const maxConsecutiveLivenessMisses = 3;
@@ -115,14 +115,16 @@ export class CodexOwnedPilot {
   private claim?: ClaimGrant;
   private claiming?: Promise<ClaimGrant>;
   private stopping = false;
+  private stopped = false;
   private resumeGeneration = 0;
   private deliverySequence = 0;
-  private leaseExhausted = false;
+  private parkFailure?: { retryAfterMs?: number };
   private singleClaimOnly = false;
   private activation?: Promise<void>;
   private closing?: Promise<void>;
   private renewal?: ReturnType<typeof setTimeout>;
   private renewalTask?: Promise<void>;
+  private readonly errorClearer: PilotErrorClearer;
   private streamProgress = 0;
   private progressAtRenewal = 0;
   private consecutiveLivenessMisses = 0;
@@ -139,10 +141,38 @@ export class CodexOwnedPilot {
     private readonly epoch = 1,
     private readonly onClose?: (pilot: CodexOwnedPilot) => void,
     private readonly registry = new ParkedPilotRegistry(),
-  ) {}
+  ) {
+    this.errorClearer = new PilotErrorClearer(this.options.display, (message) =>
+      this.options.log(message),
+    );
+  }
 
   get singleClaimAttempt(): boolean {
     return this.singleClaimOnly;
+  }
+
+  markStopped(): void {
+    this.stopped = true;
+  }
+
+  markParkFailure(retryAfterMs?: number): void {
+    this.parkFailure = { retryAfterMs };
+  }
+
+  forgetConversation(conversationId: string): void {
+    this.registry.forgetConversation(conversationId);
+  }
+
+  pruneParkedEpochs(conversationId: string, currentEpoch: number): void {
+    this.registry.pruneOlderEpochs(conversationId, currentEpoch);
+  }
+
+  parkedRecord(conversationId: string, epoch: number): ParkRecord | undefined {
+    return this.registry.get(conversationId, epoch);
+  }
+
+  parkedCount(): number {
+    return this.registry.size;
   }
 
   selects(conversationId: string, epoch = 1): boolean {
@@ -161,6 +191,7 @@ export class CodexOwnedPilot {
   }
 
   pilotFor(request: EnsureBindingRequest): CodexOwnedPilot | undefined {
+    if (this.stopped) return;
     const { conversationId, epoch, requestedAgent, transport } = request.target;
     const needsBaton = request.requiredCapabilities.includes(
       STEER_BATON_CAPABILITY,
@@ -185,11 +216,23 @@ export class CodexOwnedPilot {
         epoch,
         (closed) => {
           this.children.delete(key);
-          this.registry.park(key, {
-            generation: closed.resumeGeneration,
-            deliverySequence: closed.deliverySequence,
-            exhausted: closed.leaseExhausted,
-          });
+          if (closed.parkFailure) {
+            this.registry.parkFailure(
+              conversationId,
+              epoch,
+              closed.resumeGeneration,
+              closed.deliverySequence,
+              closed.parkFailure.retryAfterMs,
+              Date.now(),
+            );
+          } else {
+            this.registry.parkClean(
+              conversationId,
+              epoch,
+              closed.resumeGeneration,
+              closed.deliverySequence,
+            );
+          }
         },
         this.registry,
       );
@@ -203,33 +246,73 @@ export class CodexOwnedPilot {
     request: EnsureBindingRequest,
     generation = 0,
     deliverySequence = 0,
-  ) {
-    const { conversationId, epoch } = request.target;
+  ): Promise<
+    | { kind: "parked" }
+    | { kind: "defer"; notBeforeMs: number }
+    | { kind: "wake"; pilot: CodexOwnedPilot; singleClaimAttempt: boolean }
+  > {
+    if (this.stopped) return { kind: "parked" };
+    const { conversationId, epoch, requestedAgent, transport } = request.target;
+    const needsBaton = request.requiredCapabilities.includes(
+      STEER_BATON_CAPABILITY,
+    );
+    if (!needsBaton && this.selects(conversationId, epoch)) {
+      if (this.closed) return { kind: "parked" };
+      return { kind: "wake", pilot: this, singleClaimAttempt: false };
+    }
+    if (
+      !this.acceptsNewSessions ||
+      !needsBaton ||
+      requestedAgent !== "codex" ||
+      transport !== "app-server"
+    )
+      return { kind: "parked" };
     const key = JSON.stringify([conversationId, epoch]);
+    const existing = this.children.get(key);
+    if (existing) {
+      if (!existing.closed) {
+        if (generation > existing.resumeGeneration)
+          existing.singleClaimOnly = false;
+        existing.resumeGeneration = Math.max(
+          existing.resumeGeneration,
+          generation,
+        );
+        existing.deliverySequence = Math.max(
+          existing.deliverySequence,
+          deliverySequence,
+        );
+        return {
+          kind: "wake",
+          pilot: existing,
+          singleClaimAttempt: existing.singleClaimOnly,
+        };
+      }
+      if (
+        generation <= existing.resumeGeneration &&
+        deliverySequence <= existing.deliverySequence
+      )
+        return { kind: "parked" };
+      await existing.close();
+      if (this.stopped) return { kind: "parked" };
+    }
     const decision = this.registry.wakeDecision(
-      key,
+      conversationId,
+      epoch,
       generation,
       deliverySequence,
+      Date.now(),
     );
-    if (!decision.wake) return;
-    let pilot = this.pilotFor(request);
-    if (!pilot || pilot === this) return pilot;
-    if (pilot.closed) {
-      if (
-        generation <= pilot.resumeGeneration &&
-        deliverySequence <= pilot.deliverySequence
-      )
-        return;
-      await pilot.close();
-      pilot = this.pilotFor(request);
-      if (!pilot) return;
-    }
-    this.registry.unpark(key);
-    if (decision.singleClaimAttempt) pilot.singleClaimOnly = true;
-    else if (generation > pilot.resumeGeneration) pilot.singleClaimOnly = false;
-    pilot.resumeGeneration = Math.max(pilot.resumeGeneration, generation);
-    pilot.deliverySequence = Math.max(pilot.deliverySequence, deliverySequence);
-    return pilot;
+    if (decision.kind !== "wake") return decision;
+    const pilot = this.pilotFor(request);
+    if (!pilot) return { kind: "parked" };
+    pilot.singleClaimOnly = decision.singleClaimAttempt;
+    pilot.resumeGeneration = generation;
+    pilot.deliverySequence = deliverySequence;
+    return {
+      kind: "wake",
+      pilot,
+      singleClaimAttempt: decision.singleClaimAttempt,
+    };
   }
 
   private pilotOwning(binding: ReadyBinding): CodexOwnedPilot | undefined {
@@ -281,69 +364,35 @@ export class CodexOwnedPilot {
   private async openProvider(
     spec: StartSpec | ResumeSpec,
   ): Promise<ProviderOwnedSession> {
-    const { createProviderAdapter } =
-      await import("@codecast/provider-adapter");
-    this.controller.signal.throwIfAborted();
-    this.adapter ??= createProviderAdapter({
-      provider,
-      command: this.options.command(),
-      env: { ...process.env, PATH: agentSpawnPath(), [STABLE_ENV_MODE]: "off" },
-      retainRaw: (frame) => {
-        this.display.retain(frame);
-        this.promptCards.retain(frame);
+    const opened = await openOwnedProvider(
+      this.adapter,
+      {
+        provider,
+        command: this.options.command,
+        retainRaw: (frame) => {
+          this.display.retain(frame);
+          this.promptCards.retain(frame);
+        },
+        receiptJournal: this.delivery.receiptJournal,
       },
-      receiptJournal: this.delivery.receiptJournal,
-      uniquePromptIds: true,
-    });
-    const result =
-      "checkpoint" in spec
-        ? await this.adapter.resume(spec, this.controller.signal)
-        : await this.adapter.start(spec, this.controller.signal);
-    if (result.status !== "opened")
-      throw new Error("message" in result ? result.message : result.status);
-    return result.session;
+      spec,
+      this.controller.signal,
+    );
+    this.adapter = opened.adapter;
+    return opened.session;
   }
 
   private async start(
     request: RuntimeStartRequest,
   ): Promise<RuntimeStartResult> {
-    try {
-      const defaults = this.options.permissions();
-      const permissions = {
-        sandbox: request.target.isolation?.sandbox ?? defaults.sandbox,
-        approvalPolicy:
-          request.target.isolation?.approvalPolicy ?? defaults.approvalPolicy,
-      };
-      this.session = await this.open({
-        session: request.target.conversationId,
-        run: request.target.epoch,
-        cwd: request.target.projectPath,
-        afterSeq: 1,
-        fencing_token: request.operationId,
-        options: await codexPilotSettings(
-          this.options.instructions,
-          request,
-          permissions,
-        ),
-      });
-      const threadId = this.session.getCheckpoint();
-      return {
-        state: "started",
-        handle: {
-          runtimeId: threadId,
-          handle: handlePrefix + JSON.stringify({ threadId, ...permissions }),
-          actualAgent: "codex",
-          transport: "app-server",
-          capabilities: request.requiredCapabilities,
-        },
-      };
-    } catch (error) {
-      await this.close().catch(() => {});
-      return {
-        state: "ambiguous",
-        failure: structuredFailure("OWNED_CODEX_START_AMBIGUOUS", error),
-      };
-    }
+    const started = await startOwnedPilotSession(
+      this.options,
+      request,
+      (spec) => this.open(spec),
+      () => this.close(),
+    );
+    if (started.session) this.session = started.session;
+    return started.result;
   }
 
   activate(
@@ -383,36 +432,18 @@ export class CodexOwnedPilot {
     );
   }
 
-  private async edgeResponse(
+  private edgeResponse(
     operation: string,
     request: object,
     signal: AbortSignal,
   ): Promise<Response> {
-    const response = await fetch(
-      new URL(`/edge/v1/${operation}`, this.options.siteUrl),
-      {
-        method: "POST",
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${this.options.bearer}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
-      },
+    return postOwnedEdgeResponse(
+      this.options.siteUrl,
+      this.options.bearer,
+      operation,
+      request,
+      signal,
     );
-    if (!response.ok) {
-      const message = `Owned Codex ${operation} failed with HTTP ${response.status}`;
-      if (
-        operation === "events.append" &&
-        response.status >= 400 &&
-        response.status < 500 &&
-        ![408, 425, 429].includes(response.status)
-      )
-        throw new TerminalEventRejected(message);
-      throw new Error(message);
-    }
-    return response;
   }
 
   private async claimAndRead(
@@ -446,6 +477,7 @@ export class CodexOwnedPilot {
     this.controller.signal.throwIfAborted();
     if (claim.session !== binding.conversationId || claim.run !== binding.epoch)
       throw new Error("Owned Codex lease does not match the binding");
+    this.registry.clear(claim.session, claim.run);
     if (!previousClaim) this.scheduleRenewal(claim, claim.lease_ms);
     const checkpoint = checkpointOf(binding);
     const previous = claim.last_event_seq ?? 0;
@@ -523,15 +555,8 @@ export class CodexOwnedPilot {
         : Promise.resolve();
     await recovery;
     this.controller.signal.throwIfAborted();
-    if (this.registry.hasFailure(claim.session)) {
-      await clearPilotFailure(
-        this.options.display,
-        this.options.log,
-        claim.session,
-      );
-      this.registry.clearFailure(claim.session);
-      this.controller.signal.throwIfAborted();
-    }
+    await this.errorClearer.clear(claim.session, this.controller.signal);
+    this.controller.signal.throwIfAborted();
     this.eventWriter = this.writeEvents(
       claim,
       session,
@@ -593,56 +618,27 @@ export class CodexOwnedPilot {
     }
   }
 
-  private async writeEvents(
+  private writeEvents(
     claim: ClaimGrant,
     session: ProviderOwnedSession,
     binding: ReadyBinding,
     model: string | undefined,
   ): Promise<void> {
-    const { syncService, sendAgentStatus } = this.options.display;
-    const { conversationId, runtimeId } = binding;
-    for await (const event of session.events) {
-      this.controller.signal.throwIfAborted();
-      this.streamProgress++;
-      if (event.kind === "message.delta") continue;
-      await this.events.appendEvent(
-        claim,
-        this.delivery.attributeTurnStart(event),
-      );
-      await this.delivery.observe(event, session, this.controller.signal);
-      await this.promptCards
-        .publish(event, claim, session, syncService, () => {
-          sendAgentStatus(
-            syncService,
-            conversationId,
-            runtimeId,
-            "permission_blocked",
-          );
-        })
-        .catch((error) =>
-          this.options.log(
-            `[owned-codex] prompt card update failed: ${String(error)}`,
-          ),
-        );
-      await this.display
-        .publish(
-          runtimeId,
-          event,
-          (effect) =>
-            applyPilotDisplayEffect(
-              this.options.display,
-              conversationId,
-              runtimeId,
-              effect,
-            ),
-          model,
-        )
-        .catch((error) =>
-          this.options.log(
-            `[owned-codex] display update failed: ${String(error)}`,
-          ),
-        );
-    }
+    return writeOwnedPilotEvents({
+      claim,
+      session,
+      binding,
+      model,
+      signal: this.controller.signal,
+      options: this.options,
+      events: this.events,
+      delivery: this.delivery,
+      promptCards: this.promptCards,
+      display: this.display,
+      onProgress: () => {
+        this.streamProgress++;
+      },
+    });
   }
 
   private scheduleRenewal(claim: ClaimGrant, duration: number): void {
@@ -701,18 +697,17 @@ export class CodexOwnedPilot {
   async failResume(
     binding: ReadyBinding,
     message: string,
-    onFirstReport?: () => void,
+    retryAfterMs?: number,
+    onReport?: () => void,
   ): Promise<void> {
-    this.leaseExhausted = true;
-    if (this.registry.recordFailure(binding.conversationId)) {
-      onFirstReport?.();
-      await reportPilotFailure(
-        this.options.display,
-        this.options.log,
-        binding,
-        message,
-      );
-    }
+    this.parkFailure = { retryAfterMs };
+    onReport?.();
+    await reportPilotFailure(
+      this.options.display,
+      this.options.log,
+      binding,
+      message,
+    );
     await this.close();
   }
 
@@ -734,13 +729,16 @@ export class CodexOwnedPilot {
     ));
   }
 
-  closeAll(): Promise<void> {
-    return closePilots([this, ...this.children.values()]);
+  async closeAll(): Promise<void> {
+    this.markStopped();
+    await closePilots([this, ...this.children.values()]);
+    this.registry.clearAll();
   }
 
   private async closeOwned(): Promise<void> {
     this.controller.abort();
     clearTimeout(this.renewal);
+    this.errorClearer.cancel();
     await this.claiming?.catch(() => {});
     await this.renewalTask?.catch(() => {});
     const session =

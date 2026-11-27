@@ -25,6 +25,7 @@ import {
   ownsCodexCheckpoint,
   type CodexOwnedPilot,
 } from "./codex-owned-pilot.js";
+import { PILOT_RESUME_BUSY_ERROR } from "./codex-pilot-cleanup.js";
 import { defaultConfigDir } from "../config/configDir.js";
 import { parseWork, type ExecutionWorkItem } from "./work-feed-parser.js";
 
@@ -86,7 +87,16 @@ export class DaemonExecutionRuntime {
   private readonly resolveFile?: DaemonExecutionRuntimeOptions["resolveFile"];
   private readonly onLog: (message: string) => void;
   private unsubscribe?: () => void;
+  private stopped = false;
   private workChain: Promise<void> = Promise.resolve();
+  private readonly deferredWakes = new Map<
+    string,
+    {
+      timer: ReturnType<typeof setTimeout>;
+      notBeforeMs: number;
+      item: ExecutionWorkItem;
+    }
+  >();
   private readonly pilotPolls = new Map<
     string,
     {
@@ -143,6 +153,7 @@ export class DaemonExecutionRuntime {
   }
 
   async start(): Promise<void> {
+    if (this.stopped) return;
     // Registration makes THIS boot the device's authorized recovery claimant:
     // the server only transfers a stranded binding to the registered current
     // boot, so it must happen before the recovery pass below.
@@ -151,12 +162,14 @@ export class DaemonExecutionRuntime {
       daemonBootId: this.daemonBootId,
       ownedCodexNewSessions: this.handshake().ownedCodexNewSessions,
     });
+    if (this.stopped) return;
     // Startup recovery is an actual read/process pass before reactive updates;
     // a WebSocket subscription alone can otherwise wait forever on unchanged
     // durable work left by the prior process.
     await this.processWorkUpdate(
       await this.controlPlane.listExecutionWork(this.handshake()),
     );
+    if (this.stopped) return;
     this.unsubscribe = this.controlPlane.subscribeExecutionWork(
       this.handshake(),
       (value) => {
@@ -170,18 +183,30 @@ export class DaemonExecutionRuntime {
   }
 
   async stop(): Promise<void> {
+    this.stopped = true;
+    this.codexOwnedPilot?.markStopped();
     this.unsubscribe?.();
     this.unsubscribe = undefined;
-    for (const id of this.pilotPolls.keys()) this.stopPilotPoll(id);
+    this.clearAllTimers();
+    await this.workChain;
+    this.clearAllTimers();
     await this.codexOwnedPilot
       ?.closeAll()
       .catch((error) => this.onLog(String(error)));
   }
 
+  private clearAllTimers(): void {
+    for (const id of [...this.pilotPolls.keys()]) this.stopPilotPoll(id);
+    for (const id of [...this.deferredWakes.keys()])
+      this.cancelDeferredWake(id);
+  }
+
   processWorkUpdate(value: unknown): Promise<void> {
+    if (this.stopped) return Promise.resolve();
     const work = parseWork(value);
     const next = this.workChain.then(async () => {
       for (const item of work) {
+        if (this.stopped) return;
         try {
           await this.processItem(item);
         } catch (error) {
@@ -204,6 +229,11 @@ export class DaemonExecutionRuntime {
   }
 
   private async processItem(item: ExecutionWorkItem): Promise<void> {
+    if (this.stopped) return;
+    this.codexOwnedPilot?.pruneParkedEpochs(
+      item.conversationId,
+      item.currentEpoch,
+    );
     let successorFromIntent: ReadyBinding | undefined;
     if (item.pendingIntent) {
       const intent = item.pendingIntent;
@@ -217,9 +247,11 @@ export class DaemonExecutionRuntime {
         policy: intent.policy,
         request: intent.request,
       });
+      if (this.stopped) return;
       successorFromIntent = await this.coordinator.ensureBinding(
         intent.request,
       );
+      if (this.stopped) return;
     }
 
     const ready = new Map<
@@ -231,6 +263,7 @@ export class DaemonExecutionRuntime {
       }
     >();
     for (const work of item.bindings) {
+      if (this.stopped) return;
       if (
         (work.state === "stopped" || work.state === "quarantined") &&
         work.binding
@@ -261,6 +294,7 @@ export class DaemonExecutionRuntime {
         );
       }
       const binding = await this.coordinator.ensureBinding(request);
+      if (this.stopped) return;
       ready.set(binding.epoch, { binding, request, state: "ready" });
     }
     if (successorFromIntent && item.pendingIntent) {
@@ -282,16 +316,29 @@ export class DaemonExecutionRuntime {
       pendingEpoch === undefined ? undefined : ready.get(pendingEpoch);
     const policy = item.pendingPolicy ?? item.pendingIntent?.policy;
 
-    const pilot =
-      currentOwned && current
+    if (current?.state !== "ready") {
+      this.stopPilotPoll(item.conversationId);
+      if (!(current && successor && policy)) {
+        this.codexOwnedPilot?.forgetConversation(item.conversationId);
+      }
+    }
+
+    const wake =
+      currentOwned && current?.state === "ready"
         ? await this.codexOwnedPilot?.resumePilotFor(
             current.request,
             item.resumeGeneration,
             item.nextDeliverySequence,
           )
         : undefined;
+    if (this.stopped) return;
+    if (wake?.kind === "defer") {
+      this.scheduleDeferredWake(item, wake.notBeforeMs);
+    }
+    const pilot = wake?.kind === "wake" ? wake.pilot : undefined;
     if (current?.state === "ready" && pilot?.owns(current.binding)) {
       const { conversationId } = current.binding;
+      this.cancelDeferredWake(conversationId);
       const awaitingSuccessor = Boolean(successor && policy);
       const sendNew = !awaitingSuccessor || policy === "drain-current";
       const generation = item.resumeGeneration ?? 0;
@@ -331,6 +378,7 @@ export class DaemonExecutionRuntime {
         await pilot.activate(current.binding, current.request);
         activated = true;
         poll.leaseRetry = undefined;
+        if (this.stopped) return;
         idle = await pilot.drain(
           current.binding,
           this.coordinator,
@@ -346,15 +394,26 @@ export class DaemonExecutionRuntime {
           )
             return;
           this.stopPilotPoll(conversationId);
-          await this.failPilotLeaseRetry(pilot, current.binding, error);
+          if (poll.singleClaimAttempt) {
+            pilot.markParkFailure(error.retryAfterMs);
+            await pilot.close().catch(() => {});
+          } else {
+            await this.failPilotLeaseRetry(pilot, current.binding, error);
+          }
           return;
         }
         this.stopPilotPoll(conversationId);
         if (!activated && pilot !== this.codexOwnedPilot) {
+          pilot.markParkFailure(
+            error instanceof CodexPilotLeaseBusy
+              ? error.retryAfterMs
+              : undefined,
+          );
           await pilot.close().catch(() => {});
         }
         throw error;
       }
+      if (this.stopped) return;
       if (idle || pilot.closed) this.stopPilotPoll(conversationId);
       else if (!poll.timer)
         this.schedulePilotPoll(pilot, poll.binding, current.request);
@@ -389,6 +448,10 @@ export class DaemonExecutionRuntime {
         }
         if (batch === 1023) throw new Error("SUCCESSOR_ACTIVATION_BATCH_LIMIT");
       }
+      this.codexOwnedPilot?.pruneParkedEpochs(
+        item.conversationId,
+        successor.binding.epoch,
+      );
       if (
         successor.state === "ready" &&
         !ownsCodexCheckpoint(successor.binding.handle)
@@ -400,6 +463,50 @@ export class DaemonExecutionRuntime {
     if (current?.state !== "ready") return;
     if (currentOwned) return;
     await this.drain(current.binding, current.request);
+  }
+
+  private cancelDeferredWake(conversationId: string): void {
+    const wake = this.deferredWakes.get(conversationId);
+    if (!wake) return;
+    clearTimeout(wake.timer);
+    this.deferredWakes.delete(conversationId);
+  }
+
+  private scheduleDeferredWake(
+    item: ExecutionWorkItem,
+    notBeforeMs: number,
+  ): void {
+    if (this.stopped) return;
+    const existing = this.deferredWakes.get(item.conversationId);
+    if (existing) {
+      existing.item = item;
+      if (existing.notBeforeMs === notBeforeMs) return;
+      clearTimeout(existing.timer);
+      this.deferredWakes.delete(item.conversationId);
+    }
+    const delayMs = Math.max(0, notBeforeMs - Date.now());
+    const entry = {
+      notBeforeMs,
+      item,
+      timer: setTimeout(() => {
+        if (this.stopped) return;
+        if (this.deferredWakes.get(item.conversationId) !== entry) return;
+        this.deferredWakes.delete(item.conversationId);
+        const next = this.workChain.then(async () => {
+          if (this.stopped) return;
+          try {
+            await this.processItem(entry.item);
+          } catch (error) {
+            this.onLog(
+              `[owned-codex] work failed for ${entry.item.conversationId}: ${String(error)}`,
+            );
+          }
+        });
+        this.workChain = next.catch(() => {});
+      }, delayMs),
+    };
+    entry.timer.unref();
+    this.deferredWakes.set(item.conversationId, entry);
   }
 
   private clearPilotPollTimer(
@@ -414,6 +521,7 @@ export class DaemonExecutionRuntime {
     const poll = this.pilotPolls.get(conversationId);
     if (poll) this.clearPilotPollTimer(poll);
     this.pilotPolls.delete(conversationId);
+    this.cancelDeferredWake(conversationId);
   }
 
   private schedulePilotLeaseRetry(
@@ -421,6 +529,7 @@ export class DaemonExecutionRuntime {
     request: EnsureBindingRequest,
     error: CodexPilotLeaseBusy,
   ): boolean {
+    if (this.stopped) return false;
     const attempts = (poll.leaseRetry?.attempts ?? 0) + 1;
     if (attempts > maxPilotLeaseRetries) return false;
     const delayMs = Math.min(
@@ -441,15 +550,11 @@ export class DaemonExecutionRuntime {
     error: CodexPilotLeaseBusy,
   ): Promise<void> {
     await pilot
-      .failResume(
-        binding,
-        "Could not resume Codex session: the previous run still holds its lease.",
-        () => {
-          this.onLog(
-            `[owned-codex] resume lease retry exhausted: ${String(error)}`,
-          );
-        },
-      )
+      .failResume(binding, PILOT_RESUME_BUSY_ERROR, error.retryAfterMs, () => {
+        this.onLog(
+          `[owned-codex] resume lease retry exhausted: ${String(error)}`,
+        );
+      })
       .catch((closeError) => {
         this.onLog(
           `[owned-codex] exhausted resume cleanup failed: ${String(closeError)}`,
@@ -463,6 +568,7 @@ export class DaemonExecutionRuntime {
     request: EnsureBindingRequest,
     delay = 2_000,
   ): void {
+    if (this.stopped) return;
     const { conversationId } = binding;
     const poll = this.pilotPolls.get(conversationId);
     if (poll?.binding !== binding) return;
@@ -474,17 +580,21 @@ export class DaemonExecutionRuntime {
     const token = poll.timerToken;
     poll.timer = setTimeout(() => {
       if (
+        this.stopped ||
         this.pilotPolls.get(conversationId) !== poll ||
         poll.timerToken !== token
       )
         return;
+      let entered = false;
       let activated = false;
       const next = this.workChain.then(async () => {
         if (
+          this.stopped ||
           this.pilotPolls.get(conversationId) !== poll ||
           poll.timerToken !== token
         )
           return;
+        entered = true;
         poll.timer = undefined;
         if (pilot.closed) {
           this.stopPilotPoll(conversationId);
@@ -493,17 +603,19 @@ export class DaemonExecutionRuntime {
         await pilot.activate(binding, request);
         activated = true;
         poll.leaseRetry = undefined;
+        if (this.stopped) return;
         const idle = await pilot.drain(
           binding,
           this.coordinator,
           (text) => this.prepareText(text),
           poll.sendNew,
         );
-        if (!idle) return;
+        if (!idle || this.stopped) return;
         if (poll.awaitingSuccessor) {
           const work = parseWork(
             await this.controlPlane.listExecutionWork(this.handshake()),
           );
+          if (this.stopped) return;
           const item = work.find(
             (item) => item.conversationId === conversationId,
           );
@@ -512,11 +624,15 @@ export class DaemonExecutionRuntime {
         this.stopPilotPoll(conversationId);
       });
       this.workChain = next.catch(async (error) => {
-        if (
-          this.pilotPolls.get(conversationId) !== poll ||
-          poll.timerToken !== token
-        )
+        if (!entered) return;
+        const activePoll =
+          !this.stopped &&
+          this.pilotPolls.get(conversationId) === poll &&
+          poll.timerToken === token;
+        if (!activePoll) {
+          this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
           return;
+        }
         if (
           poll.resumeRequested &&
           error instanceof CodexPilotLeaseBusy &&
@@ -526,16 +642,27 @@ export class DaemonExecutionRuntime {
           return;
         this.stopPilotPoll(conversationId);
         if (poll.resumeRequested && error instanceof CodexPilotLeaseBusy) {
-          await this.failPilotLeaseRetry(pilot, binding, error);
+          if (poll.singleClaimAttempt) {
+            pilot.markParkFailure(error.retryAfterMs);
+            await pilot.close().catch(() => {});
+          } else {
+            await this.failPilotLeaseRetry(pilot, binding, error);
+          }
           return;
         }
         if (!activated && pilot !== this.codexOwnedPilot) {
+          pilot.markParkFailure(
+            error instanceof CodexPilotLeaseBusy
+              ? error.retryAfterMs
+              : undefined,
+          );
           await pilot.close().catch(() => {});
         }
         this.onLog(`[owned-codex] delivery poll failed: ${String(error)}`);
       });
       void this.workChain.then(() => {
         if (
+          !this.stopped &&
           this.pilotPolls.get(conversationId) === poll &&
           poll.timerToken === token &&
           !poll.timer

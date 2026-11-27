@@ -22,6 +22,7 @@ import { createCodexOwnedPilot } from "./codex-owned-pilot.js";
 import {
   bindingFor,
   item,
+  legacyFixtureDriver,
   pending,
   request,
   started,
@@ -127,33 +128,7 @@ export function fixture(
     ["new:1", [newRequest, undefined]],
     ["pilot:2", [successor, undefined]],
   ]);
-  const legacy: RuntimeDriver = {
-    id: "legacy-codex",
-    supportedAgents: new Set(["codex"]),
-    transport: "app-server",
-    capabilities: [...FENCED_RUNTIME_CAPABILITIES],
-    async start(request) {
-      actions.push(
-        `legacy-start:${request.target.conversationId}:${request.target.epoch}`,
-      );
-      return { state: "started", handle: bindingFor(request) };
-    },
-    async deliver({ binding, permit }) {
-      actions.push(
-        `legacy-deliver:${binding.conversationId}:${binding.epoch}:${permit.conversationSequence}`,
-      );
-      return { state: "delivered" };
-    },
-    async adopt() {
-      return { state: "missing" };
-    },
-    async stop(binding) {
-      actions.push(`legacy-stop:${binding.conversationId}`);
-    },
-    async quarantine(binding) {
-      actions.push(`legacy-quarantine:${binding.conversationId}`);
-    },
-  };
+  const legacy = legacyFixtureDriver(actions);
   const promptMessages: Parameters<SyncService["addMessages"]>[0]["messages"] =
     [];
   const promptPermissions = new Map<string, { id: string; turn: string }>();
@@ -162,8 +137,17 @@ export function fixture(
   let failedPermissionCleanup: string | undefined;
   let questionWrite: Promise<void> | undefined;
   let errorClearPause: { started(): void; resume: Promise<void> } | undefined;
+  let errorClearFailures = 0;
+  let claimStartPause: { started(): void; resume: Promise<void> } | undefined;
   let renewal: Promise<void> | undefined;
   const statuses: string[] = [];
+  const currentSessionErrors = new Map<string, string>();
+  const setSessionErrorCalls: Array<{
+    conversationId: string;
+    error?: string;
+    onlyIfEquals?: string;
+    force?: boolean;
+  }> = [];
   const sessionErrors: Array<{
     conversationId: string;
     error?: string;
@@ -219,12 +203,33 @@ export function fixture(
               return removed;
             },
             async setSessionError(conversationId, error, opts) {
+              setSessionErrorCalls.push({
+                conversationId,
+                error,
+                onlyIfEquals: opts?.onlyIfEquals,
+                force: opts?.force,
+              });
               if (error === undefined && errorClearPause) {
                 const pause = errorClearPause;
                 errorClearPause = undefined;
                 pause.started();
                 await pause.resume;
               }
+              if (error === undefined && errorClearFailures > 0) {
+                errorClearFailures -= 1;
+                if (opts?.throwOnError)
+                  throw new Error("Transient session error clear failure");
+                return;
+              }
+              if (
+                opts?.onlyIfEquals !== undefined &&
+                currentSessionErrors.get(conversationId) !== opts.onlyIfEquals
+              ) {
+                return;
+              }
+              if (error === undefined)
+                currentSessionErrors.delete(conversationId);
+              else currentSessionErrors.set(conversationId, error);
               sessionErrors.push({
                 conversationId,
                 error,
@@ -326,6 +331,12 @@ export function fixture(
         return { registered: true };
       }
       if (name === "claimExecutionStart") {
+        if (claimStartPause) {
+          const pause = claimStartPause;
+          claimStartPause = undefined;
+          pause.started();
+          await pause.resume;
+        }
         if (!row) throw new Error(`Missing binding ${key}`);
         if (row[1]) return { state: "ready", binding: row[1] };
         return {
@@ -592,6 +603,18 @@ export function fixture(
       { preconnect: fetch.preconnect },
     ),
   );
+  const pauseGate = (
+    assign: (gate: { started(): void; resume: Promise<void> }) => void,
+  ) => {
+    const started = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    assign({ started: started.resolve, resume: resume.promise });
+    return {
+      started: started.promise,
+      release: resume.resolve,
+      resume: resume.resolve,
+    };
+  };
   return {
     actions,
     bootRegistrations,
@@ -604,25 +627,41 @@ export function fixture(
     promptMessages,
     promptPermissions,
     cancelledPermissions,
-    rejectPromptCleanup(value: boolean) {
+    rejectPromptCleanup: (value: boolean) => {
       promptCleanupError = value;
     },
-    rejectPermissionCleanup(rowId: string) {
+    rejectPermissionCleanup: (rowId: string) => {
       failedPermissionCleanup = rowId;
     },
-    pauseQuestionWrite(gate: Promise<void>) {
+    pauseQuestionWrite: (gate: Promise<void>) => {
       questionWrite = gate;
     },
-    pauseErrorClear() {
-      const started = Promise.withResolvers<void>();
-      const resume = Promise.withResolvers<void>();
-      errorClearPause = { started: started.resolve, resume: resume.promise };
-      return { started: started.promise, release: resume.resolve };
+    pauseErrorClear: () => pauseGate((gate) => (errorClearPause = gate)),
+    pauseNextClaimStart: () => pauseGate((gate) => (claimStartPause = gate)),
+    failNextErrorClears: (count: number) => {
+      errorClearFailures = count;
     },
-    setResumedTurn(turnId?: string) {
+    seedSessionError: (conversationId: string, error?: string) => {
+      if (error === undefined) currentSessionErrors.delete(conversationId);
+      else currentSessionErrors.set(conversationId, error);
+    },
+    currentSessionError: (conversationId: string) =>
+      currentSessionErrors.get(conversationId),
+    setSessionErrorCalls,
+    setResumedTurn: (turnId?: string) => {
       resumedTurn = turnId;
     },
-    rejectRenewalAfter(gate: Promise<void>) {
+    createRuntime: (boot: string) => {
+      const nextPilot = createPilot()!;
+      const nextRuntime = runtimeFor(
+        boot,
+        nextPilot,
+        nextPilot.register(legacy),
+      );
+      runtimes.push(nextRuntime);
+      return { runtime: nextRuntime, pilot: nextPilot };
+    },
+    rejectRenewalAfter: (gate: Promise<void>) => {
       renewal = gate;
     },
     sendFrame,

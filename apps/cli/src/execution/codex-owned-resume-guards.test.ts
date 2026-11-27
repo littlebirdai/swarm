@@ -55,6 +55,11 @@ function interceptRetries(delays: ReadonlySet<number> = expectedRetryDelays) {
 test("three messages after exhaustion bound claims and keep one exhaustion error and log", async () => {
   const f = fixture(null, true, "receipt", true);
   let clock: ReturnType<typeof interceptRetries> | undefined;
+  const realNow = Date.now;
+  let offsetMs = 0;
+  const nowSpy = spyOn(Date, "now").mockImplementation(
+    () => realNow() + offsetMs,
+  );
   try {
     await f.runtime.processWorkUpdate([
       { ...item(f.newRequest), nextDeliverySequence: 1 },
@@ -96,6 +101,7 @@ test("three messages after exhaustion bound claims and keep one exhaustion error
       );
     }
     for (const seq of [2, 3, 4]) {
+      offsetMs += 5 * 60_000;
       await f.runtime.processWorkUpdate([
         {
           ...item(f.newRequest, binding),
@@ -116,6 +122,7 @@ test("three messages after exhaustion bound claims and keep one exhaustion error
     expect(exhaustedLogs()).toHaveLength(1);
     expect(f.sessionErrors).toHaveLength(1);
 
+    offsetMs += 5 * 60_000;
     await f.runtime.processWorkUpdate([
       {
         ...item(f.newRequest, binding),
@@ -127,6 +134,7 @@ test("three messages after exhaustion bound claims and keep one exhaustion error
       claimsAfterMessages,
     );
   } finally {
+    nowSpy.mockRestore();
     clock?.restore();
     await f.dispose();
   }
@@ -134,6 +142,11 @@ test("three messages after exhaustion bound claims and keep one exhaustion error
 
 test("an unchanged update after a failed wake claim makes zero claims", async () => {
   const f = fixture(null, true, "receipt", true);
+  const realNow = Date.now;
+  let offsetMs = 0;
+  const nowSpy = spyOn(Date, "now").mockImplementation(
+    () => realNow() + offsetMs,
+  );
   try {
     await f.runtime.processWorkUpdate([
       { ...item(f.newRequest), nextDeliverySequence: 1 },
@@ -156,6 +169,7 @@ test("an unchanged update after a failed wake claim makes zero claims", async ()
       f.logs.filter((line) => line.includes("[owned-codex] work failed"));
     expect(workFailedLogs()).toHaveLength(1);
 
+    offsetMs += 10_000;
     for (let i = 0; i < 3; i++) {
       await f.runtime.processWorkUpdate(wake);
     }
@@ -175,11 +189,13 @@ test("an unchanged update after a failed wake claim makes zero claims", async ()
       (action) => action === "edge:claim",
     ).length;
     expect(claimsAfterBusyWake).toBe(claimsAfterFailedWake + 1);
+    offsetMs += 10_000;
     await f.runtime.processWorkUpdate(busyWake);
     expect(f.actions.filter((action) => action === "edge:claim").length).toBe(
       claimsAfterBusyWake,
     );
   } finally {
+    nowSpy.mockRestore();
     await f.dispose();
   }
 });

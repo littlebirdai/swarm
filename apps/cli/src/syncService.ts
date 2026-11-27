@@ -57,6 +57,7 @@ import {
 } from "@codecast/files";
 import { filesForWire, type SyncFile } from "./userFiles.js";
 import { callFrameAtPath, referenceCallFrames } from "./callFrameRefs.js";
+import type { SessionErrorOptions } from "./execution/codex-pilot-cleanup.js";
 export { filesForWire, type SyncFile } from "./userFiles.js";
 
 const fetchWithIngestDeadline = ((input, init) => {
@@ -2955,17 +2956,18 @@ export class SyncService {
   async setSessionError(
     conversationId: string,
     error?: string,
-    opts: { force?: boolean } = {},
+    opts: SessionErrorOptions = {},
   ): Promise<void> {
     if (!this.apiToken) return;
-    try {
-      await this.mutate("conversations:setSessionError" as any, {
-        conversation_id: conversationId,
-        error,
-        ...(opts.force ? { force: true } : {}),
-        api_token: this.apiToken,
-      });
-    } catch {}
+    await this.mutate("conversations:setSessionError" as any, {
+      conversation_id: conversationId,
+      error,
+      only_if_equals: opts.onlyIfEquals,
+      ...(opts.force ? { force: true } : {}),
+      api_token: this.apiToken,
+    }).catch((err) => {
+      if (opts.throwOnError) throw err;
+    });
   }
 
   /**

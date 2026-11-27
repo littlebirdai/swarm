@@ -543,3 +543,43 @@ test("adopting a fenced workspace anchor queues the role bootstrap", async () =>
   expect(messages[0]?.client_id).toMatch(/^anchor-adopt:/);
   expect(messages[0]?.delivery_id).toBe(messages[0]?.client_id);
 });
+
+test("setSessionError with only_if_equals clears matching errors and preserves unrelated errors", async () => {
+  const f = await fixture("quick");
+  const pilotError =
+    "Could not resume Codex session: the previous run still holds its lease.";
+
+  await f.viewer.mutation(api.conversations.setSessionError, {
+    conversation_id: String(f.conversation),
+    error: pilotError,
+    force: true,
+  });
+  expect(
+    (await f.t.run(({ db }) => db.get(f.conversation)))?.session_error,
+  ).toBe(pilotError);
+
+  await f.viewer.mutation(api.conversations.setSessionError, {
+    conversation_id: String(f.conversation),
+    error: undefined,
+    only_if_equals: pilotError,
+    force: true,
+  });
+  expect(
+    (await f.t.run(({ db }) => db.get(f.conversation)))?.session_error,
+  ).toBeUndefined();
+
+  await f.viewer.mutation(api.conversations.setSessionError, {
+    conversation_id: String(f.conversation),
+    error: "Unrelated subsystem error",
+    force: true,
+  });
+  await f.viewer.mutation(api.conversations.setSessionError, {
+    conversation_id: String(f.conversation),
+    error: undefined,
+    only_if_equals: pilotError,
+    force: true,
+  });
+  expect(
+    (await f.t.run(({ db }) => db.get(f.conversation)))?.session_error,
+  ).toBe("Unrelated subsystem error");
+});

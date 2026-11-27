@@ -4,7 +4,38 @@ import {
   type ReadyBinding,
   type StartedDeliveryPermit,
 } from "@codecast/agent-clients/executionBinding";
+import type { RuntimeDriver } from "./driver.js";
 import type { RuntimeStartRequest } from "./types.js";
+
+export function legacyFixtureDriver(actions: string[]): RuntimeDriver {
+  return {
+    id: "legacy-codex",
+    supportedAgents: new Set(["codex"]),
+    transport: "app-server",
+    capabilities: [...FENCED_RUNTIME_CAPABILITIES],
+    async start(request) {
+      actions.push(
+        `legacy-start:${request.target.conversationId}:${request.target.epoch}`,
+      );
+      return { state: "started", handle: bindingFor(request) };
+    },
+    async deliver({ binding, permit }) {
+      actions.push(
+        `legacy-deliver:${binding.conversationId}:${binding.epoch}:${permit.conversationSequence}`,
+      );
+      return { state: "delivered" };
+    },
+    async adopt() {
+      return { state: "missing" };
+    },
+    async stop(binding) {
+      actions.push(`legacy-stop:${binding.conversationId}`);
+    },
+    async quarantine(binding) {
+      actions.push(`legacy-quarantine:${binding.conversationId}`);
+    },
+  };
+}
 
 export function request(
   conversationId: string,

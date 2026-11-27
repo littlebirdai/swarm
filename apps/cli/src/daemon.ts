@@ -9615,6 +9615,7 @@ async function killConversationBackends(
     keepCodexResume: true,
     keepTurnClaims: opts.keepTurnClaims,
   });
+  codexOwnedPilot?.forgetConversation(conversationId);
   if (teardown.killedAppServer && teardown.appServerThreadId) {
     if (syncServiceRef) {
       syncServiceRef

@@ -14406,6 +14406,7 @@ export const setSessionError = mutation({
   args: {
     conversation_id: v.string(),
     error: v.optional(v.string()),
+    only_if_equals: v.optional(v.string()),
     force: v.optional(v.boolean()),
     api_token: v.optional(v.string()),
   },
@@ -14418,6 +14419,11 @@ export const setSessionError = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id !== userId) return;
     if (isConversationSafetyBlocked(conv)) return;
+    if (
+      args.only_if_equals !== undefined &&
+      conv.session_error !== args.only_if_equals
+    )
+      return;
     const safetyPatch = safetyBlockPatch(
       conv,
       [{ role: "assistant", content: args.error }],
