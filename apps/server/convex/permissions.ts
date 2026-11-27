@@ -10,7 +10,6 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
 import {
   answerablePromptAddresses,
   fencedPromptAnswersEnabled,
@@ -243,36 +242,26 @@ export const getPromptAddress = query({
   },
 });
 
-async function readFencedPromptFeed(
-  ctx: QueryCtx,
-  conversationId: Id<"conversations">,
-  maySteer: boolean,
-) {
-  const actor = await getAuthUserId(ctx);
-  if (!actor) return { prompts: [], turn: null };
-  const conversation = await ctx.db.get(conversationId);
-  if (
-    conversation?.execution_protocol_state !== "fenced" ||
-    conversation.user_id !== actor
-  )
-    return { prompts: [], turn: null };
-  return answerablePromptAddresses(ctx, conversation, actor, maySteer);
-}
-
 export const listAnswerablePromptAddresses = query({
   args: { conversation_id: v.id("conversations") },
   handler: async (ctx, { conversation_id }) => {
-    const { prompts } = await readFencedPromptFeed(ctx, conversation_id, false);
+    const { prompts } = await answerablePromptAddresses(
+      ctx,
+      conversation_id,
+      await getAuthUserId(ctx),
+      false,
+    );
     return prompts;
   },
 });
 
 export const getFencedPromptFeed = query({
   args: { conversation_id: v.id("conversations") },
-  handler: (ctx, { conversation_id }) =>
-    readFencedPromptFeed(
+  handler: async (ctx, { conversation_id }) =>
+    answerablePromptAddresses(
       ctx,
       conversation_id,
+      await getAuthUserId(ctx),
       process.env.SWARM_TURN_BATON === "1",
     ),
 });

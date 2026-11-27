@@ -161,12 +161,18 @@ export async function promptAddress(
 
 export async function answerablePromptAddresses(
   ctx: Reader,
-  conversation: Doc<"conversations">,
-  actor: Id<"users">,
+  conversationId: Id<"conversations">,
+  actor: Id<"users"> | null,
   maySteer: boolean,
 ) {
-  const mayAnswer =
-    conversation.user_id === actor && fencedPromptAnswersEnabled();
+  if (!actor) return { prompts: [], turn: null };
+  const conversation = await ctx.db.get(conversationId);
+  if (
+    conversation?.execution_protocol_state !== "fenced" ||
+    conversation.user_id !== actor
+  )
+    return { prompts: [], turn: null };
+  const mayAnswer = fencedPromptAnswersEnabled();
   if (!mayAnswer && !maySteer) return { prompts: [], turn: null };
   const opened = await openPromptTurn(ctx, conversation);
   if (!opened) return { prompts: [], turn: null };
