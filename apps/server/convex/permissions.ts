@@ -245,9 +245,25 @@ export const getPromptAddress = query({
 export const listAnswerablePromptAddresses = query({
   args: { conversation_id: v.id("conversations") },
   handler: async (ctx, { conversation_id }) => {
-    const actor = await getAuthUserId(ctx);
-    return actor ? answerablePromptAddresses(ctx, conversation_id, actor) : [];
+    const { prompts } = await answerablePromptAddresses(
+      ctx,
+      conversation_id,
+      await getAuthUserId(ctx),
+      false,
+    );
+    return prompts;
   },
+});
+
+export const getFencedPromptFeed = query({
+  args: { conversation_id: v.id("conversations") },
+  handler: async (ctx, { conversation_id }) =>
+    answerablePromptAddresses(
+      ctx,
+      conversation_id,
+      await getAuthUserId(ctx),
+      process.env.SWARM_TURN_BATON === "1",
+    ),
 });
 
 export const answerPrompt = mutation({

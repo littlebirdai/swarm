@@ -28,7 +28,7 @@ import {
   SESSION_COMMAND_ACTIONS,
 } from "./session-commands";
 import { deadRecordingPress } from "./calls/recordingPress";
-import { storableActionArgs } from "./tabSafePath";
+import { storableActionArgs } from "./tab-safe-path";
 import { getWriteLog, recordWrite } from "../store/writeLog";
 import { captureError } from "./analytics";
 import { featureOffMessage } from "@platform/flags";

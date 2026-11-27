@@ -27,7 +27,11 @@ const promptId = "provider-question-tool";
 const permissionPromptId = "1:app-server:string:approval";
 const refusal =
   "The prompt has closed or you no longer have permission to answer it.";
-const query = api.permissions.listAnswerablePromptAddresses;
+const query = api.permissions.getFencedPromptFeed;
+const promptFeed = (prompts: FencedPromptAddress[]) => ({
+  prompts,
+  turn: null,
+});
 const askItem: QueueItem = {
   key: "ask",
   source: "ask",
@@ -114,7 +118,7 @@ test("a question is answered optimistically and a double click sends its exact a
       authenticated: true,
       dispatch: true,
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
         backend.mutation(api.dispatch.dispatch, () => gate.promise);
       },
     },
@@ -185,7 +189,7 @@ test("a permission answer rolls back on refusal and shows the reason", async () 
         /dispatch failed after retries: answerFencedPrompt/,
       ],
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
         backend.mutation(api.dispatch.dispatch, () => gate.promise);
       },
     },
@@ -201,7 +205,10 @@ test("a permission answer rolls back on refusal and shows the reason", async () 
       ],
     });
     await act(async () =>
-      web.backend.set(query, [{ ...row, tool_call_id: "approval-tool" }]),
+      web.backend.set(
+        query,
+        promptFeed([{ ...row, tool_call_id: "approval-tool" }]),
+      ),
     );
     expect(
       web.store.getState().fencedPromptAddresses[row._id].tool_call_id,
@@ -244,7 +251,7 @@ test.each([
         /dispatch failed after retries: answerFencedPrompt/,
       ],
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
         backend.mutation(api.dispatch.dispatch, () => gate.promise);
       },
     },
@@ -254,7 +261,7 @@ test.each([
     expect(
       web.container.querySelector("[data-cc-ask-settled]")?.textContent,
     ).toContain("Short");
-    if (dropped) await act(async () => web.backend.set(query, []));
+    if (dropped) await act(async () => web.backend.set(query, promptFeed([])));
     await act(async () => gate.resolve(error));
     if (dropped) {
       const text = web.container.querySelector(
@@ -303,7 +310,7 @@ test("the transcript passes the conversation for a fenced question without an ap
       authenticated: true,
       dispatch: true,
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
         backend.mutation(api.dispatch.dispatch, null);
       },
     },
@@ -346,8 +353,8 @@ test.each(["transcript", "prompt feed", "both loading"] as const)(
           source === "both loading"
             ? pending
             : source === "prompt feed"
-              ? [address()]
-              : [],
+              ? promptFeed([address()])
+              : promptFeed([]),
         );
         if (source === "transcript")
           store.setMessages(conversationId, [
@@ -409,7 +416,7 @@ test("the decision sheet reveals the conversation underneath a fenced question",
       authenticated: true,
       dispatch: true,
       setup(backend) {
-        backend.set(query, [address()]);
+        backend.set(query, promptFeed([address()]));
       },
     },
   );
@@ -463,7 +470,7 @@ test("the agent dock opens the conversation for a fenced question before message
           updated_at: Date.now(),
         },
       ]);
-      backend.set(query, [address()]);
+      backend.set(query, promptFeed([address()]));
       backend.set(api.conversations.listMessages, pending);
       backend.set(api.conversations.listMessagesTail, pending);
       backend.set(api.conversations.getConversationWithMeta, pending);
@@ -496,7 +503,7 @@ test("a late click cannot answer a replacement prompt in another turn", async ()
       authenticated: true,
       dispatch: true,
       setup(backend) {
-        backend.set(query, [address()]);
+        backend.set(query, promptFeed([address()]));
         backend.mutation(api.dispatch.dispatch, null);
       },
     },
@@ -504,7 +511,10 @@ test("a late click cannot answer a replacement prompt in another turn", async ()
   try {
     const oldButton = button(web.container, "Short");
     await act(async () => {
-      web.backend.set(query, [address(promptId, "question", "next-turn")]);
+      web.backend.set(
+        query,
+        promptFeed([address(promptId, "question", "next-turn")]),
+      );
     });
     await act(async () => oldButton.click());
     expect(web.container.textContent).toContain("Question closed");
@@ -521,7 +531,7 @@ test("an old question keeps the message path and a secret question offers no inp
   const web = await mountWeb(<Question old legacySend={legacySend} />, {
     authenticated: true,
     setup(backend) {
-      backend.set(query, [address()]);
+      backend.set(query, promptFeed([address()]));
     },
   });
   try {
@@ -556,7 +566,7 @@ test.each([false, true])(
         authenticated: true,
         dispatch: true,
         setup(backend) {
-          backend.set(query, [row]);
+          backend.set(query, promptFeed([row]));
           backend.mutation(api.dispatch.dispatch, () => gate.promise);
         },
       },
@@ -595,14 +605,15 @@ test.each([false, true])(
         `fencedPromptAddresses:${row._id}:submitted`,
       ]);
       if (feedFirst) {
-        await act(async () => web.backend.set(query, []));
+        await act(async () => web.backend.set(query, promptFeed([])));
         expect(
           web.container.querySelector("[data-cc-ask-settled]")?.textContent,
         ).toContain("Custom output");
       }
       await act(async () => gate.resolve(null));
       expect(promptLocks()).toEqual([]);
-      if (!feedFirst) await act(async () => web.backend.set(query, []));
+      if (!feedFirst)
+        await act(async () => web.backend.set(query, promptFeed([])));
       expect(promptLocks()).toEqual([]);
       expect(
         web.container.querySelector("[data-cc-ask-settled]")?.textContent,
@@ -636,7 +647,7 @@ test("a fenced denial sends immediately without asking for a discarded reason", 
       authenticated: true,
       dispatch: true,
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
         backend.mutation(api.dispatch.dispatch, null);
       },
     },
@@ -735,19 +746,22 @@ test("a secret marker from the address feed removes the input on the mounted car
     {
       authenticated: true,
       setup(backend) {
-        backend.set(query, [row]);
+        backend.set(query, promptFeed([row]));
       },
     },
   );
   try {
     expect(web.container.querySelector("input")).not.toBeNull();
     await act(async () => {
-      web.backend.set(query, [
-        {
-          ...row,
-          questions: [{ id: questionId, is_secret: true }],
-        },
-      ]);
+      web.backend.set(
+        query,
+        promptFeed([
+          {
+            ...row,
+            questions: [{ id: questionId, is_secret: true }],
+          },
+        ]),
+      );
     });
     expect(web.container.querySelector("input")).toBeNull();
     expect(web.container.textContent).toContain("Secret question cancelled");

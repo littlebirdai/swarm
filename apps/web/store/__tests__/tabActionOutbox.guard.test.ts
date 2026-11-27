@@ -9,7 +9,7 @@ import {
 } from "../idb-cache";
 import { useInboxStore } from "../inboxStore";
 import { makeDispatchBinding } from "../../lib/dispatch-binding";
-import { storableActionArgs } from "../../lib/tabSafePath";
+import { storableActionArgs } from "../../lib/tab-safe-path";
 
 // The engine keeps an action's args as the caller passed them: the outbox row
 // in IndexedDB and the dispatch call both carry them. A tab action handed a raw

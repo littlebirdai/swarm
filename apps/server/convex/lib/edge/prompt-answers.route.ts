@@ -1,9 +1,11 @@
 import {
   EDGE_PROTOCOL_VERSION as v1,
+  STEER_BATON_CAPABILITY,
   parseCommandsNextResponse,
   type CommandsNextResponse,
   type CommandsResultResponse,
 } from "@codecast/edge-contract";
+import { TURN_STARTER_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -38,13 +40,11 @@ type PromptTarget = Omit<PromptPosition, "lease_id">;
 
 async function openPromptTurn(
   ctx: Reader,
-  conversation_id: Id<"conversations">,
-  owner: Id<"users">,
+  conversation: Doc<"conversations">,
   expected?: { run: number; lease_id?: Id<"run_leases"> },
 ) {
-  const conversation = await ctx.db.get(conversation_id);
+  const { _id: conversation_id, user_id: owner } = conversation;
   if (
-    conversation?.user_id !== owner ||
     conversation.execution_protocol_state !== "fenced" ||
     !conversation.owner_device_id ||
     isConversationSafetyBlocked(conversation)
@@ -95,13 +95,22 @@ async function openPromptTurn(
       )
       .unique(),
   ]);
+  const now = Date.now();
   if (
     !lease ||
-    !isFreshTurnProjection(binding, lease, projection, Date.now()) ||
+    !isFreshTurnProjection(binding, lease, projection, now) ||
     !projection?.open_turn
   )
     return null;
-  return { binding, lease, turn: projection.open_turn };
+  return {
+    binding,
+    lease,
+    lease_remaining_ms: lease.expires_at - now,
+    projectionVersion: projection.projection_version,
+    turn: projection.open_turn,
+    admitting:
+      head.admission_epoch === undefined || head.admission_epoch === run,
+  };
 }
 
 async function openPrompt(
@@ -109,12 +118,9 @@ async function openPrompt(
   position: PromptTarget & { lease_id?: Id<"run_leases"> },
   owner: Id<"users">,
 ) {
-  const opened = await openPromptTurn(
-    ctx,
-    position.conversation_id,
-    owner,
-    position,
-  );
+  const conversation = await ctx.db.get(position.conversation_id);
+  if (conversation?.user_id !== owner) return null;
+  const opened = await openPromptTurn(ctx, conversation, position);
   return opened?.turn.id === position.turn_id &&
     opened.turn.prompt_ids.includes(position.prompt_id)
     ? opened
@@ -155,14 +161,31 @@ export async function promptAddress(
 
 export async function answerablePromptAddresses(
   ctx: Reader,
-  conversation_id: Id<"conversations">,
-  actor: Id<"users">,
+  conversationId: Id<"conversations">,
+  actor: Id<"users"> | null,
+  maySteer: boolean,
 ) {
-  if (!fencedPromptAnswersEnabled()) return [];
-  const opened = await openPromptTurn(ctx, conversation_id, actor);
-  if (!opened) return [];
-  const { binding, lease, turn } = opened;
-  const candidates = (turn.prompt_details ?? []).filter(
+  if (!actor) return { prompts: [], turn: null };
+  const conversation = await ctx.db.get(conversationId);
+  if (
+    conversation?.execution_protocol_state !== "fenced" ||
+    conversation.user_id !== actor
+  )
+    return { prompts: [], turn: null };
+  const mayAnswer = fencedPromptAnswersEnabled();
+  if (!mayAnswer && !maySteer) return { prompts: [], turn: null };
+  const opened = await openPromptTurn(ctx, conversation);
+  if (!opened) return { prompts: [], turn: null };
+  const {
+    binding,
+    lease,
+    turn,
+    admitting,
+    projectionVersion,
+    lease_remaining_ms,
+  } = opened;
+  const conversation_id = conversation._id;
+  const candidates = (mayAnswer ? (turn.prompt_details ?? []) : []).filter(
     ({ kind, prompt_id, questions }) =>
       turn.prompt_ids.includes(prompt_id) &&
       (kind === "permission" || questions !== undefined),
@@ -186,7 +209,26 @@ export async function answerablePromptAddresses(
       };
     }),
   );
-  return addresses.filter((address) => address !== null);
+  const prompts = addresses.filter((address) => address !== null);
+  const observed_turn =
+    maySteer &&
+    admitting &&
+    projectionVersion === TURN_STARTER_PROJECTION_VERSION &&
+    binding.capabilities?.includes(STEER_BATON_CAPABILITY) &&
+    turn.starter &&
+    turn.start_event_seq !== undefined
+      ? {
+          id: turn.id,
+          run: binding.epoch,
+          start_event_seq: turn.start_event_seq,
+        }
+      : undefined;
+  return {
+    prompts,
+    turn: observed_turn
+      ? { _id: conversation_id, observed_turn, lease_remaining_ms }
+      : null,
+  };
 }
 
 function command(

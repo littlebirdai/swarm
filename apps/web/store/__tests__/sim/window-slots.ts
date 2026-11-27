@@ -438,7 +438,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
       },
     ]),
   ),
-  "lib/tabSafePath.ts:TAB_PATH_ACTIONS": CONSTANT,
+  "lib/tab-safe-path.ts:TAB_PATH_ACTIONS": CONSTANT,
   "lib/workflowRun.ts:HIDDEN_TYPES": CONSTANT,
   "store/orgSlice.ts:writeOptimisticMessage": {
     shared:

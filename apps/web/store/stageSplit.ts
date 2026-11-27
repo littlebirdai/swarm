@@ -13,7 +13,7 @@
 // real layout can never disagree. A leaf's path is persisted with its tab, so
 // it takes the storable spelling (lib/tabSafePath) like the tab's own.
 
-import { tabSafePath } from "../lib/tabSafePath";
+import { tabSafePath } from "../lib/tab-safe-path";
 
 export type SplitDir = "row" | "col";
 export type SplitEdge = "left" | "right" | "top" | "bottom";

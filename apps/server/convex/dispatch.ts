@@ -2384,7 +2384,6 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       messageId,
       intoId,
     }),
-  // The composer's "Queue for later": a row held for the end of the turn.
   queueMessage: async (
     ctx,
     userId,
@@ -2409,13 +2408,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   releaseQueued: async (ctx, userId, [convId]: [string]) =>
     releaseQueuedForUser(ctx, userId, convId as Id<"conversations">),
-
   sendMessage: async (
     ctx,
     userId,
-    // quoteIds: the composer quotes the message carries (quoteDrafts.ts), sent
-    // only by builds with the quote record on. Older builds send four args.
-    // typed: the words the person typed, only from the composer's own submit (composerChannel).
     [convId, content, imageIds, clientId, quoteIds, typed]: [
       string,
       string,
@@ -2428,6 +2423,21 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   ) => {
     const quoteClientIds =
       Array.isArray(quoteIds) && quoteIds.length ? quoteIds : undefined;
+    const observed_turn = receiptLocalResult<{
+      observed_turn?: { id: string; run: number; start_event_seq: number };
+    }>(result)?.observed_turn;
+    if (
+      observed_turn !== undefined &&
+      (!observed_turn ||
+        typeof observed_turn.id !== "string" ||
+        !observed_turn.id ||
+        !Number.isSafeInteger(observed_turn.run) ||
+        observed_turn.run < 0 ||
+        !Number.isSafeInteger(observed_turn.start_event_seq) ||
+        observed_turn.start_event_seq < 0 ||
+        Object.keys(observed_turn).length !== 3)
+    )
+      throw new ConvexError("ArgumentValidationError: invalid observed_turn");
     if (hasReceiptCommandId(result)) {
       const commandId = receiptCommandId("sendMessage", result);
       return await ctx.runMutation!(api.pendingMessages.sendMessageV2, {
@@ -2440,24 +2450,13 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
           : {}),
         ...(quoteClientIds ? { quote_client_ids: quoteClientIds } : {}),
         ...(typeof typed === "string" ? { typed } : {}),
+        ...(observed_turn && { observed_turn }),
       });
     }
     const conversation = await ctx.db.get(convId as Id<"conversations">);
-    // Distinct error for a deleted row: the client may be sending into a cached
-    // ghost (never-prune cache) and needs to surface "restore session", not a
-    // baffling auth failure.
     if (!conversation) throw new Error("conversation_deleted");
-    // One send rule for every surface. The web poll card and inline composer land
-    // here; CollabComposer and `cast send` land in performSessionSend; the receipt
-    // path above lands in sendMessageV2 — all three admit exactly the same senders
-    // (runner, owner set, team member of a team-visible session, or a collab
-    // grant). Delivery routing is unaffected: enqueuePendingMessage stamps the
-    // RUNNER's id for the daemon poll either way.
     if (!(await canSendProductMessage(ctx, userId, conversation)))
       throw new Error("Unauthorized");
-
-    // Single canonical writer: dedups on client_id, stamps owner_user_id for the daemon's
-    // delivery poll, and wakes the conversation (un-dismiss, completed→active).
     const stampQuotes = quoteClientIds && clientId ? quoteClientIds : undefined;
     const waiting = await quotesWaiting(ctx, conversation._id, stampQuotes);
     const queued = await enqueuePendingMessage(ctx, conversation, userId, {
@@ -2466,6 +2465,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       client_id: clientId,
       human: true,
       ...composerChannel(typed),
+      ...(observed_turn && { observed_turn }),
     });
     if (stampQuotes)
       await stampQuotesSent(

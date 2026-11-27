@@ -50,12 +50,18 @@ test.each(["acknowledgement", "prompt removal"] as const)(
       dispatch: true,
       setup(backend) {
         backend.set(api.permissions.getPendingPermissions, [permission]);
-        backend.set(api.permissions.listAnswerablePromptAddresses, [address]);
+        backend.set(api.permissions.getFencedPromptFeed, {
+          prompts: [address],
+          turn: null,
+        });
         backend.mutation(api.dispatch.dispatch, () => gate.promise);
       },
     });
     const dropPrompt = () =>
-      web.backend.set(api.permissions.listAnswerablePromptAddresses, []);
+      web.backend.set(api.permissions.getFencedPromptFeed, {
+        prompts: [],
+        turn: null,
+      });
     try {
       const approve = [...web.container.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Approve",

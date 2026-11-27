@@ -192,6 +192,7 @@ export const DATA_SCOPE = {
   sessionMetricsAggregate: "viewer",
   pendingPermissions: "entity",
   fencedPromptAddresses: "entity",
+  fencedObservedTurns: "entity",
   permissionRules: "viewer",
   guestSuggestions: "entity",
   pendingMessageStatus: "entity",

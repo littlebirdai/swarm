@@ -198,6 +198,7 @@ import { ReviewScrollIndicators } from "./ReviewNavigation";
 import { useReviewNavigation } from "../hooks/useReviewNavigation";
 import { useConversationCommentsSync } from "../hooks/useConversationComments";
 import { useSyncQuoteDrafts } from "../hooks/useSyncQuoteDrafts";
+import { FencedObservedTurnFeeder } from "../hooks/use-sync-fenced-prompt-addresses";
 import {
   useSyncConversationExternalEvents,
   useExternalEvents,
@@ -1319,7 +1320,6 @@ const ConversationViewInner = function ConversationView(
     externalEventsWhere,
     externalEventsOldestFirst,
   );
-
   const handleSendInlineMessage = useCallback(
     async (content: string) => {
       if (!conversation || !effectiveConversationId) return;
@@ -1355,7 +1355,6 @@ const ConversationViewInner = function ConversationView(
     managedSession?.tmux_session,
     conversation?._id?.toString(),
   );
-
   // Store-fed (hooks/useSyncWorkflows): the gate banner paints from the cached
   // run on the first frame; the feeder keeps it live.
   const workflowRun = useWorkflowRun(
@@ -1382,7 +1381,6 @@ const ConversationViewInner = function ConversationView(
     workflows,
     handleWorkflowLaunch,
   } = useWorkflowLaunch({ workflowRun, conversation });
-
   // Claude Code owns the shift+tab cycle (it changed when auto mode arrived,
   // and bypass is only in it when the launch enabled it), so the client never
   // predicts where a press lands: the daemon presses, reads the mode back off
@@ -1399,9 +1397,7 @@ const ConversationViewInner = function ConversationView(
       convexConvId,
       convCommand,
     });
-
   const forkSelectedIndex = useForkNavigationStore((s) => s.selectedIndex);
-
   useWatchEffect(() => {
     if (!conversation || !effectiveIsOwner || conversation.status !== "active")
       return;
@@ -1427,7 +1423,6 @@ const ConversationViewInner = function ConversationView(
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [conversation, effectiveIsOwner, handleCycleMode]);
-
   const messagesFromConv = conversation?.messages;
   const messages = useMemo<Message[]>(() => {
     if (!messagesFromConv) return EMPTY_MESSAGES;
@@ -6780,7 +6775,6 @@ const ConversationViewInner = function ConversationView(
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the array
   }, [subagentMenuSig]);
-
   // The pinned thread state (`cast state`) is one node with two homes: under
   // the owner composer's status line when that composer is mounted, else in
   // the feed/composer seam (see the render below).
@@ -6825,6 +6819,7 @@ const ConversationViewInner = function ConversationView(
     conversation && selectComposerControl(composerControl, conversation._id)
       ? composerControl
       : undefined;
+  const feedObservedTurn = showMessageInput && !guest && effectiveIsOwner;
   const ownerComposerMounted = !!(
     showMessageInput &&
     conversation &&
@@ -6922,6 +6917,11 @@ const ConversationViewInner = function ConversationView(
                                   onDragLeave={handleDragLeave}
                                   onDrop={handleDrop}
                                 >
+                                  {feedObservedTurn && (
+                                    <FencedObservedTurnFeeder
+                                      conversationId={conversation?._id}
+                                    />
+                                  )}
                                   {isDragging &&
                                     !isHostedAgentType(
                                       conversation?.agent_type,
