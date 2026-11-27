@@ -6,16 +6,49 @@ import {
   requeueDeliveryBeforeEffect,
   type PermitFence,
 } from "../delivery-slot.state";
+import { resolveSessionLaunchDevice } from "../../sessionLaunch";
 import { loadRunLeaseClaim } from "./runLease";
 
 const SETTLEMENT_WINDOW_MS = 10_000;
 export const DEVICE_MOVE_FENCE = "EXECUTION_DEVICE_MOVE_IN_PROGRESS";
+const FORCED_MOVE_FLAG = "CODECAST_FORCED_DEVICE_MOVE_V1";
 type Head = Doc<"conversation_execution_heads">;
 type Move = NonNullable<Head["device_move"]>;
 type Destination = Pick<
   Move,
   "destination_device_id" | "destination_runner_id"
 >;
+
+export function requireForcedDeviceMoveEnabled() {
+  if (process.env[FORCED_MOVE_FLAG] !== "1")
+    throw new ConvexError("Forced device moves are disabled");
+}
+
+export async function requireDeviceNotForceFenced(
+  ctx: Pick<QueryCtx, "db">,
+  conversationId: Id<"conversations">,
+  deviceId: string,
+  callerId?: Id<"users">,
+) {
+  const retired = await ctx.db
+    .query("execution_bindings")
+    .withIndex("by_conversation_device_forced_at", (q) =>
+      q
+        .eq("conversation_id", conversationId)
+        .eq("owner_device_id", deviceId)
+        .gt("forced_device_move.at", undefined),
+    )
+    .first();
+  if (retired && callerId && callerId !== retired.owner_user_id) {
+    const conversation = await ctx.db.get(conversationId);
+    if (conversation?.user_id !== callerId) return;
+  }
+  if (retired)
+    throw new ConvexError({
+      code: "EXECUTION_DEVICE_FORCE_FENCED",
+      message: "This device was fenced by a forced move for this conversation",
+    });
+}
 
 export function requireNoDeviceMove(head: Pick<Head, "device_move"> | null) {
   if (head?.device_move)
@@ -36,6 +69,7 @@ export async function assertMoveSettlementWindow(
   const lease =
     move.source_lease_id && (await ctx.db.get(move.source_lease_id));
   if (
+    move.forced !== undefined ||
     attemptId !== move.attempt_id ||
     fence.executionEpoch !== move.source_epoch ||
     fence.now >= move.settlement_deadline ||
@@ -70,7 +104,10 @@ export async function assertMoveSettlement(
 
 export async function recordDeviceMove(
   ctx: Pick<MutationCtx, "db">,
-  args: Destination & {
+  args: (
+    | Destination
+    | { destination_device_id: string; forced_by: Id<"users"> }
+  ) & {
     conversation_id: Id<"conversations">;
     expected_source_epoch: number;
   },
@@ -82,27 +119,71 @@ export async function recordDeviceMove(
       q.eq("conversation_id", args.conversation_id),
     )
     .unique();
+  const forcedBy = "forced_by" in args ? args.forced_by : undefined;
+  let destinationRunnerId: Id<"users">;
+  if ("forced_by" in args) {
+    requireForcedDeviceMoveEnabled();
+    const conversation = await ctx.db.get(args.conversation_id);
+    if (
+      conversation?.user_id !== args.forced_by ||
+      head?.owner_user_id !== args.forced_by
+    )
+      throw new ConvexError("Only the current session owner can force a move");
+    if (head.current_epoch !== args.expected_source_epoch)
+      throw new ConvexError("The source epoch changed before the forced move");
+    if (
+      !args.destination_device_id ||
+      args.destination_device_id !== args.destination_device_id.trim()
+    )
+      throw new ConvexError("The destination device ID must be canonical");
+    if (conversation.owner_device_id === args.destination_device_id)
+      throw new ConvexError("A forced move requires a different device");
+    const device = await resolveSessionLaunchDevice(
+      ctx,
+      args.forced_by,
+      args.destination_device_id,
+    );
+    if (!device)
+      throw new ConvexError(
+        "Choose one of your devices or a device shared with your team",
+      );
+    destinationRunnerId = device.user_id as Id<"users">;
+  } else {
+    destinationRunnerId = args.destination_runner_id;
+  }
+  await requireDeviceNotForceFenced(
+    ctx,
+    args.conversation_id,
+    args.destination_device_id,
+  );
   const existing = head?.device_move;
   if (head && existing) {
     if (
       existing.source_epoch === args.expected_source_epoch &&
       existing.destination_device_id === args.destination_device_id &&
-      existing.destination_runner_id === args.destination_runner_id
+      existing.destination_runner_id === destinationRunnerId
     ) {
       const moveId = existing.move_id ?? crypto.randomUUID();
-      if (!existing.move_id || existing.recorded_at === undefined)
+      if (forcedBy !== undefined && existing.phase === "aborting")
+        throw new ConvexError("An aborting move cannot be forced");
+      const force = forcedBy !== undefined && existing.forced === undefined;
+      if (!existing.move_id || existing.recorded_at === undefined || force)
         await ctx.db.patch(head._id, {
           device_move: {
             ...existing,
             move_id: moveId,
             recorded_at: existing.recorded_at ?? now,
+            ...(force && {
+              forced: { by_user_id: forcedBy, at: now },
+              settlement_deadline: now,
+            }),
           },
         });
       return {
         moveId,
         headId: head._id,
         sourceEpoch: existing.source_epoch,
-        expiresAt: null,
+        expiresAt: force ? now : null,
       };
     }
     requireNoDeviceMove(head);
@@ -152,9 +233,13 @@ export async function recordDeviceMove(
     source_lease_id: sourceLease?._id,
     attempt_id: head.active_delivery_attempt_id,
     destination_device_id: args.destination_device_id,
-    destination_runner_id: args.destination_runner_id,
+    destination_runner_id: destinationRunnerId,
     next_epoch: binding.epoch + 1,
-    settlement_deadline: started ? now + SETTLEMENT_WINDOW_MS : now,
+    ...(forcedBy !== undefined && {
+      forced: { by_user_id: forcedBy, at: now },
+    }),
+    settlement_deadline:
+      started && forcedBy === undefined ? now + SETTLEMENT_WINDOW_MS : now,
   };
   await ctx.db.patch(head._id, { device_move: move, updated_at: now });
   if (head.active_delivery_state === "claimed") {
@@ -176,7 +261,7 @@ export async function recordDeviceMove(
   };
 }
 
-async function activeMoveAttempt(
+export async function activeMoveAttempt(
   ctx: Pick<MutationCtx, "db">,
   head: Head,
   move: Move,
@@ -221,17 +306,31 @@ export async function expireMoveSettlement(
   const lease =
     move.source_lease_id && (await ctx.db.get(move.source_lease_id));
   if (
+    move.forced === undefined &&
     lease &&
     lease.released_at === undefined &&
     now < Math.min(move.settlement_deadline, lease.expires_at)
   )
     return;
   const { attempt, message } = await activeMoveAttempt(ctx, head, move);
-  await blockDeliveryAsAmbiguous(ctx, headId, message._id, attempt._id, now, {
-    failure_code: "MOVE_SETTLEMENT_EXPIRED",
-    failure_message:
-      "The source could not confirm delivery before its settlement window ended",
-  });
+  await blockDeliveryAsAmbiguous(
+    ctx,
+    headId,
+    message._id,
+    attempt._id,
+    now,
+    move.forced
+      ? {
+          failure_code: "FORCED_MOVE_DELIVERY_IN_DOUBT",
+          failure_message:
+            "The session owner forced the move before delivery was confirmed",
+        }
+      : {
+          failure_code: "MOVE_SETTLEMENT_EXPIRED",
+          failure_message:
+            "The source could not confirm delivery before its settlement window ended",
+        },
+  );
 }
 
 export function assertMoveAdmissionOpen(head: Pick<Head, "device_move">) {

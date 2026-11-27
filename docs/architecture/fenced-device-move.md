@@ -116,3 +116,26 @@ until the first two steps pass together.
 Before you enable moves, choose the settlement window duration. Define how
 to recover a stopped source if the destination fails after preparation or
 after a partial retarget.
+
+## Force a move when the source is unavailable
+
+`CODECAST_FORCED_DEVICE_MOVE_V1` defaults to off. The account that currently
+runs the session can explicitly authorize a forced move after acknowledging
+that the source may still be running. The server records who authorized it
+and when.
+The destination still needs its registered boot, exact ready binding, and
+the completed queue retarget. A normal move still needs source stop or
+replacement boot proof.
+
+A forced move closes the source settlement window immediately. A started
+or ambiguous delivery stays in doubt. At activation the same attempt and
+message move to the destination epoch, with the same IDs and sequence.
+The attempt keeps its source epoch for reference. The destination needs
+evidence to settle it and cannot start it again.
+
+Activation releases the old lease and records the force authorization on
+the quarantined source binding. The old epoch cannot become current again.
+The old device cannot be a move destination for this conversation, even
+after it registers a new boot. The server cannot stop a disconnected process
+from having effects outside the server. The existing abort and retarget
+rules still apply before activation.

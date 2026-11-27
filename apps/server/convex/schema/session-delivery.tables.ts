@@ -229,6 +229,9 @@ export const sessionDeliveryTables = {
         ),
         source_stopped_at: v.optional(v.number()),
         source_replacement_boot_id: v.optional(v.string()),
+        forced: v.optional(
+          v.object({ by_user_id: v.id("users"), at: v.number() }),
+        ),
         source_epoch: v.number(),
         source_lease_id: v.optional(v.id("run_leases")),
         attempt_id: v.optional(v.id("delivery_attempts")),
@@ -470,6 +473,14 @@ export const sessionDeliveryTables = {
     failure_retryable: v.optional(v.boolean()),
     suspected_runtime_id: v.optional(v.string()),
     stopped_reason: v.optional(v.string()),
+    forced_device_move: v.optional(
+      v.object({
+        move_id: v.string(),
+        by_user_id: v.id("users"),
+        at: v.number(),
+        destination_epoch: v.number(),
+      }),
+    ),
     // Evidence-bearing retirement of an epoch that never reached `ready`.
     // `no-runtime-proven` is safe only after inspection proves no external
     // runtime exists; `runtime-quarantined` retains the suspected runtime id.
@@ -479,7 +490,13 @@ export const sessionDeliveryTables = {
     disposition_evidence: v.optional(v.string()),
     created_at: v.number(),
     updated_at: v.number(),
-  }).index("by_conversation_epoch", ["conversation_id", "epoch"]),
+  })
+    .index("by_conversation_epoch", ["conversation_id", "epoch"])
+    .index("by_conversation_device_forced_at", [
+      "conversation_id",
+      "owner_device_id",
+      "forced_device_move.at",
+    ]),
 
   run_event_cursors: defineTable({
     conversation_id: v.id("conversations"),
@@ -574,6 +591,7 @@ export const sessionDeliveryTables = {
     failure_message: v.optional(v.string()),
     external_delivery_id: v.optional(v.string()),
     resolution_evidence: v.optional(v.string()),
+    forced_move_source_epoch: v.optional(v.number()),
     claimed_at: v.number(),
     delivery_started_at: v.optional(v.number()),
     completed_at: v.optional(v.number()),

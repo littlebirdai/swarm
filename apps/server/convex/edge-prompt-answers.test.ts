@@ -726,3 +726,32 @@ test("question metadata respects the total turn budget and can use space freed b
     ids.slice(1),
   );
 });
+
+test("the source cannot pull a queued prompt answer during a forced move", async () => {
+  const f = await fixture();
+  const flag = "CODECAST_FORCED_DEVICE_MOVE_V1";
+  const previous = process.env[flag];
+  process.env[flag] = "1";
+  try {
+    const target = "prompt-move-destination";
+    await f.t.run(({ db }) =>
+      fixtureRows(db, "prompt move destination").device(f.owner, {
+        device_id: target,
+      }),
+    );
+    const id = await f.answer({
+      answers: { "question-id": { answers: ["Choice"] } },
+    });
+    expect(await f.next()).toMatchObject({ status: "command", command_id: id });
+    await f.browser.mutation(api.edgeRunLease.forceMove, {
+      conversation_id: f.conversation,
+      expected_source_epoch: 1,
+      destination_device_id: target,
+      acknowledge_source_may_still_run: true,
+    });
+    expect(await f.next()).toEqual({ v: 1, status: "empty" });
+  } finally {
+    if (previous === undefined) delete process.env[flag];
+    else process.env[flag] = previous;
+  }
+});

@@ -248,6 +248,11 @@ export async function rejectHeadDeliveryInDb(
     existingMessage.execution_epoch === executionEpoch &&
     existingMessage.delivery_disposition_reason === args.reason
   ) {
+    if (
+      (await executionBinding(ctx, conversationId, executionEpoch))
+        ?.forced_device_move
+    )
+      fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch was force-fenced");
     return { rejected: true };
   }
   if (head.current_epoch !== executionEpoch)

@@ -1,6 +1,7 @@
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
-import { internalMutation } from "./functions";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, mutation } from "./functions";
 import {
   expireMoveSettlement,
   recordDeviceMove,
@@ -44,13 +45,14 @@ export const append = internalMutation({
   handler: appendClaimedEvents,
 });
 
+const moveTarget = {
+  conversation_id: v.id("conversations"),
+  expected_source_epoch: v.number(),
+  destination_device_id: v.string(),
+};
+
 export const recordMove = internalMutation({
-  args: {
-    conversation_id: v.id("conversations"),
-    expected_source_epoch: v.number(),
-    destination_device_id: v.string(),
-    destination_runner_id: v.id("users"),
-  },
+  args: { ...moveTarget, destination_runner_id: v.id("users") },
   handler: async (ctx, args): Promise<string> => {
     const now = Date.now();
     const recorded = await recordDeviceMove(ctx, args, now);
@@ -64,6 +66,25 @@ export const recordMove = internalMutation({
         source_epoch: sourceEpoch,
       });
     }
+    return moveId;
+  },
+});
+
+export const forceMove = mutation({
+  args: { ...moveTarget, acknowledge_source_may_still_run: v.literal(true) },
+  handler: async (ctx, args): Promise<string> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId)
+      throw new ConvexError(
+        "Forcing a move requires a signed-in session owner",
+      );
+    const now = Date.now();
+    const { moveId, headId, sourceEpoch } = await recordDeviceMove(
+      ctx,
+      { ...args, forced_by: userId },
+      now,
+    );
+    await expireMoveSettlement(ctx, headId, sourceEpoch, now);
     return moveId;
   },
 });

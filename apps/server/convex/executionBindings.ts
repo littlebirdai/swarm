@@ -35,6 +35,7 @@ import {
 import {
   assertMoveAdmissionOpen,
   requireNoDeviceMove,
+  requireDeviceNotForceFenced,
 } from "./lib/edge/device-move.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
 import {
@@ -49,6 +50,7 @@ import {
   validateTargetInput,
   strictConversationAgent,
   type SuccessorIntentRequest,
+  sameSuccessorIntentRequest,
   wireIsolation,
   capabilitiesEqual,
   requireProtocolCapabilities,
@@ -535,20 +537,6 @@ export async function activateAfterLegacyQuiescenceInDb(
     owner_device_id: args.target.ownerDeviceId,
   });
   return { state: "fenced", epoch: 1, migratedMessages: legacyInFlight.length };
-}
-
-function sameSuccessorIntentRequest(
-  intent: any,
-  request: SuccessorIntentRequest,
-): boolean {
-  return (
-    intent.intent_id === request.intentId &&
-    intent.expected_current_epoch === request.expectedCurrentEpoch &&
-    intent.kind === request.kind &&
-    intent.policy === request.policy &&
-    intent.requested_model_option === request.model &&
-    intent.requested_effort_option === request.effort
-  );
 }
 
 function successorIntentMatchesTarget(
@@ -1524,7 +1512,10 @@ export async function activateExecutionSuccessorInDb(
 export async function authenticateExecutionDaemon(
   ctx: DbCtx,
   apiToken: string | undefined,
-  expectedDeviceId?: string,
+  scope?:
+    | string
+    | { conversation_id: Id<"conversations">; owner_device_id?: string },
+  checkDevice = false,
 ): Promise<Id<"users">> {
   // Effect authority never falls back to ambient browser/session auth. The
   // caller must present the daemon/CLI bearer explicitly on every mutation.
@@ -1533,9 +1524,35 @@ export async function authenticateExecutionDaemon(
   const result = await verifyApiToken(ctx, apiToken);
   if (!result)
     fail("DAEMON_TOKEN_INVALID", "execution control API token is invalid");
-  if (expectedDeviceId !== undefined) {
+  if (scope !== undefined) {
     const deviceId = (await ctx.db.get(result.tokenId))?.device_id;
-    if (deviceId !== undefined && deviceId !== expectedDeviceId)
+    if (typeof scope !== "string") {
+      if (deviceId)
+        await requireDeviceNotForceFenced(
+          ctx,
+          scope.conversation_id,
+          deviceId,
+          result.userId,
+        );
+      if (scope.owner_device_id && scope.owner_device_id !== deviceId)
+        await requireDeviceNotForceFenced(
+          ctx,
+          scope.conversation_id,
+          scope.owner_device_id,
+          result.userId,
+        );
+    }
+    const expectedDeviceId =
+      typeof scope === "string"
+        ? scope
+        : checkDevice
+          ? scope.owner_device_id
+          : undefined;
+    if (
+      expectedDeviceId !== undefined &&
+      deviceId !== undefined &&
+      deviceId !== expectedDeviceId
+    )
       fail("DAEMON_DEVICE_MISMATCH", "the token belongs to a different device");
   }
   return result.userId;
@@ -1552,7 +1569,7 @@ export const beginLegacyQuiescence = mutation({
   handler: async (ctx, args) =>
     await beginLegacyQuiescenceInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         ownerDeviceId: args.owner_device_id,
@@ -1572,7 +1589,7 @@ export const initializeFencedExecution = mutation({
   handler: async (ctx, args) =>
     await initializeFencedExecutionInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         target: targetFromWire(args.target),
@@ -1597,7 +1614,7 @@ export const activateAfterLegacyQuiescence = mutation({
   handler: async (ctx, args) =>
     await activateAfterLegacyQuiescenceInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         target: targetFromWire(args.target),
@@ -1654,7 +1671,7 @@ export const requestExecutionSuccessor = mutation({
   handler: async (ctx, args) =>
     await requestExecutionSuccessorInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         intentId: args.intent_id,
@@ -1704,11 +1721,7 @@ export const claimExecutionStart = mutation({
   handler: async (ctx, args) =>
     await claimExecutionStartInDb(
       ctx,
-      await authenticateExecutionDaemon(
-        ctx,
-        args.api_token,
-        args.owner_device_id,
-      ),
+      await authenticateExecutionDaemon(ctx, args.api_token, args, true),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -1746,7 +1759,7 @@ export const publishReadyBinding = mutation({
   handler: async (ctx, args) =>
     await publishReadyBindingInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -1773,7 +1786,7 @@ export const publishStartFailedBeforeEffect = mutation({
   handler: async (ctx, args) =>
     await publishStartOutcomeInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -1801,7 +1814,7 @@ export const publishStartAmbiguous = mutation({
   handler: async (ctx, args) =>
     await publishStartOutcomeInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -1848,7 +1861,7 @@ export const disposePreReadyBinding = mutation({
   handler: async (ctx, args) =>
     await disposePreReadyBindingInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -1881,7 +1894,7 @@ export const claimNextDelivery = mutation({
   handler: async (ctx, args) =>
     await claimNextDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         expectedMessageId: args.expected_message_id,
@@ -1909,7 +1922,7 @@ export const rejectHeadDelivery = mutation({
   handler: async (ctx, args) =>
     await rejectHeadDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         messageId: args.message_id,
@@ -1928,7 +1941,7 @@ export const startDelivery = mutation({
   handler: async (ctx, args) =>
     await startDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit),
       {
         ...permitFromWire(args.permit),
         now: Date.now(),
@@ -1946,7 +1959,7 @@ export const releaseClaimBeforeEffect = mutation({
   handler: async (ctx, args) =>
     await releaseClaimBeforeEffectInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit),
       {
         ...permitFromWire(args.permit),
         reason: args.reason,
@@ -1965,7 +1978,7 @@ export const completeDelivery = mutation({
   handler: async (ctx, args) =>
     await completeDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit),
       {
         ...permitFromWire(args.permit),
         externalDeliveryId: args.external_delivery_id,
@@ -1984,7 +1997,7 @@ export const failDeliveryBeforeEffect = mutation({
   handler: async (ctx, args) =>
     await failDeliveryBeforeEffectInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit),
       {
         ...permitFromWire(args.permit),
         failureCode: args.failure_code,
@@ -2004,7 +2017,7 @@ export const markDeliveryAmbiguous = mutation({
   handler: async (ctx, args) =>
     await markDeliveryAmbiguousInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit),
       {
         ...permitFromWire(args.permit),
         failureCode: args.failure_code,
@@ -2028,11 +2041,7 @@ export const resolveAmbiguousDelivery = mutation({
   handler: async (ctx, args) =>
     await resolveAmbiguousDeliveryInDb(
       ctx,
-      await authenticateExecutionDaemon(
-        ctx,
-        args.api_token,
-        args.permit.owner_device_id,
-      ),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit, true),
       {
         ...permitFromWire(args.permit),
         resolution: args.resolution,
@@ -2053,11 +2062,7 @@ export const abandonAmbiguousAndResend = mutation({
   handler: async (ctx, args) =>
     await abandonAmbiguousAndResendInDb(
       ctx,
-      await authenticateExecutionDaemon(
-        ctx,
-        args.api_token,
-        args.permit.owner_device_id,
-      ),
+      await authenticateExecutionDaemon(ctx, args.api_token, args.permit, true),
       {
         ...permitFromWire(args.permit),
         fencingToken: args.fencing_token,
@@ -2084,7 +2089,7 @@ export const publishRuntimeDisposition = mutation({
   handler: async (ctx, args) =>
     await publishRuntimeDispositionInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         epoch: args.epoch,
@@ -2119,7 +2124,7 @@ export const activateExecutionSuccessor = mutation({
   handler: async (ctx, args) =>
     await activateExecutionSuccessorInDb(
       ctx,
-      await authenticateExecutionDaemon(ctx, args.api_token),
+      await authenticateExecutionDaemon(ctx, args.api_token, args),
       {
         conversationId: args.conversation_id,
         expectedCurrentEpoch: args.expected_current_epoch,
@@ -2144,7 +2149,7 @@ export const getExecutionAuthority = query({
     api_token: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await authenticateExecutionDaemon(ctx, args.api_token);
+    const userId = await authenticateExecutionDaemon(ctx, args.api_token, args);
     await requireOwnedConversation(ctx, args.conversation_id, userId);
     const head = await executionHead(ctx, args.conversation_id);
     if (!head) return null;
@@ -2179,9 +2184,12 @@ export const listExecutionWork = query({
     owned_codex_conversation_id: v.optional(v.string()),
     api_token: v.string(),
   },
-  handler: async (ctx, args) => {
-    const userId = await authenticateExecutionDaemon(ctx, args.api_token);
-    requireNonEmpty(args.owner_device_id, "ownerDeviceId");
+  handler: async (
+    ctx,
+    { api_token: token, owner_device_id: device, ...args },
+  ) => {
+    const userId = await authenticateExecutionDaemon(ctx, token, device);
+    requireNonEmpty(device, "ownerDeviceId");
     requireNonEmpty(args.daemon_boot_id, "daemonBootId");
     requireProtocolVersion(args.protocol_version);
     requireProtocolCapabilities(args.capabilities);
@@ -2215,8 +2223,7 @@ export const listExecutionWork = query({
           head.conversation_id,
           epoch as number,
         );
-        if (!binding || binding.owner_device_id !== args.owner_device_id)
-          continue;
+        if (!binding || binding.owner_device_id !== device) continue;
         if (
           !capabilitiesEqual(
             binding.required_capabilities ?? [],
@@ -2243,8 +2250,7 @@ export const listExecutionWork = query({
       }
       const intent = head.successor_intent;
       const pendingIntent =
-        intent?.status === "pending" &&
-        intent.owner_device_id === args.owner_device_id
+        intent?.status === "pending" && intent.owner_device_id === device
           ? {
               intentId: intent.intent_id,
               expectedCurrentEpoch: intent.expected_current_epoch,

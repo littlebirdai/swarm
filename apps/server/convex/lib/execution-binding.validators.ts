@@ -104,6 +104,20 @@ export function normalizedCapabilities(
   return [...new Set(capabilities)].sort();
 }
 
+export function sameSuccessorIntentRequest(
+  intent: any,
+  request: SuccessorIntentRequest,
+): boolean {
+  return (
+    intent.intent_id === request.intentId &&
+    intent.expected_current_epoch === request.expectedCurrentEpoch &&
+    intent.kind === request.kind &&
+    intent.policy === request.policy &&
+    intent.requested_model_option === request.model &&
+    intent.requested_effort_option === request.effort
+  );
+}
+
 export function capabilitiesEqual(
   left: readonly string[],
   right: readonly string[],
