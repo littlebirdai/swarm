@@ -679,10 +679,14 @@ describe("source guards", () => {
     ).toBe(1);
   });
   test("every chat_messages insert goes through insertChatMessage (home_scope stamp)", () => {
-    const chatSources = readdirSync(DIR)
-      .concat(readdirSync(join(DIR, "lib")).map((f) => `lib/${f}`))
-      .concat(readdirSync(join(DIR, "schema")).map((f) => `schema/${f}`))
-      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    const chatSources = (
+      readdirSync(DIR, { recursive: true }) as string[]
+    ).filter(
+      (f) =>
+        f.endsWith(".ts") &&
+        !f.endsWith(".test.ts") &&
+        !f.startsWith("_generated"),
+    );
     const offenders = chatSources.filter(
       (f) =>
         f !== "lib/chatRows.ts" &&

@@ -36,7 +36,7 @@ export async function canReadSyncScope(
   heldKeys: ReadonlySet<string>,
   scopeKey: string,
 ): Promise<boolean> {
-  if (!scopeKey) return false;
+  if (!userId || !scopeKey) return false;
   if (heldKeys.has(scopeKey)) return true;
   if (!interestScopesEnabled()) return false;
   const uid = String(userId);

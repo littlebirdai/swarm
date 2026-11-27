@@ -35,7 +35,6 @@ function scopeClass(scope: string): ScopeClass {
   if (scope.startsWith("user:")) return "user";
   if (
     scope.startsWith("project:") ||
-    scope.startsWith("session:") ||
     scope.startsWith("dir:") ||
     scope.startsWith("channel:")
   )
