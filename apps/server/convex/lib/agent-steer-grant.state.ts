@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { checkConversationAccess } from "../privacy";
+import { takeoverForTurn } from "./claims";
 import { executionBinding, executionHead } from "./execution-binding.state";
 
 type Db = Pick<MutationCtx, "db">;
@@ -67,6 +68,9 @@ export async function allowedAgentSteer(
   const grant = head.agent_steer_grant;
   if (
     !turn.starter ||
+    head.current_epoch === undefined ||
+    takeoverForTurn(activeClaim, head.current_epoch, turn)?.state ===
+      "pending" ||
     grant?.sender_id !== senderId ||
     grant.by_user_id !== owner
   )

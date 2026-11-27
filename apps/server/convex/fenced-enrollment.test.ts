@@ -451,3 +451,72 @@ test.each(["flag off", "boot not opted in"])(
     ).not.toHaveProperty("delivery_protocol_version");
   },
 );
+
+test("a pending takeover refuses agent steers on admission and claim even after the previous lease expires", async () => {
+  const f = await launch();
+  const turn = await openTurn(f);
+  await f.signedIn.mutation(api.executionBindings.setAgentSteerGrant, {
+    conversation_id: f.conversation,
+    sender_conversation_id: f.sender,
+  });
+
+  const beforeTakeover = await f.send("agent-before-takeover");
+  const claimed = await turn.next();
+  expect(claimed).toMatchObject({
+    status: "permit",
+    intent: "steer",
+    delivery_id: "agent-before-takeover",
+  });
+  const queuedBeforeTakeover = await f.send("agent-pending-before-takeover");
+  expect(
+    await f.t.run(({ db }) => db.get(queuedBeforeTakeover.message_id!)),
+  ).toMatchObject({
+    delivery_intent: "steer",
+  });
+
+  await f.t.run(({ db }) =>
+    db.insert("claims", {
+      conversation_id: f.conversation,
+      kind: "steer",
+      holder: f.outsider,
+      token: 1,
+      lease_until: Date.now() - 1,
+      takeover: {
+        id: "takeover-fence",
+        run: 1,
+        turn: "open-turn",
+        start_event_seq: 1,
+        baton_token: 1,
+        new_baton_token: 2,
+        owner: f.owner,
+        previous_holder: f.outsider,
+        state: "pending",
+      },
+    }),
+  );
+
+  const duringTakeover = await f.send("agent-during-takeover");
+  expect(
+    await f.t.run(({ db }) => db.get(duringTakeover.message_id!)),
+  ).toMatchObject({
+    delivery_intent: "queue",
+    delivery_status: "pending",
+  });
+
+  await expect(turn.start(claimed)).resolves.toMatchObject({
+    status: "rejected",
+    reason: "stale-baton",
+  });
+  expect(
+    await f.t.run(({ db }) => db.get(beforeTakeover.message_id!)),
+  ).toMatchObject({
+    delivery_status: "rejected",
+  });
+
+  expect(await turn.next()).toMatchObject({ status: "empty" });
+  expect(
+    await f.t.run(({ db }) => db.get(queuedBeforeTakeover.message_id!)),
+  ).toMatchObject({
+    delivery_status: "rejected",
+  });
+});

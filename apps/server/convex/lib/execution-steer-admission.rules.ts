@@ -184,6 +184,7 @@ export async function admitAgentSend(
   if (
     !turn ||
     turn.start_event_seq === undefined ||
+    takeoverForTurn(claim, run, turn)?.state === "pending" ||
     lease?.binding_id !== binding._id ||
     lease.boot !== binding.daemon_boot_id ||
     lease.released_at !== undefined ||
@@ -240,6 +241,8 @@ export async function steerRefusal(
   )
     return "stale-turn";
   if (message.origin !== undefined) return "stale-steer-sender";
+  if (takeoverForTurn(activeClaim, run, turn)?.state === "pending")
+    return "stale-baton";
   if (!message.human && message.from_conversation_id !== undefined) {
     const token = await allowedAgentSteer(
       ctx,
@@ -258,8 +261,6 @@ export async function steerRefusal(
   }
   if (!message.human || message.from_conversation_id !== undefined)
     return "stale-steer-sender";
-  if (takeoverForTurn(activeClaim, run, turn)?.state === "pending")
-    return "stale-baton";
   const held =
     activeClaim?.holder !== undefined && activeClaim.lease_until > now
       ? activeClaim
