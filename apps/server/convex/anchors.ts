@@ -13,9 +13,7 @@ import {
 } from "./privacy";
 import { activeTeamMembershipFor } from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
-import {
-  enqueueFreshLocalSession,
-} from "./lib/fenced-session-launch.state";
+import { enqueueFreshLocalSession } from "./lib/fenced-session-launch.state";
 import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 import { killConversation } from "./conversations";
 import {

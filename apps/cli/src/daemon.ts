@@ -1191,14 +1191,15 @@ import {
   writeEffectivePolicyFile,
 } from "./config/managedPolicy.js";
 import {
-  CodexAppServerRuntimeDriver,
   FENCED_TMUX_TAG_NAMES,
   ManagedTmuxRuntimeDriver,
   RuntimeDriverRegistry,
   assertLegacyDeliveryEnvelope,
   createCodexOwnedPilot,
   fencedExecutionEnabled,
+  forgetProcessExecutionConversation,
   getProcessExecutionRuntime,
+  registerCodexExecutionDriver,
   type FencedTmuxTags,
 } from "./execution/index.js";
 import { providerKeySourcePrefix } from "./providerKeyLaunch.js";
@@ -9615,7 +9616,7 @@ async function killConversationBackends(
     keepCodexResume: true,
     keepTurnClaims: opts.keepTurnClaims,
   });
-  fencedRuntime?.forgetConversation(conversationId);
+  forgetProcessExecutionConversation(conversationId);
   if (teardown.killedAppServer && teardown.appServerThreadId) {
     if (syncServiceRef) {
       syncServiceRef
@@ -24972,10 +24973,6 @@ const appServerRecoveryRetryAt = new Map<string, number>();
 const appServerRecoveringThreads = new Set<string>();
 let appServerShuttingDown = false;
 let codexOwnedPilot: ReturnType<typeof createCodexOwnedPilot>;
-let fencedRuntime:
-  | ReturnType<typeof getProcessExecutionRuntime>
-  | null
-  | undefined;
 
 /** New threads and turns must use the login currently on disk. Codex keeps
  * the account identity it started with in memory, so a browser login for a
@@ -43869,7 +43866,7 @@ async function main(): Promise<void> {
         log,
       })
     : undefined;
-  fencedRuntime = fencedExecutionEnabled()
+  const fencedRuntime = fencedExecutionEnabled()
     ? getProcessExecutionRuntime({
         transport: syncService,
         ownerDeviceId: deviceId(),
@@ -43994,33 +43991,22 @@ async function main(): Promise<void> {
             }),
           );
           if (codexAppServerInstance) {
-            const stopThread = async (threadId: string) => {
-              const entry = appServerThreads.get(threadId);
-              if (entry)
-                await teardownConversationBackendsLive(entry.conversationId, {
-                  interruptActiveTurn: true,
-                });
-            };
-            const legacy = new CodexAppServerRuntimeDriver({
+            registerCodexExecutionDriver(registry, codexOwnedPilot, {
+              client: codexAppServerInstance,
               defaultPermissions: () =>
                 resolveCodexPermissionDefaults(activeConfig),
-              io: {
-                client: codexAppServerInstance,
-                registerThread({ conversationId, threadId, ...params }) {
-                  registerAppServerConversation(conversationId, threadId, {
-                    ...params,
-                    persist: true,
-                  });
-                },
-                async inspectThread(threadId) {
-                  if (!codexAppServerInstance?.running) return "unknown";
-                  return appServerThreads.has(threadId) ? "alive" : "unknown";
-                },
-                stopThread,
-                quarantineThread: stopThread,
-              },
+              threads: appServerThreads,
+              isRunning: () => Boolean(codexAppServerInstance?.running),
+              registerThread: ({ conversationId, threadId, ...p }) =>
+                registerAppServerConversation(conversationId, threadId, {
+                  ...p,
+                  persist: true,
+                }),
+              teardownConversation: (id) =>
+                teardownConversationBackendsLive(id, {
+                  interruptActiveTurn: true,
+                }),
             });
-            registry.register(codexOwnedPilot?.register(legacy) ?? legacy);
           }
           return registry;
         })(),

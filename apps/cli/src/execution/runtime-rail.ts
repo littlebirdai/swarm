@@ -754,3 +754,9 @@ export function getProcessExecutionRuntime(
   processRuntime ??= new DaemonExecutionRuntime(options);
   return processRuntime;
 }
+
+export function forgetProcessExecutionConversation(
+  conversationId: string,
+): void {
+  processRuntime?.forgetConversation(conversationId);
+}
