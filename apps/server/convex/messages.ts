@@ -2867,8 +2867,12 @@ export async function writeMessageBatch(
     ) {
       agentStatusProbe = null;
     }
-    if (agentStatusProbe) convPatch.agent_status_probe = agentStatusProbe.probe;
-    await patchConversationLifecycle(ctx, args.conversation_id, convPatch);
+    await patchConversationLifecycle(
+      ctx,
+      args.conversation_id,
+      convPatch,
+      agentStatusProbe?.probe,
+    );
 
     if (agentStatusProbe?.schedule) {
       await ctx.scheduler.runAfter(

@@ -433,8 +433,12 @@ export function patchConversationLifecycle(
   ctx: Pick<MutationCtx, "db">,
   id: Id<"conversations">,
   fields: Partial<ConversationFields>,
+  probe?: ConversationFields["agent_status_probe"],
 ) {
-  return ctx.db.patch(id, fields);
+  return ctx.db.patch(
+    id,
+    probe ? { ...fields, agent_status_probe: probe } : fields,
+  );
 }
 
 export function insertConversationWithStatus(
