@@ -1,3 +1,5 @@
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
+import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import {
   authorizeMoveBinding,
   type MoveBindingCredential,
@@ -13,6 +15,7 @@ import type { Id } from "../_generated/dataModel";
 import {
   requireNonEmpty,
   type RuntimeCapability,
+  type TargetInput,
   requireSafePositive,
   requireProtocolVersion,
   requireProtocolCapabilities,
@@ -42,6 +45,24 @@ export async function registeredDaemonBoot(
     .first();
 }
 
+export async function requireOwnedCodexBoot(
+  ctx: DbCtx,
+  userId: Id<"users">,
+  target: TargetInput,
+): Promise<void> {
+  if (!target.requiredCapabilities.includes(STEER_BATON_CAPABILITY)) return;
+  const boot = await registeredDaemonBoot(ctx, userId, target.ownerDeviceId);
+  if (
+    !boot?.owned_codex_new_sessions ||
+    boot.daemon_boot_id !== target.daemonBootId
+  ) {
+    fail(
+      "EXECUTION_CAPABILITY_MISMATCH",
+      "the daemon boot did not offer owned Codex sessions",
+    );
+  }
+}
+
 /**
  * Record the device's current fenced-execution daemon boot. The daemon is a
  * per-device singleton, so the registered boot is the only boot allowed to
@@ -51,16 +72,26 @@ export async function registeredDaemonBoot(
 export async function registerExecutionDaemonBootInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: { ownerDeviceId: string; daemonBootId: string; now: number },
+  args: {
+    ownerDeviceId: string;
+    daemonBootId: string;
+    ownedCodexNewSessions?: boolean;
+    now: number;
+  },
 ): Promise<{ registered: true }> {
   requireNonEmpty(args.ownerDeviceId, "ownerDeviceId");
   requireNonEmpty(args.daemonBootId, "daemonBootId");
   const existing = await registeredDaemonBoot(ctx, userId, args.ownerDeviceId);
+  const ownedCodexNewSessions = args.ownedCodexNewSessions || undefined;
   if (existing) {
-    if (existing.daemon_boot_id !== args.daemonBootId) {
+    if (
+      existing.daemon_boot_id !== args.daemonBootId ||
+      existing.owned_codex_new_sessions !== ownedCodexNewSessions
+    ) {
       await ctx.db.patch(existing._id, {
         daemon_boot_id: args.daemonBootId,
         registered_at: args.now,
+        owned_codex_new_sessions: ownedCodexNewSessions,
       });
     }
     return { registered: true };
@@ -70,6 +101,7 @@ export async function registerExecutionDaemonBootInDb(
     owner_device_id: args.ownerDeviceId,
     daemon_boot_id: args.daemonBootId,
     registered_at: args.now,
+    owned_codex_new_sessions: ownedCodexNewSessions,
   });
   return { registered: true };
 }
@@ -177,13 +209,19 @@ export async function claimExecutionStartInDb(
   const activeAttempt = activeAttemptId && (await ctx.db.get(activeAttemptId));
   const repairDelivery =
     activeAttempt && activeAttempt.daemon_boot_id !== args.daemonBootId;
-  if (bootTransfer || repairDelivery) {
+  const needsOwnedCodex = args.requiredCapabilities.includes(
+    STEER_BATON_CAPABILITY,
+  );
+  if (bootTransfer || repairDelivery || needsOwnedCodex) {
     const registration = await registeredDaemonBoot(
       ctx,
       userId,
       args.ownerDeviceId,
     );
-    if (registration?.daemon_boot_id !== args.daemonBootId) {
+    if (
+      registration?.daemon_boot_id !== args.daemonBootId ||
+      (needsOwnedCodex && !registration.owned_codex_new_sessions)
+    ) {
       return {
         state: "rejected" as const,
         failure: {
@@ -406,6 +444,14 @@ export async function publishReadyBindingInDb(
     (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)
   ) {
     return { accepted: false, reason: "stale-epoch" };
+  }
+  if (
+    args.capabilities.includes(STEER_BATON_CAPABILITY) &&
+    (args.actualAgent !== "codex" ||
+      args.transport !== "app-server" ||
+      !args.handle.startsWith(OWNED_CODEX_CHECKPOINT_PREFIX))
+  ) {
+    return { accepted: false, reason: "steer-runtime-mismatch" };
   }
   if (binding.state === "ready") {
     const exact =

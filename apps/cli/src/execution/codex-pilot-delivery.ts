@@ -5,6 +5,7 @@ import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
 import {
   EDGE_PROTOCOL_VERSION as v,
+  STEER_BATON_CAPABILITY,
   parseDeliverySettleResponse,
   parseDeliveryStartResponse,
   parsePermitsNextResponse,
@@ -16,6 +17,7 @@ import {
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
 import type {
+  DeliveryOutcome,
   DeliveryReceiptJournal,
   OwnedSession,
   SteerRequest,
@@ -82,6 +84,7 @@ export class CodexPilotDelivery {
   private readonly appendedReceipts = new Set<string>();
   private readonly images = new Map<string, string>();
   private activeTurn: string | null = null;
+  private pendingStarter?: PilotPermit["sender"];
   private headDeliveryId: string | null = null;
 
   constructor(
@@ -159,6 +162,13 @@ export class CodexPilotDelivery {
     if (event.kind === "turn.started") this.activeTurn = event.turn;
     if (event.kind === "turn.ended" && this.activeTurn === event.turn)
       this.activeTurn = null;
+  }
+
+  attributeTurnStart(event: CanonicalEvent): CanonicalEvent {
+    if (event.kind !== "turn.started" || !this.pendingStarter) return event;
+    const starter = this.pendingStarter;
+    this.pendingStarter = undefined;
+    return { ...event, body: { ...event.body, starter } };
   }
 
   async nextPermit(
@@ -262,6 +272,7 @@ export class CodexPilotDelivery {
               turn ?? null,
               prepareText,
               signal,
+              binding.capabilities.includes(STEER_BATON_CAPABILITY),
             );
           return this.appendedReceipts.has(permit.delivery_id)
             ? { state: "delivered", externalDeliveryId: permit.delivery_id }
@@ -304,6 +315,7 @@ export class CodexPilotDelivery {
     turn: string | null,
     prepareText: (text: string) => Promise<string>,
     signal: AbortSignal,
+    recordsTurnStarter: boolean,
   ): Promise<DriverDeliveryResult> {
     const identity = permitIdentity(permit);
     const started = await readEdge(
@@ -378,16 +390,24 @@ export class CodexPilotDelivery {
     }
 
     signal.throwIfAborted();
-    const result = await session.steer({
-      expected: {
-        run: permit.run,
-        fencing_token: permit.fencing_token,
-        turn,
-      },
-      delivery_id: permit.delivery_id,
-      authors: [permit.sender],
-      input,
-    });
+    const recordsStarter = recordsTurnStarter && turn === null;
+    if (recordsStarter) this.pendingStarter = permit.sender;
+    let result: DeliveryOutcome | undefined;
+    try {
+      result = await session.steer({
+        expected: {
+          run: permit.run,
+          fencing_token: permit.fencing_token,
+          turn,
+        },
+        delivery_id: permit.delivery_id,
+        authors: [permit.sender],
+        input,
+      });
+    } finally {
+      if (recordsStarter && result?.status !== "accepted")
+        this.pendingStarter = undefined;
+    }
     if (
       this.appendedReceipts.has(permit.delivery_id) ||
       (result.status === "duplicate" &&
@@ -398,7 +418,7 @@ export class CodexPilotDelivery {
       result.status === "stale" ||
       result.status === "refused" ||
       result.status === "unsupported"
-    )
+    ) {
       return {
         state: "failed-before-effect",
         failure: {
@@ -413,6 +433,7 @@ export class CodexPilotDelivery {
           retryable: result.status === "stale",
         },
       };
+    }
     return {
       state: "ambiguous",
       failure:

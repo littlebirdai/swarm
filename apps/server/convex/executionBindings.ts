@@ -77,6 +77,7 @@ import {
   clearPendingFlagIfQuiet,
 } from "./lib/execution-binding.state";
 import {
+  requireOwnedCodexBoot,
   registeredDaemonBoot,
   registerExecutionDaemonBootInDb,
   claimExecutionStartInDb,
@@ -338,6 +339,7 @@ export async function initializeFencedExecutionInDb(
       "initial target must match the conversation's strict agent family",
     );
   }
+  await requireOwnedCodexBoot(ctx, userId, args.target);
   const existingMessages = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_id", (q: any) =>
@@ -466,6 +468,7 @@ export async function activateAfterLegacyQuiescenceInDb(
     );
   }
 
+  await requireOwnedCodexBoot(ctx, userId, args.target);
   const allMessages = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_id", (q: any) =>
@@ -1696,24 +1699,25 @@ export const requestExecutionSuccessor = mutation({
 
 export const registerExecutionDaemonBoot = mutation({
   args: {
+    owned_codex_new_sessions: v.optional(v.boolean()),
     owner_device_id: v.string(),
     daemon_boot_id: v.string(),
     api_token: v.string(),
   },
-  handler: async (ctx, args) =>
-    await registerExecutionDaemonBootInDb(
+  handler: async (ctx, args) => {
+    const { userId, deviceId } = await authenticateExecutionDaemonScope(
       ctx,
-      await authenticateExecutionDaemon(
-        ctx,
-        args.api_token,
-        args.owner_device_id,
-      ),
-      {
-        ownerDeviceId: args.owner_device_id,
-        daemonBootId: args.daemon_boot_id,
-        now: Date.now(),
-      },
-    ),
+      args.api_token,
+      args.owner_device_id,
+    );
+    return await registerExecutionDaemonBootInDb(ctx, userId, {
+      ownerDeviceId: args.owner_device_id,
+      daemonBootId: args.daemon_boot_id,
+      ownedCodexNewSessions:
+        deviceId === args.owner_device_id && args.owned_codex_new_sessions,
+      now: Date.now(),
+    });
+  },
 });
 
 export const claimExecutionStart = mutation({
@@ -2193,6 +2197,7 @@ export const listExecutionWork = query({
     protocol_version: v.number(),
     capabilities: v.array(capabilityValidator),
     owned_codex_conversation_id: v.optional(v.string()),
+    owned_codex_new_sessions: v.optional(v.boolean()),
     api_token: v.string(),
   },
   handler: async (

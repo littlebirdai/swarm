@@ -25,6 +25,7 @@ import type { RuntimeDriver } from "./driver.js";
 import { FileExecutionOperationJournal } from "./local-journal.js";
 import {
   parseDeliverySettleRequest,
+  STEER_BATON_CAPABILITY,
   parseDeliveryStartRequest,
   parseHelloRequest,
   parseRelayGrantRequest,
@@ -83,7 +84,7 @@ export function bindingFor(
     operationId: start.operationId,
     appliedConfigurationRevision: start.configuration.revision,
     protocolVersion: 1,
-    capabilities: [...FENCED_RUNTIME_CAPABILITIES],
+    capabilities: [...start.requiredCapabilities],
   };
 }
 
@@ -123,15 +124,20 @@ export function started(
   });
 }
 
+type RelayFixture = {
+  flag?: string;
+  grant: (signal: AbortSignal) => Promise<Response>;
+};
+
 export function fixture(
-  selected = "pilot",
+  selected: string | null = "pilot",
   enabled = true,
   useReceiptPeer: false | "receipt" | "receipt-before-reply" = false,
-  relay?: {
-    flag?: string;
-    grant: (signal: AbortSignal) => Promise<Response>;
-  },
+  manyOrRelay: boolean | RelayFixture = false,
+  relayArg?: RelayFixture,
 ) {
+  const many = typeof manyOrRelay === "boolean" ? manyOrRelay : false;
+  const relay = typeof manyOrRelay === "object" ? manyOrRelay : relayArg;
   const directory = mkdtempSync(join(tmpdir(), "owned-codex-recovery-"));
   const appServer = fake(directory, "owned-recovery");
   const peerCommand = [
@@ -184,6 +190,13 @@ export function fixture(
   const logs: string[] = [];
   const pilotRequest = request("pilot", directory);
   const legacyRequest = request("legacy", directory);
+  const newRequest: RuntimeStartRequest = {
+    ...request("new", directory),
+    requiredCapabilities: [
+      ...FENCED_RUNTIME_CAPABILITIES,
+      STEER_BATON_CAPABILITY,
+    ],
+  };
   const successor = request("pilot", directory, 2);
   const ledger = new Map<
     string,
@@ -191,6 +204,7 @@ export function fixture(
   >([
     ["pilot:1", [pilotRequest, undefined]],
     ["legacy:1", [legacyRequest, undefined]],
+    ["new:1", [newRequest, undefined]],
     ["pilot:2", [successor, undefined]],
   ]);
   const legacy: RuntimeDriver = {
@@ -335,7 +349,8 @@ export function fixture(
       },
       {
         CODECAST_FENCED_EXECUTION_V1: flag ? "1" : "0",
-        CODECAST_CODEX_OWNED_PILOT_SESSION: selected,
+        CODECAST_CODEX_OWNED_PILOT_SESSION: selected ?? undefined,
+        CODECAST_CODEX_OWNED_NEW_SESSIONS: many ? "1" : undefined,
         CODECAST_RELAY_LIVENESS_PUBLISH: relay?.flag,
       },
     );
@@ -352,6 +367,7 @@ export function fixture(
     ...(!enabled ? [["pilot:1", 1] as const] : []),
   ]);
   const emptyAfterDelivery = new Set<string>();
+  const bootRegistrations: Record<string, unknown>[] = [];
   const transport: ExecutionConvexTransport = {
     async executionControlQuery() {
       return initial;
@@ -366,7 +382,10 @@ export function fixture(
     async executionControlMutation(name, args) {
       const key = `${args.conversation_id}:${args.epoch ?? args.execution_epoch}`;
       const row = ledger.get(key);
-      if (name === "registerExecutionDaemonBoot") return { registered: true };
+      if (name === "registerExecutionDaemonBoot") {
+        bootRegistrations.push(args);
+        return { registered: true };
+      }
       if (name === "claimExecutionStart") {
         if (!row) throw new Error(`Missing binding ${key}`);
         if (row[1]) return { state: "ready", binding: row[1] };
@@ -441,6 +460,8 @@ export function fixture(
   const queue: Permit[] = [];
   const image = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const events: CanonicalEvent[] = [];
+  const releasedSessions: string[] = [];
+  const permitSessions: string[] = [];
   const settlements: DeliverySettleRequest[] = [];
   let refuseSettlement = false;
   let permitReadStatus: "stale" | "takeover_fence" | undefined;
@@ -449,7 +470,7 @@ export function fixture(
   const claimResponses: Response[] = [];
   const releasing = Promise.withResolvers<void>();
   let release: Promise<void> | undefined;
-  let lastSeq = 0;
+  const eventCursors = new Map<string, number>();
   let terminalLifecycle = false;
   let terminalStartFailure: "once" | "400" | "conflict" | "503" | undefined;
   const terminalStartAttempts: number[] = [];
@@ -494,12 +515,12 @@ export function fixture(
             Response.json({
               v: 1,
               status: "granted",
-              session: "pilot",
+              session: body.session,
               run: 1,
               fencing_token: lease,
-              lease_ms: renewal ? 10 : 60_000,
+              lease_ms: renewal && body.session === "pilot" ? 10 : 60_000,
               last_pane_instance: 0,
-              last_event_seq: lastSeq,
+              last_event_seq: eventCursors.get(body.session) ?? 0,
               ...(terminalLifecycle && { terminal_lifecycle: true }),
             })
           );
@@ -512,7 +533,10 @@ export function fixture(
           return Response.json({ v: 1, status: "renewed", lease_ms: 60_000 });
         }
         if (operation === "permits.next") {
+          permitSessions.push(body.session);
           expect(body.fencing_token).toBe(lease);
+          if (body.session !== "pilot" && queue[0]?.session !== body.session)
+            return Response.json({ v: 1, status: "empty" });
           if (permitRead) {
             const read = permitRead;
             permitRead = undefined;
@@ -573,6 +597,7 @@ export function fixture(
           if (lease === "renewed-lease" && batch.events[0].kind === "receipt")
             await receiptReplay;
           expect(batch.fencing_token).toBe(lease);
+          let lastSeq = eventCursors.get(batch.session) ?? 0;
           const first = batch.events[0];
           if (first.kind === "terminal.started") {
             terminalStartAttempts.push(first.seq);
@@ -580,7 +605,7 @@ export function fixture(
               return Response.json({
                 v: 1,
                 results: [
-                  { session: "pilot", status: "conflict", seq: first.seq },
+                  { session: batch.session, status: "conflict", seq: first.seq },
                 ],
               });
             if (terminalStartFailure) {
@@ -600,15 +625,21 @@ export function fixture(
             events.push(event);
             lastSeq = event.seq;
           }
+          eventCursors.set(batch.session, lastSeq);
           return Response.json({
             v: 1,
             results: [
-              { session: "pilot", status: "appended", through_seq: lastSeq },
+              {
+                session: batch.session,
+                status: "appended",
+                through_seq: lastSeq,
+              },
             ],
           });
         }
         if (operation === "release") {
           expect(body.fencing_token).toBe(lease);
+          releasedSessions.push(body.session);
           releasing.resolve();
           await release;
           return Response.json({ v: 1, status: "released" });
@@ -620,6 +651,7 @@ export function fixture(
   );
   return {
     actions,
+    bootRegistrations,
     journalDirectory,
     logs,
     runtime,
@@ -654,16 +686,19 @@ export function fixture(
     deliveryThread: "codex-fixture-thread",
     pilotRequest,
     legacyRequest,
+    newRequest,
+    releasedSessions,
+    permitSessions,
     successor,
     events,
     settlements,
     queue,
     image,
-    enqueue(id: number, attachImage = false) {
+    enqueue(id: number, attachImage = false, session = "pilot") {
       const permit: Permit = {
         status: "permit",
         v: 1,
-        session: "pilot",
+        session,
         run: 1,
         fencing_token: lease,
         attempt_id: `attempt-${id}`,

@@ -1,5 +1,6 @@
 import { agentSupportsExecutionTransport } from "@codecast/agent-clients/agentClients";
 import { v } from "convex/values";
+import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { capabilityValidator } from "./edge/execution.validators";
 import type { PermitFence } from "./delivery-slot.state";
 
@@ -26,7 +27,8 @@ export type AgentClientId =
 export type RuntimeTransport = "tmux" | "app-server" | "external";
 
 export type RuntimeCapability =
-  (typeof EXECUTION_PROTOCOL_CAPABILITIES)[number];
+  | (typeof EXECUTION_PROTOCOL_CAPABILITIES)[number]
+  | typeof STEER_BATON_CAPABILITY;
 
 export type SuccessorPolicy = "drain-current" | "cancel-unstarted";
 
@@ -130,7 +132,9 @@ export function capabilitiesEqual(
 export function requireProtocolCapabilities(
   capabilities: readonly string[],
 ): void {
-  const normalized = normalizedCapabilities(capabilities);
+  const normalized = normalizedCapabilities(capabilities).filter(
+    (capability) => capability !== STEER_BATON_CAPABILITY,
+  );
   if (
     normalized.length !== EXECUTION_PROTOCOL_CAPABILITIES.length ||
     !EXECUTION_PROTOCOL_CAPABILITIES.every((capability) =>
@@ -139,7 +143,7 @@ export function requireProtocolCapabilities(
   ) {
     fail(
       "EXECUTION_CAPABILITY_MISMATCH",
-      `protocol v1 requires exactly ${EXECUTION_PROTOCOL_CAPABILITIES.join(", ")}`,
+      `protocol v1 requires ${EXECUTION_PROTOCOL_CAPABILITIES.join(", ")}`,
     );
   }
 }
@@ -174,6 +178,15 @@ export function validateTargetInput(input: TargetInput): void {
   requireNonEmpty(input.ownerDeviceId, "ownerDeviceId");
   requireNonEmpty(input.daemonBootId, "daemonBootId");
   requireProtocolCapabilities(input.requiredCapabilities);
+  if (
+    input.requiredCapabilities.includes(STEER_BATON_CAPABILITY) &&
+    (input.requestedAgent !== "codex" || input.transport !== "app-server")
+  ) {
+    fail(
+      "EXECUTION_CAPABILITY_MISMATCH",
+      "steer requires the owned Codex app-server runtime",
+    );
+  }
   if (!agentSupportsExecutionTransport(input.requestedAgent, input.transport)) {
     fail(
       "EXECUTION_TRANSPORT_UNSUPPORTED",

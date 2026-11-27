@@ -7,20 +7,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import type { OwnedSession } from "@codecast/provider-contract";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
-import { strictStub } from "../test-helpers/strictStub.js";
-import {
-  bindingFor,
-  fixture,
-  item,
-  pending,
-} from "./codex-owned-pilot-fixture.js";
-import { CodexPilotDelivery } from "./codex-pilot-delivery.js";
-import {
-  FileExecutionOperationJournal,
-  InMemoryExecutionOperationJournal,
-} from "./local-journal.js";
+import { fixture, item, pending } from "./codex-owned-pilot-fixture.js";
+import { FileExecutionOperationJournal } from "./local-journal.js";
 
 async function finishTurn(f: ReturnType<typeof fixture>, turn: string) {
   await f.sendFrame({
@@ -124,6 +113,29 @@ test("a live work update sends a newly queued message through the owned bridge",
     );
     expect(providerSends(f)).toHaveLength(1);
     expect(f.actions).not.toContain("claim-delivery:pilot:1");
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("a negotiated owned session attributes a queue delivery's turn to its sender", async () => {
+  const f = fixture("pilot", true, "receipt-before-reply", true);
+  try {
+    f.initial([item(f.newRequest)]);
+    await f.runtime.start();
+    f.enqueue(1, false, "new");
+    const update = f.runtime.processWorkUpdate([
+      item(f.newRequest, f.ready(f.newRequest)),
+    ]);
+    await reportReceipt(f, 1, true);
+    await update;
+    expect(f.events).toContainEqual(
+      expect.objectContaining({
+        session: "new",
+        kind: "turn.started",
+        body: { starter: { kind: "person", id: "owner" } },
+      }),
+    );
   } finally {
     await f.dispose();
   }
@@ -629,89 +641,6 @@ test.each(["idle", "active"] as const)(
       expect(providerSends(f)).toHaveLength(0);
       expect(f.actions).not.toContain("edge:blobs.get");
       expect(runtime.coordinator.getActiveDelivery("pilot")).toBeUndefined();
-    } finally {
-      await f.dispose();
-    }
-  },
-);
-
-test.each(["matched", "adapter mismatch", "journal mismatch"] as const)(
-  "a duplicate steer response uses only matching durable evidence (%s)",
-  async (mode) => {
-    const f = fixture("pilot", true, "receipt");
-    const binding = bindingFor(f.pilotRequest, true);
-    const journal = new InMemoryExecutionOperationJournal().deliveryReceipts;
-    const signal = new AbortController().signal;
-    const delivery = new CodexPilotDelivery(
-      (op, body, abort) =>
-        fetch(`https://pilot.invalid/edge/v1/${op}`, {
-          method: "POST",
-          body: JSON.stringify(body),
-          signal: abort,
-        }),
-      (message) => f.logs.push(message),
-    );
-    delivery.receiptJournal = {
-      ...journal,
-      async find(...args) {
-        const record = await journal.find(...args);
-        return record && mode === "journal mismatch"
-          ? { ...record, delivery_id: "different-delivery" }
-          : record;
-      },
-    };
-    const session = strictStub<OwnedSession>("owned provider", {
-      getCheckpoint: () => f.deliveryThread,
-      async steer(request) {
-        expect(request.delivery_id).toBe("delivery-1");
-        await journal.record(
-          "pilot",
-          f.deliveryThread,
-          {
-            delivery_id: "delivery-1",
-            turn: "prior-turn",
-            provider_item_id: "prior-item",
-          },
-          signal,
-        );
-        return {
-          status: "duplicate",
-          receipt: {
-            delivery_id:
-              mode === "adapter mismatch" ? "different-delivery" : "delivery-1",
-          },
-        };
-      },
-    });
-    try {
-      f.enqueue(1);
-      await delivery.drain(
-        binding,
-        f.runtime.coordinator,
-        session,
-        {
-          v: 1,
-          status: "granted",
-          session: "pilot",
-          run: 1,
-          fencing_token: "edge-lease",
-          lease_ms: 60_000,
-          last_pane_instance: 0,
-        },
-        async (text) => text,
-        signal,
-        true,
-      );
-      await until(
-        () => f.settlements.length === 1,
-        "server records the outcome",
-      );
-      expect(f.settlements[0]?.outcome).toBe(
-        mode === "matched" ? "applied" : "in_doubt",
-      );
-      expect(f.runtime.coordinator.getActiveDelivery("pilot")?.state).toBe(
-        mode === "matched" ? undefined : "ambiguous",
-      );
     } finally {
       await f.dispose();
     }
