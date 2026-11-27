@@ -686,8 +686,10 @@ test.each(["0", "1"])(
       await COLLECTION_TABLES.docDetails.put(details);
       await bootCache();
       expect(state().docs[id]?.title).toBe(doc.title);
+      const loadsDetailsAtBoot =
+        flag === "0" && process.env.VITE_DEFERRED_CACHE_BOOT !== "1";
       expect(state().docDetails[id]?.content).toBe(
-        flag === "1" ? undefined : details.content,
+        loadsDetailsAtBoot ? details.content : undefined,
       );
       expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(details);
     } finally {

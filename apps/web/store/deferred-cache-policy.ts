@@ -90,10 +90,10 @@ export function __deferredCacheSimSlots() {
     listeners: new Set(state.listeners),
   });
   return {
-    get: () => copy(deferredWindow),
-    set: (state: typeof deferredWindow) => {
-      deferredWindow = copy(state);
+    get: () => ({ deferredWindow: copy(deferredWindow) }),
+    set: (slots: { deferredWindow: typeof deferredWindow }) => {
+      deferredWindow = copy(slots.deferredWindow);
     },
-    fresh: newDeferredWindow,
+    fresh: () => ({ deferredWindow: newDeferredWindow() }),
   };
 }

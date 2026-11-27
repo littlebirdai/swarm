@@ -1,5 +1,10 @@
 import { expect, spyOn, test } from "bun:test";
-import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import {
+  AUTH_JWT_STORAGE_KEY,
+  issueFakeToken,
+  mapStorage,
+} from "./fixtures/fakeAuthToken";
+import { authPrincipal } from "../../lib/authPrincipal";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { MAX_CACHED_MY_SENDS } from "../cacheRetention";
 import { loadCache } from "../persistence/boot-loader";
@@ -10,9 +15,24 @@ import { setHydrating } from "../persistence/hydration";
 import { noteSnapshotSync } from "../idb-collection-diff";
 import { measureIndexedDB } from "../../perf/measure-indexeddb";
 
+const TEST_PRINCIPAL = "indexed-boot-owner";
+
+function installIndexedBootPrincipal() {
+  const localStorage = mapStorage();
+  localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(TEST_PRINCIPAL));
+  const restore = replaceGlobals({ document: {}, localStorage });
+  authPrincipal.check();
+  return () => {
+    localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
+    authPrincipal.check();
+    restore();
+    authPrincipal.check();
+  };
+}
+
 test("indexed send retention keeps the same boundary ties without reading older payloads", async () => {
   const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
-  const restore = replaceGlobals({ document: {} });
+  const restore = installIndexedBootPrincipal();
   const { reads } = measureIndexedDB(db);
   const indexedDB = new IDBFactory();
   await _reopenForTests({ indexedDB, IDBKeyRange });
@@ -48,7 +68,7 @@ test("indexed send retention keeps the same boundary ties without reading older 
 test("an older deferred snapshot does not erase the shadow of a newer durable row", async () => {
   const before = process.env.VITE_DEFERRED_CACHE_BOOT;
   process.env.VITE_DEFERRED_CACHE_BOOT = "1";
-  const restore = replaceGlobals({ document: {} });
+  const restore = installIndexedBootPrincipal();
   _resetPersistedShadow();
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   setHydrating(false);
