@@ -1,3 +1,5 @@
+import { isDetailPinned } from "../../lib/detail-rows";
+import { timedDocCapsEnabled } from "../cache-eviction";
 import {
   deferredCacheReadsEnabled,
   deferredSharedCacheSource,
@@ -8,6 +10,8 @@ import { authPrincipal } from "../../lib/authPrincipal";
 import {
   COLLECTION_RETENTION,
   MAX_CACHED_MY_SENDS,
+  pendingDocDetailIds,
+  partitionDocDetailRetention,
   expireExcludeTombstones,
   partitionSessionRetention,
 } from "../cacheRetention";
@@ -78,6 +82,17 @@ async function readRetainedMySends() {
   });
 }
 
+function protectedDocDetails(
+  rows: readonly { _id: string }[],
+  pending: Record<string, unknown>,
+): ReadonlySet<string> {
+  const ids = pendingDocDetailIds(pending);
+  for (const row of rows) {
+    if (isDetailPinned("docDetails", row._id)) ids.add(row._id);
+  }
+  return ids;
+}
+
 export async function loadCache(
   keys?: readonly string[],
   context: Record<string, any> = {},
@@ -92,7 +107,8 @@ export async function loadCache(
           : undefined;
     if (phase === "deferred") setHydrationReadPhase(phase);
     const wanted = keys ? new Set(keys) : null;
-    if ((await ensureCacheOwnership()) === null) {
+    const owner = await ensureCacheOwnership();
+    if (owner === null) {
       // No collection row is served without a matching persisted user row.
       // Pending input is keyed by its owner, so the principal's own rows are
       // theirs whatever the rest of the disk holds; they are served even
@@ -137,30 +153,48 @@ export async function loadCache(
     const shadowAtRead = onRead
       ? new Map(lastPersisted.get(keys[0]))
       : undefined;
-    const [collectionResults, metaRows, pending] = await Promise.all([
-      Promise.all(
-        collectionEntries.map(([key, table]) =>
-          timeBootRead(phase, key, () =>
-            key === "mySends" && deferredCacheReadsEnabled()
-              ? readRetainedMySends()
-              : table.toArray(),
+    const [collectionResults, metaRows, pending, pendingArchives] =
+      await Promise.all([
+        Promise.all(
+          collectionEntries.map(([key, table]) =>
+            timeBootRead(phase, key, () =>
+              key === "mySends" && deferredCacheReadsEnabled()
+                ? readRetainedMySends()
+                : table.toArray(),
+            ),
           ),
         ),
-      ),
-      timeBootRead(phase, "meta", () =>
-        db.meta.bulkGet(metaKeys.filter((key) => key !== "pending")),
-      ),
-      !wanted || wanted.has("pending")
-        ? timeBootRead(phase, "meta", async () =>
-            Object.fromEntries(
-              (await db.pendingEntries.toArray()).map(({ key, value }) => [
-                key,
-                value,
-              ]),
-            ),
-          )
-        : undefined,
-    ]);
+        timeBootRead(phase, "meta", () =>
+          db.meta.bulkGet(metaKeys.filter((key) => key !== "pending")),
+        ),
+        !wanted || wanted.has("pending")
+          ? timeBootRead(phase, "meta", async () =>
+              Object.fromEntries(
+                (await db.pendingEntries.toArray()).map(({ key, value }) => [
+                  key,
+                  value,
+                ]),
+              ),
+            )
+          : undefined,
+        timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
+          ? timeBootRead(phase, "archiveOutbox", async () => {
+              const rows = await db.dispatchOutbox.toArray();
+              const archives = new Set<string>();
+              for (const entry of rows.sort((a, b) => a.ts - b.ts)) {
+                if (entry.accountId !== undefined && entry.accountId !== owner)
+                  continue;
+                const id = Array.isArray(entry.args)
+                  ? entry.args[0]
+                  : undefined;
+                if (typeof id !== "string") continue;
+                if (entry.action === "archiveDoc") archives.add(id);
+                if (entry.action === "restoreArchivedDoc") archives.delete(id);
+              }
+              return archives;
+            })
+          : undefined,
+      ]);
     if (
       epoch !== authPrincipal.epoch() ||
       (onRead &&
@@ -224,15 +258,34 @@ export async function loadCache(
       // Collections that bound themselves at boot (COLLECTION_RETENTION).
       const retain = COLLECTION_RETENTION[key];
       if (retain && rows.length > 0) {
-        const { keep, drop } = retain(rows, Date.now());
+        const memoryOnly = key === "docDetails" && timedDocCapsEnabled();
+        const { keep, drop } = memoryOnly
+          ? partitionDocDetailRetention(
+              rows,
+              Date.now(),
+              protectedDocDetails(rows, hydrateCtx.pending),
+            )
+          : retain(rows, Date.now());
+        if (memoryOnly && drop.length) {
+          const dropped = new Set(drop);
+          for (const row of rows) {
+            if (dropped.has(row._id))
+              shadow.set(row._id, { _id: row._id, workspace: row.workspace });
+          }
+        } else if (drop.length) {
+          void deleteInBatches(table, drop.filter(unchanged));
+        }
         rows = keep;
-        if (drop.length) void deleteInBatches(table, drop.filter(unchanged));
       }
       if (rows.length > 0) {
         const map: Record<string, any> = {};
         for (const row of rows) {
           if (validRow && !validRow(row)) {
             invalid.push(row._id);
+            continue;
+          }
+          if (key === "docDetails" && pendingArchives?.has(row._id)) {
+            shadow.set(row._id, { _id: row._id, workspace: row.workspace });
             continue;
           }
           const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;

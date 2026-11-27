@@ -77,6 +77,9 @@ export default defineConfig(({ mode, command }) => ({
     "process.env.VITE_INBOX_LOG_SNAPSHOT": JSON.stringify(
       process.env.VITE_INBOX_LOG_SNAPSHOT ?? "",
     ),
+    "process.env.VITE_TIMED_DOC_CAPS": JSON.stringify(
+      process.env.VITE_TIMED_DOC_CAPS ?? "",
+    ),
     "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
       process.env.VITE_CACHE_EVICTION_METADATA ?? "",
     ),

@@ -8,7 +8,7 @@ import { ExternalLink, FileText, Globe, Lock, PinOff } from "lucide-react";
 import { isArtifactDocType, type ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { StagePinRow } from "../../hooks/useStagePins";
-import { useSyncDocDetailWithCache } from "../../hooks/use-sync-docs";
+import { useDocDetail } from "../../hooks/use-sync-docs";
 import { LiveArtifactEmbed } from "../live/LiveArtifactEmbed";
 import { CollabDocEditor } from "../editor/CollabDocEditor";
 import { PublishedPageEmbed } from "../PublishedPageEmbed";
@@ -238,10 +238,7 @@ function PinHead({ row, toolbar }: { row: StagePinRow; toolbar?: ReactNode }) {
 
 /** A prose doc, editable together: the same collaborative editor as its page. */
 function ProseDoc({ id }: { id: string }) {
-  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id);
-  const detail = useInboxStore((s) => s.docDetails[id]) as
-    | { content?: string; title?: string }
-    | undefined;
+  const { detail, detailResult, cacheReady } = useDocDetail(id);
   const listContent = useInboxStore((s) => s.docs[id]?.content);
   const content = detail?.content ?? listContent;
   // The same mentions and image drops as the doc's own page.

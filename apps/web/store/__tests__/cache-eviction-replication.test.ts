@@ -694,6 +694,7 @@ test("a host update stops an old solo delete before the snapshot arrives", async
   cleanup.push(follower.stop);
   expect(follower.synced()).toBe(false);
   protocol.enterSolo();
+  expect(protocol.ownsDisk()).toBe(true);
   expect(protocol.report({ cause: "access", ids: [docId] })).toBe(true);
   await checking.promise;
 
@@ -701,6 +702,7 @@ test("a host update stops an old solo delete before the snapshot arrives", async
   disk.set(docId, restored);
   host.publish([{ key: "docDetails", upserts: [restored] }]);
   expect(follower.synced()).toBe(false);
+  expect(protocol.ownsDisk()).toBe(false);
   verdict.resolve([docId]);
   await verdict.promise;
   expect(disk.get(docId)).toEqual(restored);

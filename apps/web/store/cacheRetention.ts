@@ -134,11 +134,15 @@ export const MAX_CACHED_DOC_DETAILS = 200;
 export function partitionDocDetailRetention(
   rows: any[],
   now: number,
+  protectedIds?: ReadonlySet<string>,
 ): { keep: any[]; drop: string[] } {
   return partitionCacheRetention(rows, now, {
     ttlMs: DOC_DETAIL_CACHE_TTL_MS,
     maxRows: MAX_CACHED_DOC_DETAILS,
-    alwaysKeep: (row) => !isConvexId(row._id) || !!row.pinned,
+    alwaysKeep: (row) =>
+      !isConvexId(row._id) ||
+      !!row.pinned ||
+      protectedIds?.has(row._id) === true,
     stampedAt: (row) => Math.max(row._cachedAt ?? 0, row.updated_at ?? 0),
     sortStamp: (row) => Math.max(row._cachedAt ?? 0, row.updated_at ?? 0),
   });
@@ -385,6 +389,18 @@ export function partitionExternalEventRetention(
     else drop.push(row._id);
   }
   return { keep, drop };
+}
+
+export function pendingDocDetailIds(
+  pending: Record<string, unknown>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const key in pending) {
+    const [collection, id] = key.split(":", 2);
+    if (id && (collection === "docs" || collection === "docDetails"))
+      ids.add(id);
+  }
+  return ids;
 }
 
 // Hydration retention per persisted collection, applied by every cache

@@ -253,10 +253,12 @@ test.each(["stale", "archived"] as const)(
   },
 );
 
-test.each(["cold", "warm"] as const)(
+test.each(["cold", "warm", "old"] as const)(
   "a %s document reader paints from available disk state before the server answers",
   async (cache) => {
     const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
+    const oldPinned =
+      cache === "old" && enabled && process.env.VITE_TIMED_DOC_CAPS === "1";
     const owner = `cached-doc-${cache}`;
     const ui = await mountWeb(null, {
       authenticated: true,
@@ -283,10 +285,13 @@ test.each(["cold", "warm"] as const)(
       await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
       await db.meta.put({ key: "currentUser", value: { _id: owner } });
       await writeOwnerStamp(owner, "test-fixture");
-      if (cache === "warm") {
-        await db.table("docDetails").put({ ...row, _cachedAt: Date.now() });
-        if (!enabled) ui.store.getState().syncRecord("docDetails", id, row);
-      }
+      if (cache !== "cold")
+        await db.table("docDetails").put({
+          ...row,
+          _cachedAt: cache === "old" ? row.updated_at : Date.now(),
+        });
+      if (!enabled && cache === "warm")
+        ui.store.getState().syncRecord("docDetails", id, row);
       await ui.rerender(<Body />);
       if (enabled) await act(async () => read.promise);
       expect(
@@ -295,7 +300,7 @@ test.each(["cold", "warm"] as const)(
         ),
       ).toHaveLength(enabled ? 1 : 0);
       expect(ui.container.textContent).toBe(
-        cache === "warm" ? row.content : "No body",
+        cache === "warm" || oldPinned ? row.content : "No body",
       );
       await act(async () => {
         ui.backend.set(api.taskMining.webGetDocDetail, {

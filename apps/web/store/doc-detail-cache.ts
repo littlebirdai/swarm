@@ -127,6 +127,10 @@ export function reportCompleteDocCrawl(
   return detailCache.reportCrawl?.(workspace, ids, position);
 }
 
+export function hasFreshDocDetailReader(): boolean {
+  return detailCache.readFresh !== undefined;
+}
+
 export function fetchFreshDocDetail(id: string): Promise<CachedResult> {
   const cache = detailCache;
   const barrier = detailInvalidationRevision(id);

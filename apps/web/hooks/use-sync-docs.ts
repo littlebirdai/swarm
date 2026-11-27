@@ -1,6 +1,9 @@
 import { useDeferredCache } from "./use-deferred-cache";
 import { noteDeferredDocEdit } from "../store/deferred-cache-policy";
-import { cacheEvictionEnabled } from "../store/cache-eviction";
+import {
+  cacheEvictionEnabled,
+  timedDocCapsEnabled,
+} from "../store/cache-eviction";
 import {
   acceptRecoveryFeed,
   canHydrateDetail,
@@ -12,8 +15,15 @@ import {
   reportCompleteDocCrawl,
   subscribeDetailInvalidations,
 } from "../store/doc-detail-cache";
+import { pinDetailRows } from "../lib/detail-rows";
 import { useServerAuthenticated } from "./useServerAuthSettled";
-import { useSyncExternalStore, useCallback, useRef, useState } from "react";
+import {
+  useSyncExternalStore,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
@@ -367,8 +377,8 @@ export function useSyncMentionDocs() {
 const CACHED_AT_GRAIN_MS = 6 * 60 * 60 * 1000;
 
 function syncAuthorizedDocDetail(id: string, data: Record<string, unknown>) {
-  const { embedding: _embedding, ...row } = data;
   const store = useInboxStore.getState();
+  const { embedding: _embedding, ...row } = data;
   const previous = store.docDetails[id]?._cachedAt ?? 0;
   const now = Date.now();
   store.syncRecord("docDetails", id, {
@@ -387,9 +397,11 @@ function refreshInvalidatedDocDetail(id: string) {
     .catch(() => {});
 }
 
-export function useSyncDocDetailWithCache(id?: string) {
+function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const cacheReady = useDeferredCache("docDetails", !!id);
   const enabled = cacheEvictionEnabled();
+  const pin = timedDocCapsEnabled();
+  const { account } = detailReadPosition();
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
@@ -401,18 +413,31 @@ export function useSyncDocDetailWithCache(id?: string) {
   );
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
-    id && !isStubDoc(id) && (!enabled || authenticated) ? { id } : "skip",
+    id && subscribe && !isStubDoc(id) && (!enabled || authenticated)
+      ? { id }
+      : "skip",
   ).data;
 
+  useLayoutEffect(() => {
+    if (pin && id) return pinDetailRows("docDetails", [id]);
+  }, [id, pin, account]);
+
+  const applied = useRef<object | null>(null);
+
   useWatchEffect(() => {
-    if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);
-  }, [id, authenticated, syncRevision]);
+    if (subscribe && id && authenticated && syncRevision)
+      refreshInvalidatedDocDetail(id);
+  }, [id, subscribe, authenticated, syncRevision]);
 
   useConvexSync(
     data,
     useCallback(
       (detail: any) => {
         if (!id) return;
+        if (pin && detail && typeof detail === "object") {
+          if (applied.current === detail) return;
+          applied.current = detail;
+        }
         if (detail === null || (enabled && detail?.archived_at !== undefined)) {
           noteDeferredDocEdit(id, "denied");
           const reported =
@@ -428,7 +453,7 @@ export function useSyncDocDetailWithCache(id?: string) {
           else syncAuthorizedDocDetail(id, detail);
         }
       },
-      [id, enabled, authenticated],
+      [id, enabled, authenticated, pin],
     ),
   );
 
@@ -437,4 +462,10 @@ export function useSyncDocDetailWithCache(id?: string) {
 
 export function useSyncDocDetail(id?: string) {
   return useSyncDocDetailWithCache(id).detailResult;
+}
+
+export function useDocDetail(id: string, subscribe = true) {
+  const { detailResult, cacheReady } = useSyncDocDetailWithCache(id, subscribe);
+  const detail = useInboxStore((state) => state.docDetails[id]);
+  return { detail, detailResult, cacheReady };
 }

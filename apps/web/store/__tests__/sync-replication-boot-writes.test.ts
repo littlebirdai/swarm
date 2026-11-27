@@ -1,5 +1,6 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
+import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
@@ -699,3 +700,22 @@ test.each(["0", "1"])(
     }
   },
 );
+
+registerTimedDocReplicationCases({
+  window: dom.window as unknown as Window,
+  state,
+  sessionId,
+  table: COLLECTION_TABLES.docDetails,
+  bootCache,
+  drainWrites,
+  waitFor,
+  holdHostLock,
+  startSyncReplication,
+  stopSyncReplication,
+  replicationTransport,
+  replicationChannelName,
+  startMutationLog: () => {
+    mutations = [];
+  },
+  readMutations: () => mutations,
+});

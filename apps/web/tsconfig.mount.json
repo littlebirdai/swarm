@@ -13,6 +13,8 @@
     "hooks/__tests__/fenced-prompt-addresses.mount.test.tsx",
     "hooks/__tests__/heartbeat-wake.mount.test.tsx",
     "hooks/__tests__/doc-detail-invalidation.mount.test.tsx",
+    "hooks/__tests__/doc-detail-timed-caps.mount.test.tsx",
+    "components/conversation/HostedMadeLine.mount.test.tsx",
     "components/conversation/__tests__/fenced-prompt-answer.mount.test.tsx",
     "components/conversation/__tests__/prompt-baton-authority.mount.test.tsx",
     "components/conversation/__tests__/fenced-permission-acceptance.mount.test.tsx",
