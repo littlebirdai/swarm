@@ -39,6 +39,29 @@ export function pendingQueueRelinkOf(
     .first();
 }
 
+export async function pendingQueueRelinkOwner(
+  db: QueryCtx["db"],
+  row: {
+    conversation_id: Id<"conversations">;
+    status: string;
+    _creationTime?: number;
+    delivery_protocol_version?: number;
+  },
+  runner?: Id<"users">,
+): Promise<Id<"users"> | undefined> {
+  if (
+    row.status === "delivered" ||
+    row.status === "cancelled" ||
+    row._creationTime === undefined ||
+    row.delivery_protocol_version !== undefined
+  )
+    return;
+  const job = await pendingQueueRelinkOf(db, row.conversation_id);
+  if (!job?.updated_by || row._creationTime > job._creationTime) return;
+  const currentRunner = runner ?? (await db.get(row.conversation_id))?.user_id;
+  if (currentRunner === job.updated_by) return currentRunner;
+}
+
 async function relinkRows(
   db: MutationCtx["db"],
   rows: PendingRow[],

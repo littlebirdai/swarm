@@ -724,7 +724,9 @@ describe("messages.byConversation/v2 command coverage", () => {
 });
 
 describe("pending intent identity comparison", () => {
-  test("matches the canonical intent and rejects an unrelated owner stamp", async () => {
+  const intent = { content: "hello from durable intent", clientId: COMMAND };
+
+  test("matches every canonical field and nothing operational", async () => {
     const conv = conversation();
     const ctx = context(OWNER);
     expect(
@@ -733,27 +735,32 @@ describe("pending intent identity comparison", () => {
         pending() as any,
         conv,
         OWNER,
-        {
-          content: "hello from durable intent",
-          clientId: COMMAND,
-        },
+        intent,
       ),
     ).toBe(true);
     expect(
       await pendingMessageMatchesProductIntent(
         ctx,
         pending(COMMAND, {
-          owner_user_id: OTHER,
           status: "injected",
           retry_count: 9,
           delivered_at: 20,
         }) as any,
         conv,
         OWNER,
-        {
-          content: "hello from durable intent",
-          clientId: COMMAND,
-        },
+        intent,
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects an unrelated owner stamp", async () => {
+    expect(
+      await pendingMessageMatchesProductIntent(
+        context(OWNER),
+        pending(COMMAND, { owner_user_id: OTHER }) as any,
+        conversation(),
+        OWNER,
+        intent,
       ),
     ).toBe(false);
   });

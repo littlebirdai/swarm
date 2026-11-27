@@ -100,6 +100,7 @@ import {
 import {
   pendingQueueRelinkBudget,
   pendingQueueRelinkOf,
+  pendingQueueRelinkOwner,
   relinkPendingQueue,
 } from "./lib/pending-queue-relink.state";
 import type { MutationCtx } from "./_generated/server";
@@ -242,6 +243,8 @@ export async function patchPendingMessageStatus(
     _id: Id<"pending_messages">;
     conversation_id: Id<"conversations">;
     status: string;
+    _creationTime?: number;
+    delivery_protocol_version?: number;
     delivery_disposition_reason?: string;
   },
   patch: {
@@ -255,13 +258,14 @@ export async function patchPendingMessageStatus(
   // Leaving the unconfirmed state (a late echo, a cancel) drops the reason with it.
   const leavesUnconfirmed =
     isUnconfirmedRow(message) && patch.status !== "failed";
-  await writePendingStatus(
-    ctx,
-    message._id,
-    leavesUnconfirmed
-      ? { ...patch, delivery_disposition_reason: undefined }
-      : patch,
-  );
+  const owner = isTerminalPendingStatus(patch.status)
+    ? await pendingQueueRelinkOwner(ctx.db, message)
+    : undefined;
+  await writePendingStatus(ctx, message._id, {
+    ...patch,
+    ...(leavesUnconfirmed ? { delivery_disposition_reason: undefined } : {}),
+    ...(owner ? { owner_user_id: owner } : {}),
+  });
   if (patch.status === "delivered")
     await clearPaneRefused(ctx, message.conversation_id);
   if (patch.status === "delivered" || patch.status === "cancelled") {
@@ -1918,9 +1922,15 @@ export async function mergeQueuedForUser(
     channel: undefined,
     typed_text: undefined,
   });
+  const owner = await pendingQueueRelinkOwner(
+    ctx.db,
+    absorb,
+    conversation.user_id,
+  );
   await writePendingStatus(ctx, absorb._id, {
     status: "cancelled" as const,
     merged_into: keep._id,
+    ...(owner ? { owner_user_id: owner } : {}),
   });
   return "merged";
 }
@@ -2280,6 +2290,8 @@ export async function markPendingDelivered(
     _id: Id<"pending_messages">;
     conversation_id: Id<"conversations">;
     status: string;
+    _creationTime?: number;
+    delivery_protocol_version?: number;
   },
 ): Promise<boolean> {
   return await patchPendingMessageStatus(ctx, message, {
@@ -2639,13 +2651,9 @@ export const getMessageStatus = query({
     if (message.from_user_id !== authUserId) {
       const runner = await sessionRunnerOf(ctx.db, message.conversation_id);
       let owner = runner && pendingMessageOwnerId(message, runner);
-      if (
-        runner &&
-        owner !== runner &&
-        (await pendingQueueRelinkOf(ctx.db, message.conversation_id))
-          ?.updated_by === runner
-      )
-        owner = runner;
+      if (runner && owner !== runner)
+        owner =
+          (await pendingQueueRelinkOwner(ctx.db, message, runner)) ?? owner;
       if (owner !== authUserId)
         throw new Error(
           "Unauthorized: can only check status of messages you sent or own",
@@ -3820,8 +3828,13 @@ export const cancelOldPendingMessages = internalMutation({
     const affectedConvs = new Set<Id<"conversations">>();
     for (const row of selected) {
       affectedConvs.add(row.conversation_id);
-      if (!args.dry_run)
-        await writePendingStatus(ctx, row._id, { status: "cancelled" });
+      if (!args.dry_run) {
+        const owner = await pendingQueueRelinkOwner(ctx.db, row);
+        await writePendingStatus(ctx, row._id, {
+          status: "cancelled",
+          ...(owner ? { owner_user_id: owner } : {}),
+        });
+      }
     }
     if (!args.dry_run) {
       for (const convId of affectedConvs) {

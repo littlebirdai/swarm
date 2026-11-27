@@ -245,12 +245,28 @@ test("the previous runner cannot read or settle a pending row during a paged rel
   const f = await claimFixture();
   const ids = await insertMessages(f, 1030);
   const target = ids[1029]!;
+  const cancelled = ids[1028]!;
+  const mergeTarget = ids[1027]!;
+  const bulkTarget = ids[1026]!;
+  const historical = ids[0]!;
+  const deliveredContent = formatSessionMessage(
+    "sender1",
+    "queued for the new owner",
+  );
+  const clientId = "queued-during-relink";
   const { previousWriter, nextWriter } = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "transcript writers during relink");
     await db.patch(target, {
-      content: formatSessionMessage("sender1", "queued for the new owner"),
+      content: deliveredContent,
+      client_id: clientId,
       status: "injected",
     });
+    await db.patch(historical, {
+      status: "delivered",
+      delivered_at: Date.now(),
+    });
+    await db.patch(bulkTarget, { status: "pending", created_at: -1 });
+    await db.patch(mergeTarget, { status: "pending", queue_at: 100_000 });
     return {
       previousWriter: await rows.conversation(f.previous),
       nextWriter: await rows.conversation(f.next),
@@ -258,9 +274,9 @@ test("the previous runner cannot read or settle a pending row during a paged rel
   });
   const threadLinks = (user: Id<"users">) =>
     asUser(f.t, user).query(api.sessionThreads.listSessionThreads, {});
-  const status = (user: Id<"users">) =>
+  const status = (user: Id<"users">, message_id = target) =>
     asUser(f.t, user).query(api.pendingMessages.getMessageStatus, {
-      message_id: target,
+      message_id,
     });
 
   expect((await threadLinks(f.previous)).links).toMatchObject([
@@ -278,6 +294,10 @@ test("the previous runner cannot read or settle a pending row during a paged rel
   expect((await threadLinks(f.sender)).links).toMatchObject([{ _id: target }]);
   await expect(status(f.previous)).rejects.toThrow("Unauthorized");
   expect(await status(f.next)).toMatchObject({ status: "injected" });
+  const historicalOwner = () => status(f.previous, historical);
+  const historicalNewRunner = () => status(f.next, historical);
+  expect(await historicalOwner()).toMatchObject({ status: "delivered" });
+  await expect(historicalNewRunner()).rejects.toThrow("Unauthorized");
 
   const echo = (user: Id<"users">, conversation_id: Id<"conversations">) =>
     asUser(f.t, user).mutation(api.messages.addMessages, {
@@ -303,7 +323,53 @@ test("the previous runner cannot read or settle a pending row during a paged rel
   });
   expect((await threadLinks(f.previous)).links).toEqual([]);
   await expect(status(f.previous)).rejects.toThrow("Unauthorized");
+  expect(
+    await asUser(f.t, f.sender).mutation(
+      api.pendingMessages.cancelPendingMessage,
+      {
+        message_id: cancelled,
+      },
+    ),
+  ).toMatchObject({ success: true, skipped: false });
+  expect(
+    await asUser(f.t, f.sender).mutation(api.pendingMessages.mergeQueued, {
+      conversation_id: f.conversation,
+      message_id: mergeTarget,
+      into_id: ids[5]!,
+    }),
+  ).toBe("merged");
+  expect(
+    await f.t.mutation(internal.pendingMessages.cancelOldPendingMessages, {
+      older_than_ms: Date.now(),
+      limit: 500,
+    }),
+  ).toMatchObject({ cancelled: 1 });
   await f.t.finishAllScheduledFunctions(() => jest.runAllTimers());
+
+  await expect(status(f.previous)).rejects.toThrow("Unauthorized");
+  expect(await status(f.next)).toMatchObject({ status: "delivered" });
+  expect((await threadLinks(f.next)).links).toMatchObject([
+    { _id: target, body: "queued for the new owner", status: "delivered" },
+  ]);
+  await expect(status(f.previous, cancelled)).rejects.toThrow("Unauthorized");
+  expect(await status(f.next, cancelled)).toMatchObject({
+    status: "cancelled",
+  });
+  for (const id of [mergeTarget, bulkTarget]) {
+    await expect(status(f.previous, id)).rejects.toThrow("Unauthorized");
+    expect(await status(f.next, id)).toMatchObject({ status: "cancelled" });
+  }
+  expect(await historicalOwner()).toMatchObject({ status: "delivered" });
+  await expect(historicalNewRunner()).rejects.toThrow("Unauthorized");
+
+  expect(
+    await asUser(f.t, f.sender).mutation(api.pendingMessages.sendMessageV2, {
+      conversation_id: f.conversation,
+      client_id: clientId,
+      command_id: clientId,
+      content: deliveredContent,
+    }),
+  ).toMatchObject({ status: "acknowledged" });
 });
 
 test("the recovery cron resumes a lost continuation at the last committed cursor", async () => {
