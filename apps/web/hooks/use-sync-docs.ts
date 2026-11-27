@@ -377,8 +377,10 @@ export function useSyncMentionDocs() {
 const CACHED_AT_GRAIN_MS = 6 * 60 * 60 * 1000;
 
 function syncAuthorizedDocDetail(id: string, data: Record<string, unknown>) {
-  const { embedding: _embedding, ...row } = data;
   const store = useInboxStore.getState();
+  if (timedDocCapsEnabled() && store.pending[`docs:${id}`]?.type === "exclude")
+    return;
+  const { embedding: _embedding, ...row } = data;
   const previous = store.docDetails[id]?._cachedAt ?? 0;
   const now = Date.now();
   store.syncRecord("docDetails", id, {
@@ -401,7 +403,7 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const cacheReady = useDeferredCache("docDetails", !!id);
   const enabled = cacheEvictionEnabled();
   const pin = timedDocCapsEnabled();
-  const { account, revision } = detailReadPosition();
+  const { account } = detailReadPosition();
   const authenticated = useServerAuthenticated();
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
@@ -424,15 +426,14 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
     if (
       pin &&
       id &&
-      authenticated &&
       data?._id === id &&
       data.archived_at === undefined &&
-      detailReadIsCurrent(id, { account, revision }) &&
+      detailReadPosition().account === account &&
       canHydrateDetail(id) &&
       !useInboxStore.getState().docDetails[id]
     )
       syncAuthorizedDocDetail(id, data);
-  }, [id, pin, authenticated, data, account, revision]);
+  }, [id, pin, data, account]);
 
   useWatchEffect(() => {
     if (id && authenticated && syncRevision) refreshInvalidatedDocDetail(id);

@@ -29,7 +29,7 @@ import {
   entityTypeInStore,
   resolveAssigneeInfo,
 } from "./liveEntities";
-import { useInboxStore } from "../store/inboxStore";
+import { useInboxStore, type DocDetail } from "../store/inboxStore";
 import { useSyncOrgProposal } from "../hooks/useSyncOrgProposals";
 import { useCallPlaces } from "../hooks/useSyncCalls";
 import { callTitle } from "./calls/roomLabels";
@@ -241,6 +241,10 @@ export function sharedSessionHref(
 export function useEntityResolution(
   rawRef: string,
   typeProp?: EntityType,
+  docDetail?: {
+    detail?: DocDetail;
+    detailResult: DocDetail | null | undefined;
+  },
 ): EntityResolution {
   // `id` keeps its original case (Convex ids are case-sensitive); short-id and
   // prefix matching lowercase internally.
@@ -321,10 +325,13 @@ export function useEntityResolution(
     isTrigger && queryArgs ? queryArgs : "skip",
   );
   // docs/projects are only ever addressed by a full Convex id.
-  const doc = useQueryNoThrow(
+  const queriedDoc = useQueryNoThrow(
     api.docs.webGet,
-    type === "doc" && looksConvex ? { id: rawId } : "skip",
+    type === "doc" && looksConvex && !docDetail ? { id: rawId } : "skip",
   ).data;
+  const doc = docDetail
+    ? (docDetail.detail ?? (docDetail.detailResult === null ? null : undefined))
+    : queriedDoc;
   const project = useQueryNoThrow(
     api.projects.webGet,
     type === "project" && looksConvex ? { id: rawId } : "skip",

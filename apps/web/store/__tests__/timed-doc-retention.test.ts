@@ -1,6 +1,7 @@
 import { expect, jest, test } from "bun:test";
 import { pinDetailRows } from "../../lib/detail-rows";
 import { noteInputForTests } from "../../lib/inputQuiet";
+import { webBuilders } from "../../test-helpers/builders";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { partitionDocDetailRetention } from "../cacheRetention";
 import {
@@ -22,10 +23,13 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
   const history: InboxStoreState["docDetails"][string][] = [];
   const pinned = "j".repeat(32);
   const pending = "k".repeat(32);
+  const listPinned = "l".repeat(32);
   const release = pinDetailRows("docDetails", [pinned]);
+  const { doc } = webBuilders("timed-doc-retention");
   let notifications = 0;
   store.subscribe(() => notifications++);
   store.setState({
+    docs: { [listPinned]: doc.build({ _id: listPinned, pinned: true }) },
     pending: {
       [`docs:${pending}:title`]: { type: "field", ts: 1, value: "draft" },
     },
@@ -44,6 +48,7 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
     };
     add(pinned, now - day * 31);
     add(pending, now - day * 31);
+    add(listPinned, now - day * 31);
     for (let d = 0; d < 7; d++) {
       for (let i = 0; i < 50; i++) {
         const id = `m${String(d * 50 + i).padStart(31, "0")}`;
@@ -51,10 +56,11 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
       }
       jest.advanceTimersByTime(day);
     }
+    expect(store.getState().docDetails[listPinned]).toBeDefined();
     const fresh = partitionDocDetailRetention(
       history,
       Date.now(),
-      new Set([pinned, pending]),
+      new Set([pinned, pending, listPinned]),
     );
     expect(Object.keys(store.getState().docDetails).sort()).toEqual(
       (enabled ? fresh.keep : history).map((row) => row._id).sort(),

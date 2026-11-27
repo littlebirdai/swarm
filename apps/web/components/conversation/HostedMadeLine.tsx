@@ -11,7 +11,11 @@ import { useDocDetail } from "../../hooks/use-sync-docs";
 // packing list, a weekend plan), so it shows as a quiet card with its title
 // and its opening lines, one tap from the whole thing.
 import Link from "next/link";
-import { useEntityResolution } from "../../lib/entityDisplay";
+import { useContext } from "react";
+import {
+  EntityFixtureContext,
+  useEntityResolution,
+} from "../../lib/entityDisplay";
 import { notePreview, numericColumns, routineState } from "../../lib/madeLine";
 export {
   madeLineParts,
@@ -31,13 +35,16 @@ export function HostedNoteCard({
   words?: string | null;
   refId: string;
 }) {
-  const r = useEntityResolution(refId);
-  const docId = refId.replace(/^doc:/i, "");
-  const { detail } = useDocDetail(
-    docId,
-    timedDocCapsEnabled() && isConvexId(docId),
+  const live = !useContext(EntityFixtureContext);
+  const docId = live ? refId.replace(/^doc:/i, "") : "";
+  const subscribe = timedDocCapsEnabled() && isConvexId(docId);
+  const docDetail = useDocDetail(docId, subscribe);
+  const r = useEntityResolution(
+    refId,
+    undefined,
+    subscribe ? docDetail : undefined,
   );
-  const cached = detail?.content;
+  const cached = docDetail.detail?.content;
   const preview = notePreview(cached ?? r.entity?.content, r.fullLabel);
   return (
     <Link

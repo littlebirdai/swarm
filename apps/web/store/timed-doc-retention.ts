@@ -22,6 +22,14 @@ function* docIds(rows: InboxStoreState["docDetails"]): Generator<string, void> {
   for (const id in rows) yield id;
 }
 
+function protectDocDetails(state: InboxStoreState) {
+  const pending = pendingDocDetailIds(state.pending);
+  return (id: string) =>
+    !!state.docs[id]?.pinned ||
+    pending.has(id) ||
+    isDetailPinned("docDetails", id);
+}
+
 export function startTimedDocRetention(
   getState: () => InboxStoreState,
   canSweep: () => boolean,
@@ -71,9 +79,7 @@ export function startTimedDocRetention(
       return;
     }
     const state = getState();
-    const pending = pendingDocDetailIds(state.pending);
-    const protectedId = (id: string) =>
-      pending.has(id) || isDetailPinned("docDetails", id);
+    const protectedId = protectDocDetails(state);
     sweep ??= {
       rows: state.docDetails,
       ids: docIds(state.docDetails),
@@ -117,12 +123,8 @@ export function startTimedDocRetention(
         pruning = true;
         void pruneCachedDocDetails(canPrune, () => {
           const live = getState();
-          const pending = pendingDocDetailIds(live.pending);
-          return (id) =>
-            !!live.docDetails[id] ||
-            !!live.docs[id]?.pinned ||
-            pending.has(id) ||
-            isDetailPinned("docDetails", id);
+          const protectedId = protectDocDetails(live);
+          return (id) => !!live.docDetails[id] || protectedId(id);
         })
           .catch(() => {})
           .finally(() => {

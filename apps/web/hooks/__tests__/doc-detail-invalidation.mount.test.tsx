@@ -37,6 +37,7 @@ import { isDetailPinned } from "../../lib/detail-rows";
 const flag = "VITE_CACHE_EVICTION_METADATA";
 const original = process.env[flag];
 const originalDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
+const originalTimed = process.env.VITE_TIMED_DOC_CAPS;
 const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
@@ -48,6 +49,8 @@ afterEach(() => {
   if (originalDeferred === undefined)
     delete process.env.VITE_DEFERRED_CACHE_BOOT;
   else process.env.VITE_DEFERRED_CACHE_BOOT = originalDeferred;
+  if (originalTimed === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
+  else process.env.VITE_TIMED_DOC_CAPS = originalTimed;
 });
 
 function Body() {
@@ -155,6 +158,52 @@ test("an optimistic archive reports authority only after dispatch confirms it", 
   await act(async () => accepted.resolve(null));
   expect(reports).toEqual([{ ids: [id], cause: "archive" }]);
 });
+
+test.each(["an unrelated invalidation", "a live push"] as const)(
+  "an optimistic archive stays hidden after %s",
+  async (event) => {
+    process.env[flag] = "1";
+    process.env.VITE_TIMED_DOC_CAPS = "1";
+    const accepted = Promise.withResolvers<null>();
+    const ui = await mountWeb(<Body />, {
+      authenticated: true,
+      dispatch: true,
+      setup(backend, store) {
+        if (event === "a live push")
+          store.syncRecord("docs", id, {
+            _id: id,
+            title: row.title,
+            updated_at: row.updated_at,
+          });
+        backend.set(api.taskMining.webGetDocDetail, row);
+        backend.mutation(api.dispatch.dispatch, () => accepted.promise);
+      },
+    });
+    try {
+      expect(ui.container.textContent).toBe(row.content);
+      await act(async () => {
+        if (event === "an unrelated invalidation")
+          hideInvalidatedDetails(["x".repeat(32)]);
+        void ui.store.getState().archiveDoc(id);
+        flushSyncPublishes();
+      });
+      if (event === "a live push") {
+        expect(ui.store.getState().pending[`docs:${id}`]?.type).toBe("exclude");
+        await act(async () => {
+          ui.backend.set(api.taskMining.webGetDocDetail, {
+            ...row,
+            content: "A pre-archive update",
+          });
+          flushSyncPublishes();
+        });
+      }
+      expect(ui.container.textContent).toBe("No body");
+    } finally {
+      await act(async () => accepted.resolve(null));
+      await ui.close();
+    }
+  },
+);
 
 test("a confirmed archive undo reauthorizes the body for hydration and subsequent live pushes", async () => {
   process.env[flag] = "1";
