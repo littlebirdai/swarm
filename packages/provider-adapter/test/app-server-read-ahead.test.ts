@@ -19,14 +19,10 @@ import {
 
 installAppServerFixtureHooks();
 
-function settled<A>(pending: Promise<A>) {
-  return pending;
-}
-
 type Fixture = ReturnType<typeof fixture>;
 async function fill(fake: Fixture) {
   await fake.wrote({ fill: true }, false);
-  await settled(fake.full);
+  await fake.full;
 }
 
 for (const [label, command, code] of [
@@ -46,17 +42,17 @@ for (const [label, command, code] of [
       const calls = [session.steer(request), session.steer(request)];
       await fake.waitObserved((items) => items.length === 3);
       await fake.wrote(command, false);
-      expect(await settled(Promise.all(calls))).toEqual([
+      expect(await Promise.all(calls)).toEqual([
         expect.objectContaining({ status: "in-doubt", code }),
         expect.objectContaining({ status: "in-doubt", code }),
       ]);
-      expect(await settled(session.interrupt(interrupt))).toEqual({
+      expect(await session.interrupt(interrupt)).toEqual({
         status: "closed",
       });
-      expect(await settled(session.steer(request))).toEqual({
+      expect(await session.steer(request)).toEqual({
         status: "closed",
       });
-      expect(await settled(session.answer(answer))).toEqual({
+      expect(await session.answer(answer)).toEqual({
         status: "closed",
       });
       expect(fake.observed()).toHaveLength(3);
@@ -74,7 +70,7 @@ appServerCase(
   async (session, fake) => {
     await fill(fake);
     for (let index = 0; index < 26; index++)
-      expect(await settled(session.steer(steer))).toEqual(bestEffort);
+      expect(await session.steer(steer)).toEqual(bestEffort);
     const events = session.events[Symbol.asyncIterator]();
     for (let index = 0; index <= 32; index++)
       expect((await events.next()).value).toMatchObject({
@@ -105,14 +101,14 @@ appServerCase(
     const first = session.steer(steer);
     await fake.waitObserved((items) => items.length === 1);
     await fake.wrote({ rejectStart: true }, false);
-    expect(await settled(first)).toMatchObject({
+    expect(await first).toMatchObject({
       status: "refused",
       code: "rpc-rejected",
     });
     const retry = session.steer(steer);
     await fake.waitObserved((items) => items.length === 2);
     await fake.wrote({ ackStart: true }, false);
-    expect(await settled(retry)).toEqual(bestEffort);
+    expect(await retry).toEqual(bestEffort);
   },
   { FIXTURE_HOLD_START: "1" },
 );
@@ -124,7 +120,7 @@ appServerCase(
     const events = session.events[Symbol.asyncIterator]();
     expect((await events.next()).value?.kind).toBe("turn.started");
     await fill(fake);
-    expect(await settled(session.interrupt(interrupt))).toEqual({
+    expect(await session.interrupt(interrupt)).toEqual({
       status: "applied",
     });
   },
@@ -159,7 +155,7 @@ it.effect(
           },
           false,
         );
-        await settled(holding.promise);
+        await holding.promise;
         const request = {
           ...steer,
           expected: { ...steer.expected, turn },
@@ -167,7 +163,7 @@ it.effect(
           authors: [{ kind: "person" as const, id: "sender" }],
           input: [{ type: "text" as const, text: "match this steer" }],
         };
-        expect(await settled(session.steer(request))).toEqual(bestEffort);
+        expect(await session.steer(request)).toEqual(bestEffort);
         await fake.wrote(
           {
             frame: {
@@ -219,7 +215,7 @@ appServerCase(
   "read-ahead is capped by bytes even below the frame limit",
   async (session, fake) => {
     await fill(fake);
-    expect(await settled(session.steer(steer))).toMatchObject({
+    expect(await session.steer(steer)).toMatchObject({
       status: "in-doubt",
       code: "output-overflow",
     });
@@ -242,7 +238,7 @@ it.effect("draining releases read-ahead bytes across more than 32 MiB", () =>
         const data = event?.kind === "context" ? event.body.data : null;
         expect((data as { name: string }).name.length).toBe(6 * 1024 * 1024);
       }
-      expect(await settled(session.steer(steer))).toEqual(bestEffort);
+      expect(await session.steer(steer)).toEqual(bestEffort);
     } finally {
       await session.close();
     }
@@ -263,10 +259,10 @@ it.effect("EOF settles an approval queued behind a blocked stdin write", () =>
       if (!gate) throw new Error("Expected a fixture write gate");
       try {
         const pending = session.answer(answer);
-        await settled(gate.entered);
+        await gate.entered;
         await fill(fake);
         await fake.wrote({ closeStdout: true }, false);
-        expect(await settled(pending)).toMatchObject({
+        expect(await pending).toMatchObject({
           status: "in-doubt",
           code: "channel-ended",
         });

@@ -16,6 +16,7 @@ import { waitFor } from "@codecast/test-helpers/waitFor";
 
 const originalSpawn = Bun.spawn;
 export const originalKill = process.kill.bind(process);
+const DEFAULT_WAIT_MS = 2500;
 const denied = Object.assign(new Error("fixture kill denied"), {
   code: "EPERM",
 });
@@ -70,8 +71,8 @@ export function fixtureHooks(executable: string) {
           const group = groups.get(-pid);
           if (group) {
             group.calls++;
-            if (group.fail) throw denied;
             group.notify();
+            if (group.fail) throw denied;
           }
           return originalKill(pid, signal);
         });
@@ -94,10 +95,64 @@ export function fixtureHooks(executable: string) {
         | { calls: number; fail: boolean; notify: () => void }
         | undefined;
       let intercept: ((child: Child) => void) | undefined;
+      let aborted: Error | null = null;
+      let generation = 0;
       const ipcListeners = new Set<(message: unknown) => void>();
       const releaseListeners = new Set<() => void>();
+      const abortListeners = new Set<(error: Error) => void>();
+      function abort(reason: string) {
+        if (aborted) return;
+        aborted = new Error(reason);
+        for (const listener of [...abortListeners]) listener(aborted);
+        abortListeners.clear();
+      }
+      function wait<T>(
+        label: string,
+        subscribe: (resolve: (value: T) => void) => () => void,
+        timeoutMs = DEFAULT_WAIT_MS,
+      ): Promise<T> {
+        if (aborted)
+          return Promise.reject(
+            new Error(`${label} aborted: ${aborted.message}`),
+          );
+        return new Promise<T>((resolve, reject) => {
+          let done = false;
+          let unsubscribe: (() => void) | undefined;
+          const finish = (complete: () => void) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            abortListeners.delete(onAbort);
+            unsubscribe?.();
+            complete();
+          };
+          const onAbort = (error: Error) =>
+            finish(() =>
+              reject(new Error(`${label} aborted: ${error.message}`)),
+            );
+          const timer = setTimeout(
+            () =>
+              finish(() =>
+                reject(
+                  new Error(
+                    `Timed out waiting for ${label} after ${timeoutMs}ms`,
+                  ),
+                ),
+              ),
+            timeoutMs,
+          );
+          abortListeners.add(onAbort);
+          try {
+            unsubscribe = subscribe((value) => finish(() => resolve(value)));
+          } catch (error) {
+            finish(() => reject(error));
+          }
+        });
+      }
       fixtures.set(directory, {
         onSpawn(spawned) {
+          const spawnGeneration = ++generation;
+          aborted = null;
           child = spawned;
           pid = spawned.pid;
           group = {
@@ -108,6 +163,10 @@ export function fixtureHooks(executable: string) {
             },
           };
           groups.set(pid, group);
+          void spawned.exited.then((code) => {
+            if (generation === spawnGeneration)
+              abort(`fixture child exited (${code})`);
+          });
           intercept?.(spawned);
         },
         onIpc(message) {
@@ -118,6 +177,8 @@ export function fixtureHooks(executable: string) {
         try {
           await dispose();
         } finally {
+          generation++;
+          abort("fixture disposed");
           ipcListeners.clear();
           releaseListeners.clear();
           if (pid && group?.fail) {
@@ -142,6 +203,8 @@ export function fixtureHooks(executable: string) {
           intercept = onSpawn;
         },
         send(command: object) {
+          if (aborted)
+            throw new Error(`Fixture send aborted: ${aborted.message}`);
           if (!child) throw new Error("Fixture child is not spawned");
           child.send(command);
         },
@@ -149,16 +212,20 @@ export function fixtureHooks(executable: string) {
           ipcListeners.add(listener);
           return () => ipcListeners.delete(listener);
         },
-        waitRelease(target = 1) {
+        wait,
+        waitRelease(target = 1, timeoutMs?: number) {
           if ((group?.calls ?? 0) >= target) return Promise.resolve();
-          return new Promise<void>((resolve) => {
-            const check = () => {
-              if ((group?.calls ?? 0) < target) return;
-              releaseListeners.delete(check);
-              resolve();
-            };
-            releaseListeners.add(check);
-          });
+          return wait<void>(
+            `release (${target})`,
+            (resolve) => {
+              const check = () => {
+                if ((group?.calls ?? 0) >= target) resolve();
+              };
+              releaseListeners.add(check);
+              return () => releaseListeners.delete(check);
+            },
+            timeoutMs,
+          );
         },
         failClose() {
           if (!group) throw new Error("No fixture group");
@@ -188,19 +255,16 @@ export function ipcCommands(
   attachHandle: ReturnType<ReturnType<typeof fixtureHooks>["attach"]>,
 ) {
   let counter = 0;
-  const barriers = new Map<
-    string,
-    ReturnType<typeof Promise.withResolvers<void>>
-  >();
+  const barriers = new Map<string, () => void>();
   const observedWaiters = new Set<() => void>();
   attachHandle.onIpc((message) => {
     if (!message || typeof message !== "object") return;
     const payload = message as { type?: unknown; id?: unknown };
     if (payload.type === "barrier" && typeof payload.id === "string") {
-      const pending = barriers.get(payload.id);
-      if (pending) {
+      const resolve = barriers.get(payload.id);
+      if (resolve) {
         barriers.delete(payload.id);
-        pending.resolve();
+        resolve();
       }
       return;
     }
@@ -209,23 +273,39 @@ export function ipcCommands(
     }
   });
   return {
-    async send(command: object, barrier = true) {
+    async send(command: object, barrier = true, timeoutMs?: number) {
+      if (!barrier) {
+        attachHandle.send(command);
+        return;
+      }
       const id = `barrier:${String(++counter).padStart(6, "0")}`;
-      const pending = barrier ? Promise.withResolvers<void>() : undefined;
-      if (pending) barriers.set(id, pending);
-      attachHandle.send({ ...command, ...(barrier ? { barrier: id } : {}) });
-      if (pending) await pending.promise;
+      await attachHandle.wait<void>(
+        id,
+        (resolve) => {
+          barriers.set(id, resolve);
+          attachHandle.send({ ...command, barrier: id });
+          return () => barriers.delete(id);
+        },
+        timeoutMs,
+      );
     },
-    waitObserved(ready: () => boolean) {
+    waitObserved(
+      ready: () => boolean,
+      label = "observed effect",
+      timeoutMs?: number,
+    ) {
       if (ready()) return Promise.resolve();
-      return new Promise<void>((resolve) => {
-        const check = () => {
-          if (!ready()) return;
-          observedWaiters.delete(check);
-          resolve();
-        };
-        observedWaiters.add(check);
-      });
+      return attachHandle.wait<void>(
+        label,
+        (resolve) => {
+          const check = () => {
+            if (ready()) resolve();
+          };
+          observedWaiters.add(check);
+          return () => observedWaiters.delete(check);
+        },
+        timeoutMs,
+      );
     },
   };
 }

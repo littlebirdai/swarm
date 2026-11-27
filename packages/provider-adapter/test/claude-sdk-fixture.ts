@@ -8,6 +8,7 @@ import {
   writeGate,
   type Intercept,
 } from "./provider-fixture";
+import { expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -103,6 +104,7 @@ export function fixture(env: Record<string, string> = {}) {
   const processFixture = hooks.attach(
     directory,
     async () => {
+      rawListeners.clear();
       gate.release();
       await client.dispose();
     },
@@ -147,20 +149,31 @@ export function fixture(env: Record<string, string> = {}) {
     ),
   );
 
-  function waitRaw(ready: () => boolean) {
+  function waitRaw(
+    ready: () => boolean,
+    label = "raw frame",
+    timeoutMs?: number,
+  ) {
     if (ready()) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      const check = () => {
-        if (!ready()) return;
-        rawListeners.delete(check);
-        resolve();
-      };
-      rawListeners.add(check);
-    });
+    return processFixture.wait<void>(
+      label,
+      (resolve) => {
+        const check = () => {
+          if (ready()) resolve();
+        };
+        rawListeners.add(check);
+        return () => rawListeners.delete(check);
+      },
+      timeoutMs,
+    );
   }
 
-  function retained(needle: string) {
-    return waitRaw(() => raw.some(({ line }) => line.includes(needle)));
+  function retained(needle: string, timeoutMs?: number) {
+    return waitRaw(
+      () => raw.some(({ line }) => line.includes(needle)),
+      `retained frame containing ${needle}`,
+      timeoutMs,
+    );
   }
 
   const eventFrame = (index: number, gen = generation) => ({
@@ -226,7 +239,10 @@ export function fixture(env: Record<string, string> = {}) {
           },
         ],
       });
-      await waitRaw(() => session?.getCheckpoint() === checkpoint);
+      await waitRaw(
+        () => session?.getCheckpoint() === checkpoint,
+        `checkpoint ${checkpoint}`,
+      );
       return checkpoint;
     },
     async sendEvent(index) {
@@ -282,12 +298,20 @@ export function fixture(env: Record<string, string> = {}) {
       raw.find(({ line }) => line.includes(needle))?.disposition,
     raw,
     retained,
+    waitRaw,
     observed,
     options,
     eventFrame,
-    wrote: (count: number) =>
-      channel.waitObserved(() => observed().length >= count),
-    waitRelease: (target = 1) => processFixture.waitRelease(target),
+    wrote: async (count: number, timeoutMs?: number) => {
+      await channel.waitObserved(
+        () => observed().length >= count,
+        `observed writes (${count})`,
+        timeoutMs,
+      );
+      expect(observed()).toHaveLength(count);
+    },
+    waitRelease: (target = 1, timeoutMs?: number) =>
+      processFixture.waitRelease(target, timeoutMs),
     interceptWrite: (write: Intercept) => {
       intercept = write;
     },

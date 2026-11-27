@@ -26,6 +26,8 @@ process.on("message", (command: any) => {
   if (command.stderr) process.stderr.write(command.stderr + "\n");
   if (command.raw) process.stdout.write(command.raw + "\n");
   if (command.exit) process.stdout.write("", () => process.exit(command.exit));
+  if (command.barrier)
+    process.send?.({ type: "barrier", id: String(command.barrier) });
 });
 
 createInterface({ input: process.stdin }).on("line", (line) => {

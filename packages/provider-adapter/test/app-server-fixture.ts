@@ -273,7 +273,10 @@ export function fixture(env: Record<string, string> = {}) {
     spec,
     wrote,
     waitObserved: (check: (items: Observed[]) => boolean = () => true) =>
-      channel.waitObserved(() => check(observed())),
+      channel.waitObserved(
+        () => check(observed()),
+        "app-server observed effect",
+      ),
     full: blocked.promise,
   };
 }

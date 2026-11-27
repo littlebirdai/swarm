@@ -24,7 +24,6 @@ import {
   type ProviderEffect,
   type ProviderFixture,
 } from "@codecast/provider-contract/test";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import {
   createProviderAdapter,
   type AcpOwnedSession,
@@ -242,7 +241,7 @@ export function fixture(env: Record<string, string> = {}) {
     observed,
     wrote,
     waitObserved: (check: (items: ReturnType<typeof observed>) => boolean) =>
-      channel.waitObserved(() => check(observed())),
+      channel.waitObserved(() => check(observed()), "acp observed effect"),
     directory,
     stderr,
     interceptWrite: (write: Intercept) => {
