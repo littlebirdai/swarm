@@ -11,7 +11,7 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { pending } from "../../test-helpers/testConvex";
 import { performUndo } from "../../store/undoStack";
 import { afterEach, expect, mock, spyOn, test } from "bun:test";
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { StagePinTile } from "../../components/calls/StagePinTile";
 import { ScopeCharterTab } from "../../components/org/scope/ScopeTabs";
 import type { OrgRole } from "../../components/org/orgTypes";
@@ -202,6 +202,45 @@ test("an unrelated invalidation cannot replay the query object after archive", a
   }
 });
 
+test("a changed feeder callback does not reapply an already consumed query object", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const results = new Set<object>();
+  function Reader() {
+    const { detail, detailResult } = useDocDetail(id);
+    useLayoutEffect(() => {
+      if (detailResult) results.add(detailResult);
+    }, [detailResult]);
+    return <span>{detail?.content ?? "No body"}</span>;
+  }
+  const ui = await mountWeb(<Reader />, {
+    authenticated: true,
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+    },
+  });
+  try {
+    expect(ui.container.textContent).toBe(row.content);
+    expect(results.size).toBe(1);
+    const initial = [...results][0];
+    process.env.VITE_TIMED_DOC_CAPS = "0";
+    await ui.rerender(<Reader />);
+    await act(async () => {
+      ui.store.getState().dropDocDetail(id);
+      flushSyncPublishes();
+    });
+    expect(ui.container.textContent).toBe("No body");
+
+    process.env.VITE_TIMED_DOC_CAPS = "1";
+    await ui.rerender(<Reader />);
+    await act(async () => flushSyncPublishes());
+    expect([...results]).toEqual([initial]);
+    expect(ui.container.textContent).toBe("No body");
+  } finally {
+    await ui.close();
+  }
+});
+
 test("after an accepted archive an authority refill lets later live pushes land", async () => {
   process.env[flag] = "1";
   process.env.VITE_TIMED_DOC_CAPS = "1";
@@ -367,6 +406,44 @@ test.each([false, true])(
     }
   },
 );
+
+test("an archive refusal without a fresh reader leaves later live pushes usable", async () => {
+  process.env[flag] = "1";
+  process.env.VITE_TIMED_DOC_CAPS = "1";
+  const archive = Promise.withResolvers<null>();
+  const ui = await mountWeb(<Body />, {
+    authenticated: true,
+    dispatch: true,
+    expectedConsoleErrors: [
+      /^\[CONVEX M\(dispatch:dispatch\)\] Error: Uncaught Error: Not authorized$/,
+      /^\[sync\] dispatch failed after retries: archiveDoc/,
+    ],
+    setup(backend) {
+      backend.set(api.taskMining.webGetDocDetail, row);
+      backend.mutation(api.dispatch.dispatch, () => archive.promise);
+    },
+  });
+  try {
+    await act(async () => {
+      void ui.store.getState().archiveDoc(id);
+    });
+    expect(ui.container.textContent).toBe("No body");
+    await act(async () =>
+      archive.reject(new Error("Uncaught Error: Not authorized")),
+    );
+    await act(async () => {
+      ui.backend.set(api.taskMining.webGetDocDetail, {
+        ...row,
+        content: "Fresh live edit",
+      });
+      flushSyncPublishes();
+    });
+    expect(ui.container.textContent).toBe("Fresh live edit");
+    expect(canHydrateDetail(id)).toBe(true);
+  } finally {
+    await ui.close();
+  }
+});
 
 test("a declined invalidation uses the untagged legacy store drop", async () => {
   process.env[flag] = "1";

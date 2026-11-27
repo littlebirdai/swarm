@@ -193,6 +193,28 @@ test("reloading a queued detail-only archive hides its cached body without a pen
     expect(reloaded?.pending ?? {}).toEqual({});
     expect((await db.meta.get("pending"))?.value ?? {}).toEqual({});
 
+    const restore = {
+      ...queued,
+      id: "0-restore",
+      action: "restoreArchivedDoc",
+      ts: queued.ts + 1,
+    };
+    await enqueueDispatch(restore);
+    expect(
+      (await loadCache(["docDetails"]))?.docDetails[archived._id]?.content,
+    ).toBe(archived.content);
+
+    const subsequentArchive = {
+      ...queued,
+      id: "0-new-archive",
+      ts: restore.ts + 1,
+    };
+    await enqueueDispatch(subsequentArchive);
+    expect(
+      (await loadCache(["docDetails"]))?.docDetails[archived._id],
+    ).toBeUndefined();
+    await removeDispatch(subsequentArchive.id);
+    await removeDispatch(restore.id);
     await removeDispatch(queued.id);
     expect(
       (await loadCache(["docDetails"]))?.docDetails[archived._id]?.content,

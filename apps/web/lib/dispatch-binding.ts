@@ -8,6 +8,7 @@ import {
   detailReadIsCurrent,
   detailReadPosition,
   fetchFreshDocDetail,
+  hasFreshDocDetailReader,
   invalidateDetailReads,
   reportDetailInvalidation,
 } from "../store/doc-detail-cache";
@@ -146,7 +147,8 @@ export function makeDispatchBinding(
           detailAccountIsCurrent(detailWrite) &&
           docId &&
           timedDocCapsEnabled() &&
-          isPermanentDispatchError(err)
+          isPermanentDispatchError(err) &&
+          hasFreshDocDetailReader()
         )
           invalidateDetailReads([docId]);
         throw err;

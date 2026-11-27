@@ -167,16 +167,16 @@ export async function loadCache(
       timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
         ? timeBootRead(phase, "archiveOutbox", async () => {
             const rows = await db.dispatchOutbox.toArray();
-            return new Set(
-              rows.flatMap((entry) =>
-                entry.action === "archiveDoc" &&
-                (entry.accountId === undefined || entry.accountId === owner) &&
-                Array.isArray(entry.args) &&
-                typeof entry.args[0] === "string"
-                  ? [entry.args[0]]
-                  : [],
-              ),
-            );
+            const archives = new Set<string>();
+            for (const entry of rows.sort((a, b) => a.ts - b.ts)) {
+              if (entry.accountId !== undefined && entry.accountId !== owner)
+                continue;
+              const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
+              if (typeof id !== "string") continue;
+              if (entry.action === "archiveDoc") archives.add(id);
+              if (entry.action === "restoreArchivedDoc") archives.delete(id);
+            }
+            return archives;
           })
         : undefined,
     ]);
