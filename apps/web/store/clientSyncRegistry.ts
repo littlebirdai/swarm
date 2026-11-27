@@ -1769,13 +1769,6 @@ export const CLIENT_SYNC_REGISTRY = {
   },
   ...fencedPromptRegistry.FENCED_PROMPT_SYNC_COLLECTIONS,
   ...collabRegistry.COLLAB_SYNC_COLLECTIONS,
-  // Pending tool-permission requests, per conversation. Each conversation's
-  // push is the complete pending set for THAT conversation, so the feeder
-  // syncs with pruneAbsentScope for it (a resolved permission leaves the
-  // pending query and must leave the store). Persisted so the decision queue
-  // paints permission cards at boot; readers hide rows past the 2h window.
-  // localFirst: approve/deny (store resolvePermission) removes the row, and
-  // the exclude it plants keeps a racing push from bringing the card back.
   pendingPermissions: {
     persistence: { kind: "collection", key: "pendingPermissions" },
     hydration: { phase: "deferred" },
