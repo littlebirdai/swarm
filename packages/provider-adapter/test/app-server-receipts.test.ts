@@ -107,20 +107,23 @@ it.effect("an evicted receipt still deduplicates from the journal", () =>
   Effect.gen(function* () {
     const fake = fixture();
     const journal = journalAt(fake.directory);
-    yield* Effect.promise(async (signal) => {
-      for (let index = 0; index <= 128; index++) {
-        await journal.record(
-          fake.spec.session,
-          threadId,
-          {
-            delivery_id: `delivery-${index}`,
-            provider_item_id: `item-${index}`,
-            turn,
-          },
-          signal,
-        );
-      }
-    });
+    const rows = Array.from({ length: 129 }, (_, index) =>
+      JSON.stringify({
+        session: fake.spec.session,
+        checkpoint: threadId,
+        record: {
+          delivery_id: `delivery-${index}`,
+          provider_item_id: `item-${index}`,
+          turn,
+        },
+      }),
+    );
+    yield* Effect.promise(() =>
+      writeFile(
+        join(fake.directory, "delivery-receipts.jsonl"),
+        rows.join("\n") + "\n",
+      ),
+    );
     let lookups = 0;
     const provider = yield* adapter(fake, {
       ...journal,

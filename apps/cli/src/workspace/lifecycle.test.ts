@@ -1,3 +1,9 @@
+import { pollUntil } from "../test-helpers/pollUntil.js";
+import {
+  acquireWorkspaceInProcess,
+  freeWorkspacePortBase,
+  workspaceOperationGate,
+} from "./port-reservations.testkit.js";
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -53,78 +59,105 @@ afterEach(() => {
 describe("workspace port reservations", () => {
   const opts = { skipSetup: true, skipHooks: true, skipPool: true };
 
+  let portBase: number;
+  beforeEach(async () => {
+    portBase = await freeWorkspacePortBase();
+  });
+
   test("operation ownership survives process boundaries and fails closed after a crashed holder", async () => {
-    const marker = path.join(repoRoot, "lease-held");
+    const gate = workspaceOperationGate();
     const orphanFinished = path.join(repoRoot, "orphan-finished");
+    const orphan = `await (await fetch(${JSON.stringify(gate.url)})).text(); await Bun.write(${JSON.stringify(orphanFinished)}, "finished");`;
     const child = Bun.spawn(
       [
         process.execPath,
         "-e",
         `
-      import { withWorkspaceOperation } from ${JSON.stringify(path.join(import.meta.dir, "portReservations.ts"))};
-      await withWorkspaceOperation(${JSON.stringify(repoRoot)}, "crash", async () => {
-        const orphan = Bun.spawn(["sh", "-c", ${JSON.stringify(`sleep 0.5; touch ${JSON.stringify(orphanFinished)}`)}], { stdout: "ignore", stderr: "ignore" });
-        await Bun.write(${JSON.stringify(marker)}, "held");
-        await orphan.exited;
-      });
-    `,
+        import { withWorkspaceOperation } from ${JSON.stringify(path.join(import.meta.dir, "portReservations.ts"))};
+        await withWorkspaceOperation(${JSON.stringify(repoRoot)}, "crash", async () => {
+          await Bun.spawn([process.execPath, "-e", ${JSON.stringify(orphan)}]).exited;
+        });
+      `,
       ],
-      { stdout: "ignore", stderr: "pipe", env: process.env },
+      { stdout: "ignore", stderr: "inherit", env: process.env },
     );
     const { withWorkspaceOperation } = await import("./portReservations.js");
     try {
-      for (let i = 0; i < 1200 && !fs.existsSync(marker); i++)
-        await Bun.sleep(10);
-      expect(fs.existsSync(marker)).toBe(true);
+      try {
+        await Promise.race([
+          gate.arrived,
+          child.exited.then((code) => {
+            throw new Error(
+              `Holder exited before starting its child (${code})`,
+            );
+          }),
+        ]);
+        await expect(
+          withWorkspaceOperation(repoRoot, "crash", async () => "collision"),
+        ).rejects.toThrow("operation in progress");
+        expect(
+          await withWorkspaceOperation(
+            repoRoot,
+            "independent",
+            async () => "separate",
+          ),
+        ).toBe("separate");
+      } finally {
+        child.kill("SIGKILL");
+        await child.exited;
+      }
+      expect(fs.existsSync(orphanFinished)).toBe(false);
       await expect(
-        withWorkspaceOperation(repoRoot, "crash", async () => "collision"),
-      ).rejects.toThrow("operation in progress");
-      expect(
-        await withWorkspaceOperation(
+        withWorkspaceOperation(
           repoRoot,
-          "independent",
-          async () => "separate",
+          "crash",
+          async () => "unsafe recovery",
         ),
-      ).toBe("separate");
+      ).rejects.toThrow("interrupted operation");
+      gate.release();
+      await pollUntil(() => fs.existsSync(orphanFinished), "orphan finishes");
+      expect(fs.existsSync(orphanFinished)).toBe(true);
     } finally {
-      child.kill("SIGKILL");
-      await child.exited;
+      await gate.stop();
     }
-    await expect(
-      withWorkspaceOperation(repoRoot, "crash", async () => "unsafe recovery"),
-    ).rejects.toThrow("interrupted operation");
-    for (let i = 0; i < 200 && !fs.existsSync(orphanFinished); i++)
-      await Bun.sleep(10);
-    expect(fs.existsSync(orphanFinished)).toBe(true);
   });
 
   test("same-name retry cannot run setup while creation is in progress", async () => {
+    const gate = workspaceOperationGate();
     fs.mkdirSync(path.join(repoRoot, ".codecast"), { recursive: true });
     fs.writeFileSync(
       path.join(repoRoot, ".codecast/workspace.toml"),
-      '[setup]\ninstall = ["echo run >> setup.log; sleep 0.3"]\n',
+      `[setup]\ninstall = ["echo run >> setup.log; curl -fsS ${gate.url} > /dev/null"]\n`,
     );
     const first = acquireWorkspace(repoRoot, "same", {
       ...opts,
       skipSetup: false,
     });
-    for (
-      let i = 0;
-      i < 100 && readState(repoRoot, "same")?.state !== "creating";
-      i++
-    ) {
-      await Bun.sleep(5);
+    try {
+      await Promise.race([
+        gate.arrived,
+        first.then(() => {
+          throw new Error("Setup finished before its barrier");
+        }),
+      ]);
+      expect(readState(repoRoot, "same")?.state).toBe("creating");
+      await expect(acquireWorkspace(repoRoot, "same", opts)).rejects.toThrow(
+        "operation in progress",
+      );
+      await expect(releaseWorkspace(repoRoot, "same")).rejects.toThrow(
+        "operation in progress",
+      );
+      await expect(healWorkspace(repoRoot, "same")).rejects.toThrow(
+        "operation in progress",
+      );
+    } finally {
+      gate.release();
+      try {
+        await first;
+      } finally {
+        await gate.stop();
+      }
     }
-    expect(readState(repoRoot, "same")?.state).toBe("creating");
-    await expect(acquireWorkspace(repoRoot, "same", opts)).rejects.toThrow(
-      "operation in progress",
-    );
-    await expect(releaseWorkspace(repoRoot, "same")).rejects.toThrow(
-      "operation in progress",
-    );
-    await expect(healWorkspace(repoRoot, "same")).rejects.toThrow(
-      "operation in progress",
-    );
     const result = await first;
     expect(
       fs.readFileSync(path.join(result.workspace.path, "setup.log"), "utf8"),
@@ -309,38 +342,14 @@ describe("workspace port reservations", () => {
       path.join(root, ".codecast/workspace.toml"),
       `
 [ports.${portName}]
-base = 41000
+base = ${portBase}
 range = 100
 
 [ports.api]
-base = 41001
+base = ${portBase + 1}
 range = 100
 `,
     );
-  }
-
-  async function acquireInProcess(root: string, name: string) {
-    const child = Bun.spawn(
-      [
-        process.execPath,
-        "-e",
-        `
-      import { acquireWorkspace } from ${JSON.stringify(path.join(import.meta.dir, "lifecycle.ts"))};
-      const result = await acquireWorkspace(${JSON.stringify(root)}, ${JSON.stringify(name)}, ${JSON.stringify(opts)});
-      console.log(JSON.stringify(result));
-    `,
-      ],
-      { stdout: "pipe", stderr: "pipe", env: process.env },
-    );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
-    expect(stderr).toBe("");
-    expect(code).toBe(0);
-    expect(stdout.length).toBeGreaterThan(0);
-    return JSON.parse(stdout) as Awaited<ReturnType<typeof acquireWorkspace>>;
   }
 
   test("three concurrent acquires reserve distinct ports before any listener, then release and reuse", async () => {
@@ -390,22 +399,22 @@ range = 100
     );
     manifest(other, "frontend");
     const results = await Promise.all([
-      acquireInProcess(repoRoot, "one"),
-      acquireInProcess(repoRoot, "two"),
-      acquireInProcess(other, "three"),
+      acquireWorkspaceInProcess(repoRoot, "one", opts),
+      acquireWorkspaceInProcess(repoRoot, "two", opts),
+      acquireWorkspaceInProcess(other, "three", opts),
     ]);
     expect(
       new Set(
         results.flatMap(({ workspace }) => Object.values(workspace.ports)),
       ).size,
     ).toBe(6);
-    const fourth = await acquireInProcess(other, "four");
+    const fourth = await acquireWorkspaceInProcess(other, "four", opts);
     expect(fourth.workspace.resourceIndex).toBe(3);
-    const attached = await acquireInProcess(repoRoot, "one");
+    const attached = await acquireWorkspaceInProcess(repoRoot, "one", opts);
     expect(attached.created).toBe(false);
     expect(attached.workspace.ports).toEqual(results[0]!.workspace.ports);
     await releaseWorkspace(repoRoot, "one");
-    const reused = await acquireInProcess(other, "reused");
+    const reused = await acquireWorkspaceInProcess(other, "reused", opts);
     expect(reused.workspace.resourceIndex).toBe(
       results[0]!.workspace.resourceIndex,
     );
@@ -506,8 +515,8 @@ range = 100
       manifest: {
         setup: { copy: [], install: [], generate: [], migrate: [], share: [] },
         ports: {
-          web: { base: 41000, range: 100 },
-          api: { base: 41001, range: 100 },
+          web: { base: portBase, range: 100 },
+          api: { base: portBase + 1, range: 100 },
         },
         services: {},
         env: {},
@@ -519,7 +528,7 @@ range = 100
         },
         backend: "local",
       },
-      ports: { web: 41000 + index * 100, api: 41001 + index * 100 },
+      ports: { web: portBase + index * 100, api: portBase + 1 + index * 100 },
       env: {},
       updatedAt: new Date().toISOString(),
     });
@@ -617,7 +626,10 @@ range = 100
       holdIndex(repoRoot, `held-${index}`, index);
     const eleventh = await acquireWorkspace(repoRoot, "eleventh", opts);
     expect(eleventh.workspace.resourceIndex).toBe(10);
-    expect(eleventh.workspace.ports).toEqual({ web: 42000, api: 42001 });
+    expect(eleventh.workspace.ports).toEqual({
+      web: portBase + 1000,
+      api: portBase + 1001,
+    });
     expect(eleventh.notices?.join("\n")).toContain(
       "port pool of 10 indices exhausted; extended the range to indices 10-19 and took index 10",
     );
@@ -633,7 +645,9 @@ range = 100
     expect(failure).toContain(
       "no free port for workspace 'late': every port for indices 0-39 is taken",
     );
-    expect(failure).toContain("held by: held-0 (web=41000 api=41001)");
+    expect(failure).toContain(
+      `held by: held-0 (web=${portBase} api=${portBase + 1})`,
+    );
     expect(failure).toContain("and 30 more");
     expect(failure).toContain("cast ws acquire late --no-ports");
   }, 15000);
@@ -656,7 +670,10 @@ range = 100
     });
 
     const neighbour = await acquireWorkspace(repoRoot, "neighbour", opts);
-    expect(neighbour.workspace.ports).toEqual({ web: 41000, api: 41001 });
+    expect(neighbour.workspace.ports).toEqual({
+      web: portBase,
+      api: portBase + 1,
+    });
 
     setState(repoRoot, "worker", "broken");
     const reacquired = await acquireWorkspace(repoRoot, "worker", opts);
