@@ -375,7 +375,7 @@ test("repeated 401s wait for different bearers and replay the same batch", async
 test("an unreadable spool stays intact while startup detaches uplink and resumes legacy writes", async () => {
   const tmp = await mkdtemp(join(tmpdir(), "cli-unreadable-spool-"));
   const spoolPath = join(tmp, "spool.json");
-  const corrupt = "{corrupt json";
+  const corrupt = JSON.stringify({ v: 99, batch_id: "retained", writes: [] });
   const { sync, legacy } = syncFixture();
   const reported = Promise.withResolvers<Error>();
   const binding = spyOn(sync, "setTranscriptUplink");
@@ -393,7 +393,10 @@ test("an unreadable spool stays intact while startup detaches uplink and resumes
     const write = sync.addMessages(input);
     const error = await reported.promise;
     expect(error.message).toContain(spoolPath);
-    expect(error.message).toContain("Invalid transcript spool JSON or UTF-8");
+    expect(error.message).toContain("Transcript writes fell back to legacy");
+    expect(error.message).toContain(
+      `Spool left for inspection at ${spoolPath}`,
+    );
     expect(error.cause).toBeInstanceOf(Error);
     expect(binding).toHaveBeenLastCalledWith(undefined, expect.any(Object));
     expect(await write).toEqual({ inserted: 1, ids: ["legacy-id"] });
@@ -408,5 +411,74 @@ test("an unreadable spool stays intact while startup detaches uplink and resumes
     binding.mockRestore();
     await uplink.close();
     await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test("a readable spool with an invalid replay receipt keeps its conversation closed", async () => {
+  const { sync, legacy } = syncFixture();
+  const batch: TranscriptAppendRequest = {
+    v: 1,
+    batch_id: "retained-replay",
+    writes: [
+      {
+        conversation_id: input.conversationId,
+        messages: [{ role: "assistant", message_uuid: "prior" }],
+      },
+    ],
+  };
+  const edge = await localUplink(
+    sync,
+    async (sent) => {
+      expect(sent).toEqual(batch);
+      return wireReceipt({ ...sent, batch_id: "wrong-receipt" });
+    },
+    batch,
+  );
+  try {
+    await expect(sync.addMessages(input)).rejects.toThrow(
+      "Invalid transcript batch receipt",
+    );
+    await expect(
+      sync.deleteMessagesByUuid(input.conversationId, ["prior"]),
+    ).rejects.toThrow("Invalid transcript batch receipt");
+    await expect(
+      sync.addMessages({ ...input, conversationId: "unrelated" }),
+    ).resolves.toEqual({ inserted: 1, ids: ["legacy-id"] });
+    expect(legacy.map(({ args }) => args.conversation_id)).toEqual([
+      "unrelated",
+    ]);
+  } finally {
+    await edge.dispose();
+  }
+});
+
+test("a reported post-discovery startup failure never detaches the replay gate", async () => {
+  const { sync, legacy } = syncFixture();
+  const failure = new Error("Replay could not settle");
+  const reported = Promise.withResolvers<Error>();
+  const binding = spyOn(sync, "setTranscriptUplink");
+  try {
+    attachTranscriptUplink(
+      sync,
+      Promise.resolve({
+        async start() {
+          throw failure;
+        },
+        async waitForReplay(conversationId) {
+          if (conversationId === input.conversationId) throw failure;
+        },
+        async submit() {
+          return { status: "legacy" };
+        },
+        async close() {},
+      }),
+      reported.resolve,
+    );
+    expect(await reported.promise).toBe(failure);
+    await expect(sync.addMessages(input)).rejects.toBe(failure);
+    expect(binding).toHaveBeenCalledTimes(1);
+    expect(legacy).toEqual([]);
+  } finally {
+    binding.mockRestore();
   }
 });

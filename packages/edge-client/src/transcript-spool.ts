@@ -8,10 +8,13 @@ import {
 
 export interface TranscriptSpool {
   readonly path?: string;
+  quarantine?(): Promise<void>;
   read(): Promise<TranscriptAppendRequest | null>;
   save(batch: TranscriptAppendRequest): Promise<void>;
   clear(): Promise<void>;
 }
+
+export class InvalidTranscriptSpool extends Error {}
 
 export function fileTranscriptSpool(path: string): TranscriptSpool {
   const directory = dirname(path);
@@ -28,6 +31,18 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
 
   return {
     path,
+    async quarantine() {
+      const quarantinePath = `${path}.quarantine-${crypto.randomUUID()}`;
+      await rename(path, quarantinePath);
+      await syncDirectory().catch((cause) => {
+        throw Object.assign(
+          new Error("Could not sync the quarantined spool directory", {
+            cause,
+          }),
+          { spoolPath: quarantinePath },
+        );
+      });
+    },
     async read() {
       const fd = await open(path, "r").catch((error: NodeJS.ErrnoException) => {
         if (error.code === "ENOENT") return null;
@@ -51,7 +66,7 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
         await fd.close();
       }
       if (length > TRANSCRIPT_APPEND_MAX_BYTES)
-        throw new Error("Transcript spool exceeds byte limit");
+        throw new InvalidTranscriptSpool("Transcript spool exceeds byte limit");
       let decoded: unknown;
       try {
         decoded = JSON.parse(
@@ -60,7 +75,10 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
           ),
         );
       } catch (cause) {
-        throw new Error("Invalid transcript spool JSON or UTF-8", { cause });
+        throw new InvalidTranscriptSpool(
+          "Invalid transcript spool JSON or UTF-8",
+          { cause },
+        );
       }
       const parsed = parseTranscriptSpoolRequest(decoded);
       if (!parsed.ok) throw parsed.error;
@@ -82,7 +100,9 @@ export function fileTranscriptSpool(path: string): TranscriptSpool {
       await syncDirectory();
     },
     async clear() {
-      await unlink(path);
+      await unlink(path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
       await syncDirectory();
     },
   };

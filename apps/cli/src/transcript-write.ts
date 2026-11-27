@@ -15,6 +15,15 @@ export type SyncTranscriptUplink = Pick<
   "submit" | "waitForReplay"
 >;
 
+function isStartupReadFailure(
+  error: unknown,
+): error is Error & { startupReadFailure: true; spoolPath?: string } {
+  return (
+    error instanceof Error &&
+    (error as { startupReadFailure?: boolean }).startupReadFailure === true
+  );
+}
+
 export function attachTranscriptUplink(
   sync: {
     setTranscriptUplink(
@@ -25,14 +34,26 @@ export function attachTranscriptUplink(
   opening: Promise<TranscriptUplinkClient>,
   report: (error: Error) => void,
 ): void {
+  let detached = false;
   const started = opening
     .then(async (uplink) => {
       await uplink.start();
       return true;
     })
     .catch((error: unknown) => {
+      if (!isStartupReadFailure(error)) {
+        report(error instanceof Error ? error : new Error(String(error)));
+        return false;
+      }
+      detached = true;
       sync.setTranscriptUplink(undefined, binding);
-      report(error instanceof Error ? error : new Error(String(error)));
+      const path = error.spoolPath;
+      report(
+        new Error(
+          `${error.message}. Transcript writes fell back to legacy${path ? `. Spool left for inspection at ${path}` : ""}`,
+          { cause: error.cause },
+        ),
+      );
       void opening.then((uplink) => uplink.close()).catch(() => {});
       return false;
     });
@@ -44,8 +65,8 @@ export function attachTranscriptUplink(
       return await call(await opening);
     } catch (error) {
       if (
-        !(error as { retryable?: boolean } | null)?.retryable &&
-        !(await started)
+        detached ||
+        (isStartupReadFailure(error) && !(await started) && detached)
       )
         return legacy;
       throw error;
