@@ -3,6 +3,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { act, useLayoutEffect } from "react";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
+import { authPrincipal } from "../lib/authPrincipal";
 import { _reopenForTests } from "../store/idb-cache";
 import { db } from "../store/persistence/db";
 import { flushSyncPublishes } from "../store/syncTransaction";
@@ -22,7 +23,11 @@ import { mountWeb } from "./mountWeb";
 const mount = createComposerMount(mountWeb);
 export const signedInViewer = "b".repeat(32) as Id<"users">;
 installSignedInPrincipal(signedInViewer);
-export const principalStorage = localStorage;
+export const principalStorage = {
+  getItem: (key: string) => localStorage.getItem(key),
+  setItem: (key: string, value: string) => localStorage.setItem(key, value),
+  removeItem: (key: string) => localStorage.removeItem(key),
+};
 await _reopenForTests({ indexedDB, IDBKeyRange });
 
 export async function settleRecoveryWrites() {
@@ -101,6 +106,8 @@ export async function show(
     <Composer row={row} enabled={enabled} dropFiles={dropFiles} />,
     {
       setup(backend) {
+        installSignedInPrincipal(signedInViewer);
+        authPrincipal.check();
         backend.set(api.collab.steerClaimState, row);
         backend.set(api.collab.mySendAccess, { level: "shared" });
         backend.set(api.devices.getConversationMachine, null);

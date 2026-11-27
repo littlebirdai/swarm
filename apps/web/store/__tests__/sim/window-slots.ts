@@ -204,6 +204,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/persistence/collection-writer.ts:conversationRetentionDrops": IDB,
   "store/persistence/pendingInputJournal.ts:pendingJournalFlush": IDB,
   "store/persistence/pendingInputJournal.ts:pendingJournalEpoch": IDB,
+  "store/persistence/db.ts:PERSISTENCE_AVAILABLE": IDB,
+  "store/persistence/db.ts:dbEventsAttached": IDB,
   "store/persistence/db.ts:closeExpected": IDB,
   "store/persistence/db.ts:cacheServed": IDB,
   "store/persistence/db.ts:purgeInProgress": IDB,

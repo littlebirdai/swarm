@@ -1,4 +1,13 @@
-import { appendFileSync, closeSync, writeFileSync, writeSync } from "node:fs";
+import {
+  appendFileSync,
+  closeSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  watch,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -161,7 +170,8 @@ inbox.on("line", (line) => {
       return;
   }
   if (typeof id === "string" && id.startsWith("barrier:")) {
-    process.send?.({ type: "barrier", id });
+    if (process.send) process.send({ type: "barrier", id });
+    else writeFileSync(join(directory, id), "");
   } else if (id === "hold-write" && error) {
     writeFileSync(join(directory, "hold-drained"), "");
   } else if (result) {
@@ -171,7 +181,7 @@ inbox.on("line", (line) => {
   }
 });
 
-process.on("message", (command: any) => {
+function handleCommand(command: any) {
   if (!command || typeof command !== "object") return;
   if (command.exit) process.exit(0);
   if (command.closeStdout) closeSync(1);
@@ -205,6 +215,28 @@ process.on("message", (command: any) => {
     });
   }
   if (command.barrier) send({ id: command.barrier, method: "fixture/barrier" });
-});
+}
+
+if (process.send) {
+  process.on("message", handleCommand);
+} else {
+  const drainCommands = () => {
+    for (const name of readdirSync(directory)
+      .filter((entry) => entry.endsWith(".command"))
+      .sort()) {
+      const file = join(directory, name);
+      let raw: string;
+      try {
+        raw = readFileSync(file, "utf8");
+        unlinkSync(file);
+      } catch {
+        continue;
+      }
+      handleCommand(JSON.parse(raw));
+    }
+  };
+  watch(directory, drainCommands);
+  drainCommands();
+}
 
 writeFileSync(join(directory, "pid"), String(process.pid));
