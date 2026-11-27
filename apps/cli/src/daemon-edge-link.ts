@@ -21,7 +21,13 @@ type Connection = {
 type Link = {
   connection: Connection;
   client: EdgeClient | undefined;
-  policy?: { revision: number; intervalMs: number; nextAt: number };
+  policy?: {
+    revision: number;
+    intervalMs: number;
+    nextAt: number;
+    parkingBudget?: number;
+    confirmedAt: number;
+  };
   holdUntil: number;
   failures: number;
   inFlight: boolean;
@@ -106,6 +112,8 @@ export function createDaemonEdgeLink() {
               revision: hello.value.policy.revision,
               intervalMs,
               nextAt: now + intervalMs,
+              confirmedAt: performance.now(),
+              parkingBudget: hello.value.policy.parking?.agent_rss_budget_bytes,
             };
             link.failures = 0;
             return;
@@ -124,6 +132,7 @@ export function createDaemonEdgeLink() {
           if (heartbeat.ok) {
             if (heartbeat.value.policy_revision !== policy.revision)
               link.policy = undefined;
+            else policy.confirmedAt = performance.now();
             return;
           }
           failure = heartbeat.error;
@@ -169,6 +178,14 @@ export function createDaemonEdgeLink() {
 
   return {
     tick,
+    memoryParkingBudget() {
+      const policy = active?.policy;
+      if (
+        policy &&
+        performance.now() - policy.confirmedAt < 2 * policy.intervalMs
+      )
+        return policy.parkingBudget;
+    },
     close: () => {
       shutdown ??= closeClient(active?.client);
       active = undefined;
@@ -197,3 +214,5 @@ export function reportEdgeHeartbeat(
 }
 
 export const closeEdgeConnection = daemonEdgeLink.close;
+
+export const memoryParkingBudget = daemonEdgeLink.memoryParkingBudget;

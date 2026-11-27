@@ -1,6 +1,7 @@
+import { hasDeliverableMessage } from "./lib/closeAside";
 import { v } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
-import { internalMutation, internalQuery } from "./functions";
+import { internalMutation, internalQuery, query } from "./functions";
 import { bumpWindow, takeFromWindow } from "./ipRateLimit";
 
 export const isDeviceBearer = internalQuery({
@@ -90,5 +91,50 @@ export const admitEvents = internalMutation({
           status: "rate_limited",
           retryAfterMs: budget.retry_after_ms ?? windowMs,
         } as const);
+  },
+});
+
+export const canParkSession = query({
+  args: {
+    bearer: v.string(),
+    conversation_id: v.id("conversations"),
+    session_id: v.string(),
+  },
+  handler: async (ctx, args): Promise<boolean> => {
+    const auth = await verifyDeviceApiToken(ctx, args.bearer);
+    if (!auth) return false;
+    const conversation = await ctx.db.get(args.conversation_id);
+    if (
+      !conversation ||
+      conversation.user_id !== auth.userId ||
+      (conversation.owner_device_id &&
+        conversation.owner_device_id !== auth.deviceId) ||
+      conversation.execution_protocol_state
+    )
+      return false;
+    const session = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
+      .first();
+    if (
+      !session ||
+      session.user_id !== auth.userId ||
+      session.session_id !== args.session_id ||
+      !["idle", "done", "dormant"].includes(session.agent_status ?? "")
+    )
+      return false;
+    const prompt = await ctx.db
+      .query("pending_permissions")
+      .withIndex("by_conversation_status", (q) =>
+        q.eq("conversation_id", conversation._id).eq("status", "pending"),
+      )
+      .first();
+    return (
+      !prompt &&
+      !conversation.has_pending_messages &&
+      !(await hasDeliverableMessage(ctx, conversation._id))
+    );
   },
 });

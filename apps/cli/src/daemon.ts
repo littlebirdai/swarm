@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import * as memoryParking from "./memory-parking.js";
 import {
   commandLogContext,
   executeRemoteCommand,
@@ -26826,6 +26827,10 @@ async function runHeartbeatMaintenance(): Promise<void> {
     heartbeatHealthCheck(sessionId, reverse).catch(() => {}),
   );
 
+  if (memoryParking.enabled() && tick % REAP_EVERY_N_FLUSHES !== 0)
+    await runHibernationPass({}, true).catch((e) =>
+      log(`[HIBERNATE] pass error: ${String(e)}`),
+    );
   // Conservative reap of long-idle orphan terminals — gentle (capped per pass)
   // and logged to a dedicated reaper.log. See reapIdleOrphanTerminals.
   if (tick % REAP_EVERY_N_FLUSHES === 0) {
@@ -29212,7 +29217,11 @@ function hibernationLocalUnchanged(
     !managedHeartbeatSessions.has(cand.sessionId)
   )
     return false;
-  if (knownAgentStatus(cand.sessionId) !== cand.status) return false;
+  if (
+    io.promptOpen?.(cand.sessionId) ||
+    knownAgentStatus(cand.sessionId) !== cand.status
+  )
+    return false;
   const cachedConv = io.conversationIds()[cand.sessionId];
   if (cachedConv && cachedConv !== cand.conversationId) return false;
   const fresh = {
@@ -29534,6 +29543,8 @@ export type HibernationPassIo = {
   attemptTimeoutMs?: number;
   terminal(args: string[]): Promise<{ stdout: string }>;
   policy(): HibernationPolicy;
+  parkingSafe?(conversationId: string, sessionId: string): Promise<boolean>;
+  promptOpen?(sessionId: string): boolean;
   /** tmux session name to the number of clients attached to it. */
   tmuxSessions(): Promise<Map<string, number>>;
   awakeIdleMs(sessionId: string): number;
@@ -29787,6 +29798,11 @@ async function hibernationRefusalReason(
   }
   if (!cand.conversationId) return "conversation-unknown";
   const lifecycle = await io.lifecycle(cand.conversationId, cand.sessionId);
+  if (
+    io.parkingSafe &&
+    !(await io.parkingSafe(cand.conversationId, cand.sessionId))
+  )
+    return "server-parking-interlock";
   if (!lifecycle) return "lifecycle-unknown";
   if (lifecycle.hideStateKnown !== true || lifecycle.source !== "lifecycle")
     return "lifecycle-degraded";
@@ -29963,13 +29979,30 @@ const hibernationRefusedAt = new Map<string, number>();
 // the end-to-end test runs the actual tmux listing and the actual teardown.
 export async function runHibernationPass(
   overrides: Partial<HibernationPassIo> = {},
+  memoryOnly = false,
 ): Promise<number> {
   const io: HibernationPassIo = { ...productionHibernationIo, ...overrides };
-  const policy = io.policy();
+  const policy = { ...io.policy() };
+  if (memoryOnly) policy.maxLive = policy.idleMs = 0;
+  const budget =
+    memoryParking.enabled() && (await edgeLink)?.memoryParkingBudget();
+  if (budget && !policy.memory)
+    policy.memory = await memoryParking.sampleParkingMemory(
+      budget,
+      sessionProcessCache,
+    );
+  if (policy.memory) {
+    io.parkingSafe ??= memoryParking.interlock(syncServiceRef, getAuthToken);
+    io.promptOpen ??= (id) =>
+      [
+        openPermissionDialogs,
+        permissionRecordPending,
+        codexPermissionPending,
+      ].some((open) => open.has(id));
+  }
   // Both knobs off is the shipping default: no tmux call, no log line, nothing.
-  if (policy.maxLive <= 0 && policy.idleMs <= 0) return 0;
+  if (policy.maxLive <= 0 && policy.idleMs <= 0 && !policy.memory) return 0;
   if (!hasTmux()) return 0;
-
   const candidates = await collectHibernationCandidates(io);
   if (candidates === null) return 0; // tmux unreachable: no facts, so no kills
   if (candidates.length === 0) return 0;

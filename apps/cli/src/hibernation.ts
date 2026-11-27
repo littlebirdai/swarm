@@ -1,3 +1,4 @@
+import { memoryParkingPicks, type ParkingMemory } from "./memory-parking.js";
 // Which live sessions the daemon parks to keep the fleet under its cap.
 //
 // Hibernation is the reaper's teardown applied for a different reason. The
@@ -90,6 +91,7 @@ export type HibernationPolicy = {
   /** Awake idle age that parks a session on its own. 0 = no idle bar. */
   idleMs: number;
   maxPerPass: number;
+  memory?: ParkingMemory;
   /**
    * Report what this policy WOULD park and park nothing. The way to turn
    * hibernation on: run the real knobs against the real fleet, read the pass
@@ -179,11 +181,13 @@ export function selectHibernationCandidates(
 
   const over =
     policy.maxLive > 0 ? Math.max(0, candidates.length - policy.maxLive) : 0;
-  const picked: HibernationCandidate[] = [];
-  for (let i = 0; i < eligible.length; i++) {
-    const c = eligible[i];
+  const picked = memoryParkingPicks(eligible, policy.memory, policy.maxPerPass);
+  const memoryPicks = new Set(picked);
+  let remainingOverage = over - picked.length;
+  for (const c of eligible) {
+    if (memoryPicks.has(c)) continue;
     const pastBar = policy.idleMs > 0 && c.awakeIdleMs >= policy.idleMs;
-    if (i >= over && !pastBar) continue;
+    if (remainingOverage-- <= 0 && !pastBar) continue;
     if (picked.length >= policy.maxPerPass) {
       skips.push("pass-cap");
       continue;

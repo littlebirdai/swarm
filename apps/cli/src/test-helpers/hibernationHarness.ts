@@ -108,6 +108,7 @@ export function createHibernationHarness() {
     readConversationCache: () => ({}),
     // No hook status files in this world: the status is what the daemon last sent.
     agentStatusOnDisk: () => undefined,
+    memoryParking: { enabled: () => false },
     productionHibernationIo: Object.fromEntries(
       [
         "policy",

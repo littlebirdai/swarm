@@ -11,6 +11,7 @@ import {
   clearHibernationPark,
   flushHibernationStamps,
   hibernateSessionNow,
+  injectViaTmux,
   hibernationConcurrencyForTests as internals,
   inspectHibernationTarget,
   noteSubagentActivity,
@@ -31,6 +32,7 @@ import {
 } from "./test-helpers/messagingHarness.js";
 import { descendantRows, snapshotProcessTableAsync } from "./processTable.js";
 import { hasTmux, tmuxRun, tmuxRunAsync } from "./tmux.js";
+import { TmuxDeliveryJournal } from "./tmuxDeliveryJournal.js";
 import type { SyncService } from "./syncService.js";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 
@@ -95,6 +97,9 @@ async function fixture() {
       writes.push(args);
       return true;
     },
+    getConversationLifecycle: async () => life,
+    getConversationOwnerInfo: async () => null,
+    getPendingMessageStatus: async () => "pending",
     markSessionCompleted: async (id: string) => {
       completed.push(id);
     },
@@ -659,4 +664,104 @@ test.skipIf(!hasTmux())(
     });
   },
   15000,
+);
+
+test.skipIf(!hasTmux())(
+  "a delivery wakes a memory-parked pane and its retry reaches the agent only once",
+  async () => {
+    const f = await fixture();
+    f.claim(f.id);
+    f.io.policy = () => ({
+      maxLive: 0,
+      idleMs: 0,
+      maxPerPass: 5,
+      memory: {
+        budgetBytes: 100,
+        usedBytes: 120,
+        rssBySession: new Map([[f.id, 45]]),
+      },
+    });
+    f.io.parkingSafe = async () => true;
+    const prior = fs.readFileSync(f.h.jsonlPath, "utf8");
+    expect(prior.length).toBeGreaterThan(0);
+    expect(await runHibernationPass(f.io)).toBe(1);
+    expect(sessionParkStateForTests(f.id).parked).toBe(true);
+    const journal = new TmuxDeliveryJournal(
+      path.join(f.registry, "delivery.sqlite"),
+    );
+    const delivery = { messageId: crypto.randomUUID(), conversationId: f.conv };
+    const message = "delivery after the memory park";
+    let target: string;
+    try {
+      let openings = 0;
+      internals.setResumeInner(
+        async (
+          _session,
+          text,
+          _titles,
+          _cwd,
+          _conversation,
+          _agent,
+          options,
+        ) => {
+          openings++;
+          expect(fs.readFileSync(f.h.jsonlPath, "utf8").startsWith(prior)).toBe(
+            true,
+          );
+          const resumed = spawnHarness({
+            sessionId: f.id,
+            home: os.homedir(),
+            cwd: f.h.cwd,
+            tmuxPrefix: `cc-memory-wake-${process.pid}`,
+          });
+          harnesses.push(resumed);
+          target = resumed.tmuxSession + ":0.0";
+          await waitFor(() => resumed.paneHasPrompt(), { timeoutMs: 5000 });
+          trackSessionPaneForTests(f.id, resumed.tmuxSession, {
+            status: "idle",
+          });
+          await injectViaTmux(target, text, "claude", {
+            delivery: options?.delivery,
+            journal,
+          });
+          return true;
+        },
+      );
+      expect(
+        await internals.autoResumeSession(
+          f.id,
+          message,
+          {},
+          f.h.cwd,
+          f.conv,
+          "claude",
+          { delivery },
+        ),
+      ).toBe(true);
+      const read = () => fs.readFileSync(f.h.jsonlPath, "utf8");
+      await waitFor(() => read().includes(message), { timeoutMs: 5000 });
+      await injectViaTmux(target!, message, "claude", {
+        delivery,
+        journal,
+        readTranscript: async () => read(),
+      });
+      expect(openings).toBe(1);
+      expect(read().startsWith(prior)).toBe(true);
+      const userTurns = read()
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter(
+          (row) =>
+            row.type === "user" &&
+            String(row.message?.content).includes(message),
+        );
+      expect(userTurns).toHaveLength(1);
+      expect(sessionParkStateForTests(f.id).parked).toBe(false);
+      expect(journal.get(delivery.messageId)?.phase).toBe("verified");
+    } finally {
+      journal.close();
+    }
+  },
+  30_000,
 );

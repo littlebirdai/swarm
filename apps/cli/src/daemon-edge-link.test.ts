@@ -235,3 +235,41 @@ test("a transport defect is isolated from the caller and backs off", async () =>
   expect(paths()).toEqual(["/edge/v1/hello"]);
   expect(logs).toEqual(["[EDGE] Link failed"]);
 });
+
+test("a parking budget follows the current hello and expires without a confirmed heartbeat", async () => {
+  fetchMock
+    .mockImplementationOnce(async () =>
+      Response.json({
+        status: "ok",
+        version: 1,
+        policy: { ...policy, parking: { agent_rss_budget_bytes: 512 } },
+      }),
+    )
+    .mockImplementationOnce(async () => heartbeat())
+    .mockImplementationOnce(async () => heartbeat(2))
+    .mockImplementationOnce(async () => hello());
+  expect(link.memoryParkingBudget()).toBeUndefined();
+  await tick();
+  expect(link.memoryParkingBudget()).toBe(512);
+  now += 30_000;
+  await tick();
+  now += 30_000;
+  expect(link.memoryParkingBudget()).toBe(512);
+  await tick();
+  expect(link.memoryParkingBudget()).toBeUndefined();
+  await tick();
+  expect(link.memoryParkingBudget()).toBeUndefined();
+
+  await link.close();
+  link = createDaemonEdgeLink();
+  fetchMock.mockImplementationOnce(async () =>
+    Response.json({
+      status: "ok",
+      version: 1,
+      policy: { ...policy, parking: { agent_rss_budget_bytes: 512 } },
+    }),
+  );
+  await tick();
+  now += 60_000;
+  expect(link.memoryParkingBudget()).toBeUndefined();
+});

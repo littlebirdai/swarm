@@ -6,6 +6,7 @@ import {
   oneOf,
   parser,
   positiveInteger,
+  optional,
   responseObject,
   tagged,
 } from "./parse";
@@ -37,6 +38,9 @@ const policy = responseObject({
     max_blob_bytes: positiveInteger,
   }),
   capabilities: array(nonEmptyString),
+  parking: optional(
+    responseObject({ agent_rss_budget_bytes: positiveInteger }),
+  ),
 });
 
 const helloRequest = object({

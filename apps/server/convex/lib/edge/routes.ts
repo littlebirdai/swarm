@@ -48,6 +48,16 @@ const policy = {
   },
   capabilities: ["heartbeat"],
 };
+function parkingBudgetBytes(): number | undefined {
+  const value = Number(process.env.CODECAST_EDGE_MEMORY_PARKING_BYTES);
+  if (
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > Number.MAX_SAFE_INTEGER - policy.revision
+  )
+    return;
+  return value;
+}
 const supportedVersions = new Set([EDGE_PROTOCOL_VERSION]);
 
 function edgeError(
@@ -257,10 +267,15 @@ export function registerEdgeRoutes(http: HttpRouter) {
     handler: linkAction(parseHelloRequest, (body): HelloResponse => {
       const version = negotiateEdgeVersion(body.versions, supportedVersions);
       if (version.status !== "ok") return version;
+      const budget = parkingBudgetBytes();
       return {
         ...version,
         policy: {
           ...policy,
+          ...(budget && {
+            revision: policy.revision + budget,
+            parking: { agent_rss_budget_bytes: budget },
+          }),
           capabilities: [
             ...policy.capabilities,
             ...(steerBatonEnabled() ? [STEER_BATON_CAPABILITY] : []),
@@ -281,7 +296,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
     method: "POST",
     handler: linkAction(parseHeartbeatRequest, (): HeartbeatResponse => ({
       v: EDGE_PROTOCOL_VERSION,
-      policy_revision: policy.revision,
+      policy_revision: policy.revision + (parkingBudgetBytes() ?? 0),
     })),
   });
   http.route({
