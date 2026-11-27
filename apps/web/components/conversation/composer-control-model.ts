@@ -12,7 +12,7 @@ type Driver = { id: string; name: string };
 export type SendState =
   | { kind: "submitting" | "saved" | "waiting-for-machine" | "with-agent" }
   | { kind: "waiting-for-driver"; driver: string }
-  | { kind: "in-doubt" | "stale" | "refused" | "suggested" };
+  | { kind: "in-doubt" | "stale" | "refused" | "unsaved" | "suggested" };
 
 export type ComposerControlFacts = {
   viewerId: string;
@@ -95,6 +95,8 @@ function sendStatus(state: SendState | null): string | null {
       return "Turn ended";
     case "refused":
       return "Send refused";
+    case "unsaved":
+      return "Could not save draft yet";
     case "suggested":
       return "Suggested";
     case undefined:

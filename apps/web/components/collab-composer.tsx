@@ -600,7 +600,16 @@ export const CollabComposer = memo(function CollabComposer({
       (control && (!control.send || control.isSubmitting()))
     )
       return;
-    const mine = attachReviewToMessage(convKey, draft.current).trim();
+    const consumeBatch: (() => void)[] = [];
+    const defer = control?.facts.live
+      ? consumeBatch.push.bind(consumeBatch)
+      : undefined;
+    const mine = attachReviewToMessage(
+      convKey,
+      draft.current,
+      undefined,
+      defer,
+    ).trim();
     const body = together ? composeJointTurn(me, mine, candidates) : mine;
     if (!body) return;
     if (control) {
@@ -610,6 +619,7 @@ export const CollabComposer = memo(function CollabComposer({
       if (!complete) return;
       const sentDraft = draft.current;
       const clearSubmitted = () => {
+        consumeBatch.forEach((consume) => consume());
         if (visibleScope.current !== convKey || draft.current !== sentDraft)
           return;
         setMessage("");

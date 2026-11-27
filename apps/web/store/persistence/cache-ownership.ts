@@ -40,7 +40,7 @@ type PurgeCache = (opts: {
 export type CacheOwnershipDeps = {
   db: Dexie & { meta: Dexie.Table<{ key: string; value: any }, string> };
   residueTables: Dexie.Table<any, string>[];
-  pendingInputPrefix: string;
+  ownedInputPrefixes: readonly string[];
   onServed: () => void;
 };
 
@@ -112,7 +112,11 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
           const own = principal
             ? await deps.db.meta
                 .where("key")
-                .startsWith(`${deps.pendingInputPrefix}${principal}:`)
+                .startsWithAnyOf(
+                  deps.ownedInputPrefixes.map(
+                    (prefix) => `${prefix}${principal}:`,
+                  ),
+                )
                 .count()
             : 0;
           const stamp = await deps.db.meta

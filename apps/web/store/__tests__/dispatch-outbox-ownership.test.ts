@@ -13,9 +13,11 @@ import {
   _reopenForTests,
   enqueueDispatch,
   loadOutbox,
+  loadCache,
   removeDispatch,
 } from "../idb-cache";
 import { action, mutativeMiddleware } from "../mutativeMiddleware";
+import { COMPOSER_RETRY_PREFIX } from "../persistence/schema";
 import { db } from "../persistence/db";
 import { authPrincipal } from "../../lib/authPrincipal";
 
@@ -315,4 +317,32 @@ test("reading visits and checkpoints stay out of the durable outbox", async () =
     action: "saveSavedReadingAnchor",
   });
   expect(await loadOutbox()).toEqual([]);
+});
+
+test("an unstamped cache with only the principal's composer retry keeps its outbox", async () => {
+  const retryKey = `${COMPOSER_RETRY_PREFIX}${TEST_PRINCIPAL}:conversation:retry`;
+  const parked = {
+    action: "stageExpandLeaf",
+    id: "before-cache-stamp",
+    args: ["one"],
+    patches: null,
+    result: null,
+    ts: Date.now(),
+    accountId: TEST_PRINCIPAL,
+  };
+  await db.meta.put({
+    key: retryKey,
+    value: { id: "retry", payload: { text: "Keep me" } },
+  });
+  await db.dispatchOutbox.put(parked);
+  try {
+    await loadCache();
+    expect(await db.dispatchOutbox.get(parked.id)).toEqual(parked);
+    expect((await db.meta.get("cacheOwner"))?.value).toMatchObject({
+      principal: TEST_PRINCIPAL,
+      reason: "fresh",
+    });
+  } finally {
+    await db.meta.delete(retryKey);
+  }
 });

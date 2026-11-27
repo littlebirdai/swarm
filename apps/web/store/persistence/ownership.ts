@@ -1,6 +1,6 @@
 import { createCacheOwnership } from "./cache-ownership";
 import { COLLECTION_TABLES, db, markCacheServed } from "./db";
-import { PENDING_INPUT_PREFIX } from "./schema";
+import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "./schema";
 
 const ownershipApi = createCacheOwnership({
   db,
@@ -9,7 +9,7 @@ const ownershipApi = createCacheOwnership({
     COLLECTION_TABLES.conversations,
     db.pendingEntries,
   ],
-  pendingInputPrefix: PENDING_INPUT_PREFIX,
+  ownedInputPrefixes: [PENDING_INPUT_PREFIX, COMPOSER_RETRY_PREFIX],
   onServed: markCacheServed,
 });
 export const {

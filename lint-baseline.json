@@ -18789,7 +18789,7 @@
   "apps/web/components/message-input.tsx": {
     "react-hooks/exhaustive-deps": 12,
     "swarm/ime-safe-key-handlers": 16,
-    "swarm/no-comments": 588,
+    "swarm/no-comments": 582,
     "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/messageMarkdown.tsx": {
@@ -25992,7 +25992,7 @@
     "swarm/no-comments": 32
   },
   "apps/web/lib/reviewActions.ts": {
-    "swarm/no-comments": 106
+    "swarm/no-comments": 96
   },
   "apps/web/lib/reviewNav.test.ts": {
     "swarm/no-comments": 7

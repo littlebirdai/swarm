@@ -5,7 +5,7 @@ import { db } from "./db";
 import { _hydrating } from "./hydration";
 import { persistenceOwned } from "./ownership";
 
-export const COMPOSER_RETRY_PREFIX = "composerRetry:v1:";
+import { COMPOSER_RETRY_PREFIX } from "./schema";
 
 function conversationPrefix(viewer: string, conversation: string) {
   return `${COMPOSER_RETRY_PREFIX}${viewer}:${conversation}:`;

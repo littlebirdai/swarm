@@ -1,4 +1,3 @@
-import { COMPOSER_RETRY_PREFIX } from "./composer-retry-journal";
 import { recordCacheEvent } from "../cache-events";
 import { resetCollectionWrites } from "./collection-writer";
 import {
@@ -10,7 +9,7 @@ import {
 import { dropPendingMessageWrites } from "./message-cache";
 import { writeOwnerStamp } from "./ownership";
 import { clearPendingInputJournal } from "./pendingInputJournal";
-import { PENDING_INPUT_PREFIX } from "./schema";
+import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "./schema";
 
 // Sign-out purge: drop every locally persisted row (collections, messages,
 // meta, parked outbox). The caller owns navigation/reload afterwards.

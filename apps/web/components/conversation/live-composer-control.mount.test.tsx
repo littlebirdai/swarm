@@ -1,4 +1,14 @@
-import { installSignedInPrincipal } from "../../store/__tests__/fixtures/signedInPrincipal";
+import {
+  claimState,
+  driver,
+  mount,
+  principalStorage,
+  publishClaim,
+  settleRecoveryWrites,
+  show,
+  signedInViewer,
+  type DropFiles,
+} from "../../test-helpers/live-composer-fixture";
 import {
   AUTH_JWT_STORAGE_KEY,
   issueFakeToken,
@@ -6,12 +16,10 @@ import {
 import { expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { act, useLayoutEffect } from "react";
-import { indexedDB, IDBKeyRange } from "fake-indexeddb";
-import { _reopenForTests } from "../../store/idb-cache";
+import { act } from "react";
 import { db } from "../../store/persistence/db";
 import { setHydrating } from "../../store/persistence/hydration";
-import { COMPOSER_RETRY_PREFIX } from "../../store/persistence/composer-retry-journal";
+import { COMPOSER_RETRY_PREFIX } from "../../store/persistence/schema";
 import { replicationPersistence } from "../../store/storage-transport";
 import type { OutboxEntry } from "@platform/engine";
 import { CollabRequestBanner } from "../collab-composer";
@@ -22,113 +30,8 @@ import {
 import { useInboxStore } from "../../store/inboxStore";
 import { flushSyncPublishes } from "../../store/syncTransaction";
 import { type SteerClaimState } from "../../store/steer-composer-state";
-import {
-  button,
-  collaborator,
-  createComposerMount,
-  owner,
-} from "../../test-helpers/composer-control-fixture";
+import { button } from "../../test-helpers/composer-control-fixture";
 import { replaceGlobals } from "../../test-helpers/globals";
-import { mountWeb } from "../../test-helpers/mountWeb";
-
-const mount = createComposerMount(mountWeb);
-const signedInViewer = "b".repeat(32) as Id<"users">;
-installSignedInPrincipal(signedInViewer);
-const principalStorage = localStorage;
-await _reopenForTests({ indexedDB, IDBKeyRange });
-
-async function settleRecoveryWrites() {
-  await act(async () => {
-    await db.meta.count();
-    await db.meta.count();
-  });
-}
-
-let nextId = 0;
-function claimState(): SteerClaimState {
-  const _id = (++nextId).toString().padStart(32, "a") as Id<"conversations">;
-  const viewer = signedInViewer;
-  return {
-    _id,
-    viewer,
-    owner: true,
-    turn: { id: "turn", run: 1, start_event_seq: 10 },
-    holder: { id: viewer, name: "Owner" },
-    baton_token: 1,
-    delivery: null,
-    takeover_pending: false,
-    fence_id: null,
-    can_take_over: true,
-    can_send: true,
-    can_steer: true,
-    drive_requested: false,
-    fresh_for_ms: 30000,
-    queue: { items: [], more: false },
-  };
-}
-const driver = { id: "c".repeat(32) as Id<"users">, name: "Ana" };
-
-function Composer({
-  row,
-  enabled = true,
-}: {
-  row: SteerClaimState;
-  enabled?: boolean;
-}) {
-  useLayoutEffect(
-    () =>
-      replaceGlobals({
-        dispatchEvent: window.dispatchEvent.bind(window),
-      }),
-    [],
-  );
-  const control = useLiveComposerControl(
-    enabled ? row._id : undefined,
-    row.viewer,
-  );
-  return (
-    <>
-      {enabled && <SteerClaimFeeder scope={row._id} viewerId={row.viewer} />}
-      {row.owner
-        ? owner(row._id, control)
-        : collaborator(row._id, control ?? { enabled: false })}
-    </>
-  );
-}
-
-async function show(
-  row: SteerClaimState,
-  status: string | { status: string; code?: string } = "acknowledged",
-  enabled = true,
-) {
-  const ui = await mount(<Composer row={row} enabled={enabled} />, {
-    setup(backend) {
-      backend.set(api.collab.steerClaimState, row);
-      backend.set(api.collab.mySendAccess, { level: "shared" });
-      backend.set(api.devices.getConversationMachine, null);
-      backend.mutation(
-        api.dispatch.dispatch,
-        typeof status === "string" ? { status } : status,
-      );
-    },
-  });
-  await act(async () => flushSyncPublishes());
-  return {
-    ...ui,
-    async press(...args: Parameters<typeof ui.press>) {
-      await ui.press(...args);
-      await settleRecoveryWrites();
-    },
-  };
-}
-
-async function publishClaim(
-  ui: Awaited<ReturnType<typeof show>>,
-  row: SteerClaimState | null,
-) {
-  await act(() => ui.backend.set(api.collab.steerClaimState, row));
-  await act(async () => flushSyncPublishes());
-}
 
 test("the disabled composer skips the feed and keeps the existing editor", async () => {
   const row = claimState();
@@ -504,6 +407,103 @@ test.each([
         AUTH_JWT_STORAGE_KEY,
         issueFakeToken(signedInViewer),
       );
+    }
+  },
+);
+
+test("a storage refusal reports an unsaved draft and retries as a steer", async () => {
+  const row = claimState();
+  const ui = await show(row);
+  setHydrating(true);
+  try {
+    await ui.type("Steer after storage recovers");
+    await ui.press("Enter");
+    expect(ui.container.textContent).toContain("Could not save draft yet");
+    expect(button(ui.container, "Send")).toBeDefined();
+    expect(ui.backend.mutations).toHaveLength(0);
+  } finally {
+    setHydrating(false);
+  }
+  await ui.press("Enter");
+  expect(ui.backend.mutations.at(-1)?.args).toMatchObject({
+    action: "controlSteerComposer",
+    args: [
+      row._id,
+      { observed: row.turn, text: "Steer after storage recovers" },
+    ],
+  });
+});
+
+test.each([true, false])(
+  "a live composer keeps its attachment batch while storage refuses (%s)",
+  async (ownerSeat) => {
+    const row = { ...claimState(), owner: ownerSeat };
+    const dropFiles: DropFiles = { current: null };
+    const ui = await show(
+      row,
+      "acknowledged",
+      true,
+      ownerSeat ? dropFiles : undefined,
+    );
+    const restoreFetch = replaceGlobals({
+      fetch: async () => Response.json({ storageId: "stored-file" }),
+    });
+    try {
+      if (ownerSeat) {
+        ui.backend.mutation(
+          api.images.generateUploadUrl,
+          "https://upload.test/file",
+        );
+        await act(async () =>
+          dropFiles.current?.([
+            new File(["bytes"], "notes.txt", { type: "text/plain" }),
+          ]),
+        );
+        expect(button(ui.container, "Remove notes.txt")).toBeDefined();
+      }
+      await act(async () =>
+        useInboxStore.getState().addReviewComment(row._id, {
+          id: "attached-review",
+          messageId: "reviewed-message",
+          blockIndex: 0,
+          quote: "Review this line",
+          body: "Tighten the wording",
+          createdAt: 1,
+        }),
+      );
+      await ui.type("Send with the batch");
+      setHydrating(true);
+      await ui.press("Enter");
+      expect(ui.box().value).toBe("Send with the batch");
+      if (ownerSeat)
+        expect(button(ui.container, "Remove notes.txt")).toBeDefined();
+      expect(
+        useInboxStore
+          .getState()
+          .getReviewComments(row._id)
+          .map(({ id }) => id),
+      ).toEqual(["attached-review"]);
+      setHydrating(false);
+      await ui.press("Enter");
+      const sent = ui.backend.mutations.find(
+        ({ args }) =>
+          (args as { action?: string } | undefined)?.action ===
+          "controlSteerComposer",
+      );
+      const sentText = (
+        sent?.args as { args: [string, { text: string }] } | undefined
+      )?.args[1].text;
+      expect(sentText).toContain("Tighten the wording");
+      if (ownerSeat) {
+        expect(sentText).toContain("notes.txt");
+        expect(
+          ui.container.querySelector('[aria-label="Remove notes.txt"]'),
+        ).toBeNull();
+      }
+      expect(useInboxStore.getState().getReviewComments(row._id)).toEqual([]);
+    } finally {
+      setHydrating(false);
+      restoreFetch();
     }
   },
 );

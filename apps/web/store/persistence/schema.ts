@@ -18,6 +18,7 @@ export { WEB_COLLECTION_INDEXES };
 // drops removed tables) rather than replaying a version ladder — so the old
 // twelve-step ladder that restated the whole schema per step is gone.
 export const PENDING_INPUT_PREFIX = "pendingInput:v1:";
+export const COMPOSER_RETRY_PREFIX = "composerRetry:v1:";
 
 export const CACHE_SCHEMA_VERSION = 115;
 export const CACHE_SCHEMA_SIGNATURE =

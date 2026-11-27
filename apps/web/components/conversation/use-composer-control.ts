@@ -231,7 +231,7 @@ export function useComposerControl(
               saved,
             ))
           ) {
-            sendState = { kind: "refused" };
+            sendState = { kind: "unsaved" };
             return false;
           }
           if (!currentAccount()) return false;

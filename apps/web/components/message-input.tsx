@@ -2789,13 +2789,17 @@ export const MessageInput = memo(function MessageInput({
       !jointSendReady(conversationId)
     )
       return false;
+    const live = controlled?.facts.live === true;
+    const consumeAttachments: (() => void)[] = [];
+    const defer = live
+      ? consumeAttachments.push.bind(consumeAttachments)
+      : undefined;
     const quoted = forking ? [] : quotedImages(conversationId);
-    // The quotes it takes ride the send as ids too, so the server stamps their
-    // records sent (lib/quoteDraftWire; empty unless the person turned it on).
     const review = attachReviewForSend(
       conversationId,
       message,
       quoted.length ? submitImages.length + 1 : undefined,
+      defer,
     );
     message = review.text;
     const quoteIds = review.quoteIds;
@@ -2815,10 +2819,8 @@ export const MessageInput = memo(function MessageInput({
           : undefined,
       );
     const typedWords = message === beforeJoint ? typed : undefined;
-    // An attached screen recording rides as its tag (a fork leaves it here).
-    if (!forking) message = screenRec.take(message);
-    // Attached files ride as tags the daemon turns into local paths.
-    if (!forking) message = fileAttach.take(message);
+    if (!forking)
+      message = fileAttach.take(screenRec.take(message, defer), defer);
     const quotedOriginals: OptimisticImage[] = quoted.map((q) => ({
       media_type: "image/png",
       storage_id: q.storageId,
@@ -2866,7 +2868,6 @@ export const MessageInput = memo(function MessageInput({
       ),
       ...quotedOriginals,
     ];
-    const live = controlled?.facts.live === true;
     const completeControlled = controlled?.send
       ? controlled.begin(
           queue && controlled.canQueue ? "queue" : controlled.send,
@@ -2908,6 +2909,7 @@ export const MessageInput = memo(function MessageInput({
     }
     const clearComposer = () => {
       if (live) {
+        consumeAttachments.forEach((consume) => consume());
         stopTurn();
         if (
           !composerMounted.current ||
@@ -2930,8 +2932,6 @@ export const MessageInput = memo(function MessageInput({
       setMessage("");
       messageRef.current = "";
       setSelectedQueueIndex(null);
-      // When images are still uploading their blobs now belong to the pending
-      // bubble; the background task revokes them once the upload resolves.
       clearAllImages(live || !hasUploadingImages);
       useInboxStore.getState().clearDraftFinal(conversationId);
       if (composeMode) {
