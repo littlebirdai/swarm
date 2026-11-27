@@ -203,6 +203,9 @@ export async function sendGuestSuggestionFor(
       client_id,
       human: true,
       ...(row.queued ? { queue: true } : {}),
+      ...(String(userId) === String(conversation.user_id)
+        ? { skip_sender_grant_report: true }
+        : {}),
     });
   } else {
     await enqueuePendingMessage(ctx, conversation, userId, {

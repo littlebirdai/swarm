@@ -110,6 +110,22 @@ describe("the codecast event catalog", () => {
       ["call_media_lost", { reason: "SIGNAL_CLOSE", rejoin: true }],
       ["call_rejoined", { attempts: 2, ms: 3400 }],
       ["call_rejoin_failed", { attempts: 9, ms: 90000 }],
+      [
+        "sender_grant_report",
+        {
+          conversation_id: "conv_123",
+          sender_kind: "teammate",
+          reason: "personal_machine_no_grant",
+        },
+      ],
+      [
+        "sender_grant_report",
+        {
+          conversation_id: "conv_456",
+          sender_kind: "agent",
+          reason: "unknown_machine",
+        },
+      ],
     ];
     for (const [name, properties] of calls) {
       const result = validateEvent(CODECAST_EVENTS, name, properties);

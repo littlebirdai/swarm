@@ -25,7 +25,8 @@ export const teamHostTables = {
     created_at: v.number(),
   })
     .index("by_team", ["team_id"])
-    .index("by_host_key", ["host_key"]),
+    .index("by_host_key", ["host_key"])
+    .index("by_admin_device", ["admin_user_id", "admin_device_id"]),
 
   team_host_members: defineTable({
     host_id: v.id("team_hosts"),
@@ -44,5 +45,7 @@ export const teamHostTables = {
     ssh_pubkey: v.optional(v.string()),
     requested_at: v.number(),
     ready_at: v.optional(v.number()),
-  }).index("by_host", ["host_id"]),
+  })
+    .index("by_host", ["host_id"])
+    .index("by_user_device", ["user_id", "device_id"]),
 };

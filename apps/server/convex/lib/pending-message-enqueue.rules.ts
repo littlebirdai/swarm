@@ -68,6 +68,7 @@ export type PendingMessageEnqueueFields = {
   // better than the origin says (an answered approval). Ignored for every
   // other conversation.
   wake_cause?: WakeCause;
+  skip_sender_grant_report?: boolean;
 };
 
 export function requireFencedClientId(
