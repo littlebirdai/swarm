@@ -4,10 +4,14 @@ import {
   STEER_BATON_CAPABILITY,
   TAKEOVER_FENCE_CAPABILITY,
   parseClaimResponse,
+  parseDeliverySettleResponse,
+  parseDeliveryStartResponse,
   parseHeartbeatResponse,
   parseHelloResponse,
+  parsePermitsNextResponse,
   parseReleaseResponse,
   parseRenewResponse,
+  parseTakeoverAckResponse,
 } from "@codecast/edge-contract";
 import { Service } from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -121,9 +125,41 @@ function makeService(options: EdgeClientOptions) {
         ({ value }) => value,
       ),
   );
+  const permitsNext = Effect.fn("edgeClient.permitsNext")(
+    (request: EdgeRequests["permits.next"]) =>
+      Effect.map(
+        send("permits.next", request, parsePermitsNextResponse),
+        ({ value }) => value,
+      ),
+  );
+  const deliveryStart = Effect.fn("edgeClient.deliveryStart")(
+    (request: EdgeRequests["delivery.start"]) =>
+      Effect.map(
+        send("delivery.start", request, parseDeliveryStartResponse),
+        ({ value }) => value,
+      ),
+  );
+  const deliverySettle = Effect.fn("edgeClient.deliverySettle")(
+    (request: EdgeRequests["delivery.settle"]) =>
+      Effect.map(
+        send("delivery.settle", request, parseDeliverySettleResponse),
+        ({ value }) => value,
+      ),
+  );
+  const takeoverAck = Effect.fn("edgeClient.takeoverAck")(
+    (request: EdgeRequests["takeover.ack"]) =>
+      Effect.map(
+        send("takeover.ack", request, parseTakeoverAckResponse),
+        ({ value }) => value,
+      ),
+  );
   return {
     hello,
     deliverNext,
+    permitsNext,
+    deliveryStart,
+    deliverySettle,
+    takeoverAck,
     heartbeat,
     claim: (request: EdgeRequests["claim"]) =>
       Effect.map(claim(request), ({ value }) => value),

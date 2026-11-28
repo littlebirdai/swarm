@@ -14,6 +14,8 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
+import { SupervisorBus } from "./bus";
+import { attachEdgeLinkToBus, type EdgeBlobFetcher } from "./edge-link-bus";
 import { HeartbeatFlush, type HeartbeatFlushHost } from "./heartbeat-flush";
 import { Watchdog } from "./watchdog";
 
@@ -26,6 +28,7 @@ export type LinkSettings = {
 export type MachineOptions = {
   log(message: string): void;
   heartbeatFlush?: HeartbeatFlushHost;
+  fetchBlob?: EdgeBlobFetcher;
 };
 
 type Link = {
@@ -77,6 +80,7 @@ function supervise<A, E, R>(
 
 const runLink = Effect.fn("Machine.link")(function* (
   settings: () => LinkSettings,
+  fetchBlob?: EdgeBlobFetcher,
 ) {
   const client = yield* EdgeClient;
   const welcome = yield* client.hello(settings().hello).pipe(
@@ -85,6 +89,7 @@ const runLink = Effect.fn("Machine.link")(function* (
       () => Effect.never,
     ),
   );
+  yield* attachEdgeLinkToBus(fetchBlob);
   const heartbeat = Effect.fn("Machine.heartbeat")(function* () {
     for (;;) {
       yield* Effect.sleep(welcome.policy.heartbeat_interval_ms);
@@ -108,6 +113,7 @@ export function MachineLive(
     transport?: (settings: LinkSettings) => EdgeTransport;
     watchdog?: Layer.Layer<Watchdog>;
     heartbeatFlush?: Layer.Layer<HeartbeatFlush>;
+    bus?: Layer.Layer<SupervisorBus>;
   } = {},
 ) {
   const transport =
@@ -117,6 +123,7 @@ export function MachineLive(
         Authorization: `Bearer ${settings.bearer}`,
       }));
   const watchdog = dependencies.watchdog ?? Watchdog.layer();
+  const busLayer = dependencies.bus ?? SupervisorBus.layer;
   const heartbeatFlushLayer =
     dependencies.heartbeatFlush ??
     (options.heartbeatFlush
@@ -127,6 +134,7 @@ export function MachineLive(
     Effect.gen(function* () {
       const scope = yield* Effect.scope;
       const heartbeatFlush = yield* HeartbeatFlush;
+      const bus = yield* SupervisorBus;
       const connectionLock = yield* Semaphore.make(1);
       let link: Link | undefined;
       yield* Effect.forkIn(
@@ -151,10 +159,11 @@ export function MachineLive(
         const snapshot = { settings };
         const run = Effect.suspend(() =>
           Effect.scoped(
-            runLink(() => snapshot.settings).pipe(
+            runLink(() => snapshot.settings, options.fetchBlob).pipe(
               Effect.provide(
                 EdgeClient.layer({ transport: transport(snapshot.settings) }),
               ),
+              Effect.provideService(SupervisorBus, bus),
             ),
           ),
         );
@@ -175,5 +184,5 @@ export function MachineLive(
         flushHeartbeats: heartbeatFlush.flushNow,
       });
     }),
-  ).pipe(Layer.provide(heartbeatFlushLayer));
+  ).pipe(Layer.provide(heartbeatFlushLayer), Layer.provideMerge(busLayer));
 }

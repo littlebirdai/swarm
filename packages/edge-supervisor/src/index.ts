@@ -5,6 +5,18 @@ import * as Effect from "effect/Effect";
 import { Machine, MachineLive, type MachineOptions } from "./machine";
 
 export type {
+  BusMessage,
+  BusMessageKind,
+  BusMessageOf,
+  DeliveryReceipt,
+  EdgeBlobResult,
+  EdgeBusResult,
+  ProviderDeliverInput,
+  ProviderDeliverOutcome,
+  ProviderRecoverOutcome,
+} from "./bus-types";
+export type { EdgeBlobFetcher } from "./edge-link-bus";
+export type {
   HeartbeatBatchSender,
   HeartbeatFlushHost,
   HeartbeatLogEntry,
