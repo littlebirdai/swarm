@@ -36,8 +36,10 @@ function ActiveRelayPresence({
   const account = isAuthenticated ? viewerId : undefined;
   const scope = useMemo(
     () =>
-      account ? { account, url, convex, inboxLiveness, tokenDeltas } : null,
-    [account, url, convex, inboxLiveness, tokenDeltas],
+      account
+        ? { account, url, convex, presence, inboxLiveness, tokenDeltas }
+        : null,
+    [account, url, convex, presence, inboxLiveness, tokenDeltas],
   );
   const [connection, setConnection] = useState<{
     scope: NonNullable<typeof scope>;
@@ -64,6 +66,18 @@ function ActiveRelayPresence({
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
         tokenDeltas: scope.tokenDeltas,
+        capabilities: [
+          ...(scope.presence
+            ? ([
+                "presence",
+                "draft_cursor",
+                "reading_cursor",
+                "baton_heartbeat",
+              ] as const)
+            : []),
+          ...(scope.inboxLiveness ? (["session_liveness"] as const) : []),
+          ...(scope.tokenDeltas ? (["token_delta"] as const) : []),
+        ],
         onStatus(hub, status, meta) {
           if (hub.kind !== "session") return;
           const listeners = statusListeners.get(hub.id);

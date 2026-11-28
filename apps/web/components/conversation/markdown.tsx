@@ -156,9 +156,11 @@ const USER_PLAIN_TEXT_THRESHOLD = 4000;
 export const MessageMarkdown = memo(function MessageMarkdown({
   content,
   userText,
+  uncached,
 }: {
   content: string;
   userText?: boolean;
+  uncached?: boolean;
 }) {
   const query = useContext(HighlightContext);
   // Claude's compaction screen sometimes lands as the message body (a status
@@ -176,7 +178,7 @@ export const MessageMarkdown = memo(function MessageMarkdown({
       </div>
     );
   }
-  if (query) {
+  if (query || uncached) {
     return (
       <ReactMarkdown
         remarkPlugins={userText ? USER_MD_REMARK : ASSISTANT_MD_REMARK}

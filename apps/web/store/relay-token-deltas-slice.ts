@@ -2,6 +2,9 @@ import type { RelayHubStatus, RelaySignal } from "@codecast/relay-client";
 import { sync } from "./mutativeMiddleware";
 
 const MAX_ENTRIES_PER_CONVERSATION = 24;
+const MAX_RETIRED_TURNS = 16;
+export const MAX_STREAM_TEXT_BYTES = 64 * 1024;
+const utf8Encoder = new TextEncoder();
 
 export type RelayTokenDeltaSignal = Extract<
   RelaySignal,
@@ -13,12 +16,15 @@ export type RelayTokenStreamEntry = {
   turn: string;
   messageId: string;
   nextSeq: number;
+  bytes: number;
   text: string;
   dropped: boolean;
 };
 
 export type RelayTokenStreamState = {
   run: number;
+  activeTurn: string;
+  retiredTurns: string[];
   order: string[];
   entries: Record<string, RelayTokenStreamEntry>;
 };
@@ -39,7 +45,8 @@ export type RelayTokenDeltasSlice = {
   ) => void;
   pruneRelayTokenStreams: (
     conversationId: string,
-    durableMessageUuids: ReadonlySet<string>,
+    durableAssistantUuids: ReadonlySet<string>,
+    baselineUuids: ReadonlySet<string>,
     clearAll: boolean,
   ) => void;
 };
@@ -54,20 +61,65 @@ function streamKey(turn: string, messageId: string): string {
   return `${turn}\0${messageId}`;
 }
 
+function appendRetiredTurn(
+  retiredTurns: readonly string[],
+  turn: string,
+): string[] {
+  if (retiredTurns.includes(turn)) return [...retiredTurns];
+  const next = [...retiredTurns, turn];
+  while (next.length > MAX_RETIRED_TURNS) next.shift();
+  return next;
+}
+
+function hasDurableMatchForTurn(
+  state: RelayTokenStreamState,
+  durableAssistantUuids: ReadonlySet<string>,
+  baselineUuids: ReadonlySet<string>,
+): boolean {
+  for (const id of durableAssistantUuids) {
+    if (!baselineUuids.has(id)) return true;
+  }
+  for (const key of state.order) {
+    const entry = state.entries[key];
+    if (entry && durableAssistantUuids.has(entry.messageId)) return true;
+  }
+  return false;
+}
+
 export function reduceRelayTokenDeltaSignal(
   prev: RelayTokenStreamState | undefined,
   signal: RelayTokenDeltaSignal,
 ): RelayTokenStreamState | undefined {
   if (prev && signal.run < prev.run) return prev;
-  const base: RelayTokenStreamState =
-    !prev || signal.run > prev.run
-      ? { run: signal.run, order: [], entries: {} }
-      : prev;
+  let base: RelayTokenStreamState;
+  if (!prev || signal.run > prev.run) {
+    base = {
+      run: signal.run,
+      activeTurn: signal.turn,
+      retiredTurns: [],
+      order: [],
+      entries: {},
+    };
+  } else if (signal.turn !== prev.activeTurn) {
+    if (prev.retiredTurns.includes(signal.turn)) return prev;
+    base = {
+      run: prev.run,
+      activeTurn: signal.turn,
+      retiredTurns: appendRetiredTurn(prev.retiredTurns, prev.activeTurn),
+      order: [],
+      entries: {},
+    };
+  } else {
+    base = prev;
+  }
+
   const key = streamKey(signal.turn, signal.message_id);
   const existing = base.entries[key];
+  const chunkBytes = utf8Encoder.encode(signal.text).byteLength;
 
   if (!existing) {
-    const dropped = signal.delta_seq !== 1;
+    const dropped =
+      signal.delta_seq !== 1 || chunkBytes > MAX_STREAM_TEXT_BYTES;
     const order = [...base.order, key];
     const entries: Record<string, RelayTokenStreamEntry> = {
       ...base.entries,
@@ -76,6 +128,7 @@ export function reduceRelayTokenDeltaSignal(
         turn: signal.turn,
         messageId: signal.message_id,
         nextSeq: signal.delta_seq + 1,
+        bytes: dropped ? 0 : chunkBytes,
         text: dropped ? "" : signal.text,
         dropped,
       },
@@ -84,19 +137,29 @@ export function reduceRelayTokenDeltaSignal(
       const oldest = order.shift();
       if (oldest !== undefined) delete entries[oldest];
     }
-    return { run: base.run, order, entries };
+    return {
+      run: base.run,
+      activeTurn: base.activeTurn,
+      retiredTurns: base.retiredTurns,
+      order,
+      entries,
+    };
   }
 
   if (existing.dropped) return base;
 
-  if (signal.delta_seq !== existing.nextSeq) {
+  const nextBytes = existing.bytes + chunkBytes;
+  if (
+    signal.delta_seq !== existing.nextSeq ||
+    nextBytes > MAX_STREAM_TEXT_BYTES
+  ) {
     return {
-      run: base.run,
-      order: base.order,
+      ...base,
       entries: {
         ...base.entries,
         [key]: {
           ...existing,
+          bytes: 0,
           text: "",
           dropped: true,
         },
@@ -105,13 +168,13 @@ export function reduceRelayTokenDeltaSignal(
   }
 
   return {
-    run: base.run,
-    order: base.order,
+    ...base,
     entries: {
       ...base.entries,
       [key]: {
         ...existing,
         nextSeq: existing.nextSeq + 1,
+        bytes: nextBytes,
         text: existing.text + signal.text,
       },
     },
@@ -120,15 +183,17 @@ export function reduceRelayTokenDeltaSignal(
 
 export function selectVisibleRelayTokenStreams(
   state: RelayTokenStreamState | undefined,
-  durableMessageUuids: ReadonlySet<string>,
+  durableAssistantUuids: ReadonlySet<string>,
   turnOpen: boolean,
+  baselineUuids: ReadonlySet<string> = new Set(),
 ): readonly RelayTokenStreamEntry[] {
-  if (!turnOpen || !state) return EMPTY_STREAMS;
+  if (!turnOpen || !state || state.order.length === 0) return EMPTY_STREAMS;
+  if (hasDurableMatchForTurn(state, durableAssistantUuids, baselineUuids))
+    return EMPTY_STREAMS;
   const visible: RelayTokenStreamEntry[] = [];
   for (const key of state.order) {
     const entry = state.entries[key];
     if (!entry || entry.dropped || !entry.text) continue;
-    if (durableMessageUuids.has(entry.messageId)) continue;
     visible.push(entry);
   }
   return visible;
@@ -151,9 +216,10 @@ export function createRelayTokenDeltasSlice(): RelayTokenDeltasSlice {
       status: RelayHubStatus | "disabled",
     ) {
       if (
-        status !== "unavailable" &&
-        status !== "denied" &&
-        status !== "disabled"
+        !(conversationId in this.relayTokenDeltas) ||
+        (status !== "unavailable" &&
+          status !== "denied" &&
+          status !== "disabled")
       )
         return;
       delete this.relayTokenDeltas[conversationId];
@@ -161,7 +227,8 @@ export function createRelayTokenDeltasSlice(): RelayTokenDeltasSlice {
     pruneRelayTokenStreams: sync(function (
       this: RelayTokenDeltasDraft,
       conversationId: string,
-      durableMessageUuids: ReadonlySet<string>,
+      durableAssistantUuids: ReadonlySet<string>,
+      baselineUuids: ReadonlySet<string>,
       clearAll: boolean,
     ) {
       const current = this.relayTokenDeltas[conversationId];
@@ -170,25 +237,21 @@ export function createRelayTokenDeltasSlice(): RelayTokenDeltasSlice {
         delete this.relayTokenDeltas[conversationId];
         return;
       }
-      const remainingKeys = current.order.filter((key) => {
-        const entry = current.entries[key];
-        return entry && !durableMessageUuids.has(entry.messageId);
-      });
-      if (remainingKeys.length === current.order.length) return;
-      if (remainingKeys.length === 0) {
-        delete this.relayTokenDeltas[conversationId];
-        return;
+      if (
+        current.order.length > 0 &&
+        hasDurableMatchForTurn(current, durableAssistantUuids, baselineUuids)
+      ) {
+        this.relayTokenDeltas[conversationId] = {
+          run: current.run,
+          activeTurn: current.activeTurn,
+          retiredTurns: appendRetiredTurn(
+            current.retiredTurns,
+            current.activeTurn,
+          ),
+          order: [],
+          entries: {},
+        };
       }
-      const entries: Record<string, RelayTokenStreamEntry> = {};
-      for (const key of remainingKeys) {
-        const entry = current.entries[key];
-        if (entry) entries[key] = entry;
-      }
-      this.relayTokenDeltas[conversationId] = {
-        run: current.run,
-        order: remainingKeys,
-        entries,
-      };
     }),
   };
 }

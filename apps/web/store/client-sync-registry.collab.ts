@@ -22,7 +22,6 @@ export const COLLAB_SYNC_COLLECTIONS = {
   },
   relayTokenDeltas: {
     sync: {},
-    feeds: ["relayGrants.viewerTarget"],
   },
 } satisfies Record<string, ClientSyncRegistryEntry>;
 

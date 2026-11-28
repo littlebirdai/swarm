@@ -1,25 +1,76 @@
-import { useContext, useMemo, useRef } from "react";
-import { isProducingAgentStatus } from "../workingStatus";
+import { useContext, useMemo, useRef, useState } from "react";
 import { useConversationIdentityRow } from "../../hooks/useLiveIdentityRow";
 import { useSyncRelayTokenDeltas } from "../../hooks/use-sync-relay-viewer-presence";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { RelayTokenDeltasAvailableContext } from "../../lib/relay-presence-context";
+import { renderAssistantBody } from "../../lib/renderAssistantBody";
 import { useInboxStore } from "../../store/inboxStore";
-import { selectVisibleRelayTokenStreams } from "../../store/relay-token-deltas-slice";
+import {
+  selectVisibleRelayTokenStreams,
+  type RelayTokenStreamEntry,
+} from "../../store/relay-token-deltas-slice";
 import { AgentSpeaker } from "../identity/AgentSpeaker";
-import { MessageMarkdown } from "./markdown";
+import { isProducingAgentStatus } from "../workingStatus";
 
-export function RelayStreamingReplies({
+export type RelayStreamingRepliesProps = {
+  conversationId: string;
+  messages: ReadonlyArray<{ message_uuid?: string; role?: string }>;
+  agentStatus?: string | null;
+};
+
+function useThrottledByFrame(
+  value: readonly RelayTokenStreamEntry[],
+): readonly RelayTokenStreamEntry[] {
+  const [rendered, setRendered] = useState(value);
+  const latestRef = useRef(value);
+  const frameRef = useRef<number | null>(null);
+
+  useWatchEffect(() => {
+    latestRef.current = value;
+    if (value === rendered) return;
+    if (value.length === 0) {
+      if (
+        frameRef.current !== null &&
+        typeof cancelAnimationFrame === "function"
+      ) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      setRendered(value);
+      return;
+    }
+    if (typeof requestAnimationFrame !== "function") {
+      setRendered(value);
+      return;
+    }
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      setRendered(latestRef.current);
+    });
+  }, [value, rendered]);
+
+  useWatchEffect(() => {
+    return () => {
+      if (
+        frameRef.current !== null &&
+        typeof cancelAnimationFrame === "function"
+      ) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, []);
+
+  return value.length === 0 ? value : rendered;
+}
+
+function ActiveRelayStreamingReplies({
   conversationId,
   messages,
   agentStatus,
-}: {
-  conversationId: string;
-  messages: ReadonlyArray<{ message_uuid?: string }>;
-  agentStatus?: string | null;
-}) {
-  const tokenDeltasAvailable = useContext(RelayTokenDeltasAvailableContext);
-  useSyncRelayTokenDeltas(conversationId, tokenDeltasAvailable);
+}: RelayStreamingRepliesProps) {
+  useSyncRelayTokenDeltas(conversationId, true);
 
   const streamState = useInboxStore(
     (state) => state.relayTokenDeltas[conversationId],
@@ -27,65 +78,143 @@ export function RelayStreamingReplies({
   const pruneRelayTokenStreams = useInboxStore(
     (state) => state.pruneRelayTokenStreams,
   );
+  const applyRelayTokenDeltaStatus = useInboxStore(
+    (state) => state.applyRelayTokenDeltaStatus,
+  );
   const identityRow = useConversationIdentityRow(conversationId);
 
   const turnOpen = isProducingAgentStatus(agentStatus);
-  const wasTurnOpenRef = useRef(turnOpen);
+  const lastTurnStateRef = useRef({ conversationId, turnOpen });
+  const [turnBaseline, setTurnBaseline] = useState<{
+    key: string;
+    uuids: ReadonlySet<string>;
+  } | null>(null);
 
-  const durableMessageUuids = useMemo(() => {
+  const durableAssistantUuids = useMemo(() => {
     const set = new Set<string>();
     for (const msg of messages) {
-      if (msg.message_uuid) set.add(msg.message_uuid);
+      if (msg.message_uuid && msg.role !== "user") {
+        set.add(msg.message_uuid);
+      }
     }
     return set;
   }, [messages]);
 
+  const currentTurnKey = streamState
+    ? `${conversationId}\0${streamState.run}\0${streamState.activeTurn}`
+    : null;
+
+  const baselineUuids = useMemo(() => {
+    if (currentTurnKey && turnBaseline?.key === currentTurnKey) {
+      return turnBaseline.uuids;
+    }
+    return durableAssistantUuids;
+  }, [currentTurnKey, turnBaseline, durableAssistantUuids]);
+
   useWatchEffect(() => {
-    const closedTransition = wasTurnOpenRef.current && !turnOpen;
-    wasTurnOpenRef.current = turnOpen;
-    if (!tokenDeltasAvailable || !streamState) return;
+    if (
+      !currentTurnKey ||
+      turnBaseline?.key === currentTurnKey ||
+      !streamState ||
+      streamState.order.length === 0
+    )
+      return;
+    const seeded = new Set<string>();
+    for (const id of durableAssistantUuids) {
+      if (
+        !streamState.order.some((k) => streamState.entries[k]?.messageId === id)
+      ) {
+        seeded.add(id);
+      }
+    }
+    setTurnBaseline({ key: currentTurnKey, uuids: seeded });
+  }, [currentTurnKey, turnBaseline, streamState, durableAssistantUuids]);
+
+  useWatchEffect(() => {
+    return () => {
+      applyRelayTokenDeltaStatus(conversationId, "disabled");
+    };
+  }, [conversationId, applyRelayTokenDeltaStatus]);
+
+  useWatchEffect(() => {
+    const prev = lastTurnStateRef.current;
+    const closedTransition =
+      prev.conversationId === conversationId && prev.turnOpen && !turnOpen;
+    lastTurnStateRef.current = { conversationId, turnOpen };
+    if (!streamState) return;
     if (closedTransition) {
-      pruneRelayTokenStreams(conversationId, durableMessageUuids, true);
+      setTurnBaseline(null);
+      pruneRelayTokenStreams(
+        conversationId,
+        durableAssistantUuids,
+        baselineUuids,
+        true,
+      );
       return;
     }
-    pruneRelayTokenStreams(conversationId, durableMessageUuids, false);
+    pruneRelayTokenStreams(
+      conversationId,
+      durableAssistantUuids,
+      baselineUuids,
+      false,
+    );
   }, [
-    tokenDeltasAvailable,
     conversationId,
-    durableMessageUuids,
+    durableAssistantUuids,
+    baselineUuids,
     turnOpen,
     streamState,
     pruneRelayTokenStreams,
   ]);
 
-  const entries = useMemo(() => {
-    if (!tokenDeltasAvailable) return [];
-    return selectVisibleRelayTokenStreams(
-      streamState,
-      durableMessageUuids,
-      turnOpen,
-    );
-  }, [tokenDeltasAvailable, streamState, durableMessageUuids, turnOpen]);
+  const entries = useMemo(
+    () =>
+      selectVisibleRelayTokenStreams(
+        streamState,
+        durableAssistantUuids,
+        turnOpen,
+        baselineUuids,
+      ),
+    [streamState, durableAssistantUuids, turnOpen, baselineUuids],
+  );
+  const renderedEntries = useThrottledByFrame(entries);
 
-  if (!entries.length) return null;
+  if (!renderedEntries.length) return null;
 
   return (
-    <div className="space-y-3 pb-2">
-      {entries.map((entry) => (
+    <div>
+      {renderedEntries.map((entry) => (
         <div
           key={`${entry.run}:${entry.turn}:${entry.messageId}`}
+          data-cc-message="assistant"
           data-testid="relay-streaming-reply"
           data-message-id={entry.messageId}
-          className="px-4 py-2"
+          className="group relative mb-6"
         >
-          <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-            <AgentSpeaker row={identityRow} />
+          <div
+            data-cc-message-who
+            className="flex items-center gap-2 mb-2 mt-4"
+          >
+            <span className="flex items-center gap-2 cursor-default">
+              <AgentSpeaker row={identityRow} />
+            </span>
           </div>
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <MessageMarkdown content={entry.text} />
+          <div className="pl-8">
+            <div
+              data-cc-prose=""
+              className="text-sol-text prose prose-invert prose-sm max-w-none break-words"
+            >
+              {renderAssistantBody(entry.text, true)}
+            </div>
           </div>
         </div>
       ))}
     </div>
   );
+}
+
+export function RelayStreamingReplies(props: RelayStreamingRepliesProps) {
+  const tokenDeltasAvailable = useContext(RelayTokenDeltasAvailableContext);
+  if (!tokenDeltasAvailable) return null;
+  return <ActiveRelayStreamingReplies {...props} />;
 }
