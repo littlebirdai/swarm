@@ -38,8 +38,8 @@ import type { Patch } from "mutative";
 import {
   CLIENT_SYNC_REGISTRY,
   REPLICATION_CLASSIFICATION,
-  REPLICATED_EPHEMERAL_KEYS,
 } from "./clientSyncRegistry";
+import { REPLICATED_EPHEMERAL_KEYS } from "./replicated-ephemeral-keys";
 import {
   consumeViewNav,
   declareViewNav,

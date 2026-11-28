@@ -1,5 +1,5 @@
 import { desktopPanelKind } from "../lib/windowRole";
-import { REPLICATED_EPHEMERAL_KEYS } from "./clientSyncRegistry";
+import { REPLICATED_EPHEMERAL_KEYS } from "./replicated-ephemeral-keys";
 import type { InboxStoreState } from "./inboxStore";
 
 type StoreKey = Extract<keyof InboxStoreState, string>;

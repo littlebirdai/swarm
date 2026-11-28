@@ -28023,7 +28023,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/clientSyncRegistry.ts": {
-    "swarm/no-comments": 891
+    "swarm/no-comments": 884
   },
   "apps/web/store/composeSlice.ts": {
     "swarm/no-comments": 28
@@ -28187,6 +28187,9 @@
   },
   "apps/web/store/projectUpdatesSlice.ts": {
     "swarm/no-comments": 10
+  },
+  "apps/web/store/replicated-ephemeral-keys.ts": {
+    "swarm/no-comments": 7
   },
   "apps/web/store/sameValue.ts": {
     "swarm/no-comments": 2
