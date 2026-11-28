@@ -115,11 +115,7 @@ export function createResponsePolicy(
     now = Date.now,
   } = options;
   const endpoint = cspReportEndpoint(options.sentryDsn, options);
-  const relay = relayEndpointUrl(
-    process.env.VITE_RELAY_URL,
-    process.env.VITE_RELAY_PRESENCE,
-    process.env.VITE_RELAY_TOKEN_DELTAS,
-  );
+  const relay = relayEndpointUrl(process.env.VITE_RELAY_URL);
   const policy = relay ? documentPolicy(relay.origin) : DOCUMENT_POLICY;
   let windowStart = -Infinity;
   let reportedInWindow = 0;

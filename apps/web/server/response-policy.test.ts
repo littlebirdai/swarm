@@ -140,15 +140,13 @@ test("the draft policy names every source the app loads from", () => {
   expect(DOCUMENT_POLICY).not.toContain("'unsafe-eval'");
 });
 
-test("the document CSP adds only the origin of an enabled, valid relay URL", async () => {
-  const flag = process.env.VITE_RELAY_PRESENCE;
+test("the document CSP adds only the origin of a valid relay URL", async () => {
   const url = process.env.VITE_RELAY_URL;
   const policy = async () =>
     (await htmlApp(createResponsePolicy()).request("/")).headers.get(
       "Content-Security-Policy-Report-Only",
     );
   try {
-    process.env.VITE_RELAY_PRESENCE = "1";
     delete process.env.VITE_RELAY_URL;
     const baseline = await policy();
     expect(baseline).toBe(DOCUMENT_POLICY);
@@ -161,21 +159,7 @@ test("the document CSP adds only the origin of an enabled, valid relay URL", asy
     expect(configured).not.toContain("/socket");
     process.env.VITE_RELAY_URL = "wss://relay.test/socket?token=secret";
     expect(await policy()).toBe(baseline);
-    process.env.VITE_RELAY_URL = "wss://relay.test/socket";
-    delete process.env.VITE_RELAY_PRESENCE;
-    expect(await policy()).toBe(baseline);
-    process.env.VITE_RELAY_TOKEN_DELTAS = "1";
-    const tokenDeltasPolicy = await policy();
-    const tokenDeltasConnect = tokenDeltasPolicy
-      ?.split("; ")
-      .find((d) => d.startsWith("connect-src "));
-    expect(tokenDeltasConnect?.split(" ")).toContain("wss://relay.test");
-    delete process.env.VITE_RELAY_TOKEN_DELTAS;
-    expect(await policy()).toBe(baseline);
   } finally {
-    if (flag === undefined) delete process.env.VITE_RELAY_PRESENCE;
-    else process.env.VITE_RELAY_PRESENCE = flag;
-    delete process.env.VITE_RELAY_TOKEN_DELTAS;
     if (url === undefined) delete process.env.VITE_RELAY_URL;
     else process.env.VITE_RELAY_URL = url;
   }

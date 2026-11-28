@@ -1,17 +1,5 @@
-export function relayEndpointUrl(
-  address: string | undefined,
-  ...flags: Array<string | undefined>
-): URL | null {
-  return flags.some((flag) => flag === "1")
-    ? relayPresenceUrl("1", address)
-    : null;
-}
-
-export function relayPresenceUrl(
-  flag: string | undefined,
-  address: string | undefined,
-): URL | null {
-  if (flag !== "1" || !address) return null;
+export function relayEndpointUrl(address: string | undefined): URL | null {
+  if (!address) return null;
   try {
     const url = new URL(address);
     if (url.username || url.password) return null;

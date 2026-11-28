@@ -86,11 +86,7 @@ export function relayMountFixture() {
       sockets.push(this);
     }
   }
-  const keys = [
-    "VITE_RELAY_PRESENCE",
-    "VITE_RELAY_URL",
-    "VITE_RELAY_INBOX_LIVENESS",
-  ] as const;
+  const keys = ["VITE_RELAY_URL", "VITE_RELAY_INBOX_LIVENESS"] as const;
   let env: (string | undefined)[];
 
   beforeAll(async () => {
@@ -99,7 +95,6 @@ export function relayMountFixture() {
 
   beforeEach(() => {
     env = keys.map((key) => process.env[key]);
-    process.env.VITE_RELAY_PRESENCE = "1";
     process.env.VITE_RELAY_URL = relayUrl;
     delete process.env.VITE_RELAY_INBOX_LIVENESS;
     sockets.length = 0;

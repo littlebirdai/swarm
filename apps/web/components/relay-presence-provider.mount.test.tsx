@@ -68,7 +68,6 @@ function mountRelay(
 }
 
 test.each([
-  ["off", relayUrl],
   ["no URL", undefined],
   ["insecure URL", "ws://relay.test/relay"],
   ["username", "wss://viewer@relay.test/relay"],
@@ -79,8 +78,7 @@ test.each([
   ["empty query", "wss://relay.test/relay?"],
 ] as const)(
   "%s leaves both readers silent with zero Convex queries or writes",
-  async (config, url) => {
-    if (config === "off") delete process.env.VITE_RELAY_PRESENCE;
+  async (_config, url) => {
     if (url === undefined) delete process.env.VITE_RELAY_URL;
     else process.env.VITE_RELAY_URL = url;
     const ui = await mountRelay();
@@ -101,8 +99,8 @@ test.each(["localhost", "127.0.0.1", "[::1]"])(
   },
 );
 
-test("the default flag preserves the legacy presence query and heartbeat writes", async () => {
-  delete process.env.VITE_RELAY_PRESENCE;
+test("missing VITE_RELAY_URL preserves the draft presence query and heartbeat writes", async () => {
+  delete process.env.VITE_RELAY_URL;
   const docId = "compose:conversation";
   function LegacyPresence() {
     const present = useDocPresence({
@@ -131,8 +129,6 @@ test("the default flag preserves the legacy presence query and heartbeat writes"
             anchor_pos: undefined,
             draft_text: undefined,
             can_send: undefined,
-            anchor: undefined,
-            anchor_at: undefined,
             claims: undefined,
             in_draft: undefined,
             updated_at: 1,

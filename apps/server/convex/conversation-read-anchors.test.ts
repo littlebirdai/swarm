@@ -52,7 +52,6 @@ async function setup() {
     };
   });
   const args = { conversation_id: ids.conversation };
-  const doc = { doc_id: `compose:${ids.conversation}` };
   const reader = asUser(t, ids.owner);
   const rows = () =>
     t.run(({ db }) => db.query("conversation_read_anchors").collect());
@@ -72,49 +71,16 @@ async function setup() {
       message_id: message,
       offset,
     });
-  return { t, ...ids, args, doc, reader, rows, begin, get, save };
+  return { t, ...ids, args, reader, rows, begin, get, save };
 }
 
-test("flag off keeps composer presence reads and deletes and adds no saved anchor", async () => {
+test("flag off adds no saved anchor", async () => {
   const f = await setup();
   delete process.env[flag];
-  const anchor = { message_id: f.first, offset: 0.4 };
-  await f.reader.mutation(api.docSync.updatePresence, { ...f.doc, anchor });
-  const guest = asUser(f.t, f.guest);
-  expect(await guest.query(api.docSync.getPresence, f.doc)).toMatchObject([
-    { user_id: f.owner, anchor, anchor_at: 1000 },
-  ]);
   expect(await f.begin()).toBeNull();
   expect(await f.save("old-view", 1)).toBe("unavailable");
   expect(await f.get()).toBeNull();
-  await f.reader.mutation(api.docSync.removePresence, f.doc);
-  expect(await guest.query(api.docSync.getPresence, f.doc)).toEqual([]);
   expect(await f.rows()).toEqual([]);
-});
-
-test("takes the last valid legacy anchor on removal, without writing on heartbeat or sharing it as a live mark", async () => {
-  const f = await setup();
-  const guest = asUser(f.t, f.guest);
-  const anchor = { message_id: f.first, offset: 0.4 };
-  await f.reader.mutation(api.docSync.updatePresence, { ...f.doc, anchor });
-  jest.setSystemTime(4000);
-  await f.reader.mutation(api.docSync.updatePresence, { ...f.doc, anchor });
-  expect(await f.rows()).toEqual([]);
-  expect(await guest.query(api.docSync.getPresence, f.doc)).toMatchObject([
-    { user_id: f.owner, anchor, anchor_at: 1000 },
-  ]);
-  await f.reader.mutation(api.docSync.removePresence, f.doc);
-  expect(await f.get()).toMatchObject({ ...anchor, changed_at: 1000 });
-  expect(await guest.query(api.docSync.getPresence, f.doc)).toEqual([]);
-  expect(await f.get(guest)).toBeNull();
-  const view = await f.begin();
-  await f.save(view, 1, f.second);
-  await f.reader.mutation(api.docSync.updatePresence, { ...f.doc, anchor });
-  await f.reader.mutation(api.docSync.removePresence, f.doc);
-  expect(await f.get()).toMatchObject({
-    message_id: f.second,
-    changed_at: 4000,
-  });
 });
 
 test("lost exit retains the checkpoint and a newer view and sequence fence delayed saves", async () => {

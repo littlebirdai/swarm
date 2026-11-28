@@ -15,10 +15,6 @@ import { notFound } from "./lib/auth";
 import { afterRoleDocWrite } from "./orgRoles";
 import { canSendProductMessage } from "./pendingMessages";
 import { presenceIdentity } from "./lib/presenceIdentity";
-import {
-  readAnchorsEnabled,
-  saveLegacyReadAnchor,
-} from "./lib/conversationReadAnchors";
 
 const MAX_DELTA_FETCH = 100;
 const MAX_SNAPSHOT_FETCH = 10;
@@ -646,7 +642,6 @@ export const submitSteps = mutation({
 
 // --- Presence ---
 
-const vAnchor = v.object({ message_id: v.string(), offset: v.number() });
 const CLAIM_TTL_MS = 15_000;
 
 // The session a composer presence id names, or null for any other doc id.
@@ -676,8 +671,6 @@ export const updatePresence = mutation({
     // Composer co-presence only: the sender's live draft, capped so a long message
     // doesn't bloat the row. Omitted by the document editor.
     draft_text: v.optional(v.string()),
-    // Composer co-presence only: where the sender is reading the transcript.
-    anchor: v.optional(vAnchor),
     // Composer co-presence only: the sender's box has joined the shared draft.
     in_draft: v.optional(v.boolean()),
   },
@@ -691,12 +684,6 @@ export const updatePresence = mutation({
       args.draft_text === undefined
         ? undefined
         : args.draft_text.slice(0, 2000);
-    const anchor = args.anchor
-      ? {
-          message_id: args.anchor.message_id.slice(0, 128),
-          offset: Math.min(1, Math.max(0, args.anchor.offset)),
-        }
-      : undefined;
     // Whether this person's words can go into the session themselves, by the
     // same rule a send checks. Decided here so a reader never has to.
     const conversation = await composeConversation(ctx, args.doc_id);
@@ -704,21 +691,11 @@ export const updatePresence = mutation({
       ? await canSendProductMessage(ctx, userId, conversation)
       : undefined;
     const now = Date.now();
-    const moved =
-      anchor &&
-      (existing?.anchor?.message_id !== anchor.message_id ||
-        existing?.anchor?.offset !== anchor.offset);
     const fields = {
       cursor_pos: args.cursor_pos,
       anchor_pos: args.anchor_pos,
       draft_text: draft,
       in_draft: args.in_draft,
-      anchor,
-      anchor_at: anchor
-        ? moved
-          ? now
-          : (existing?.anchor_at ?? now)
-        : undefined,
       can_send: canSend,
       ...presenceIdentity(user),
       updated_at: now,
@@ -788,8 +765,6 @@ export const removePresence = mutation({
     const userId = await requireAuth(ctx);
     const existing = await myPresenceRow(ctx, userId, args.doc_id);
     if (!existing) return;
-    if (readAnchorsEnabled() && args.doc_id.startsWith("compose:"))
-      await saveLegacyReadAnchor(ctx, existing);
     await ctx.db.delete(existing._id);
   },
 });
@@ -806,8 +781,6 @@ export const getPresence = query({
       anchor_pos: v.optional(v.number()),
       draft_text: v.optional(v.string()),
       can_send: v.optional(v.boolean()),
-      anchor: v.optional(vAnchor),
-      anchor_at: v.optional(v.number()),
       claims: v.optional(
         v.array(
           v.object({
@@ -846,8 +819,6 @@ export const getPresence = query({
           anchor_pos: p.anchor_pos,
           draft_text: p.draft_text,
           can_send: p.can_send,
-          anchor: p.anchor,
-          anchor_at: p.anchor_at,
           claims: claims.length ? claims : undefined,
           in_draft: p.in_draft,
           updated_at: p.updated_at,

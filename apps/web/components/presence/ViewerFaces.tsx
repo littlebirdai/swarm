@@ -13,12 +13,7 @@ import {
   relayViewerFaceMembers,
   relayViewerPresenceSig,
 } from "../../store/relay-viewer-presence-slice";
-import {
-  memberDisplayName,
-  viewersLabel,
-  viewersOf,
-  viewersSig,
-} from "./memberPresence";
+import { memberDisplayName, viewersLabel } from "./memberPresence";
 import "./viewers.css";
 import { teamMembersOf } from "../../lib/activeTeam";
 
@@ -104,69 +99,53 @@ export function ConversationViewers({
   const viewerAccount = relayClient?.viewerAccount;
   const st = useTrackedStore([
     (s) => {
-      if (useRelay) {
-        const entry = s.relayViewerPresence[conversationId];
-        if (entry && viewerAccount && entry.viewer === viewerAccount) {
-          if (entry.status === "denied") return "relay:denied";
-          if (isRelayViewerEntryActive(entry, viewerAccount)) {
-            return `relay:${relayViewerPresenceSig(entry, teamMembersOf(s))}`;
-          }
+      if (!useRelay) return "relay:unavailable";
+      const entry = s.relayViewerPresence[conversationId];
+      if (entry && viewerAccount && entry.viewer === viewerAccount) {
+        if (entry.status === "denied") return "relay:denied";
+        if (entry.status === "disabled") return "relay:disabled";
+        if (isRelayViewerEntryActive(entry, viewerAccount)) {
+          return `relay:${relayViewerPresenceSig(entry, teamMembersOf(s))}`;
         }
-        if (entry === undefined) return "relay:pending";
       }
-      return viewersSig(
-        teamMembersOf(s),
-        conversationId,
-        s.currentUser?._id?.toString?.() ?? null,
-      );
+      return "relay:pending";
     },
   ]);
   const relayEntry = useRelay
     ? st.relayViewerPresence[conversationId]
     : undefined;
   if (
-    useRelay &&
-    relayEntry &&
-    viewerAccount &&
-    relayEntry.viewer === viewerAccount
+    !useRelay ||
+    !relayEntry ||
+    !viewerAccount ||
+    relayEntry.viewer !== viewerAccount ||
+    relayEntry.status === "denied" ||
+    relayEntry.status === "disabled" ||
+    relayEntry.status === "connecting"
   ) {
-    if (relayEntry.status === "denied" || relayEntry.status === "connecting") {
-      return null;
-    }
-    if (relayEntry.status === "unknown") {
-      return (
-        <span
-          data-sv-presence-status="unknown"
-          role="status"
-          aria-label="Presence unknown"
-          className={`inline-flex items-center rounded-full border border-sol-border/70 px-2 py-0.5 text-meta text-sol-text-dim ${className}`}
-        >
-          Presence unknown
-        </span>
-      );
-    }
-    if (relayEntry.status === "ready") {
-      return (
-        <ViewerFaces
-          members={relayViewerFaceMembers(relayEntry, teamMembersOf(st))}
-          size={size}
-          max={max}
-          className={className}
-        />
-      );
-    }
-  }
-  if (useRelay && relayEntry === undefined) {
     return null;
   }
-  const me = st.currentUser?._id?.toString?.() ?? null;
-  const viewers = viewersOf(teamMembersOf(st), conversationId, me);
-  return (
-    <ViewerFaces
-      members={viewers}
-      size={size}
-      max={max}
-      className={className}
-    />
-  );
+  if (relayEntry.status === "unknown") {
+    return (
+      <span
+        data-sv-presence-status="unknown"
+        role="status"
+        aria-label="Presence unknown"
+        className={`inline-flex items-center rounded-full border border-sol-border/70 px-2 py-0.5 text-meta text-sol-text-dim ${className}`}
+      >
+        Presence unknown
+      </span>
+    );
+  }
+  if (relayEntry.status === "ready") {
+    return (
+      <ViewerFaces
+        members={relayViewerFaceMembers(relayEntry, teamMembersOf(st))}
+        size={size}
+        max={max}
+        className={className}
+      />
+    );
+  }
+  return null;
 }

@@ -238,8 +238,6 @@ test("Suggest has its own icon and busy appearance and never offers Send togethe
         user_image: undefined,
         cursor_pos: undefined,
         anchor_pos: undefined,
-        anchor: undefined,
-        anchor_at: undefined,
         claims: undefined,
         in_draft: undefined,
         draft_text: "Draft from Ana",

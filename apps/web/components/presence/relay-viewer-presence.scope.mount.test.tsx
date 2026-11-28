@@ -101,8 +101,7 @@ function defaultClaim() {
   };
 }
 
-test("ghost drafts, guest suggestions, joint send, and waitsToJoin shared draft keep working over doc_presence with flags on", async () => {
-  process.env.VITE_RELAY_PRESENCE = "1";
+test("ghost drafts, guest suggestions, joint send, and waitsToJoin shared draft keep working over doc_presence", async () => {
   process.env.VITE_RELAY_URL = "wss://relay.test/relay";
 
   function ScopeSurface({
@@ -269,7 +268,6 @@ test("ghost drafts, guest suggestions, joint send, and waitsToJoin shared draft 
 });
 
 test("multiple viewer surfaces share one ref-counted subscription without connecting flicker", async () => {
-  process.env.VITE_RELAY_PRESENCE = "1";
   process.env.VITE_RELAY_URL = "wss://relay.test/relay";
 
   function ExtraSubscriber() {
@@ -393,7 +391,6 @@ test("multiple viewer surfaces share one ref-counted subscription without connec
 });
 
 test("mixed member and shared tiers mint grants in separate batches", async () => {
-  process.env.VITE_RELAY_PRESENCE = "1";
   process.env.VITE_RELAY_URL = "wss://relay.test/relay";
 
   const mintBatches: Array<Array<{ id: string }>> = [];
@@ -538,7 +535,6 @@ test("relay viewer slice classifies local/entity/non-persisted and prunes zombie
 });
 
 test("relay failure drops UI to Presence unknown with viewer guard, preserves stored data, and isolates keystrokes and driver", async () => {
-  process.env.VITE_RELAY_PRESENCE = "1";
   process.env.VITE_RELAY_URL = "wss://relay.test/relay";
 
   let viewersRenders = 0;
