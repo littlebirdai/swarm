@@ -223,6 +223,10 @@ export const BusMessageSchemas = {
     baton_token: Schema.optionalKey(Schema.NullOr(positiveInt)),
     input: Schema.Array(providerInputSchema),
   }),
+  "provider.deliver.cancel": Schema.Struct({
+    kind: Schema.Literal("provider.deliver.cancel"),
+    request_id: nonEmpty,
+  }),
   "provider.deliver.result": Schema.Struct({
     kind: Schema.Literal("provider.deliver.result"),
     request_id: nonEmpty,

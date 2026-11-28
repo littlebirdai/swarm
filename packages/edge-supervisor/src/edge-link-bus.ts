@@ -8,7 +8,8 @@ import type { BlobsGetRequest } from "@codecast/edge-contract";
 import * as Effect from "effect/Effect";
 import * as PubSub from "effect/PubSub";
 import { SupervisorBus } from "./bus";
-import type { EdgeBlobResult, EdgeBusResult } from "./bus-types";
+import type { BusMessage, EdgeBlobResult, EdgeBusResult } from "./bus-types";
+import { makeHandlerPool, type HandlerLimits } from "./handler-pool";
 
 export type EdgeBlobFetcher = (
   request: BlobsGetRequest,
@@ -35,12 +36,22 @@ function mapEdgeFailure(
   };
 }
 
+const busy = {
+  ok: false,
+  retryable: true,
+  code: "edge_link_busy",
+  retry_after_ms: 250,
+} as const;
+
 export const attachEdgeLinkToBus = Effect.fn(
   "EdgeSupervisor.attachEdgeLinkToBus",
-)(function* (fetchBlob?: EdgeBlobFetcher) {
+)(function* (fetchBlob?: EdgeBlobFetcher, limits?: HandlerLimits) {
   const bus = yield* SupervisorBus;
   const client = yield* EdgeClient;
   const subscription = yield* bus.subscribe();
+  const pool = makeHandlerPool(limits);
+  const refuse = (message: BusMessage) =>
+    bus.publish(message).pipe(Effect.catch(() => Effect.void));
 
   const respond = Effect.fnUntraced(function* <
     T,
@@ -101,7 +112,7 @@ export const attachEdgeLinkToBus = Effect.fn(
         const message = yield* PubSub.take(subscription);
         switch (message.kind) {
           case "edge.permits.next":
-            yield* Effect.forkChild(
+            yield* pool.dispatch(
               respond(client.permitsNext(message.request), (result) =>
                 bus.publish({
                   kind: "edge.permits.next.result",
@@ -109,11 +120,15 @@ export const attachEdgeLinkToBus = Effect.fn(
                   ...result,
                 }),
               ),
-              { startImmediately: true },
+              refuse({
+                kind: "edge.permits.next.result",
+                request_id: message.request_id,
+                ...busy,
+              }),
             );
             break;
           case "edge.delivery.start":
-            yield* Effect.forkChild(
+            yield* pool.dispatch(
               respond(client.deliveryStart(message.request), (result) =>
                 bus.publish({
                   kind: "edge.delivery.start.result",
@@ -121,11 +136,15 @@ export const attachEdgeLinkToBus = Effect.fn(
                   ...result,
                 }),
               ),
-              { startImmediately: true },
+              refuse({
+                kind: "edge.delivery.start.result",
+                request_id: message.request_id,
+                ...busy,
+              }),
             );
             break;
           case "edge.delivery.settle":
-            yield* Effect.forkChild(
+            yield* pool.dispatch(
               respond(client.deliverySettle(message.request), (result) =>
                 bus.publish({
                   kind: "edge.delivery.settle.result",
@@ -133,11 +152,15 @@ export const attachEdgeLinkToBus = Effect.fn(
                   ...result,
                 }),
               ),
-              { startImmediately: true },
+              refuse({
+                kind: "edge.delivery.settle.result",
+                request_id: message.request_id,
+                ...busy,
+              }),
             );
             break;
           case "edge.takeover.ack":
-            yield* Effect.forkChild(
+            yield* pool.dispatch(
               respond(client.takeoverAck(message.request), (result) =>
                 bus.publish({
                   kind: "edge.takeover.ack.result",
@@ -145,13 +168,21 @@ export const attachEdgeLinkToBus = Effect.fn(
                   ...result,
                 }),
               ),
-              { startImmediately: true },
+              refuse({
+                kind: "edge.takeover.ack.result",
+                request_id: message.request_id,
+                ...busy,
+              }),
             );
             break;
           case "edge.blob.get":
-            yield* Effect.forkChild(
+            yield* pool.dispatch(
               handleBlob(message.request_id, message.request),
-              { startImmediately: true },
+              refuse({
+                kind: "edge.blob.get.result",
+                request_id: message.request_id,
+                ...busy,
+              }),
             );
             break;
         }

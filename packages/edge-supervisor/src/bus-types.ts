@@ -174,6 +174,10 @@ export type BusMessage =
       readonly input: readonly ProviderDeliverInput[];
     }
   | {
+      readonly kind: "provider.deliver.cancel";
+      readonly request_id: string;
+    }
+  | {
       readonly kind: "provider.deliver.result";
       readonly request_id: string;
       readonly delivery_id: string;

@@ -16,6 +16,7 @@ export type {
   ProviderRecoverOutcome,
 } from "./bus-types";
 export type { EdgeBlobFetcher } from "./edge-link-bus";
+export type { HandlerLimits } from "./handler-pool";
 export type {
   HeartbeatBatchSender,
   HeartbeatFlushHost,
