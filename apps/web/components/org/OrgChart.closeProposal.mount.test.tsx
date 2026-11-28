@@ -92,7 +92,7 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
         backend.set(api.quoteDrafts.listForConversation, pending);
         backend.set(api.sessionGoals.forConversation, pending);
         backend.set(api.sessionOwnership.listOwners, pending);
-        backend.set(api.tasks.webListByConversation, pending);
+        backend.set(api.taskReads.webListByConversation, pending);
         backend.set(api.teamSuggestions.listMine, pending);
         backend.set(api.transcripts.webCallsForConversation, pending);
         backend.set(api.users.getMySkills, pending);

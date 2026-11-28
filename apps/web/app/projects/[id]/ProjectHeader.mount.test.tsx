@@ -144,11 +144,11 @@ async function setup(
       });
       backend.set(api.projects.webList, pending);
       backend.set(api.org.roles, pending);
-      backend.set(api.tasks.webList, pending);
-      backend.set(api.tasks.webActiveSessions, pending);
+      backend.set(api.taskWebList.webList, pending);
+      backend.set(api.taskWebList.webActiveSessions, pending);
       backend.set(api.devices.listDevices, pending);
 
-      backend.set(api.tasks.webListPaginated, {
+      backend.set(api.taskWebList.webListPaginated, {
         page: [],
         isDone: true,
         continueCursor: "",

@@ -145,7 +145,7 @@ function mount({
       backend.set(api.org.roles, pending);
       backend.set(api.devices.listDevices, pending);
       backend.set(api.projects.webList, pending);
-      backend.set(api.tasks.webList, pending);
+      backend.set(api.taskWebList.webList, pending);
       backend.set(api.signals.webList, [
         {
           ...signal,

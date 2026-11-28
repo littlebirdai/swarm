@@ -67,7 +67,7 @@ export function populationReplica(
       const bytes = encoder.encode(JSON.stringify(result)).byteLength;
       totals.bytes += bytes;
       const name = getFunctionName(ref);
-      if (name === "tasks:webGetByIds" && Array.isArray(args.ids))
+      if (name === "taskWebList:webGetByIds" && Array.isArray(args.ids))
         totals.taskIdsRefetched += args.ids.length;
       if (name === "syncLog:getRange") {
         totals.rangeBytes += bytes;

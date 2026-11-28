@@ -571,7 +571,10 @@ export class SimWorld implements SimWindowWorld {
       : undefined;
     const client = this.daemonClientAs(opts.owner);
     if (kind === "task")
-      await client.mutation("tasks:create", { title: name, conversation_id });
+      await client.mutation("taskCreate:create", {
+        title: name,
+        conversation_id,
+      });
     else if (kind === "doc")
       await client.mutation("docs:create", {
         title: name,

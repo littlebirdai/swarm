@@ -66,7 +66,7 @@ test("each goal shows what is matched to it, what moved and what stalled", async
     />,
     {
       setup: (backend, store) => {
-        backend.set(api.tasks.webGet, pending);
+        backend.set(api.taskReads.webGet, pending);
         store.syncTable("tasks", [matched]);
       },
     },

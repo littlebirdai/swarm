@@ -72,7 +72,7 @@ export function useConversationTaskMaps({
   }, [conversation?.messages, subjectMemo]);
 
   const conversationTasks = useQueryNoThrow(
-    api.tasks.webListByConversation,
+    api.taskReads.webListByConversation,
     deferredQueriesEnabled && conversation?._id && isConvexId(conversation._id)
       ? { conversationId: conversation._id }
       : "skip",

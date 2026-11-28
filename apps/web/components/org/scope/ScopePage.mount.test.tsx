@@ -141,10 +141,10 @@ function world() {
         backend.set(api.org.sessionsUnder, pending);
         backend.set(api.projects.webList, pending);
         backend.set(api.plans.webList, pending);
-        backend.set(api.tasks.webList, pending);
-        backend.set(api.tasks.webActiveSessions, pending);
+        backend.set(api.taskWebList.webList, pending);
+        backend.set(api.taskWebList.webActiveSessions, pending);
         backend.set(api.devices.listDevices, pending);
-        backend.set(api.tasks.webListPaginated, {
+        backend.set(api.taskWebList.webListPaginated, {
           page: [],
           continueCursor: "",
           isDone: true,

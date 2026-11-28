@@ -295,7 +295,7 @@ export function useEntityResolution(
 
   const queryArgs = live && type ? entityQueryArgs(type, rawId) : null;
   const task = useQueryNoThrow(
-    api.tasks.webGet,
+    api.taskReads.webGet,
     isTask && queryArgs ? queryArgs : "skip",
   ).data;
   const plan = useQueryNoThrow(

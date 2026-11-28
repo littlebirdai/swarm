@@ -112,7 +112,7 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
       for (let i = 0; i < need.length; i += ORIGIN_BADGE_CHUNK) {
         const chunk = need.slice(i, i + ORIGIN_BADGE_CHUNK);
         convex
-          .query(api.tasks.webTaskOrigins, { conversation_ids: chunk })
+          .query(api.taskWebList.webTaskOrigins, { conversation_ids: chunk })
           .then((map: any) => {
             if (map && Object.keys(map).length) {
               useInboxStore.setState((s: any) => ({
@@ -147,7 +147,7 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
   // scope moves — and the 24h crawl below stays as the safety net.
   const { ready } = useBootstrapCollection(
     "tasks",
-    api.tasks.webList,
+    api.taskWebList.webList,
     wsArgs === "skip"
       ? "skip"
       : { ...(wsArgs as object), include_derived: true },
@@ -159,7 +159,7 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
   );
 
   const activeMap = useQueryNoThrow(
-    api.tasks.webActiveSessions,
+    api.taskWebList.webActiveSessions,
     wsArgs === "skip" ? "skip" : {},
   ).data;
 
@@ -229,7 +229,7 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
       pageDelayMs: RECONCILE_PAGE_DELAY_MS,
       maxPages: 4000,
       fetchPage: async (cursor) => {
-        const page = await convex.query(api.tasks.webListPaginated, {
+        const page = await convex.query(api.taskWebList.webListPaginated, {
           ...(wsArgs as object),
           include_derived: true,
           ...(crawlSince !== undefined ? { since: crawlSince } : {}),
@@ -322,7 +322,7 @@ export function useSyncProjectTasks(
           },
     [enabled, projectId, workspace, teamId],
   );
-  return useSyncCollection("tasks", api.tasks.webList, queryArgs as any, {
+  return useSyncCollection("tasks", api.taskWebList.webList, queryArgs as any, {
     select: selectTaskItems,
   });
 }
@@ -336,7 +336,7 @@ const selectTaskItems = (r: any) => r?.items ?? r;
  */
 export function useSyncMentionTasks() {
   const syncMentionIndex = useInboxStore((s) => s.syncMentionIndex);
-  const result = useQueryNoThrow(api.tasks.webMentionList, {
+  const result = useQueryNoThrow(api.taskWebList.webMentionList, {
     workspace: "all",
   } as any).data;
 
@@ -559,7 +559,7 @@ export function useSyncTaskThreads(
           try {
             const items: any[] =
               (
-                await convex.query(api.tasks.webGetByIds, {
+                await convex.query(api.taskWebList.webGetByIds, {
                   ids: chunk.map((c) => c.id),
                 })
               )?.items ?? [];

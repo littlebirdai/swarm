@@ -224,7 +224,7 @@ export async function saveTask(
   },
 ): Promise<string> {
   if (shortId) {
-    await client.mutation("tasks:webUpdate", {
+    await client.mutation("taskWebUpdate:webUpdate", {
       short_id: shortId,
       title: `Verify the project changes from agent ${event.agent}`,
       ...(options?.nextProject !== undefined
@@ -236,7 +236,7 @@ export async function saveTask(
   const sessionLinked =
     !!options?.realistic && !event.privateTask && event.agent % 4 === 1;
   if (sessionLinked && options?.apiToken) {
-    const task = await client.mutation("tasks:create", {
+    const task = await client.mutation("taskCreate:create", {
       api_token: options.apiToken,
       workspace: "team",
       team_id: fixtureId("teams", 0),
@@ -249,7 +249,7 @@ export async function saveTask(
     return task.short_id;
   }
   if (options?.realistic && event.privateTask && options?.apiToken) {
-    const task = await client.mutation("tasks:create", {
+    const task = await client.mutation("taskCreate:create", {
       api_token: options.apiToken,
       conversation_id: String(
         fixtureId("conversations", event.person.id * 2 + 1),
@@ -260,7 +260,7 @@ export async function saveTask(
     });
     return task.short_id;
   }
-  const task = await client.mutation("tasks:webCreate", {
+  const task = await client.mutation("taskCreate:webCreate", {
     ...(event.privateTask
       ? { workspace: "personal" }
       : {
