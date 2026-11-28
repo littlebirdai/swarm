@@ -253,3 +253,30 @@ test("an eviction removes the detail rows with their parents", () => {
   expect(state().tasks[id]).toBeUndefined();
   expect(state().taskComments[id]).toBeUndefined();
 });
+
+test("a rejected doc or plan create removes its stub", () => {
+  useInboxStore.setState({
+    docs: { "docstub-r": { _id: "docstub-r", title: "d" } },
+    plans: { "planstub-r": { _id: "planstub-r", title: "p" } },
+    pending: {
+      "docs:docstub-r": { type: "include" },
+      "plans:planstub-r": { type: "include" },
+    },
+  } as any);
+  expect(
+    state()._handleReceiptRejection("createDoc", { stubId: "docstub-r" }),
+  ).toEqual(["docs", "pending"]);
+  state()._handleReceiptRejection("createPlan", { stubId: "planstub-r" });
+  expect(state().docs["docstub-r"]).toBeUndefined();
+  expect(state().plans["planstub-r"]).toBeUndefined();
+  expect(state().pending["docs:docstub-r"]).toBeUndefined();
+  expect(state().pending["plans:planstub-r"]).toBeUndefined();
+});
+
+test("hydration drops the feed cache keys of a revoked team", async () => {
+  const { dropRevokedRowMap } = await import("../scope-revocation-gate");
+  const feeds = { [`${T}|`]: [{ _id: "a" }], "other|": [{ _id: "b" }] };
+  expect(
+    Object.keys(dropRevokedRowMap(state(), "feedConversations", feeds)),
+  ).toEqual(["other|"]);
+});

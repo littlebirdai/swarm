@@ -5,7 +5,10 @@ import { persistenceOwned } from "./persistence/ownership";
 import { useInboxStore } from "./inboxStore";
 import { revokedScopeOfRow, revokedScopeOfThread } from "./scope-row-home";
 import { activeRevokedScopes, rowRevokedNow } from "./scope-revocation-gate";
-import { sweptCollectionsFor } from "./scope-revocation-tables";
+import {
+  revokedFeedKeys,
+  sweptCollectionsFor,
+} from "./scope-revocation-tables";
 
 export function revokedOnDisk(key: string, row: unknown): boolean {
   return rowRevokedNow(useInboxStore.getState(), key, row);
@@ -62,7 +65,6 @@ export async function sweepRevokedRowsFromDisk(
         useInboxStore.getState().tasks?.[id] ?? parentsOnDisk.get(id);
       return revokedScopeOfThread(parent, set) !== null;
     };
-    const shadow = lastPersisted.get(key);
     const seen = new Map<string, unknown>();
     const ids: string[] = await db.transaction("rw", table, async () => {
       if (!persistenceOwned() || authPrincipal.current() !== owner) return [];
@@ -76,16 +78,29 @@ export async function sweepRevokedRowsFromDisk(
           revokedIn(row, live)
         ) {
           hit.push(row._id);
-          seen.set(row._id, shadow?.get(row._id));
+          seen.set(row._id, lastPersisted.get(key)?.get(row._id));
         }
       }
       if (hit.length) await table.bulkDelete(hit);
       return hit;
     });
+    const shadow = lastPersisted.get(key);
     for (const id of ids)
       if (shadow?.get(id) === seen.get(id)) shadow?.delete(id);
     if (ids.length) out[key] = ids;
   }
+  const feeds: string[] = await db.transaction("rw", db.meta, async () => {
+    if (!persistenceOwned() || authPrincipal.current() !== owner) return [];
+    const row = await db.meta.get("feedConversations");
+    const value = row?.value as Record<string, unknown> | undefined;
+    const gone = value ? revokedFeedKeys(value, scopes) : [];
+    if (!value || gone.length === 0) return [];
+    const kept = { ...value };
+    for (const k of gone) delete kept[k];
+    await db.meta.put({ key: "feedConversations", value: kept });
+    return gone;
+  });
+  if (feeds.length) out.feedConversations = feeds;
   return out;
 }
 

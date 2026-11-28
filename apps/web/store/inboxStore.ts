@@ -752,6 +752,7 @@ import {
   FOLDER_ACTIVE_WINDOW_MS,
   type FolderActivity,
 } from "../lib/railFolderFilter";
+import { rejectCreateStubInDraft } from "./create-stub-rejection";
 import {
   createScopeSubscriptionSlice,
   dropDetailsOfRemovedParents,
@@ -20411,6 +20412,13 @@ const inboxStoreConfig = (set: any, get: any) => ({
         "pending",
       ];
     }
+
+    const createRejection = rejectCreateStubInDraft(
+      this,
+      actionName,
+      localResult,
+    );
+    if (createRejection) return createRejection;
 
     if (actionName === "createProject") {
       const stubId = localResult.stubId;

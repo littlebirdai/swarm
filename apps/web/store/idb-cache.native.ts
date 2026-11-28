@@ -362,6 +362,7 @@ function openCacheDbSync(): any | null {
 }
 
 async function storageKeys(): Promise<string[]> {
+  if (!Storage) return [];
   if (typeof Storage.getAllKeysSync === "function")
     return Storage.getAllKeysSync();
   if (typeof Storage.getAllKeys === "function")
@@ -372,6 +373,7 @@ async function storageKeys(): Promise<string[]> {
 function materializeLoadedCache(
   byKey: Map<string, string | null>,
   wanted: Set<string> | null,
+  context: Record<string, any> = {},
 ): Record<string, any> | null {
   const result: Record<string, any> = {};
   let hasData = false;
@@ -471,16 +473,10 @@ function materializeLoadedCache(
     const map: Record<string, any> = {};
     let anyTrimmed = false;
     for (const row of keptRows) {
-      // Foreign documents persisted under the wrong collection (see validRow
-      // in the registry) never enter the store or the shadow; dropping the
-      // row key is how the prune reaches disk.
       if (validRow && !validRow(row)) {
         dropped.add(row._id);
         continue;
       }
-      // Trimmed on the way in (registry hydrateRow). The shadow holds the
-      // trimmed row (the original would pin the dropped bytes); the row key
-      // is rewritten below so disk shrinks too.
       const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;
       if (kept !== row) anyTrimmed = true;
       map[row._id] = kept;
@@ -488,6 +484,7 @@ function materializeLoadedCache(
     }
     if (anyTrimmed) {
       for (const row of Object.values(map)) {
+        if (context.revokedOnDisk?.(key, row)) continue;
         scheduleWrite(collectionRowKey(key, String(row._id)), () =>
           JSON.stringify(row),
         );
@@ -495,8 +492,6 @@ function materializeLoadedCache(
     }
     for (const id of dropped) scheduleRemove(collectionRowKey(key, id));
     if (hadLegacyBlob) {
-      // Split the leftover whole-table blob into per-row keys so the next
-      // heartbeat cannot stringify the table again.
       if (!anyTrimmed) {
         for (const row of Object.values(map)) {
           scheduleWrite(collectionRowKey(key, String(row._id)), () =>
@@ -756,7 +751,7 @@ async function loadNativeCache(
       ) as Map<string, string | null>;
     }
     const result: Record<string, any> =
-      materializeLoadedCache(byKey, wanted) ?? {};
+      materializeLoadedCache(byKey, wanted, context) ?? {};
     let hasData = Object.keys(result).length > 0;
 
     if (
@@ -985,9 +980,12 @@ async function loadNativeOutbox(): Promise<OutboxEntry[]> {
 
 export const nativeCachedRows = {
   keys: storageKeys,
-  read: async (key: string) => (Storage ? await Storage.getItem(key) : null),
+  read: async (key: string) =>
+    scheduledValue(key) ?? (Storage ? await Storage.getItem(key) : null),
+  write: (key: string, value: string) => scheduleWrite(key, () => value),
   remove: scheduleRemove,
   persisted: lastPersisted,
+  principal: () => readCachePrincipal().principal,
 };
 
 export async function salvageLocalFirstV2Data(): Promise<number> {

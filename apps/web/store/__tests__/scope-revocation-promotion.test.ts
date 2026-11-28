@@ -299,3 +299,15 @@ test("a sweep removes the disk threads of revoked tasks and orphan threads", asy
   );
   expect(await COLLECTION_TABLES.taskComments.get(mineTask._id)).toBeDefined();
 });
+
+test("a team sweep removes the team's feed cache from disk", async () => {
+  await db.meta.put({
+    key: "feedConversations",
+    value: { [`${T}|`]: [{ _id: "a" }], "other|": [{ _id: "b" }] },
+  });
+  useInboxStore.setState({ scopeRevocations: { [`dir:${T}`]: 5 } } as any);
+  const removed = await sweepRevokedRowsFromDisk(new Set([`dir:${T}`]));
+  expect(removed.feedConversations).toEqual([`${T}|`]);
+  const row = await db.meta.get("feedConversations");
+  expect(Object.keys(row?.value ?? {})).toEqual(["other|"]);
+});

@@ -1,4 +1,5 @@
 import type { Patch } from "mutative";
+import { revokedFeedKeys } from "./scope-revocation-tables";
 import {
   isKnownHomeScope,
   revokedScopeOfRow,
@@ -104,6 +105,16 @@ export function dropRevokedRowMap<T>(
   collection: string,
   rows: T,
 ): T {
+  if (collection === "feedConversations" && rows && typeof rows === "object") {
+    const revoked = activeRevokedScopes(state);
+    const gone = revoked
+      ? revokedFeedKeys(rows as Record<string, unknown>, revoked)
+      : [];
+    if (gone.length === 0) return rows;
+    const kept = { ...(rows as Record<string, unknown>) };
+    for (const key of gone) delete kept[key];
+    return kept as T;
+  }
   if (!isRevocationGated(collection) || !rows || typeof rows !== "object")
     return rows;
   if (Array.isArray(rows)) return dropRevokedRows(state, collection, rows);
@@ -218,6 +229,10 @@ export function gateRevokedCommit(commit: {
   const revoked = activeRevokedScopes(commit.nextState);
   if (!revoked) return null;
   const hits = gatedIds(commit.nextState, commit.patches, revoked);
+  const derivedTouched = commit.patches.some(
+    (p) => p.path[0] === "feedConversations" || p.path[0] === "mentionIndex",
+  );
+  if (!hits && !derivedTouched) return null;
   const next: Record<string, any> = { ...commit.nextState };
   const derived: Patch[] = [];
   const derivedChanged = gateDerivedKeys(
