@@ -98,7 +98,8 @@ describe("operator search end to end", () => {
   const modules = {
     "./_generated/server.ts": () => import("./_generated/server"),
     "./syncOutbox.ts": () => import("./syncOutbox"),
-    "./conversations.ts": () => import("./conversations"),
+    "./cliSearch.ts": () => import("./cliSearch"),
+    "./sessionSearch.ts": () => import("./sessionSearch"),
   };
   const token = "q".repeat(64);
 
@@ -316,7 +317,7 @@ describe("operator search end to end", () => {
   const web = async (t: any, viewer: any, query: string) => {
     const r = await t
       .withIdentity({ subject: `${viewer}|test` })
-      .query(anyApi.conversations.searchConversations, { query });
+      .query(anyApi.sessionSearch.searchConversations, { query });
     return r;
   };
   const ids = (r: any) => r.results.map((x: any) => x.conversationId);
@@ -331,7 +332,7 @@ describe("operator search end to end", () => {
   test("the CLI query answers the same operators, and its flags are sugar for them", async () => {
     const s = await seed();
     const cli = (query: string, extra: Record<string, unknown> = {}) =>
-      s.t.query(anyApi.conversations.searchForCLI, {
+      s.t.query(anyApi.cliSearch.searchForCLI, {
         api_token: token,
         query,
         ...extra,
@@ -387,7 +388,7 @@ describe("operator search end to end", () => {
   test("commit: holds the commit's time to after:/before:", async () => {
     const s = await seed();
     const cli = (query: string) =>
-      s.t.query(anyApi.conversations.searchForCLI, { api_token: token, query });
+      s.t.query(anyApi.cliSearch.searchForCLI, { api_token: token, query });
     const rows = (r: any) => r.conversations.map((c: any) => c.title);
     const iso = (ms: number) => new Date(s.now - ms).toISOString();
     // abc1234 was committed 8.5s ago, d1b0237001 about 4s ago.
@@ -410,7 +411,8 @@ describe("operator search at volume", () => {
   const modules = {
     "./_generated/server.ts": () => import("./_generated/server"),
     "./syncOutbox.ts": () => import("./syncOutbox"),
-    "./conversations.ts": () => import("./conversations"),
+    "./cliSearch.ts": () => import("./cliSearch"),
+    "./sessionSearch.ts": () => import("./sessionSearch"),
   };
   const token = "v".repeat(64);
 
@@ -565,7 +567,7 @@ describe("operator search at volume", () => {
   const FULL_WALK_MS = 30_000;
 
   const cli = (t: any, query: string, extra: Record<string, unknown> = {}) =>
-    t.query(anyApi.conversations.searchForCLI, {
+    t.query(anyApi.cliSearch.searchForCLI, {
       api_token: token,
       query,
       limit: 100,

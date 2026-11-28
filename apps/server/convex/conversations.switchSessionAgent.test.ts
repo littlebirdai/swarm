@@ -1,9 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import {
-  _continueFork,
-  setSessionError,
-  switchSessionAgent,
-} from "./conversations";
+import { _continueFork } from "./conversationForks";
+import { setSessionError } from "./conversationStatus";
+import { switchSessionAgent } from "./sessionControl";
 import { makeFakeDb } from "./testDb";
 import { AGENT_SWITCH_NOTICE_PREFIX } from "@codecast/agent-clients/agentSwitch";
 

@@ -1,10 +1,8 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
-import {
-  inboxForCLI,
-  listInboxSessions,
-  sessionsLiveness,
-  _resetChildAuqProbeCacheForTests,
-} from "./conversations";
+import { inboxForCLI } from "./cliInbox";
+import { listInboxSessions } from "./inboxLists";
+import { sessionsLiveness } from "./inboxLiveness";
+import { _resetChildAuqProbeCacheForTests } from "./lib/inboxLivenessPlacement";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  cliSetSessionVisibility,
-  scanInboxConversations,
-} from "./conversations";
+import { cliSetSessionVisibility } from "./cliSessionActions";
+import { scanInboxConversations } from "./lib/inboxScan";
 import { dispatch } from "./dispatch";
 import { makeFakeDb } from "./testDb";
 

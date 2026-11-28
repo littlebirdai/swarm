@@ -100,7 +100,34 @@ export interface SimBackend {
 const MODULES: Record<string, () => Promise<any>> = {
   syncLog: () => import("./syncLog"),
   syncOutbox: () => import("./syncOutbox"),
-  conversations: () => import("./conversations"),
+  cliFeed: () => import("./cliFeed"),
+  cliInbox: () => import("./cliInbox"),
+  cliSearch: () => import("./cliSearch"),
+  cliSessionActions: () => import("./cliSessionActions"),
+  conversationExport: () => import("./conversationExport"),
+  conversationFavorites: () => import("./conversationFavorites"),
+  conversationFeeds: () => import("./conversationFeeds"),
+  conversationForks: () => import("./conversationForks"),
+  conversationLifecycle: () => import("./conversationLifecycle"),
+  conversationList: () => import("./conversationList"),
+  conversationLookup: () => import("./conversationLookup"),
+  conversationMessages: () => import("./conversationMessages"),
+  conversationMetadata: () => import("./conversationMetadata"),
+  conversationNav: () => import("./conversationNav"),
+  conversationPrivacy: () => import("./conversationPrivacy"),
+  conversationProjects: () => import("./conversationProjects"),
+  conversationReads: () => import("./conversationReads"),
+  conversationSharing: () => import("./conversationSharing"),
+  conversationStatus: () => import("./conversationStatus"),
+  conversationTrees: () => import("./conversationTrees"),
+  inboxLists: () => import("./inboxLists"),
+  inboxLiveness: () => import("./inboxLiveness"),
+  inboxShelves: () => import("./inboxShelves"),
+  sessionControl: () => import("./sessionControl"),
+  sessionHierarchy: () => import("./sessionHierarchy"),
+  sessionRestart: () => import("./sessionRestart"),
+  sessionSearch: () => import("./sessionSearch"),
+  sessionThreadState: () => import("./sessionThreadState"),
   dispatch: () => import("./dispatch"),
   tasks: () => import("./tasks"),
   docs: () => import("./docs"),
@@ -129,10 +156,10 @@ const MODULES: Record<string, () => Promise<any>> = {
 };
 
 export const DEFAULT_MEMO_FUNCTIONS = [
-  "conversations:listInboxSessions",
-  "conversations:sessionsLiveness",
-  "conversations:listTeamInboxSessions",
-  "conversations:teamSessionsLiveness",
+  "inboxLists:listInboxSessions",
+  "inboxLiveness:sessionsLiveness",
+  "inboxLists:listTeamInboxSessions",
+  "inboxLiveness:teamSessionsLiveness",
 ];
 
 type Kind = "query" | "mutation" | "action";
@@ -577,7 +604,7 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
         return wire(memo.get(memoKey));
       }
       record.memo = "miss";
-      resetChildAuqProbeCache ??= (await modules.conversations!())
+      resetChildAuqProbeCache ??= (await modules.inboxLiveness!())
         ._resetChildAuqProbeCacheForTests as () => void;
       resetChildAuqProbeCache();
     }

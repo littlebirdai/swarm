@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { MESSAGE_PAGE_MAX, pageConversationMessages } from "./conversations";
+import {
+  MESSAGE_PAGE_MAX,
+  pageConversationMessages,
+} from "./conversationMessages";
 import { makeFakeDb } from "./testDb";
 
 const CONV = "conversations_1" as any;
@@ -72,7 +75,10 @@ describe("pageConversationMessages", () => {
 });
 
 describe("history page queries range the timestamp index", () => {
-  const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
+  const src = readFileSync(
+    join(import.meta.dir, "conversationMessages.ts"),
+    "utf8",
+  );
 
   function body(declaration: string): string {
     const at = src.indexOf(declaration);

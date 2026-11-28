@@ -5,7 +5,7 @@ import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUser } from "./lib/auth";
-import { generateShareToken } from "./conversations";
+import { generateShareToken } from "./conversationSharing";
 import { claimShareToken } from "./lib/shareToken";
 import { readLocalViewRevision, runLocalCommand } from "./localFirstCommands";
 import {

@@ -22,7 +22,7 @@ import {
 } from "./callRecordingRuns";
 import { purgeThread } from "../threadReads";
 import { terminalWatchRows, terminalWatchBlocks } from "./terminalWatchRows";
-import { killConversation } from "../conversations";
+import { killConversation } from "./sessionRestartHelpers";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 

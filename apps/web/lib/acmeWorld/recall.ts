@@ -129,7 +129,7 @@ export const RECALL_PART: AcmePart = {
     // A reference to a teammate's session (the memory answer's citation) resolves through these.
     "entities:resolveIdType": (a) =>
       TEAM_BY_ID.has(String(a?.id)) ? "session" : null,
-    "conversations:webGet": (a) => {
+    "conversationLookup:webGet": (a) => {
       const s =
         TEAM_BY_ID.get(String(a?.id)) ??
         [...TEAM_BY_ID.values()].find((x) => x.short_id === a?.short_id);
@@ -152,7 +152,7 @@ export const RECALL_PART: AcmePart = {
         is_own: false,
       };
     },
-    "conversations:feedForCLI": (a) => {
+    "cliFeed:feedForCLI": (a) => {
       const now = Date.now();
       const limit = Number(a?.limit) || 15;
       return {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getTeamUnreadCount } from "./conversations";
+import { getTeamUnreadCount } from "./conversationFeeds";
 import { makeFakeDb } from "./testDb";
 
 // Regression for the sidebar Feed badge timing out with "too many system

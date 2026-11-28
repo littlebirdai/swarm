@@ -43,7 +43,7 @@ async function setup(subject: Record<string, unknown> = {}) {
     return { user, conv };
   });
   const retire = (expected = 12) =>
-    t.mutation(api.conversations.cliRetireSession, {
+    t.mutation(api.cliSessionActions.cliRetireSession, {
       session: "jx7subj",
       expected_message_count: expected,
       api_token: TOKEN,
@@ -73,7 +73,7 @@ describe("the run reads its subject even when it is killed", () => {
       status: "completed",
     });
     const read = (include_killed?: boolean) =>
-      t.query(api.conversations.inboxForCLI, {
+      t.query(api.cliInbox.inboxForCLI, {
         api_token: TOKEN,
         session_ids: ["jx7subj"],
         show_all: true,

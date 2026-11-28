@@ -23,7 +23,7 @@ const mount = (node: React.ReactNode) =>
     <IdentityPrefsOverride.Provider value={DEFAULT_IDENTITY_PREFS}>
       {node}
     </IdentityPrefsOverride.Provider>,
-    { setup: (backend) => backend.set(api.conversations.webGet, pending) },
+    { setup: (backend) => backend.set(api.conversationLookup.webGet, pending) },
   );
 
 describe("escalation divider", () => {

@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  conversationForAccess,
-  getConversationPublic,
-  getConversationWithMeta,
-} from "./conversations";
+import { getConversationWithMeta } from "./conversationReads";
+import { getConversationPublic } from "./conversationSharing";
+import { conversationForAccess } from "./lib/conversationHelpers";
 import { makeFakeDb } from "./testDb";
 
 const CONVERSATION_ID = "conversations_shared";

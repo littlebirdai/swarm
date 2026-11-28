@@ -711,7 +711,7 @@ export function MessageNavButton({
   // it against useConversationMessages' identical subscription). Never falls
   // back to the truncated paginated set.
   const queryUserMessages = useQueryNoThrow(
-    api.conversations.getUserMessages,
+    api.conversationNav.getUserMessages,
     canQuery && !cachedUserMessages
       ? {
           conversation_id: conversationId as Id<"conversations">,

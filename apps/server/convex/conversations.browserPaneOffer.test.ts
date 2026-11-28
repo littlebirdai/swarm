@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   offerBrowserPane,
   stampBrowserPaneOfferHandled,
-} from "./conversations";
+} from "./conversationProjects";
 import { makeFakeDb } from "./testDb";
 
 // `cast browser pane <url>`. Three things must hold or the chip lies to the

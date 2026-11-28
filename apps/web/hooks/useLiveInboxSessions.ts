@@ -118,11 +118,11 @@ export function useLiveInboxSessions(logSnapshot = false) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
   const { data: inboxSessions, error } = useSplitQueryNoThrow(
-    api.conversations.listInboxSessions,
+    api.inboxLists.listInboxSessions,
     isSyncHost && !logSnapshot ? LIST_INBOX_SESSIONS_ARGS : "skip",
     "list",
   );
-  useFeederError("conversations.listInboxSessions", error);
+  useFeederError("inboxLists.listInboxSessions", error);
   const convex = useConvex();
 
   useConvexSync(
@@ -152,13 +152,13 @@ export function useLiveInboxSessions(logSnapshot = false) {
   const [snapshotScope, setSnapshotScope] = useState<string | null>(null);
   const snapshotActive = isSyncHost && authenticated && cursorReady;
   useInboxRecovery(
-    api.conversations.listInboxSessions,
+    api.inboxLists.listInboxSessions,
     snapshotActive ? SNAPSHOT_ARGS : "skip",
     null,
     undefined,
     useCallback(
       async (
-        data: FunctionReturnType<typeof api.conversations.listInboxSessions>,
+        data: FunctionReturnType<typeof api.inboxLists.listInboxSessions>,
         signal: AbortSignal,
       ) => {
         if (

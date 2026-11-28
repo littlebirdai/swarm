@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { computeInboxSessions, scanInboxConversations } from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import { scanInboxConversations } from "./lib/inboxScan";
 import { makeFakeDb } from "./testDb";
 
 // A session ASSIGNED to me (session_owners row, run by another account) is a

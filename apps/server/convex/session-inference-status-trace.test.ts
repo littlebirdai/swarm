@@ -329,7 +329,7 @@ for (const path of ["plain", "handoff", "fork"] as const) {
       return { user, parent };
     });
     const { result: id, writes } = await recordWrites(() =>
-      asUser(t, user).mutation(api.conversations.createConversation, {
+      asUser(t, user).mutation(api.conversationLifecycle.createConversation, {
         user_id: user,
         session_id: "ingest-trace",
         agent_type: "claude_code",

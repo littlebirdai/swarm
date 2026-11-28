@@ -228,7 +228,7 @@ test("cloud un-park keeps the fenced placement and its spawn", async () => {
     const before = await f.read();
     const priorCommands = await f.commands();
     const result = await f.caller.mutation(
-      api.conversations.reconfigureSession,
+      api.sessionControl.reconfigureSession,
       {
         conversation_id: f.conversation,
         target_device_id: destination,
@@ -254,7 +254,7 @@ test("transcript ingest skips only the owner backfill on a fenced row", async ()
       execution_protocol_state: state,
       owner_device_id: undefined,
     });
-    await f.caller.mutation(api.conversations.createConversation, {
+    await f.caller.mutation(api.conversationLifecycle.createConversation, {
       user_id: f.user,
       session_id: sessionId,
       agent_type: "claude_code",
@@ -564,7 +564,7 @@ test.each([
     const f = await moveFixture({ execution_protocol_state: "fenced" });
     const before = await f.read();
     await expect(
-      f.caller.mutation(api.conversations.reconfigureSession, {
+      f.caller.mutation(api.sessionControl.reconfigureSession, {
         ...args,
         conversation_id: f.conversation,
       }),

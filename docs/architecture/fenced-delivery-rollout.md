@@ -19,7 +19,7 @@ to that sender and a verified open turn. See [Edge events](edge-events.md).
   rail. Device commands start or resume the runtime. See
   `apps/server/convex/dispatch.ts`, `apps/server/convex/devices.ts`,
   `apps/server/convex/cloud.ts`, `apps/server/convex/forkCopy.ts`
-  and `apps/server/convex/conversations.ts`.
+  and `apps/server/convex/sessionRestart.ts`.
 - **Hosted assistant.** The hosted turn engine reads pending input and decision
   answers and consumes them in its own turn transactions. See
   `apps/server/convex/assistant/input.ts` and
@@ -33,7 +33,7 @@ to that sender and a verified open turn. See [Edge events](edge-events.md).
 - **Prompt responses.** Legacy responses can travel as inbox messages or
   through `sendKeysToSession`. The fenced prompt-answer route already has its
   own epoch-bound claim and settlement. See
-  `apps/server/convex/conversations.ts`, `apps/cli/src/codex-prompt-cards.ts`
+  `apps/server/convex/sessionRestart.ts`, `apps/cli/src/codex-prompt-cards.ts`
   and `apps/server/convex/lib/edge/prompt-answers.route.ts`.
 - **Queue state and settlement.** Legacy paths release, reorder, merge, retry,
   reset and cancel rows. Daemon status writes and transcript echoes can settle

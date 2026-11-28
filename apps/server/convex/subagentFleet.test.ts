@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { createSessionFromCli } from "./spawn";
-import { performSetThreadState, killConversation } from "./conversations";
+import { killConversation } from "./lib/sessionRestartHelpers";
+import { performSetThreadState } from "./sessionThreadState";
 import { applyMergeBackReport, drainFleet } from "./subagentFleet";
 import { NEEDS_INPUT_IDLE_CHECK_DELAY_MS } from "./inboxFilters";
 

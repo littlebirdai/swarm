@@ -635,7 +635,7 @@ describe("interest scopes never widen workspace access", () => {
       { scope_key: `dir:${setup.team}`, position: 1, floor: 0 },
     ]);
 
-    await ownerClient.mutation(api.conversations.setPrivacyBySessionId, {
+    await ownerClient.mutation(api.conversationPrivacy.setPrivacyBySessionId, {
       session_id: "sess-react-1",
       is_private: true,
     });

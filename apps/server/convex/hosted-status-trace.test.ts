@@ -170,7 +170,7 @@ async function observeStatus(scenario: keyof typeof legacy) {
         }),
       ).not.toBeNull();
     } else if (pin) {
-      await ctx.runMutation(api.conversations.setThreadState, {
+      await ctx.runMutation(api.sessionThreadState.setThreadState, {
         session,
         text: "Progress",
         status: scenario === "pin blocked" ? "blocked" : "done",

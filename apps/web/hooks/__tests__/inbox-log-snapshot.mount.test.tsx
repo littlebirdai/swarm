@@ -39,7 +39,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
           state.syncTable("currentUser", { _id: "viewer" });
           state.syncTable("sessions", [{ ...row, title: "Current" }]);
           state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
-          backend.set(api.conversations.listInboxSessions, () => ({
+          backend.set(api.inboxLists.listInboxSessions, () => ({
             sessions: [{ ...row, title: `Snapshot ${position}` }],
             hidden_count: 0,
             truncated: [],
@@ -52,7 +52,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
       backend.queryRequests
         .filter(
           ({ name }) =>
-            name === getFunctionName(api.conversations.listInboxSessions),
+            name === getFunctionName(api.inboxLists.listInboxSessions),
         )
         .map(({ args }) => args);
     await clock!.advance(1);
@@ -80,7 +80,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
 });
 
 test("the flag-off host still subscribes and an opted-in follower opens no inbox feed", async () => {
-  const list = api.conversations.listInboxSessions;
+  const list = api.inboxLists.listInboxSessions;
   const { backend, clock, rerender } = await mountWeb(
     <Inbox snapshot={false} />,
     {
@@ -109,10 +109,10 @@ function InboxWithReplay() {
   return <span>{loading ? "loading" : "ready"}</span>;
 }
 
-const list = api.conversations.listInboxSessions;
+const list = api.inboxLists.listInboxSessions;
 const heads = api.syncLog.getHeads;
 const range = api.syncLog.getRange;
-const byIds = api.conversations.getInboxSessionsByIds;
+const byIds = api.inboxShelves.getInboxSessionsByIds;
 
 const headAt = (position: number) => ({
   heads: [{ scope_key: scope, position, floor: 0 }],

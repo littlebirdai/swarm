@@ -77,7 +77,7 @@ async function fixture(path: (typeof paths)[number]) {
   switch (path) {
     case "quick":
       conversation = await viewer.mutation(
-        api.conversations.createQuickSession,
+        api.conversationLifecycle.createQuickSession,
         { agent_type: "codex", project_path },
       );
       break;
@@ -549,7 +549,7 @@ test("setSessionError with only_if_equals clears matching errors and preserves u
   const pilotError =
     "Could not resume Codex session: the previous run still holds its lease.";
 
-  await f.viewer.mutation(api.conversations.setSessionError, {
+  await f.viewer.mutation(api.conversationStatus.setSessionError, {
     conversation_id: String(f.conversation),
     error: pilotError,
     force: true,
@@ -558,7 +558,7 @@ test("setSessionError with only_if_equals clears matching errors and preserves u
     (await f.t.run(({ db }) => db.get(f.conversation)))?.session_error,
   ).toBe(pilotError);
 
-  await f.viewer.mutation(api.conversations.setSessionError, {
+  await f.viewer.mutation(api.conversationStatus.setSessionError, {
     conversation_id: String(f.conversation),
     error: undefined,
     only_if_equals: pilotError,
@@ -568,12 +568,12 @@ test("setSessionError with only_if_equals clears matching errors and preserves u
     (await f.t.run(({ db }) => db.get(f.conversation)))?.session_error,
   ).toBeUndefined();
 
-  await f.viewer.mutation(api.conversations.setSessionError, {
+  await f.viewer.mutation(api.conversationStatus.setSessionError, {
     conversation_id: String(f.conversation),
     error: "Unrelated subsystem error",
     force: true,
   });
-  await f.viewer.mutation(api.conversations.setSessionError, {
+  await f.viewer.mutation(api.conversationStatus.setSessionError, {
     conversation_id: String(f.conversation),
     error: undefined,
     only_if_equals: pilotError,

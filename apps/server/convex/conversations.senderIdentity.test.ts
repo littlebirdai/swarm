@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { attachSenderIdentities } from "./conversations";
+import { attachSenderIdentities } from "./lib/conversationHelpers";
 
 // A teammate's send lands in the transcript as a plain user echo; the sync path
 // stamps from_user_id from the matched pending row, and read queries attach the

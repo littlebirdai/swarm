@@ -17,7 +17,7 @@ test("only the authenticated snapshot opt-in returns the caller's log checkpoint
     });
     return { viewer, id };
   });
-  const query = api.conversations.listInboxSessions;
+  const query = api.inboxLists.listInboxSessions;
   expect(await t.query(query, { checkpoint: true })).toEqual({
     sessions: [],
     hidden_count: 0,
@@ -66,7 +66,7 @@ test("publishing a pending outbox revision puts it after the snapshot checkpoint
   });
   const owner = asUser(t, viewer);
   const query = () =>
-    owner.query(api.conversations.listInboxSessions, { checkpoint: true });
+    owner.query(api.inboxLists.listInboxSessions, { checkpoint: true });
   expect(await query()).toMatchObject({
     checkpoint: { scope: `user:${viewer}`, position: 0 },
   });
@@ -127,7 +127,7 @@ test("a stranded outbox slot does not block snapshots while the log is disabled"
   await t.mutation(internal.syncOutbox.drain, { id: slot!._id });
   expect((await t.run(({ db }) => db.get(slot!._id)))?.pending).toBe(true);
   expect(
-    await asUser(t, viewer).query(api.conversations.listInboxSessions, {
+    await asUser(t, viewer).query(api.inboxLists.listInboxSessions, {
       checkpoint: true,
     }),
   ).toMatchObject({

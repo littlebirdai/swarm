@@ -36,6 +36,11 @@ The Swarm watcher accepts only dev and local deployments. It also rejects
 the production deployment's name when it appears with a dev label. The
 inherited Codecast deploy and production-runner paths refuse in Swarm.
 
+Function path moves cut over in one change while Swarm has no users. When
+deploys resume, record the removed `fn:conversations:*` names that the gate
+prints in `scripts/swarm-production-drops.json`. Once Swarm has users, a
+moved public function keeps a compatibility export until clients upgrade.
+
 ## DP1. A deploy is an object
 
 `deploys` (convex), one row per version that went live, or was asked to, on

@@ -471,11 +471,11 @@ test("the agent dock opens the conversation for a fenced question before message
         },
       ]);
       backend.set(query, promptFeed([address()]));
-      backend.set(api.conversations.listMessages, pending);
-      backend.set(api.conversations.listMessagesTail, pending);
-      backend.set(api.conversations.getConversationWithMeta, pending);
-      backend.set(api.conversations.getTranscriptWatermark, pending);
-      backend.set(api.conversations.getUserMessages, pending);
+      backend.set(api.conversationMessages.listMessages, pending);
+      backend.set(api.conversationReads.listMessagesTail, pending);
+      backend.set(api.conversationReads.getConversationWithMeta, pending);
+      backend.set(api.conversationReads.getTranscriptWatermark, pending);
+      backend.set(api.conversationNav.getUserMessages, pending);
     },
   });
   try {

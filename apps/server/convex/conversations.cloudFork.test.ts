@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { daemonForkFields } from "./conversations";
+import { daemonForkFields } from "./lib/conversationChildHelpers";
 
 // A cloud agent's branch (a Codex Cloud task's other attempt) is created by the
 // daemon as a fork whose shared history its own transcript carries: it forks

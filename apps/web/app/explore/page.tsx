@@ -128,7 +128,7 @@ export default function ExplorePage() {
     const t = setTimeout(() => setQuery(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
-  const result = useQuery(api.conversations.listPublicConversations, {
+  const result = useQuery(api.conversationSharing.listPublicConversations, {
     search: query || undefined,
     sort,
     agent_type: agentType || undefined,

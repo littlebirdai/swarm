@@ -134,7 +134,7 @@ export async function createTestConversation(opts: {
   const projectPath = opts.projectPath || `/tmp/fork-test-${Date.now()}`;
 
   const conversationId = await convexMutation<string>(
-    "conversations:createConversation",
+    "conversationLifecycle:createConversation",
     {
       user_id: config.user_id,
       api_token: config.auth_token,
@@ -177,7 +177,7 @@ export async function forkConversation(
   if (messageUuid) args.message_uuid = messageUuid;
   if (targetAgentType) args.target_agent_type = targetAgentType;
 
-  return convexMutation<ForkResult>("conversations:forkFromMessage", args);
+  return convexMutation<ForkResult>("conversationForks:forkFromMessage", args);
 }
 
 export async function forkViaHttp(
@@ -214,7 +214,7 @@ export async function getTreeViaQuery(
   conversationId: string,
 ): Promise<{ tree: TreeNode } | { error: string }> {
   const config = getConfig();
-  return convexQuery("conversations:getConversationTree", {
+  return convexQuery("conversationTrees:getConversationTree", {
     conversation_id: conversationId,
     api_token: config.auth_token,
   });
@@ -226,7 +226,7 @@ export async function getBranchMessages(
   { messages: any[]; fork_point_uuid: string | null } | { error: string }
 > {
   const config = getConfig();
-  return convexQuery("conversations:getForkBranchMessages", {
+  return convexQuery("conversationTrees:getForkBranchMessages", {
     conversation_id: conversationId,
     api_token: config.auth_token,
   });
@@ -253,18 +253,8 @@ export async function exportMessages(
 }
 
 export async function deleteConversation(
-  conversationId: string,
-): Promise<void> {
-  const config = getConfig();
-  try {
-    await convexMutation("conversations:deleteConversation", {
-      conversation_id: conversationId,
-      api_token: config.auth_token,
-    });
-  } catch {
-    // Ignore deletion errors in cleanup
-  }
-}
+  _conversationId: string,
+): Promise<void> {}
 
 export function countTreeNodes(node: TreeNode): number {
   return (

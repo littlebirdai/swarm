@@ -1,4 +1,4 @@
-import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
+import { CONVERSATION_SYNC_COLLECTIONS } from "./clientSyncRegistry.conversations";
 import { CHAT_SYNC_COLLECTIONS } from "./clientSyncRegistry.chat";
 import { FLOW_SYNC_COLLECTIONS } from "./clientSyncRegistry.flows";
 import { OPS_SYNC_COLLECTIONS } from "./clientSyncRegistry.ops";
@@ -191,60 +191,7 @@ export const CLIENT_SYNC_REGISTRY = {
       "mcpAuth.oauthStatus",
     ],
   },
-  sessions: {
-    writtenBy: ["conversations"],
-    persistence: {
-      kind: "collection",
-      key: "sessions",
-      // Measured on a desktop app with ~60 working agents: 9 of every 10
-      // session-row writes changed only these fields, each rewriting the
-      // whole 3.4 KB row, and the browser process spent a core compacting
-      // the IndexedDB they landed in.
-      liveFields: [
-        "updated_at",
-        "message_count",
-        "last_role_is_user",
-        "context_tokens",
-        "last_model_call_at",
-        "activity",
-        "daemon_alive_until",
-        "producing_until",
-        "last_heartbeat",
-        "liveness_lease_end",
-        "last_turn_origin",
-      ],
-    },
-    localFirst: true,
-    // Inbox triage gestures (dismiss/stash/pin) write the session row itself,
-    // but the server-side row is the conversation. Without this mapping the
-    // gesture only reached the server through the parallel write to
-    // `conversations[id]` — a meta row that exists ONLY once the session has
-    // been OPENED on this client. Triaging an unopened session was therefore a
-    // silent local-only write; after the 5-min pending settle the dismiss
-    // reconcile's CLEAR pass read the server's silence as "restored elsewhere"
-    // and un-hid it ("I keep dismissing these and they keep coming back").
-    // The whitelist keeps every other sessions field (server-derived
-    // enrichment: agent_status, is_idle, author_name, …) undispatchable. It
-    // carries exactly the real conversations fields that list-row gestures
-    // write on the session row (dismiss/stash/pin/defer/rename/favorite);
-    // enriched twins (is_pinned, is_deferred, display_title) stay local.
-    dispatchTable: {
-      table: "conversations",
-      kind: "collection",
-      // The manifest is the single source shared with the server's patch gate
-      // (packages/sessions/src/conversationFields), so the two allowlists cannot disagree.
-      fields: [...DISPATCHABLE_CONVERSATION_FIELDS],
-    },
-  },
-  conversations: {
-    writtenBy: ["conversations", "peerTransfers"],
-    persistence: { kind: "meta", key: "conversations", webTable: true },
-    localFirst: true,
-    dispatchTable: { table: "conversations", kind: "collection" },
-    // The daemon rewrites peer_transfer every few seconds, so a lock on it
-    // would never see its echo and would freeze the strip.
-    unprotectedFields: ["peer_transfer"],
-  },
+  ...CONVERSATION_SYNC_COLLECTIONS,
   tasks: {
     writtenBy: ["tasks"],
     persistence: { kind: "collection", key: "tasks" },
@@ -1837,7 +1784,7 @@ export const CLIENT_SYNC_REGISTRY = {
     indexes: "_id, timestamp",
     sync: { isDelta: true },
     listed: (row: any) => !!row?.workspace,
-    feeds: ["conversations.getMessageFeed"],
+    feeds: ["conversationFeeds.getMessageFeed"],
   },
   // What the viewer typed into sessions (userSends.mine): one row per send,
   // `ms:<message id>`, newest first, with a 600-char snippet and the session

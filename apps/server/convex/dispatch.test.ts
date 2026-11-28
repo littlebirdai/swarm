@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { applyPatches, classifyHideTransition, dispatch } from "./dispatch";
-import { reconfigureSession } from "./conversations";
+import { reconfigureSession } from "./sessionControl";
 import { getReceipt } from "./localFirstCommands";
 import { makeFakeDb } from "./testDb";
 import { makeChangeTrackedDb } from "./changeLog";

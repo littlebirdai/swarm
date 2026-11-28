@@ -284,7 +284,7 @@ export function StableContextPicker({
     [effectiveMode, globalScope, projectPath, exclude.length],
   );
   const { data: feed, error: feedError } = useQueryNoThrow(
-    api.conversations.feedForCLI,
+    api.cliFeed.feedForCLI,
     feedArgs,
     { breakAfterMs: 20_000 },
   );

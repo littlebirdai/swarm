@@ -186,10 +186,13 @@ async function getConversationMeta(id: string, shareToken?: string) {
     // A bare conversation id unfurls nothing for link-shared sessions — the
     // server requires the token to be PRESENTED (?share=, carried over from
     // the /share redirect). /share/<token> URLs unfurl via getShareMeta.
-    const meta = await convex.query(api.conversations.getConversationMeta, {
-      conversation_id: id as Id<"conversations">,
-      ...(shareToken ? { share_token: shareToken } : {}),
-    });
+    const meta = await convex.query(
+      api.conversationLookup.getConversationMeta,
+      {
+        conversation_id: id as Id<"conversations">,
+        ...(shareToken ? { share_token: shareToken } : {}),
+      },
+    );
     if (!meta) return null;
     const title = meta.title || "Coding Session";
     const description =

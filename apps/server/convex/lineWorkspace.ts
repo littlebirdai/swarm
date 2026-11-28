@@ -13,7 +13,7 @@ import {
   withAgentSessions,
 } from "./workflow_runs";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
-import { pageConversationMessages } from "./conversations";
+import { pageConversationMessages } from "./conversationMessages";
 import { checkConversationAccess } from "./privacy";
 import {
   canAccessProject,

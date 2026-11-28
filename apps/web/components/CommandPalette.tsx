@@ -2693,7 +2693,7 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // after its first result — heartbeat pushes then stop re-rendering the palette.
   const recentFrozenRef = useRef(false);
   const recentConversations = useQuery(
-    api.conversations.listRecentSessions,
+    api.conversationFeeds.listRecentSessions,
     open && !recentFrozenRef.current ? {} : "skip",
   );
 

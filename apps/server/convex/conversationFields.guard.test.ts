@@ -9,7 +9,7 @@ import {
   TRIAGE_CONVERSATION_FIELDS,
   VISIBILITY_CONVERSATION_FIELDS,
 } from "@codecast/sessions/conversationFields";
-import { PLACEMENT_LIVENESS_FIELDS } from "./conversations";
+import { PLACEMENT_LIVENESS_FIELDS } from "./lib/inboxLivenessPlacement";
 
 // The manifest (packages/sessions/src/conversationFields) is the single declaration of what
 // a conversation field is for. Two things have to stay true for it to be worth
@@ -63,15 +63,15 @@ describe("conversation field manifest", () => {
     [
       "enrichInboxSessionRow",
       functionBody(
-        source("conversations.ts"),
-        "async function enrichInboxSessionRow",
+        source("lib/inboxEnrich.ts"),
+        "export async function enrichInboxSessionRow",
       ) + identity,
     ],
     [
       "buildSubagentChildRow",
       functionBody(
-        source("conversations.ts"),
-        "async function buildSubagentChildRow",
+        source("lib/inboxEnrich.ts"),
+        "export async function buildSubagentChildRow",
       ) + identity,
     ],
   ] as const;

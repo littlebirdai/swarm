@@ -139,7 +139,7 @@ export default function CommitScreen() {
       (s as any).conversations?.[sessionId]?.title)
     : undefined;
   const served = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     sessionId && !storedTitle ? { id: sessionId } : "skip",
   );
   const servedSession = served.data as any;

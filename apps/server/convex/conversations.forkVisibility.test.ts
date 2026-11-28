@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { forkFromMessage } from "./conversations";
+import { forkFromMessage } from "./conversationForks";
 
 // A fork takes the visibility a fresh session in the same project would get
 // under the FORKER's mappings. Forking a teammate's session hands over their

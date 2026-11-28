@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { updateProjectPath, updateSessionId } from "./conversations";
+import { updateProjectPath, updateSessionId } from "./conversationMetadata";
 import { makeFakeDb } from "./testDb";
 
 // The daemon's boot sweep and session binding stamp a checkout root AND its

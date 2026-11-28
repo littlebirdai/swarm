@@ -50,11 +50,14 @@ const READERS: Array<[file: string, guard: string]> = [
     "const hold = line.hold || isClosedSession(conversation);",
   ],
   [
-    "conversations.ts",
+    "lib/inboxLivenessPlacement.ts",
     "if (c.inbox_killed_at || isClosedSession(c)) continue;",
   ],
-  ["conversations.ts", "c.inbox_killed_at || isClosedSession(c) || !pooledAt"],
-  ["conversations.ts", "if (isClosedSession(conv)) return;"],
+  [
+    "lib/inboxLivenessPlacement.ts",
+    "c.inbox_killed_at || isClosedSession(c) || !pooledAt",
+  ],
+  ["conversationStatus.ts", "if (isClosedSession(conv)) return;"],
 ];
 
 describe("machine readers of the retirement marker know about Close", () => {

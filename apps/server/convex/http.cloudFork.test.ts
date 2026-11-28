@@ -100,7 +100,7 @@ test("the CLI fork route places the fork and queues its resume on the cloud host
 
 test("a cloud fork has its own isolated worktree stamped with the seed and fork time", async () => {
   const { t, args } = await fixture();
-  const result = await t.mutation(api.conversations.forkFromMessage, args);
+  const result = await t.mutation(api.conversationForks.forkFromMessage, args);
   const row = await t.run(({ db }) => db.get(result.conversation_id));
   expect(row).toMatchObject({
     cloud_workspace: "isolated",
@@ -112,7 +112,7 @@ test("a cloud fork has its own isolated worktree stamped with the seed and fork 
 
 test("a local fork has no cloud workspace and no cloud seed", async () => {
   const { t, args } = await fixture();
-  const result = await t.mutation(api.conversations.forkFromMessage, {
+  const result = await t.mutation(api.conversationForks.forkFromMessage, {
     api_token: args.api_token,
     conversation_id: args.conversation_id,
   });

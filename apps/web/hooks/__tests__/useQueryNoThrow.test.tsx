@@ -14,7 +14,7 @@ const metadataQuery = makeFunctionReference<
   "query",
   { conversation_id: string },
   string
->("conversations:getConversationWithMeta");
+>("conversationReads:getConversationWithMeta");
 const args = { conversation_id: "abc" };
 const missingFunction = new Error(
   "Could not find public function for 'devices:getConversationMachine'.",

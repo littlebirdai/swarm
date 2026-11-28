@@ -223,7 +223,7 @@ export const INVARIANTS: readonly Invariant[] = [
       const team = teamOf(state)!;
       const user = userOf(w!);
       const res: any = await asUser(world, user).query(
-        "conversations:listTeamInboxSessions",
+        "inboxLists:listTeamInboxSessions",
         teamInboxArgs(team),
       );
       const hidden = new Set(

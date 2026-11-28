@@ -32,7 +32,7 @@ class NotificationService: UNNotificationServiceExtension {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "path": "conversations:listMessagesTail",
+            "path": "conversationReads:listMessagesTail",
             "args": ["conversation_id": conversationId, "after_timestamp": after],
             "format": "json",
         ])

@@ -83,7 +83,7 @@ export function useTeamFeed({
   // no server rows yet anyway).
   const stubTeam = !!activeTeamId && !isConvexId(String(activeTeamId));
   const live = useQuery(
-    api.conversations.listConversations,
+    api.conversationList.listConversations,
     stubTeam ? "skip" : queryArgs,
   );
   useWatchEffect(() => {
@@ -153,7 +153,7 @@ export function useTeamFeed({
           const page: {
             conversations?: unknown[];
             nextCursor?: string | null;
-          } = await convex.query(api.conversations.listConversations, {
+          } = await convex.query(api.conversationList.listConversations, {
             ...queryArgs,
             cursor,
             limit: FEED_CATCHUP_PAGE_LIMIT,
@@ -251,7 +251,7 @@ export function useTeamFeed({
           const page: {
             conversations?: unknown[];
             nextCursor?: string | null;
-          } = await convex.query(api.conversations.listConversations, {
+          } = await convex.query(api.conversationList.listConversations, {
             ...queryArgs,
             cursor,
             limit: FEED_CATCHUP_PAGE_LIMIT,

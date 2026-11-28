@@ -20,7 +20,7 @@ type WatchResult = {
 };
 
 const query = makeFunctionReference<"query", WatchArgs, WatchResult>(
-  "conversations:inboxForCLI",
+  "cliInbox:inboxForCLI",
 );
 
 export function subscribeCliInboxWatch(

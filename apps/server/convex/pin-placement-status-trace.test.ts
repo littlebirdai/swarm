@@ -88,7 +88,7 @@ async function seed(fields: Partial<NewRow<"conversations">> = {}) {
 test("empty thread state clears the declaration and result in one patch", async () => {
   const { viewer, id } = await seed(pin);
   const { patches } = await conversationPatches(() =>
-    viewer.mutation(api.conversations.setThreadState, {
+    viewer.mutation(api.sessionThreadState.setThreadState, {
       session: id,
       text: "",
     }),
@@ -119,7 +119,7 @@ for (const favorite of [false, true]) {
 test("dismissal sets only the placement stamp", async () => {
   const { viewer, id, t } = await seed();
   const { patches } = await conversationPatches(() =>
-    viewer.mutation(api.conversations.dismissFromInbox, {
+    viewer.mutation(api.inboxShelves.dismissFromInbox, {
       conversation_id: id,
     }),
   );
@@ -132,7 +132,7 @@ test("dismissal sets only the placement stamp", async () => {
 test("the stale dismiss job skips fresh conversations", async () => {
   const { t, id, user } = await seed({ updated_at: old });
   const { patches } = await conversationPatches(() =>
-    t.mutation(internal.conversations.drainStaleDismiss, {
+    t.mutation(internal.inboxShelves.drainStaleDismiss, {
       userId: user,
       cutoff: now - 1,
       cursor: null,
@@ -145,7 +145,7 @@ test("the stale dismiss job skips fresh conversations", async () => {
 test("timestamp repair keeps its rewind and dismissal in one patch", async () => {
   const { viewer, id } = await seed();
   const { patches } = await conversationPatches(() =>
-    viewer.mutation(api.conversations.healHistoricalUpdatedAt, {}),
+    viewer.mutation(api.conversationPrivacy.healHistoricalUpdatedAt, {}),
   );
   expect(patches).toEqual([
     { id, fields: { updated_at: old, inbox_dismissed_at: now } },
@@ -157,13 +157,16 @@ for (const admin of [false, true]) {
     const { viewer, id, parent } = await seed();
     const { patches } = await conversationPatches(async () => {
       if (admin) {
-        return viewer.mutation(api.conversations.adminLinkChildrenBySessionId, {
-          parent_session_id: "parent-trace",
-          child_session_ids: ["pin-trace"],
-          api_token: token,
-        });
+        return viewer.mutation(
+          api.sessionHierarchy.adminLinkChildrenBySessionId,
+          {
+            parent_session_id: "parent-trace",
+            child_session_ids: ["pin-trace"],
+            api_token: token,
+          },
+        );
       }
-      return viewer.mutation(api.conversations.linkSessions, {
+      return viewer.mutation(api.sessionHierarchy.linkSessions, {
         parent_conversation_id: parent,
         child_conversation_id: id,
       });
@@ -196,7 +199,7 @@ for (const selfParented of [false, true]) {
           ids: [id],
           dryRun: false,
         });
-      return viewer.mutation(api.conversations.adminUnlinkSession, {
+      return viewer.mutation(api.sessionHierarchy.adminUnlinkSession, {
         session_id: "pin-trace",
         api_token: token,
       });

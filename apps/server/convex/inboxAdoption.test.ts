@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import { computeInboxSessions } from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { inboxEpoch } from "@codecast/inbox/inboxProjection";
 import { makeFakeDb } from "./testDb";

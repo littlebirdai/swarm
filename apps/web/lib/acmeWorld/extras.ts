@@ -508,8 +508,8 @@ export const EXTRA_ANSWERS: Record<string, (args: any) => unknown> = {
   "org:tree": () => ORG_TREE(Date.now()),
   // No links yet, and the viewer may make one: the call screen offers "Invite a guest".
   "callGuests:listGuestLinks": () => [],
-  "conversations:searchConversations": search,
-  "conversations:searchConversationTitles": (args) => ({
+  "sessionSearch:searchConversations": search,
+  "sessionSearch:searchConversationTitles": (args) => ({
     ...search(args),
     results: search(args).results.filter((r) => r.titleMatch),
   }),

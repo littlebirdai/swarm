@@ -29,11 +29,9 @@ import { verifyApiToken } from "./apiTokens";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { isSummarizableMessage } from "./idleSummary";
 import { addConversationToWorkItem } from "./conversationLinks";
-import {
-  enqueueKillAndResume,
-  launchModelKeyOf,
-  performSetThreadState,
-} from "./conversations";
+import { enqueueKillAndResume } from "./lib/sessionRestartHelpers";
+import { launchModelKeyOf } from "./sessionControl";
+import { performSetThreadState } from "./sessionThreadState";
 import { briefingFor } from "./anchors";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { enqueueStartSession } from "./devices";

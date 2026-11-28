@@ -650,7 +650,7 @@ describe("shared checkout occupancy — claim, place, create (ct-49428)", () => 
   });
 
   test("createQuickSession: a shared create throws on a basename occupant; a free checkout parks with workspace in the cloud_spawn", async () => {
-    const { createQuickSession } = await import("./conversations");
+    const { createQuickSession } = await import("./conversationLifecycle");
     const busy = fixture([shared()]);
     await expect(
       (createQuickSession as any)._handler(ctx(busy), {
@@ -1059,7 +1059,7 @@ describe("where a cloud session starts: cloud_start_from, cloud_seed, the prepar
   });
 
   test("createQuickSession stores cloud_start_from with the cloud pair and the cloud_spawn carries it; absent means checkout", async () => {
-    const { createQuickSession } = await import("./conversations");
+    const { createQuickSession } = await import("./conversationLifecycle");
     const db = fixture([], [laptop()]);
     const id = await (createQuickSession as any)._handler(ctx(db), {
       project_path: "/Users/me/app",

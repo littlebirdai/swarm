@@ -1213,7 +1213,7 @@ export const MACHINE_SESSIONS_PART: AcmePart = {
   answers: {
     // A session the world holds only as a conversation record (no inbox card) opens by
     // address the way a teammate's session does: the server resolves it, then the inbox shows it.
-    "conversations:resolveConversation": (args) => {
+    "conversationLookup:resolveConversation": (args) => {
       const row = (useInboxStore.getState() as any).conversations?.[
         String(args?.id)
       ];

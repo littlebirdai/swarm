@@ -149,7 +149,7 @@ async function fixture() {
 test("indexed personal liveness reads the same documents as unrelated history grows", async () => {
   const { t, viewer, pin, liveIds, old } = await fixture();
   const read = () =>
-    measureReads(() => viewer.query(api.conversations.sessionsLiveness, {}));
+    measureReads(() => viewer.query(api.inboxLiveness.sessionsLiveness, {}));
   process.env.INBOX_INDEXED_LIVENESS = "1";
   const small = await read();
 
@@ -188,7 +188,7 @@ test("indexed personal liveness reads the same documents as unrelated history gr
 test("the indexed read requires inbox lease writes", async () => {
   const { viewer } = await fixture();
   const read = () =>
-    measureReads(() => viewer.query(api.conversations.sessionsLiveness, {}));
+    measureReads(() => viewer.query(api.inboxLiveness.sessionsLiveness, {}));
   delete process.env.INBOX_LIVENESS_LEASES;
   const legacy = await read();
   process.env.INBOX_INDEXED_LIVENESS = "1";
@@ -231,9 +231,9 @@ test("indexed liveness keeps the latest daemon fallback separate from hosted tur
     return { user, shell };
   });
   const viewer = asUser(t, user);
-  const legacy = await viewer.query(api.conversations.sessionsLiveness, {});
+  const legacy = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
   process.env.INBOX_INDEXED_LIVENESS = "1";
-  const indexed = await viewer.query(api.conversations.sessionsLiveness, {});
+  const indexed = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
   expect(indexed).toEqual(legacy);
   expect(indexed.liveness[shell]?.daemon_alive_until).toBe(now + 3 * 60_000);
 });
@@ -272,7 +272,7 @@ test("indexed liveness retains live children beyond the inbox child window", asy
   });
   process.env.INBOX_INDEXED_LIVENESS = "1";
   const { liveness } = await asUser(t, user).query(
-    api.conversations.sessionsLiveness,
+    api.inboxLiveness.sessionsLiveness,
     {},
   );
   expect(
@@ -327,7 +327,7 @@ for (const kind of ["workflow", "pinned", "stashed decision"] as const) {
       return { user, parent, child };
     });
     const viewer = asUser(t, user);
-    const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+    const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
     const full = await read();
     expect(full.liveness[parent]).toMatchObject({
       child_asking: true,
@@ -375,7 +375,7 @@ for (const newerIsLive of [false, true]) {
       return { user, conversation };
     });
     const viewer = asUser(t, user);
-    const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+    const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
     const full = await read();
     expect(full.liveness[conversation]).toMatchObject({
       agent_status: "done",
@@ -422,7 +422,7 @@ test("indexed liveness retains child facts found by the foreign parent scan", as
     return { user, parent, child };
   });
   const viewer = asUser(t, user);
-  const read = () => viewer.query(api.conversations.sessionsLiveness, {});
+  const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
   const full = await read();
   expect(full.liveness[parent]?.child_live).toBe(true);
   expect(full.liveness[child]?.agent_status).toBe("working");

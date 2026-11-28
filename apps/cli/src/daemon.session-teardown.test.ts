@@ -780,7 +780,7 @@ describe("lifecycle query latch", () => {
     expect(
       isMissingFunctionError(
         new Error(
-          "Could not find public function for 'conversations:getConversationLifecycle'. Did you forget to run `npx convex deploy`?",
+          "Could not find public function for 'conversationStatus:getConversationLifecycle'. Did you forget to run `npx convex deploy`?",
         ),
       ),
     ).toBe(true);
@@ -1016,7 +1016,7 @@ describe("reaper pass summary", () => {
 // query would take the OLDEST twin AND lose every hide field; the lifecycle
 // query's session route takes the NEWEST and keeps them.
 describe("getConversationLifecycle routing", () => {
-  const LIFECYCLE = "conversations:getConversationLifecycle";
+  const LIFECYCLE = "conversationStatus:getConversationLifecycle";
   const DEVICES = "devices:resolveConversationBySession";
   const liveRow = {
     status: "active",
@@ -1091,7 +1091,7 @@ describe("getConversationLifecycle routing", () => {
     const { svc, calls } = serviceWith((name) => {
       if (name === LIFECYCLE)
         throw new Error(
-          "Could not find public function for 'conversations:getConversationLifecycle'",
+          "Could not find public function for 'conversationStatus:getConversationLifecycle'",
         );
       return { status: "completed" };
     });

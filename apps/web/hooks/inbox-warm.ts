@@ -179,7 +179,7 @@ export async function readForward(
   let cursor = after;
   let fetched = 0;
   for (let i = 0; i < maxPages; i++) {
-    const result = await convex.query(api.conversations.getNewMessages, {
+    const result = await convex.query(api.conversationMessages.getNewMessages, {
       conversation_id: conversationId as Id<"conversations">,
       after_timestamp: cursor,
     });
@@ -228,7 +228,7 @@ export async function fetchOlderMessages(
   before: number,
   limit: number,
 ): Promise<any> {
-  return convex.query(api.conversations.getAllMessages, {
+  return convex.query(api.conversationMessages.getAllMessages, {
     conversation_id: conversationId as Id<"conversations">,
     limit,
     before_timestamp: before,
@@ -247,7 +247,7 @@ export async function fetchMessagesAround(
   limitBefore: number,
   limitAfter: number,
 ): Promise<any> {
-  return convex.query(api.conversations.getMessagesAroundTimestamp, {
+  return convex.query(api.conversationMessages.getMessagesAroundTimestamp, {
     conversation_id: conversationId as Id<"conversations">,
     center_timestamp: center,
     limit_before: limitBefore,
@@ -333,7 +333,7 @@ function runCold(
         messageWarmState.syncedCount.set(id, serverCount);
         return null;
       }
-      return convex.query(api.conversations.listMessages, {
+      return convex.query(api.conversationMessages.listMessages, {
         conversation_id: id as Id<"conversations">,
         paginationOpts: { numItems: rows, cursor: null },
       });
@@ -366,7 +366,7 @@ function runRow(convex: ConvexClient, id: string) {
   inFlight.add(id);
   messageWarmState.rowTried.add(id);
   convex
-    .query(api.conversations.getConversation, {
+    .query(api.conversationReads.getConversation, {
       conversation_id: id as Id<"conversations">,
       limit: 1,
     })

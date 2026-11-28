@@ -19,7 +19,7 @@ export function SetupPromptBanner() {
 
   const { user } = useCurrentUser();
   const conversationsResult = useQueryNoThrow(
-    api.conversations.listConversations,
+    api.conversationList.listConversations,
     user?._id ? { filter: "my", limit: 1 } : "skip",
   ).data;
 

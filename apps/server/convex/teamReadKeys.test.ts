@@ -370,7 +370,7 @@ describe("team read keys", () => {
     const { key } = await mint(as(ada), team);
 
     const keyRows = (await readAll(t, key)).sessions;
-    const feed: any = await t.query(api.conversations.feedForCLI, {
+    const feed: any = await t.query(api.cliFeed.feedForCLI, {
       api_token: VIEWER_TOKEN,
       team_id: team,
       start_time: NOW - 24 * HOUR,
@@ -400,7 +400,7 @@ describe("team read keys", () => {
       api.assistant.entry.startConversation,
       { firstMessage: "Deploy the billing fix tonight. Then tell me." },
     );
-    await as(ada).mutation(api.conversations.setPrivacy, {
+    await as(ada).mutation(api.conversationPrivacy.setPrivacy, {
       conversation_id,
       is_private: false,
     });

@@ -24,7 +24,7 @@ async function render(
     </CommandPrimitive>,
     {
       setup: (backend) =>
-        backend.set(api.conversations.getConversation, pending),
+        backend.set(api.conversationReads.getConversation, pending),
     },
   );
   const html = container.innerHTML;

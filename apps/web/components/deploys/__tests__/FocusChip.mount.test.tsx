@@ -17,7 +17,7 @@ const mount = (focus: DeployFocus, onClear = () => {}) =>
       live={null}
       onClear={onClear}
     />,
-    { setup: (backend) => backend.set(api.conversations.webGet, pending) },
+    { setup: (backend) => backend.set(api.conversationLookup.webGet, pending) },
   );
 
 test("a session named by its conversation id reads as its short id, in a session pill", async () => {

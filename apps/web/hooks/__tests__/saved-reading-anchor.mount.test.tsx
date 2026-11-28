@@ -394,7 +394,7 @@ test.each(["flag off", "visible tab", "tab hidden while loading"] as const)(
             api.transcripts.webCallsForConversation,
             api.devices.listDevices,
             api.sessionOwnership.listOwners,
-            api.conversations.getUserMessages,
+            api.conversationNav.getUserMessages,
             api.commentTwins.conversationComments,
             api.pendingMessages.getConversationPendingMessage,
             api.messages.getConversationImages,

@@ -144,7 +144,7 @@ describe("sim window and device", () => {
     const placed = await host.placed();
     const canonical = await f.backend
       .clientFor({ kind: "user", userId: f.userId })
-      .query("conversations:sessionsLiveness", {});
+      .query("inboxLiveness:sessionsLiveness", {});
     expect(placed.placements.size).toBeGreaterThan(0);
     expect(placed.set_digest).toBe(canonical.projection.set_digest);
     expect(placed.tally).toEqual(canonical.projection.tally);

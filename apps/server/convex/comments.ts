@@ -1461,7 +1461,7 @@ async function executeAskAgentInThread(
           });
         } else {
           const fork = await ctx.runMutation(
-            api.conversations.forkFromMessage,
+            api.conversationForks.forkFromMessage,
             {
               conversation_id: args.conversation_id,
             },

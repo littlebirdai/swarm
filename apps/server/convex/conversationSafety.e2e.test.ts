@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { addMessage, addMessages } from "./messages";
-import { setSessionError } from "./conversations";
+import { setSessionError } from "./conversationStatus";
 import {
   claimPendingMessageForDaemon,
   collectDeliverableForOwner,

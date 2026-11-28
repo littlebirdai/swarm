@@ -8,7 +8,7 @@ import {
   findConversationByAnyRef,
   findConversationByAnyRefWhere,
 } from "./conversationSessionLookup";
-import { killConversation } from "./conversations";
+import { killConversation } from "./lib/sessionRestartHelpers";
 import {
   askCore,
   finalizeAnswer,

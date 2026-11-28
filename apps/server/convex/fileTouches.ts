@@ -2,7 +2,7 @@ import { mutation, internalMutation } from "./functions";
 import { v } from "convex/values";
 import { verifyApiToken } from "./apiTokens";
 import { cliSessionClassifier } from "./cliSessionClassifier";
-import { resolveConversationRef } from "./conversations";
+import { resolveConversationRef } from "./lib/conversationHelpers";
 import { resolveSearchSelf, selfFamilyTest } from "./lib/searchSelf";
 import { Doc, Id } from "./_generated/dataModel";
 

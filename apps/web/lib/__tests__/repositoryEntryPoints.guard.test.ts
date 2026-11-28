@@ -42,7 +42,10 @@ test("session branch opens the internal browser and object pages expose related 
 
 test("main and nested session projections carry the repository origin", () => {
   const convex = readFileSync(
-    new URL("../../../../apps/server/convex/conversations.ts", import.meta.url),
+    new URL(
+      "../../../../apps/server/convex/lib/inboxEnrich.ts",
+      import.meta.url,
+    ),
     "utf8",
   );
   expect(convex).toContain("git_remote_url: conv.git_remote_url,");

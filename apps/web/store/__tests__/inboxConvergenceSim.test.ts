@@ -10,7 +10,7 @@ import {
 // Real Convex handlers over dozens of rows, hundreds of steps through the
 // multiplayer sim: seconds on an idle machine, minutes on a loaded one.
 setDefaultTimeout(300_000);
-import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
+import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/inboxLiveness";
 import {
   INBOX_PROJECTION_VERSION,
   inboxEpoch,

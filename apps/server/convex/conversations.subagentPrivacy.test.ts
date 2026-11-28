@@ -11,7 +11,34 @@ setDefaultTimeout(60_000);
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./conversations.ts": () => import("./conversations"),
+  "./cliFeed.ts": () => import("./cliFeed"),
+  "./cliInbox.ts": () => import("./cliInbox"),
+  "./cliSearch.ts": () => import("./cliSearch"),
+  "./cliSessionActions.ts": () => import("./cliSessionActions"),
+  "./conversationExport.ts": () => import("./conversationExport"),
+  "./conversationFavorites.ts": () => import("./conversationFavorites"),
+  "./conversationFeeds.ts": () => import("./conversationFeeds"),
+  "./conversationForks.ts": () => import("./conversationForks"),
+  "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+  "./conversationList.ts": () => import("./conversationList"),
+  "./conversationLookup.ts": () => import("./conversationLookup"),
+  "./conversationMessages.ts": () => import("./conversationMessages"),
+  "./conversationMetadata.ts": () => import("./conversationMetadata"),
+  "./conversationNav.ts": () => import("./conversationNav"),
+  "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+  "./conversationProjects.ts": () => import("./conversationProjects"),
+  "./conversationReads.ts": () => import("./conversationReads"),
+  "./conversationSharing.ts": () => import("./conversationSharing"),
+  "./conversationStatus.ts": () => import("./conversationStatus"),
+  "./conversationTrees.ts": () => import("./conversationTrees"),
+  "./inboxLists.ts": () => import("./inboxLists"),
+  "./inboxLiveness.ts": () => import("./inboxLiveness"),
+  "./inboxShelves.ts": () => import("./inboxShelves"),
+  "./sessionControl.ts": () => import("./sessionControl"),
+  "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+  "./sessionRestart.ts": () => import("./sessionRestart"),
+  "./sessionSearch.ts": () => import("./sessionSearch"),
+  "./sessionThreadState.ts": () => import("./sessionThreadState"),
   "./notifications.ts": () => import("./notifications"),
 };
 
@@ -69,7 +96,7 @@ async function sharedParentInUnmappedFolder(
 describe("a worker shares as its parent does", () => {
   test("a daemon-synced subagent of a shared parent is shared with the parent's team", async () => {
     const { t, ids } = await sharedParentInUnmappedFolder();
-    const id = await t.mutation(api.conversations.createConversation, {
+    const id = await t.mutation(api.conversationLifecycle.createConversation, {
       user_id: ids.jason,
       agent_type: "claude_code",
       session_id: "worker-session",
@@ -104,7 +131,7 @@ describe("a worker shares as its parent does", () => {
       is_private: true,
       team_visibility: "private",
     });
-    const id = await t.mutation(api.conversations.createConversation, {
+    const id = await t.mutation(api.conversationLifecycle.createConversation, {
       user_id: ids.jason,
       agent_type: "claude_code",
       session_id: "worker-session",

@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import {
-  computeInboxSessions,
-  computeSessionsLiveness,
-  collectInboxSessionsByIds,
-} from "@codecast/convex/convex/conversations";
+import { computeInboxSessions } from "@codecast/convex/convex/inboxLists";
+import { computeSessionsLiveness } from "@codecast/convex/convex/inboxLiveness";
+import { collectInboxSessionsByIds } from "@codecast/convex/convex/inboxShelves";
 import { makeFakeDb } from "@codecast/convex/convex/testDb";
 import {
   INBOX_PROJECTION_VERSION,

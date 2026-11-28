@@ -78,7 +78,7 @@ describe("healInteractiveMark", () => {
     const old = async (id: string) => {
       asked.push(id);
       throw new Error(
-        "[Request ID: 1] Server Error\nCould not find public function for 'conversations:markInteractive'. Did you forget to run `npx convex dev` or `npx convex deploy`?",
+        "[Request ID: 1] Server Error\nCould not find public function for 'conversationMetadata:markInteractive'. Did you forget to run `npx convex dev` or `npx convex deploy`?",
       );
     };
     healInteractiveMark(old, "conv_a", "--interactive", (l) => lines.push(l));

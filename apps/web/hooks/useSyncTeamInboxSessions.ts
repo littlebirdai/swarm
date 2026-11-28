@@ -104,11 +104,11 @@ export function useSyncTeamInboxSessions() {
     [active, activeTeamId],
   );
   const { data: teamSessions, error: teamListError } = useQueryNoThrow(
-    api.conversations.listTeamInboxSessions,
+    api.inboxLists.listTeamInboxSessions,
     teamArgs,
   );
   const { data: teamLiveness, error: teamLivenessError } = useSplitQueryNoThrow(
-    api.conversations.teamSessionsLiveness,
+    api.inboxLiveness.teamSessionsLiveness,
     livenessArgs,
     "liveness",
   );
@@ -164,7 +164,7 @@ export function useSyncTeamInboxSessions() {
   }, [active, activeTeamId]);
 
   useInboxRecovery(
-    api.conversations.listTeamInboxSessions,
+    api.inboxLists.listTeamInboxSessions,
     isSyncHost ? teamArgs : "skip",
     null,
     teamListError,
@@ -174,7 +174,7 @@ export function useSyncTeamInboxSessions() {
     ),
   );
   useInboxRecovery(
-    api.conversations.teamSessionsLiveness,
+    api.inboxLiveness.teamSessionsLiveness,
     isSyncHost ? livenessArgs : "skip",
     "liveness",
     teamLivenessError,

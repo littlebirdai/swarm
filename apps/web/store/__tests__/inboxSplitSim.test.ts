@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 
 setDefaultTimeout(300_000);
-import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
+import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/inboxLiveness";
 import type { SplitCache } from "@codecast/inbox/inboxSplit";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { LIST_INBOX_SESSIONS_ARGS } from "../../hooks/useLiveInboxSessions";
@@ -55,7 +55,7 @@ describe("inbox split wire form", () => {
       role: "member",
     });
     const client = server.clientAs("me");
-    const query = "conversations:teamSessionsLiveness";
+    const query = "inboxLiveness:teamSessionsLiveness";
     const args = { activeTeamId };
 
     const whole = await client.query(query, { ...args, _probe: 1 });
@@ -78,10 +78,10 @@ describe("inbox split wire form", () => {
     }> = [
       {
         kind: "list",
-        name: "conversations:listInboxSessions",
+        name: "inboxLists:listInboxSessions",
         args: LIST_INBOX_SESSIONS_ARGS,
       },
-      { kind: "liveness", name: "conversations:sessionsLiveness", args: {} },
+      { kind: "liveness", name: "inboxLiveness:sessionsLiveness", args: {} },
     ];
     for (const seed of [41, 42, 43, 44]) {
       installSim();

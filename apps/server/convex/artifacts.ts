@@ -41,7 +41,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { performSessionSend } from "./pendingMessages";
-import { classifyNamedWorkState } from "./conversations";
+import { classifyNamedWorkState } from "./lib/inboxLivenessState";
 import {
   describePageAnchor,
   parsePageAnchor,

@@ -8794,6 +8794,18 @@
   "apps/server/convex/cliAuthHttp.ts": {
     "swarm/no-comments": 5
   },
+  "apps/server/convex/cliFeed.ts": {
+    "swarm/no-comments": 55
+  },
+  "apps/server/convex/cliInbox.ts": {
+    "swarm/no-comments": 65
+  },
+  "apps/server/convex/cliSearch.ts": {
+    "swarm/no-comments": 70
+  },
+  "apps/server/convex/cliSessionActions.ts": {
+    "swarm/no-comments": 74
+  },
   "apps/server/convex/cliSessionClassifier.ts": {
     "swarm/no-comments": 26
   },
@@ -8893,14 +8905,53 @@
   "apps/server/convex/conversationEvents.ts": {
     "swarm/no-comments": 2
   },
+  "apps/server/convex/conversationExport.ts": {
+    "swarm/no-comments": 25
+  },
+  "apps/server/convex/conversationFavorites.ts": {
+    "swarm/no-comments": 21
+  },
+  "apps/server/convex/conversationFeeds.ts": {
+    "swarm/no-comments": 59
+  },
   "apps/server/convex/conversationFields.guard.test.ts": {
     "swarm/no-comments": 32
+  },
+  "apps/server/convex/conversationForks.ts": {
+    "swarm/no-comments": 143
+  },
+  "apps/server/convex/conversationLifecycle.ts": {
+    "swarm/no-comments": 65
   },
   "apps/server/convex/conversationLinks.ts": {
     "swarm/no-comments": 57
   },
+  "apps/server/convex/conversationList.ts": {
+    "swarm/no-comments": 36
+  },
+  "apps/server/convex/conversationLookup.ts": {
+    "swarm/no-comments": 55
+  },
+  "apps/server/convex/conversationMessages.ts": {
+    "swarm/no-comments": 27
+  },
+  "apps/server/convex/conversationMetadata.ts": {
+    "swarm/no-comments": 64
+  },
+  "apps/server/convex/conversationNav.ts": {
+    "swarm/no-comments": 51
+  },
   "apps/server/convex/conversationPages.ts": {
     "swarm/no-comments": 1
+  },
+  "apps/server/convex/conversationPrivacy.ts": {
+    "swarm/no-comments": 49
+  },
+  "apps/server/convex/conversationProjects.ts": {
+    "swarm/no-comments": 50
+  },
+  "apps/server/convex/conversationReads.ts": {
+    "swarm/no-comments": 56
   },
   "apps/server/convex/conversationSafety.e2e.test.ts": {
     "swarm/no-comments": 1
@@ -8910,6 +8961,15 @@
   },
   "apps/server/convex/conversationSessionLookup.ts": {
     "swarm/no-comments": 59
+  },
+  "apps/server/convex/conversationSharing.ts": {
+    "swarm/no-comments": 40
+  },
+  "apps/server/convex/conversationStatus.ts": {
+    "swarm/no-comments": 55
+  },
+  "apps/server/convex/conversationTrees.ts": {
+    "swarm/no-comments": 22
   },
   "apps/server/convex/conversationVisibilityPatch.ratchet.test.ts": {
     "swarm/no-comments": 20
@@ -9045,9 +9105,6 @@
   },
   "apps/server/convex/conversations.toolStats.test.ts": {
     "swarm/no-comments": 8
-  },
-  "apps/server/convex/conversations.ts": {
-    "swarm/no-comments": 2501
   },
   "apps/server/convex/conversations.updateProjectPath.test.ts": {
     "swarm/no-comments": 8
@@ -9664,8 +9721,17 @@
   "apps/server/convex/inboxHides.ts": {
     "swarm/no-comments": 14
   },
+  "apps/server/convex/inboxLists.ts": {
+    "swarm/no-comments": 8
+  },
+  "apps/server/convex/inboxLiveness.ts": {
+    "swarm/no-comments": 5
+  },
   "apps/server/convex/inboxProjection.ts": {
     "swarm/no-comments": 18
+  },
+  "apps/server/convex/inboxShelves.ts": {
+    "swarm/no-comments": 127
   },
   "apps/server/convex/ingest.door.test.ts": {
     "swarm/no-comments": 5
@@ -9922,8 +9988,17 @@
   "apps/server/convex/lib/conversationBasics.ts": {
     "swarm/no-comments": 2
   },
+  "apps/server/convex/lib/conversationChildHelpers.ts": {
+    "swarm/no-comments": 69
+  },
   "apps/server/convex/lib/conversationCommentRows.ts": {
     "swarm/no-comments": 29
+  },
+  "apps/server/convex/lib/conversationExportHelpers.ts": {
+    "swarm/no-comments": 7
+  },
+  "apps/server/convex/lib/conversationHelpers.ts": {
+    "swarm/no-comments": 56
   },
   "apps/server/convex/lib/conversationRead.ts": {
     "swarm/no-comments": 26
@@ -10066,6 +10141,9 @@
   "apps/server/convex/lib/followView.ts": {
     "swarm/no-comments": 3
   },
+  "apps/server/convex/lib/forkHelpers.ts": {
+    "swarm/no-comments": 25
+  },
   "apps/server/convex/lib/gateChoices.ts": {
     "swarm/no-comments": 25
   },
@@ -10122,6 +10200,24 @@
   },
   "apps/server/convex/lib/huddleGrace.ts": {
     "swarm/no-comments": 5
+  },
+  "apps/server/convex/lib/inboxCompute.ts": {
+    "swarm/no-comments": 33
+  },
+  "apps/server/convex/lib/inboxEnrich.ts": {
+    "swarm/no-comments": 144
+  },
+  "apps/server/convex/lib/inboxLivenessPlacement.ts": {
+    "swarm/no-comments": 164
+  },
+  "apps/server/convex/lib/inboxLivenessState.ts": {
+    "swarm/no-comments": 74
+  },
+  "apps/server/convex/lib/inboxMaps.ts": {
+    "swarm/no-comments": 145
+  },
+  "apps/server/convex/lib/inboxScan.ts": {
+    "swarm/no-comments": 135
   },
   "apps/server/convex/lib/inboxSessionsQuery.ts": {
     "swarm/no-comments": 11
@@ -10614,6 +10710,15 @@
   },
   "apps/server/convex/lib/sessionQueue.ts": {
     "swarm/no-comments": 31
+  },
+  "apps/server/convex/lib/sessionRestartHelpers.ts": {
+    "swarm/no-comments": 85
+  },
+  "apps/server/convex/lib/sessionSearchPool.ts": {
+    "swarm/no-comments": 51
+  },
+  "apps/server/convex/lib/sessionSearchScope.ts": {
+    "swarm/no-comments": 51
   },
   "apps/server/convex/lib/sessionStarts.ts": {
     "swarm/no-comments": 15
@@ -12085,6 +12190,9 @@
   "apps/server/convex/sessionCommands.ts": {
     "swarm/no-comments": 14
   },
+  "apps/server/convex/sessionControl.ts": {
+    "swarm/no-comments": 57
+  },
   "apps/server/convex/sessionDecisions.category.test.ts": {
     "swarm/no-comments": 1
   },
@@ -12120,6 +12228,9 @@
   },
   "apps/server/convex/sessionGuests.ts": {
     "swarm/no-comments": 24
+  },
+  "apps/server/convex/sessionHierarchy.ts": {
+    "swarm/no-comments": 15
   },
   "apps/server/convex/sessionIcons.ts": {
     "swarm/no-comments": 9
@@ -12201,6 +12312,15 @@
   },
   "apps/server/convex/sessionRelease.ts": {
     "swarm/no-comments": 2
+  },
+  "apps/server/convex/sessionRestart.ts": {
+    "swarm/no-comments": 50
+  },
+  "apps/server/convex/sessionSearch.ts": {
+    "swarm/no-comments": 42
+  },
+  "apps/server/convex/sessionThreadState.ts": {
+    "swarm/no-comments": 52
   },
   "apps/server/convex/sessionThreads.test.ts": {
     "swarm/no-comments": 6
@@ -28024,7 +28144,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/clientSyncRegistry.ts": {
-    "swarm/no-comments": 891
+    "swarm/no-comments": 870
   },
   "apps/web/store/composeSlice.ts": {
     "swarm/no-comments": 28
@@ -30318,9 +30438,6 @@
   },
   "scripts/vault-fixture.mjs": {
     "swarm/no-comments": 19
-  },
-  "tests/fork/api.ts": {
-    "swarm/no-comments": 1
   },
   "tests/fork/fork.live.ts": {
     "swarm/no-comments": 42

@@ -158,7 +158,7 @@ function beginTrace(awayMs: number): Trace {
   // whatever socket the client is on.
   if (convId) {
     convex
-      .query(api.conversations.listMessagesTail, {
+      .query(api.conversationReads.listMessagesTail, {
         conversation_id: convId,
         after_timestamp: lastTimestamp(convId),
       })

@@ -26,7 +26,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { canAccessConversation } from "./lib/access";
-import { resolveConversationRef } from "./conversations";
+import { resolveConversationRef } from "./lib/conversationHelpers";
 
 /** How many marks one client carries. Far past any inbox's visible depth; a
  *  session older than the cap has no mark and reads as unread, which is the

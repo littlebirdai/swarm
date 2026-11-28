@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { applyPatches } from "./dispatch";
-import { computeInboxSessions, computeSessionsLiveness } from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import { computeSessionsLiveness } from "./lib/inboxLivenessState";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { makeFakeDb } from "./testDb";
 import { placeProjectableRow } from "@codecast/inbox/inboxProjection";

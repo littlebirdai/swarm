@@ -431,7 +431,7 @@ function ForkTreeContent({
     drillId ? s.userMessages[drillId] : undefined,
   );
   const drillMsgsQuery = useQueryNoThrow(
-    api.conversations.getUserMessages,
+    api.conversationNav.getUserMessages,
     mode === "messages" && drillId && isConvexId(drillId) && !cachedDrillMsgs
       ? { conversation_id: drillId as any, ...shareTokenArg(drillId) }
       : "skip",

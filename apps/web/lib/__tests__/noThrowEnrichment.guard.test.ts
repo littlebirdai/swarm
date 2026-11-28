@@ -22,9 +22,9 @@ const CACHED_ENRICHMENT_QUERIES = [
   // with every other global feeder. On 2026-09-16 listInboxSessions hit the
   // backend's 1s user-code cap on a saturated host and the throw unmounted
   // every feeder in the app until a reload.
-  "conversations.listInboxSessions",
-  "conversations.listFavoriteSessions",
-  "conversations.sessionsLiveness",
+  "inboxLists.listInboxSessions",
+  "conversationFavorites.listFavoriteSessions",
+  "inboxLiveness.sessionsLiveness",
   "client_state.get",
   "bookmarks.listBookmarks",
   // The roster feeds the teamMembers collection; the shell's avatar bar, the
@@ -40,9 +40,9 @@ const CACHED_ENRICHMENT_QUERIES = [
   // surface already paints from.
   "teams.getUserTeams",
   "notifications.list",
-  "conversations.listFavorites",
-  "conversations.listTeamInboxSessions",
-  "conversations.teamSessionsLiveness",
+  "conversationFavorites.listFavorites",
+  "inboxLists.listTeamInboxSessions",
+  "inboxLiveness.teamSessionsLiveness",
   "tasks.webActiveSessions",
   "tasks.webMentionList",
   "docs.webMentionList",
@@ -50,10 +50,10 @@ const CACHED_ENRICHMENT_QUERIES = [
   "buckets.webList",
   "capabilityState.webList",
   "capabilityBindings.webListBindings",
-  "conversations.listMessagesTail",
-  "conversations.getTranscriptWatermark",
-  "conversations.getUserMessages",
-  "conversations.resolveConversation",
+  "conversationReads.listMessagesTail",
+  "conversationReads.getTranscriptWatermark",
+  "conversationNav.getUserMessages",
+  "conversationLookup.resolveConversation",
   "comments.getConversationCommentSummary",
   "collab.collabRequests",
   // users.getCurrentUser is fed the same way but still has plain subscribers
@@ -65,7 +65,7 @@ const CACHED_ENRICHMENT_QUERIES = [
 // every stream tick and times out ("too many system operations") on long
 // sessions; on 2026-09-07 that unmounted the Questions header. Derive from
 // the store (computeConversationTaskStats) instead of subscribing.
-const FORBIDDEN_LIVE_SCANS = ["conversations.getConversationToolStats"];
+const FORBIDDEN_LIVE_SCANS = ["conversationReads.getConversationToolStats"];
 
 const ROOT = join(import.meta.dir, "..", "..");
 const DIRS = ["app", "components", "hooks"];

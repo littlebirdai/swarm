@@ -379,7 +379,7 @@ export async function canonicalMineProjection(
   userId: string,
 ) {
   const payload: any = await asUser(world, userId).query(
-    "conversations:sessionsLiveness",
+    "inboxLiveness:sessionsLiveness",
     {},
   );
   const placements = new Map<string, string>();

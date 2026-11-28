@@ -139,17 +139,17 @@ class FixtureWindow implements InvariantWindow {
     if (only) {
       if (only.includes("liveness"))
         applyMineLivenessPayload(
-          await this.client.query("conversations:sessionsLiveness", {}),
+          await this.client.query("inboxLiveness:sessionsLiveness", {}),
         );
       return;
     }
     const list: any = await this.client.query(
-      "conversations:listInboxSessions",
+      "inboxLists:listInboxSessions",
       LIST_INBOX_SESSIONS_ARGS,
     );
     const sessions: any[] = list?.sessions ?? list ?? [];
     const payload: any = await this.client.query(
-      "conversations:sessionsLiveness",
+      "inboxLiveness:sessionsLiveness",
       {},
     );
     if (this.listFeeder)
@@ -172,7 +172,7 @@ class FixtureWindow implements InvariantWindow {
     const ui = useInboxStore.getState().clientState.ui as any;
     if (ui?.inbox_scope === "team" && ui.active_team_id) {
       const team: any = await this.client.query(
-        "conversations:listTeamInboxSessions",
+        "inboxLists:listTeamInboxSessions",
         teamInboxArgs(ui.active_team_id),
       );
       applyTeamInboxIds(team?.sessions ?? [], ui.active_team_id);

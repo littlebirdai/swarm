@@ -10,7 +10,34 @@ import schema from "./schema";
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./conversations.ts": () => import("./conversations"),
+  "./cliFeed.ts": () => import("./cliFeed"),
+  "./cliInbox.ts": () => import("./cliInbox"),
+  "./cliSearch.ts": () => import("./cliSearch"),
+  "./cliSessionActions.ts": () => import("./cliSessionActions"),
+  "./conversationExport.ts": () => import("./conversationExport"),
+  "./conversationFavorites.ts": () => import("./conversationFavorites"),
+  "./conversationFeeds.ts": () => import("./conversationFeeds"),
+  "./conversationForks.ts": () => import("./conversationForks"),
+  "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+  "./conversationList.ts": () => import("./conversationList"),
+  "./conversationLookup.ts": () => import("./conversationLookup"),
+  "./conversationMessages.ts": () => import("./conversationMessages"),
+  "./conversationMetadata.ts": () => import("./conversationMetadata"),
+  "./conversationNav.ts": () => import("./conversationNav"),
+  "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+  "./conversationProjects.ts": () => import("./conversationProjects"),
+  "./conversationReads.ts": () => import("./conversationReads"),
+  "./conversationSharing.ts": () => import("./conversationSharing"),
+  "./conversationStatus.ts": () => import("./conversationStatus"),
+  "./conversationTrees.ts": () => import("./conversationTrees"),
+  "./inboxLists.ts": () => import("./inboxLists"),
+  "./inboxLiveness.ts": () => import("./inboxLiveness"),
+  "./inboxShelves.ts": () => import("./inboxShelves"),
+  "./sessionControl.ts": () => import("./sessionControl"),
+  "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+  "./sessionRestart.ts": () => import("./sessionRestart"),
+  "./sessionSearch.ts": () => import("./sessionSearch"),
+  "./sessionThreadState.ts": () => import("./sessionThreadState"),
   "./workflow_runs.ts": () => import("./workflow_runs"),
 };
 const token = "r".repeat(64);
@@ -135,7 +162,7 @@ describe("run logs leave every session list", () => {
       { filter: "my", subagentFilter: "main" },
     ]) {
       const r = await as(t, viewer).query(
-        anyApi.conversations.listConversations,
+        anyApi.conversationList.listConversations,
         args,
       );
       const ids = r.conversations.map((c: any) => String(c._id));
@@ -149,12 +176,12 @@ describe("run logs leave every session list", () => {
   test("a page of run logs does not end the personal list early", async () => {
     const { t, viewer, host, plain } = await seed();
     const r = await as(t, viewer).query(
-      anyApi.conversations.listConversations,
+      anyApi.conversationList.listConversations,
       { filter: "my", limit: 1 },
     );
     expect(r.conversations.map((c: any) => String(c._id))).toEqual([plain]);
     const next = await as(t, viewer).query(
-      anyApi.conversations.listConversations,
+      anyApi.conversationList.listConversations,
       { filter: "my", limit: 1, cursor: r.nextCursor },
     );
     expect(next.conversations.map((c: any) => String(c._id))).toEqual([host]);
@@ -163,7 +190,7 @@ describe("run logs leave every session list", () => {
   test("title search and cast search: logs out, the hosting session in", async () => {
     const { t, viewer, log, rekeyed, host } = await seed();
     const web = await as(t, viewer).query(
-      anyApi.conversations.searchConversationTitles,
+      anyApi.sessionSearch.searchConversationTitles,
       { query: "pipeline" },
     );
     const webIds = web.results.map((r: any) =>
@@ -172,7 +199,7 @@ describe("run logs leave every session list", () => {
     expect(webIds).toContain(host);
     expect(webIds).not.toContain(log);
     expect(webIds).not.toContain(rekeyed);
-    const cli = await t.query(anyApi.conversations.searchForCLI, {
+    const cli = await t.query(anyApi.cliSearch.searchForCLI, {
       api_token: token,
       query: "pipeline",
       titles_only: true,
@@ -190,7 +217,7 @@ describe("run logs leave every session list", () => {
         await ctx.db.patch(id as any, { inbox_killed_at: Date.now() } as any);
     });
     const r = await as(t, viewer).query(
-      anyApi.conversations.listKilledSessions,
+      anyApi.inboxShelves.listKilledSessions,
       { paginationOpts: { numItems: 20, cursor: null } },
     );
     const ids = r.page.map((c: any) => String(c._id));

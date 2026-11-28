@@ -131,7 +131,7 @@ export async function seedRun(dep, world) {
   }
   // deleteByProjectHash removes one session 50 messages a call.
   for (let convId, i = 0; i < 50; i++) {
-    const r = await riley.mutation("conversations:deleteByProjectHash", {
+    const r = await riley.mutation("conversationProjects:deleteByProjectHash", {
       project_hash: SMOKE_PROJECT_HASH,
       ...(convId ? { conv_id: convId } : {}),
     });
@@ -139,7 +139,7 @@ export async function seedRun(dep, world) {
     if (!r.hasMore && !r.deleted) break;
   }
   const conversationId = String(
-    await riley.mutation("conversations:createConversation", {
+    await riley.mutation("conversationLifecycle:createConversation", {
       user_id: world.riley,
       team_id: world.teamId,
       agent_type: "claude_code",

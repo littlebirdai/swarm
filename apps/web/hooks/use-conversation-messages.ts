@@ -320,11 +320,14 @@ export function useConversationMessages(
     const hadConversation = hasConversation(conversationId);
     setSnapshotLoading(failedSnapshotRef.current !== conversationId);
     try {
-      const res: any = await convex.query(api.conversations.listMessages, {
-        conversation_id: convId,
-        paginationOpts: { numItems: MESSAGE_PAGE_SIZE, cursor: null },
-        ...shareTokenArg(conversationId),
-      });
+      const res: any = await convex.query(
+        api.conversationMessages.listMessages,
+        {
+          conversation_id: convId,
+          paginationOpts: { numItems: MESSAGE_PAGE_SIZE, cursor: null },
+          ...shareTokenArg(conversationId),
+        },
+      );
       if (hadConversation && !hasConversation(conversationId)) return;
       const state = useInboxStore.getState();
       const meta: any =
@@ -431,7 +434,7 @@ export function useConversationMessages(
   // in-flight streaming row is always inside the subscribed range and its
   // in-place patches replace the local copy.
   const tailResult = useQueryNoThrow(
-    api.conversations.listMessagesTail,
+    api.conversationReads.listMessagesTail,
     useNormalMode &&
       tailState.id === conversationId &&
       tailState.anchor !== null
@@ -493,7 +496,7 @@ export function useConversationMessages(
   // The counters ride the tiny watermark subscription below instead; syncRecord
   // merges per key, so omitted fields keep their prior store values.
   const { data: remoteMeta } = useQueryNoThrow(
-    api.conversations.getConversationWithMeta,
+    api.conversationReads.getConversationWithMeta,
     canQuery
       ? { conversation_id: convId, strip_volatile: true, ...shareArg }
       : "skip",
@@ -503,7 +506,7 @@ export function useConversationMessages(
   // transcript_revision flags backfill edits behind the tail anchor. A few
   // integers, so it re-pushes only when one of them actually moves.
   const watermark = useQueryNoThrow(
-    api.conversations.getTranscriptWatermark,
+    api.conversationReads.getTranscriptWatermark,
     canQuery ? { conversation_id: convId, ...shareArg } : "skip",
   ).data;
   useConvexSync(
@@ -546,7 +549,7 @@ export function useConversationMessages(
   // header, message browser, rewind navigator). Caching the complete list
   // means those features never depend on which message window is paginated in.
   const userMessages = useQueryNoThrow(
-    api.conversations.getUserMessages,
+    api.conversationNav.getUserMessages,
     canQuery ? { conversation_id: convId, ...shareArg } : "skip",
   ).data;
   useConvexSync(
@@ -852,7 +855,7 @@ export function useConversationMessages(
   // and jump-to-timestamp are one-shots (jumpToStart / jumpToTimestamp) — a live
   // subscription on a long session re-runs the whole window on every heartbeat.
   const aroundData = useQueryNoThrow(
-    api.conversations.getMessagesAroundTimestamp,
+    api.conversationMessages.getMessagesAroundTimestamp,
     canQuery &&
       targetMode &&
       !targetInitializedRef.current &&

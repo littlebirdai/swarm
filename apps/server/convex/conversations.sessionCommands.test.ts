@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import {
-  requireSessionCommandTarget,
-  getConversationLifecycle,
-  killSession,
-  cliSetSessionVisibility,
-} from "./conversations";
+import { cliSetSessionVisibility } from "./cliSessionActions";
+import { getConversationLifecycle } from "./conversationStatus";
+import { requireSessionCommandTarget } from "./daemonCommandUtils";
+import { killSession } from "./sessionRestart";
 import { applyHideTransition } from "./cleanup";
 import { shouldShowInInbox } from "./inboxFilters";
 import { makeFakeDb } from "./testDb";

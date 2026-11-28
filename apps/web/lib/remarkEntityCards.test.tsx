@@ -131,7 +131,7 @@ const { getFunctionName } = await import("convex/server");
 const ROWS: Record<string, any[]> = {
   "tasks:webGet": [FAKE_TASK],
   "plans:webGet": [FAKE_PLAN],
-  "conversations:webGet": [FAKE_SESSION],
+  "conversationLookup:webGet": [FAKE_SESSION],
   "agentTasks:webGet": [FAKE_TRIGGER],
   "projects:webGet": [FAKE_PROJECT],
   // Codecast holds no pull requests at all in this suite: every lookup answers

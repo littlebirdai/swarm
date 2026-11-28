@@ -11,14 +11,19 @@ const schemaAndStorage = new Set([
 ]);
 const otherHeartbeats = new Set(["daemonLogs.ts", "users.ts"]);
 const wireFields: Record<string, string[]> = {
-  "conversations.ts": [
+  "conversationReads.ts": [
     'for (const k of ["updated_at", "message_count", "last_message_at", "last_metrics_at", "last_active_at", "last_heartbeat"]) {',
+  ],
+  "lib/inboxEnrich.ts": [
     "last_heartbeat: maps.lastHeartbeatMap.get(conv._id.toString()) ?? null,",
     "last_heartbeat: maps.lastHeartbeatMap.get(child._id.toString()) ?? null,",
+  ],
+  "lib/inboxLivenessPlacement.ts": [
     "last_heartbeat: number | null;",
-    "rowLiveDeadlines({ updated_at: c.updated_at, last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null }));",
     '"open_tasks", "open_tasks_at", "producing_until", "last_heartbeat",',
     "last_heartbeat: lv.last_heartbeat ?? null,",
+  ],
+  "lib/inboxLivenessState.ts": [
     "last_heartbeat: maps.lastHeartbeatMap.get(cid) ?? null,",
     "last_heartbeat: facts.last_heartbeat,",
   ],

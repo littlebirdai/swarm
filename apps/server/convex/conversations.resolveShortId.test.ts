@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveConversationForViewer } from "./conversations";
+import { resolveConversationForViewer } from "./conversationLookup";
 import { makeFakeDb } from "./testDb";
 
 // Regression for "conversation Not Found" on /conversation/<short-id>: entity

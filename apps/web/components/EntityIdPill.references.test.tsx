@@ -88,7 +88,7 @@ const ROWS: Record<string, any[]> = {
   "agentTasks:webGet": [FAKE_TRIGGER],
   "tasks:webGet": [FAKE_TASK, LONG_TITLE_TASK],
   "plans:webGet": [FAKE_PLAN],
-  "conversations:webGet": [FAKE_SESSION],
+  "conversationLookup:webGet": [FAKE_SESSION],
   "pull_requests:webGet": [FAKE_PR],
 };
 

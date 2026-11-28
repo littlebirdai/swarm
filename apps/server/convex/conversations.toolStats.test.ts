@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   collectConversationToolStats,
   TOOL_STATS_SCAN_LIMIT,
-} from "./conversations";
+} from "./conversationReads";
 import { makeFakeDb } from "./testDb";
 
 // Regression for the "too many system operations" timeout on

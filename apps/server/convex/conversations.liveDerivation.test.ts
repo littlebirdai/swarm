@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { tallyInboxRows } from "./cliInbox";
 import {
-  computeInboxSessions,
-  computeSessionsLiveness,
   collectInboxSessionsByIds,
   collectInboxSessionsPaginated,
-  tallyInboxRows,
+} from "./inboxShelves";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import {
   INBOX_PROJECTION_FIELDS,
-  INBOX_LIVENESS_FIELDS,
-  INBOX_FAST_FIELDS,
   _resetChildAuqProbeCacheForTests,
-} from "./conversations";
+} from "./lib/inboxLivenessPlacement";
+import { computeSessionsLiveness } from "./lib/inboxLivenessState";
+import { INBOX_LIVENESS_FIELDS, INBOX_FAST_FIELDS } from "./lib/inboxMaps";
 import { INBOX_PINNED_CAP } from "./inboxProjection";
 import {
   AGENT_IDLE_GRACE_MS,

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   resolveRestartTarget,
   enqueueKillAndResume,
-  restartSession,
-} from "./conversations";
+} from "./lib/sessionRestartHelpers";
+import { restartSession } from "./sessionRestart";
 import { forConversation, results } from "./sessionCommands";
 import { deleteConversationBySessionIdCore } from "./cleanup";
 import { makeFakeDb } from "./testDb";

@@ -24,11 +24,11 @@ const CONTENT_GATE = /\.contentVisible\(/;
 // their text. One line each on why.
 const ALLOWED = new Map<string, string>([
   [
-    "conversations.ts:createConversation",
+    "conversationLifecycle.ts:createConversation",
     "reads a message only to resolve a fork's parent; the listing check gates a title-only activity event",
   ],
   [
-    "conversations.ts:listConversations",
+    "conversationList.ts:listConversations",
     "summary and minimal rows return before any preview is read (resolveVisibilityMode); previews reach full rows only",
   ],
 ]);

@@ -11,7 +11,7 @@ import {
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { MutationCtx } from "../functions";
 import type { Doc, Id } from "../_generated/dataModel";
-import { insertStartedConversation } from "../conversations";
+import { insertStartedConversation } from "../conversationLifecycle";
 import { ensureHostedManagedSession } from "../lib/sessionStatusWriter";
 import { enqueuePendingMessage } from "../pendingMessages";
 import { checkRateLimit } from "../rateLimit";

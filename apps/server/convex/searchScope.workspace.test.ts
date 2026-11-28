@@ -106,7 +106,7 @@ test("web search reads the active team, and summary sessions match on their titl
   const as = t.withIdentity({ subject: viewer });
 
   for (const args of [{}, { activeTeamId: T }]) {
-    const res: any = await as.query(api.conversations.searchConversations, {
+    const res: any = await as.query(api.sessionSearch.searchConversations, {
       query: "quokka",
       ...args,
     });
@@ -124,7 +124,7 @@ test("web search reads the active team, and summary sessions match on their titl
     expect(rows["quokka summary"].workspace).toBe(`team:${T}`);
 
     const titles: any = await as.query(
-      api.conversations.searchConversationTitles,
+      api.sessionSearch.searchConversationTitles,
       { query: "quokka", ...args },
     );
     expect(titles.results.map((r: any) => r.title).sort()).toEqual([
@@ -134,7 +134,7 @@ test("web search reads the active team, and summary sessions match on their titl
     ]);
   }
 
-  const all: any = await as.query(api.conversations.searchConversations, {
+  const all: any = await as.query(api.sessionSearch.searchConversations, {
     query: "quokka",
     allTeams: true,
   });
@@ -151,7 +151,7 @@ test("cast search and the CLI feed read the active team unless asked for every t
   const { t } = await seed();
 
   // A content search never surfaces a summary session by its text.
-  const search: any = await t.query(api.conversations.searchForCLI, {
+  const search: any = await t.query(api.cliSearch.searchForCLI, {
     api_token: token,
     query: "quokka",
   });
@@ -161,7 +161,7 @@ test("cast search and the CLI feed read the active team unless asked for every t
   expect(rows["quokka full"].workspace).toMatch(/^team:/);
 
   // Its title still finds it, with no text.
-  const titled: any = await t.query(api.conversations.searchForCLI, {
+  const titled: any = await t.query(api.cliSearch.searchForCLI, {
     api_token: token,
     query: "quokka",
     titles_only: true,
@@ -174,14 +174,14 @@ test("cast search and the CLI feed read the active team unless asked for every t
   ]);
   expect(titledRows["quokka summary"].origin?.started_as).toBeUndefined();
 
-  const global: any = await t.query(api.conversations.searchForCLI, {
+  const global: any = await t.query(api.cliSearch.searchForCLI, {
     api_token: token,
     query: "quokka",
     all_teams: true,
   });
   expect(byTitle(global.conversations)["quokka other"]?.team).toBe("O");
 
-  const feed: any = await t.query(api.conversations.feedForCLI, {
+  const feed: any = await t.query(api.cliFeed.feedForCLI, {
     api_token: token,
   });
   const cards = byTitle(feed.conversations);
@@ -194,7 +194,7 @@ test("cast search and the CLI feed read the active team unless asked for every t
     "secret text of full",
   );
 
-  const feedAll: any = await t.query(api.conversations.feedForCLI, {
+  const feedAll: any = await t.query(api.cliFeed.feedForCLI, {
     api_token: token,
     all_teams: true,
   });
@@ -231,7 +231,7 @@ test("an all-teams feed never lists a session in a team its owner has left", asy
     } as any);
   });
 
-  const feedAll: any = await t.query(api.conversations.feedForCLI, {
+  const feedAll: any = await t.query(api.cliFeed.feedForCLI, {
     api_token: token,
     all_teams: true,
   });

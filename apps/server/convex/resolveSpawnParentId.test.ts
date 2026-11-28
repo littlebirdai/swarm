@@ -4,7 +4,7 @@ import {
   serverTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { resolveSpawnParentId } from "./conversations";
+import { resolveSpawnParentId } from "./lib/conversationChildHelpers";
 
 describe("resolveSpawnParentId", () => {
   test("stored parent wins without a lookup", async () => {

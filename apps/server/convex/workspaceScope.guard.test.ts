@@ -107,7 +107,7 @@ const PUBLIC_CROSS_TEAM = new Map<string, string>([
 
 const SESSION_CROSS_TEAM = new Map<string, string>([
   [
-    "conversations.ts:resolveReadScope",
+    "lib/sessionSearchScope.ts:resolveReadScope",
     "walks every team only on an explicit all-teams ask; rows labelled by workspaceOf/teamNameOf",
   ],
   [
@@ -203,15 +203,15 @@ test("every allowlist entry still names a function that needs it", () => {
 });
 
 test("session search and feed functions read one workspace", () => {
-  for (const name of [
-    "searchConversations",
-    "searchConversationTitles",
-    "searchForCLI",
-    "feedForCLI",
-    "getMessageFeed",
-    "loadConversationSearchScope",
+  for (const key of [
+    "sessionSearch.ts:searchConversations",
+    "sessionSearch.ts:searchConversationTitles",
+    "cliSearch.ts:searchForCLI",
+    "cliFeed.ts:feedForCLI",
+    "conversationFeeds.ts:getMessageFeed",
+    "lib/sessionSearchScope.ts:loadConversationSearchScope",
   ]) {
-    expect(PUBLIC_CROSS_TEAM.has(`conversations.ts:${name}`)).toBe(false);
-    expect(SESSION_CROSS_TEAM.has(`conversations.ts:${name}`)).toBe(false);
+    expect(PUBLIC_CROSS_TEAM.has(key)).toBe(false);
+    expect(SESSION_CROSS_TEAM.has(key)).toBe(false);
   }
 });

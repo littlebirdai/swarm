@@ -3,14 +3,14 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { client as c } from "./target";
 const list = async () =>
   (
-    (await c.query(api.conversations.listInboxSessions, {
+    (await c.query(api.inboxLists.listInboxSessions, {
       show_all: true,
       include_liveness: false,
       fast_fields_in_overlay: true,
     })) as any
   ).sessions.filter((r: any) => r.project_path === "/tmp/codecast-e2e");
 for (const r of await list()) {
-  const out = await c.mutation(api.conversations.deleteByProjectHash, {
+  const out = await c.mutation(api.conversationProjects.deleteByProjectHash, {
     project_hash: "e2e",
     conv_id: r._id,
   } as any);

@@ -74,14 +74,14 @@ test("content reaches a teammate only at Full; Summary sends what it was about",
   const as = t.withIdentity({ subject: ids.viewer });
 
   for (const id of [ids.byDefault, ids.full]) {
-    const conv: any = await as.query(api.conversations.getConversation, {
+    const conv: any = await as.query(api.conversationReads.getConversation, {
       conversation_id: id,
     });
     expect(conv.content_access).toBeUndefined();
     expect(conv.messages.map((m: any) => m.content)).toHaveLength(1);
   }
   for (const id of [ids.summary, ids.sessionSummary]) {
-    const conv: any = await as.query(api.conversations.getConversation, {
+    const conv: any = await as.query(api.conversationReads.getConversation, {
       conversation_id: id,
     });
     expect(conv.content_access).toBe("summary");
@@ -89,20 +89,20 @@ test("content reaches a teammate only at Full; Summary sends what it was about",
     expect(conv.title).toContain("session");
     expect(conv.last_message_preview).toBeUndefined();
     const meta: any = await as.query(
-      api.conversations.getConversationWithMeta,
+      api.conversationReads.getConversationWithMeta,
       { conversation_id: id },
     );
     expect(meta.content_access).toBe("summary");
     expect(meta.last_message_preview).toBeUndefined();
     expect(
-      await as.query(api.conversations.listMessagesTail, {
+      await as.query(api.conversationReads.listMessagesTail, {
         conversation_id: id,
         after_timestamp: 0,
       }),
     ).toBeNull();
   }
 
-  const feed: any = await as.query(api.conversations.getMessageFeed, {
+  const feed: any = await as.query(api.conversationFeeds.getMessageFeed, {
     filter: "team",
   });
   expect(feed.messages.map((m: any) => m.content).sort()).toEqual([

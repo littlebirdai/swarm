@@ -62,7 +62,7 @@ test("a new session's repo comes from the owner's earlier sessions in that folde
   const home = await conv(t, me, { project_path: "/Users/david" });
   const as = t.withIdentity({ subject: `${me}|session` });
   const info = (id: Id<"conversations">) =>
-    as.query(api.conversations.getProjectInfo, { conversation_id: id });
+    as.query(api.conversationProjects.getProjectInfo, { conversation_id: id });
 
   expect(await info(fresh)).toMatchObject({
     git_root: "/Users/david/git/littlebird",

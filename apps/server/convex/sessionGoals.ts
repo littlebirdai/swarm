@@ -36,7 +36,7 @@ import {
 } from "./pendingMessages";
 import { checkConversationAccess } from "./privacy";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
-import { performSetThreadState } from "./conversations";
+import { performSetThreadState } from "./sessionThreadState";
 import { runModelCall, type CallScope } from "./modelCalls";
 import { callModelMetered, parseJsonBlock } from "./lib/anthropic";
 import { clearThreadState } from "./lib/sessionStatusWriter";

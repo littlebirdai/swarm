@@ -87,13 +87,13 @@ describe("useSyncCore owns the full feeder mount set", () => {
     // constant when this window hosts its own feeds, "skip" as a follower
     // (docs/architecture/sync-host.md).
     expect(
-      /\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
+      /\(\s*api\.inboxLists\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
         live,
       ),
     ).toBe(true);
     const syncSrc = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
     expect(
-      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
+      /useInboxRecovery\(\s*api\.inboxLists\.listInboxSessions,\s*isSyncHost && !logSnapshot \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
         syncSrc,
       ),
     ).toBe(true);
@@ -101,7 +101,7 @@ describe("useSyncCore owns the full feeder mount set", () => {
       /const SNAPSHOT_ARGS = \{\s*\.\.\.LIST_INBOX_SESSIONS_ARGS,\s*checkpoint: true,?\s*\}/,
     );
     expect(live).toMatch(
-      /useInboxRecovery\(\s*api\.conversations\.listInboxSessions,\s*snapshotActive \? SNAPSHOT_ARGS : "skip"/,
+      /useInboxRecovery\(\s*api\.inboxLists\.listInboxSessions,\s*snapshotActive \? SNAPSHOT_ARGS : "skip"/,
     );
     for (const src of [live, syncSrc]) {
       for (const line of codeLines(src)
@@ -114,16 +114,14 @@ describe("useSyncCore owns the full feeder mount set", () => {
 
   test("live inbox subscriptions use the split reader", () => {
     const feeds = {
-      "useLiveInboxSessions.ts": "listInboxSessions",
-      "useSyncInboxSessions.ts": "sessionsLiveness",
-      "useSyncTeamInboxSessions.ts": "teamSessionsLiveness",
+      "useLiveInboxSessions.ts": "inboxLists.listInboxSessions",
+      "useSyncInboxSessions.ts": "inboxLiveness.sessionsLiveness",
+      "useSyncTeamInboxSessions.ts": "inboxLiveness.teamSessionsLiveness",
     };
     for (const [file, query] of Object.entries(feeds)) {
       const src = codeLines(read(join(WEB_ROOT, "hooks", file))).join("\n");
       expect(src).toMatch(
-        new RegExp(
-          `useSplitQueryNoThrow\\(\\s*api\\.conversations\\.${query},`,
-        ),
+        new RegExp(`useSplitQueryNoThrow\\(\\s*api\\.${query},`),
       );
     }
   });
@@ -150,12 +148,12 @@ describe("mobile screens host no core feeder", () => {
 // hide-state reconciles, the sync-log applier, the decision queue, labels,
 // the current user. A hook that calls any of these FEEDS the replica.
 const SESSION_REPLICA_CHANNELS = [
-  "conversations.listInboxSessions",
-  "conversations.sessionsLiveness",
-  "conversations.listTeamInboxSessions",
-  "conversations.teamSessionsLiveness",
-  "conversations.listInboxSessionsPaginated",
-  "conversations.getInboxSessionsByIds",
+  "inboxLists.listInboxSessions",
+  "inboxLiveness.sessionsLiveness",
+  "inboxLists.listTeamInboxSessions",
+  "inboxLiveness.teamSessionsLiveness",
+  "inboxShelves.listInboxSessionsPaginated",
+  "inboxShelves.getInboxSessionsByIds",
   "syncLog.getHeads",
   "syncLog.getRange",
   "sessionDecisions.listForUser",
@@ -172,8 +170,8 @@ const SESSION_REPLICA_CHANNELS = [
 const SESSION_REPLICA_SUBSCRIPTIONS = SESSION_REPLICA_CHANNELS.filter(
   (ch) =>
     !ch.startsWith("users.") &&
-    ch !== "conversations.getInboxSessionsByIds" &&
-    ch !== "conversations.listInboxSessionsPaginated",
+    ch !== "inboxShelves.getInboxSessionsByIds" &&
+    ch !== "inboxShelves.listInboxSessionsPaginated",
 );
 
 function usesChannel(

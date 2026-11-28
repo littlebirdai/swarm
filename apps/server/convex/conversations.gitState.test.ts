@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { updateGitState } from "./conversations";
+import { updateGitState } from "./conversationStatus";
 import { ingestLocal, upsertLocalCommit } from "./repos";
 import { makeFakeDb } from "./testDb";
 
@@ -44,7 +44,7 @@ function context(user: string, overrides: Record<string, any[]> = {}) {
   };
 }
 
-describe("conversations.updateGitState", () => {
+describe("conversationStatus.updateGitState", () => {
   test("writes what moved, stamps the time, and skips a no-op", async () => {
     const ctx = context("owner");
     expect(

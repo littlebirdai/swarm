@@ -263,7 +263,7 @@ function proveSocket() {
   if (!convId) return;
   let answered = false;
   convex
-    .query(api.conversations.listMessagesTail, {
+    .query(api.conversationReads.listMessagesTail, {
       conversation_id: convId,
       after_timestamp: Date.now(),
     })

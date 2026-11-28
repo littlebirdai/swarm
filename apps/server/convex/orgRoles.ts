@@ -165,9 +165,9 @@ import { standingReportsToFields } from "./lib/standingSeat";
 import { stampSeatOwners } from "./sessionOwners";
 import {
   enqueueKillAndResume,
-  performSetThreadState,
   resolveRestartTarget,
-} from "./conversations";
+} from "./lib/sessionRestartHelpers";
+import { performSetThreadState } from "./sessionThreadState";
 import { performReparentSessionToDevice } from "./devices";
 import { isBootstrapPrompt } from "@codecast/messages/machineMessages";
 import {

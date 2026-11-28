@@ -452,7 +452,7 @@ test.each(["ended", "killed", "unregistered"] as const)(
     expect(await legacy.send()).toMatchObject({ reason: "stale" });
     if (reason === "ended") await f.report(1, "ended");
     else if (reason === "killed")
-      await f.owner.mutation(api.conversations.killSession, f.args);
+      await f.owner.mutation(api.sessionRestart.killSession, f.args);
     else
       await f.owner.mutation(api.managedSessions.unregisterManagedSession, {
         session_id: "watch-session",

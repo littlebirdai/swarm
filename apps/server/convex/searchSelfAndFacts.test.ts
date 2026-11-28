@@ -85,7 +85,7 @@ async function seed() {
 }
 
 const search = (t: any, args: Record<string, unknown>) =>
-  t.query(anyApi.conversations.searchForCLI, {
+  t.query(anyApi.cliSearch.searchForCLI, {
     api_token: token,
     ...args,
   }) as Promise<any>;

@@ -109,7 +109,7 @@ export function useSessionImages({
   // Both backfills are owner-only on the server: a teammate's session is skipped, not refused.
   const myId = useInboxStore((s) => s.currentUser?._id?.toString() ?? null);
   const backfillImagePreview = useMutation(
-    api.conversations.backfillImagePreview,
+    api.conversationMetadata.backfillImagePreview,
   );
   const imagePreviewBackfilledRef = useRef<string | null>(null);
   useWatchEffect(() => {

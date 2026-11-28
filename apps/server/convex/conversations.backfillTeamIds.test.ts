@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { backfillTeamIds, backfillUserTeamIds } from "./conversations";
+import { backfillTeamIds, backfillUserTeamIds } from "./conversationPrivacy";
 import { sweepPage } from "./teamScopeSweep";
 import { canAccessTask } from "./lib/access";
 import { makeFakeDb } from "./testDb";

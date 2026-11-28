@@ -10,7 +10,34 @@ import schema from "./schema";
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./conversations.ts": () => import("./conversations"),
+  "./cliFeed.ts": () => import("./cliFeed"),
+  "./cliInbox.ts": () => import("./cliInbox"),
+  "./cliSearch.ts": () => import("./cliSearch"),
+  "./cliSessionActions.ts": () => import("./cliSessionActions"),
+  "./conversationExport.ts": () => import("./conversationExport"),
+  "./conversationFavorites.ts": () => import("./conversationFavorites"),
+  "./conversationFeeds.ts": () => import("./conversationFeeds"),
+  "./conversationForks.ts": () => import("./conversationForks"),
+  "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+  "./conversationList.ts": () => import("./conversationList"),
+  "./conversationLookup.ts": () => import("./conversationLookup"),
+  "./conversationMessages.ts": () => import("./conversationMessages"),
+  "./conversationMetadata.ts": () => import("./conversationMetadata"),
+  "./conversationNav.ts": () => import("./conversationNav"),
+  "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+  "./conversationProjects.ts": () => import("./conversationProjects"),
+  "./conversationReads.ts": () => import("./conversationReads"),
+  "./conversationSharing.ts": () => import("./conversationSharing"),
+  "./conversationStatus.ts": () => import("./conversationStatus"),
+  "./conversationTrees.ts": () => import("./conversationTrees"),
+  "./inboxLists.ts": () => import("./inboxLists"),
+  "./inboxLiveness.ts": () => import("./inboxLiveness"),
+  "./inboxShelves.ts": () => import("./inboxShelves"),
+  "./sessionControl.ts": () => import("./sessionControl"),
+  "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+  "./sessionRestart.ts": () => import("./sessionRestart"),
+  "./sessionSearch.ts": () => import("./sessionSearch"),
+  "./sessionThreadState.ts": () => import("./sessionThreadState"),
 };
 
 describe("team feed acting author", () => {
@@ -71,7 +98,7 @@ describe("team feed acting author", () => {
     });
     const r = await t
       .withIdentity({ subject: `${viewer}|test` })
-      .query(anyApi.conversations.listConversations, {
+      .query(anyApi.conversationList.listConversations, {
         filter: "team",
         activeTeamId: team,
         include_message_previews: true,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { consumeStableContextSpool } from "./conversations";
+import { consumeStableContextSpool } from "./lib/conversationHelpers";
 import { enqueueStartSession } from "./devices";
 import { makeFakeDb } from "./testDb";
 

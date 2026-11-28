@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { inboxForCLI } from "./cliInbox";
 import {
   collectInboxSessionsByIds,
   collectInboxSessionsPaginated,
-  computeInboxSessions,
-  computeSessionsLiveness,
-  inboxForCLI,
-  splitInboxList,
-  _resetChildAuqProbeCacheForTests,
-} from "./conversations";
+} from "./inboxShelves";
+import { computeInboxSessions, splitInboxList } from "./lib/inboxCompute";
+import { _resetChildAuqProbeCacheForTests } from "./lib/inboxLivenessPlacement";
+import { computeSessionsLiveness } from "./lib/inboxLivenessState";
 import { rebuildRows, rowHash } from "@codecast/inbox/inboxSplit";
 import {
   INBOX_FACT_FIELDS,

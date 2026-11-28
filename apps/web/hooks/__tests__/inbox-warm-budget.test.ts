@@ -197,7 +197,7 @@ test("250 small transcripts warm without a delta storm on later passes", async (
       fn: Parameters<typeof getFunctionName>[0],
       args: { conversation_id: string },
     ) => {
-      if (getFunctionName(fn) === "conversations:getNewMessages") {
+      if (getFunctionName(fn) === "conversationMessages:getNewMessages") {
         deltas.push(args.conversation_id);
         return { messages: [], has_more: false };
       }
@@ -247,7 +247,7 @@ test("a single message delta arrives near low water after eviction", async () =>
         return { messages: [message(1024, 2)], has_more: false };
       },
     });
-    expect(calls).toEqual(["conversations:getNewMessages"]);
+    expect(calls).toEqual(["conversationMessages:getNewMessages"]);
     expect(
       useInboxStore.getState().messages[id(1)].map((row) => row.timestamp),
     ).toEqual([1, 2]);
@@ -312,7 +312,7 @@ test("the top history deepens before the first eviction and stops after it", asy
     query: async (fn: Parameters<typeof getFunctionName>[0]) => {
       const name = getFunctionName(fn);
       calls.push(name);
-      if (name === "conversations:listMessages") {
+      if (name === "conversationMessages:listMessages") {
         return { page: [message(1024, 3)], isDone: false };
       }
       return { messages: [message(1024, 2)], has_more_above: true };
@@ -324,8 +324,8 @@ test("the top history deepens before the first eviction and stops after it", asy
     await warm(convex);
     await warm(convex);
     expect(calls).toEqual([
-      "conversations:listMessages",
-      "conversations:getAllMessages",
+      "conversationMessages:listMessages",
+      "conversationMessages:getAllMessages",
     ]);
     useInboxStore.getState().discardForkStub("ballast");
     forceBudgetEviction();
@@ -378,9 +378,9 @@ test("an old account's cold response cannot populate or unlock the new account's
 });
 
 test.each([
-  ["conversations:getNewMessages", 252],
-  ["conversations:getAllMessages", 253],
-  ["conversations:getConversation", 254],
+  ["conversationMessages:getNewMessages", 252],
+  ["conversationMessages:getAllMessages", 253],
+  ["conversationReads:getConversation", 254],
 ] as const)(
   "an old account's %s result is ignored after reset",
   async (query, index) => {
@@ -390,7 +390,7 @@ test.each([
     const key = id(index);
     try {
       seed([index]);
-      if (query === "conversations:getConversation") {
+      if (query === "conversationReads:getConversation") {
         useInboxStore.setState((state) => ({
           sessions: {
             ...state.sessions,
@@ -403,7 +403,7 @@ test.each([
           .setMessages(
             key,
             [message(1024, 2)],
-            { hasMoreAbove: query === "conversations:getAllMessages" },
+            { hasMoreAbove: query === "conversationMessages:getAllMessages" },
             "cache",
           );
       }
@@ -433,8 +433,8 @@ test.each([
 );
 
 test.each([
-  ["conversations:getNewMessages", false],
-  ["conversations:getAllMessages", true],
+  ["conversationMessages:getNewMessages", false],
+  ["conversationMessages:getAllMessages", true],
 ] as const)(
   "byte pressure keeps the transcript held by %s",
   async (query, hasMoreAbove) => {
@@ -480,8 +480,8 @@ test.each([
 );
 
 test.each([
-  ["conversations:getNewMessages", false],
-  ["conversations:getAllMessages", true],
+  ["conversationMessages:getNewMessages", false],
+  ["conversationMessages:getAllMessages", true],
 ] as const)(
   "%s drops a late page when its transcript disappeared",
   async (query, hasMoreAbove) => {
@@ -550,8 +550,8 @@ test("an account reset retries a previously attempted standing session row", asy
       clearProtectedInboxMemory();
     }
     expect(calls).toEqual([
-      "conversations:getConversation",
-      "conversations:getConversation",
+      "conversationReads:getConversation",
+      "conversationReads:getConversation",
     ]);
   } finally {
     restore();
@@ -574,7 +574,7 @@ test("an account reset retries a delta for the same server count", async () => {
     seed([1]);
     useInboxStore.getState().setMessages(id(1), [message(1024)], {}, "cache");
     await warm(convex);
-    expect(calls).toEqual(["conversations:getNewMessages"]);
+    expect(calls).toEqual(["conversationMessages:getNewMessages"]);
   } finally {
     restore();
   }
@@ -640,7 +640,7 @@ test("deleting a session while its cold snapshot is pending drops the response",
         return ready.promise;
       },
     });
-    expect(calls).toEqual(["conversations:listMessages"]);
+    expect(calls).toEqual(["conversationMessages:listMessages"]);
     useInboxStore.getState().deleteSession(id(1));
     ready.resolve({ page: [message(1024)], isDone: false });
     await new Promise<void>((resolve) => setImmediate(resolve));
