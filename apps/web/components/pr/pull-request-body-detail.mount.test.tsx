@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { makeFunctionReference } from "convex/server";
 import { act } from "react";
 import { applyPullRequestAnswer } from "../../hooks/useSyncTimeline";
@@ -13,8 +13,6 @@ import { PRCard } from "../PRCard";
 import { PullRequestHoverContent } from "../RepoObjectHoverContent";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 
-const flag = "VITE_THIN_PULL_REQUEST_ROWS";
-const originalFlag = process.env[flag];
 const webGet = makeFunctionReference<"query">("pull_requests:webGet");
 const cap = DETAIL_ROW_CAPS.pullRequestDetails;
 const row = (number: number) => ({
@@ -30,13 +28,7 @@ const row = (number: number) => ({
 });
 const getState = useInboxStore.getState;
 
-beforeEach(() => {
-  process.env[flag] = "1";
-});
-
 afterEach(() => {
-  if (originalFlag === undefined) delete process.env[flag];
-  else process.env[flag] = originalFlag;
   useInboxStore.setState({ pullRequests: {}, pullRequestDetails: {} });
 });
 
@@ -214,36 +206,4 @@ test("15 collapsed shared PR cards use only their list feeds and pin no details"
   } finally {
     await ui.close();
   }
-});
-
-test("flag-off hydration clears the full-projection marker from bodyless PR rows", () => {
-  const hydrate = collectionRowHydrator("pullRequests")!;
-  const context = { pending: {} };
-  const pr = row(1);
-  const cached = hydrate(pr, context);
-  expect(isFullPullRequest(cached)).toBe(true);
-  expect(cached).not.toHaveProperty("body");
-
-  process.env[flag] = "0";
-  const restored = hydrate(cached, context);
-  expect(restored).not.toHaveProperty("has_full_projection");
-  expect(isFullPullRequest(restored)).toBe(false);
-  expect(isFullPullRequest(hydrate({ ...pr, body: "" }, context))).toBe(true);
-});
-
-test("a flag-off refresh and cache hydration discard previously split bodies", () => {
-  const pr = { ...row(1), files: [] };
-  applyPullRequestAnswer(pr);
-  const held = getState().pullRequestDetails[pr._id];
-  expect(held?.body).toBe(pr.body);
-
-  process.env[flag] = "0";
-  const hydrate = collectionRowHydrator("pullRequestDetails");
-  const fromDisk = hydrate?.(held, { pending: {} });
-  expect(fromDisk).not.toHaveProperty("body");
-  expect(fromDisk?.files).toEqual(pr.files);
-  applyPullRequestAnswer(pr);
-  expect(getState().pullRequestDetails[pr._id]).not.toHaveProperty("body");
-  expect(getState().pullRequestDetails[pr._id]?.files).toEqual(pr.files);
-  expect(getState().pullRequests[pr._id]?.body).toBe(pr.body);
 });

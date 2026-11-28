@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 const limits = {
   "Task list bytes": { measured: 14_661_183, margin: 146_612 },
   "Task comment detail bytes": { measured: 2_161_087, margin: 21_611 },
-  "Pull request list bytes": { measured: 897_150, margin: 8_972 },
-  "Pull request detail bytes": { measured: 1_349_847, margin: 13_499 },
+  "Pull request list bytes": { measured: 227_623, margin: 2_277 },
+  "Pull request detail bytes": { measured: 1_411_989, margin: 14_120 },
   "Doc list bytes": { measured: 470_671, margin: 4_707 },
   "Doc detail bytes": { measured: 1_639_891, margin: 16_399 },
   "Session list bytes": { measured: 188_491, margin: 1_885 },
