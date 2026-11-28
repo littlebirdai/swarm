@@ -1,13 +1,12 @@
 import { nativeCachedRows } from "./idb-cache.native";
 import { collectionRowKey } from "./idbCacheKeys.native";
 import { useInboxStore } from "./inboxStore";
-import { revokedScopeOfRow } from "./scope-subscription-candidates";
-import { activeRevokedScopes } from "./scope-revocation-gate";
+import { revokedScopeOfRow, revokedScopeOfThread } from "./scope-row-home";
+import { activeRevokedScopes, rowRevokedNow } from "./scope-revocation-gate";
 import { sweptCollectionsFor } from "./scope-revocation-tables";
 
 export function revokedOnDisk(key: string, row: unknown): boolean {
-  const revoked = activeRevokedScopes(useInboxStore.getState());
-  return !!revoked && revokedScopeOfRow(key, row, revoked) !== null;
+  return rowRevokedNow(useInboxStore.getState(), key, row);
 }
 
 export async function sweepRevokedRowsFromDisk(
@@ -16,6 +15,18 @@ export async function sweepRevokedRowsFromDisk(
   const out: Record<string, string[]> = {};
   if (scopes.size === 0) return out;
   const keys = await nativeCachedRows.keys();
+  const removedTasks = new Set<string>();
+  const parentOf = async (id: string): Promise<unknown> => {
+    const held = useInboxStore.getState().tasks?.[id];
+    if (held) return held;
+    if (removedTasks.has(id)) return undefined;
+    const raw = await nativeCachedRows.read(collectionRowKey("tasks", id));
+    try {
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
   for (const key of sweptCollectionsFor(scopes)) {
     const prefix = collectionRowKey(key, "");
     const shadow = nativeCachedRows.persisted.get(key);
@@ -31,16 +42,17 @@ export async function sweepRevokedRowsFromDisk(
         continue;
       }
       const live = activeRevokedScopes(useInboxStore.getState());
-      if (
-        !live ||
-        revokedScopeOfRow(key, row, scopes) === null ||
-        revokedScopeOfRow(key, row, live) === null
-      )
-        continue;
       const id = storageKey.slice(prefix.length);
+      const parent = key === "taskComments" ? await parentOf(id) : null;
+      const revokedIn = (set: ReadonlySet<string>) =>
+        key === "taskComments"
+          ? revokedScopeOfThread(parent, set) !== null
+          : revokedScopeOfRow(key, row, set) !== null;
+      if (!live || !revokedIn(scopes) || !revokedIn(live)) continue;
       const held = shadow?.get(id);
       nativeCachedRows.remove(storageKey);
       if (shadow?.get(id) === held) shadow?.delete(id);
+      if (key === "tasks") removedTasks.add(id);
       ids.push(id);
     }
     if (ids.length) out[key] = ids;

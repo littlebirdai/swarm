@@ -157,7 +157,15 @@ describe("the commit gate drops rows of a revoked scope on every write", () => {
     holdTaskThreads([
       { _id: mine, workspace: "user:u1", comments: [{ _id: "c2" }] },
     ]);
-    expect(state().taskComments[mine]?.workspace).toBe("user:u1");
+    expect(state().tasks[mine]).toBeDefined();
+    expect(state().taskComments[mine]).toBeDefined();
+    const orphan = cid("threadorphan");
+    useInboxStore
+      .getState()
+      .syncTable("taskComments", [
+        { _id: orphan, comments: [], as_of: 0, _cachedAt: 0 },
+      ]);
+    expect(state().taskComments[orphan]).toBeUndefined();
   });
 
   test("an undo that moves a row back into the revoked team", async () => {

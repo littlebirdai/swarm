@@ -1,5 +1,9 @@
 import type { Patch } from "mutative";
-import { isKnownHomeScope, revokedScopeOfRow } from "./scope-row-home";
+import {
+  isKnownHomeScope,
+  revokedScopeOfRow,
+  revokedScopeOfThread,
+} from "./scope-row-home";
 
 const REVOCATION_GATED: Readonly<Record<string, true>> = {
   tasks: true,
@@ -38,6 +42,7 @@ function computeRevokedScopes(
 export function activeRevokedScopes(state: {
   scopeRevocations?: Record<string, number>;
   scopeSubscriptions?: { denied?: Record<string, unknown> };
+  tasks?: Record<string, unknown>;
 }): ReadonlySet<string> | null {
   const published = state.scopeRevocations ?? EMPTY_REVOCATIONS;
   const denied = state.scopeSubscriptions?.denied ?? EMPTY_REVOCATIONS;
@@ -52,6 +57,17 @@ export function activeRevokedScopes(state: {
   return out;
 }
 
+function stateRowRevokedScope(
+  state: { tasks?: Record<string, unknown> },
+  collection: string,
+  row: any,
+  revoked: ReadonlySet<string>,
+): string | null {
+  return collection === "taskComments"
+    ? revokedScopeOfThread(state.tasks?.[String(row?._id)], revoked)
+    : revokedScopeOfRow(collection, row, revoked);
+}
+
 export function rowInRevokedScope(
   state: Parameters<typeof activeRevokedScopes>[0],
   collection: string,
@@ -60,7 +76,9 @@ export function rowInRevokedScope(
   if (!isRevocationGated(collection) || !row || typeof row !== "object")
     return false;
   const revoked = activeRevokedScopes(state);
-  return !!revoked && revokedScopeOfRow(collection, row, revoked) !== null;
+  return (
+    !!revoked && stateRowRevokedScope(state, collection, row, revoked) !== null
+  );
 }
 
 export function dropRevokedRows<T>(
@@ -76,7 +94,7 @@ export function dropRevokedRows<T>(
     (row) =>
       !row ||
       typeof row !== "object" ||
-      revokedScopeOfRow(collection, row, revoked) === null,
+      stateRowRevokedScope(state, collection, row, revoked) === null,
   );
   return (kept.length === incoming.length ? incoming : kept) as T;
 }
@@ -93,7 +111,8 @@ export function dropRevokedRowMap<T>(
   if (!revoked) return rows;
   let out: Record<string, unknown> | null = null;
   for (const [id, row] of Object.entries(rows as Record<string, unknown>)) {
-    if (revokedScopeOfRow(collection, row, revoked) === null) continue;
+    if (stateRowRevokedScope(state, collection, row, revoked) === null)
+      continue;
     out ??= { ...(rows as Record<string, unknown>) };
     delete out[id];
   }
@@ -109,7 +128,10 @@ function gatedIds(
   const consider = (key: string, id: string) => {
     const row = nextState[key]?.[id];
     if (!row || typeof row !== "object") return;
-    const scope = revokedScopeOfRow(key, row, revoked);
+    const scope =
+      key === "taskComments"
+        ? revokedScopeOfThread(nextState.tasks?.[id], revoked)
+        : revokedScopeOfRow(key, row, revoked);
     if (!scope) return;
     out ??= new Map();
     let ids = out.get(key);
@@ -183,6 +205,11 @@ function gateDerivedKeys(
   return changed;
 }
 
+const DETAIL_OF_GATED_PARENT: ReadonlyArray<[string, string]> = [
+  ["tasks", "taskComments"],
+  ["docs", "docDetails"],
+];
+
 export function gateRevokedCommit(commit: {
   state: any;
   nextState: any;
@@ -204,6 +231,16 @@ export function gateRevokedCommit(commit: {
   const now = Date.now();
   const pending: Record<string, any> = { ...(next.pending ?? {}) };
   const extra: Patch[] = [];
+  for (const [parent, detail] of DETAIL_OF_GATED_PARENT) {
+    const parents = hits.get(parent);
+    if (!parents) continue;
+    for (const [id, scope] of parents) {
+      if (next[detail]?.[id] === undefined) continue;
+      let details = hits.get(detail);
+      if (!details) hits.set(detail, (details = new Map()));
+      details.set(id, scope);
+    }
+  }
   for (const [key, ids] of hits) {
     const rows = { ...next[key] };
     for (const [id, scope] of ids) {
@@ -216,4 +253,15 @@ export function gateRevokedCommit(commit: {
   next.pending = pending;
   extra.push({ op: "replace", path: ["pending"], value: pending });
   return { nextState: next, patches: [...derived, ...extra] };
+}
+
+export function rowRevokedNow(
+  state: Parameters<typeof activeRevokedScopes>[0],
+  collection: string,
+  row: unknown,
+): boolean {
+  const revoked = activeRevokedScopes(state);
+  return (
+    !!revoked && stateRowRevokedScope(state, collection, row, revoked) !== null
+  );
 }

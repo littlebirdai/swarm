@@ -3,13 +3,12 @@ import { lastPersisted } from "./persistence/collection-writer";
 import { COLLECTION_TABLES, db } from "./persistence/db";
 import { persistenceOwned } from "./persistence/ownership";
 import { useInboxStore } from "./inboxStore";
-import { revokedScopeOfRow } from "./scope-subscription-candidates";
-import { activeRevokedScopes } from "./scope-revocation-gate";
+import { revokedScopeOfRow, revokedScopeOfThread } from "./scope-row-home";
+import { activeRevokedScopes, rowRevokedNow } from "./scope-revocation-gate";
 import { sweptCollectionsFor } from "./scope-revocation-tables";
 
 export function revokedOnDisk(key: string, row: unknown): boolean {
-  const revoked = activeRevokedScopes(useInboxStore.getState());
-  return !!revoked && revokedScopeOfRow(key, row, revoked) !== null;
+  return rowRevokedNow(useInboxStore.getState(), key, row);
 }
 
 async function candidateRows(
@@ -47,6 +46,22 @@ export async function sweepRevokedRowsFromDisk(
   for (const key of sweptCollectionsFor(scopes)) {
     const table = (COLLECTION_TABLES as Record<string, any>)[key];
     if (!table) continue;
+    const parentsOnDisk =
+      key === "taskComments"
+        ? new Map<string, unknown>(
+            (await COLLECTION_TABLES.tasks.toArray()).map((row: any) => [
+              String(row._id),
+              row,
+            ]),
+          )
+        : null;
+    const revokedIn = (row: any, set: ReadonlySet<string>) => {
+      if (!parentsOnDisk) return revokedScopeOfRow(key, row, set) !== null;
+      const id = String(row._id);
+      const parent =
+        useInboxStore.getState().tasks?.[id] ?? parentsOnDisk.get(id);
+      return revokedScopeOfThread(parent, set) !== null;
+    };
     const shadow = lastPersisted.get(key);
     const seen = new Map<string, unknown>();
     const ids: string[] = await db.transaction("rw", table, async () => {
@@ -57,8 +72,8 @@ export async function sweepRevokedRowsFromDisk(
       for (const row of await candidateRows(key, table, scopes)) {
         if (
           typeof row?._id === "string" &&
-          revokedScopeOfRow(key, row, scopes) !== null &&
-          revokedScopeOfRow(key, row, live) !== null
+          revokedIn(row, scopes) &&
+          revokedIn(row, live)
         ) {
           hit.push(row._id);
           seen.set(row._id, shadow?.get(row._id));

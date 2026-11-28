@@ -6,6 +6,7 @@ import { leavesOf } from "./stageSplit";
 import {
   isKnownHomeScope,
   revokedScopeOfRow,
+  revokesTaskThreads,
   rowHomeScope,
   type ScopeScopedCollection,
 } from "./scope-row-home";
@@ -633,7 +634,6 @@ export function revokeScopeRowsInDraft(
     ...SCOPE_SCOPED_COLLECTIONS,
     "projects",
     "docDetails",
-    "taskComments",
   ] as const) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (!rows) continue;
@@ -648,13 +648,25 @@ export function revokeScopeRowsInDraft(
       if (draft.pending) {
         const keys = new Set([collection as string]);
         if (collection === "docDetails") keys.add("docs");
-        if (collection === "taskComments") keys.add("tasks");
         if (detailKey) keys.add(detailKey);
         for (const key of keys)
           draft.pending[`${key}:${id}`] = { type: "exclude", ts: now, scope };
       }
-      if (collection !== "docDetails" && collection !== "taskComments")
-        targets.push({ collection, id, scope });
+      if (collection !== "docDetails") targets.push({ collection, id, scope });
+    }
+  }
+  const orphanScope = revokesTaskThreads(revokedScopes);
+  const threads = draft.taskComments as Record<string, any> | undefined;
+  if (orphanScope && threads) {
+    for (const id of Object.keys(threads)) {
+      if (draft.tasks?.[id]) continue;
+      delete threads[id];
+      if (draft.pending)
+        draft.pending[`taskComments:${id}`] = {
+          type: "exclude",
+          ts: now,
+          scope: orphanScope,
+        };
     }
   }
   return targets;

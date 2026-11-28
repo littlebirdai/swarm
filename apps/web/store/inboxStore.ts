@@ -743,7 +743,6 @@ import {
   resetDetailPins,
   pullRequestDetailRow,
   taskCommentsRow,
-  taskThreadScope,
   thinPullRequestRow,
   thinTaskRow,
   type PullRequestDetailRow,
@@ -20625,7 +20624,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (!threads[id])
         threads[id] = {
           _id: id,
-          ...taskThreadScope(task),
           comments: [],
           as_of: 0,
           _cachedAt: Date.now(),

@@ -271,3 +271,31 @@ test("an account change stop does not adopt the old account's revocations", asyn
     (useInboxStore.getState() as any).scopeSubscriptions.denied[`dir:${T}`],
   ).toBeUndefined();
 });
+
+test("a sweep removes the disk threads of revoked tasks and orphan threads", async () => {
+  const revokedTask = {
+    _id: "x".repeat(32),
+    workspace: `team:${T}`,
+    title: "Revoked",
+  };
+  const mineTask = {
+    _id: "y".repeat(32),
+    workspace: `user:${TEST_PRINCIPAL}`,
+    title: "Mine",
+  };
+  const thread = (id: string) => ({ _id: id, comments: [], as_of: 0 });
+  const orphanId = "z".repeat(32);
+  await COLLECTION_TABLES.tasks.bulkPut([revokedTask, mineTask]);
+  await COLLECTION_TABLES.taskComments.bulkPut([
+    thread(revokedTask._id),
+    thread(mineTask._id),
+    thread(orphanId),
+  ]);
+  useInboxStore.setState({ scopeRevocations: { [`dir:${T}`]: 5 } } as any);
+  const removed = await sweepRevokedRowsFromDisk(new Set([`dir:${T}`]));
+  expect(removed.tasks).toEqual([revokedTask._id]);
+  expect([...(removed.taskComments ?? [])].sort()).toEqual(
+    [revokedTask._id, orphanId].sort(),
+  );
+  expect(await COLLECTION_TABLES.taskComments.get(mineTask._id)).toBeDefined();
+});

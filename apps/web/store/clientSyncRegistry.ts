@@ -294,7 +294,7 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "taskComments" },
     hydration: { phase: "deferred" },
     localFirst: false,
-    validRow: (row: any) => Array.isArray(row?.comments) && !!row?.workspace,
+    validRow: (row: any) => Array.isArray(row?.comments),
     // The thread is the row: compared by content, or a new comment on a row
     // whose stamps did not move would be dropped.
     sync: { isDelta: true, deepFields: ["comments"] },

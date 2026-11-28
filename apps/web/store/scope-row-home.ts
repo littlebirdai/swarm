@@ -53,13 +53,25 @@ export function revokedScopeOfRow(
 ): string | null {
   const team = rowTeamId(row);
   if (team && revokedScopes.has(`dir:${team}`)) return `dir:${team}`;
-  const homeCollection =
-    collection === "docDetails"
-      ? "docs"
-      : collection === "taskComments"
-        ? "tasks"
-        : collection;
+  const homeCollection = collection === "docDetails" ? "docs" : collection;
   if (homeCollection === "projects") return null;
   const home = rowHomeScope(homeCollection as ScopeScopedCollection, row);
   return home && revokedScopes.has(home) ? home : null;
+}
+
+export function revokesTaskThreads(
+  revokedScopes: ReadonlySet<string>,
+): string | null {
+  for (const scope of revokedScopes)
+    if (scope.startsWith("dir:") || scope.startsWith("project:")) return scope;
+  return null;
+}
+
+export function revokedScopeOfThread(
+  parent: unknown,
+  revokedScopes: ReadonlySet<string>,
+): string | null {
+  return parent
+    ? revokedScopeOfRow("tasks", parent, revokedScopes)
+    : revokesTaskThreads(revokedScopes);
 }
