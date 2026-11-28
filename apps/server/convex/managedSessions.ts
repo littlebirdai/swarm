@@ -121,14 +121,24 @@ async function getAuthenticatedUserId(
 // delivery. Only its owner, and never for a hosted conversation, whose turn
 // engine is the only writer of its status (setHostedAgentStatus); a local
 // agent holding the owner's token could otherwise flip a running turn.
+async function executableConversation(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
+  const conversation = await ctx.db.get(conversationId);
+  if (!conversation || isHostedAgentType(conversation.agent_type)) return null;
+  return conversation.user_id?.toString() === userId.toString()
+    ? conversation
+    : null;
+}
+
 async function canExecuteConversation(
   ctx: { db: any },
   userId: Id<"users">,
   conversationId: Id<"conversations">,
 ): Promise<boolean> {
-  const conversation = await ctx.db.get(conversationId);
-  if (!conversation || isHostedAgentType(conversation.agent_type)) return false;
-  return conversation.user_id?.toString() === userId.toString();
+  return Boolean(await executableConversation(ctx, userId, conversationId));
 }
 
 async function requireConversationExecution(
@@ -554,11 +564,10 @@ export const heartbeat = mutation({
       return { found: false };
     }
 
-    if (
-      session.conversation_id &&
-      !(await canExecuteConversation(ctx, authUserId, session.conversation_id))
-    )
-      return { found: false };
+    const execConv = session.conversation_id
+      ? await executableConversation(ctx, authUserId, session.conversation_id)
+      : null;
+    if (session.conversation_id && !execConv) return { found: false };
 
     const now = Date.now();
     const patch = await applyHeartbeat(
@@ -570,14 +579,15 @@ export const heartbeat = mutation({
     );
     const sessionStatus = patch?.agent_status ?? session.agent_status;
     if (
-      session.conversation_id &&
+      execConv?.active_task_id &&
       sessionStatus !== "stopped" &&
       sessionStatus !== "hibernated"
     ) {
       await renewLiveConversationTaskClaim(
         ctx,
         session.user_id,
-        session.conversation_id,
+        execConv._id,
+        execConv.active_task_id,
         now,
       );
     }
@@ -648,15 +658,10 @@ export const heartbeatBatch = mutation({
         unknown.push(entry.session_id);
         continue;
       }
-      if (
-        session.conversation_id &&
-        !(await canExecuteConversation(
-          ctx,
-          authUserId,
-          session.conversation_id,
-        ))
-      )
-        continue;
+      const execConv = session.conversation_id
+        ? await executableConversation(ctx, authUserId, session.conversation_id)
+        : null;
+      if (session.conversation_id && !execConv) continue;
       const patch = await applyHeartbeat(
         ctx,
         session,
@@ -666,14 +671,15 @@ export const heartbeatBatch = mutation({
       );
       const sessionStatus = patch?.agent_status ?? session.agent_status;
       if (
-        session.conversation_id &&
+        execConv?.active_task_id &&
         sessionStatus !== "stopped" &&
         sessionStatus !== "hibernated"
       ) {
         await renewLiveConversationTaskClaim(
           ctx,
           session.user_id,
-          session.conversation_id,
+          execConv._id,
+          execConv.active_task_id,
           now,
         );
       }

@@ -259,15 +259,18 @@ export async function assertTaskWriteWithoutToken(
     }
     return;
   }
-  if (
-    row.holder === undefined &&
-    input.conversationId !== undefined &&
-    input.task.status === "in_progress"
-  ) {
+  if (input.task.status === "in_progress") {
     throw taskClaimError(
       "free",
       row.token,
       refusalMessage("free", input.task.short_id),
+    );
+  }
+  if (input.unresolvedConversation) {
+    throw taskClaimError(
+      "wrong_holder",
+      row.token,
+      refusalMessage("wrong_holder", input.task.short_id),
     );
   }
 }
@@ -427,6 +430,7 @@ export async function claimTaskWithLease<Released>(
     };
   }
 
+  let clearedConvId: Id<"conversations"> | undefined;
   const released: Released[] = [];
   if (isLive && existing && existing.holder !== undefined) {
     const prevConv = existing.task?.conversation_id
@@ -446,6 +450,7 @@ export async function claimTaskWithLease<Released>(
     }
     if (prevConv && String(prevConv._id) !== String(input.conv?._id ?? "")) {
       if (input.ownerRefOf) released.push(input.ownerRefOf(prevConv, true));
+      clearedConvId = prevConv._id;
       if (String(prevConv.active_task_id ?? "") === String(input.task._id)) {
         await ctx.db.patch(prevConv._id, { active_task_id: undefined });
       }
@@ -469,6 +474,7 @@ export async function claimTaskWithLease<Released>(
       : null;
     if (prevConv && String(prevConv._id) !== String(input.conv?._id ?? "")) {
       if (input.ownerRefOf) released.push(input.ownerRefOf(prevConv, false));
+      clearedConvId = prevConv._id;
       if (String(prevConv.active_task_id ?? "") === String(input.task._id)) {
         await ctx.db.patch(prevConv._id, { active_task_id: undefined });
       }
@@ -518,6 +524,20 @@ export async function claimTaskWithLease<Released>(
       currentToken,
       refusalMessage("invalid_request", input.task.short_id),
     );
+  }
+
+  for (const convId of new Set(
+    (input.task.conversation_ids ?? []).map(String),
+  )) {
+    if (input.conv && convId === String(input.conv._id)) continue;
+    if (clearedConvId && convId === String(clearedConvId)) continue;
+    const other = await ctx.db.get(convId as Id<"conversations">);
+    if (
+      other &&
+      String(other.active_task_id ?? "") === String(input.task._id)
+    ) {
+      await ctx.db.patch(other._id, { active_task_id: undefined });
+    }
   }
 
   if (
@@ -681,13 +701,12 @@ export async function renewLiveConversationTaskClaim(
   ctx: DbCtx,
   holder: Id<"users">,
   conversationId: Id<"conversations">,
+  activeTaskId: Id<"tasks">,
   now: number,
 ): Promise<void> {
-  const conv = await ctx.db.get(conversationId);
-  if (!conv?.active_task_id) return;
   const row = await findClaim(ctx.db, {
     kind: "task",
-    id: conv.active_task_id,
+    id: activeTaskId,
   });
   if (
     !row ||
@@ -700,7 +719,7 @@ export async function renewLiveConversationTaskClaim(
     return;
   }
   await renewTaskClaim(ctx, {
-    taskId: conv.active_task_id,
+    taskId: activeTaskId,
     holder,
     token: row.token,
     conversationId,
