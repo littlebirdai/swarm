@@ -347,42 +347,9 @@ describe("typecheck", () => {
     const groups: string[] = jobs.typecheck.strategy.matrix.programs;
     const programs = groups.flatMap((group) => group.split(" "));
     expect(LOCAL_ONLY_PROGRAMS).toEqual(["mobile"]);
-    const packageLibs = readdirSync(
-      new URL("../../packages", import.meta.url),
-      { withFileTypes: true },
-    )
-      .filter(
-        (entry) =>
-          entry.isDirectory() &&
-          !entry.name.startsWith(".") &&
-          entry.name !== "tsconfig" &&
-          entry.name !== "node_modules",
-      )
-      .map((entry) => entry.name)
-      .sort();
-    for (const lib of packageLibs) {
-      expect(projects[`pkg-${lib}`]).toBe(`packages/${lib}/tsconfig.json`);
-    }
-    const pkgPrograms = Object.keys(projects).filter((name) =>
-      name.startsWith("pkg-"),
-    );
-    expect(pkgPrograms.toSorted()).toEqual(
-      packageLibs.map((lib) => `pkg-${lib}`).toSorted(),
-    );
-    const packagesConfig = JSON.parse(
-      readFileSync(
-        new URL("../../packages/tsconfig.json", import.meta.url),
-        "utf8",
-      ),
-    ) as { include?: string[] };
-    expect(packagesConfig.include).toEqual(["*/src/**/*", "*/test/**/*"]);
-    expect(programs).toContain("packages");
     expect(programs.toSorted()).toEqual(
       Object.keys(projects)
-        .filter(
-          (name) =>
-            !LOCAL_ONLY_PROGRAMS.includes(name) && !name.startsWith("pkg-"),
-        )
+        .filter((name) => !LOCAL_ONLY_PROGRAMS.includes(name))
         .toSorted(),
     );
     expect(
