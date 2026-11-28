@@ -58,14 +58,13 @@ import {
   taskByRef,
   writeEdges,
 } from "./lib/taskGraph";
-import { taskClaimsEnabled } from "./lib/claims";
 import {
   claimRefArgs,
   handleTaskUpdateClaim,
   releaseTaskClaimIfHeld,
   releaseTaskWithClaim,
   renewTaskHeartbeat,
-  resolveTaskUpdateConv,
+  resolveTaskUpdateConversation,
   revokeWebTaskClaim,
 } from "./lib/taskClaims";
 import {
@@ -208,7 +207,6 @@ import {
   changeSessionOf,
   claimTaskOwnership,
   isSessionWorking,
-  legacyBoundReleaser,
   releaseBoundSessions,
   type TaskOwnerRef,
 } from "./lib/taskOwner";
@@ -761,15 +759,12 @@ export async function moveTaskStatus(
       now,
     );
   }
-  const revokedConvId = taskClaimsEnabled()
-    ? await releaseTaskClaimIfHeld(ctx, task._id)
-    : undefined;
+  const revokedConvId = await releaseTaskClaimIfHeld(ctx, task._id);
   if (
-    taskClaimsEnabled() &&
-    (next === "open" ||
-      next === "done" ||
-      next === "dropped" ||
-      next === "backlog")
+    next === "open" ||
+    next === "done" ||
+    next === "dropped" ||
+    next === "backlog"
   ) {
     await releaseBoundSessions(ctx, task, o.conversationId, revokedConvId);
   } else if (revokedConvId) {
@@ -3066,14 +3061,12 @@ export const update = mutation({
       task.status,
       args,
     );
-    // Link conversation if provided. Unresolvable session ref = apply the
-    // update without the link, never reject the update itself (see
-    // resolveSessionConversation).
-    const conv = await resolveTaskUpdateConv(
-      ctx,
-      auth.userId,
-      args.conversation_id,
-    );
+    const { conv, unresolved: unresolvedConv } =
+      await resolveTaskUpdateConversation(
+        ctx,
+        auth.userId,
+        args.conversation_id,
+      );
     // A session handing off a task held by a decision (L5): the evidence is
     // recorded and the task stays at its station, where the person's answer
     // moves it. Any other session move of a held task is refused below.
@@ -3390,25 +3383,13 @@ export const update = mutation({
         );
         if (outcome) await subagentEnded(ctx, conv, outcome);
       }
-      // Clear active_task_id when task is closed
-      if (
-        (nextStatus === "done" || nextStatus === "dropped") &&
-        conv.active_task_id === task._id
-      ) {
-        await ctx.db.patch(conv._id, { active_task_id: undefined });
-        // The binding ended: a session held only for it returns to its starter (S35).
-        await ctx.scheduler.runAfter(
-          0,
-          internal.sessionOwnership.reconcileHold,
-          { conversation_id: conv._id },
-        );
-      }
     }
 
     const handledClaim = await handleTaskUpdateClaim(ctx, {
       task,
       holder: auth.userId,
       conv,
+      unresolvedConversation: unresolvedConv,
       nextStatus,
       reviewVerdict: args.review_verdict,
       claimToken: args.claim_token,
@@ -3417,13 +3398,6 @@ export const update = mutation({
       take: args.take,
       now,
       claimStarted: claimResult !== null,
-      checkLegacyBound: legacyBoundReleaser(
-        ctx,
-        task,
-        conv,
-        args.take === true,
-        now,
-      ),
       releaseBound: (claimConvId) =>
         releaseBoundSessions(ctx, task, conv?._id, claimConvId),
     });
@@ -6569,16 +6543,12 @@ export const renew = mutation({
     conversation_id: v.optional(v.string()),
     progress_pct: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const resolved = await requireAccessibleTaskByToken(
+  handler: async (ctx, args) =>
+    await runHeartbeat(
       ctx,
-      args.api_token,
-      args.short_id,
-    );
-    if (!taskClaimsEnabled())
-      return { success: false as const, status: "disabled" as const };
-    return await runHeartbeat(ctx, resolved, args);
-  },
+      await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id),
+      args,
+    ),
 });
 
 export const release = mutation({
@@ -6594,8 +6564,6 @@ export const release = mutation({
       args.api_token,
       args.short_id,
     );
-    if (!taskClaimsEnabled())
-      return { success: false as const, status: "disabled" as const };
     return await releaseTaskWithClaim(ctx, {
       task,
       holder: auth.userId,

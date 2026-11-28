@@ -56,8 +56,6 @@ export type CallerAuthorizedRevocation = {
   now?: number;
 };
 
-export const taskClaimsEnabled = () => process.env.SWARM_TASK_CLAIMS === "1";
-
 export const terminalTypingEnabled = () =>
   process.env.CODECAST_TERMINAL_TYPING === "1";
 

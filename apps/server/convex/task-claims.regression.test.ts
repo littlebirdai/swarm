@@ -8,22 +8,18 @@ import { teamDeletionSteps } from "./lib/deletionPlans";
 import { purgeRange } from "./lib/purgeTree";
 
 const START = 1_800_000_000_000;
-const PREVIOUS_FLAG = process.env.SWARM_TASK_CLAIMS;
 
 function advance(ms: number) {
   jest.advanceTimersByTime(ms);
 }
 
 beforeEach(() => {
-  process.env.SWARM_TASK_CLAIMS = "1";
   jest.useFakeTimers();
   jest.setSystemTime(START);
 });
 
 afterEach(() => {
   jest.useRealTimers();
-  if (PREVIOUS_FLAG === undefined) delete process.env.SWARM_TASK_CLAIMS;
-  else process.env.SWARM_TASK_CLAIMS = PREVIOUS_FLAG;
 });
 
 async function setup(seed: string) {
@@ -340,7 +336,7 @@ test("expired claims refuse all non-acquire writes and reschedule if renewed", a
   expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
 });
 
-test("cross-workspace starts keep session claim identity, refuse legacy active owners as busy, and reject foreign shared conversations", async () => {
+test("cross-workspace starts keep session claim identity and reject foreign shared conversations", async () => {
   const f = await setup("xws-and-shared-conv");
   const personalConvA = await f.t.run(async ({ db }) =>
     fixtureRows(db, "xws-conv").conversation(f.ana, {
@@ -385,28 +381,9 @@ test("cross-workspace starts keep session claim identity, refuse legacy active o
   });
   expect((await f.getTask())?.status).toBe("open");
   expect((await f.claimRow())?.holder).toBeUndefined();
-
-  await f.t.run(async ({ db }) => {
-    await db.patch(f.secondTaskId, {
-      status: "in_progress",
-      conversation_ids: [f.convA1],
-    });
-    await db.patch(f.convA1, {
-      active_task_id: f.secondTaskId,
-      updated_at: Date.now(),
-    });
-  });
-  const legacyErr = await catchClaimError(() =>
-    f.start(f.tokB, {
-      short_id: "ct-102",
-      conversation_id: String(f.convB),
-    }),
-  );
-  expect(legacyErr.code).toBe("CONFLICT");
-  expect(legacyErr.reason).toBe("busy");
 });
 
-test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, sessionDelete, and disabled checks work end to end", async () => {
+test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, and sessionDelete work end to end", async () => {
   const f = await setup("lifecycle-all");
 
   const started: any = await f.start(f.tokA, {
@@ -493,7 +470,6 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
   expect((await f.claimRow(f.secondTaskId))?.holder).toBeUndefined();
   expect((await f.getTask(f.secondTaskId))?.status).toBe("open");
 
-  delete process.env.SWARM_TASK_CLAIMS;
   await expect(f.renew("invalid-token", 1)).rejects.toThrow("Unauthorized");
   await expect(f.release("invalid-token", 1)).rejects.toThrow("Unauthorized");
   await expect(
@@ -510,13 +486,9 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
       claim_token: 1,
     }),
   ).rejects.toThrow("Task not found");
-  expect(await f.renew(f.tokA, 1, String(f.convA1))).toEqual({
-    success: false,
-    status: "disabled",
-  });
 });
 
-test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws unbind, expire flag-off, cleanup reopen, and deletion plans", async () => {
+test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws unbind, cleanup reopen, and deletion plans", async () => {
   const f = await setup("rereview");
   await f.t.mutation(api.tasks.heartbeat, {
     api_token: f.tokA,
@@ -617,17 +589,6 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
     short_id: "ct-102",
     conversation_id: String(f.convA1),
   });
-  const secondClaim = await f.claimRow(f.secondTaskId);
-  delete process.env.SWARM_TASK_CLAIMS;
-  jest.setSystemTime(START + TASK_LEASE_MS * 4);
-  await f.t.mutation(internal.taskClaims.expire, {
-    task_id: f.secondTaskId,
-    token: secondClaim!.token,
-  });
-  expect((await f.getTask(f.secondTaskId))?.status).toBe("in_progress");
-  expect((await f.claimRow(f.secondTaskId))?.holder).toBe(f.ana);
-  process.env.SWARM_TASK_CLAIMS = "1";
-
   await f.t.mutation(internal.tasks.adminDeleteTask, { short_id: "ct-102" });
   expect(await f.claimRow(f.secondTaskId)).toBeNull();
 

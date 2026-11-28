@@ -203,10 +203,6 @@ export async function runTaskRenew(
   }
   const res = await deps.cliPost("/cli/work/renew", body);
   const { c } = { c: deps.colors };
-  if (res?.status === "disabled") {
-    console.log(`${c.dim}Task claims disabled on server${c.reset}`);
-    return;
-  }
   if (typeof res?.claim_token === "number") {
     updateTaskPulseLease(sessionId, shortId, res.claim_token, res.lease_until);
   }
@@ -239,12 +235,8 @@ export async function runTaskRelease(
     claim_token: claimToken,
   };
   if (sessionId) body.conversation_id = sessionId;
-  const res = await deps.cliPost("/cli/work/release", body);
+  await deps.cliPost("/cli/work/release", body);
   clearTaskPulseIfBound(sessionId, shortId);
   const { c } = { c: deps.colors };
-  if (res?.status === "disabled") {
-    console.log(`${c.dim}Task claims disabled on server${c.reset}`);
-    return;
-  }
   console.log(`${c.green}ok${c.reset} Released ${c.cyan}${shortId}${c.reset}`);
 }

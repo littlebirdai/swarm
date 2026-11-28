@@ -11,7 +11,6 @@ import {
   renew,
   revoke,
   TASK_LEASE_MS,
-  taskClaimsEnabled,
   withHeldClaim,
 } from "./claims";
 import {
@@ -208,12 +207,31 @@ export async function resolveOwnedClaimConversation(
   return conv;
 }
 
+export async function resolveTaskUpdateConversation(
+  ctx: ReadDbCtx,
+  holder: Id<"users">,
+  rawConversationId?: string,
+): Promise<{ conv: Doc<"conversations"> | null; unresolved: boolean }> {
+  if (!rawConversationId) return { conv: null, unresolved: false };
+  const conv = await resolveSessionConversation(ctx, holder, rawConversationId);
+  if (!conv) return { conv: null, unresolved: true };
+  if (String(conv.user_id) !== String(holder)) {
+    throw taskClaimError(
+      "wrong_holder",
+      0,
+      "Conversation belongs to another user",
+    );
+  }
+  return { conv, unresolved: false };
+}
+
 export async function assertTaskWriteWithoutToken(
   ctx: DbCtx,
   input: {
     task: Pick<Doc<"tasks">, "_id" | "short_id" | "status">;
     holder: Id<"users">;
     conversationId?: Id<"conversations">;
+    unresolvedConversation?: boolean;
     now?: number;
   },
 ): Promise<void> {
@@ -229,8 +247,8 @@ export async function assertTaskWriteWithoutToken(
       );
     }
     if (
+      input.unresolvedConversation ||
       row.holder !== input.holder ||
-      input.conversationId === undefined ||
       row.task?.conversation_id !== input.conversationId
     ) {
       throw taskClaimError(
@@ -261,11 +279,19 @@ export async function assertTaskWriteClaim(
     holder: Id<"users">;
     claimToken?: number;
     conversationId?: Id<"conversations">;
+    unresolvedConversation?: boolean;
     now?: number;
   },
 ): Promise<void> {
-  if (!taskClaimsEnabled()) return;
   if (input.claimToken !== undefined) {
+    if (input.unresolvedConversation) {
+      await throwRefusal(
+        ctx.db,
+        input.task._id,
+        "wrong_holder",
+        input.task.short_id,
+      );
+    }
     await assertHeldTaskClaim(ctx, {
       taskId: input.task._id,
       shortId: input.task.short_id,
@@ -280,6 +306,7 @@ export async function assertTaskWriteClaim(
     task: input.task,
     holder: input.holder,
     conversationId: input.conversationId,
+    unresolvedConversation: input.unresolvedConversation,
     now: input.now,
   });
 }
@@ -292,7 +319,6 @@ export async function assertTaskMutationClaim(
   now: number,
   releaseOnPass?: (claimConvId?: Id<"conversations">) => Promise<void>,
 ): Promise<Id<"conversations"> | undefined> {
-  if (!taskClaimsEnabled()) return undefined;
   const conv = await resolveOwnedClaimConversation(
     ctx,
     holder,
@@ -312,17 +338,6 @@ export async function assertTaskMutationClaim(
   return conv?._id;
 }
 
-export async function resolveTaskUpdateConv(
-  ctx: DbCtx,
-  userId: Id<"users">,
-  rawConversationId?: string,
-): Promise<Doc<"conversations"> | null> {
-  if (!rawConversationId) return null;
-  return taskClaimsEnabled()
-    ? await resolveOwnedClaimConversation(ctx, userId, rawConversationId)
-    : await resolveSessionConversation(ctx, userId, rawConversationId);
-}
-
 export async function revokeWebTaskClaim(
   ctx: DbCtx,
   taskId: Id<"tasks">,
@@ -330,7 +345,6 @@ export async function revokeWebTaskClaim(
   reviewVerdict?: string,
   releaseBound?: (claimConvId?: Id<"conversations">) => Promise<void>,
 ): Promise<void> {
-  if (!taskClaimsEnabled()) return;
   let claimConvId: Id<"conversations"> | undefined;
   if (nextStatus !== undefined || reviewVerdict) {
     claimConvId = await releaseTaskClaimIfHeld(ctx, taskId);
@@ -363,7 +377,6 @@ export async function claimTaskWithLease<Released>(
     purpose?: string;
     ownerRefOf?: (conv: Doc<"conversations">, live: boolean) => Released;
     formatBusy?: (conv: Doc<"conversations">) => string;
-    checkLegacyBound?: () => Promise<Released[]>;
   },
 ): Promise<{ released: Released[]; claimToken: number; leaseUntil: number }> {
   const now = input.now ?? Date.now();
@@ -460,8 +473,6 @@ export async function claimTaskWithLease<Released>(
         await ctx.db.patch(prevConv._id, { active_task_id: undefined });
       }
     }
-  } else if (!existing && input.checkLegacyBound) {
-    released.push(...(await input.checkLegacyBound()));
   }
 
   const res = await claim(ctx, {
@@ -538,6 +549,7 @@ export async function handleTaskUpdateClaim(
     task: Doc<"tasks">;
     holder: Id<"users">;
     conv: Doc<"conversations"> | null;
+    unresolvedConversation?: boolean;
     nextStatus?: string;
     reviewVerdict?: string;
     claimToken?: number;
@@ -546,14 +558,15 @@ export async function handleTaskUpdateClaim(
     take?: boolean;
     now: number;
     claimStarted?: boolean;
-    checkLegacyBound?: () => Promise<unknown[]>;
     releaseBound: (claimConvId?: Id<"conversations">) => Promise<void>;
   },
 ): Promise<{ claimToken: number; leaseUntil: number } | null> {
-  if (!taskClaimsEnabled()) return null;
   const { task, holder, conv, nextStatus, reviewVerdict, claimToken, now } =
     input;
   if (nextStatus === "in_progress" && !reviewVerdict) {
+    if (input.unresolvedConversation) {
+      throw taskClaimError("wrong_holder", 0, "Conversation not found");
+    }
     if (input.claimStarted) return null;
     const res = await claimTaskWithLease(ctx, {
       task,
@@ -564,7 +577,6 @@ export async function handleTaskUpdateClaim(
       expectedToken: claimToken,
       requestId: input.requestId,
       purpose: input.purpose,
-      checkLegacyBound: input.checkLegacyBound,
     });
     return { claimToken: res.claimToken, leaseUntil: res.leaseUntil };
   }
@@ -573,6 +585,7 @@ export async function handleTaskUpdateClaim(
     holder,
     claimToken,
     conversationId: conv?._id,
+    unresolvedConversation: input.unresolvedConversation,
     now,
   });
   const releasesClaim =
@@ -626,10 +639,6 @@ export async function renewTaskHeartbeat(
   lease_until?: number;
   remaining_ms?: number;
 }> {
-  if (!taskClaimsEnabled()) {
-    await input.writeHeartbeat();
-    return { success: true };
-  }
   const now = Date.now();
   const conversationId = await resolveClaimConversationId(
     ctx,
@@ -674,7 +683,6 @@ export async function renewLiveConversationTaskClaim(
   conversationId: Id<"conversations">,
   now: number,
 ): Promise<void> {
-  if (!taskClaimsEnabled()) return;
   const conv = await ctx.db.get(conversationId);
   if (!conv?.active_task_id) return;
   const row = await findClaim(ctx.db, {

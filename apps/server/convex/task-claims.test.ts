@@ -7,22 +7,18 @@ import { claim, findClaim, readClaimToken, TASK_LEASE_MS } from "./lib/claims";
 import { claimFrontier } from "./lib/claimFrontier";
 
 const START = 1_800_000_000_000;
-const PREVIOUS_FLAG = process.env.SWARM_TASK_CLAIMS;
 
 function advance(ms: number) {
   jest.advanceTimersByTime(ms);
 }
 
 beforeEach(() => {
-  process.env.SWARM_TASK_CLAIMS = "1";
   jest.useFakeTimers();
   jest.setSystemTime(START);
 });
 
 afterEach(() => {
   jest.useRealTimers();
-  if (PREVIOUS_FLAG === undefined) delete process.env.SWARM_TASK_CLAIMS;
-  else process.env.SWARM_TASK_CLAIMS = PREVIOUS_FLAG;
 });
 
 async function setup(seed = "task-claims") {
@@ -485,40 +481,6 @@ test("--take revokes active claim, mints token+1, and fences the displaced holde
     reason: "stale_token",
     current_token: 2,
   });
-});
-
-test("flag off keeps legacy task ownership unchanged and creates no claim rows", async () => {
-  delete process.env.SWARM_TASK_CLAIMS;
-  const f = await setup("flag-off");
-  const started: any = await f.start(f.tokA, {
-    conversation_id: String(f.convA1),
-  });
-  expect(started.claim_token).toBeUndefined();
-  expect(await f.claimRow()).toBeNull();
-  expect(await f.renew(f.tokA, 1, String(f.convA1))).toEqual({
-    success: false,
-    status: "disabled",
-  });
-  expect(await f.release(f.tokA, 1, String(f.convA1))).toEqual({
-    success: false,
-    status: "disabled",
-  });
-
-  advance(TASK_LEASE_MS);
-  await expect(
-    f.start(f.tokB, { conversation_id: String(f.convB) }),
-  ).rejects.toThrow(/owned by session jx7aaaa/);
-
-  const ready = await f.t.query(api.tasks.list, {
-    api_token: f.tokB,
-    workspace: "team",
-    team_id: f.team,
-    ready: true,
-  });
-  expect(ready.map((t: any) => t.short_id)).toEqual(["ct-102"]);
-
-  await f.done(f.tokA, { conversation_id: String(f.convA1) });
-  expect((await f.getTask())?.status).toBe("done");
 });
 
 test("steer and terminal claims remain unaffected while task claims are active", async () => {

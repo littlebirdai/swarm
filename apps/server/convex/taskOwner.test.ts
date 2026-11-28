@@ -7,6 +7,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import { hashToken } from "./apiTokens";
+import { TASK_LEASE_MS } from "./lib/claims";
 import {
   formatTaskCommentMessage,
   parseTaskCommentMessage,
@@ -19,6 +20,7 @@ const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./tasks.ts": () => import("./tasks"),
+  "./taskClaims.ts": () => import("./taskClaims"),
   "./sessionOwnership.ts": () => import("./sessionOwnership"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
 };
@@ -72,17 +74,33 @@ async function setup(ownerUpdatedAgo: number) {
     const elsewhereId = await task("ct-2");
     await ctx.db.patch(taskId, { conversation_ids: [ownerId] } as any);
     await ctx.db.patch(ownerId, { active_task_id: taskId } as any);
+    await ctx.db.insert("claims", {
+      kind: "task",
+      task_id: taskId,
+      holder: userId,
+      token: 1,
+      lease_until: now + TASK_LEASE_MS - ownerUpdatedAgo,
+      request_id: "owner-init",
+      request_holder: userId,
+      task: { conversation_id: ownerId },
+    });
     return { userId, ownerId, otherId, taskId, elsewhereId };
   });
   const get = (id: any) =>
     t.run(async (ctx) => await ctx.db.get(id)) as Promise<any>;
-  const start = (sessionId: string, shortId = "ct-1", take?: boolean) =>
+  const start = (
+    sessionId: string,
+    shortId = "ct-1",
+    take?: boolean,
+    claimRequestId?: string,
+  ) =>
     t.mutation(api.tasks.update, {
       api_token: TOKEN,
       short_id: shortId,
       status: "in_progress",
       conversation_id: sessionId,
       ...(take ? { take } : {}),
+      ...(claimRequestId ? { claim_request_id: claimRequestId } : {}),
     });
   return { t, ...ids, get, start };
 }
@@ -115,7 +133,7 @@ describe("one owning session per task", () => {
     ]);
   });
 
-  test("a quiet owner is released without asking", async () => {
+  test("an expired claim owner is released without asking", async () => {
     const { ownerId, otherId, taskId, get, start } = await setup(3 * HOUR);
     const out: any = await start("sess-other");
     expect(out.released_owners).toEqual([
@@ -125,9 +143,9 @@ describe("one owning session per task", () => {
     expect(String((await get(otherId)).active_task_id)).toBe(String(taskId));
   });
 
-  test("the owner restarting its own task is no takeover", async () => {
+  test("retrying the owner's own claim request id is no takeover", async () => {
     const { start } = await setup(60_000);
-    const out: any = await start("sess-owner");
+    const out: any = await start("sess-owner", "ct-1", false, "owner-init");
     expect(out.released_owners).toBeUndefined();
   });
 

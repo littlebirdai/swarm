@@ -375,7 +375,12 @@ describe("a session that takes a task assigns it to its role", () => {
     expect((await c.read("tasks"))[0].assignee).toBeUndefined();
     expect(result.assigned_role).toBeUndefined();
     // Another hand of the same role taking that task over does assign it.
-    await start(c, "ct-1", "standing-growth");
+    await c.update({
+      short_id: "ct-1",
+      status: "in_progress",
+      conversation_id: "standing-growth",
+      take: true,
+    });
     expect((await c.read("tasks"))[0].assignee).toBe(c.growth);
   });
 

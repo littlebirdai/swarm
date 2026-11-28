@@ -11,13 +11,8 @@ import { heartbeatOf } from "./sessionHeartbeat";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { HEARTBEAT_ALIVE_MS } from "../inboxFilters";
-import { taskClaimsEnabled } from "./claims";
 import { HANDOFF_COMMENT } from "./runAgentSessions";
-import {
-  claimTaskWithLease,
-  releaseTaskClaimIfHeld,
-  taskClaimError,
-} from "./taskClaims";
+import { claimTaskWithLease, releaseTaskClaimIfHeld } from "./taskClaims";
 
 // A session that touched the conversation this recently is treated as working
 // even without a daemon heartbeat (a cloud agent, a session between turns).
@@ -109,20 +104,6 @@ export async function isSessionWorking(
   return now - (conv.updated_at ?? 0) < RECENT_ACTIVITY_MS;
 }
 
-async function ownerRef(
-  ctx: { db: any },
-  conv: any,
-  now: number,
-): Promise<TaskOwnerRef> {
-  return {
-    conversation_id: conv._id,
-    short_id: conv.short_id ?? String(conv._id).slice(0, 7),
-    title: conv.title ?? null,
-    live: await isSessionWorking(ctx, conv, now),
-    updated_at: conv.updated_at ?? 0,
-  };
-}
-
 function ago(ms: number): string {
   const m = Math.max(1, Math.round(ms / 60000));
   return m < 60
@@ -154,31 +135,6 @@ export function ownedElsewhereMessage(
  * deciding to. Callers acting for a person (the board, a spawn, a handoff)
  * pass take: the person chose the new session.
  */
-export function legacyBoundReleaser(
-  ctx: { db: any },
-  task: any,
-  conv: any | null,
-  take: boolean,
-  now: number,
-): () => Promise<TaskOwnerRef[]> {
-  return async () => {
-    const others = (await boundSessionsOf(ctx, task)).filter(
-      (c) => !conv || String(c._id) !== String(conv._id),
-    );
-    const refs = await Promise.all(others.map((c) => ownerRef(ctx, c, now)));
-    const liveOwner = refs.find((r) => r.live);
-    if (liveOwner && !take)
-      throw taskClaimError(
-        "busy",
-        0,
-        ownedElsewhereMessage(task, liveOwner, now),
-      );
-    for (const other of others)
-      await ctx.db.patch(other._id, { active_task_id: undefined });
-    return refs;
-  };
-}
-
 export async function claimTaskOwnership(
   ctx: { db: any; scheduler?: any },
   conv: any,
@@ -197,57 +153,35 @@ export async function claimTaskOwnership(
   leaseUntil?: number;
 }> {
   const now = opts.now ?? Date.now();
-  if (taskClaimsEnabled()) {
-    const res = await claimTaskWithLease<TaskOwnerRef>(ctx, {
-      task,
-      holder: opts.holder ?? conv.user_id,
-      conv,
-      take: opts.take,
-      now,
-      expectedToken: opts.expectedToken,
-      requestId: opts.requestId,
-      purpose: opts.purpose,
-      ownerRefOf: (c, live) => ({
-        conversation_id: c._id,
-        short_id: c.short_id ?? String(c._id).slice(0, 7),
-        title: c.title ?? null,
-        live,
-        updated_at: c.updated_at ?? 0,
-      }),
-      formatBusy: (c) =>
-        ownedElsewhereMessage(
-          task,
-          {
-            conversation_id: c._id,
-            short_id: c.short_id ?? String(c._id).slice(0, 7),
-            title: c.title ?? null,
-            live: true,
-            updated_at: c.updated_at ?? 0,
-          },
-          now,
-        ),
-      checkLegacyBound: legacyBoundReleaser(ctx, task, conv, opts.take, now),
-    });
-    const others = (await boundSessionsOf(ctx, task)).filter(
-      (c) => String(c._id) !== String(conv._id),
-    );
-    for (const other of others)
-      await ctx.db.patch(other._id, { active_task_id: undefined });
-    return res;
-  }
-  const others = (await boundSessionsOf(ctx, task)).filter(
-    (c) => String(c._id) !== String(conv._id),
-  );
-  const refs = await Promise.all(others.map((c) => ownerRef(ctx, c, now)));
-  const liveOwner = refs.find((r) => r.live);
-  if (liveOwner && !opts.take)
-    throw new Error(ownedElsewhereMessage(task, liveOwner, now));
-  for (const other of others)
-    await ctx.db.patch(other._id, { active_task_id: undefined });
-  if (String(conv.active_task_id ?? "") !== String(task._id)) {
-    await ctx.db.patch(conv._id, { active_task_id: task._id });
-  }
-  return { released: refs };
+  return await claimTaskWithLease<TaskOwnerRef>(ctx, {
+    task,
+    holder: opts.holder ?? conv.user_id,
+    conv,
+    take: opts.take,
+    now,
+    expectedToken: opts.expectedToken,
+    requestId: opts.requestId,
+    purpose: opts.purpose,
+    ownerRefOf: (c, live) => ({
+      conversation_id: c._id,
+      short_id: c.short_id ?? String(c._id).slice(0, 7),
+      title: c.title ?? null,
+      live,
+      updated_at: c.updated_at ?? 0,
+    }),
+    formatBusy: (c) =>
+      ownedElsewhereMessage(
+        task,
+        {
+          conversation_id: c._id,
+          short_id: c.short_id ?? String(c._id).slice(0, 7),
+          title: c.title ?? null,
+          live: true,
+          updated_at: c.updated_at ?? 0,
+        },
+        now,
+      ),
+  });
 }
 
 export async function releaseBoundSessions(
@@ -256,9 +190,7 @@ export async function releaseBoundSessions(
   conversationId?: Id<"conversations">,
   extraConversationId?: Id<"conversations">,
 ): Promise<void> {
-  const claimConvId = taskClaimsEnabled()
-    ? await releaseTaskClaimIfHeld(ctx, task._id)
-    : undefined;
+  const claimConvId = await releaseTaskClaimIfHeld(ctx, task._id);
   const ids = new Set(
     [
       ...(task.conversation_ids ?? []),

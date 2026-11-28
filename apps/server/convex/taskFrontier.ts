@@ -19,8 +19,7 @@ import { api, internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessTask, resolveSessionConversation } from "./lib/access";
-import { taskClaimsEnabled } from "./lib/claims";
-import { resolveOwnedClaimConversation } from "./lib/taskClaims";
+import { taskClaimError } from "./lib/taskClaims";
 import { readinessLookups } from "./lib/taskGraph";
 import {
   assigneeNamesFor,
@@ -100,9 +99,7 @@ async function claimantOf(
   conversationId: string | undefined,
 ): Promise<Claimant> {
   const conv = conversationId
-    ? taskClaimsEnabled()
-      ? await resolveOwnedClaimConversation(ctx, userId, conversationId)
-      : await resolveSessionConversation(ctx, userId, conversationId)
+    ? await resolveSessionConversation(ctx, userId, conversationId)
     : null;
   // A session the server cannot find yet would claim as nobody: the start
   // drops an unresolvable link, so the task would leave the queue unowned.
@@ -110,6 +107,13 @@ async function claimantOf(
     throw new Error(
       "This session has not synced yet; retry the claim in a few seconds",
     );
+  if (conv && String(conv.user_id) !== String(userId)) {
+    throw taskClaimError(
+      "wrong_holder",
+      0,
+      "Conversation belongs to another user",
+    );
+  }
   return {
     userId: String(userId),
     conv,
