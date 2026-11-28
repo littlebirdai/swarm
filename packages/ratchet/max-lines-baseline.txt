@@ -279,7 +279,6 @@ apps/server/convex/composerSuggestions.test.ts 1000
 apps/server/convex/composerSuggestions.ts 1100
 apps/server/convex/conversations.convergence.test.ts 900
 apps/server/convex/conversations.projection.test.ts 1700
-apps/server/convex/conversations.ts 17800
 apps/server/convex/dataQueries.ts 1400
 apps/server/convex/decisionThread.ts 1100
 apps/server/convex/deployTargets.test.ts 1200
