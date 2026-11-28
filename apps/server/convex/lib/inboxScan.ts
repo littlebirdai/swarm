@@ -7,7 +7,6 @@ import {
   indexedInboxSessionRows,
   readCliWatchLiveness,
 } from "./sessionHeartbeat";
-import { query } from "../functions";
 import {
   computeFold,
   selectWorkingSet,

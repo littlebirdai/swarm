@@ -1,7 +1,7 @@
 import { heartbeatsFor } from "./sessionHeartbeat";
 import { refuseSeatKill } from "./seatKill";
 import { noteWriteCause } from "../lifecycleEvents";
-import { query, type MutationCtx } from "../functions";
+import { type MutationCtx } from "../functions";
 import { v } from "convex/values";
 import { subagentEnded } from "../subagentFleet";
 import { findConversationByAnyRefWhere } from "../conversationSessionLookup";
@@ -31,7 +31,6 @@ import {
 } from "@codecast/agent-clients/agentClients";
 import { scheduleLiveActivityRefresh } from "./liveActivityRefresh";
 import { resolveTeamForPath } from "../privacy";
-import { killSession } from "../sessionRestart";
 
 /**
  * Resolve a session the caller may command, for the CLI's session-scoped verbs

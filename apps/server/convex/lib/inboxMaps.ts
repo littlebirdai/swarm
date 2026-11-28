@@ -3,7 +3,6 @@ import {
   inboxHeartbeatsFor,
   inboxUserHeartbeatRows,
 } from "./sessionHeartbeat";
-import { query } from "../functions";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import {
   isBelowFoldAt,

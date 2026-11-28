@@ -1,5 +1,5 @@
 import { sanitizeConvexObjectKeys } from "./convexFieldNames";
-import { query, type QueryCtx, type MutationCtx } from "../functions";
+import { type QueryCtx, type MutationCtx } from "../functions";
 import { titleLine } from "@codecast/messages/machineMessages";
 import { resolveConversationRefRanked } from "../conversationSessionLookup";
 import { getAuthUserId } from "@convex-dev/auth/server";

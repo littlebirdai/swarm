@@ -1,4 +1,3 @@
-import { query } from "../functions";
 import {
   placeProjectableRow,
   trustedStatusAt,
@@ -24,7 +23,6 @@ import {
   STATUS_TRUST_TTL_MS,
   type WorkState,
 } from "../inboxFilters";
-import { newestMessageCache } from "./inboxLivenessState";
 import {
   CONV_DAEMON_ALIVE_MS,
   type InboxSessionMaps,
@@ -338,6 +336,14 @@ export async function loadPendingDecisionConvIds(
 // child's conversation doc is in the subscription's read set through the pool
 // scan — so a change re-executes with a fresh key. Bounded; cleared wholesale
 // at the cap rather than tracking recency.
+export type NewestMessageFacts = {
+  role: string;
+  userText: string | null;
+  auqOpen: boolean;
+};
+
+export const newestMessageCache = new Map<string, NewestMessageFacts>();
+
 const CHILD_AUQ_PROBE_CACHE_MAX = 4096;
 
 export const childAuqProbeCache = new Map<string, boolean>();

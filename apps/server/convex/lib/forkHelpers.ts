@@ -1,4 +1,4 @@
-import { query, type MutationCtx } from "../functions";
+import { type MutationCtx } from "../functions";
 import { Doc, Id } from "../_generated/dataModel";
 import {
   AGENT_CLIENTS,

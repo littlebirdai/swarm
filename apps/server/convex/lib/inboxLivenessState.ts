@@ -1,6 +1,5 @@
 import { indexedInboxLivenessEnabled } from "./sessionHeartbeat";
 import { wakeFieldsOf } from "../wakeCost";
-import { query } from "../functions";
 import { v } from "convex/values";
 import {
   computeBucketStale,
@@ -28,6 +27,7 @@ import {
   FOREIGN_SCAN_BUDGET,
   type InboxOverlayRow,
   type LivenessFields,
+  type NewestMessageFacts,
   buildAskingParents,
   childAuqProbeCache,
   daemonAliveUntil,
@@ -39,6 +39,7 @@ import {
   isOpenAskUserQuestion,
   loadPendingDecisionConvIds,
   newestMessage,
+  newestMessageCache,
   ownAsk,
   placeConversationRow,
   producingUntilOf,
@@ -290,15 +291,7 @@ async function readLivenessRowInputs(
 // is patched without touching the conversation (so message_count holds), and
 // only an assistant row without its final usage is still streaming. Anything
 // else that moves the answer is a new message, which moves message_count.
-type NewestMessageFacts = {
-  role: string;
-  userText: string | null;
-  auqOpen: boolean;
-};
-
 const NEWEST_MESSAGE_CACHE_MAX = 4096;
-
-export const newestMessageCache = new Map<string, NewestMessageFacts>();
 
 async function newestMessageFacts(
   ctx: any,

@@ -1,4 +1,4 @@
-import { query, type QueryCtx } from "../functions";
+import { type QueryCtx } from "../functions";
 import { otherShortIdMatches } from "../conversationSessionLookup";
 import { Doc, Id } from "../_generated/dataModel";
 import { listConversationFileChanges } from "./messageReads";

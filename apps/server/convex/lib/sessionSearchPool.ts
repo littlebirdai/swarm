@@ -1,4 +1,4 @@
-import { query, type QueryCtx } from "../functions";
+import { type QueryCtx } from "../functions";
 import { Doc, Id } from "../_generated/dataModel";
 import { searchParentId } from "./searchSelf";
 import {
