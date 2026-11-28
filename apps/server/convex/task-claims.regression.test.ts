@@ -2,8 +2,10 @@ import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { findClaim, TASK_LEASE_MS } from "./lib/claims";
+import { teamDeletionSteps } from "./lib/deletionPlans";
+import { purgeRange } from "./lib/purgeTree";
 
 const START = 1_800_000_000_000;
 const PREVIOUS_FLAG = process.env.SWARM_TASK_CLAIMS;
@@ -466,13 +468,30 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
     api_token: f.tokA,
     sessions: [{ session_id: spawned.sessionId, agent_status: "working" }],
   });
-  const spawnedClaimAfterBeat = await f.claimRow(f.secondTaskId);
-  expect(spawnedClaimAfterBeat?.lease_until).toBe(spawned.lease_until + 60_000);
+  expect((await f.claimRow(f.secondTaskId))?.lease_until).toBe(
+    spawned.lease_until,
+  );
+  advance(TASK_LEASE_MS / 2);
+  await f.t.mutation(api.managedSessions.heartbeatBatch, {
+    api_token: f.tokA,
+    sessions: [{ session_id: spawned.sessionId, agent_status: "hibernated" }],
+  });
+  expect((await f.claimRow(f.secondTaskId))?.lease_until).toBe(
+    spawned.lease_until,
+  );
+  await f.t.mutation(api.managedSessions.heartbeatBatch, {
+    api_token: f.tokA,
+    sessions: [{ session_id: spawned.sessionId, agent_status: "working" }],
+  });
+  expect((await f.claimRow(f.secondTaskId))?.lease_until).toBe(
+    spawned.lease_until + 60_000 + TASK_LEASE_MS / 2,
+  );
 
   await asUser(f.t, f.ana).mutation(api.sessionDelete.deleteSession, {
     conversation_id: spawned.conversationId,
   });
   expect((await f.claimRow(f.secondTaskId))?.holder).toBeUndefined();
+  expect((await f.getTask(f.secondTaskId))?.status).toBe("open");
 
   delete process.env.SWARM_TASK_CLAIMS;
   await expect(f.renew("invalid-token", 1)).rejects.toThrow("Unauthorized");
@@ -495,4 +514,146 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
     success: false,
     status: "disabled",
   });
+});
+
+test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws unbind, expire flag-off, cleanup reopen, and deletion plans", async () => {
+  const f = await setup("rereview");
+  await f.t.mutation(api.tasks.heartbeat, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+    progress_pct: 10,
+  });
+  expect((await f.getTask())?.progress_pct).toBe(10);
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  advance(60_000);
+  const beatRenewed: any = await f.t.mutation(api.tasks.heartbeat, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+    conversation_id: String(f.convA1),
+  });
+  expect(beatRenewed.claim_token).toBe(1);
+  expect(beatRenewed.lease_until).toBe(START + 60_000 + TASK_LEASE_MS);
+  expect(
+    await catchClaimError(() =>
+      f.t.mutation(api.tasks.heartbeat, {
+        api_token: f.tokB,
+        short_id: "ct-101",
+      }),
+    ),
+  ).toMatchObject({ code: "CONFLICT", reason: "wrong_holder" });
+
+  await f.t.mutation(api.tasks.update, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+    status: "backlog",
+    claim_token: 1,
+    conversation_id: String(f.convA1),
+  });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  await f.t.mutation(api.tasks.batchUpdateStatus, {
+    api_token: f.tokA,
+    short_ids: ["ct-101"],
+    status: "in_progress",
+  });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+
+  const personalConvA = await f.t.run(({ db }) =>
+    fixtureRows(db, "xws-rereview").conversation(f.ana, {
+      short_id: "jx7xxxx",
+      title: "Cross ws",
+      updated_at: START,
+    }),
+  );
+  await f.start(f.tokA, { conversation_id: String(personalConvA), take: true });
+  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+    short_id: "ct-101",
+    status: "open",
+  });
+  expect((await f.getConv(personalConvA))?.active_task_id).toBeUndefined();
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  await f.start(f.tokA, {
+    short_id: "ct-102",
+    conversation_id: String(f.convA1),
+  });
+  expect((await f.getTask(f.taskId))?.status).toBe("open");
+  expect((await f.getTask(f.secondTaskId))?.status).toBe("in_progress");
+
+  const hostedRoleConv = await f.t.run(({ db }) =>
+    fixtureRows(db, "hosted-role").conversation(f.ana, {
+      short_id: "jx7role",
+      title: "Hosted role session",
+      team_id: f.team,
+      is_private: false,
+      owner_user_id: f.ben,
+      updated_at: START,
+    }),
+  );
+  await f.start(f.tokA, {
+    conversation_id: String(hostedRoleConv),
+    take: true,
+  });
+  await f.done(f.tokA, { conversation_id: String(hostedRoleConv) });
+  expect((await f.getTask(f.taskId))?.status).toBe("done");
+
+  await f.start(f.tokB, {
+    short_id: "ct-102",
+    conversation_id: String(f.convB),
+    take: true,
+  });
+  await f.t.mutation(internal.admin_mergeUser.mergeDuplicateUser, {
+    from_user_id: f.ben,
+    to_user_id: f.ana,
+    dry_run: false,
+    delete_source: false,
+  });
+  expect((await f.getTask(f.secondTaskId))?.status).toBe("open");
+
+  await f.start(f.tokA, {
+    short_id: "ct-102",
+    conversation_id: String(f.convA1),
+  });
+  const secondClaim = await f.claimRow(f.secondTaskId);
+  delete process.env.SWARM_TASK_CLAIMS;
+  jest.setSystemTime(START + TASK_LEASE_MS * 4);
+  await f.t.mutation(internal.taskClaims.expire, {
+    task_id: f.secondTaskId,
+    token: secondClaim!.token,
+  });
+  expect((await f.getTask(f.secondTaskId))?.status).toBe("in_progress");
+  expect((await f.claimRow(f.secondTaskId))?.holder).toBe(f.ana);
+  process.env.SWARM_TASK_CLAIMS = "1";
+
+  await f.t.mutation(internal.tasks.adminDeleteTask, { short_id: "ct-102" });
+  expect(await f.claimRow(f.secondTaskId)).toBeNull();
+
+  const planDelTask = await f.t.run(async ({ db }) => {
+    const tId = await fixtureRows(db, "plan-del").task(f.ana, {
+      short_id: "ct-103",
+      title: "Delete plan task",
+      team_id: f.team,
+      workspace: `team:${f.team}`,
+      project_path: "/repo",
+    });
+    return tId;
+  });
+  await f.start(f.tokA, {
+    short_id: "ct-103",
+    conversation_id: String(f.convA1),
+  });
+  expect(await f.claimRow(planDelTask)).not.toBeNull();
+  const teamTasksStep = teamDeletionSteps().find(
+    (s) => s.table === "tasks" && s.index === "by_team_id",
+  )!;
+  await f.t.run(async (ctx) => {
+    await purgeRange(ctx, teamTasksStep, { _id: f.team }, { left: 500 }, {});
+  });
+  expect(await f.claimRow(planDelTask)).toBeNull();
+
+  await f.t.mutation(internal.accountDelete.purgeAccount, { user_id: f.ana });
+  expect(await f.t.run(({ db }) => db.get(f.ana))).toBeNull();
 });
