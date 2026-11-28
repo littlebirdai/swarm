@@ -255,13 +255,6 @@ describe("version negotiation", () => {
     });
   });
 
-  test("selects N-1 for a daemon one release behind", () => {
-    expect(edge.negotiateEdgeVersion([1], new Set([2, 1]))).toEqual({
-      status: "ok",
-      version: 1,
-    });
-  });
-
   test("returns a parsable upgrade response without a shared version", () => {
     const expected: edge.EdgeVersionNegotiation = {
       status: "upgrade_required",

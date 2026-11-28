@@ -294,7 +294,7 @@ test("parsers enforce field bounds and the encoded byte cap before JSON decoding
   }
 });
 
-test("negotiation uses the highest common version and permits the previous release", () => {
+test("negotiation uses the highest common version", () => {
   expect(negotiateRelayVersion([2, 1])).toBe(1);
   for (const invalid of [2.5, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
     expect(negotiateRelayVersion([1, invalid], [invalid, 1])).toBe(1);
