@@ -16,8 +16,8 @@ import {
   workspaceForResource,
 } from "./lib/access";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
+import { findClaim } from "./lib/claims";
 import { orderFrontier, readyTasks, taskLookups } from "./lib/taskGraph";
-import { boundSessionsOf } from "./lib/taskOwner";
 import { blockersHoldingBack } from "@codecast/tasks/graph";
 import { isActiveTask } from "@codecast/tasks";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
@@ -161,10 +161,13 @@ async function lostOf(
   task: Doc<"tasks">,
 ): Promise<Pick<TaskResumeContext, "held" | "lost">> {
   if (isTerminalTaskStatus(task.status)) return { held: false, lost: "closed" };
-  const owners = await boundSessionsOf(ctx, task);
-  return owners.some((c) => c._id !== session._id)
-    ? { held: false, lost: "claimed" }
-    : { held: false };
+  const row = await findClaim(ctx.db, { kind: "task", id: task._id });
+  const claimed =
+    row !== null &&
+    row.holder !== undefined &&
+    row.lease_until > Date.now() &&
+    row.task?.conversation_id !== session._id;
+  return claimed ? { held: false, lost: "claimed" } : { held: false };
 }
 
 /** The first open subtasks the caller may read, in the order they were filed,

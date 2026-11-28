@@ -280,6 +280,19 @@ describe("taskResume.context", () => {
           active_task_id: "task_ct-1",
         },
       ],
+      claims: [
+        {
+          _id: "claim_1",
+          kind: "task",
+          task_id: "task_ct-1",
+          holder: USER,
+          token: 1,
+          lease_until: Date.now() + 60_000,
+          request_id: "claim-1",
+          request_holder: USER,
+          task: { conversation_id: "conv2" },
+        },
+      ],
     };
 
     test("a task the session started and no longer holds: closed, or claimed by another session", async () => {
@@ -295,8 +308,58 @@ describe("taskResume.context", () => {
           session_id: "sess-1",
         }),
       ).toMatchObject({ held: false, lost: "claimed" });
+      expect(
+        await read(
+          {
+            tasks: [task("ct-1", { workspace: `user:${USER}` })],
+            conversations: [conv()],
+            claims: [
+              {
+                _id: "claim_xws",
+                kind: "task",
+                task_id: "task_ct-1",
+                holder: "other",
+                token: 1,
+                lease_until: Date.now() + 60_000,
+                task: { conversation_id: "conv_xws" },
+              },
+            ],
+          },
+          { short_id: "ct-1", started: true, session_id: "sess-1" },
+        ),
+      ).toMatchObject({ held: false, lost: "claimed" });
+      expect(
+        await read(
+          {
+            tasks: [task("ct-1")],
+            conversations: [conv()],
+            claims: [
+              {
+                _id: "claim_sessionless",
+                kind: "task",
+                task_id: "task_ct-1",
+                holder: USER,
+                token: 1,
+                lease_until: Date.now() + 60_000,
+              },
+            ],
+          },
+          { short_id: "ct-1", started: true, session_id: "sess-1" },
+        ),
+      ).toMatchObject({ held: false, lost: "claimed" });
       const released = await read(
-        { tasks: [task("ct-1")], conversations: [conv()] },
+        {
+          tasks: [task("ct-1", { conversation_ids: ["conv1", "conv2"] })],
+          conversations: [
+            conv(),
+            {
+              _id: "conv2",
+              session_id: "sess-2",
+              user_id: USER,
+              active_task_id: "task_ct-1",
+            },
+          ],
+        },
         { short_id: "ct-1", started: true, session_id: "sess-1" },
       );
       expect(released.held).toBe(false);

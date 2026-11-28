@@ -646,6 +646,7 @@ describe("createSession side effect", () => {
       docs: [],
       plans: [],
       tasks: [],
+      claims: [],
       team_memberships: [],
       ...extra,
     });

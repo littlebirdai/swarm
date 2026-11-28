@@ -2170,7 +2170,6 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         ? { is_private: true, team_visibility: "private" as const }
         : { is_private: isPrivate, auto_shared: autoShared || undefined }),
       status: "active" as const,
-      ...(linkedTask ? { active_task_id: linkedTask._id } : {}),
       // Stamp the plan so the inbox can group plan workers even without a viable
       // parent session to nest under (the grouping fallback).
       ...(workerPlanId ? { active_plan_id: workerPlanId } : {}),

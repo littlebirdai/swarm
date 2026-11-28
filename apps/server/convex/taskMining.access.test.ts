@@ -163,6 +163,74 @@ test("active-task association cannot expose a private session", async () => {
   expect(result.linked_conversations).toEqual([]);
 });
 
+test("live claim decides task session owner across workspaces and ignores stale bindings", async () => {
+  const ctx = {
+    auth: { getUserIdentity: async () => ({ subject: "viewer|session" }) },
+    db: makeFakeDb({
+      users: [{ _id: "viewer" }, { _id: "other" }],
+      team_memberships: [
+        { _id: "member1", user_id: "viewer", team_id: "team1" },
+      ],
+      tasks: [
+        {
+          _id: "task1",
+          short_id: "ct-1",
+          user_id: "other",
+          team_id: "team1",
+          workspace: "team:team1",
+          conversation_ids: ["conv_stale"],
+        },
+      ],
+      conversations: [
+        {
+          _id: "conv_stale",
+          session_id: "session-stale",
+          user_id: "other",
+          team_id: "team1",
+          is_private: false,
+          active_task_id: "task1",
+          title: "Stale session",
+          project_path: "/repo",
+          status: "active",
+          updated_at: 100,
+        },
+        {
+          _id: "conv_xws",
+          session_id: "session-xws",
+          user_id: "viewer",
+          is_private: true,
+          active_task_id: "task1",
+          title: "Personal claim owner",
+          project_path: "/repo",
+          status: "active",
+          updated_at: 50,
+        },
+      ],
+      claims: [
+        {
+          _id: "claim1",
+          kind: "task",
+          task_id: "task1",
+          holder: "viewer",
+          token: 1,
+          lease_until: Date.now() + 60_000,
+          task: { conversation_id: "conv_xws" },
+        },
+      ],
+    }),
+  } as any;
+  const result = await (webGetTaskDetail as any)._handler(ctx, { id: "ct-1" });
+  expect(
+    result.linked_conversations.map((c: any) => ({
+      _id: c._id,
+      is_owner: c.is_owner ?? false,
+    })),
+  ).toEqual([
+    { _id: "conv_stale", is_owner: false },
+    { _id: "conv_xws", is_owner: true },
+  ]);
+});
+
 test("task provenance cannot expose private documents, insights, or plans", async () => {
   const ctx = context("viewer", {
     created_from_conversation: "conv1",

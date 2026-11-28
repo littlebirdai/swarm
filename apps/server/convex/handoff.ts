@@ -493,7 +493,6 @@ export const start = action({
 export function handoffChildFields(source: any): Record<string, unknown> {
   return {
     handed_off_from_conversation_id: source._id,
-    ...(source.active_task_id ? { active_task_id: source.active_task_id } : {}),
     ...(source.active_plan_id ? { active_plan_id: source.active_plan_id } : {}),
     ...(source.plan_ids?.length ? { plan_ids: source.plan_ids } : {}),
   };
@@ -530,16 +529,13 @@ export async function applyHandoffLink(
       await addConversationToWorkItem(ctx, userId, "task", task, child._id);
       // Ownership travels with the work: the child owns the task, the source lets go.
       const childRow = await ctx.db.get(child._id);
-      if (childRow)
-        await claimTaskOwnership(
-          ctx,
-          childRow,
-          {
-            ...task,
-            conversation_ids: [...(task.conversation_ids ?? []), source._id],
-          },
-          { take: true },
-        );
+      if (childRow) {
+        await claimTaskOwnership(ctx, childRow, task, { take: true });
+      }
+    }
+    const latestSource = await ctx.db.get(source._id);
+    if (latestSource?.active_task_id) {
+      await ctx.db.patch(source._id, { active_task_id: undefined });
     }
   }
   if (source.active_plan_id) {

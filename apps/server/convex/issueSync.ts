@@ -63,6 +63,7 @@ import {
   resolveParentTask,
 } from "./tasks";
 import { afterStatusEdges } from "./taskLinks";
+import { releaseBoundSessions } from "./lib/taskOwner";
 import {
   recordTaskChange,
   type TaskChangeBy,
@@ -852,6 +853,9 @@ async function updateTaskFromIssue(
   );
   await ctx.db.patch(task._id, patch);
 
+  if (diff.status && diff.status !== task.status) {
+    await releaseBoundSessions(ctx, task);
+  }
   if (diff.status && task.plan_id) {
     await recalcPlanProgress(ctx, task.plan_id, task._id, diff.status);
   }

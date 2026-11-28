@@ -72,6 +72,28 @@ describe("cast spawn review_for_task", () => {
     expect(tables.org_roles[0].counters.hands).toBe(1);
   });
 
+  test("resolves the role from a live cross-workspace claim holder not in conversation_ids", async () => {
+    const { ctx, tables } = fixture();
+    tables.tasks[0].conversation_ids = [];
+    tables.claims = [
+      {
+        _id: "claims_1",
+        kind: "task",
+        task_id: "tasks_1",
+        holder: OWNER,
+        token: 1,
+        lease_until: Date.now() + 60_000,
+        task: { conversation_id: "conversations_hand" },
+      },
+    ];
+    await (createSessionFromCli as any)._handler(ctx, {
+      agent_type: "codex",
+      review_for_task: "ct-1",
+      prompt: "review it",
+    });
+    expect(tables.org_roles[0].counters.hands).toBe(1);
+  });
+
   test("the role's cap gates the review hand too", async () => {
     const { ctx } = fixture({
       caps: { hands_per_day: 1, wakes_per_day: 10, tokens_per_day: 1000000 },

@@ -1,7 +1,7 @@
 import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { mutation } from "./functions";
 import { v } from "convex/values";
-import { boundSessionsOf } from "./lib/taskOwner";
+import { liveTaskOwnerSession } from "./lib/taskOwner";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
@@ -860,7 +860,7 @@ async function resolveReviewTarget(
     .first();
   if (!task || !(await canAccessTask(ctx, userId, task)))
     throw new Error(`Task not found: ${shortId}`);
-  const bound = await boundSessionsOf(ctx, task);
+  const owner = await liveTaskOwnerSession(ctx, task._id);
   const linked = (
     await Promise.all(
       [...(task.conversation_ids ?? [])]
@@ -868,9 +868,12 @@ async function resolveReviewTarget(
         .map((id: any) => ctx.db.get(id)),
     )
   ).filter(
-    (c: any) => c && String(c.review_of_task_id ?? "") !== String(task._id),
+    (c: any) =>
+      c &&
+      (!owner || String(c._id) !== String(owner._id)) &&
+      String(c.review_of_task_id ?? "") !== String(task._id),
   );
-  for (const conv of [...bound, ...linked]) {
+  for (const conv of [...(owner ? [owner] : []), ...linked]) {
     const role = await roleOfConversation(ctx, conv);
     if (role) return { task, role };
   }

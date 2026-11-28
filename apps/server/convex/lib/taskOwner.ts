@@ -1,22 +1,8 @@
-import { heartbeatOf } from "./sessionHeartbeat";
-// A task has one owning session: the conversation whose active_task_id points
-// at it. `cast task start`, the board's "assign to agent", a task-linked
-// session create and a handoff all bind through claimTaskOwnership, so the
-// binding moves instead of piling up.
-//
-// The one fact lives on the conversation (active_task_id). Ownership is read
-// from the sessions the task links, so a task never stores a second copy that
-// could disagree with the binding.
-
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { HEARTBEAT_ALIVE_MS } from "../inboxFilters";
+import { findClaim } from "./claims";
 import { HANDOFF_COMMENT } from "./runAgentSessions";
 import { claimTaskWithLease, releaseTaskClaimIfHeld } from "./taskClaims";
-
-// A session that touched the conversation this recently is treated as working
-// even without a daemon heartbeat (a cloud agent, a session between turns).
-const RECENT_ACTIVITY_MS = 15 * 60 * 1000;
 
 export interface TaskOwnerRef {
   conversation_id: Id<"conversations">;
@@ -26,23 +12,19 @@ export interface TaskOwnerRef {
   updated_at: number;
 }
 
-/** Sessions bound to `task` (active_task_id), newest first. A session started
- *  to review the task judges the work and never owns it. */
-export async function boundSessionsOf(
+export async function liveTaskOwnerSession(
   ctx: { db: any },
-  task: any,
-): Promise<any[]> {
-  const out: any[] = [];
-  const seen = new Set<string>();
-  for (const id of task.conversation_ids ?? []) {
-    if (seen.has(String(id))) continue;
-    seen.add(String(id));
-    const conv = await ctx.db.get(id);
-    if (!conv || String(conv.active_task_id) !== String(task._id)) continue;
-    if (String(conv.review_of_task_id ?? "") === String(task._id)) continue;
-    out.push(conv);
+  taskId: Id<"tasks">,
+  now = Date.now(),
+): Promise<any | null> {
+  const row = await findClaim(ctx.db, { kind: "task", id: taskId });
+  if (!row || row.holder === undefined || row.lease_until <= now) return null;
+  if (!row.task?.conversation_id) return null;
+  const conv = await ctx.db.get(row.task.conversation_id);
+  if (!conv || String(conv.review_of_task_id ?? "") === String(taskId)) {
+    return null;
   }
-  return out.sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
+  return conv;
 }
 
 /** The session a change on `task` came from: the live session bound to it, else the newest live session that
@@ -58,10 +40,8 @@ export async function changeSessionOf(
     created_at: number;
   }[],
 ): Promise<any | null> {
-  const [bound] = (await boundSessionsOf(ctx, task)).filter(
-    (c) => !c.inbox_killed_at,
-  );
-  if (bound) return bound;
+  const bound = await liveTaskOwnerSession(ctx, task._id);
+  if (bound && !bound.inbox_killed_at) return bound;
   const handoffs = comments.filter(
     (c) =>
       c.conversation_id &&
@@ -78,30 +58,6 @@ export async function changeSessionOf(
       return conv;
   }
   return null;
-}
-
-/** Is the session still doing work: a fresh daemon heartbeat, or recent
- *  activity on a row that is neither completed nor killed. */
-export async function isSessionWorking(
-  ctx: { db: any },
-  conv: any,
-  now: number,
-): Promise<boolean> {
-  if (conv.status === "completed" || conv.inbox_killed_at) return false;
-  const managed = await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) =>
-      q.eq("conversation_id", conv._id),
-    )
-    .first();
-  if (
-    managed &&
-    managed.agent_status !== "hibernated" &&
-    managed.agent_status !== "stopped" &&
-    now - (await heartbeatOf(ctx, managed)) < HEARTBEAT_ALIVE_MS
-  )
-    return true;
-  return now - (conv.updated_at ?? 0) < RECENT_ACTIVITY_MS;
 }
 
 function ago(ms: number): string {
@@ -149,8 +105,8 @@ export async function claimTaskOwnership(
   },
 ): Promise<{
   released: TaskOwnerRef[];
-  claimToken?: number;
-  leaseUntil?: number;
+  claimToken: number;
+  leaseUntil: number;
 }> {
   const now = opts.now ?? Date.now();
   return await claimTaskWithLease<TaskOwnerRef>(ctx, {
@@ -204,7 +160,7 @@ export async function releaseBoundSessions(
     if (!conv || String(conv.active_task_id ?? "") !== String(task._id))
       continue;
     await ctx.db.patch(conv._id, { active_task_id: undefined });
-    await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
+    await ctx.scheduler?.runAfter(0, internal.sessionOwnership.reconcileHold, {
       conversation_id: conv._id,
     });
   }

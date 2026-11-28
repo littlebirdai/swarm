@@ -203,10 +203,9 @@ import {
 } from "./lib/access";
 import { forbidden, notFound } from "./lib/auth";
 import {
-  boundSessionsOf,
   changeSessionOf,
   claimTaskOwnership,
-  isSessionWorking,
+  liveTaskOwnerSession,
   releaseBoundSessions,
   type TaskOwnerRef,
 } from "./lib/taskOwner";
@@ -3320,16 +3319,18 @@ export const update = mutation({
       // An explicit start (cast task start). A `changes` verdict also moves
       // to in_progress but must not bind the reviewer to the work it judges.
       const explicitStart =
-        convMatchesWorkspace &&
-        nextStatus === "in_progress" &&
-        !args.review_verdict;
+        nextStatus === "in_progress" && !args.review_verdict;
       // A session that takes a task assigns it to the role it works for
       // (org-roles-run-work.md R5), so the board shows who owns the work. A
       // task that already names a person stays theirs: the session is
       // helping them, not taking it from them. Decided apart from the binding
       // below: a hand whose first task sits in review still holds it as
       // active_task_id, and its next start must reach the role all the same.
-      if (explicitStart && args.assignee === undefined) {
+      if (
+        convMatchesWorkspace &&
+        explicitStart &&
+        args.assignee === undefined
+      ) {
         const taker = await roleTakingTask(ctx, task, conv, assigneeBoundary);
         if (taker) {
           updates.assignee = String(taker._id);
@@ -3349,19 +3350,17 @@ export const update = mutation({
           purpose: args.claim_purpose,
         });
         releasedOwners = owned.released;
-        if (owned.claimToken !== undefined && owned.leaseUntil !== undefined) {
-          claimResult = {
-            claimToken: owned.claimToken,
-            leaseUntil: owned.leaseUntil,
-          };
-        }
+        claimResult = {
+          claimToken: owned.claimToken,
+          leaseUntil: owned.leaseUntil,
+        };
         // The binding may file the session under the lead that owns the work (S35).
         await ctx.scheduler.runAfter(
           0,
           internal.sessionOwnership.reconcileHold,
           { conversation_id: conv._id },
         );
-        if (task.plan_id && !conv.active_plan_id) {
+        if (convMatchesWorkspace && task.plan_id && !conv.active_plan_id) {
           const relatedPlan = await ctx.db.get(task.plan_id);
           if (
             relatedPlan &&
@@ -3701,9 +3700,10 @@ async function deliverCommentToOwner(
   },
 ): Promise<Id<"conversations"> | null> {
   if (!task.short_id || !c.text.trim()) return null;
-  const [owner] = await boundSessionsOf(ctx, task);
-  if (!owner) return null;
-  if (!(await isSessionWorking(ctx, owner, Date.now()))) return null;
+  const owner = await liveTaskOwnerSession(ctx, task._id);
+  if (!owner || owner.inbox_killed_at || owner.status === "completed") {
+    return null;
+  }
   if (!(await canSendProductMessage(ctx, c.actorId, owner))) return null;
   await enqueuePendingMessage(ctx, owner, c.actorId, {
     content: formatTaskCommentMessage({
@@ -5732,7 +5732,6 @@ export async function spawnSessionForTask(
     team_id: teamId,
     is_private: isPrivate,
     auto_shared: autoShared || undefined,
-    active_task_id: task._id,
     title: task.title.slice(0, 80),
     // Stamp the plan so the inbox can group plan workers even when there's no
     // viable parent session to nest under (the grouping fallback).
