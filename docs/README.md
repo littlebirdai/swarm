@@ -44,6 +44,7 @@ here: each one opens with a dated status line that says what shipped and what re
 | Doc                                                      |                                                             |
 | -------------------------------------------------------- | ----------------------------------------------------------- |
 | [Daemon loop](architecture/daemon-loop.md)               | The daemon's main process and its read-only workers         |
+| [Daemon extraction](architecture/daemon-extraction.md)   | Extracting daemon concerns into Effect services over a bus  |
 | [Agent definitions](architecture/agent-definitions.md)   | Agent definitions and chains                                |
 | [Agent channels](architecture/agent-channels.md)         | What a chat line wakes                                      |
 | [Session characters](architecture/session-characters.md) | Optional characters for sessions                            |

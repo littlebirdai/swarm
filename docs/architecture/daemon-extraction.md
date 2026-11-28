@@ -1,0 +1,38 @@
+# Daemon extraction
+
+Status: active extraction on `packages/edge-supervisor` and `packages/delivery`; legacy agent backends still live in `apps/cli/src/daemon.ts`.
+
+`apps/cli/src/daemon.ts` will become a thin entry point that parses config, starts `packages/edge-supervisor`, and waits. Each daemon concern moves into an Effect 4 service package. Services communicate only through typed messages on `SupervisorBus` in `packages/edge-supervisor/src/bus.ts` and the wire contract in `packages/edge-contract`. Services do not import each other.
+
+## Services
+
+| Concern                       | Package / File                                                                                                                                   | Status      | Notes                                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Edge link and heartbeat flush | `packages/edge-supervisor/src/machine.ts`, `packages/edge-supervisor/src/heartbeat-flush.ts`, `packages/edge-supervisor/src/edge-link-bus.ts`    | Extracted   | Owns hello/heartbeat link supervision, session heartbeats, and `edge.*` bus bridging                                                                                        |
+| Delivery                      | `packages/delivery/src/effect.ts`, `packages/delivery/src/settlement.ts`, `packages/delivery/src/journals.ts`, `packages/delivery/src/bridge.ts` | Extracted   | Owns permits, `start -> deliver -> settle`, `retry_after_ms` backoff, receipt journal, and `in_doubt` recovery; wired into `apps/cli/src/execution/codex-pilot-delivery.ts` |
+| Provider adapter              | `packages/provider-adapter/src/effect.ts`                                                                                                        | In progress | Owns Codex app-server pilot; Claude Code SDK, tmux paste, terminal injection, and legacy delivery remain for extraction                                                     |
+| Transcript ingest and uplink  | `apps/cli/src/daemon.ts`, `apps/cli/src/retryQueue.ts`                                                                                           | Remaining   | `RetryQueue` retries transcript and session mutations; not message delivery                                                                                                 |
+| Terminal streaming and typing | `apps/cli/src/daemon.ts`                                                                                                                         | Remaining   | PTY and tmux streaming stay in the daemon until extracted                                                                                                                   |
+| Relay publisher               | `packages/relay`                                                                                                                                 | In progress | Viewer presence and live relay publishing                                                                                                                                   |
+| Device moves                  | `apps/cli/src/daemon.ts`                                                                                                                         | Remaining   | Device handoff and takeover moves                                                                                                                                           |
+| Task claims and renewal       | `apps/cli/src/daemon.ts`                                                                                                                         | Remaining   | Owned by the task-claim lane                                                                                                                                                |
+| Parking                       | `apps/cli/src/execution/codex-pilot-cleanup.ts`                                                                                                  | Remaining   | Parked pilot state and idle eviction                                                                                                                                        |
+
+## Supervisor bus messages
+
+`SupervisorBus` validates every published message against `BusMessageSchemas` in `packages/edge-supervisor/src/bus.ts` and isolates services by message kind (`packages/edge-supervisor/src/bus-types.ts`):
+
+- Delivery control and telemetry: `delivery.wake`, `delivery.stop`, `delivery.settled`
+- Edge link RPC requests and replies: `edge.permits.next` / `edge.permits.next.result`, `edge.delivery.start` / `edge.delivery.start.result`, `edge.delivery.settle` / `edge.delivery.settle.result`, `edge.takeover.ack` / `edge.takeover.ack.result`, `edge.blob.get` / `edge.blob.get.result`
+- Provider handoff and receipts: `provider.deliver` / `provider.deliver.result`, `provider.recover` / `provider.recover.result`, `provider.receipt`
+
+Every delivery cycle runs `start`, input preparation (`edge.blob.get`), `provider.deliver`, and `settle` inside one uninterruptible Effect step. Retryable edge responses honor `retry_after_ms` before re-polling `edge.permits.next`. Unconfirmed outcomes settle `in_doubt`, hold the local slot and artifacts, and resolve on `provider.receipt` or restart recovery.
+
+## Left for the provider adapter extraction
+
+The legacy delivery paths in `apps/cli/src/daemon.ts` are kept untouched while Claude Code and tmux dialects move into provider adapters:
+
+- `deliverMessage`, `handlePendingMessageBatch`, and `scheduleMessageRetry` in `apps/cli/src/daemon.ts`
+- `claudeSdkBackend`, `injectViaTmux`, and `injectViaTerminal` delivery handlers in `apps/cli/src/daemon.ts`
+- Legacy Codex app-server turn start and execution work subscription polling (`pilotPolls`) in `apps/cli/src/execution/runtime-rail.ts`
+- Fenced runtime host callbacks wired from `apps/cli/src/daemon.ts` into `apps/cli/src/execution/drivers/start-fenced-runtime.ts`
