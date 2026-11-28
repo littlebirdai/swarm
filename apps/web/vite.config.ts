@@ -83,6 +83,9 @@ export default defineConfig(({ mode, command }) => ({
     "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
       process.env.VITE_CACHE_EVICTION_METADATA ?? "",
     ),
+    "process.env.VITE_SQLITE_CACHE": JSON.stringify(
+      process.env.VITE_SQLITE_CACHE ?? "",
+    ),
   },
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its
   // pre-bundled deps live apart so neither server rewrites the other's. Inside
@@ -293,7 +296,7 @@ export default defineConfig(({ mode, command }) => ({
     // Plain ESM with a top-level await the optimizer's target refuses; the
     // browser loads it as it ships, and an excluded dep never triggers a
     // mid-session re-optimize.
-    exclude: ["@novnc/novnc"],
+    exclude: ["@novnc/novnc", "@sqlite.org/sqlite-wasm"],
     include: [
       "react",
       "react-dom",
