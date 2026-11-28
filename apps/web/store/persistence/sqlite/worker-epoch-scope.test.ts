@@ -68,6 +68,7 @@ function holdingSpawner(inner: WorkerSpawner) {
     held: [] as unknown[],
     deliver: null as ((data: unknown) => void) | null,
     swallowAll: false,
+    holdClosing: false,
     release() {
       const messages = control.held.splice(0);
       for (const message of messages) control.deliver?.(message);
@@ -76,7 +77,10 @@ function holdingSpawner(inner: WorkerSpawner) {
   const spawner: WorkerSpawner = (epoch, onMessage, onError) => {
     const deliver = (data: unknown) => {
       const reply = data as { type?: string; id?: string };
-      if (reply?.type === "response" && reply.id === control.heldId) {
+      if (
+        (reply?.type === "response" && reply.id === control.heldId) ||
+        (control.holdClosing && reply?.type === "worker-closing")
+      ) {
         control.held.push(data);
         return;
       }
@@ -331,8 +335,13 @@ describe("SQLite epoch scope", () => {
     const channelTransport = createFakeChannelTransport();
     const epochStore = createFakeEpochStore();
     const locks = createFakeLockAdapter();
+    const { spawner, control } = holdingSpawner(
+      createDiskWorkerSpawner(dir, channelTransport).spawner,
+    );
     const shared = { epochStore, locks, channelTransport };
-    const client = createSqliteWorkerClient(options(dir, shared));
+    const client = createSqliteWorkerClient(
+      options(dir, { ...shared, spawnWorker: spawner }),
+    );
     await client.loadCache(["sessions", "syncMeta"]);
     await waitUntil(() => client.holdsLock(), 1000, "owner holds the lock");
     const sid = "d".repeat(32);
@@ -340,10 +349,12 @@ describe("SQLite epoch scope", () => {
     client.writePatches([patch("sessions", sid)], {
       sessions: { [sid]: row },
     });
+    control.holdClosing = true;
     const started = Date.now();
     client.close();
     await client.flushPersistence();
-    expect(Date.now() - started).toBeLessThan(1000);
+    expect(Date.now() - started).toBeLessThan(100);
+    await delay(200);
 
     const next = createSqliteWorkerClient(options(dir, shared));
     try {
