@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { CONVEX_URL } from "./convexUrl";
-import { relayPresenceUrl } from "../lib/relay-presence-config";
+import { relayEndpointUrl } from "../lib/relay-presence-config";
 
 const CONVEX = new URL(CONVEX_URL);
 const CONVEX_HTTP = CONVEX.origin;
@@ -115,10 +115,7 @@ export function createResponsePolicy(
     now = Date.now,
   } = options;
   const endpoint = cspReportEndpoint(options.sentryDsn, options);
-  const relay = relayPresenceUrl(
-    process.env.VITE_RELAY_PRESENCE,
-    process.env.VITE_RELAY_URL,
-  );
+  const relay = relayEndpointUrl(process.env.VITE_RELAY_URL);
   const policy = relay ? documentPolicy(relay.origin) : DOCUMENT_POLICY;
   let windowStart = -Infinity;
   let reportedInWindow = 0;

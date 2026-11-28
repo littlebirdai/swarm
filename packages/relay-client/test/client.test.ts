@@ -243,6 +243,47 @@ test("caps queued signals and prevents WebSocket send buffer growth", async () =
   client.close();
 });
 
+test("drops token_delta on full send buffer without closing shared connection, but retries on broken send", async () => {
+  const { client, sockets, open } = harness();
+  client.subscribe(session, () => {});
+  const socket = await open(60_000, [
+    "presence",
+    "session_liveness",
+    "token_delta",
+  ]);
+  subscribed(socket);
+
+  const delta = {
+    v: 1 as const,
+    type: "token_delta" as const,
+    hub: session,
+    run: 1,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 1,
+    text: "dropped-when-full",
+  };
+  const baseline = socket.frames.length;
+  socket.bufferedAmount = 32_768;
+  expect(client.publish(delta)).toBe(false);
+  expect(socket.frames).toHaveLength(baseline);
+  expect(socket.closed).toBe(false);
+
+  socket.bufferedAmount = 0;
+  expect(
+    client.publish({ v: 1, type: "session_liveness", hub: session, run: 1 }),
+  ).toBe(true);
+  expect(socket.frames).toHaveLength(baseline + 1);
+
+  socket.send = () => {
+    throw new Error("socket broken");
+  };
+  client.publish(delta);
+  expect(socket.closed).toBe(true);
+  expect(sockets).toHaveLength(1);
+  client.close();
+});
+
 test("uses bounded jitter, honors retry-after, and gets a fresh token for policy closes", async () => {
   const { client, sockets, open, requests, advance } = harness(undefined, 0.5);
   client.subscribe(session, () => {});
@@ -612,5 +653,57 @@ test("a server subscription.denied on the only granted hub closes the socket", a
   expect(socket.closed).toBe(true);
   await advance(60_000);
   expect(sockets).toHaveLength(1);
+  client.close();
+});
+
+test("offers token_delta capability and delivers ordered token deltas", async () => {
+  const { client, open } = harness();
+  const received: Array<{ delta_seq: number; text: string }> = [];
+  client.subscribe(session, (event) => {
+    if (event.type === "signal" && event.signal.type === "token_delta") {
+      received.push({
+        delta_seq: event.signal.delta_seq,
+        text: event.signal.text,
+      });
+    }
+  });
+  const socket = await open(60_000, ["token_delta"]);
+  expect(socket.frames[0]).toMatchObject({
+    type: "connect",
+    capabilities: expect.arrayContaining(["token_delta"]),
+  });
+  subscribed(socket);
+  socket.message({
+    v: 1,
+    type: "token_delta",
+    hub: session,
+    connection_id: "m1",
+    machine_id: "machine-1",
+    seq: 1,
+    ttl_ms: 15_000,
+    run: 2,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 1,
+    text: "Hel",
+  });
+  socket.message({
+    v: 1,
+    type: "token_delta",
+    hub: session,
+    connection_id: "m1",
+    machine_id: "machine-1",
+    seq: 2,
+    ttl_ms: 15_000,
+    run: 2,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 2,
+    text: "lo",
+  });
+  expect(received).toEqual([
+    { delta_seq: 1, text: "Hel" },
+    { delta_seq: 2, text: "lo" },
+  ]);
   client.close();
 });

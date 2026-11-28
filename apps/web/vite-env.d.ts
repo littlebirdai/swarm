@@ -3,7 +3,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_CONVEX_URL: string;
-  readonly VITE_RELAY_PRESENCE?: string;
   readonly VITE_SESSION_READ_ANCHORS?: string;
   readonly VITE_LATE_JOIN_SUMMARY?: string;
   readonly VITE_RELAY_URL?: string;

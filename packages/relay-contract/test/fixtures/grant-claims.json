@@ -40,6 +40,12 @@
         "publish": ["session_liveness"]
       },
       {
+        "kind": "session",
+        "id": "viewer:session-1",
+        "run": 3,
+        "publish": ["token_delta"]
+      },
+      {
         "kind": "machine",
         "id": "machine-1",
         "publish": ["machine_liveness"]

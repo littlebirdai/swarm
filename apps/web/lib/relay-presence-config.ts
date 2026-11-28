@@ -1,8 +1,5 @@
-export function relayPresenceUrl(
-  flag: string | undefined,
-  address: string | undefined,
-): URL | null {
-  if (flag !== "1" || !address) return null;
+export function relayEndpointUrl(address: string | undefined): URL | null {
+  if (!address) return null;
   try {
     const url = new URL(address);
     if (url.username || url.password) return null;

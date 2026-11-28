@@ -9338,7 +9338,7 @@
     "swarm/no-comments": 19
   },
   "apps/server/convex/docSync.ts": {
-    "swarm/no-comments": 66
+    "swarm/no-comments": 65
   },
   "apps/server/convex/docs.staleWrite.test.ts": {
     "swarm/no-comments": 8
@@ -22038,9 +22038,9 @@
     "swarm/no-comments": 43
   },
   "apps/web/hooks/useDocPresence.ts": {
-    "react-hooks/exhaustive-deps": 3,
-    "react/refs": 4,
-    "swarm/no-comments": 33
+    "react-hooks/exhaustive-deps": 2,
+    "react/refs": 3,
+    "swarm/no-comments": 30
   },
   "apps/web/hooks/useDormantWake.ts": {
     "swarm/no-comments": 2

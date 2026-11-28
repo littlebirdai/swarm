@@ -140,8 +140,6 @@ async function mountSessionSurface(opts: {
     cursor_pos?: number | null;
     in_draft?: boolean;
     can_send?: boolean;
-    anchor?: { message_id: string; offset: number };
-    anchor_at?: number;
     claims?: Array<{
       user_id: Id<"users">;
       text: string;
@@ -172,10 +170,8 @@ async function mountSessionSurface(opts: {
   onDriver?: (driverName: string | null) => void;
 }) {
   if (opts.relayOn) {
-    process.env.VITE_RELAY_PRESENCE = "1";
     process.env.VITE_RELAY_URL = "wss://relay.test/relay";
   } else {
-    delete process.env.VITE_RELAY_PRESENCE;
     delete process.env.VITE_RELAY_URL;
   }
 
@@ -344,87 +340,40 @@ async function mountSessionSurface(opts: {
   return { ...ui, sockets, Surface };
 }
 
-test("flag off uses Convex doc_presence and opens no relay viewer watch", async () => {
-  const ui = await mountSessionSurface({
+test("missing VITE_RELAY_URL, RelayPresenceContext, or WebSocket opens no relay watch and keeps doc_presence free of anchors", async () => {
+  const noUrl = await mountSessionSurface({
     relayOn: false,
     viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
     rosterPeerViewing: conversationId,
-    legacyPresenceRows: [
-      {
-        _id: "p1",
-        doc_id: `compose:${conversationId}`,
-        user_id: rosterPeerId,
-        user_name: "Bob Teammate",
-        user_color: "#00bcd4",
-        draft_text: "typing via convex",
-        anchor: { message_id: firstMessageId, offset: 0.25 },
-        cursor_pos: null,
-        in_draft: false,
-        updated_at: Date.now(),
-      },
-    ],
     anchor: { messageId: firstMessageId, offset: 0.5 },
   });
 
-  expect(ui.sockets.length).toBe(0);
+  expect(noUrl.sockets.length).toBe(0);
   expect(
-    ui.backend.queryRequests.filter((q) => q.name.startsWith("relayGrants:")),
-  ).toEqual([]);
-  expect(
-    ui.backend.queryRequests.some((q) => q.name === "docSync:getPresence"),
-  ).toBe(true);
-  expect(
-    ui.backend.mutations.some((m) => m.name === "docSync:updatePresence"),
-  ).toBe(true);
-  expect(
-    ui.container
-      .querySelector("[data-sv-viewers]")
-      ?.getAttribute("data-sv-viewers"),
-  ).toBe("1");
-  expect(ui.container.querySelector("[data-sv-reader-faces]")).not.toBeNull();
-  expect(ui.container.textContent).toContain("Bob Teammate is typing");
+    noUrl.backend.mutations.some(
+      (m) =>
+        m.name === "docSync:updatePresence" &&
+        (m.args as { anchor?: unknown }).anchor !== undefined,
+    ),
+  ).toBe(false);
+  expect(noUrl.container.querySelector("[data-sv-viewers]")).toBeNull();
+  expect(noUrl.container.querySelector("[data-sv-reader-faces]")).toBeNull();
+  await noUrl.close();
 
-  await ui.close();
-  expect(
-    ui.backend.mutations.some((m) => m.name === "docSync:removePresence"),
-  ).toBe(true);
-});
-
-test("missing RelayPresenceContext or missing WebSocket stays on Convex immediately", async () => {
   const withoutProvider = await mountSessionSurface({
     relayOn: true,
     withoutProvider: true,
     viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
     rosterPeerViewing: conversationId,
-    legacyPresenceRows: [
-      {
-        _id: "p1",
-        doc_id: `compose:${conversationId}`,
-        user_id: rosterPeerId,
-        user_name: "Bob Teammate",
-        user_color: "#00bcd4",
-        draft_text: "live via convex",
-        anchor: { message_id: firstMessageId, offset: 0.2 },
-        updated_at: Date.now(),
-      },
-    ],
   });
 
   expect(withoutProvider.sockets.length).toBe(0);
   expect(
-    withoutProvider.backend.queryRequests.some(
-      (q) => q.name === "docSync:getPresence",
-    ),
-  ).toBe(true);
-  expect(
-    withoutProvider.container
-      .querySelector("[data-sv-viewers]")
-      ?.getAttribute("data-sv-viewers"),
-  ).toBe("1");
+    withoutProvider.container.querySelector("[data-sv-viewers]"),
+  ).toBeNull();
   expect(
     withoutProvider.container.querySelector("[data-sv-reader-faces]"),
-  ).not.toBeNull();
-  expect(withoutProvider.container.textContent).toContain("live via convex");
+  ).toBeNull();
   await withoutProvider.close();
 
   const withoutSocket = await mountSessionSurface({
@@ -432,98 +381,23 @@ test("missing RelayPresenceContext or missing WebSocket stays on Convex immediat
     withoutWebSocket: true,
     viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
     rosterPeerViewing: conversationId,
-    legacyPresenceRows: [
-      {
-        _id: "p2",
-        doc_id: `compose:${conversationId}`,
-        user_id: rosterPeerId,
-        user_name: "Bob Teammate",
-        user_color: "#00bcd4",
-        draft_text: "no websocket convex",
-        anchor: { message_id: firstMessageId, offset: 0.3 },
-        updated_at: Date.now(),
-      },
-    ],
   });
 
   expect(withoutSocket.sockets.length).toBe(0);
-  expect(
-    withoutSocket.backend.queryRequests.some(
-      (q) => q.name === "docSync:getPresence",
-    ),
-  ).toBe(true);
-  expect(
-    withoutSocket.container
-      .querySelector("[data-sv-viewers]")
-      ?.getAttribute("data-sv-viewers"),
-  ).toBe("1");
+  expect(withoutSocket.container.querySelector("[data-sv-viewers]")).toBeNull();
   expect(
     withoutSocket.container.querySelector("[data-sv-reader-faces]"),
-  ).not.toBeNull();
-  expect(withoutSocket.container.textContent).toContain("no websocket convex");
+  ).toBeNull();
   await withoutSocket.close();
 });
 
-test("server flag off falls back to doc_presence without opening a viewer relay subscription", async () => {
-  const ui = await mountSessionSurface({
-    relayOn: true,
-    viewerTarget: null,
-    legacyPresenceRows: [
-      {
-        _id: "p1",
-        doc_id: `compose:${conversationId}`,
-        user_id: rosterPeerId,
-        user_name: "Bob Teammate",
-        user_color: "#00bcd4",
-        draft_text: "",
-        anchor: { message_id: firstMessageId, offset: 0.1 },
-        cursor_pos: null,
-        in_draft: false,
-        updated_at: Date.now(),
-      },
-    ],
-  });
-
-  expect(
-    ui.backend.queryRequests.some((q) => q.name === "relayGrants:viewerTarget"),
-  ).toBe(true);
-  const viewerSubSent = ui.sockets.some((s) =>
-    s.frames.some(
-      (f) =>
-        f.type === "subscribe" &&
-        (f.hub as { id?: string } | undefined)?.id === viewerHubId,
-    ),
-  );
-  expect(viewerSubSent).toBe(false);
-  expect(
-    ui.backend.queryRequests.some((q) => q.name === "docSync:getPresence"),
-  ).toBe(true);
-  expect(
-    ui.backend.mutations.some((m) => m.name === "docSync:updatePresence"),
-  ).toBe(true);
-  expect(ui.container.querySelector("[data-sv-reader-faces]")).not.toBeNull();
-
-  await ui.close();
-});
-
-test("mint unavailable or rate_limited cancels automatic retries and falls back to Convex", async () => {
+test("mint unavailable or rate_limited cancels automatic retries and renders Presence unknown without falling back to Convex", async () => {
   for (const terminalStatus of ["rate_limited", "unavailable"] as const) {
     let mints = 0;
     const ui = await mountSessionSurface({
       relayOn: true,
       viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },
       rosterPeerViewing: conversationId,
-      legacyPresenceRows: [
-        {
-          _id: "p-fallback",
-          doc_id: `compose:${conversationId}`,
-          user_id: rosterPeerId,
-          user_name: "Bob Teammate",
-          user_color: "#00bcd4",
-          anchor: { message_id: firstMessageId, offset: 0.4 },
-          updated_at: Date.now(),
-        },
-      ],
       mintReply: () => {
         mints++;
         return { status: terminalStatus };
@@ -543,16 +417,34 @@ test("mint unavailable or rate_limited cancels automatic retries and falls back 
     expect(mints).toBe(mintsAfterFirst);
     expect(
       ui.store.getState().relayViewerPresence[conversationId]?.status,
-    ).toBe("disabled");
+    ).toBe("unknown");
+    expect(ui.container.querySelector("[data-sv-viewers]")).toBeNull();
+    expect(ui.container.querySelector("[data-sv-reader-faces]")).toBeNull();
     expect(
-      ui.container
-        .querySelector("[data-sv-viewers]")
-        ?.getAttribute("data-sv-viewers"),
-    ).toBe("1");
-    expect(ui.container.querySelector("[data-sv-reader-faces]")).not.toBeNull();
+      ui.container.querySelectorAll('[data-sv-presence-status="unknown"]')
+        .length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(ui.container.textContent).toContain("Presence unknown");
 
     await ui.close();
   }
+
+  const nullTarget = await mountSessionSurface({
+    relayOn: true,
+    viewerTarget: null,
+    rosterPeerViewing: conversationId,
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(
+    nullTarget.store.getState().relayViewerPresence[conversationId]?.status,
+  ).toBe("unknown");
+  expect(
+    nullTarget.container.querySelectorAll('[data-sv-presence-status="unknown"]')
+      .length,
+  ).toBeGreaterThanOrEqual(2);
+  await nullTarget.close();
 });
 
 test("denied subscription hides viewer faces instead of falling back to roster", async () => {
@@ -567,7 +459,6 @@ test("denied subscription hides viewer faces instead of falling back to roster",
         user_id: rosterPeerId,
         user_name: "Bob Teammate",
         user_color: "#00bcd4",
-        anchor: { message_id: firstMessageId, offset: 0.4 },
         updated_at: Date.now(),
       },
     ],
@@ -595,7 +486,7 @@ test("denied subscription hides viewer faces instead of falling back to roster",
   await ui.close();
 });
 
-test("flag on routes faces and reading_cursor over relay, publishes presence once per connect, and writes zero doc_presence anchors on scroll", async () => {
+test("routes faces and reading_cursor over relay, publishes presence once per connect, and writes zero doc_presence anchors on scroll", async () => {
   const ui = await mountSessionSurface({
     relayOn: true,
     viewerTarget: { viewer: ownerId, hub: viewerHubId, tier: "member" },

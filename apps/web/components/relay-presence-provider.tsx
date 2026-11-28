@@ -10,9 +10,11 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
   RelayPresenceAvailableContext,
   RelayPresenceContext,
+  RelayTokenDeltasAvailableContext,
+  RelayTokenDeltasContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
-import { relayPresenceUrl } from "../lib/relay-presence-config";
+import { relayEndpointUrl } from "../lib/relay-presence-config";
 import { useInboxStore } from "../store/inboxStore";
 
 function ActiveRelayPresence({
@@ -56,6 +58,14 @@ function ActiveRelayPresence({
             .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
+        capabilities: [
+          "presence",
+          "draft_cursor",
+          "reading_cursor",
+          "baton_heartbeat",
+          "token_delta",
+          ...(scope.inboxLiveness ? (["session_liveness"] as const) : []),
+        ],
         onStatus(hub, status, meta) {
           if (hub.kind !== "session") return;
           const listeners = statusListeners.get(hub.id);
@@ -154,17 +164,20 @@ function ActiveRelayPresence({
     scope && connection?.scope === scope ? connection.client : null;
   return (
     <RelayPresenceAvailableContext value={available}>
-      <RelayPresenceContext value={client}>{children}</RelayPresenceContext>
+      <RelayPresenceContext value={client}>
+        <RelayTokenDeltasAvailableContext value={available}>
+          <RelayTokenDeltasContext value={client}>
+            {children}
+          </RelayTokenDeltasContext>
+        </RelayTokenDeltasAvailableContext>
+      </RelayPresenceContext>
     </RelayPresenceAvailableContext>
   );
 }
 
 export function RelayPresenceProvider({ children }: { children: ReactNode }) {
   const isSyncHost = useIsSyncHost();
-  const url = relayPresenceUrl(
-    import.meta.env.VITE_RELAY_PRESENCE,
-    import.meta.env.VITE_RELAY_URL,
-  );
+  const url = relayEndpointUrl(import.meta.env.VITE_RELAY_URL);
   return url ? (
     <ActiveRelayPresence
       url={url.href}

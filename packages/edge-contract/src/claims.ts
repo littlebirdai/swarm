@@ -78,12 +78,16 @@ export const parseReleaseRequest = parser(releaseRequest);
 export const parseReleaseResponse = parser(releaseResponse);
 
 const readRelayGrantSessions = array(object(fence));
+const maxRelayGrantSessions = Math.max(
+  1,
+  Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2),
+);
 const relayGrantRequest = object({
   v: readV1,
   sessions(value, path) {
     if (
       Array.isArray(value) &&
-      (value.length === 0 || value.length > RELAY_MAX_GRANTS_PER_TOKEN)
+      (value.length === 0 || value.length > maxRelayGrantSessions)
     ) {
       throw new EdgeParseError(
         "invalid_value",

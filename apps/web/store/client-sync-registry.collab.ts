@@ -20,10 +20,14 @@ export const COLLAB_SYNC_COLLECTIONS = {
     },
     feeds: ["collab.steerClaimState"],
   },
+  relayTokenDeltas: {
+    sync: {},
+  },
 } satisfies Record<string, ClientSyncRegistryEntry>;
 
 export const replication = {
   collabAccess: "local",
   collabRequests: "local",
   fencedSteerClaims: "local",
+  relayTokenDeltas: "local",
 } as const;

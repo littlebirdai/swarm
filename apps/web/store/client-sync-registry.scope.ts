@@ -23,6 +23,7 @@ export const DATA_SCOPE = {
   relayInboxCards: "viewer",
   relayInboxContacts: "viewer",
   relayViewerPresence: "entity",
+  relayTokenDeltas: "entity",
   repoBrowse: "entity",
   repoBrowseAccess: "entity",
   settingsData: "viewer",

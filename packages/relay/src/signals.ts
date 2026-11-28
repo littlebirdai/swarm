@@ -26,6 +26,7 @@ export function stampSignal(
         ? { ...signal, ...base, ttl_ms: 0, user_id: owner.id }
         : { ...signal, ...base, user_id: owner.id };
     case "session_liveness":
+    case "token_delta":
       return { ...signal, ...base, machine_id: owner.id };
     case "machine_liveness":
       return { ...signal, ...base };

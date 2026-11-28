@@ -8,23 +8,30 @@ import {
 } from "../src";
 import { expectParsed, expectParseError } from "./assertions";
 
-const sessions = Array.from(
-  { length: RELAY_MAX_GRANTS_PER_TOKEN + 1 },
-  (_, index) => ({
-    session: `session-${index}`,
-    run: 1,
-    fencing_token: `fence-${index}`,
-  }),
-);
+const maxSessions = Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2));
+const sessions = Array.from({ length: maxSessions + 1 }, (_, index) => ({
+  session: `session-${index}`,
+  run: 1,
+  fencing_token: `fence-${index}`,
+}));
 
-test("relay grant requests accept one through sixteen distinct fenced sessions", () => {
-  for (const count of [1, RELAY_MAX_GRANTS_PER_TOKEN]) {
+test("relay grant requests accept up to half of RELAY_MAX_GRANTS_PER_TOKEN distinct fenced sessions", () => {
+  for (const count of [1, maxSessions]) {
     const request: RelayGrantRequest = {
       v: 1,
       sessions: sessions.slice(0, count),
     };
     expectParsed(parseRelayGrantRequest(request), request);
   }
+  expectParseError(
+    parseRelayGrantRequest({
+      v: 1,
+      sessions: sessions.slice(0, 1),
+      token_deltas: true,
+    }),
+    "unknown_field",
+    "$.token_deltas",
+  );
   for (const invalid of [[], sessions, [sessions[0], sessions[0]]]) {
     expectParseError(
       parseRelayGrantRequest({ v: 1, sessions: invalid }),

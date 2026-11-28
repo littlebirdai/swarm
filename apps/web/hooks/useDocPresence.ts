@@ -104,9 +104,7 @@ export function usePresenceRows(
   const entry = useRelay && convId ? st.relayViewerPresence[convId] : undefined;
   const relayActive =
     useRelay && isRelayViewerEntryActive(entry, viewerAccount);
-  const queryLegacy =
-    enabled &&
-    (!useRelay || (entry !== undefined && entry.status === "disabled"));
+  const queryLegacy = enabled && !relayScope;
 
   // Presence only decorates the editor: when the doc is gone or the viewer
   // lost access the query throws NOT_FOUND, and the editor's own doc read says
@@ -124,7 +122,7 @@ export function usePresenceRows(
     }
     return rows.length === 0 ? NO_ROWS : rows;
   }
-  if (useRelay && (entry === undefined || entry.status === "denied")) {
+  if (relayScope) {
     return NO_ROWS;
   }
   return legacyRows;
@@ -169,13 +167,6 @@ export function useDocPresence(opts: {
       ? relayViewerHasPeers(s.relayViewerPresence[convId], viewerAccount)
       : false,
   );
-  const relayHandlesAnchor = Boolean(
-    convId &&
-    viewerState.available &&
-    enabled &&
-    !viewerState.disabled &&
-    relayStatus !== "disabled",
-  );
   const relayReady =
     Boolean(targetHub && relayClient && viewerState.available) &&
     relayStatus === "ready";
@@ -189,8 +180,6 @@ export function useDocPresence(opts: {
 
   const draftRef = useRef(draftText);
   draftRef.current = draftText;
-  const anchorRef = useRef(anchor);
-  anchorRef.current = anchor;
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
   const inDraftRef = useRef(inDraft);
@@ -205,19 +194,12 @@ export function useDocPresence(opts: {
       hasRelayPeers,
     };
   }, [anchor, hasRelayPeers]);
-  const relayHandlesAnchorRef = useRef(relayHandlesAnchor);
-  useWatchEffect(() => {
-    relayHandlesAnchorRef.current = relayHandlesAnchor;
-  }, [relayHandlesAnchor]);
   const sentReadingRef = useRef(false);
 
   const push = () =>
     update({
       doc_id: docId,
       draft_text: draftRef.current,
-      anchor: relayHandlesAnchorRef.current
-        ? undefined
-        : (anchorRef.current ?? undefined),
       cursor_pos: cursorRef.current ?? undefined,
       in_draft: inDraftRef.current || undefined,
     }).catch(() => {});
@@ -234,27 +216,11 @@ export function useDocPresence(opts: {
     };
   }, [broadcast, docId, update, remove]);
 
-  // Snappier than the heartbeat: push shortly after the draft or the reading
-  // place changes: words after 250ms of quiet, the reading place at most
-  // twice a second while it moves.
-  const anchorKey = anchor
-    ? `${anchor.message_id}|${anchor.offset.toFixed(2)}`
-    : "";
   useWatchEffect(() => {
     if (!broadcast) return;
     const t = setTimeout(push, 250);
     return () => clearTimeout(t);
   }, [draftText, cursor, inDraft, broadcast, docId, update]);
-  const anchorPushedAt = useRef(0);
-  useWatchEffect(() => {
-    if (!broadcast || !anchorKey || relayHandlesAnchor) return;
-    const wait = Math.max(0, 500 - (Date.now() - anchorPushedAt.current));
-    const t = setTimeout(() => {
-      anchorPushedAt.current = Date.now();
-      push();
-    }, wait);
-    return () => clearTimeout(t);
-  }, [anchorKey, broadcast, docId, relayHandlesAnchor, update]);
 
   useWatchEffect(() => {
     if (!relayReady || !enabled || !targetHub || !relayClient) return;

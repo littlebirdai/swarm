@@ -7,7 +7,10 @@ import {
   parseRelayGrantResponse,
   RELAY_SESSION_LIVENESS_CAPABILITY,
 } from "@codecast/edge-contract";
-import { parseRelayGrantClaims } from "@codecast/relay-contract";
+import {
+  parseRelayGrantClaims,
+  RELAY_MAX_GRANTS_PER_TOKEN,
+} from "@codecast/relay-contract";
 import { api, internal } from "./_generated/api";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
@@ -127,6 +130,12 @@ test("only the current run owner can obtain a signed run-scoped grant", async ()
           run: claim.run,
           publish: ["session_liveness"],
         },
+        {
+          kind: "session",
+          id: `viewer:${f.conversation}`,
+          run: claim.run,
+          publish: ["token_delta"],
+        },
       ],
     },
   });
@@ -214,9 +223,9 @@ async function grantFence(
   };
 }
 
-async function addSession(f: Fixture) {
+async function addSession(f: Fixture, seed = "second relay run") {
   return f.t.run(async ({ db }) => {
-    const rows = fixtureRows(db, "second relay run");
+    const rows = fixtureRows(db, seed);
     const { _id, _creationTime, ...head } = (await db.get(f.head))!;
     const {
       _id: bindingId,
@@ -262,12 +271,20 @@ test("one grant covers the batch and expires at the earliest lease deadline", as
     ok: true,
     value: {
       expires_at_ms: start + leaseMs,
-      grants: [second, first].map(({ session, run }) => ({
-        kind: "session",
-        id: session,
-        run,
-        publish: ["session_liveness"],
-      })),
+      grants: [second, first].flatMap(({ session, run }) => [
+        {
+          kind: "session",
+          id: session,
+          run,
+          publish: ["session_liveness"],
+        },
+        {
+          kind: "session",
+          id: `viewer:${session}`,
+          run,
+          publish: ["token_delta"],
+        },
+      ]),
     },
   });
   expect(
@@ -440,4 +457,65 @@ test("inbox relay targets follow conversation access and the current fenced bind
   ).toBeNull();
   delete process.env.INBOX_LIVENESS_LEASES;
   expect(await owner.query(query, args)).toBeNull();
+});
+
+test("relay-grant mints both liveness and token_delta up to half of RELAY_MAX_GRANTS_PER_TOKEN and rejects token_deltas", async () => {
+  const f = await fixture();
+  const claim = await f.claim("token delta claim");
+  if (claim.status !== "granted") throw new Error("Expected active claim");
+
+  const rejectedField = await f.post("relay-grant", {
+    v: 1,
+    sessions: [
+      {
+        session: f.conversation,
+        run: claim.run,
+        fencing_token: claim.fencing_token,
+      },
+    ],
+    token_deltas: true,
+  });
+  expect(rejectedField.status).toBe(400);
+
+  const maxBatch = Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2));
+  const maxSessions = [
+    {
+      session: f.conversation,
+      run: claim.run,
+      fencing_token: claim.fencing_token,
+    },
+  ];
+  for (let index = 1; index < maxBatch; index += 1) {
+    const nextSession = await addSession(f, `batch-session-${index}`);
+    maxSessions.push(await grantFence(f, `batch-${index}`, nextSession));
+  }
+  const accepted = await f.post("relay-grant", {
+    v: 1,
+    sessions: maxSessions,
+  });
+  expect(accepted.status).toBe(200);
+  const acceptedJson = await accepted.json();
+  expect(acceptedJson.status).toBe("ok");
+  const [, payload] = (acceptedJson.token as string).split(".");
+  const claims = parseRelayGrantClaims(
+    new TextDecoder().decode(base64urlDecode(payload)!),
+  );
+  expect(claims.ok && claims.value.grants).toHaveLength(maxBatch * 2);
+
+  const ninthSession = await addSession(f, "batch-session-overflow");
+  const overflowSessions = [
+    ...maxSessions,
+    await grantFence(f, "batch-overflow", ninthSession),
+  ];
+  const overflowHttp = await f.post("relay-grant", {
+    v: 1,
+    sessions: overflowSessions,
+  });
+  expect(overflowHttp.status).toBe(400);
+  expect(
+    await f.t.mutation(internal.relayGrants.mintMachineLiveness, {
+      bearer: f.bearer,
+      sessions: overflowSessions,
+    }),
+  ).toEqual({ v: 1, status: "stale" });
 });

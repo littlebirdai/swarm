@@ -265,9 +265,10 @@ test("stream activity skips the probe and one slow reply leaves the active sessi
     expect(probes()).toEqual([]);
 
     await f.sendFrame({ holdLiveness: true });
+    const silentProbeTimers = timers.count(5_000) + 1;
     timers.tick(30_000);
     await until(
-      () => probes().length === 1 && timers.count(5_000) === 1,
+      () => probes().length === 1 && timers.count(5_000) === silentProbeTimers,
       "the silent turn receives a check",
     );
     timers.tick(5_000);
@@ -296,9 +297,12 @@ test("stream activity skips the probe and one slow reply leaves the active sessi
     expect(probes()).toHaveLength(2);
     await f.sendFrame({ holdLiveness: true });
     for (let attempt = 3; attempt <= 4; attempt++) {
+      const nextProbeTimers = timers.count(5_000) + 1;
       timers.tick(30_000);
       await until(
-        () => probes().length === attempt && timers.count(5_000) === 1,
+        () =>
+          probes().length === attempt &&
+          timers.count(5_000) === nextProbeTimers,
         "another check reaches the provider",
       );
       timers.tick(5_000);
@@ -322,6 +326,10 @@ async function openTurn(f: ReturnType<typeof fixture>) {
     () => f.statuses.includes("working"),
     "the provider started a turn",
   );
+  await until(
+    () => f.actions.includes("edge:hello"),
+    "relay capability check completes",
+  );
 }
 
 test("three consecutive missed checks stop renewal, publish stopped, and close the session", async () => {
@@ -338,11 +346,12 @@ test("three consecutive missed checks stop renewal, publish stopped, and close t
       "the active stream renews",
     );
     for (let attempt = 1; attempt <= 3; attempt++) {
+      const probeTimers = timers.count(5_000) + 1;
       timers.tick(30_000);
       await until(
         () =>
           f.providerRequests().filter(({ method }) => method === "thread/read")
-            .length === attempt && timers.count(5_000) === 1,
+            .length === attempt && timers.count(5_000) === probeTimers,
         `provider receives check ${attempt}`,
       );
       timers.tick(5_000);
@@ -441,62 +450,58 @@ test("the app-server exit sends stopped status and releases ownership", async ()
   }
 });
 
-test.each([undefined, "1"])(
-  "the relay flag %s preserves the owned lease and legacy heartbeat during an outage",
-  async (flag) => {
-    const outage = Promise.withResolvers<Response>();
-    const grant = mock((signal: AbortSignal) => {
-      signal.addEventListener("abort", () => outage.reject(signal.reason), {
-        once: true,
-      });
-      return outage.promise;
+test("relay contact preserves the owned lease and legacy heartbeat during an outage", async () => {
+  const outage = Promise.withResolvers<Response>();
+  const grant = mock((signal: AbortSignal) => {
+    signal.addEventListener("abort", () => outage.reject(signal.reason), {
+      once: true,
     });
-    const f = fixture("pilot", true, "receipt", { flag, grant });
-    const immediate = spyOn(globalThis, "setImmediate");
-    const timers = fakeTimers(30_000);
-    const write = mock(
-      async (
-        _rows: Parameters<SyncService["heartbeatManagedSessionsBatch"]>[0],
-      ) => ({ updated: 1 }),
-    );
-    trackSessionPaneForTests("legacy-pane", "fixture-pane");
-    setSyncServiceForTests(
-      strictStub<SyncService>("legacy heartbeat", {
-        heartbeatManagedSessionsBatch: write,
-      }),
-    );
-    try {
-      f.initial([item(f.pilotRequest)]);
-      await f.runtime.start();
-      expect(
-        immediate.mock.calls.filter(
-          ([callback]) => callback.name === "launchRelayPublisher",
-        ),
-      ).toHaveLength(flag ? 1 : 0);
-      if (flag)
-        await until(() => grant.mock.calls.length === 1, "relay grant begins");
+    return outage.promise;
+  });
+  const f = fixture("pilot", true, "receipt", { grant });
+  const immediate = spyOn(globalThis, "setImmediate");
+  const timers = fakeTimers(30_000);
+  const write = mock(
+    async (
+      _rows: Parameters<SyncService["heartbeatManagedSessionsBatch"]>[0],
+    ) => ({ updated: 1 }),
+  );
+  trackSessionPaneForTests("legacy-pane", "fixture-pane");
+  setSyncServiceForTests(
+    strictStub<SyncService>("legacy heartbeat", {
+      heartbeatManagedSessionsBatch: write,
+    }),
+  );
+  try {
+    f.initial([item(f.pilotRequest)]);
+    await f.runtime.start();
+    expect(
+      immediate.mock.calls.filter(
+        ([callback]) => callback.name === "launchRelayPublisher",
+      ),
+    ).toHaveLength(1);
+    await until(() => grant.mock.calls.length === 1, "relay grant begins");
 
-      timers.tick(30_000);
-      await until(
-        () => f.actions.includes("edge:renew"),
-        "the Convex lease renews",
-      );
-      await runHeartbeatFlush();
-      await f.runtime.processWorkUpdate([]);
-      expect(write.mock.calls).toEqual([[[{ session_id: "legacy-pane" }]]]);
-      expect(
-        f.actions.filter((action) => action === "edge:renew"),
-      ).toHaveLength(1);
-      expect(
-        f.actions.filter((action) => action === "edge:hello"),
-      ).toHaveLength(flag ? 1 : 0);
-      expect(grant).toHaveBeenCalledTimes(flag ? 1 : 0);
-    } finally {
-      immediate.mockRestore();
-      trackSessionPaneForTests("legacy-pane", null);
-      setSyncServiceForTests(null);
-      timers.restore();
-      await f.dispose();
-    }
-  },
-);
+    timers.tick(30_000);
+    await until(
+      () => f.actions.includes("edge:renew"),
+      "the Convex lease renews",
+    );
+    await runHeartbeatFlush();
+    await f.runtime.processWorkUpdate([]);
+    expect(write.mock.calls).toEqual([[[{ session_id: "legacy-pane" }]]]);
+    expect(f.actions.filter((action) => action === "edge:renew")).toHaveLength(
+      1,
+    );
+    expect(f.actions.filter((action) => action === "edge:hello")).toHaveLength(
+      1,
+    );
+    expect(grant).toHaveBeenCalledTimes(1);
+  } finally {
+    immediate.mockRestore();
+    trackSessionPaneForTests("legacy-pane", null);
+    setSyncServiceForTests(null);
+    timers.restore();
+    await f.dispose();
+  }
+});

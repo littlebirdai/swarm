@@ -39,7 +39,10 @@ export class Outbox {
     recipientTtl: (now: number) => number,
   ): void {
     const { frame } = publication;
-    const key = `${frame.connection_id}|${hubKey(frame.hub)}|${frame.type}`;
+    const key =
+      frame.type === "token_delta"
+        ? `${frame.connection_id}|${hubKey(frame.hub)}|${frame.type}|${frame.seq}`
+        : `${frame.connection_id}|${hubKey(frame.hub)}|${frame.type}`;
     this.#pending.delete(key);
     if (this.#makeRoom()) this.#pending.set(key, { publication, recipientTtl });
   }

@@ -9,6 +9,11 @@ import {
   type RelayViewerPresenceSlice,
   type RelayViewerSessionState,
 } from "./relay-viewer-presence-slice";
+import {
+  createRelayTokenDeltasSlice,
+  type RelayTokenDeltasSlice,
+  type RelayTokenDeltasState,
+} from "./relay-token-deltas-slice";
 import * as deferredCache from "./deferred-cache-policy";
 import { createSteerComposerSlice } from "./steer-composer-state";
 import { resetDetailInvalidations } from "./doc-detail-cache";
@@ -7877,6 +7882,7 @@ export interface InboxStoreState
     SteerComposerStore,
     RelayInboxSlice,
     RelayViewerPresenceSlice,
+    RelayTokenDeltasSlice,
     LiveArtifactsSliceActions,
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
@@ -7956,6 +7962,7 @@ export interface InboxStoreState
   relayInboxCards: Record<string, number>;
   relayInboxContacts: Record<string, InboxRelayContact | undefined>;
   relayViewerPresence: Record<string, RelayViewerSessionState | undefined>;
+  relayTokenDeltas: RelayTokenDeltasState;
   mintRelayGrant: ReturnType<typeof relayGrantAction>;
   // ── The projection stamp buffer (sync-convergence C1/C6) ──
   // Per-scope checking data from the liveness overlay: the server's run of the
@@ -13306,6 +13313,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
   ),
   ...createRelayInboxSlice(),
   ...createRelayViewerPresenceSlice(),
+  relayTokenDeltas: {},
+  ...createRelayTokenDeltasSlice(),
   // sync(): the id set is server truth (or its persisted snapshot) — persist to
   // IDB via patches, never dispatch. Both twins move together so the persisted
   // array can never drift from what the UI filtered against.

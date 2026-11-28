@@ -5,6 +5,8 @@ import { isConvexId } from "../lib/entityLinks";
 import {
   RelayPresenceAvailableContext,
   RelayPresenceContext,
+  RelayTokenDeltasAvailableContext,
+  RelayTokenDeltasContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
 import { useInboxStore } from "../store/inboxStore";
@@ -13,7 +15,8 @@ import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
 type SharedViewerSubscription = {
-  count: number;
+  presenceCount: number;
+  tokenDeltasCount: number;
   unsubscribe: () => void;
 };
 
@@ -31,9 +34,15 @@ export function composeConversationId(docId: string): string | null {
 export function useRelayViewerTargetState(
   conversationId: string | null | undefined,
   enabled: boolean,
+  channel: "presence" | "tokenDeltas" = "presence",
 ) {
-  const client = useContext(RelayPresenceContext);
-  const available = useContext(RelayPresenceAvailableContext);
+  const presenceClient = useContext(RelayPresenceContext);
+  const presenceAvailable = useContext(RelayPresenceAvailableContext);
+  const tokenDeltaClient = useContext(RelayTokenDeltasContext);
+  const tokenDeltaAvailable = useContext(RelayTokenDeltasAvailableContext);
+  const isPresence = channel === "presence";
+  const client = isPresence ? presenceClient : tokenDeltaClient;
+  const available = isPresence ? presenceAvailable : tokenDeltaAvailable;
   const validId =
     conversationId && isConvexId(conversationId) ? conversationId : null;
   const account = client?.viewerAccount;
@@ -57,7 +66,7 @@ export function useRelayViewerTargetState(
       : null;
 
   const unknownSig = useInboxStore((state) => {
-    if (!activeTarget || !validId) return "";
+    if (!isPresence || !activeTarget || !validId) return "";
     return relayViewerUnknownIds(
       state.relayViewerPresence[validId],
       teamMembersOf(state),
@@ -71,13 +80,14 @@ export function useRelayViewerTargetState(
 
   const identities = useQueryNoThrow(
     api.relayGrants.viewerIdentities,
-    activeTarget && validId && unknownIds.length > 0
+    isPresence && activeTarget && validId && unknownIds.length > 0
       ? { conversation_id: validId, user_ids: unknownIds }
       : "skip",
   );
 
   useWatchEffect(() => {
     if (
+      !isPresence ||
       !activeTarget ||
       !validId ||
       !identities.data ||
@@ -92,9 +102,10 @@ export function useRelayViewerTargetState(
         unknownIds,
         identities.data,
       );
-  }, [activeTarget, validId, identities.data, unknownIds]);
+  }, [isPresence, activeTarget, validId, identities.data, unknownIds]);
 
   return {
+    channel,
     available,
     client,
     account,
@@ -112,7 +123,7 @@ export function useSubscribeRelayViewer(
   state: ReturnType<typeof useRelayViewerTargetState>,
   enabled: boolean,
 ) {
-  const { available, client, account, validId, target } = state;
+  const { channel, available, client, account, validId, target } = state;
   const targetError = Boolean(target.error);
   const targetNull = target.data === null;
   const targetData = target.data;
@@ -123,10 +134,14 @@ export function useSubscribeRelayViewer(
 
   useWatchEffect(() => {
     if (!available || !validId || !client || !account || !enabled) return;
+    const isPresence = channel === "presence";
     if (targetError || targetNull) {
-      useInboxStore
-        .getState()
-        .setRelayViewerStatus(validId, account, "", "disabled");
+      const store = useInboxStore.getState();
+      if (isPresence) {
+        store.setRelayViewerStatus(validId, account, "", "unknown");
+      } else {
+        store.applyRelayTokenDeltaStatus(validId, "disabled");
+      }
       return;
     }
     if (!targetViewer || !targetHub || !targetTier) return;
@@ -138,62 +153,117 @@ export function useSubscribeRelayViewer(
     const subKey = `${validId}\0${targetViewer}\0${targetHub}\0${targetTier}`;
     let shared = map.get(subKey);
     if (!shared) {
-      useInboxStore
-        .getState()
-        .setRelayViewerStatus(validId, targetViewer, targetHub, "connecting");
-      let unsubscribe = () => {};
+      const sharedEntry: SharedViewerSubscription = {
+        presenceCount: isPresence ? 1 : 0,
+        tokenDeltasCount: isPresence ? 0 : 1,
+        unsubscribe: () => {},
+      };
+      shared = sharedEntry;
+      map.set(subKey, sharedEntry);
+      if (isPresence) {
+        useInboxStore
+          .getState()
+          .setRelayViewerStatus(validId, targetViewer, targetHub, "connecting");
+      }
       try {
-        unsubscribe = client.subscribe(
+        sharedEntry.unsubscribe = client.subscribe(
           targetHub,
           (event) => {
-            useInboxStore
-              .getState()
-              .applyRelayViewerEvent(
+            const store = useInboxStore.getState();
+            if (
+              event.type === "signal" &&
+              event.signal.type === "token_delta"
+            ) {
+              if (sharedEntry.tokenDeltasCount > 0) {
+                store.applyRelayTokenDeltaSignal(validId, event.signal);
+              }
+              return;
+            }
+            if (sharedEntry.presenceCount > 0) {
+              store.applyRelayViewerEvent(
                 validId,
                 targetViewer,
                 targetHub,
                 event,
                 Date.now(),
               );
+            }
           },
-          (status, meta) => {
-            const mapped =
-              status === "unavailable"
-                ? meta?.terminal
-                  ? "disabled"
-                  : "unknown"
-                : status;
-            useInboxStore
-              .getState()
-              .setRelayViewerStatus(validId, targetViewer, targetHub, mapped);
+          (status) => {
+            const store = useInboxStore.getState();
+            if (sharedEntry.presenceCount > 0) {
+              store.setRelayViewerStatus(
+                validId,
+                targetViewer,
+                targetHub,
+                status === "unavailable" ? "unknown" : status,
+              );
+            }
+            if (sharedEntry.tokenDeltasCount > 0) {
+              store.applyRelayTokenDeltaStatus(validId, status);
+            }
           },
           { batchKey: targetTier, terminalUnavailable: true },
         );
       } catch {
+        const store = useInboxStore.getState();
+        if (sharedEntry.presenceCount > 0) {
+          store.setRelayViewerStatus(
+            validId,
+            targetViewer,
+            targetHub,
+            "unknown",
+          );
+        }
+        if (sharedEntry.tokenDeltasCount > 0) {
+          store.applyRelayTokenDeltaStatus(validId, "unavailable");
+        }
+      }
+    } else if (isPresence) {
+      shared.presenceCount += 1;
+      if (shared.presenceCount === 1) {
+        const currentStatus = client.status(targetHub) ?? "connecting";
         useInboxStore
           .getState()
-          .setRelayViewerStatus(validId, targetViewer, targetHub, "unknown");
+          .setRelayViewerStatus(
+            validId,
+            targetViewer,
+            targetHub,
+            currentStatus === "unavailable" ? "unknown" : currentStatus,
+          );
       }
-      shared = { count: 0, unsubscribe };
-      map.set(subKey, shared);
+    } else {
+      shared.tokenDeltasCount += 1;
     }
-    shared.count += 1;
+
     return () => {
-      shared.count -= 1;
-      if (shared.count > 0) return;
+      if (isPresence) {
+        shared.presenceCount -= 1;
+        if (shared.presenceCount === 0) {
+          const store = useInboxStore.getState();
+          const current = store.relayViewerPresence[validId];
+          if (
+            current &&
+            current.viewer === targetViewer &&
+            current.hub === targetHub
+          ) {
+            store.clearRelayViewerPresence(validId);
+          }
+        }
+      } else {
+        shared.tokenDeltasCount -= 1;
+        if (shared.tokenDeltasCount === 0) {
+          useInboxStore
+            .getState()
+            .applyRelayTokenDeltaStatus(validId, "disabled");
+        }
+      }
+      if (shared.presenceCount + shared.tokenDeltasCount > 0) return;
       map.delete(subKey);
       shared.unsubscribe();
-      const store = useInboxStore.getState();
-      const current = store.relayViewerPresence[validId];
-      if (
-        current &&
-        current.viewer === targetViewer &&
-        current.hub === targetHub
-      ) {
-        store.clearRelayViewerPresence(validId);
-      }
     };
   }, [
+    channel,
     available,
     client,
     account,
@@ -219,4 +289,16 @@ export function useSyncRelayViewerPresence(
     target: state.activeTarget,
     disabled: state.disabled,
   };
+}
+
+export function useSyncRelayTokenDeltas(
+  conversationId: string | null | undefined,
+  enabled: boolean,
+) {
+  const state = useRelayViewerTargetState(
+    conversationId,
+    enabled,
+    "tokenDeltas",
+  );
+  useSubscribeRelayViewer(state, enabled);
 }

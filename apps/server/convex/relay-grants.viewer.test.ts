@@ -15,17 +15,12 @@ const env = {
   RELAY_HMAC_KEY: process.env.RELAY_HMAC_KEY,
   RELAY_AUDIENCE: process.env.RELAY_AUDIENCE,
   RELAY_HMAC_PREVIOUS_KEY: process.env.RELAY_HMAC_PREVIOUS_KEY,
-  CODECAST_RELAY_VIEWER_PRESENCE: process.env.CODECAST_RELAY_VIEWER_PRESENCE,
-  CODECAST_RELAY_VIEWER_PRESENCE_SHARED:
-    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED,
 };
 
 beforeEach(() => {
   process.env.RELAY_HMAC_KEY = key;
   process.env.RELAY_AUDIENCE = audience;
   delete process.env.RELAY_HMAC_PREVIOUS_KEY;
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
 });
 
 afterEach(() => {
@@ -77,9 +72,6 @@ test("viewerIdentities masks email addresses, ignores non-present probes, and ma
       privateShared,
     };
   });
-
-  process.env.CODECAST_RELAY_VIEWER_PRESENCE = "1";
-  process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED = "1";
 
   await asUser(t, emailOnlyGuest).mutation(api.conversations.redeemShareToken, {
     share_token: "identity-share-token",
@@ -221,9 +213,6 @@ test("viewer grants support mention grants, revoke on share rotation, and cap mi
         sharedConv,
       };
     });
-
-    process.env.CODECAST_RELAY_VIEWER_PRESENCE = "1";
-    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED = "1";
 
     expect(
       await asUser(t, mentionMember).query(api.relayGrants.viewerTarget, {
@@ -434,5 +423,58 @@ test("mergeDuplicateUser deduplicates relay_viewer_grants by (conversation_id, u
   expect(byConv.get(movedOnlyConv)).toMatchObject({
     user_id: toUser,
     expires_at: now + 30_000,
+  });
+});
+
+test("viewer hub grants work without feature flags and block unauthorized callers", async () => {
+  const t = serverTest();
+  const { owner, teammate, outsider, conv } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "viewer-hub-no-flags");
+    const owner = await rows.user({ name: "Owner" });
+    const teammate = await rows.user({ name: "Teammate" });
+    const outsider = await rows.user({ name: "Outsider" });
+    const team = await rows.team();
+    await rows.membership(owner, team, { visibility: "full" });
+    await rows.membership(teammate, team, { visibility: "full" });
+    const conv = await rows.conversation(owner, {
+      team_id: team,
+      team_visibility: "full",
+    });
+    return { owner, teammate, outsider, conv };
+  });
+
+  expect(
+    await asUser(t, teammate).query(api.relayGrants.viewerTarget, {
+      conversation_id: conv,
+    }),
+  ).toEqual({
+    viewer: teammate,
+    hub: `viewer:${conv}`,
+    tier: "member",
+  });
+
+  const granted = await asUser(t, teammate).mutation(mint, {
+    hubs: [viewerSession(conv)],
+  });
+  expect(granted).toMatchObject({ status: "ok", omitted: [] });
+  if (granted.status !== "ok") throw new Error("Expected ok");
+  const payload = JSON.parse(
+    Buffer.from(granted.token.split(".")[1], "base64url").toString("utf8"),
+  );
+  expect(payload.grants).toEqual([
+    {
+      kind: "session",
+      id: `viewer:${conv}`,
+      publish: ["presence", "draft_cursor", "reading_cursor"],
+    },
+  ]);
+
+  expect(
+    await asUser(t, outsider).mutation(mint, {
+      hubs: [viewerSession(conv)],
+    }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(`viewer:${conv}`)],
   });
 });

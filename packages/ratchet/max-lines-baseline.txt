@@ -87,7 +87,7 @@ apps/cli/src/daemon.machine-prompt-safety.test.ts 2350
 apps/cli/src/daemon.session-teardown.test.ts 1300
 apps/cli/src/daemon.status-reconcile.test.ts 1150
 apps/cli/src/daemon.tmux-classify.test.ts 1750
-apps/cli/src/daemon.ts 46000
+apps/cli/src/daemon.ts 45800
 apps/cli/src/daemon.waiting-tasks.test.ts 1650
 apps/cli/src/decideCommand.test.ts 850
 apps/cli/src/decideCommand.ts 2050
@@ -290,7 +290,7 @@ apps/server/convex/devices.ts 2700
 apps/server/convex/dispatch.close.test.ts 1250
 apps/server/convex/dispatch.test.ts 1600
 apps/server/convex/dispatch.ts 6150
-apps/server/convex/docSync.ts 900
+apps/server/convex/docSync.ts 850
 apps/server/convex/docs.staleWrite.test.ts 850
 apps/server/convex/docs.ts 3100
 apps/server/convex/envCases.test.ts 900

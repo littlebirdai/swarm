@@ -12,7 +12,7 @@ import { StructuredResultBlock } from "../components/conversation/blocks/toolBlo
 // and remains independently hover-quotable — a wrapper div would collapse the
 // whole message into one un-quotable block. Module-level const so MessageReview's
 // memo holds (a fresh inline arrow at the call site would defeat it).
-export const renderAssistantBody = (content: string) => {
+export const renderAssistantBody = (content: string, uncached?: boolean) => {
   const input = structuredMessageInput(content);
   if (input)
     return (
@@ -22,14 +22,14 @@ export const renderAssistantBody = (content: string) => {
     );
   const parts = parseInsightBlocks(content);
   if (!parts.some((p) => p.type === "insight"))
-    return <MessageMarkdown content={content} />;
+    return <MessageMarkdown content={content} uncached={uncached} />;
   return (
     <>
       {parts.map((part, i) =>
         part.type === "insight" ? (
           <InsightCard key={i} label={part.label} content={part.content} />
         ) : (
-          <MessageMarkdown key={i} content={part.content} />
+          <MessageMarkdown key={i} content={part.content} uncached={uncached} />
         ),
       )}
     </>

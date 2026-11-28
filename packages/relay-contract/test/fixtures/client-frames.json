@@ -131,6 +131,19 @@
   },
   {
     "v": 1,
+    "type": "token_delta",
+    "hub": {
+      "kind": "session",
+      "id": "session-1"
+    },
+    "run": 3,
+    "turn": "turn-1",
+    "message_id": "msg-1",
+    "delta_seq": 1,
+    "text": "Hello"
+  },
+  {
+    "v": 1,
     "type": "machine_liveness",
     "hub": {
       "kind": "machine",

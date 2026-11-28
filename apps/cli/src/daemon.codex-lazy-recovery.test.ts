@@ -114,7 +114,6 @@ function fixture() {
     markTurnStarted: () => {},
     sendAgentStatus: () => {},
     markAppServerConversationResumable: () => {},
-    removeAppServerPartial: () => {},
     threadItemsToMessages,
     syncAppServerTurnMessagesIfChanged: async (
       _turnId: string,

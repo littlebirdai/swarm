@@ -38,6 +38,8 @@ export const NOT_COMPARED: Readonly<Record<string, string>> = {
   _seenMessageCount: "client-only unread baseline, no server truth",
   relayInboxCards:
     "window-local count of mounted inbox cards that the relay feeder watches, no server truth",
+  relayTokenDeltas:
+    "ephemeral streaming text from the relay while a turn is open, cleared on gap or durable arrival, no server truth",
   teams:
     "fed by useSyncTeams, which the sim does not mount; membership is checked through cursors and workspace rows",
   teamMembers: "roster cache with no feeder the sim mounts",

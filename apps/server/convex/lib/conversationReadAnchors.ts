@@ -44,43 +44,6 @@ export async function readAnchorMessage(
   return message?.conversation_id === conversationId ? message : null;
 }
 
-export async function saveLegacyReadAnchor(
-  ctx: AnchorWriteCtx,
-  presence: Doc<"doc_presence">,
-) {
-  if (!presence.anchor || presence.anchor_at === undefined) return;
-  const conversationId = ctx.db.normalizeId(
-    "conversations",
-    presence.doc_id.slice("compose:".length),
-  );
-  const messageId = ctx.db.normalizeId("messages", presence.anchor.message_id);
-  if (
-    !conversationId ||
-    !messageId ||
-    !(await canReadAnchor(ctx, presence.user_id, conversationId))
-  )
-    return;
-  const row = await readAnchorRow(ctx, presence.user_id, conversationId);
-  if (
-    row?.view_id ||
-    (row?.anchor && row.anchor.changed_at >= presence.anchor_at)
-  )
-    return;
-  const anchor = {
-    message_id: messageId,
-    offset: presence.anchor.offset,
-    changed_at: presence.anchor_at,
-  };
-  if (!(await readAnchorMessage(ctx, conversationId, anchor))) return;
-  if (row) await ctx.db.patch(row._id, { anchor });
-  else
-    await ctx.db.insert("conversation_read_anchors", {
-      conversation_id: conversationId,
-      user_id: presence.user_id,
-      anchor,
-    });
-}
-
 export async function mergeReadAnchor(
   ctx: AnchorWriteCtx,
   source: Doc<"conversation_read_anchors">,

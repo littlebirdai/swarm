@@ -35,14 +35,18 @@ const userSignals = [
   "reading_cursor",
   "baton_heartbeat",
 ] as const;
-const sessionLiveness = "session_liveness";
+const machineSessionSignals = ["session_liveness", "token_delta"] as const;
 export const machineSignal = "machine_liveness";
 
 const readVersion = responseObject({ v: positive });
 const issuance = { issued_at_ms: positive, grant_seq: positive };
 const sessionGrantFields = {
   ...session,
-  publish: array(oneOf(...userSignals, sessionLiveness), 0, userSignals.length),
+  publish: array(
+    oneOf(...userSignals, ...machineSessionSignals),
+    0,
+    userSignals.length,
+  ),
 };
 const readSessionGrant = object(sessionGrantFields);
 const readRunGrant = object({ ...sessionGrantFields, run: positive });
@@ -105,14 +109,18 @@ export const parseRelayGrantClaims = parser((value, path) => {
     hubs.add(key);
     let allowed: readonly string[] = [];
     if (grant.kind === "session") {
-      allowed = subject.kind === "machine" ? [sessionLiveness] : userSignals;
+      allowed =
+        subject.kind === "machine" ? machineSessionSignals : userSignals;
     } else if (subject.kind === "machine" && subject.id === grant.id) {
       allowed = [machineSignal];
     }
     if (
       grant.kind === "session" &&
       (grant.run !== undefined) !==
-        (subject.kind === "machine" && grant.publish.includes(sessionLiveness))
+        (subject.kind === "machine" &&
+          grant.publish.some((signal) =>
+            (machineSessionSignals as readonly string[]).includes(signal),
+          ))
     )
       throw new RelayParseError("invalid_field", `${grantPath}.run`);
     const publish = new Set<string>();

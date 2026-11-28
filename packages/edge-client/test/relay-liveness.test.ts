@@ -132,7 +132,7 @@ function fixture(...responses: Step[]) {
 }
 
 it.effect(
-  "hello without relay liveness backs off without minting or dialing",
+  "hello without relay liveness negotiates once and stops without minting or dialing",
   () => {
     const unsupported = reply(helloFixture.response);
     const f = fixture(unsupported, unsupported);
@@ -140,8 +140,8 @@ it.effect(
       Effect.gen(function* () {
         yield* adjust(249);
         expect(f.operations()).toEqual(["hello"]);
-        yield* adjust(1);
-        expect(f.operations()).toEqual(["hello", "hello"]);
+        yield* adjust(10_000);
+        expect(f.operations()).toEqual(["hello"]);
         expect(f.sockets).toHaveLength(0);
       }),
     );

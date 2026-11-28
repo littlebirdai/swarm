@@ -35,15 +35,10 @@ const omittedHub = v.object({
   reason: v.literal("inaccessible"),
 });
 
-export function viewerPresenceEnabled() {
-  return process.env.CODECAST_RELAY_VIEWER_PRESENCE === "1";
-}
-
-export function sharedViewerPresenceEnabled() {
-  return (
-    viewerPresenceEnabled() &&
-    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED === "1"
-  );
+function viewerHubAllowedAccess(
+  access: Awaited<ReturnType<typeof checkConversationAccess>>,
+) {
+  return access === "owner" || access === "team" || access === "shared";
 }
 
 export const mint = mutation({
@@ -112,19 +107,14 @@ export const mint = mutation({
         if (rawId.startsWith(VIEWER_HUB_PREFIX)) {
           const convRaw = rawId.slice(VIEWER_HUB_PREFIX.length);
           const id =
-            viewerPresenceEnabled() && relayId.test(rawId) && convRaw
+            relayId.test(rawId) && convRaw
               ? ctx.db.normalizeId("conversations", convRaw)
               : null;
           const conversation = id ? await ctx.db.get(id) : null;
           const access = conversation
             ? await checkConversationAccess(ctx, userId, conversation)
             : "denied";
-          if (
-            conversation &&
-            (access === "owner" ||
-              access === "team" ||
-              (access === "shared" && sharedViewerPresenceEnabled()))
-          ) {
+          if (conversation && viewerHubAllowedAccess(access)) {
             if (access === "shared") hasSharedTier = true;
             viewerGrantConvs.push(conversation._id);
             grants.push({
@@ -216,7 +206,7 @@ export const mint = mutation({
 export const viewerTarget = query({
   args: { conversation_id: v.string() },
   handler: async (ctx, { conversation_id }) => {
-    if (!viewerPresenceEnabled() || !relayGrantConfig()) return null;
+    if (!relayGrantConfig()) return null;
     const userId = await getAuthUserId(ctx);
     if (!userId || !(await ctx.db.get(userId))) return null;
     const id = ctx.db.normalizeId("conversations", conversation_id);
@@ -230,7 +220,7 @@ export const viewerTarget = query({
         tier: "member" as const,
       };
     }
-    if (access === "shared" && sharedViewerPresenceEnabled()) {
+    if (access === "shared") {
       return {
         viewer: userId,
         hub: `${VIEWER_HUB_PREFIX}${conversation._id}`,
@@ -247,7 +237,7 @@ export const viewerIdentities = query({
     user_ids: v.array(v.string()),
   },
   handler: async (ctx, { conversation_id, user_ids }) => {
-    if (!viewerPresenceEnabled() || !relayGrantConfig()) return [];
+    if (!relayGrantConfig()) return [];
     const callerId = await getAuthUserId(ctx);
     if (!callerId || !(await ctx.db.get(callerId))) return [];
     const convId = ctx.db.normalizeId("conversations", conversation_id);
@@ -258,10 +248,7 @@ export const viewerIdentities = query({
       callerId,
       conversation,
     );
-    if (
-      callerAccess === "denied" ||
-      (callerAccess === "shared" && !sharedViewerPresenceEnabled())
-    ) {
+    if (!viewerHubAllowedAccess(callerAccess)) {
       return [];
     }
     const now = Date.now();
@@ -282,10 +269,7 @@ export const viewerIdentities = query({
       const user = await ctx.db.get(uid);
       if (!user) continue;
       const access = await checkConversationAccess(ctx, uid, conversation);
-      if (
-        access === "denied" ||
-        (access === "shared" && !sharedViewerPresenceEnabled())
-      ) {
+      if (!viewerHubAllowedAccess(access)) {
         continue;
       }
       identities.push({
@@ -412,9 +396,10 @@ export const mintMachineLiveness = internalMutation({
     const v = EDGE_PROTOCOL_VERSION;
     const config = machineRelayGrantConfig();
     if (!config) return { v, status: "unavailable" } as const;
+    const maxSessions = Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2));
     if (
       !sessions.length ||
-      sessions.length > RELAY_MAX_GRANTS_PER_TOKEN ||
+      sessions.length > maxSessions ||
       new Set(sessions.map(({ session }) => session)).size !== sessions.length
     )
       return { v, status: "stale" } as const;
@@ -432,12 +417,20 @@ export const mintMachineLiveness = internalMutation({
       if (!claim) return { v, status: "stale" } as const;
       owner ??= claim;
       expires = Math.min(expires, claim.lease.expires_at);
-      grants.push({
-        kind: "session",
-        id: claim.binding.conversation_id,
-        run,
-        publish: ["session_liveness"],
-      });
+      grants.push(
+        {
+          kind: "session",
+          id: claim.binding.conversation_id,
+          run,
+          publish: ["session_liveness"],
+        },
+        {
+          kind: "session",
+          id: `${VIEWER_HUB_PREFIX}${claim.binding.conversation_id}`,
+          run,
+          publish: ["token_delta"],
+        },
+      );
     }
     if (!owner) return { v, status: "stale" } as const;
     const { binding } = owner;
