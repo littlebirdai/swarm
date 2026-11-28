@@ -3,11 +3,12 @@ import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { makeChangeTrackedDb } from "../changeLog";
 import { patchConversationVisibility } from "../lib/conversationVisibility";
-import { scopesForChange } from "../syncLog";
+import { projectAction, scopesForChange } from "../syncLog";
 import { asUser, serverTest } from "../../test-helpers/database.testkit";
 import { fixtureRows } from "../../test-helpers/rows.testkit";
 import { computeHomeScope as reexportedComputeHomeScope } from "./access";
 import { computeHomeScope, computeHomeScopeDb } from "./accessKeys";
+import { derivedHomeScope } from "./homeScopeDerivation";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -537,5 +538,121 @@ describe("write-time home_scope and interest-scope sync_actions emission", () =>
       { id: setup.dirSlot, revision: 1, revoked: true },
       { id: setup.projSlot, revision: 1, revoked: true },
     ]);
+  });
+
+  test("a write to a home scope field carries home_scope even when it does not change", async () => {
+    jest.useFakeTimers();
+    const t = serverTest();
+    const setup = await t.run(async (ctx) => {
+      const rows = fixtureRows(ctx.db, "home-kept");
+      const user = await rows.user({ name: "Kai" });
+      const team = await rows.team({ name: "Gamma" });
+      await rows.membership(user, team);
+      const project = await ctx.db.insert("projects", {
+        user_id: user,
+        team_id: team,
+        workspace: `team:${team}`,
+        title: "P",
+        status: "active",
+        created_at: 1,
+        updated_at: 1,
+      });
+      const conv = await rows.conversation(user, { team_id: team });
+      const task = await rows.task(user, {
+        team_id: team,
+        workspace: `team:${team}`,
+        project_id: project,
+        home_scope: `project:${project}`,
+      });
+      return { team, project, conv, task };
+    });
+    await t.run(async (ctx) => {
+      await makeChangeTrackedDb(ctx.db).patch(setup.task, {
+        conversation_ids: [setup.conv],
+      });
+    });
+    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+    await t.run(async (ctx) => {
+      const rows = await ctx.db
+        .query("sync_actions")
+        .withIndex("by_scope_entity", (q: any) =>
+          q
+            .eq("scope_key", `project:${setup.project}`)
+            .eq("entity_id", String(setup.task)),
+        )
+        .collect();
+      const latest = rows.sort((a: any, b: any) => b.position - a.position)[0];
+      expect(latest?.patch?.home_scope).toBe(`project:${setup.project}`);
+      const shipped = projectAction(latest, undefined, true).patch ?? {};
+      expect(
+        shipped.home_scope ??
+          derivedHomeScope("tasks", shipped, latest.access_key),
+      ).toBe(`project:${setup.project}`);
+    });
+  });
+
+  test("projectAction strips redundant home_scope and keeps differing overrides", () => {
+    const redundant = projectAction(
+      {
+        position: 1,
+        entity_type: "docs",
+        entity_id: "d1",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "user:u1",
+        patch: { title: "A", workspace: "user:u1", home_scope: "user:u1" },
+      },
+      undefined,
+      true,
+    );
+    expect(redundant.patch).toEqual({ title: "A", workspace: "user:u1" });
+
+    const teamProject = projectAction(
+      {
+        position: 2,
+        entity_type: "tasks",
+        entity_id: "t1",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "team:T",
+        patch: { project_id: "P", home_scope: "project:P" },
+      },
+      undefined,
+      true,
+    );
+    expect(teamProject.patch).toEqual({ project_id: "P" });
+
+    const channelOverride = projectAction(
+      {
+        position: 3,
+        entity_type: "tasks",
+        entity_id: "t2",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "team:T",
+        patch: { channel_id: "CH", home_scope: "channel:CH" },
+      },
+      undefined,
+      true,
+    );
+    expect(channelOverride.patch).toEqual({
+      channel_id: "CH",
+      home_scope: "channel:CH",
+    });
+
+    const noRoutingField = projectAction(
+      {
+        position: 4,
+        entity_type: "tasks",
+        entity_id: "t3",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "team:T",
+        patch: { title: "B", home_scope: "dir:T" },
+      },
+      undefined,
+      true,
+    );
+    expect(noRoutingField.patch).toEqual({ title: "B", home_scope: "dir:T" });
   });
 });

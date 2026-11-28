@@ -34,6 +34,7 @@ import {
   touchesProjectCount,
 } from "./lib/projectTaskCounts";
 import { withdrawDeletedConversation } from "./lib/changesDirty";
+import { HOME_SCOPE_FIELDS } from "./lib/homeScopeDerivation";
 import { agentTypeChangeRefusal } from "@codecast/agent-clients/agentClients";
 
 // One memoized POST-WRITE document read per tracked write. The sync log reads
@@ -92,18 +93,6 @@ const SCOPE_FIELDS = new Set([
   "home_scope",
 ]);
 const HOME_SCOPE_WORK_TABLES = new Set(["tasks", "plans", "docs"]);
-const HOME_SCOPE_FIELDS = new Set([
-  "user_id",
-  "team_id",
-  "workspace",
-  "project_id",
-  "created_from_conversation",
-  "created_from_conversation_id",
-  "conversation_id",
-  "conversation_ids",
-  "related_conversation_ids",
-  "first_linked_conversation",
-]);
 
 export type ChangeEntity =
   | "conversations"
@@ -418,9 +407,7 @@ export function makeChangeTrackedDb(
           { db: rawDb },
           { ...preDoc, ...fields },
         );
-        if (nextHome !== preDoc.home_scope) {
-          fields = { ...fields, home_scope: nextHome };
-        }
+        fields = { ...fields, home_scope: nextHome };
       }
       const res = await rawDb.patch(id, fields);
       if (movesCount)

@@ -27,6 +27,7 @@ import {
   canReadSyncScope,
   resolveHeadsScopes,
 } from "./lib/interestScopes";
+import { stripRedundantHomeScope } from "./lib/homeScopeDerivation";
 export { accessStampFromDoc, authorizedFor, type AccessStamp };
 
 export type SyncScopeKey = string; // "user:<id>" | "team:<id>"
@@ -806,7 +807,16 @@ export function projectAction(
   return {
     ...base,
     op: "upsert",
-    ...(row.patch !== undefined ? { patch: row.patch } : {}),
+    ...(row.patch !== undefined
+      ? {
+          patch: stripRedundantHomeScope(
+            row.entity_type,
+            row.patch,
+            row.access_key,
+            row.unset,
+          ),
+        }
+      : {}),
     ...(row.unset ? { unset: row.unset } : {}),
     ...(row.full ? { full: true } : {}),
     ...(row.partial ? { partial: true } : {}),
