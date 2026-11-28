@@ -1,10 +1,8 @@
-import { closeDexie, dexieReopen, dexieStage } from "./dexie-baseline";
 import { check } from "./fixture";
 import { startWorker } from "./worker-client";
 
 type Command = {
-  action: "handoff" | "crash";
-  engine: "dexie" | "sqlite";
+  action: "handoff";
   revision: number;
 };
 
@@ -52,27 +50,15 @@ export function handlePeer(id: string) {
   const send = (kind: string, value?: unknown) =>
     channel.postMessage({ kind, value });
   channel.onmessage = async ({ data }: MessageEvent<Command>) => {
-    const { action, engine, revision } = data;
+    const { revision } = data;
     try {
-      if (action === "crash") {
-        await dexieStage(revision, () => send("staged"));
-        return;
-      }
       const pending = navigator.locks.request(storageLock, async () => {
-        if (engine === "dexie") {
-          try {
-            send("visible", await dexieReopen(revision));
-          } finally {
-            closeDexie();
-          }
-        } else {
-          const worker = startWorker();
-          try {
-            await worker.call("open");
-            send("visible", await worker.call("verify", revision));
-          } finally {
-            await worker.close();
-          }
+        const worker = startWorker();
+        try {
+          await worker.call("open");
+          send("visible", await worker.call("verify", revision));
+        } finally {
+          await worker.close();
         }
       });
       send("queued");

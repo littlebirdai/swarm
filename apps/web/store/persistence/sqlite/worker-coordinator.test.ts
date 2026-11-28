@@ -5,8 +5,6 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _reopenForTests, db as dexie } from "../db";
-import type { CacheStorage } from "../storage";
-import { selectCacheStorage } from "../storage-bindings";
 import type { JournalBridge } from "./journal-bridge";
 import {
   epochId,
@@ -772,28 +770,6 @@ describe("SQLite cache worker coordinator", () => {
       });
     } finally {
       client.close();
-    }
-  });
-
-  test("selectCacheStorage keeps Dexie active unless VITE_SQLITE_CACHE=1", () => {
-    const saved = process.env.VITE_SQLITE_CACHE;
-    delete process.env.VITE_SQLITE_CACHE;
-    const dexieStub = {} as CacheStorage;
-    const sqliteStub = {} as CacheStorage;
-    let sqliteCreated = 0;
-    const select = selectCacheStorage(dexieStub, () => {
-      sqliteCreated++;
-      return sqliteStub;
-    });
-    try {
-      expect(select()).toBe(dexieStub);
-      expect(sqliteCreated).toBe(0);
-      process.env.VITE_SQLITE_CACHE = "1";
-      expect(select()).toBe(sqliteStub);
-      expect(sqliteCreated).toBe(1);
-    } finally {
-      if (saved === undefined) delete process.env.VITE_SQLITE_CACHE;
-      else process.env.VITE_SQLITE_CACHE = saved;
     }
   });
 });

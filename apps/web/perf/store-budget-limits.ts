@@ -35,7 +35,6 @@ const limits = {
   "Retained externalEvents": { measured: 2000, margin: 0 },
   "Retained settingsData": { measured: 1, margin: 0 },
   "Retained mySends": { measured: 10000, margin: 0 },
-  "First paint read groups": { measured: 21, margin: 0 },
   "First paint IndexedDB tables": { measured: 21, margin: 0 },
   "First paint IndexedDB rows": { measured: 2_822, margin: 0 },
   "Streamed batch row writes": { measured: 4, margin: 0 },

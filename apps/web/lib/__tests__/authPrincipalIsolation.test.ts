@@ -340,33 +340,43 @@ describe("logout and account change across windows", () => {
 
   test("a cache read still in flight at the boundary lands nowhere", async () => {
     await twoWindowsSignedInAsA();
-    const { default: Dexie } = await import("dexie");
-    const db = new Dexie("codecast-store", { indexedDB, IDBKeyRange });
-    await db.open();
+    const { cacheStorage } = await import("../../store/idb-cache");
+    const { spyOn } = await import("bun:test");
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<{
+      messages: any[];
+      pagination: any;
+      latestTimestamp: number;
+    }>();
+    const readSpy = spyOn(
+      cacheStorage,
+      "loadConversationMessages",
+    ).mockImplementationOnce(() => {
+      started.resolve();
+      return release.promise;
+    });
+    const read = ensureHydrated("c1");
+    await started.promise;
+    await act(() => probes.A.actions.signOut());
     const now = Date.now();
-    await db.table("conversationMessageMeta").put({
-      convId: "c1",
+    release.resolve({
+      messages: [
+        {
+          _id: "m1",
+          role: "user",
+          content: "old account",
+          timestamp: now,
+        },
+      ],
       pagination: { initialized: true, hasMore: false },
       latestTimestamp: now,
     });
-    await db.table("conversationMessageRows").put({
-      convId: "c1",
-      messageKey: "m1",
-      position: 0,
-      revision: "r1",
-      message: {
-        _id: "m1",
-        role: "user",
-        content: "old account",
-        timestamp: now,
-      },
-    });
-    db.close();
-    const read = ensureHydrated("c1");
-    // The sibling signs out while the read is in flight.
-    await act(() => probes.A.actions.signOut());
-    await read;
-    await flush();
-    expect(store.getState().messages.c1).toBeUndefined();
+    try {
+      await read;
+      await flush();
+      expect(store.getState().messages.c1).toBeUndefined();
+    } finally {
+      readSpy.mockRestore();
+    }
   });
 });

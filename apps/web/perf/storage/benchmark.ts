@@ -1,12 +1,4 @@
 import {
-  closeDexie,
-  dexieBoot,
-  dexieRetention,
-  dexieVerify,
-  dexieWrite,
-  seedDexie,
-} from "./dexie-baseline";
-import {
   check,
   EVENT_COUNT,
   eventRow,
@@ -15,7 +7,6 @@ import {
   MESSAGE_COUNT,
   PAINT_SESSIONS,
   SESSION_COUNT,
-  writeRows,
 } from "./fixture";
 import { handlePeer, openPeer, storageLock } from "./peer";
 import {
@@ -42,7 +33,6 @@ async function post(path: string, value?: unknown) {
 }
 
 async function handoff(
-  engine: "dexie" | "sqlite",
   peer: ReturnType<typeof openPeer>,
   revision: number,
   writeAndClose: () => Promise<() => Promise<void>>,
@@ -50,7 +40,7 @@ async function handoff(
   let started = 0;
   await navigator.locks.request(storageLock, async () => {
     const close = await writeAndClose();
-    peer.command({ action: "handoff", engine, revision });
+    peer.command({ action: "handoff", revision });
     await peer.reply("queued");
     started = performance.now();
     await close();
@@ -59,60 +49,6 @@ async function handoff(
   const ms = performance.now() - started;
   await peer.reply("released");
   return { ms, intact };
-}
-
-async function benchmarkDexie(peer: ReturnType<typeof openPeer>) {
-  await seedDexie();
-  const results = {
-    readyMs: [] as number[],
-    paintMs: [] as number[],
-    fullBootMs: [] as number[],
-    mainWriteMs: [] as number[],
-    savedMs: [] as number[],
-    retentionMs: [] as number[],
-    handoffMs: [] as number[],
-  };
-  let handoffIntact = true;
-  for (let trial = 0; trial < sampleCount; trial++) {
-    const { openMs, paintMs, fullBootMs, externalEvents } = await dexieBoot();
-    results.readyMs.push(openMs);
-    results.paintMs.push(paintMs);
-    results.fullBootMs.push(fullBootMs);
-    const revision = trial + 1;
-    const { ms, intact } = await handoff("dexie", peer, revision, async () => {
-      const { mainMs, savedMs } = await dexieWrite(externalEvents, revision);
-      results.mainWriteMs.push(mainMs);
-      results.savedMs.push(savedMs);
-      results.retentionMs.push(
-        await dexieRetention(10_000 + 2000 * (trial % 50)),
-      );
-      return async () => closeDexie();
-    });
-    results.handoffMs.push(ms);
-    handoffIntact &&= intact;
-  }
-  const crashPeer = openPeer();
-  let crashIntact: boolean;
-  try {
-    await crashPeer.reply("ready");
-    crashPeer.command({
-      action: "crash",
-      engine: "dexie",
-      revision: sampleCount + 1,
-    });
-    await crashPeer.reply("staged");
-    crashPeer.kill();
-    crashIntact = await dexieVerify(sampleCount);
-  } finally {
-    crashPeer.close();
-    closeDexie();
-  }
-  return {
-    ...summarize(results),
-    handoffIntact,
-    crashIntact,
-    databaseBytes: null,
-  };
 }
 
 function summarize<K extends string>(
@@ -298,7 +234,7 @@ async function benchmarkSQLite(peer: ReturnType<typeof openPeer>) {
   let handoffIntact = true;
   for (let trial = 0; trial < sampleCount; trial++) {
     const revision = trial + 1;
-    const { ms, intact } = await handoff("sqlite", peer, revision, async () => {
+    const { ms, intact } = await handoff(peer, revision, async () => {
       const started = performance.now();
       const worker = startWorker();
       await worker.call("open");
@@ -369,14 +305,11 @@ async function benchmark() {
   const peer = openPeer();
   try {
     await peer.reply("ready");
-    await post("/progress", "Run Dexie");
-    const dexie = await benchmarkDexie(peer);
     await post("/progress", "Run SQLite");
     const sqlite = await benchmarkSQLite(peer);
     await post("/result", {
       status: "measured",
       userAgent: navigator.userAgent,
-      dexie,
       sqlite,
     });
   } finally {

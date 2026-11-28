@@ -11,7 +11,7 @@ import {
 const constant = (value: number) => stats(Array<number>(20).fill(value));
 
 function result() {
-  const dexie = {
+  const base = {
     readyMs: constant(8),
     paintMs: constant(50),
     fullBootMs: constant(500),
@@ -31,9 +31,8 @@ function result() {
   return {
     status: "measured",
     userAgent: "synthetic-browser",
-    dexie,
     sqlite: {
-      ...dexie,
+      ...base,
       readyMs: constant(120),
       paintMs: constant(25),
       mainWriteMs: constant(2),
@@ -78,7 +77,7 @@ describe("bench statistics", () => {
 });
 
 describe("storage gate", () => {
-  test("accepts exact thresholds and applies the Chromium comparison and startup limits", () => {
+  test("accepts exact thresholds and applies startup limits", () => {
     const measured = result();
     expect(evaluate("chromium", measured, 20, ROW_COUNT).verdict).toBe("pass");
     measured.sqlite.paintMs = constant(26);
@@ -86,7 +85,6 @@ describe("storage gate", () => {
     expect(evaluate("chromium", measured, 20, ROW_COUNT)).toMatchObject({
       verdict: "fail",
       targets: {
-        paintComparedToDexieMs: { pass: false },
         workerReadyMs: { pass: false },
       },
     });
@@ -95,7 +93,6 @@ describe("storage gate", () => {
 
   test("fails an absolute paint or write limit, a slow retention or handoff, and a memory peak", () => {
     const measured = result();
-    measured.dexie.paintMs = constant(100);
     measured.sqlite.paintMs = constant(61);
     measured.sqlite.mainWriteMs = constant(2.1);
     measured.sqlite.retentionMs = constant(51);
@@ -108,7 +105,6 @@ describe("storage gate", () => {
       verdict: "fail",
       targets: {
         paintMs: { pass: false },
-        paintComparedToDexieMs: { pass: true },
         mainWriteMs: { pass: false },
         retentionMs: { pass: false },
         handoffMs: { pass: false },
@@ -119,7 +115,6 @@ describe("storage gate", () => {
 
   test("requires data integrity, a rollback journal and complete samples", () => {
     const measured: Extract<BrowserResult, { status: "measured" }> = result();
-    measured.dexie.crashIntact = false;
     measured.sqlite.handoffIntact = false;
     measured.sqlite.crashIntact = false;
     measured.sqlite.journal = "wal";
@@ -130,7 +125,6 @@ describe("storage gate", () => {
       targets: {
         fixtureRows: { pass: false },
         samples: { pass: false },
-        baselineIntegrity: { pass: false },
         handoffIntact: { pass: false },
         crashIntact: { pass: false },
         crashSpilledPages: { pass: false },

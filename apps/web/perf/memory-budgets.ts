@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { Database } from "bun:sqlite";
 import type { ReplicationChannel } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
-import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
+import {
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "../store/__tests__/fixtures/signedInPrincipal";
 import {
   REGISTERED_COLLECTION_KEYS,
   REPLICATED_STORE_KEYS,
@@ -13,28 +17,13 @@ import {
   pruneCachedDocDetails,
 } from "../store/doc-detail-disk";
 import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
-import { loadCache } from "../store/persistence/boot-loader";
+import { authPrincipal } from "../lib/authPrincipal";
+import { cacheStorage, loadCache, writePatchesToIDB } from "../store/idb-cache";
+import { _reopenForTests, db } from "../store/persistence/db";
 import {
-  _resetPersistedShadow,
-  flushPendingMetaWrites,
-  hasPendingCollectionWrites,
-  resetCollectionWrites,
-  writePatchesToIDB,
-} from "../store/persistence/collection-writer";
-import {
-  _reopenForTests,
-  COLLECTION_TABLES,
-  db,
-} from "../store/persistence/db";
-import {
-  flushLivenessWrites,
-  hasPendingLivenessWrites,
-} from "../store/persistence/idb-liveness-lane";
-import {
-  dropPendingMessageWrites,
-  flushConversationMessages,
-  hasPendingMessageWrites,
-} from "../store/persistence/message-cache";
+  createSqliteCache,
+  type SqliteCacheStorage,
+} from "../store/persistence/sqlite/cache-storage";
 import {
   enqueueDispatch,
   loadOutbox,
@@ -248,7 +237,7 @@ const REPLAY_TABLE_BASELINES: Record<string, number> = {
   docDetails: 200,
   docs: 200,
   externalEvents: 2000,
-  meta: 3,
+  meta: 2,
   mySends: 10000,
   pendingEntries: 400,
   pullRequestDetails: 12,
@@ -260,8 +249,10 @@ const REPLAY_TABLE_BASELINES: Record<string, number> = {
   tasks: 50,
 };
 
-async function snapshotTableCounts(): Promise<Record<string, number>> {
-  return awaitWithin(
+async function snapshotPersistedCounts(
+  sqliteDb: Database,
+): Promise<Record<string, number>> {
+  const idbCounts = await awaitWithin(
     db.transaction("r", db.tables, async () =>
       Object.fromEntries(
         await Promise.all(
@@ -270,33 +261,62 @@ async function snapshotTableCounts(): Promise<Record<string, number>> {
       ),
     ),
     5000,
-    "Timed out reading IndexedDB table counts",
+    "Timed out reading IndexedDB journal table counts",
   );
+  const collectionRows = sqliteDb
+    .prepare<{ collection: string; count: number }>(
+      "SELECT collection, COUNT(*) AS count FROM collection_rows GROUP BY collection",
+    )
+    .all();
+  const messageMetaCount = sqliteDb
+    .prepare<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM conversation_meta",
+    )
+    .get()!.count;
+  const messageRowCount = sqliteDb
+    .prepare<{ count: number }>("SELECT COUNT(*) AS count FROM message_rows")
+    .get()!.count;
+  const userMessageCount = sqliteDb
+    .prepare<{ count: number }>("SELECT COUNT(*) AS count FROM user_messages")
+    .get()!.count;
+  const counts: Record<string, number> = {
+    conversationMessageMeta: messageMetaCount,
+    conversationMessageRows: messageRowCount,
+    conversationUserMessages: userMessageCount,
+    meta: idbCounts.meta ?? 0,
+    pendingEntries: idbCounts.pendingEntries ?? 0,
+    ...(idbCounts.dispatchOutbox
+      ? { dispatchOutbox: idbCounts.dispatchOutbox }
+      : {}),
+  };
+  for (const row of collectionRows) {
+    counts[row.collection] = row.count;
+  }
+  return counts;
 }
 
-async function settleReplayIDB(
-  maxAttempts = 128,
-): Promise<Record<string, number>> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    flushPendingMetaWrites();
-    flushLivenessWrites();
-    flushConversationMessages();
-    if (
-      !hasPendingMessageWrites() &&
-      !hasPendingCollectionWrites() &&
-      !hasPendingLivenessWrites()
-    ) {
-      return snapshotTableCounts();
-    }
-    await awaitWithin(
-      db.transaction("r", db.tables, () => {}),
-      5000,
-      "IndexedDB transaction stalled while settling replay writers",
-    );
-  }
-  throw new Error(
-    `IndexedDB replay writers did not settle within ${maxAttempts} flush cycles (message=${hasPendingMessageWrites()}, collection=${hasPendingCollectionWrites()}, liveness=${hasPendingLivenessWrites()})`,
-  );
+function mirrorConversationWrites(sqlite: SqliteCacheStorage): () => void {
+  const origWriteMessages = cacheStorage.writeConversationMessages;
+  const origWriteUserMessages = cacheStorage.writeConversationUserMessages;
+  (cacheStorage as any).writeConversationMessages = (
+    convId: string,
+    messages: any[],
+    pagination: any,
+  ) => {
+    origWriteMessages(convId, messages, pagination);
+    sqlite.writeConversationMessages(convId, messages, pagination);
+  };
+  (cacheStorage as any).writeConversationUserMessages = (
+    convId: string,
+    userMessages: any[],
+  ) => {
+    origWriteUserMessages(convId, userMessages);
+    sqlite.writeConversationUserMessages(convId, userMessages);
+  };
+  return () => {
+    (cacheStorage as any).writeConversationMessages = origWriteMessages;
+    (cacheStorage as any).writeConversationUserMessages = origWriteUserMessages;
+  };
 }
 
 async function measureReplayPersistedRows() {
@@ -305,14 +325,15 @@ async function measureReplayPersistedRows() {
   process.env.VITE_CACHE_EVICTION_METADATA = "0";
   process.env.VITE_TIMED_DOC_CAPS = "0";
   clearProtectedInboxMemory();
-  resetCollectionWrites();
-  _resetPersistedShadow();
-  dropPendingMessageWrites();
+  installSignedInPrincipal(TEST_PRINCIPAL);
   await awaitWithin(
     _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange }),
     5000,
     "Timed out reopening replay test IndexedDB",
   );
+  const sqliteDb = new Database(":memory:");
+  const sqlite = createSqliteCache(sqliteDb, authPrincipal);
+  const restoreConversationMirror = mirrorConversationWrites(sqlite);
   try {
     await awaitWithin(
       db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } }),
@@ -324,22 +345,33 @@ async function measureReplayPersistedRows() {
       5000,
       "Timed out writing replay owner stamp",
     );
+    const seedState: Record<string, any> = {
+      currentUser: { _id: TEST_PRINCIPAL },
+    };
     for (const [key, size] of Object.entries(fixtureSizes)) {
       const rows =
         key === "docDetails"
           ? calibratedDocDetailRows(size)
           : retainedRows(key, size);
-      await awaitWithin(
-        COLLECTION_TABLES[key].bulkPut(rows),
-        5000,
-        `Timed out seeding replay ${key} table`,
-      );
+      seedState[key] = Object.fromEntries(rows.map((row) => [row._id, row]));
     }
-    await awaitWithin(
-      COLLECTION_TABLES.docs.bulkPut(calibratedDocRows(200)),
-      5000,
-      "Timed out seeding replay docs table",
+    seedState.docs = Object.fromEntries(
+      calibratedDocRows(200).map((row) => [row._id, row]),
     );
+    await sqlite.loadCache([]);
+    sqlite.setHydrating(false);
+    cacheStorage.setHydrating(false);
+    const seedPatches = Object.keys(seedState)
+      .filter((key) => key !== "currentUser")
+      .map((key) => ({
+        op: "replace" as const,
+        path: [key],
+        value: seedState[key],
+      }));
+    sqlite.writePatches(seedPatches, seedState);
+    cacheStorage.writePatches(seedPatches, seedState);
+    await cacheStorage.flushPersistence();
+
     await awaitWithin(
       db.pendingEntries.bulkPut(
         Array.from({ length: 400 }, (_, index) => ({
@@ -361,6 +393,7 @@ async function measureReplayPersistedRows() {
       "Timed out hydrating replay cache",
     );
     assert(loaded);
+    await sqlite.loadCache(bootKeys, { pending: loaded.pending });
     await awaitWithin(
       db.transaction("r", db.tables, () => db.meta.count()),
       5000,
@@ -372,7 +405,10 @@ async function measureReplayPersistedRows() {
       pending: loaded.pending ?? {},
       syncRole: "host",
     } as any);
-    state()._setIDBWrite(writePatchesToIDB);
+    state()._setIDBWrite((patches, s) => {
+      writePatchesToIDB(patches, s);
+      sqlite.writePatches(patches, s);
+    });
     state()._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
 
     for (const key of Object.keys(fixtureSizes)) {
@@ -454,7 +490,7 @@ async function measureReplayPersistedRows() {
       hasMoreAbove: false,
     });
     state().setUserMessages(id(4), budgetTail().slice(0, 5));
-    flushConversationMessages();
+    await cacheStorage.flushPersistence();
     state().setMessages(id(4), budgetMessages(4), {
       initialized: true,
       hasMoreAbove: false,
@@ -470,14 +506,14 @@ async function measureReplayPersistedRows() {
       201,
     );
 
-    flushLivenessWrites();
     state().syncTable("threadUnread", 7);
 
-    const tableCounts = await awaitWithin(
-      settleReplayIDB(),
+    await awaitWithin(
+      cacheStorage.flushPersistence(),
       5000,
-      "IndexedDB replay settle timed out",
+      "Persistence replay flush timed out",
     );
+    const tableCounts = await snapshotPersistedCounts(sqliteDb);
     const sortedTables = Object.keys(tableCounts).sort();
     for (const table of sortedTables) {
       const actual = tableCounts[table];
@@ -485,7 +521,7 @@ async function measureReplayPersistedRows() {
       const delta = actual - expected;
       const sign = delta > 0 ? `+${delta}` : String(delta);
       console.log(
-        `idb   ${table}: ${actual} (${sign} vs baseline ${expected})`,
+        `cache ${table}: ${actual} (${sign} vs baseline ${expected})`,
       );
     }
     const totalRows = Object.values(tableCounts).reduce(
@@ -500,16 +536,15 @@ async function measureReplayPersistedRows() {
       assert.equal(
         actual,
         expected,
-        `IndexedDB table ${table} row count changed after replay: ${actual} (${sign} vs baseline ${expected})\nIf the growth is intended, update REPLAY_TABLE_BASELINES in apps/web/perf/memory-budgets.ts, apps/web/perf/store-budget-limits.ts, and apps/web/perf/README.md.`,
+        `Persisted cache table ${table} row count changed after replay: ${actual} (${sign} vs baseline ${expected})\nIf the growth is intended, update REPLAY_TABLE_BASELINES in apps/web/perf/memory-budgets.ts, apps/web/perf/store-budget-limits.ts, and apps/web/perf/README.md.`,
       );
     }
     checkStoreBudget("Persisted IndexedDB rows after replay", totalRows);
   } finally {
-    flushPendingMetaWrites();
-    flushLivenessWrites();
-    resetCollectionWrites();
-    dropPendingMessageWrites();
+    restoreConversationMirror();
+    await cacheStorage.flushPersistence();
     state()._setIDBWrite(null);
+    sqliteDb.close();
     db.close();
     if (prevEvictionMeta === undefined)
       delete process.env.VITE_CACHE_EVICTION_METADATA;
@@ -528,9 +563,7 @@ async function measureTimedDocReplayCompaction() {
     document: Object.assign(new EventTarget(), { hidden: false }),
   });
   clearProtectedInboxMemory();
-  resetCollectionWrites();
-  _resetPersistedShadow();
-  dropPendingMessageWrites();
+  installSignedInPrincipal(TEST_PRINCIPAL);
   await awaitWithin(
     _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange }),
     5000,
@@ -547,11 +580,15 @@ async function measureTimedDocReplayCompaction() {
       5000,
       "Timed out writing timed compaction owner stamp",
     );
-    await awaitWithin(
-      COLLECTION_TABLES.docDetails.bulkPut(calibratedDocDetailRows(1200)),
-      5000,
-      "Timed out seeding timed compaction docDetails",
+    const seedDocDetails = Object.fromEntries(
+      calibratedDocDetailRows(1200).map((row) => [row._id, row]),
     );
+    cacheStorage.setHydrating(false);
+    cacheStorage.writePatches(
+      [{ op: "replace", path: ["docDetails"], value: seedDocDetails }],
+      { currentUser: { _id: TEST_PRINCIPAL }, docDetails: seedDocDetails },
+    );
+    await cacheStorage.flushPersistence();
     const loaded = await awaitWithin(
       loadCache(["docDetails"]),
       5000,
@@ -576,12 +613,12 @@ async function measureTimedDocReplayCompaction() {
       "Timed out compacting docDetails disk cache",
     );
     await awaitWithin(
-      settleReplayIDB(),
+      cacheStorage.flushPersistence(),
       5000,
       "Timed out settling after timed docDetails compaction",
     );
     const persisted = await awaitWithin(
-      COLLECTION_TABLES.docDetails.count(),
+      cacheStorage.readCachedDocDetails().then((rows) => rows.length),
       5000,
       "Timed out counting compacted docDetails",
     );
@@ -595,10 +632,7 @@ async function measureTimedDocReplayCompaction() {
       `pass  Timed docDetails disk compaction: ${persisted} (limit ${MAX_DOC_DETAILS_ON_DISK})`,
     );
   } finally {
-    flushPendingMetaWrites();
-    flushLivenessWrites();
-    resetCollectionWrites();
-    dropPendingMessageWrites();
+    await cacheStorage.flushPersistence();
     state()._setIDBWrite(null);
     db.close();
     restore();

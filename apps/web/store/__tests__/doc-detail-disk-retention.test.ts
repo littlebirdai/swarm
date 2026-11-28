@@ -1,5 +1,4 @@
-import { expect, jest, spyOn, test } from "bun:test";
-import Dexie from "dexie";
+import { expect, jest, test } from "bun:test";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import {
   installSignedInPrincipal,
@@ -14,23 +13,16 @@ import {
 } from "../doc-detail-disk";
 import { __createInboxStoreForTests } from "../inboxStore";
 import {
-  lastPersisted,
-  writePatchesToIDB,
-} from "../persistence/collection-writer";
-import { loadCache } from "../persistence/boot-loader";
-import {
+  cacheStorage,
   enqueueDispatch,
+  loadCache,
   loadOutbox,
   removeDispatch,
-} from "../persistence/outbox";
-import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
-import { setHydrating } from "../persistence/hydration";
+  setHydrating,
+  writePatchesToIDB,
+} from "../idb-cache";
+import { _reopenForTests, db } from "../persistence/db";
 import { writeOwnerStamp } from "../persistence/ownership";
-import {
-  CACHE_SCHEMA_VERSION,
-  SYSTEM_TABLES,
-  WEB_COLLECTION_INDEXES,
-} from "../persistence/schema";
 import { startTimedDocRetention } from "../timed-doc-retention";
 
 const docId = (n: number) => `j${String(n).padStart(31, "0")}`;
@@ -49,38 +41,12 @@ async function openStore(indexedDB = new IDBFactory()) {
   await _reopenForTests({ indexedDB, IDBKeyRange });
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
-  lastPersisted.clear();
+  await cacheStorage.purgeLocalCache({
+    keepPendingInputFor: TEST_PRINCIPAL,
+    reason: "test-reset",
+  });
   setHydrating(false);
 }
-
-test("the cache upgrade preserves bodies and lets a crawl read only document keys and workspaces", async () => {
-  const indexedDB = new IDBFactory();
-  const old = new Dexie(db.name, { indexedDB, IDBKeyRange });
-  old
-    .version(CACHE_SCHEMA_VERSION - 1)
-    .stores({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES, docDetails: "_id" });
-  const first = detail(1, 1);
-  const { workspace: _workspace, ...legacy } = detail(2, 1);
-  try {
-    await old.table("docDetails").bulkPut([first, legacy]);
-  } finally {
-    old.close();
-  }
-  await openStore(indexedDB);
-  const table = COLLECTION_TABLES.docDetails;
-  const loadBodies = spyOn(table, "toArray");
-  try {
-    expect(await readCachedDocDetails()).toEqual([
-      { _id: first._id, workspace: first.workspace },
-      { _id: legacy._id, workspace: undefined },
-    ]);
-    expect(loadBodies).not.toHaveBeenCalled();
-    expect(await table.get(first._id)).toEqual(first);
-  } finally {
-    loadBodies.mockRestore();
-    db.close();
-  }
-});
 
 test("the host settles the disk cache and persistence metadata during a long replay", async () => {
   const beforeMetadata = process.env.VITE_CACHE_EVICTION_METADATA;
@@ -94,9 +60,8 @@ test("the host settles the disk cache and persistence metadata during a long rep
   const pin = docId(0);
   const pending = docId(1);
   const release = pinDetailRows("docDetails", [pin]);
-  const table = COLLECTION_TABLES.docDetails;
-  const keysOnDisk = () =>
-    db.transaction("r", table, () => table.toCollection().primaryKeys());
+  const keysOnDisk = async () =>
+    (await readCachedDocDetails()).map((entry) => entry._id);
   let diskOwner = false;
   await openStore();
   (store.getState() as any)._setIDBWrite(writePatchesToIDB);
@@ -122,16 +87,15 @@ test("the host settles the disk cache and persistence metadata during a long rep
         detail(2 + day * 100 + i, Date.now() + i),
       );
       store.getState().syncTable("docDetails", rows, { isDelta: true });
-      await keysOnDisk();
+      await cacheStorage.flushPersistence();
       if (day === 11) diskOwner = true;
       jest.advanceTimersByTime(301_000);
+      for (let settle = 0; settle < 8; settle++) await Promise.resolve();
+      await cacheStorage.flushPersistence();
       const keys = await keysOnDisk();
       if (day === 10) expect(keys).toHaveLength(1102);
       if (diskOwner) {
         expect(keys).toHaveLength(MAX_DOC_DETAILS_ON_DISK);
-        expect(lastPersisted.get("docDetails")?.size).toBe(
-          MAX_DOC_DETAILS_ON_DISK,
-        );
       }
     }
     const held = await keysOnDisk();
@@ -143,8 +107,8 @@ test("the host settles the disk cache and persistence metadata during a long rep
     sweep.stop();
     jest.useRealTimers();
     release();
+    await cacheStorage.purgeLocalCache({ reason: "test-teardown" });
     db.close();
-    lastPersisted.clear();
     restore();
     if (beforeMetadata === undefined)
       delete process.env.VITE_CACHE_EVICTION_METADATA;
@@ -168,7 +132,14 @@ test("reloading a queued detail-only archive hides its cached body without a pen
   const unrelated = detail(2, Date.now());
   try {
     await openStore(indexedDB);
-    await COLLECTION_TABLES.docDetails.bulkPut([archived, unrelated]);
+    writePatchesToIDB([{ op: "replace", path: ["docDetails"], value: {} }], {
+      docDetails: {
+        [archived._id]: archived,
+        [unrelated._id]: unrelated,
+      },
+      pending: {},
+    });
+    await cacheStorage.flushPersistence();
     const cache = await loadCache(["docDetails", "pending"]);
     expect(cache?.docDetails[archived._id]?.content).toBe(archived.content);
     store.setState({ docDetails: cache?.docDetails });
@@ -228,8 +199,8 @@ test("reloading a queued detail-only archive hides its cached body without a pen
   } finally {
     runtime._clearRuntimeBindings();
     response.resolve(null);
+    await cacheStorage.purgeLocalCache({ reason: "test-teardown" });
     db.close();
-    lastPersisted.clear();
     if (beforeMetadata === undefined)
       delete process.env.VITE_CACHE_EVICTION_METADATA;
     else process.env.VITE_CACHE_EVICTION_METADATA = beforeMetadata;

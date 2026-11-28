@@ -63,7 +63,6 @@ export type BrowserResult =
   | {
       status: "measured";
       userAgent: string;
-      dexie: Measurements;
       sqlite: SQLiteMeasurements;
     };
 

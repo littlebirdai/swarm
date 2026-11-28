@@ -22,11 +22,7 @@ import {
   isPersistedClientStoreKey,
   isProtectedSyncCollection,
 } from "../clientSyncRegistry";
-import {
-  CACHE_SCHEMA_SIGNATURE,
-  MISSING_COLLECTION_TABLES,
-  cacheSchemaSignature,
-} from "../idb-cache";
+import { CACHE_SCHEMA_SIGNATURE, cacheSchemaSignature } from "../idb-cache";
 import { useInboxStore } from "../inboxStore";
 
 describe("client sync registry", () => {
@@ -287,12 +283,6 @@ describe("client sync registry", () => {
     );
     expect(validMessage({ _id: "m1", content: "hi" })).toBe(false);
     expect(validMessage({})).toBe(false);
-  });
-
-  it("every registered collection has a Dexie table (schema is derived from the registry)", () => {
-    // A missing table used to reject loadCache's whole Promise.all — one
-    // forgotten migration silently disabled the entire cache.
-    expect(MISSING_COLLECTION_TABLES).toEqual([]);
   });
 
   // ── Registration is the whole job ────────────────────────────────────────

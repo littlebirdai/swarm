@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
+import { Database } from "bun:sqlite";
 import type { ReplicationChannel } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
-import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
+import {
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
 import { deployDetailRows } from "../hooks/useDeployDetail";
 import { applyCollectionFeed } from "../hooks/useSyncCollection";
 import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
 import { resetDetailPins } from "../lib/detail-rows";
-import { loadCache } from "../store/persistence/boot-loader";
-import { writePatchesToIDB } from "../store/persistence/collection-writer";
-import {
-  _reopenForTests,
-  COLLECTION_TABLES,
-  db,
-} from "../store/persistence/db";
-import { flushConversationMessages } from "../store/persistence/message-cache";
+import { authPrincipal } from "../lib/authPrincipal";
+import { cacheStorage, loadCache, writePatchesToIDB } from "../store/idb-cache";
+import { _reopenForTests, db } from "../store/persistence/db";
+import { createSqliteCache } from "../store/persistence/sqlite/cache-storage";
 import {
   enqueueDispatch,
   loadOutbox,
@@ -85,63 +85,90 @@ async function measureRetention() {
     Object.keys(fixtureSizes).sort(),
     [...Object.keys(COLLECTION_RETENTION), "sessions", "conversations"].sort(),
   );
+  const seedState: Record<string, any> = {
+    currentUser: { _id: TEST_PRINCIPAL },
+  };
   for (const [key, size] of Object.entries(fixtureSizes)) {
     const rows =
       key === "docDetails"
         ? calibratedDocDetailRows(size)
         : retainedRows(key, size);
-    await COLLECTION_TABLES[key].bulkPut(rows);
+    seedState[key] = Object.fromEntries(rows.map((row) => [row._id, row]));
   }
-  await COLLECTION_TABLES.docs.bulkPut(calibratedDocRows(1000));
-  const retained = await loadCache([...Object.keys(fixtureSizes), "docs"]);
-  assert(retained);
-  for (const key of Object.keys(
-    fixtureSizes,
-  ) as (keyof typeof fixtureSizes)[]) {
-    checkStoreBudget(
-      `Retained ${key}`,
-      Object.keys(retained[key] ?? {}).length,
-    );
-  }
-  const jsonBytes = (value: unknown) =>
-    Buffer.byteLength(JSON.stringify(value ?? {}));
-  useInboxStore.setState({
-    sessions: {},
-    conversations: {},
-    externalEvents: {},
-    mySends: {},
-    deployReach: {},
-    runGraphs: {},
-    deployDetails: {},
-    settingsData: {},
-    pending: {},
-  } as any);
-  resetDetailPins();
-  state().syncTable("sessions", calibratedSessionRows(1200), { isDelta: true });
-  state().syncTable("conversations", calibratedConversationRows(1200), {
-    isDelta: true,
-  });
-  state().syncTable("externalEvents", calibratedExternalEventRows(2000));
-  state().syncTable("mySends", calibratedMySendRows(10000));
-  state().syncTable("deployReach", calibratedDeployReachRows(320));
-  state().syncTable("runGraphs", calibratedRunGraphRows(60));
-  for (const row of calibratedDeployDetailRows(70)) {
-    applyCollectionFeed("deployDetails", row, deployDetailRows);
-  }
-  state().syncTable("settingsData", calibratedSettingsDataRows());
-  checkStoreBudget("Session list bytes", jsonBytes(state().sessions));
-  checkStoreBudget("Conversation meta bytes", jsonBytes(state().conversations));
-  checkStoreBudget("Doc list bytes", jsonBytes(retained.docs));
-  checkStoreBudget("Doc detail bytes", jsonBytes(retained.docDetails));
-  checkStoreBudget(
-    "External event list bytes",
-    jsonBytes(state().externalEvents),
+  seedState.docs = Object.fromEntries(
+    calibratedDocRows(1000).map((row) => [row._id, row]),
   );
-  checkStoreBudget("My sends list bytes", jsonBytes(state().mySends));
-  checkStoreBudget("Deploy reach bytes", jsonBytes(state().deployReach));
-  checkStoreBudget("Run graph bytes", jsonBytes(state().runGraphs));
-  checkStoreBudget("Deploy detail bytes", jsonBytes(state().deployDetails));
-  checkStoreBudget("Settings data bytes", jsonBytes(state().settingsData));
+  const sqliteDb = new Database(":memory:");
+  try {
+    const sqlite = createSqliteCache(sqliteDb, authPrincipal);
+    await sqlite.loadCache([]);
+    sqlite.setHydrating(false);
+    sqlite.writePatches(
+      Object.keys(seedState)
+        .filter((key) => key !== "currentUser")
+        .map((key) => ({ op: "replace", path: [key], value: seedState[key] })),
+      seedState,
+    );
+    const retained = await sqlite.loadCache([
+      ...Object.keys(fixtureSizes),
+      "docs",
+    ]);
+    assert(retained);
+    for (const key of Object.keys(
+      fixtureSizes,
+    ) as (keyof typeof fixtureSizes)[]) {
+      checkStoreBudget(
+        `Retained ${key}`,
+        Object.keys(retained[key] ?? {}).length,
+      );
+    }
+    const jsonBytes = (value: unknown) =>
+      Buffer.byteLength(JSON.stringify(value ?? {}));
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      externalEvents: {},
+      mySends: {},
+      deployReach: {},
+      runGraphs: {},
+      deployDetails: {},
+      settingsData: {},
+      pending: {},
+    } as any);
+    resetDetailPins();
+    state().syncTable("sessions", calibratedSessionRows(1200), {
+      isDelta: true,
+    });
+    state().syncTable("conversations", calibratedConversationRows(1200), {
+      isDelta: true,
+    });
+    state().syncTable("externalEvents", calibratedExternalEventRows(2000));
+    state().syncTable("mySends", calibratedMySendRows(10000));
+    state().syncTable("deployReach", calibratedDeployReachRows(320));
+    state().syncTable("runGraphs", calibratedRunGraphRows(60));
+    for (const row of calibratedDeployDetailRows(70)) {
+      applyCollectionFeed("deployDetails", row, deployDetailRows);
+    }
+    state().syncTable("settingsData", calibratedSettingsDataRows());
+    checkStoreBudget("Session list bytes", jsonBytes(state().sessions));
+    checkStoreBudget(
+      "Conversation meta bytes",
+      jsonBytes(state().conversations),
+    );
+    checkStoreBudget("Doc list bytes", jsonBytes(retained.docs));
+    checkStoreBudget("Doc detail bytes", jsonBytes(retained.docDetails));
+    checkStoreBudget(
+      "External event list bytes",
+      jsonBytes(state().externalEvents),
+    );
+    checkStoreBudget("My sends list bytes", jsonBytes(state().mySends));
+    checkStoreBudget("Deploy reach bytes", jsonBytes(state().deployReach));
+    checkStoreBudget("Run graph bytes", jsonBytes(state().runGraphs));
+    checkStoreBudget("Deploy detail bytes", jsonBytes(state().deployDetails));
+    checkStoreBudget("Settings data bytes", jsonBytes(state().settingsData));
+  } finally {
+    sqliteDb.close();
+  }
 }
 
 async function measureWrites({
@@ -150,34 +177,65 @@ async function measureWrites({
 }: ReturnType<typeof measureIndexedDB>) {
   const convId = id(0);
   const tail = budgetTail();
-  const messageRows = db.conversationMessageRows;
-  state().setMessages(convId, tail, { initialized: true, hasMoreAbove: false });
-  flushConversationMessages();
-  await db.transaction("r", messageRows, () => messageRows.count());
-  writes.clear();
+  const sqliteDb = new Database(":memory:");
+  try {
+    const sqlite = createSqliteCache(sqliteDb, authPrincipal);
+    await sqlite.loadCache([]);
+    sqlite.setHydrating(false);
+    cacheStorage.setHydrating(false);
 
-  const edited = { ...tail[199], content: "Updated" };
-  const appended = { ...tail[199], _id: "new-message", timestamp: 201 };
-  state().applyTailMessages(convId, 199, [edited, appended], 201);
-  flushConversationMessages();
-  const committed = await db.transaction("r", messageRows, () =>
-    messageRows.where("convId").equals(convId).sortBy("position"),
-  );
-  assert.equal(committed.length, 200);
-  assert.deepEqual(
-    committed.slice(-2).map((row) => row.message),
-    [edited, appended],
-  );
-  checkStoreBudget("Streamed batch row writes", sum(writes));
+    state().setMessages(convId, tail, {
+      initialized: true,
+      hasMoreAbove: false,
+    });
+    sqlite.writeConversationMessages(convId, tail, {
+      initialized: true,
+      hasMoreAbove: false,
+    });
+    await cacheStorage.flushPersistence();
+    const totalChanges = sqliteDb.prepare<{ n: number }>(
+      "SELECT total_changes() AS n",
+    );
+    const changesBefore = totalChanges.get()!.n;
 
-  const { sessions, conversations } = COLLECTION_TABLES;
+    const edited = { ...tail[199], content: "Updated" };
+    const appended = { ...tail[199], _id: "new-message", timestamp: 201 };
+    state().applyTailMessages(convId, 199, [edited, appended], 201);
+    const updatedMessages = state().messages[convId];
+    const updatedPagination = state().pagination[convId];
+    sqlite.writeConversationMessages(
+      convId,
+      updatedMessages,
+      updatedPagination,
+    );
+    await cacheStorage.flushPersistence();
+    const sqliteRowWrites = totalChanges.get()!.n - changesBefore;
+    const committed = await sqlite.loadConversationMessages(convId);
+    assert.equal(committed?.messages.length, 200);
+    assert.deepEqual(committed?.messages.slice(-2), [edited, appended]);
+    const cacheCommitted = await cacheStorage.loadConversationMessages(convId);
+    assert.equal(cacheCommitted?.messages.length, 200);
+    checkStoreBudget("Streamed batch row writes", sqliteRowWrites);
+  } finally {
+    sqliteDb.close();
+  }
+
   const cachedSessions = Array.from({ length: 500 }, (_, index) =>
     session(index),
   );
-  await Promise.all([
-    sessions.bulkPut(cachedSessions),
-    conversations.bulkPut(cachedSessions),
-  ]);
+  const sessionMap = Object.fromEntries(cachedSessions.map((s) => [s._id, s]));
+  cacheStorage.writePatches(
+    [
+      { op: "replace", path: ["sessions"], value: sessionMap },
+      { op: "replace", path: ["conversations"], value: sessionMap },
+    ],
+    {
+      currentUser: { _id: TEST_PRINCIPAL },
+      sessions: sessionMap,
+      conversations: sessionMap,
+    },
+  );
+  await cacheStorage.flushPersistence();
   const cached = await loadCache(["sessions", "conversations"]);
   assert(cached);
   state().syncTable("sessions", Object.values(cached.sessions), {
@@ -205,23 +263,12 @@ async function measureWrites({
   writtenBytes.clear();
 
   state().renameSession(convId, "Renamed");
-  const saved = await db.transaction(
-    "r",
-    sessions,
-    conversations,
-    db.meta,
-    db.pendingEntries,
-    db.dispatchOutbox,
-    async () =>
-      Promise.all([
-        sessions.get(convId),
-        conversations.get(convId),
-        db.dispatchOutbox.toArray(),
-      ]),
-  );
-  assert.equal(saved[0]?.title, "Renamed");
-  assert.equal(saved[1]?.title, "Renamed");
-  assert.equal(saved[2][0]?.action, "renameSession");
+  await cacheStorage.flushPersistence();
+  const savedCache = await loadCache(["sessions", "conversations"]);
+  const savedOutbox = await db.dispatchOutbox.toArray();
+  assert.equal(savedCache?.sessions?.[convId]?.title, "Renamed");
+  assert.equal(savedCache?.conversations?.[convId]?.title, "Renamed");
+  assert.equal(savedOutbox[0]?.action, "renameSession");
   checkStoreBudget("Rename action row writes", sum(writes));
   checkStoreBudget(
     "Rename action write bytes with pending entries",
@@ -289,6 +336,7 @@ measureMessages();
 
 const measurement = measureIndexedDB(db, true);
 await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+installSignedInPrincipal(TEST_PRINCIPAL);
 try {
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");

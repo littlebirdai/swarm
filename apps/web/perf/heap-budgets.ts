@@ -1,14 +1,13 @@
 import { heapStats } from "bun:jsc";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { join } from "node:path";
-import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
-import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
-import { loadCache } from "../store/persistence/boot-loader";
 import {
-  _reopenForTests,
-  COLLECTION_TABLES,
-  db,
-} from "../store/persistence/db";
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "../store/__tests__/fixtures/signedInPrincipal";
+import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
+import { cacheStorage, loadCache } from "../store/idb-cache";
+import { _reopenForTests, db } from "../store/persistence/db";
 import { writeOwnerStamp } from "../store/persistence/ownership";
 import { measureDetailRows } from "./detail-rows-size";
 import {
@@ -47,19 +46,33 @@ async function measureMainAccountWorker() {
   Bun.gc(true);
   const before = heapStats().heapSize;
   measureDetailRows();
+  installSignedInPrincipal(TEST_PRINCIPAL);
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   try {
     await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
     await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
+    const seedState: Record<string, any> = {
+      currentUser: { _id: TEST_PRINCIPAL },
+    };
     for (const [key, size] of Object.entries(fixtureSizes)) {
       if (key === "taskComments" || key === "pullRequestDetails") continue;
       const rows =
         key === "docDetails"
           ? calibratedDocDetailRows(size)
           : retainedRows(key, size);
-      await COLLECTION_TABLES[key].bulkPut(rows);
+      seedState[key] = Object.fromEntries(rows.map((row) => [row._id, row]));
     }
-    await COLLECTION_TABLES.docs.bulkPut(calibratedDocRows(1000));
+    seedState.docs = Object.fromEntries(
+      calibratedDocRows(1000).map((row) => [row._id, row]),
+    );
+    cacheStorage.setHydrating(false);
+    cacheStorage.writePatches(
+      Object.keys(seedState)
+        .filter((key) => key !== "currentUser")
+        .map((key) => ({ op: "replace", path: [key], value: seedState[key] })),
+      seedState,
+    );
+    await cacheStorage.flushPersistence();
     const loaded = await loadCache([...Object.keys(fixtureSizes), "docs"]);
     for (const [key, map] of Object.entries(loaded ?? {})) {
       if (

@@ -2,8 +2,9 @@ import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import { expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { authPrincipal } from "../../lib/authPrincipal";
-import { deleteInvalidatedDocDetails } from "../persistence/collection-writer";
-import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
+import { deleteInvalidatedDocDetails } from "../doc-detail-disk";
+import { cacheStorage, setHydrating, writePatchesToIDB } from "../idb-cache";
+import { _reopenForTests, db } from "../persistence/db";
 import {
   _cacheOwnerForTests,
   persistenceOwned,
@@ -14,7 +15,11 @@ test("a JWT switch inside the archive deletion transaction preserves the cached 
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   const token = localStorage.getItem(AUTH_JWT_STORAGE_KEY)!;
   const id = "a".repeat(32);
-  const detail = { _id: id, content: "Body still cached" };
+  const detail = {
+    _id: id,
+    content: "Body still cached",
+    updated_at: Date.now(),
+  };
   const read = db.dispatchOutbox.toArray.bind(db.dispatchOutbox);
   const outbox = spyOn(db.dispatchOutbox, "toArray").mockImplementation(
     async () => {
@@ -30,8 +35,17 @@ test("a JWT switch inside the archive deletion transaction preserves the cached 
     },
   );
   try {
+    await cacheStorage.purgeLocalCache({
+      keepPendingInputFor: TEST_PRINCIPAL,
+      reason: "test-setup",
+    });
+    setHydrating(false);
     expect(_cacheOwnerForTests()).toBeNull();
-    await COLLECTION_TABLES.docDetails.put(detail);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["docDetails", id], value: detail }],
+      { docDetails: { [id]: detail }, pending: {} },
+    );
+    await cacheStorage.flushPersistence();
     expect(
       await deleteInvalidatedDocDetails([id], () => true, {
         accountId: TEST_PRINCIPAL,
@@ -39,10 +53,16 @@ test("a JWT switch inside the archive deletion transaction preserves the cached 
       }),
     ).toEqual([]);
     expect(outbox).toHaveBeenCalledTimes(1);
-    expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(detail);
+    localStorage.setItem(AUTH_JWT_STORAGE_KEY, token);
+    authPrincipal.check();
+    expect(
+      (await cacheStorage.loadCache(["docDetails"]))?.docDetails?.[id],
+    ).toEqual(detail);
   } finally {
     outbox.mockRestore();
     localStorage.setItem(AUTH_JWT_STORAGE_KEY, token);
+    authPrincipal.check();
+    await cacheStorage.purgeLocalCache({ reason: "test-teardown" });
     db.close();
   }
 });

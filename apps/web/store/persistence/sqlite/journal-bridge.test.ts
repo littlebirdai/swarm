@@ -15,7 +15,6 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { authPrincipal } from "../../../lib/authPrincipal";
 import { AUTH_JWT_STORAGE_KEY } from "../../__tests__/fixtures/fakeAuthToken";
 import { _reopenForTests, db } from "../db";
-import * as dexieStorage from "../dexie-storage";
 import { createIdbJournalBridge } from "./journal-bridge";
 
 let savedJwt: string | null = null;
@@ -54,7 +53,7 @@ afterEach(() => {
 });
 
 describe("createIdbJournalBridge", () => {
-  test("stamps cacheOwner so rolling back to Dexie preserves outbox and pendingEntries", async () => {
+  test("stamps cacheOwner and preserves outbox and pendingEntries across journal loads", async () => {
     const bridge = createIdbJournalBridge();
     const sid = "a".repeat(32);
 
@@ -79,11 +78,11 @@ describe("createIdbJournalBridge", () => {
     const ownerRow = await db.meta.get("cacheOwner");
     expect(ownerRow?.value?.principal).toBe("userA");
 
-    const loaded = await dexieStorage.loadCache(["pending"]);
-    expect(loaded?.pending).toEqual({
+    const loaded = await bridge.loadJournalKeys(["pending"], {}, "userA");
+    expect(loaded.pending).toEqual({
       [`sessions:${sid}`]: { type: "include" },
     });
-    expect(await dexieStorage.loadOutbox()).toHaveLength(1);
+    expect(await bridge.loadOutbox()).toHaveLength(1);
   });
 
   test("refuses and purges account A pendingEntries when account B boots without context.currentUser", async () => {
