@@ -1599,6 +1599,23 @@ export function __undoStackWindowSlots(): { get(): object; set(s: object): void;
   };
 }
 
+function entryTouches(entry: UndoEntry, rows: ReadonlySet<string>): boolean {
+  for (const c of entry.changes ?? []) if (rows.has(`${c.store}:${c.id}`)) return true;
+  for (const o of entry.objects ?? []) if (rows.has(`${o.store}:${o.id}`)) return true;
+  return (entry.children ?? []).some((child) => entryTouches(child, rows));
+}
+
+/** Forget every entry that touches one of these rows (`store:id`), as when access to them ends. */
+export function forgetUndoRows(rows: ReadonlySet<string>): void {
+  if (rows.size === 0) return;
+  const keep = (entries: UndoEntry[]) => entries.filter((entry) => !entryTouches(entry, rows));
+  const before = undoStack.length + redoStack.length + history.length;
+  undoStack = keep(undoStack);
+  redoStack = keep(redoStack);
+  history = keep(history);
+  if (undoStack.length + redoStack.length + history.length !== before) changed();
+}
+
 /** Test hook: the stacks live at module scope and would leak across tests. */
 export function _resetUndoStacks(): void {
   pendingGestures.clear();

@@ -95,6 +95,7 @@ export {
   __undoStackWindowSlots,
   onUndoReset,
   resetUndoHistory,
+  forgetUndoRows,
   DEFAULT_UNDO_KEYBOARD_WINDOW_MS,
   DEFAULT_UNDO_STACK_LIMIT,
   DEFAULT_UNDO_HISTORY_LIMIT,

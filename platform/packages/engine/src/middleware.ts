@@ -2182,6 +2182,12 @@ export function mutativeMiddleware(
           commitEffectFrames.pop();
         }
         if (opts?.vet && !opts.vet({ state, nextState, patches })) return undefined;
+        const dispatchPatches = patches;
+        const gated = platformConfig.commitGate?.({ state, nextState, patches });
+        if (gated) {
+          nextState = gated.nextState;
+          patches = [...patches, ...gated.patches];
+        }
 
         // Auto-generate pending entries for synced collections so local-first
         // writes are protected from server sync overwrites.
@@ -2242,7 +2248,7 @@ export function mutativeMiddleware(
 
         if (isAct || isAsyncAct) {
           const outboxId = newOutboxId();
-          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
+          const result = enqueueDispatch(key, flags, actionArgs, dispatchPatches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
           // After the dispatch is on its way, and never able to stop it: the
           // undo capture runs app code (a spec's label, inverse, confirm,
           // spell), and a bug there must cost the history its entry, never

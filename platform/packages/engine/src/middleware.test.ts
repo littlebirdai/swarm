@@ -1039,3 +1039,28 @@ describe("activeOutboxRowsById (_protectedOutboxRows)", () => {
     expect(h.wrapped._protectedOutboxRows().size).toBe(0);
   });
 });
+
+describe("commitGate", () => {
+  it("lets the config drop rows from a commit while the dispatch keeps the write", async () => {
+    const GATED: PlatformConfig = {
+      ...CONFIG,
+      commitGate: ({ nextState }) => {
+        if (nextState.items?.[OTHER_ID]?.title !== "blocked") return null;
+        const items = { ...nextState.items };
+        delete items[OTHER_ID];
+        return {
+          nextState: { ...nextState, items },
+          patches: [{ op: "remove", path: ["items", OTHER_ID] }],
+        };
+      },
+    };
+    const h = makeHarness({ config: GATED });
+    h.wrapped.seedRow(OTHER_ID, { title: "x" });
+    expect(h.state.items[OTHER_ID]?.title).toBe("x");
+    h.wrapped.rename(OTHER_ID, "blocked");
+    expect(h.state.items[OTHER_ID]).toBeUndefined();
+    await waitFor(() => h.outbox.size === 2);
+    const rename = [...h.outbox.values()].find((e) => e.action === "rename")!;
+    expect(rename.patches).toEqual({ item_rows: { [OTHER_ID]: { title: "blocked" } } });
+  });
+});

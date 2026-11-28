@@ -1,4 +1,5 @@
 // Public types for the local-first engine.
+import type { Patch } from "mutative";
 //
 // Everything the engine needs to know about an application's data model arrives
 // through PlatformConfig. The engine itself knows only two vocabulary words:
@@ -471,6 +472,11 @@ export type PlatformConfig = {
   // Repeated writes that rewrite the same logical value each time. Only
   // register actions whose args carry the COMPLETE new value for the key.
   outboxAccountId?: () => string | null;
+  commitGate?: (commit: {
+    state: any;
+    nextState: any;
+    patches: Patch[];
+  }) => { nextState: any; patches: Patch[] } | null;
   outboxProtectedRows?: (
     entry: Pick<OutboxEntry, "action" | "args" | "patches" | "locks">,
   ) => string[];
