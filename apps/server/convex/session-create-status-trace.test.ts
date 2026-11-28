@@ -104,7 +104,7 @@ const creationOrder = {
   task: [
     "insert conversations active",
     "patch conversations short_id",
-    "patch tasks conversation_ids,first_linked_conversation",
+    "patch tasks conversation_ids,first_linked_conversation,home_scope",
     "insert pending_messages pending",
     "patch conversations has_pending_messages,updated_at",
     "patch conversations owner_device_id",
