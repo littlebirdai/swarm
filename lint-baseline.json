@@ -12677,7 +12677,7 @@
     "swarm/no-comments": 36
   },
   "apps/server/convex/taskWrite.guard.test.ts": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 25
   },
   "apps/server/convex/tasks.assignHandoff.test.ts": {
     "swarm/no-comments": 6
@@ -28262,7 +28262,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 4928
+    "swarm/no-comments": 4823
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
