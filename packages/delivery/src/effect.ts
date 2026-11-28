@@ -63,14 +63,16 @@ function shouldRetryOutcome(outcome: DeliveryStepOutcome): boolean {
   return false;
 }
 
-function retryBusTimeout(
+function retryBusFailure(
   error: DeliveryError,
 ): Effect.Effect<DeliveryStepOutcome, DeliveryError> {
-  if (error.code !== "bus_timeout") return Effect.fail(error);
+  if (error.code !== "bus_timeout" && error.code !== "bus_overloaded") {
+    return Effect.fail(error);
+  }
   return Effect.succeed({
     status: "retry_scheduled",
     retryable: true,
-    code: "bus_timeout",
+    code: error.code,
   });
 }
 
@@ -558,7 +560,7 @@ export class Delivery extends Context.Service<
           const outcome = yield* inLayerScope(
             locks
               .withSessionLock(run.session, selectStep(run, drainOptions))
-              .pipe(Effect.catch(retryBusTimeout)),
+              .pipe(Effect.catch(retryBusFailure)),
           );
           if (
             outcome.status === "in_doubt" &&
