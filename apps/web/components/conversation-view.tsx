@@ -340,6 +340,7 @@ import {
 } from "./sessionMessage";
 import { CollabRequestBanner, OwnerComposerPresence } from "./collab-composer";
 import { GhostDrafts } from "./conversation/GhostDrafts";
+import { RelayStreamingReplies } from "./conversation/relay-streaming-replies";
 import { SharedQueue } from "./conversation/SharedQueue";
 import { ReaderFaces, ReadingMarks } from "./conversation/ReadingMarks";
 import { composerPresenceEnabled } from "../lib/composerPresence";
@@ -9348,6 +9349,15 @@ const ConversationViewInner = function ConversationView(
                                               </div>
                                             )}
                                             {/* Other people's drafts, live, where they will land. */}
+                                            {!hasMoreBelow && conversation && (
+                                              <RelayStreamingReplies
+                                                conversationId={conversation._id.toString()}
+                                                messages={messages}
+                                                agentStatus={
+                                                  managedSession?.agent_status
+                                                }
+                                              />
+                                            )}
                                             {!hasMoreBelow &&
                                               conversation &&
                                               composerPresenceEnabled(

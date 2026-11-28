@@ -1,3 +1,12 @@
+export function relayEndpointUrl(
+  address: string | undefined,
+  ...flags: Array<string | undefined>
+): URL | null {
+  return flags.some((flag) => flag === "1")
+    ? relayPresenceUrl("1", address)
+    : null;
+}
+
 export function relayPresenceUrl(
   flag: string | undefined,
   address: string | undefined,

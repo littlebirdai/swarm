@@ -10,17 +10,23 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
   RelayPresenceAvailableContext,
   RelayPresenceContext,
+  RelayTokenDeltasAvailableContext,
+  RelayTokenDeltasContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
-import { relayPresenceUrl } from "../lib/relay-presence-config";
+import { relayEndpointUrl } from "../lib/relay-presence-config";
 import { useInboxStore } from "../store/inboxStore";
 
 function ActiveRelayPresence({
   url,
+  presence,
+  tokenDeltas,
   inboxLiveness,
   children,
 }: {
   url: string;
+  presence: boolean;
+  tokenDeltas: boolean;
   inboxLiveness: boolean;
   children: ReactNode;
 }) {
@@ -29,8 +35,9 @@ function ActiveRelayPresence({
   const viewerId = useInboxStore((store) => store.currentUser?._id);
   const account = isAuthenticated ? viewerId : undefined;
   const scope = useMemo(
-    () => (account ? { account, url, convex, inboxLiveness } : null),
-    [account, url, convex, inboxLiveness],
+    () =>
+      account ? { account, url, convex, inboxLiveness, tokenDeltas } : null,
+    [account, url, convex, inboxLiveness, tokenDeltas],
   );
   const [connection, setConnection] = useState<{
     scope: NonNullable<typeof scope>;
@@ -56,6 +63,7 @@ function ActiveRelayPresence({
             .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
+        tokenDeltas: scope.tokenDeltas,
         onStatus(hub, status, meta) {
           if (hub.kind !== "session") return;
           const listeners = statusListeners.get(hub.id);
@@ -153,23 +161,36 @@ function ActiveRelayPresence({
   const client =
     scope && connection?.scope === scope ? connection.client : null;
   return (
-    <RelayPresenceAvailableContext value={available}>
-      <RelayPresenceContext value={client}>{children}</RelayPresenceContext>
+    <RelayPresenceAvailableContext value={presence && available}>
+      <RelayPresenceContext value={presence ? client : null}>
+        <RelayTokenDeltasAvailableContext value={tokenDeltas && available}>
+          <RelayTokenDeltasContext value={tokenDeltas ? client : null}>
+            {children}
+          </RelayTokenDeltasContext>
+        </RelayTokenDeltasAvailableContext>
+      </RelayPresenceContext>
     </RelayPresenceAvailableContext>
   );
 }
 
 export function RelayPresenceProvider({ children }: { children: ReactNode }) {
   const isSyncHost = useIsSyncHost();
-  const url = relayPresenceUrl(
-    import.meta.env.VITE_RELAY_PRESENCE,
+  const presence = import.meta.env.VITE_RELAY_PRESENCE === "1";
+  const tokenDeltas = import.meta.env.VITE_RELAY_TOKEN_DELTAS === "1";
+  const url = relayEndpointUrl(
     import.meta.env.VITE_RELAY_URL,
+    import.meta.env.VITE_RELAY_PRESENCE,
+    import.meta.env.VITE_RELAY_TOKEN_DELTAS,
   );
   return url ? (
     <ActiveRelayPresence
       url={url.href}
+      presence={presence}
+      tokenDeltas={tokenDeltas}
       inboxLiveness={
-        isSyncHost && import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"
+        presence &&
+        isSyncHost &&
+        import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"
       }
     >
       {children}

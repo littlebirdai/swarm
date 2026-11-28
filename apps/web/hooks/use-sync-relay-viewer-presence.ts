@@ -5,6 +5,8 @@ import { isConvexId } from "../lib/entityLinks";
 import {
   RelayPresenceAvailableContext,
   RelayPresenceContext,
+  RelayTokenDeltasAvailableContext,
+  RelayTokenDeltasContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
 import { useInboxStore } from "../store/inboxStore";
@@ -31,9 +33,15 @@ export function composeConversationId(docId: string): string | null {
 export function useRelayViewerTargetState(
   conversationId: string | null | undefined,
   enabled: boolean,
+  channel: "presence" | "tokenDeltas" = "presence",
 ) {
-  const client = useContext(RelayPresenceContext);
-  const available = useContext(RelayPresenceAvailableContext);
+  const presenceClient = useContext(RelayPresenceContext);
+  const presenceAvailable = useContext(RelayPresenceAvailableContext);
+  const tokenDeltaClient = useContext(RelayTokenDeltasContext);
+  const tokenDeltaAvailable = useContext(RelayTokenDeltasAvailableContext);
+  const client = channel === "tokenDeltas" ? tokenDeltaClient : presenceClient;
+  const available =
+    channel === "tokenDeltas" ? tokenDeltaAvailable : presenceAvailable;
   const validId =
     conversationId && isConvexId(conversationId) ? conversationId : null;
   const account = client?.viewerAccount;
@@ -124,9 +132,9 @@ export function useSubscribeRelayViewer(
   useWatchEffect(() => {
     if (!available || !validId || !client || !account || !enabled) return;
     if (targetError || targetNull) {
-      useInboxStore
-        .getState()
-        .setRelayViewerStatus(validId, account, "", "disabled");
+      const store = useInboxStore.getState();
+      store.setRelayViewerStatus(validId, account, "", "disabled");
+      store.applyRelayTokenDeltaStatus(validId, "disabled");
       return;
     }
     if (!targetViewer || !targetHub || !targetTier) return;
@@ -146,15 +154,21 @@ export function useSubscribeRelayViewer(
         unsubscribe = client.subscribe(
           targetHub,
           (event) => {
-            useInboxStore
-              .getState()
-              .applyRelayViewerEvent(
-                validId,
-                targetViewer,
-                targetHub,
-                event,
-                Date.now(),
-              );
+            const store = useInboxStore.getState();
+            if (
+              event.type === "signal" &&
+              event.signal.type === "token_delta"
+            ) {
+              store.applyRelayTokenDeltaSignal(validId, event.signal);
+              return;
+            }
+            store.applyRelayViewerEvent(
+              validId,
+              targetViewer,
+              targetHub,
+              event,
+              Date.now(),
+            );
           },
           (status, meta) => {
             const mapped =
@@ -163,16 +177,21 @@ export function useSubscribeRelayViewer(
                   ? "disabled"
                   : "unknown"
                 : status;
-            useInboxStore
-              .getState()
-              .setRelayViewerStatus(validId, targetViewer, targetHub, mapped);
+            const store = useInboxStore.getState();
+            store.setRelayViewerStatus(
+              validId,
+              targetViewer,
+              targetHub,
+              mapped,
+            );
+            store.applyRelayTokenDeltaStatus(validId, status);
           },
           { batchKey: targetTier, terminalUnavailable: true },
         );
       } catch {
-        useInboxStore
-          .getState()
-          .setRelayViewerStatus(validId, targetViewer, targetHub, "unknown");
+        const store = useInboxStore.getState();
+        store.setRelayViewerStatus(validId, targetViewer, targetHub, "unknown");
+        store.applyRelayTokenDeltaStatus(validId, "unavailable");
       }
       shared = { count: 0, unsubscribe };
       map.set(subKey, shared);
@@ -184,6 +203,7 @@ export function useSubscribeRelayViewer(
       map.delete(subKey);
       shared.unsubscribe();
       const store = useInboxStore.getState();
+      store.applyRelayTokenDeltaStatus(validId, "disabled");
       const current = store.relayViewerPresence[validId];
       if (
         current &&
@@ -219,4 +239,16 @@ export function useSyncRelayViewerPresence(
     target: state.activeTarget,
     disabled: state.disabled,
   };
+}
+
+export function useSyncRelayTokenDeltas(
+  conversationId: string | null | undefined,
+  enabled: boolean,
+) {
+  const state = useRelayViewerTargetState(
+    conversationId,
+    enabled,
+    "tokenDeltas",
+  );
+  useSubscribeRelayViewer(state, enabled);
 }

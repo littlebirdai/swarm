@@ -25,3 +25,8 @@ export const RelayPresenceAvailableContext = createContext(false);
 export const RelayPresenceContext = createContext<RelayPresenceClient | null>(
   null,
 );
+
+export const RelayTokenDeltasAvailableContext = createContext(false);
+
+export const RelayTokenDeltasContext =
+  createContext<RelayPresenceClient | null>(null);

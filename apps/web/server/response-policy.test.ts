@@ -164,9 +164,18 @@ test("the document CSP adds only the origin of an enabled, valid relay URL", asy
     process.env.VITE_RELAY_URL = "wss://relay.test/socket";
     delete process.env.VITE_RELAY_PRESENCE;
     expect(await policy()).toBe(baseline);
+    process.env.VITE_RELAY_TOKEN_DELTAS = "1";
+    const tokenDeltasPolicy = await policy();
+    const tokenDeltasConnect = tokenDeltasPolicy
+      ?.split("; ")
+      .find((d) => d.startsWith("connect-src "));
+    expect(tokenDeltasConnect?.split(" ")).toContain("wss://relay.test");
+    delete process.env.VITE_RELAY_TOKEN_DELTAS;
+    expect(await policy()).toBe(baseline);
   } finally {
     if (flag === undefined) delete process.env.VITE_RELAY_PRESENCE;
     else process.env.VITE_RELAY_PRESENCE = flag;
+    delete process.env.VITE_RELAY_TOKEN_DELTAS;
     if (url === undefined) delete process.env.VITE_RELAY_URL;
     else process.env.VITE_RELAY_URL = url;
   }
