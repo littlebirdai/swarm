@@ -1,4 +1,4 @@
-import { RELAY_MAX_GRANTS_PER_TOKEN } from "@codecast/relay-contract";
+import { RELAY_MAX_GRANTS_PER_TOKEN } from "../../../../relay-contract/test/n-1/schema";
 import {
   array,
   boolean,

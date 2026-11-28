@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import * as current from "../src";
 import * as previous from "./n-1/schema";
 
@@ -103,10 +103,63 @@ async function loadJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
 }
 
+const IMPORT_RE =
+  /(?:^|[;\r\n])\s*(?:import|export)\s+(?:(?:type\s+)?[^;]*?\s+from\s+)?(["'])([^"']+)\1/gm;
+const tsTranspiler = new Bun.Transpiler({ loader: "ts" });
+
+function isInsideRoot(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+function findDisallowedImportsForSource(
+  schemaDir: string,
+  allowedRoots: readonly string[],
+  relFile: string,
+  source: string,
+): string[] {
+  const found = new Set<string>();
+  for (const item of tsTranspiler.scanImports(source)) {
+    found.add(item.path);
+  }
+  for (const match of source.matchAll(IMPORT_RE)) {
+    found.add(match[2]!);
+  }
+  const fileDir = dirname(resolve(schemaDir, relFile));
+  const bad: string[] = [];
+  for (const specifier of found) {
+    if (!specifier.startsWith(".")) {
+      bad.push(`${relFile}: non-relative import "${specifier}"`);
+      continue;
+    }
+    const target = resolve(fileDir, specifier);
+    if (!allowedRoots.some((root) => isInsideRoot(root, target))) {
+      bad.push(`${relFile}: escaping import "${specifier}"`);
+    }
+  }
+  return bad;
+}
+
+async function walkFiles(dir: string, prefix = ""): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const files: string[] = [];
+  for (const entry of entries) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await walkFiles(full, rel)));
+    } else if (entry.isFile()) {
+      files.push(rel);
+    }
+  }
+  return files;
+}
+
 async function dirHashes(dir: string): Promise<Record<string, string>> {
   const entries: Array<[string, string]> = [];
   for (const sub of ["schema", "fixtures"]) {
-    const files = (await readdir(join(dir, sub))).sort();
+    const files = await walkFiles(join(dir, sub));
     for (const file of files) {
       const rel = `${sub}/${file}`;
       const bytes = await readFile(join(dir, rel));
@@ -118,6 +171,36 @@ async function dirHashes(dir: string): Promise<Record<string, string>> {
   }
   entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return Object.fromEntries(entries);
+}
+
+function compatibleVariants(
+  verb: string,
+  variants: readonly WireObject[],
+  capabilities: unknown,
+): readonly WireObject[] {
+  if (
+    verb !== "permits.next" ||
+    (Array.isArray(capabilities) &&
+      capabilities.includes(previous.STEER_BATON_CAPABILITY) &&
+      capabilities.includes(previous.TAKEOVER_FENCE_CAPABILITY))
+  ) {
+    return variants;
+  }
+  return variants.filter(({ status }) => status !== "takeover_fence");
+}
+
+function assertFrozenDecoderAcceptsAdditiveResponse(
+  parseResponse: Parser,
+  value: WireObject,
+  label: string,
+): void {
+  const base = parseResponse(value);
+  if (!base.ok) {
+    failBreaking(`${label} N-1 response decode failed: ${String(base.error)}`);
+  }
+  expect(parseResponse({ ...value, future_additive_field: 1 }), label).toEqual(
+    base,
+  );
 }
 
 export async function assertEdgeBackwardCompatible(
@@ -292,7 +375,46 @@ describe("edge contract N-1 compatibility guard", () => {
     await assertEdgeBackwardCompatible(current);
   });
 
+  test("frozen N-1 schema imports stay inside frozen N-1 schema directories", async () => {
+    const schemaDir = resolve(N1_DIR, "schema");
+    const allowedRoots = [
+      schemaDir,
+      resolve(import.meta.dir, "../../relay-contract/test/n-1/schema"),
+    ];
+    const bad: string[] = [];
+    for (const relFile of await walkFiles(schemaDir)) {
+      if (!relFile.endsWith(".ts")) continue;
+      const source = await readFile(join(schemaDir, relFile), "utf8");
+      bad.push(
+        ...findDisallowedImportsForSource(
+          schemaDir,
+          allowedRoots,
+          relFile,
+          source,
+        ),
+      );
+    }
+    expect(bad).toEqual([]);
+    expect(
+      findDisallowedImportsForSource(
+        schemaDir,
+        allowedRoots,
+        "claims.ts",
+        'import { X } from "@codecast/relay-contract";\nexport const x = X;\n',
+      ),
+    ).toEqual(['claims.ts: non-relative import "@codecast/relay-contract"']);
+    expect(
+      findDisallowedImportsForSource(
+        schemaDir,
+        allowedRoots,
+        "claims.ts",
+        'import { X } from "../../src/claims";\nexport const x = X;\n',
+      ),
+    ).toEqual(['claims.ts: escaping import "../../src/claims"']);
+  });
+
   test("frozen N-1 decoders accept current fixture responses with additive fields", async () => {
+    const hello = await loadJson<WirePair>(join(FIXTURES_DIR, "hello.json"));
     const variants = await loadJson<Record<string, WireObject[]>>(
       join(CURRENT_FIXTURES_DIR, "response-variants.json"),
     );
@@ -315,14 +437,42 @@ describe("edge contract N-1 compatibility guard", () => {
       );
       for (const value of [
         wire.response,
-        ...(variants[verb] ?? []),
+        ...compatibleVariants(
+          verb,
+          variants[verb] ?? [],
+          hello.request.capabilities,
+        ),
         ...(acceptsEdgeError ? errors : []),
       ]) {
-        const parsed = parseResponse({ ...value, future_additive_field: 1 });
-        expect(parsed.ok, `${verb} N-1 response decode`).toBe(true);
-        expect(parsed.value).toEqual(value);
+        assertFrozenDecoderAcceptsAdditiveResponse(
+          parseResponse,
+          value,
+          `${verb} response`,
+        );
       }
     }
+
+    const heartbeat = await loadJson<WirePair>(
+      join(CURRENT_FIXTURES_DIR, "heartbeat.json"),
+    );
+    assertFrozenDecoderAcceptsAdditiveResponse(
+      previous.parseHeartbeatResponse,
+      { ...heartbeat.response, server_time_ms: 123 },
+      "additive heartbeat response",
+    );
+    expect(
+      compatibleVariants(
+        "permits.next",
+        variants["permits.next"] ?? [],
+        [],
+      ).map(({ status }) => status),
+    ).not.toContain("takeover_fence");
+    expect(
+      compatibleVariants("permits.next", variants["permits.next"] ?? [], [
+        previous.STEER_BATON_CAPABILITY,
+        previous.TAKEOVER_FENCE_CAPABILITY,
+      ]).map(({ status }) => status),
+    ).toContain("takeover_fence");
   });
 
   test("guard fails with expand/migrate/contract guidance when a verb or field is removed or renamed", async () => {

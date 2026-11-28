@@ -25,7 +25,7 @@
     "fixtures/takeover.ack.json": "7fe4bb3d3608384884903f881958c91b26ec3cbb7c99b00ae75e944c1e8b1764",
     "fixtures/tool-result-inline.json": "974071311d6a5b7c31e294246347404d3f4585ef6a21614e445ce5eabace19d6",
     "fixtures/transcripts.append.json": "0e8aca002aafff97bffc0dbd5675ad203cea2a740c9b1138930231e7fa71b5f2",
-    "schema/claims.ts": "4252aee1286336d4309b89d71dd6ee7094b86f5fd464629078e479e89e97018f",
+    "schema/claims.ts": "75884084442f20c2ae48ec53f8484dd7f168ffc87e57286a37aa1fccf17a0511",
     "schema/commands.ts": "d94ea7ad46f7d93850597288cb189d81f978665ee200ca314777b7eca3c3aa90",
     "schema/envelope.ts": "11a144ed902278279184616f97acf1ecf1825f88cc77360d41072a900dcecba6",
     "schema/events.ts": "9eb9f67bc861aca526093395901f9fa91fb4ccde2c5bcb14c6f6a48dfe8050e8",

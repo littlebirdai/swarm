@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import * as current from "../src";
 import * as previous from "./n-1/schema";
 
@@ -10,6 +10,31 @@ type Parser = (value: unknown) => ParseResult;
 
 const N1_DIR = join(import.meta.dir, "n-1");
 const FIXTURES_DIR = join(N1_DIR, "fixtures");
+const CURRENT_FIXTURES_DIR = join(import.meta.dir, "fixtures");
+
+const IMPORT_RE =
+  /(?:^|[;\r\n])\s*(?:import|export)\s+(?:(?:type\s+)?[^;]*?\s+from\s+)?(["'])([^"']+)\1/gm;
+const tsTranspiler = new Bun.Transpiler({ loader: "ts" });
+const N1_HELLO_STATUSES = new Set([
+  "ok",
+  "incompatible_version",
+  "unauthorized",
+  "unavailable",
+]);
+const N1_GRANT_RESULT_STATUSES = new Set(["applied", "released", "refused"]);
+const N1_SUBSCRIPTION_STATUSES = new Set([
+  "subscribed",
+  "denied",
+  "unsubscribed",
+]);
+const N1_PRESENCE_STATES = new Set(["active", "left"]);
+const N1_SIGNAL_TYPES = new Set([
+  "draft_cursor",
+  "reading_cursor",
+  "baton_heartbeat",
+  "session_liveness",
+  "machine_liveness",
+]);
 
 const THREE_STEP_GUIDANCE =
   "Make breaking contract changes in three steps: " +
@@ -50,10 +75,59 @@ async function loadJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
 }
 
+function isInsideRoot(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+function findDisallowedImportsForSource(
+  schemaDir: string,
+  allowedRoots: readonly string[],
+  relFile: string,
+  source: string,
+): string[] {
+  const found = new Set<string>();
+  for (const item of tsTranspiler.scanImports(source)) {
+    found.add(item.path);
+  }
+  for (const match of source.matchAll(IMPORT_RE)) {
+    found.add(match[2]!);
+  }
+  const fileDir = dirname(resolve(schemaDir, relFile));
+  const bad: string[] = [];
+  for (const specifier of found) {
+    if (!specifier.startsWith(".")) {
+      bad.push(`${relFile}: non-relative import "${specifier}"`);
+      continue;
+    }
+    const target = resolve(fileDir, specifier);
+    if (!allowedRoots.some((root) => isInsideRoot(root, target))) {
+      bad.push(`${relFile}: escaping import "${specifier}"`);
+    }
+  }
+  return bad;
+}
+
+async function walkFiles(dir: string, prefix = ""): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const files: string[] = [];
+  for (const entry of entries) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await walkFiles(full, rel)));
+    } else if (entry.isFile()) {
+      files.push(rel);
+    }
+  }
+  return files;
+}
+
 async function dirHashes(dir: string): Promise<Record<string, string>> {
   const entries: Array<[string, string]> = [];
   for (const sub of ["schema", "fixtures"]) {
-    const files = (await readdir(join(dir, sub))).sort();
+    const files = await walkFiles(join(dir, sub));
     for (const file of files) {
       const rel = `${sub}/${file}`;
       const bytes = await readFile(join(dir, rel));
@@ -65,6 +139,42 @@ async function dirHashes(dir: string): Promise<Record<string, string>> {
   }
   entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return Object.fromEntries(entries);
+}
+
+function isN1CompatibleServerFrame(frame: WireObject): boolean {
+  const type = frame.type;
+  if (type === "hello") {
+    if (
+      typeof frame.status !== "string" ||
+      !N1_HELLO_STATUSES.has(frame.status)
+    ) {
+      return false;
+    }
+    return (
+      frame.status !== "ok" || frame.version === previous.RELAY_PROTOCOL_VERSION
+    );
+  }
+  if (frame.v !== previous.RELAY_PROTOCOL_VERSION) {
+    return false;
+  }
+  if (type === "grant_result") {
+    return (
+      typeof frame.status === "string" &&
+      N1_GRANT_RESULT_STATUSES.has(frame.status)
+    );
+  }
+  if (type === "subscription") {
+    return (
+      typeof frame.status === "string" &&
+      N1_SUBSCRIPTION_STATUSES.has(frame.status)
+    );
+  }
+  if (type === "presence") {
+    return (
+      typeof frame.state === "string" && N1_PRESENCE_STATES.has(frame.state)
+    );
+  }
+  return typeof type === "string" && N1_SIGNAL_TYPES.has(type);
 }
 
 export async function assertRelayBackwardCompatible(
@@ -146,19 +256,71 @@ describe("relay contract N-1 compatibility guard", () => {
     await assertRelayBackwardCompatible(current);
   });
 
-  test("frozen N-1 server frame decoder tolerates additive fields", async () => {
-    const serverFrames = await loadJson<WireObject[]>(
-      join(FIXTURES_DIR, "server-frames.json"),
-    );
-    for (const frame of serverFrames) {
-      const parsed = previous.parseRelayServerFrame(
-        JSON.stringify({ ...frame, future_additive_field: true }),
+  test("frozen N-1 schema imports stay inside frozen N-1 schema directories", async () => {
+    const schemaDir = resolve(N1_DIR, "schema");
+    const allowedRoots = [schemaDir];
+    const bad: string[] = [];
+    for (const relFile of await walkFiles(schemaDir)) {
+      if (!relFile.endsWith(".ts")) continue;
+      const source = await readFile(join(schemaDir, relFile), "utf8");
+      bad.push(
+        ...findDisallowedImportsForSource(
+          schemaDir,
+          allowedRoots,
+          relFile,
+          source,
+        ),
       );
-      expect(parsed).toEqual({
-        ok: true,
-        value: frame as previous.RelayServerFrame,
-      });
     }
+    expect(bad).toEqual([]);
+    expect(
+      findDisallowedImportsForSource(
+        schemaDir,
+        allowedRoots,
+        "frames.ts",
+        'import { X } from "@codecast/edge-contract";\nexport const x = X;\n',
+      ),
+    ).toEqual(['frames.ts: non-relative import "@codecast/edge-contract"']);
+    expect(
+      findDisallowedImportsForSource(
+        schemaDir,
+        allowedRoots,
+        "frames.ts",
+        'import { X } from "../../src/frames";\nexport const x = X;\n',
+      ),
+    ).toEqual(['frames.ts: escaping import "../../src/frames"']);
+  });
+
+  test("frozen N-1 server frame decoder tolerates additive fields on compatible current fixtures", async () => {
+    const serverFrames = await loadJson<WireObject[]>(
+      join(CURRENT_FIXTURES_DIR, "server-frames.json"),
+    );
+    const compatible = serverFrames.filter(isN1CompatibleServerFrame);
+    expect(compatible.length).toBeGreaterThan(0);
+    for (const frame of compatible) {
+      const base = previous.parseRelayServerFrame(JSON.stringify(frame));
+      expect(base.ok, `decode ${String(frame.type)}`).toBe(true);
+      expect(
+        previous.parseRelayServerFrame(
+          JSON.stringify({ ...frame, future_additive_field: true }),
+        ),
+      ).toEqual(base);
+    }
+    expect(isN1CompatibleServerFrame({ type: "future_frame", v: 1 })).toBe(
+      false,
+    );
+    expect(
+      isN1CompatibleServerFrame({ type: "presence", v: 2, state: "active" }),
+    ).toBe(false);
+    const helloOk = compatible.find(
+      (frame) => frame.type === "hello" && frame.status === "ok",
+    );
+    expect(helloOk).toBeDefined();
+    expect(
+      previous.parseRelayServerFrame(
+        JSON.stringify({ ...helloOk, server_time_ms: 123 }),
+      ),
+    ).toEqual(previous.parseRelayServerFrame(JSON.stringify(helloOk)));
   });
 
   test("guard fails with expand/migrate/contract guidance when a frame, version, or field is removed or renamed", async () => {
