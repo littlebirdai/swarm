@@ -30439,9 +30439,6 @@
   "scripts/vault-fixture.mjs": {
     "swarm/no-comments": 19
   },
-  "tests/fork/api.ts": {
-    "swarm/no-comments": 1
-  },
   "tests/fork/fork.live.ts": {
     "swarm/no-comments": 42
   },
