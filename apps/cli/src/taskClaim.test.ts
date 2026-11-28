@@ -312,6 +312,12 @@ describe("the task verbs never guess the session", () => {
         `${verb} reads the caller's own session`,
       ).toBe(true);
     }
+    const cliPostAt = src.indexOf("async function cliPost(");
+    const cliPostEnd = src.indexOf("let docLedgerSessionMemo", cliPostAt);
+    const cliPostSrc = src.slice(cliPostAt, cliPostEnd);
+    expect(cliPostSrc).not.toContain("detectCurrentSessionId(");
+    expect(cliPostSrc).toContain("isTaskClaimWriteRoute(");
+    expect(cliPostSrc).toContain("ownSessionId(getRealCwd())");
   });
 });
 

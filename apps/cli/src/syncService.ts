@@ -47,7 +47,6 @@ import type {
 } from "@codecast/triggers/triggerPrecheck";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
-import { renewTaskBatch, type HeartbeatBatchEntry } from "./taskPulse.js";
 import { withoutDeliveryId } from "@codecast/messages/machineMessages";
 import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 import type { DeliveryEchoLedger } from "./deliveryEchoLedger.js";
@@ -2616,15 +2615,17 @@ export class SyncService {
   // this on a single timer instead of one mutation per session, so the inbox
   // subscription is invalidated once per flush rather than once per session.
   async heartbeatManagedSessionsBatch(
-    sessions: HeartbeatBatchEntry[],
+    sessions: Array<{
+      session_id: string;
+      agent_status?: AgentStatus;
+      client_ts?: number;
+    }>,
   ): Promise<{ updated: number; unknown?: string[] } | undefined> {
     if (sessions.length === 0) return;
-    return await renewTaskBatch(
-      "managedSessions:heartbeatBatch",
+    return (await this.mutate("managedSessions:heartbeatBatch" as any, {
+      api_token: this.apiToken,
       sessions,
-      this.apiToken,
-      this.mutate.bind(this),
-    );
+    })) as { updated: number; unknown?: string[] } | undefined;
   }
 
   async reportSessionMetrics(

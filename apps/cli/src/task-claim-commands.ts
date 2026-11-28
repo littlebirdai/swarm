@@ -41,7 +41,7 @@ export async function runTaskSpawnForStart(
   if (options.as) spawnBody.definition = options.as;
   const spawned = await deps.cliPost("/cli/work/spawn", spawnBody);
   if (spawned?.sessionId && typeof spawned?.claim_token === "number") {
-    if (sessionId && sessionId !== spawned.sessionId) {
+    if (sessionId !== spawned.sessionId) {
       clearTaskPulseIfBound(sessionId, shortId);
     }
     storeTaskClaim(
@@ -240,7 +240,7 @@ export async function runTaskRelease(
   };
   if (sessionId) body.conversation_id = sessionId;
   const res = await deps.cliPost("/cli/work/release", body);
-  if (sessionId) clearTaskPulseIfBound(sessionId, shortId);
+  clearTaskPulseIfBound(sessionId, shortId);
   const { c } = { c: deps.colors };
   if (res?.status === "disabled") {
     console.log(`${c.dim}Task claims disabled on server${c.reset}`);

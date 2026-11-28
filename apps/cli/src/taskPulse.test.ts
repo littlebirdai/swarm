@@ -5,14 +5,18 @@ import { join } from "node:path";
 import {
   clearTaskClaimFor,
   clearTaskPulseIfBound,
+  isTaskClaimWriteRoute,
+  prepareTaskClaimBody,
   readTaskClaimToken,
   readTaskPulseFor,
   recordTaskFiled,
   recordTaskStart,
+  settleTaskClaimResult,
   storeTaskClaim,
   updateTaskPulseLease,
   writeTaskPulse,
 } from "./taskPulse.js";
+import { runTaskSpawnForStart } from "./task-claim-commands.js";
 
 function withConfigDir(fn: () => void) {
   const dir = mkdtempSync(join(tmpdir(), "task-pulse-"));
@@ -103,8 +107,48 @@ describe("task claim tokens in taskPulse", () => {
 
         storeTaskClaim(null, "ct-9", 3, 5000);
         expect(readTaskClaimToken(null, "ct-9")).toBe(3);
-        clearTaskClaimFor(null, "ct-9");
+        clearTaskPulseIfBound("s1", "ct-9");
+        expect(readTaskClaimToken(null, "ct-9")).toBe(3);
+        clearTaskPulseIfBound(null, "ct-9");
         expect(readTaskClaimToken(null, "ct-9")).toBeUndefined();
+
+        storeTaskClaim(null, "ct-10", 4, 5000);
+        expect(isTaskClaimWriteRoute("/cli/work/update")).toBe(true);
+        expect(isTaskClaimWriteRoute("/cli/work/list")).toBe(false);
+        const prepared = prepareTaskClaimBody(
+          "/cli/work/update",
+          { short_id: "ct-10", status: "backlog" },
+          null,
+        );
+        expect(prepared.sessionId).toBeNull();
+        expect(prepared.payload.claim_token).toBe(4);
+        settleTaskClaimResult(
+          "/cli/work/update",
+          prepared.payload,
+          prepared.sessionId,
+          { success: true },
+        );
+        expect(readTaskClaimToken(null, "ct-10")).toBeUndefined();
+
+        storeTaskClaim(null, "ct-11", 5, 5000);
+        await runTaskSpawnForStart(
+          {
+            cliPost: async () => ({
+              sessionId: "spawn-1",
+              conversationId: "conv-spawn-1",
+              claim_token: 6,
+              lease_until: 9000,
+            }),
+            colors: { green: "", cyan: "", dim: "", yellow: "", reset: "" },
+            readConfig: () => ({}),
+            webUrl: "https://example.invalid",
+          },
+          "ct-11",
+          null,
+          {},
+        );
+        expect(readTaskClaimToken(null, "ct-11")).toBeUndefined();
+        expect(readTaskClaimToken("spawn-1", "ct-11")).toBe(6);
       } finally {
         if (prev === undefined) delete process.env.CODECAST_DIR;
         else process.env.CODECAST_DIR = prev;

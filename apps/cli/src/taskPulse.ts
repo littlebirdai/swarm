@@ -5,14 +5,7 @@
 // `cast decide --task`'s default (docs/architecture/decisions-as-documents.md D3).
 import * as fs from "fs";
 import * as path from "path";
-import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { defaultConfigDir } from "./config/configDir.js";
-
-export interface HeartbeatBatchEntry {
-  session_id: string;
-  agent_status?: AgentStatus;
-  client_ts?: number;
-}
 
 export interface TaskPulse {
   task?: string;
@@ -268,10 +261,15 @@ const TASK_CLAIM_WRITE_ROUTES = new Set([
   "/cli/work/release",
 ]);
 
+export function isTaskClaimWriteRoute(route: string): boolean {
+  return TASK_CLAIM_WRITE_ROUTES.has(route);
+}
+
 const TASK_CLAIM_RELEASE_STATUSES = new Set([
   "done",
   "dropped",
   "open",
+  "backlog",
   "in_review",
 ]);
 
@@ -292,34 +290,47 @@ export function prepareTaskClaimBody(
   payload: Record<string, any>;
 } {
   const isTaskWrite = TASK_CLAIM_WRITE_ROUTES.has(route);
-  const sessionId =
-    typeof body.conversation_id === "string"
-      ? body.conversation_id
-      : fallbackSessionId;
+  if (!isTaskWrite) {
+    return { isTaskWrite: false, sessionId: undefined, payload: body };
+  }
+  const explicitConv =
+    typeof body.conversation_id === "string" ? body.conversation_id : undefined;
+  const lookupSession = explicitConv ?? fallbackSessionId ?? null;
   if (
-    !isTaskWrite ||
     typeof body.short_id !== "string" ||
     body.claim_token !== undefined ||
     (route === "/cli/work/update" &&
       body.status === "in_progress" &&
       !body.review_verdict)
   ) {
-    return { isTaskWrite, sessionId, payload: body };
+    return {
+      isTaskWrite: true,
+      sessionId: explicitConv ?? null,
+      payload: body,
+    };
   }
-  const storedToken = readTaskClaimToken(sessionId, body.short_id);
+  const storedToken = readTaskClaimToken(lookupSession, body.short_id);
   if (storedToken === undefined) {
-    return { isTaskWrite, sessionId, payload: body };
+    return {
+      isTaskWrite: true,
+      sessionId: explicitConv ?? null,
+      payload: body,
+    };
   }
+  const payload = {
+    ...body,
+    claim_token: storedToken,
+    ...(lookupSession && explicitConv === undefined
+      ? { conversation_id: lookupSession }
+      : {}),
+  };
   return {
-    isTaskWrite,
-    sessionId,
-    payload: {
-      ...body,
-      claim_token: storedToken,
-      ...(sessionId && body.conversation_id === undefined
-        ? { conversation_id: sessionId }
-        : {}),
-    },
+    isTaskWrite: true,
+    sessionId:
+      typeof payload.conversation_id === "string"
+        ? payload.conversation_id
+        : null,
+    payload,
   };
 }
 
@@ -341,7 +352,7 @@ export function clearStaleClaimOnConflict(
 export function settleTaskClaimResult(
   route: string,
   payload: Record<string, any>,
-  sessionId: string | null | undefined,
+  _sessionId: string | null | undefined,
   result: any,
 ): void {
   if (
@@ -349,11 +360,13 @@ export function settleTaskClaimResult(
     typeof payload.short_id !== "string"
   )
     return;
+  const requestSessionId =
+    typeof payload.conversation_id === "string"
+      ? payload.conversation_id
+      : null;
   if (typeof result?.claim_token === "number") {
     storeTaskClaim(
-      typeof payload.conversation_id === "string"
-        ? payload.conversation_id
-        : null,
+      requestSessionId,
       payload.short_id,
       result.claim_token,
       typeof result.lease_until === "number" ? result.lease_until : undefined,
@@ -365,69 +378,7 @@ export function settleTaskClaimResult(
     (route === "/cli/work/update" &&
       TASK_CLAIM_RELEASE_STATUSES.has(String(payload.status ?? "")))
   ) {
-    clearTaskClaimFor(sessionId, payload.short_id);
-  }
-}
-
-export async function renewTaskBatch(
-  batchMutation: string,
-  sessions: HeartbeatBatchEntry[],
-  apiToken: string,
-  mutateFn: (name: string, args: Record<string, any>) => Promise<any>,
-): Promise<{ updated: number; unknown?: string[] } | undefined> {
-  const answer = await mutateFn(batchMutation, {
-    api_token: apiToken,
-    sessions,
-  });
-  await renewSessionTaskPulses(sessions, apiToken, mutateFn);
-  return answer;
-}
-
-export async function renewSessionTaskPulses(
-  sessions: Array<{ session_id: string }>,
-  apiToken: string,
-  mutateFn: (name: string, args: Record<string, any>) => Promise<any>,
-): Promise<void> {
-  const now = Date.now();
-  for (const entry of sessions) {
-    const pulse = readTaskPulseFor(entry.session_id);
-    if (!pulse?.task || typeof pulse.claim_token !== "number") continue;
-    if (
-      typeof pulse.lease_until === "number" &&
-      pulse.lease_until - now >= 4 * 60_000
-    ) {
-      continue;
-    }
-    try {
-      const beat = await mutateFn("tasks:heartbeat", {
-        api_token: apiToken,
-        short_id: pulse.task,
-        claim_token: pulse.claim_token,
-        conversation_id: entry.session_id,
-      });
-      if (
-        typeof beat?.claim_token === "number" &&
-        typeof beat?.lease_until === "number"
-      ) {
-        updateTaskPulseLease(
-          entry.session_id,
-          pulse.task,
-          beat.claim_token,
-          beat.lease_until,
-        );
-      } else if (beat && beat.claim_token === undefined) {
-        clearTaskClaimFor(entry.session_id, pulse.task);
-      }
-    } catch (err: any) {
-      const reason = err?.data?.reason;
-      const code = err?.data?.code;
-      if (
-        code === "CONFLICT" ||
-        TASK_CLAIM_INVALID_REASONS.has(String(reason ?? ""))
-      ) {
-        clearTaskClaimFor(entry.session_id, pulse.task);
-      }
-    }
+    clearTaskClaimFor(requestSessionId, payload.short_id);
   }
 }
 
@@ -445,8 +396,11 @@ export function clearTaskPulseIfBound(
   sessionId: string | null | undefined,
   closedShortId: string,
 ): void {
-  clearStandaloneClaim(closedShortId);
-  if (sessionId && readTaskPulseFor(sessionId)?.task === closedShortId)
+  if (!sessionId) {
+    clearStandaloneClaim(closedShortId);
+    return;
+  }
+  if (readTaskPulseFor(sessionId)?.task === closedShortId)
     clearTaskPulse(sessionId);
 }
 

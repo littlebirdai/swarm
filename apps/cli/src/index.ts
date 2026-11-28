@@ -585,6 +585,7 @@ import {
   clearStaleClaimOnConflict,
   clearTaskPulse,
   clearTaskPulseIfBound,
+  isTaskClaimWriteRoute,
   prepareTaskClaimBody,
   readTaskClaimToken,
   readTaskPulseFor,
@@ -24334,8 +24335,16 @@ async function cliPost(
     fail((err as Error).message);
   }
   const { siteUrl, apiToken } = getCliEndpoint();
-  const { payload: requestBody, sessionId: claimSessionId } =
-    prepareTaskClaimBody(urlPath, body, detectCurrentSessionId());
+  const isClaimWrite = isTaskClaimWriteRoute(urlPath);
+  const { payload: requestBody, sessionId: claimSessionId } = isClaimWrite
+    ? prepareTaskClaimBody(
+        urlPath,
+        body,
+        typeof body.conversation_id === "string"
+          ? body.conversation_id
+          : ownSessionId(getRealCwd()),
+      )
+    : { payload: body, sessionId: undefined };
   // Bound the call with a timeout so a slow/contended backend can't hang the CLI
   // forever. No auto-retry here: cliPost serves mutating endpoints too, and a
   // timed-out create may have committed server-side.
@@ -24362,16 +24371,20 @@ async function cliPost(
     result?.error ? cliErrorMessage(result.error) : undefined,
   );
   if (conflict) {
-    clearStaleClaimOnConflict(
-      result?.reason,
-      claimSessionId,
-      requestBody.short_id,
-    );
+    if (isClaimWrite) {
+      clearStaleClaimOnConflict(
+        result?.reason,
+        claimSessionId,
+        requestBody.short_id,
+      );
+    }
     fail(conflict);
   }
   if (result?.error) fail(cliErrorMessage(result.error));
   if (!response.ok) fail(`HTTP ${response.status}`);
-  settleTaskClaimResult(urlPath, requestBody, claimSessionId, result);
+  if (isClaimWrite) {
+    settleTaskClaimResult(urlPath, requestBody, claimSessionId, result);
+  }
   return result;
 }
 
@@ -25648,7 +25661,7 @@ work
     console.log(
       `${c.green}ok${c.reset} Completed ${c.cyan}${shortId}${c.reset}`,
     );
-    if (sessionId) clearTaskPulseIfBound(sessionId, shortId);
+    clearTaskPulseIfBound(sessionId, shortId);
     await warnIfThreadStateStale();
   });
 
@@ -25813,8 +25826,7 @@ work
     console.log(
       `${c.green}ok${c.reset} Handed off ${c.cyan}${shortId}${c.reset} (${input.status}) → in_review${extras}`,
     );
-    if (body.conversation_id)
-      clearTaskPulseIfBound(body.conversation_id, shortId);
+    clearTaskPulseIfBound(body.conversation_id, shortId);
     await warnIfThreadStateStale();
   });
 
@@ -25886,7 +25898,7 @@ work
       "/cli/work/update",
       withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
     );
-    if (sessionId) clearTaskPulseIfBound(sessionId, shortId);
+    clearTaskPulseIfBound(sessionId, shortId);
     if (options.message) {
       const commentBody: Record<string, any> = {
         short_id: shortId,
@@ -26027,7 +26039,10 @@ work
     try {
       await cliPost(
         "/cli/work/update",
-        withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
+        withTaskClaimToken(
+          body,
+          readTaskClaimToken(ownSessionId(getRealCwd()), shortId),
+        ),
         { throwOnError: true },
       );
     } catch (err) {
@@ -26050,7 +26065,7 @@ work
         "/cli/work/update",
         withTaskClaimToken(
           { ...body, status: alias },
-          readTaskClaimToken(sessionId, shortId),
+          readTaskClaimToken(ownSessionId(getRealCwd()), shortId),
         ),
       );
     }

@@ -2,13 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConvexError } from "convex/values";
 import { SyncService } from "./syncService.js";
-import {
-  readTaskClaimToken,
-  readTaskPulseFor,
-  storeTaskClaim,
-} from "./taskPulse.js";
+import { readTaskClaimToken, storeTaskClaim } from "./taskPulse.js";
 import { parseWorkflowSource } from "./workflow/parser.js";
 import { runWorkflow } from "./workflow/runner.js";
 
@@ -32,7 +27,7 @@ describe("heartbeat task claim renewal and workflow claim propagation", () => {
     globalThis.fetch = originalFetch;
   });
 
-  test("heartbeatManagedSessionsBatch renews expiring task pulses and clears stale tokens on CONFLICT", async () => {
+  test("heartbeatManagedSessionsBatch relies on server batch renewal without per-task heartbeats", async () => {
     await withTempCodecastDir(async () => {
       const calls: Array<{ name: string; args: Record<string, any> }> = [];
       const sync = new SyncService({
@@ -40,26 +35,11 @@ describe("heartbeat task claim renewal and workflow claim propagation", () => {
         userId: "u-test",
         authToken: "tok-test",
       });
-      const futureRenewed = Date.now() + 300_000;
       (sync as any).client = {
         mutation: async (name: string, args: Record<string, any>) => {
           calls.push({ name, args });
           if (name === "managedSessions:heartbeatBatch") {
             return { updated: args.sessions.length, unknown: [] };
-          }
-          if (name === "tasks:heartbeat" && args.short_id === "ct-1") {
-            return {
-              success: true,
-              claim_token: 2,
-              lease_until: futureRenewed,
-            };
-          }
-          if (name === "tasks:heartbeat" && args.short_id === "ct-2") {
-            throw new ConvexError({
-              code: "CONFLICT",
-              reason: "expired",
-              message: "ct-2 claim lease has expired",
-            });
           }
           return null;
         },
@@ -68,38 +48,14 @@ describe("heartbeat task claim renewal and workflow claim propagation", () => {
       storeTaskClaim("sess-1", "ct-1", 2, Date.now() + 60_000);
       storeTaskClaim("sess-2", "ct-2", 5, Date.now() + 60_000);
 
-      await sync.heartbeatManagedSessionsBatch([
+      const res = await sync.heartbeatManagedSessionsBatch([
         { session_id: "sess-1", agent_status: "working" },
         { session_id: "sess-2", agent_status: "idle" },
       ]);
 
-      const taskHeartbeats = calls.filter((c) => c.name === "tasks:heartbeat");
-      expect(taskHeartbeats).toEqual([
-        {
-          name: "tasks:heartbeat",
-          args: {
-            api_token: "tok-test",
-            short_id: "ct-1",
-            claim_token: 2,
-            conversation_id: "sess-1",
-          },
-        },
-        {
-          name: "tasks:heartbeat",
-          args: {
-            api_token: "tok-test",
-            short_id: "ct-2",
-            claim_token: 5,
-            conversation_id: "sess-2",
-          },
-        },
-      ]);
-      expect(readTaskPulseFor("sess-1")).toMatchObject({
-        task: "ct-1",
-        claim_token: 2,
-        lease_until: futureRenewed,
-      });
-      expect(readTaskClaimToken("sess-2", "ct-2")).toBeUndefined();
+      expect(res).toEqual({ updated: 2, unknown: [] });
+      expect(calls).toHaveLength(1);
+      expect(calls[0].name).toBe("managedSessions:heartbeatBatch");
     });
   });
 
