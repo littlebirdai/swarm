@@ -9,7 +9,7 @@ import type { DeliveryBridge } from "./types";
 
 function dispatchBusCall<T>(
   run: (signal: AbortSignal) => Promise<T>,
-  fallback: (cause: unknown) => T,
+  fallback: (cause: unknown) => NoInfer<T>,
   publish: (value: T) => BusMessage,
   bus: SupervisorBus["Service"],
 ) {

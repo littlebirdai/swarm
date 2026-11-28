@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
 import type { DeliveryFacade, ReceiptJournal } from "@codecast/delivery";
-import type { EdgeBlobResult, EdgeBusResult } from "@codecast/edge-supervisor";
+import type { EdgeBlobResult } from "@codecast/edge-supervisor";
 import {
   EDGE_PROTOCOL_VERSION as v,
   STEER_BATON_CAPABILITY,
@@ -13,6 +13,7 @@ import {
   parsePermitsNextResponse,
   type CanonicalEvent,
   type EdgeParseResult,
+  type PermitsNextRequest,
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
 import type {
@@ -268,22 +269,6 @@ export class CodexPilotDelivery {
         },
       };
 
-      const callEdge = async <T>(
-        operation: string,
-        request: object,
-        parse: (input: unknown) => EdgeParseResult<T>,
-        signal: AbortSignal,
-      ): Promise<EdgeBusResult<T>> => {
-        const value = await readEdge(
-          this.fetch,
-          signal,
-          operation,
-          request,
-          parse,
-        );
-        return { ok: true, response: value };
-      };
-
       const facade = createDeliveryService({
         receiptJournal: receipts,
         allowTakeover: false,
@@ -349,7 +334,7 @@ export class CodexPilotDelivery {
               ) {
                 if (!this.appendedReceipts.has(next.delivery_id)) {
                   ctx.heldWithoutReceipt = true;
-                  return { ok: true, response: { v, status: "empty" } };
+                  return { ok: true, response: { v: 1, status: "empty" } };
                 }
               } else {
                 await ctx.coordinator.reconcileOwnedDelivery(
@@ -381,13 +366,26 @@ export class CodexPilotDelivery {
             this.headDeliveryId = next.delivery_id;
             return { ok: true, response: next };
           },
-          deliveryStart: (request, signal) =>
-            callEdge(
+          deliveryStart: async (request, signal) => {
+            const value = await readEdge(
+              this.fetch,
+              signal,
               "delivery.start",
               request,
               parseDeliveryStartResponse,
-              signal,
-            ),
+            );
+            if (value.status === "error") {
+              return {
+                ok: false,
+                retryable: value.retryable,
+                code: value.code,
+                ...(value.retry_after_ms === undefined
+                  ? {}
+                  : { retry_after_ms: value.retry_after_ms }),
+              };
+            }
+            return { ok: true, response: value };
+          },
           deliverySettle: async (request, signal) => {
             const ctx = this.context!;
             const value = await readEdge(
@@ -397,6 +395,16 @@ export class CodexPilotDelivery {
               request,
               parseDeliverySettleResponse,
             );
+            if (value.status === "error") {
+              return {
+                ok: false,
+                retryable: value.retryable,
+                code: value.code,
+                ...(value.retry_after_ms === undefined
+                  ? {}
+                  : { retry_after_ms: value.retry_after_ms }),
+              };
+            }
             if (value.status === "stale") {
               ctx.settleStale = true;
               return { ok: true, response: value };
@@ -572,7 +580,7 @@ export class CodexPilotDelivery {
     sendNew: boolean,
   ): Promise<boolean> {
     const service = await this.ensureService();
-    const fence = { v, ...deliveryFence(claim) };
+    const fence: PermitsNextRequest = { v: 1, ...deliveryFence(claim) };
     for (let count = 0; count < 1024 && !signal.aborted; count++) {
       const ctx: ActiveContext = {
         binding,

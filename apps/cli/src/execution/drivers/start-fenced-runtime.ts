@@ -1,11 +1,18 @@
 import * as path from "node:path";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
+import type {
+  ExecutionTargetSpec,
+  RuntimeConfiguration,
+} from "@codecast/agent-clients/executionBinding";
 import type { AttachedFileRef } from "@codecast/daemon/fileAttachment";
 import {
   createCodexOwnedPilot,
   type CodexOwnedPilot,
 } from "../codex-owned-pilot.js";
-import { registerCodexExecutionDriver } from "../codex-pilot-settings.js";
-import type { CodexPilotDisplay } from "../codex-pilot-settings.js";
+import {
+  registerCodexExecutionDriver,
+  type PilotOptions,
+} from "../codex-pilot-settings.js";
 import type { ExecutionConvexTransport } from "../convexControlPlane.js";
 import { RuntimeDriverRegistry } from "../driver.js";
 import {
@@ -17,7 +24,6 @@ import {
   DaemonExecutionRuntime,
   getProcessExecutionRuntime,
 } from "../runtime-rail.js";
-import type { RuntimeTarget } from "../types.js";
 
 export type FencedRuntimeHost = {
   transport: ExecutionConvexTransport;
@@ -25,13 +31,10 @@ export type FencedRuntimeHost = {
   configDir: string;
   siteUrl: string;
   bearer?: string;
-  codexCommand: () => readonly string[];
-  codexPermissions: () => {
-    sandbox: "read-only" | "workspace-write" | "danger-full-access";
-    approvalPolicy: "untrusted" | "on-failure" | "on-request" | "never";
-  };
-  codexInstructions: () => Promise<{ text: string } | undefined>;
-  display: CodexPilotDisplay;
+  codexCommand: PilotOptions["command"];
+  codexPermissions: PilotOptions["permissions"];
+  codexInstructions: PilotOptions["instructions"];
+  display: PilotOptions["display"];
   tmux: {
     sizeArgs: readonly string[];
     exec: (args: string[]) => Promise<{ stdout: string }>;
@@ -44,14 +47,14 @@ export type FencedRuntimeHost = {
     typeIntoPane: (target: string, text: string) => Promise<void>;
     injectDelivery: (params: {
       tmuxTarget: string;
-      agent: string;
+      agent: AgentClientId;
       text: string;
     }) => Promise<void>;
     killSessionAndTree: (session: string) => Promise<void>;
   };
   buildTmuxLaunchCommand: (
-    target: RuntimeTarget,
-    configuration: { model?: string; effort?: string },
+    target: ExecutionTargetSpec,
+    configuration: RuntimeConfiguration,
   ) => string;
   codexAppServer?: Parameters<typeof registerCodexExecutionDriver>[2];
   resolveImage: (storageId: string) => Promise<string | null>;

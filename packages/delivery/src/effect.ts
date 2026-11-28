@@ -1,5 +1,4 @@
 import {
-  EDGE_PROTOCOL_VERSION,
   matchesExpected,
   type PermitsNextRequest,
 } from "@codecast/edge-contract";
@@ -8,6 +7,7 @@ import {
   BusValidationError,
   SupervisorBus,
   type ProviderDeliverInput,
+  type ProviderDeliverOutcome,
 } from "@codecast/edge-supervisor/effect";
 import * as Context from "effect/Context";
 import { TaggedError } from "effect/Data";
@@ -168,7 +168,7 @@ export class Delivery extends Context.Service<
                   kind: "edge.blob.get",
                   request_id: reqId,
                   request: {
-                    v: EDGE_PROTOCOL_VERSION,
+                    v: 1,
                     session: permit.session,
                     run: permit.run,
                     fencing_token: permit.fencing_token,
@@ -365,16 +365,17 @@ export class Delivery extends Context.Service<
                 reply.attempt_id === permit.attempt_id,
             )
             .pipe(
-              Effect.catchTag("BusTimeoutError", () =>
-                Effect.succeed({
+              Effect.catchTag("BusTimeoutError", () => {
+                const timedOut: { readonly outcome: ProviderDeliverOutcome } = {
                   outcome: {
-                    status: "in_doubt" as const,
-                    reason: "unknown" as const,
+                    status: "in_doubt",
+                    reason: "unknown",
                     code: "provider_timeout",
                     message: "Provider delivery timed out",
                   },
-                }),
-              ),
+                };
+                return Effect.succeed(timedOut);
+              }),
               Effect.mapError((error) => mapBusError("bus", error)),
             );
 
@@ -483,7 +484,8 @@ export class Delivery extends Context.Service<
               const aKey = attemptKey(run, permit.attempt_id);
               const dKey = deliveryKey(run, permit.delivery_id);
               if (activeAttempts.has(aKey) || activeDeliveries.has(dKey)) {
-                return { status: "pending" };
+                const pending: DeliveryStepOutcome = { status: "pending" };
+                return pending;
               }
 
               const existingReceipt = yield* journals.findReceipt(
@@ -534,14 +536,16 @@ export class Delivery extends Context.Service<
                 drainOptions.sendNew === false ||
                 (options.canSendNew && !options.canSendNew(permit))
               ) {
-                return { status: "held" };
+                const held: DeliveryStepOutcome = { status: "held" };
+                return held;
               }
 
               if (permit.intent === "steer") {
                 const steerJournal = yield* journals.loadPrunedSteer(run);
                 const hand = toHandover(permit);
                 if (journals.isBlockedByFence(steerJournal, hand)) {
-                  return { status: "fenced" };
+                  const fenced: DeliveryStepOutcome = { status: "fenced" };
+                  return fenced;
                 }
                 const turn = journals.observedTurn(run);
                 if (!matchesExpected(permit.expected, turn)) {
@@ -677,7 +681,7 @@ export class Delivery extends Context.Service<
                 case "delivery.wake": {
                   yield* triggerWake(
                     {
-                      v: EDGE_PROTOCOL_VERSION,
+                      v: 1,
                       session: message.session,
                       run: message.run,
                       fencing_token: message.fencing_token,

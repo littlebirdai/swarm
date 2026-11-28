@@ -1,5 +1,4 @@
 import {
-  EDGE_PROTOCOL_VERSION,
   matchesExpected,
   type DeliveryStartRequest,
   type PermitsNextRequest,
@@ -41,7 +40,7 @@ export function requestId(): string {
 
 export function permitIdentity(permit: Omit<DeliveryStartRequest, "v">) {
   return {
-    v: EDGE_PROTOCOL_VERSION as 1,
+    v: 1 as const,
     session: permit.session,
     run: permit.run,
     fencing_token: permit.fencing_token,

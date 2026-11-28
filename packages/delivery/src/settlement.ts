@@ -8,6 +8,7 @@ import type {
 import type {
   BusTimeoutError,
   BusValidationError,
+  ProviderRecoverOutcome,
   SupervisorBus,
 } from "@codecast/edge-supervisor/effect";
 import * as Effect from "effect/Effect";
@@ -322,15 +323,16 @@ export function makeSettlement(deps: {
           response.attempt_id === permit.attempt_id,
       )
       .pipe(
-        Effect.catchTag("BusTimeoutError", () =>
-          Effect.succeed({
+        Effect.catchTag("BusTimeoutError", () => {
+          const timedOut: { readonly outcome: ProviderRecoverOutcome } = {
             outcome: {
-              status: "in_doubt" as const,
+              status: "in_doubt",
               code: "provider_timeout",
               message: "Provider recovery timed out",
             },
-          }),
-        ),
+          };
+          return Effect.succeed(timedOut);
+        }),
         Effect.mapError((error) => mapBusError("bus", error)),
       );
 
