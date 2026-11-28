@@ -49,7 +49,7 @@ describe("useSyncCore owns the full feeder mount set", () => {
 
   test("every core feeder is mounted inside useSyncCore", () => {
     for (const feeder of CORE_FEEDERS) {
-      const args = feeder === "useSyncInboxSessions" ? "logSnapshot" : "";
+      const args = feeder === "useSyncInboxSessions" ? "true" : "";
       expect(coreSrc.includes(`${feeder}(${args});`)).toBe(true);
     }
   });

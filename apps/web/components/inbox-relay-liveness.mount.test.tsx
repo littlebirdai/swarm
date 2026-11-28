@@ -118,16 +118,7 @@ function sendContact(socket: RelaySocket, seq: number, ttl_ms = 15_000) {
   });
 }
 
-test("the inbox relay flag defaults off", async () => {
-  delete process.env.VITE_RELAY_INBOX_LIVENESS;
-  const ui = await mountInboxRelay();
-  expect(ui.backend.queryRequests).toHaveLength(0);
-  expect(ui.backend.writeRequests).toHaveLength(0);
-  expect(sockets).toHaveLength(0);
-});
-
 test("only current-run relay contact lands and loss falls back to Convex without cache writes", async () => {
-  process.env.VITE_RELAY_INBOX_LIVENESS = "1";
   const ui = await mountInboxRelay();
   const [socket] = sockets;
   expect(socket).toBeDefined();
@@ -254,7 +245,6 @@ test("only current-run relay contact lands and loss falls back to Convex without
 });
 
 test("changing visible cards keeps the first relay watch until the new targets resolve", async () => {
-  process.env.VITE_RELAY_INBOX_LIVENESS = "1";
   const ui = await mountInboxRelay();
   const [socket] = sockets;
   await act(() => socket.join(["session_liveness"], inboxHub));
@@ -294,7 +284,6 @@ test("changing visible cards keeps the first relay watch until the new targets r
 });
 
 test("the real card wakes when its stored lease changes and at both contact deadlines", async () => {
-  process.env.VITE_RELAY_INBOX_LIVENESS = "1";
   const ui = await mountInboxRelay();
   const clock = ui.clock!;
   const mono = spyOn(performance, "now").mockImplementation(
@@ -339,7 +328,6 @@ test("the real card wakes when its stored lease changes and at both contact dead
 });
 
 test("a follower card records no visibility and its relay skips session liveness", async () => {
-  process.env.VITE_RELAY_INBOX_LIVENESS = "1";
   const ui = await mountInboxRelay({
     follower: true,
     node: (
@@ -419,7 +407,6 @@ test("a machine heartbeat goes through the relay to the inbox card", async () =>
     const wsUrl = new URL("/relay", address);
     wsUrl.protocol = "ws:";
     process.env.VITE_RELAY_URL = wsUrl.href;
-    process.env.VITE_RELAY_INBOX_LIVENESS = "1";
     const mount = await mountInboxRelay({
       now: issuedAt,
       node: inboxRelayView({ now: issuedAt, second: true }),

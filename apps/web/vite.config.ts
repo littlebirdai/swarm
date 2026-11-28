@@ -61,11 +61,6 @@ function buildIdentity(mode: string) {
 }
 
 export default defineConfig(({ mode, command }) => ({
-  define: {
-    "process.env.VITE_INBOX_LOG_SNAPSHOT": JSON.stringify(
-      process.env.VITE_INBOX_LOG_SNAPSHOT ?? "",
-    ),
-  },
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its
   // pre-bundled deps live apart so neither server rewrites the other's. Inside
   // node_modules/.vite, so a cache purge (vendor-platform.sh) clears both.

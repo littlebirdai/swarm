@@ -179,12 +179,7 @@ export function RelayPresenceProvider({ children }: { children: ReactNode }) {
   const isSyncHost = useIsSyncHost();
   const url = relayEndpointUrl(import.meta.env.VITE_RELAY_URL);
   return url ? (
-    <ActiveRelayPresence
-      url={url.href}
-      inboxLiveness={
-        isSyncHost && import.meta.env.VITE_RELAY_INBOX_LIVENESS === "1"
-      }
-    >
+    <ActiveRelayPresence url={url.href} inboxLiveness={isSyncHost}>
       {children}
     </ActiveRelayPresence>
   ) : (
