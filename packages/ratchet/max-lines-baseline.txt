@@ -422,7 +422,7 @@ apps/server/convex/spawn.ts 950
 apps/server/convex/syncLog.ts 900
 apps/server/convex/taskLinks.ts 1050
 apps/server/convex/taskWaits.ts 1400
-apps/server/convex/tasks.ts 6750
+apps/server/convex/tasks.ts 6700
 apps/server/convex/teamBilling.test.ts 950
 apps/server/convex/teamKit.ts 950
 apps/server/convex/teamSuggestions.test.ts 1350
