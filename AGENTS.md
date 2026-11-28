@@ -20,9 +20,9 @@ To add a library, use the steps below.
 5. Extend `../tsconfig/library.json` in the library's `tsconfig.json`.
 6. Add the library as a `workspace:*` dependency of each workspace that imports it.
 7. Run `bun install` to update the lockfile.
-8. Run `cast check packages` to check the libraries.
+8. Run `cast check packages/<name>` to check the library.
 
-`cast check packages` uses `src/` and `test/` as the roots for each library.
+`cast check packages/<name>` checks one library with its own `tsconfig.json`, which uses `src/` and `test/` as the roots. `cast check packages` checks all libraries together; keep it for a full check.
 
 CI and the source walkers find the new library automatically.
 
@@ -46,7 +46,7 @@ A new copy from the canonical repository will overwrite the changes that Swarm m
 
 ## Typechecking
 
-Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground`, `packages` and `relay`. `cast check` runs all 10, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
+Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground`, `packages` and `relay`. `cast check` runs all 10, and `cast check web` runs one. To check one library, pass its directory: `cast check packages/edge-client` builds a small program of about 0.5 GB, while `cast check packages` builds all libraries at about 1.3 GB. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 
