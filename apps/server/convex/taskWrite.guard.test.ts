@@ -23,6 +23,11 @@ const FILES = [
   "lib/taskSubtasks.ts",
   "lib/taskTransitions.ts",
   "lib/taskComments.ts",
+  "taskComments.ts",
+  "taskDeps.ts",
+  "taskSpawn.ts",
+  "lib/taskDeps.ts",
+  "lib/taskNotifications.ts",
   "workflow_runs.ts",
   "threadMembershipSweep.ts",
 ];
@@ -32,7 +37,6 @@ const ALLOWED: Record<string, string[]> = {
   "taskExecution.ts": [
     "updateExecutionStatus(task._id)", // execution_status only; the bag never holds a synced key
     "incrementRetryCount(task._id)", // retry_count / execution_status only
-    "runHeartbeat(task._id)", // last_heartbeat / progress_pct
   ],
   "lib/taskSubtasks.ts": [
     "recalcPlanProgress(plan._id)", // the PLAN row

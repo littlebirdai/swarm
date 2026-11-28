@@ -203,7 +203,6 @@ export const CLIENT_SYNC_REGISTRY = {
       "taskSpawn",
       "taskUpdate",
       "taskWaits",
-      "taskWebList",
       "taskWebUpdate",
     ],
     persistence: { kind: "collection", key: "tasks" },
