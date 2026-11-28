@@ -60,7 +60,7 @@ test("an agent dock window paints only after its scoped critical cache loads", a
   expect(panelKeys).not.toContain("lastFocusedConversationId");
 
   const originalFlag = process.env.VITE_DESKTOP_PANEL_SCOPE;
-  let released: Released | null = null;
+  const observed: { released: Released | null } = { released: null };
   let stopWatching: (() => void) | undefined;
   let restoreEvents: (() => void) | undefined;
   let web: Awaited<ReturnType<typeof mountWeb>> | undefined;
@@ -136,8 +136,8 @@ test("an agent dock window paints only after its scoped critical cache loads", a
         syncRole: "follower",
       });
       stopWatching = useInboxStore.subscribe((state) => {
-        if (released || !state.clientStateInitialized) return;
-        released = {
+        if (observed.released || !state.clientStateInitialized) return;
+        observed.released = {
           session: Boolean(state.sessions[sessionId]),
           conversation: Boolean(state.conversations[sessionId]),
           lastFocusedConversationId: state.lastFocusedConversationId,
@@ -157,7 +157,7 @@ test("an agent dock window paints only after its scoped critical cache loads", a
         await new Promise((resolve) => setTimeout(resolve, 5));
     });
     expect(hydration._hydrating).toBe(false);
-    expect(released).toEqual({
+    expect(observed.released).toEqual({
       session: true,
       conversation: true,
       lastFocusedConversationId: null,
