@@ -3184,7 +3184,7 @@ const ConversationViewInner = function ConversationView(
         if (idle !== null) cancelIdleCallback(idle);
       };
     }, tick);
-  }, [virtualizer]);
+  }, [virtualizer, userScrolledRef]);
 
   // Scroll to absolute top or bottom of the loaded list with retries to handle
   // virtualizer height-estimation drift. Reassigned every render so closures
