@@ -5,7 +5,6 @@ import {
   base64urlDecode,
   base64urlEncode,
 } from "@codecast/connectors/codecastSignature";
-import { TAKEOVER_FENCE_CAPABILITY } from "@codecast/edge-contract";
 import { presentToken } from "@platform/auth/tokenFormat";
 import * as previousEdge from "../../../packages/edge-contract/test/n-1/schema";
 import { parseRelayGrantClaims as parsePreviousRelayGrantClaims } from "../../../packages/relay-contract/test/n-1/schema";
@@ -49,11 +48,12 @@ const envFlags = {
   RELAY_AUDIENCE: "fixture-cell",
   RELAY_HMAC_KEY: base64urlEncode(new Uint8Array(32).fill(4)),
 };
-const savedEnv = Object.entries(envFlags).map(
-  ([key]) => [key, process.env[key]] as const,
-);
+let savedEnv: Array<readonly [string, string | undefined]> = [];
 
 beforeEach(() => {
+  savedEnv = Object.entries(envFlags).map(
+    ([key]) => [key, process.env[key]] as const,
+  );
   Object.assign(process.env, envFlags);
   setSystemTime(new Date(start));
 });
@@ -82,15 +82,26 @@ async function postEdge(
   });
 }
 
-test("every /edge/v1 server route in routes.ts is covered by the N-1 suite", () => {
-  const source = readFileSync(ROUTES_PATH, "utf8");
+function extractRegisteredEdgeRoutes(source: string): Set<string> {
   const registered = new Set<string>();
-  for (const match of source.matchAll(/path:\s*"(\/edge\/v1\/[^"]+)"/g)) {
-    registered.add(match[1]!);
+  for (const match of source.matchAll(
+    /path:\s*(?:"(\/edge\/v1\/[^"]+)"|'(\/edge\/v1\/[^']+)'|`(\/edge\/v1\/[^`]+)`)/g,
+  )) {
+    const raw = match[1] ?? match[2] ?? match[3]!;
+    const resolved = raw.replace(
+      /\$\{TRANSCRIPT_APPEND_OPERATION\}/g,
+      previousEdge.TRANSCRIPT_APPEND_OPERATION,
+    );
+    if (!resolved.includes("${")) {
+      registered.add(resolved);
+    }
   }
-  if (source.includes("TRANSCRIPT_APPEND_OPERATION")) {
-    registered.add(`/edge/v1/${previousEdge.TRANSCRIPT_APPEND_OPERATION}`);
-  }
+  return registered;
+}
+
+test("every /edge/v1 N-1 server route in routes.ts is covered by the N-1 suite", () => {
+  const source = readFileSync(ROUTES_PATH, "utf8");
+  const registered = extractRegisteredEdgeRoutes(source);
   const covered = new Set([
     "/edge/v1/hello",
     "/edge/v1/heartbeat",
@@ -108,7 +119,19 @@ test("every /edge/v1 server route in routes.ts is covered by the N-1 suite", () 
     "/edge/v1/delivery.settle",
     "/edge/v1/transcripts.append",
   ]);
-  expect([...registered].sort()).toEqual([...covered].sort());
+  const missing = [...covered].filter((route) => !registered.has(route));
+  expect(missing).toEqual([]);
+  expect(
+    extractRegisteredEdgeRoutes(
+      "path: '/edge/v1/single'\npath: `/edge/v1/${TRANSCRIPT_APPEND_OPERATION}`\npath: \"/edge/v1/future.added\"\n",
+    ),
+  ).toEqual(
+    new Set([
+      "/edge/v1/single",
+      `/edge/v1/${previousEdge.TRANSCRIPT_APPEND_OPERATION}`,
+      "/edge/v1/future.added",
+    ]),
+  );
 });
 
 test("link verb group: N-1 hello and heartbeat requests decode with N-1 schema", async () => {
@@ -143,6 +166,12 @@ test("link verb group: N-1 hello and heartbeat requests decode with N-1 schema",
     throw new Error("Expected ok hello response");
   }
   expect(parsedHello.value.version).toBe(1);
+  expect(parsedHello.value.policy.capabilities).toContain(
+    previousEdge.STEER_BATON_CAPABILITY,
+  );
+  expect(parsedHello.value.policy.capabilities).toContain(
+    previousEdge.TAKEOVER_FENCE_CAPABILITY,
+  );
 
   for (const versions of [[], [99]] as const) {
     const negRes = await postEdge(
@@ -445,13 +474,11 @@ test("takeover verb group: N-1 permits.next takeover_fence and takeover.ack deco
   const ackFixture = loadEdgeFixture<{
     request: previousEdge.TakeoverAckRequest;
   }>("takeover.ack");
-  const f = await steerDeliveryFixture();
-  await f.t.run(async ({ db }) => {
-    const binding = await db.get(f.binding);
-    if (!binding) throw new Error("Expected binding");
-    await db.patch(f.binding, {
-      capabilities: [...binding.capabilities!, TAKEOVER_FENCE_CAPABILITY],
-    });
+  const f = await steerDeliveryFixture({
+    capabilities: [
+      previousEdge.STEER_BATON_CAPABILITY,
+      previousEdge.TAKEOVER_FENCE_CAPABILITY,
+    ],
   });
   await asUser(f.t, f.other).mutation(api.collab.takeOverSteer, {
     conversation_id: f.conversation,

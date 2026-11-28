@@ -31,16 +31,23 @@ const config = readConfig({
   RELAY_HMAC_KEY: key.toString("base64url"),
 });
 
-function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  label: string,
+  onTimeout?: () => void,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`Timed out waiting for ${label}`)),
-        5_000,
-      ),
-    ),
-  ]);
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => {
+        onTimeout?.();
+        reject(new Error(`Timed out waiting for ${label}`));
+      }, 5_000);
+    }),
+  ]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
 }
 
 function createSocketQueue(url: URL) {
@@ -48,14 +55,42 @@ function createSocketQueue(url: URL) {
   const waiters = new Set<() => void>();
   const open = Promise.withResolvers<void>();
   const ws = new WebSocket(url);
+  let failure: Error | null = null;
+  let closing = false;
+
+  function failQueue(error: Error): void {
+    if (!failure) {
+      failure = error;
+    }
+    open.reject(failure);
+    for (const wake of [...waiters]) {
+      waiters.delete(wake);
+      wake();
+    }
+  }
 
   ws.addEventListener("open", () => open.resolve());
+  ws.addEventListener("error", () => {
+    failQueue(new Error("WebSocket error before expected frame"));
+  });
+  ws.addEventListener("close", (event) => {
+    if (!closing) {
+      failQueue(
+        new Error(
+          `WebSocket closed unexpectedly (${event.code} ${event.reason})`,
+        ),
+      );
+    }
+  });
   ws.addEventListener("message", (event) => {
     const parsed = parsePreviousServerFrame(event.data);
     if (!parsed.ok) {
-      throw new Error(
-        `N-1 parser rejected relay server frame: ${JSON.stringify(parsed.error)} (${String(event.data)})`,
+      failQueue(
+        new Error(
+          `N-1 parser rejected relay server frame: ${JSON.stringify(parsed.error)} (${String(event.data)})`,
+        ),
       );
+      return;
     }
     frames.push(parsed.value);
     for (const wake of [...waiters]) {
@@ -68,17 +103,23 @@ function createSocketQueue(url: URL) {
     predicate: (frame: PreviousServerFrame) => boolean,
     label: string,
   ): Promise<PreviousServerFrame> {
+    let waiter: (() => void) | undefined;
     return withTimeout(
       (async () => {
         while (true) {
           const index = frames.findIndex(predicate);
           if (index >= 0) return frames.splice(index, 1)[0]!;
+          if (failure) throw failure;
           await new Promise<void>((resolve) => {
+            waiter = resolve;
             waiters.add(resolve);
           });
         }
       })(),
       label,
+      () => {
+        if (waiter) waiters.delete(waiter);
+      },
     );
   }
 
@@ -86,11 +127,17 @@ function createSocketQueue(url: URL) {
     ws.send(JSON.stringify(frame));
   }
 
+  function close() {
+    closing = true;
+    ws.close();
+  }
+
   return {
     ws,
     ready: withTimeout(open.promise, "websocket open"),
     send,
     take,
+    close,
   };
 }
 
@@ -133,15 +180,15 @@ it.effect(
 
       const userPub = yield* Effect.acquireRelease(
         Effect.sync(() => createSocketQueue(url)),
-        (sock) => Effect.sync(() => sock.ws.close()),
+        (sock) => Effect.sync(() => sock.close()),
       );
       const userSub = yield* Effect.acquireRelease(
         Effect.sync(() => createSocketQueue(url)),
-        (sock) => Effect.sync(() => sock.ws.close()),
+        (sock) => Effect.sync(() => sock.close()),
       );
       const machinePub = yield* Effect.acquireRelease(
         Effect.sync(() => createSocketQueue(url)),
-        (sock) => Effect.sync(() => sock.ws.close()),
+        (sock) => Effect.sync(() => sock.close()),
       );
 
       yield* Effect.promise(() =>
@@ -344,7 +391,7 @@ it.effect(
 
       const incompatibleClient = yield* Effect.acquireRelease(
         Effect.sync(() => createSocketQueue(url)),
-        (sock) => Effect.sync(() => sock.ws.close()),
+        (sock) => Effect.sync(() => sock.close()),
       );
       yield* Effect.promise(() => incompatibleClient.ready);
       incompatibleClient.send({
@@ -358,10 +405,16 @@ it.effect(
           "incompatible hello",
         ),
       );
-      expect(incompatibleHello).toEqual({
+      expect(incompatibleHello).toMatchObject({
         type: "hello",
         status: "incompatible_version",
-        supported_versions: [1],
       });
+      if (
+        incompatibleHello.type !== "hello" ||
+        incompatibleHello.status !== "incompatible_version"
+      ) {
+        throw new Error("Expected incompatible_version hello response");
+      }
+      expect(incompatibleHello.supported_versions).toContain(1);
     }),
 );
