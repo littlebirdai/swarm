@@ -6,7 +6,7 @@ const { values } = parseArgs({
     people: { type: "string", default: "10" },
     devices: { type: "string" },
     seed: { type: "string", default: "42" },
-    mode: { type: "string", default: "team" },
+    mode: { type: "string", default: "all-projects" },
     realistic: { type: "boolean" },
     compare: { type: "boolean" },
     json: { type: "boolean" },
@@ -35,20 +35,20 @@ if (!values.compare) {
 }
 if (!Number.isSafeInteger(seed)) throw new Error("--seed must be an integer");
 if (
-  values.mode !== "team" &&
+  values.mode !== "all-projects" &&
   values.mode !== "interest" &&
   values.mode !== "both"
 )
-  throw new Error("--mode must be team, interest, or both");
+  throw new Error("--mode must be all-projects, interest, or both");
 
 const realistic = !!values.compare || !!values.realistic;
 const runs: { people: number; devices: number; mode: PopulationMode }[] =
   values.compare
-    ? (["team", "interest"] as const).flatMap((mode) =>
+    ? (["all-projects", "interest"] as const).flatMap((mode) =>
         comparePoints.map((point) => ({ ...point, mode })),
       )
     : values.mode === "both"
-      ? (["team", "interest"] as const).map((mode) => ({
+      ? (["all-projects", "interest"] as const).map((mode) => ({
           people,
           devices,
           mode,

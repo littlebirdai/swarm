@@ -41,9 +41,13 @@ export function scopedHostChannel(
     { keys: Set<string>; seen: number; channel: BroadcastChannel }
   >();
 
+  let deliver: ((message: ReplicationMessage) => void) | undefined;
   const forget = (id: string) => {
-    peers.get(id)?.channel.close();
+    const peer = peers.get(id);
+    peer?.channel.close();
     peers.delete(id);
+    if (peer)
+      deliver?.({ type: "leave", from: id } as unknown as ReplicationMessage);
   };
   const pulse = (channel: BroadcastChannel) => {
     for (const [id, peer] of peers) {
@@ -63,19 +67,23 @@ export function scopedHostChannel(
     },
     channel: {
       onMessage(callback) {
+        deliver = callback;
         const stop = legacy.onMessage((message) => {
           if (message.type === "hello" && peers.has(message.from)) return;
           callback(message);
         });
         const active = control;
-        const receive = ({ data }: MessageEvent<ScopeSignal>) => {
+        const onScopeSignal = ({ data }: MessageEvent<ScopeSignal>) => {
           if (!active || data.type === "host" || data.type === "rejoin") return;
           if (data.type === "mut") {
             callback(data);
             return;
           }
           if (data.type === "leave") {
-            forget(data.from);
+            if (typeof data.from === "string" && data.from.length > 0) {
+              if (peers.has(data.from)) forget(data.from);
+              else callback(data as unknown as ReplicationMessage);
+            }
             return;
           }
           const peer = peers.get(data.from);
@@ -96,10 +104,11 @@ export function scopedHostChannel(
           });
           callback(data);
         };
-        active?.addEventListener("message", receive);
+        active?.addEventListener("message", onScopeSignal);
         return () => {
+          if (deliver === callback) deliver = undefined;
           stop();
-          active?.removeEventListener("message", receive);
+          active?.removeEventListener("message", onScopeSignal);
         };
       },
       post(message) {

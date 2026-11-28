@@ -38,8 +38,9 @@ import type { Patch } from "mutative";
 import {
   CLIENT_SYNC_REGISTRY,
   REPLICATION_CLASSIFICATION,
-  REPLICATED_EPHEMERAL_KEYS,
 } from "./clientSyncRegistry";
+import { REPLICATED_EPHEMERAL_KEYS } from "./replicated-ephemeral-keys";
+import { gateRevokedCommit } from "./scope-revocation-gate";
 import {
   consumeViewNav,
   declareViewNav,
@@ -628,6 +629,54 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
+  commitGate: (commit) => gateRevokedCommit(commit),
+  outboxProtectedRows(entry) {
+    const out: string[] = [];
+    const args = entry.args;
+    if (!Array.isArray(args)) return out;
+    if (entry.action === "dispatchChatSend" && typeof args[2] === "string") {
+      out.push(`chatMessages:${args[2]}`);
+    } else if (
+      (entry.action === "dispatchChatEdit" ||
+        entry.action === "dispatchChatDelete") &&
+      typeof args[0] === "string"
+    ) {
+      out.push(`chatMessages:${args[0]}`);
+    } else if (
+      entry.action === "createDoc" &&
+      typeof args[0]?.client_key === "string"
+    ) {
+      out.push(`docs:${args[0].client_key}`);
+    } else if (
+      (entry.action === "archiveDoc" ||
+        entry.action === "restoreArchivedDoc" ||
+        entry.action === "pinDoc" ||
+        entry.action === "moveDoc" ||
+        entry.action === "updateDoc") &&
+      typeof args[0] === "string"
+    ) {
+      out.push(`docs:${args[0]}`);
+      if (entry.action === "updateDoc") out.push(`docDetails:${args[0]}`);
+    } else if (
+      entry.action === "createTask" &&
+      typeof args[0]?.client_key === "string"
+    ) {
+      out.push(`tasks:${args[0].client_key}`);
+    } else if (
+      (entry.action === "updateTask" || entry.action === "updateTaskStatus") &&
+      typeof args[0] === "string"
+    ) {
+      out.push(`tasks:${args[0]}`);
+    } else if (
+      entry.action === "createPlan" &&
+      typeof args[0]?.client_key === "string"
+    ) {
+      out.push(`plans:${args[0].client_key}`);
+    } else if (entry.action === "updatePlan" && typeof args[0] === "string") {
+      out.push(`plans:${args[0]}`);
+    }
+    return out;
+  },
   rollbackDroppedOutboxEntry: (entry) =>
     entry.action === "archiveDoc" && cacheEvictionEnabled(),
   onDroppedOutboxEntry(entry, pending) {

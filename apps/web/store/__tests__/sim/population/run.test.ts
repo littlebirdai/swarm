@@ -3,11 +3,16 @@ import { population } from "./model";
 import { runPopulation } from "./run";
 
 test.each([1, 50])(
-  "the team-wide baseline delivers shared changes at %i people",
+  "all-project subscriptions deliver shared changes without team-wide sync fan-out at %i people",
   async (people) => {
     const seed = 42;
     const model = population(seed, people);
-    const report = await runPopulation({ people, devices: people, seed });
+    const report = await runPopulation({
+      people,
+      devices: people,
+      seed,
+      mode: "all-projects",
+    });
     expect(report.teams).toBe(1);
     expect(report.sessions).toBe(people * 2);
     expect(report.writes.heartbeat).toBe(people * 2);
@@ -15,11 +20,10 @@ test.each([1, 50])(
     expect(report.writes.doc).toBeGreaterThan(0);
     const shared = model.activity.filter(({ privateTask }) => !privateTask);
     const sharedTasks = new Set(shared.map(({ agent }) => agent));
-    const sharedChanges = report.measurements[0].teamEvents;
-    expect(sharedChanges).toBeGreaterThan(shared.length);
     expect(report.scopeWrites).toEqual({
-      team: shared.length + report.writes.doc,
+      team: 0,
       user: model.activity.length + report.writes.doc + people,
+      interest: shared.length + report.writes.doc,
     });
     expect(report.measurements).toHaveLength(people);
     if (people > 1) {
@@ -31,16 +35,13 @@ test.each([1, 50])(
           ),
         ),
       ).toBe(true);
-      expect(report.headWritesPerDrain).toBeGreaterThan(1);
-      expect(report.heuristicRetriesPerScopeWrite.team).toBeGreaterThan(
-        report.heuristicRetriesPerScopeWrite.user,
-      );
     }
     for (const device of report.measurements) {
       const own = model.activity.filter(
         ({ person }) => person.id === device.person,
       );
-      expect(device.teamEvents).toBe(sharedChanges);
+      expect(device.teamEvents).toBe(0);
+      expect(device.interestEvents).toBeGreaterThan(0);
       expect(device.eventsByEntity.tasks).toBe(shared.length + own.length);
       expect(device.eventsByEntity.docs).toBeGreaterThan(0);
       if (people === 1 || own.length > 0)
@@ -72,7 +73,12 @@ test.each([1, 50])(
   async (people) => {
     const seed = 42;
     const model = population(seed, people);
-    const baseline = await runPopulation({ people, devices: people, seed });
+    const baseline = await runPopulation({
+      people,
+      devices: people,
+      seed,
+      mode: "all-projects",
+    });
     const report = await runPopulation({
       people,
       devices: people,
@@ -81,7 +87,7 @@ test.each([1, 50])(
     });
     const shared = model.activity.filter(({ privateTask }) => !privateTask);
     expect(report.scopeWrites).toEqual({
-      team: shared.length + report.writes.doc,
+      team: 0,
       user: model.activity.length + report.writes.doc + people,
       interest: shared.length + report.writes.doc,
     });
@@ -110,6 +116,7 @@ test.each([1, 50])(
       people,
       devices: people,
       seed,
+      mode: "all-projects",
       realistic: true,
     });
     const report = await runPopulation({

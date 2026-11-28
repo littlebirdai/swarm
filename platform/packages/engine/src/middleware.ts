@@ -65,6 +65,14 @@ export class DispatchNotWiredError extends Error {
   }
 }
 
+// An action whose own rows the commit gate removed: the write was not sent.
+export class CommitGateVetoError extends Error {
+  constructor(action: string) {
+    super(`"${action}" writes into a scope this account can no longer write to`);
+    this.name = "CommitGateVetoError";
+  }
+}
+
 // A dispatch held back because an earlier write it must follow is parked in
 // the outbox after a failed send. It stays parked too, and the next drain
 // delivers both in their causal (ts) order. Pending, not failed.
@@ -1011,6 +1019,60 @@ export function mutativeMiddleware(
     // later live send of any of them goes behind the row (as if it named it in
     // `after`), so the drain cannot land the older value last.
     const parkedCells = new Map<string, ReadonlySet<string>>();
+    const MAX_ACTIVE_OUTBOX_ROWS = 512;
+    const protectOutboxRows = !!platformConfig.outboxProtectedRows;
+    const activeOutboxRowsById = new Map<string, Set<string>>();
+    const EMPTY_PROTECTED_OUTBOX_ROWS: ReadonlySet<string> = new Set();
+    let outboxSeedEpoch = 0;
+    let outboxSeedStarted = false;
+    const seedOutboxProtection = (): void => {
+      if (outboxSeedStarted || outboxLoadFn === null || !protectOutboxRows) return;
+      outboxSeedStarted = true;
+      const seedEpoch = outboxSeedEpoch;
+      const load = outboxLoadFn;
+      void Promise.resolve(load()).then(
+        (entries) => {
+          if (outboxSeedEpoch !== seedEpoch || outboxLoadFn !== load) return;
+          for (const entry of entries) {
+            if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+            trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
+          }
+        },
+        () => {},
+      );
+    };
+    const trackOutboxRows = (id: string, keys: Set<string>): void => {
+      if (!protectOutboxRows || keys.size === 0) return;
+      if (!activeOutboxRowsById.has(id)) {
+        while (activeOutboxRowsById.size >= MAX_ACTIVE_OUTBOX_ROWS) {
+          const oldest = activeOutboxRowsById.keys().next().value;
+          if (oldest === undefined) break;
+          activeOutboxRowsById.delete(oldest);
+        }
+      }
+      activeOutboxRowsById.set(id, keys);
+    };
+    const extractOutboxRowKeys = (
+      entry: Pick<OutboxEntry, "action" | "args" | "patches" | "locks">,
+      rawPatches?: readonly Patch[],
+    ): Set<string> => {
+      const out = new Set<string>();
+      for (const lock of entry.locks ?? []) {
+        if (lock.storeKey && lock.recordId) out.add(`${lock.storeKey}:${lock.recordId}`);
+      }
+      for (const [table, rows] of Object.entries((entry.patches ?? {}) as Record<string, any>)) {
+        if (!rows || typeof rows !== "object") continue;
+        for (const rowId of Object.keys(rows)) out.add(`${table}:${rowId}`);
+      }
+      for (const p of rawPatches ?? []) {
+        const path = p.path as (string | number)[];
+        if (path.length >= 2) out.add(`${String(path[0])}:${String(path[1])}`);
+      }
+      for (const key of platformConfig.outboxProtectedRows?.(entry) ?? []) {
+        if (key) out.add(key);
+      }
+      return out;
+    };
     const cellsOf = (grouped: Record<string, Record<string, Record<string, any>>> | undefined) => {
       const cells = new Set<string>();
       for (const [table, rows] of Object.entries(grouped ?? {})) {
@@ -1157,6 +1219,7 @@ export function mutativeMiddleware(
       if (draining) retiredSinceDrainLoad.add(id);
       parkedOutboxIds.delete(id);
       parkedCells.delete(id);
+      activeOutboxRowsById.delete(id);
       try {
         // Wait for the row to exist (or for its write to have failed) before
         // deleting it, so the delete can't lose the race with its own commit.
@@ -1224,6 +1287,35 @@ export function mutativeMiddleware(
 
     // `droppedOutboxId`: an overtaken send dropped on failure, whose history
     // moves only if a rollback later steps back past it (droppedSendOf).
+    // The config's commit gate over one commit: the state and patches to
+    // commit, and the rows it removed (whose own writes are not sent).
+    const gateCommit = (state: any, nextState: any, patches: Patch[]) => {
+      const gated = platformConfig.commitGate?.({ state, nextState, patches });
+      const removals = (gated?.patches ?? []).filter((p) => p.op === "remove" && p.path.length === 2);
+      const removedRows = new Set(removals.map((p) => `${String(p.path[0])}\u0000${String(p.path[1])}`));
+      const rowOf = (p: Patch) => (p.path.length >= 2 ? `${String(p.path[0])}\u0000${String(p.path[1])}` : null);
+      const isRemoved = (p: Patch) => {
+        const row = rowOf(p);
+        return row !== null && removedRows.has(row);
+      };
+      const excludes: Record<string, unknown> = {};
+      for (const p of removals) {
+        const k = `${String(p.path[0])}:${String(p.path[1])}`;
+        const entry = gated?.nextState.pending?.[k];
+        if (entry) excludes[k] = entry;
+      }
+      return {
+        nextState: gated ? gated.nextState : nextState,
+        patches: gated ? [...patches, ...gated.patches] : patches,
+        removals,
+        removed: (storeKey: string, id: string) => removedRows.has(`${storeKey}\u0000${id}`),
+        touches: (own: Patch[]) => removedRows.size > 0 && own.some(isRemoved),
+        without: (own: Patch[]) => (removedRows.size > 0 ? own.filter((p) => !isRemoved(p)) : own),
+        withExcludes: (pending: Record<string, any>) =>
+          removedRows.size > 0 ? { ...pending, ...excludes } : pending,
+      };
+    };
+
     const releaseRefusedLocks = (actionName: string, locks: ActionFieldLock[], outboxId?: string, droppedOutboxId?: string) => {
       // The undo history names its entries by the dispatch that carried them.
       if (outboxId) markUndoOutboxRefused(outboxId);
@@ -1258,9 +1350,10 @@ export function mutativeMiddleware(
           patches.push({ op: "replace", path: [storeKey], value: slice });
         }
       }
-      set({ ...state, ...next }, true);
+      const gate = gateCommit(state, { ...state, ...next }, patches);
+      set(gate.nextState, true);
       if (idbWriteFn) {
-        void Promise.resolve(idbWriteFn(patches, get())).catch((error) => {
+        void Promise.resolve(idbWriteFn(gate.patches, get())).catch((error) => {
           console.error(`[local-first] failed to persist refused "${actionName}" rollback`, error);
         });
       }
@@ -1268,8 +1361,8 @@ export function mutativeMiddleware(
       // mirrored lock the server will never echo. Offer the rollback the same
       // way, field by field, naming the refused locks so the host can release
       // its mirror instead of locking the restored value.
-      const fieldLocks = locks.filter((l) => !l.membership && l.recordId !== "");
-      if (actionTeeFn && fieldLocks.length > 0) {
+      const fieldLocks = locks.filter((l) => !l.membership && l.recordId !== "" && !gate.removed(l.storeKey, l.recordId));
+      if (actionTeeFn && (fieldLocks.length > 0 || gate.removals.length > 0)) {
         const after = get();
         const rollback: Patch[] = fieldLocks.map((l) => ({
           op: "replace" as const,
@@ -1277,7 +1370,7 @@ export function mutativeMiddleware(
           value: (after as any)[l.storeKey]?.[l.recordId]?.[l.field],
         }));
         try {
-          actionTeeFn(actionName, rollback, after, { refused: fieldLocks });
+          actionTeeFn(actionName, [...rollback, ...gate.removals], after, { refused: fieldLocks });
         } catch (error) {
           console.error(`[local-first] replication tee failed (refused ${actionName})`, error);
         }
@@ -1506,6 +1599,12 @@ export function mutativeMiddleware(
         // that window's later writes and revert them on the server.
         const loaded = (await capturedLoad()).filter((entry) => !ownedByAnotherLiveWindow(entry, outboxOwner, live));
         assertDispatchCurrent(captured);
+        if (protectOutboxRows) {
+          for (const entry of loaded) {
+            if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+            trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
+          }
+        }
         // Coalesce across reloads: rows written by a previous page load can
         // hold several generations of the same key. Keep the newest per key,
         // delete the rest without dispatching them.
@@ -1694,11 +1793,17 @@ export function mutativeMiddleware(
         // begin enqueueing while this drain is in flight.
         const remaining = await capturedLoad();
         assertDispatchCurrent(captured);
-        // A parked row this drain delivered (or dropped) holds nothing back now.
+        const still = new Set(remaining.map((entry) => entry.id));
         if (parkedOutboxIds.size > 0) {
-          const still = new Set(remaining.map((entry) => entry.id));
           for (const id of parkedOutboxIds) if (!still.has(id)) parkedOutboxIds.delete(id);
           for (const id of parkedCells.keys()) if (!parkedOutboxIds.has(id)) parkedCells.delete(id);
+        }
+        if (protectOutboxRows) {
+          for (const id of activeOutboxRowsById.keys()) {
+            if (!still.has(id) && !inFlightOutboxIds.has(id) && !liveSends.has(id)) {
+              activeOutboxRowsById.delete(id);
+            }
+          }
         }
         bootOutboxDrained = remaining.length === 0 &&
           pendingOutboxEnqueues === 0 &&
@@ -1783,6 +1888,7 @@ export function mutativeMiddleware(
       const capturedError = dispatchErrorFn;
       const receiptWaiter = usesReceiptEnvelope ? receiptWaiterFor(outboxId) : null;
       let enqueueCompleted = false;
+      let enqueueFailed = false;
       // Parked unconditionally — a rewire window (boot, HMR, account
       // switch) can clear the binding while the page stays interactive,
       // and an un-parked action fired in that window would vanish with
@@ -1792,9 +1898,17 @@ export function mutativeMiddleware(
             enqueueCompleted = true;
           })
         : null;
+      if (protectOutboxRows) {
+        trackOutboxRows(outboxId, extractOutboxRowKeys(entry, patches));
+      }
       // Mark handled: consumers below attach their own handlers, but none
       // may exist yet when a storage failure rejects this promise.
-      enqueued?.catch(() => {});
+      enqueued?.catch(() => {
+        enqueueFailed = true;
+        if (protectOutboxRows && !inFlightOutboxIds.has(outboxId) && !liveSends.has(outboxId)) {
+          activeOutboxRowsById.delete(outboxId);
+        }
+      });
       if (capturedDispatch) {
         const send = () => dispatchWithRetry(
           capturedDispatch.fn,
@@ -1873,7 +1987,14 @@ export function mutativeMiddleware(
           },
         );
         liveSends.set(outboxId, { settled, retrying: false, waiting: !!waiting, overtaken: false, receipt: usesReceiptEnvelope, writes });
-        void settled.then(() => liveSends.delete(outboxId));
+        void settled.then((outcome) => {
+          liveSends.delete(outboxId);
+          const durableRowLost = !enqueued || enqueueFailed;
+          const releasesOnSettle = !usesReceiptEnvelope && outcome !== "parked";
+          if (protectOutboxRows && (durableRowLost || releasesOnSettle)) {
+            activeOutboxRowsById.delete(outboxId);
+          }
+        });
         const enqueueDurable = () =>
           enqueued ? enqueued.then(() => true, () => false) : Promise.resolve(false);
         if (usesReceiptEnvelope && receiptWaiter) {
@@ -1993,14 +2114,17 @@ export function mutativeMiddleware(
         // returns, before the drain has loaded this row, follows it the way
         // it follows a row a failed live send parked, so the drain delivers
         // both in ts order. The drain's end (or a failed enqueue) clears it.
-        if (enqueued) {
-          parkedOutboxIds.add(outboxId);
-          if (writes.size > 0) parkedCells.set(outboxId, writes);
-          enqueued.catch(() => {
-            parkedOutboxIds.delete(outboxId);
-            parkedCells.delete(outboxId);
-          });
-        }
+      if (enqueued) {
+        parkedOutboxIds.add(outboxId);
+        if (writes.size > 0) parkedCells.set(outboxId, writes);
+        enqueued.catch(() => {
+          parkedOutboxIds.delete(outboxId);
+          parkedCells.delete(outboxId);
+          activeOutboxRowsById.delete(outboxId);
+        });
+      } else {
+        activeOutboxRowsById.delete(outboxId);
+      }
         console.warn(`[sync] dispatch not wired; ${enqueued ? `enqueueing "${key}" for later delivery` : `"${key}" was dropped (no outbox)`}`);
         if (!enqueued) {
           if (platformConfig.rollbackDroppedOutboxEntry?.(entry)) {
@@ -2096,6 +2220,11 @@ export function mutativeMiddleware(
           commitEffectFrames.pop();
         }
         if (opts?.vet && !opts.vet({ state, nextState, patches })) return undefined;
+        const dispatchPatches = patches;
+        const gate = gateCommit(state, nextState, patches);
+        nextState = gate.nextState;
+        patches = gate.patches;
+        const vetoed = (isAct || isAsyncAct) && gate.touches(dispatchPatches);
 
         // Auto-generate pending entries for synced collections so local-first
         // writes are protected from server sync overwrites.
@@ -2103,14 +2232,15 @@ export function mutativeMiddleware(
         let finalPatches: Patch[] = patches;
         let fieldLocks: ActionFieldLock[] = [];
         if (isAct || isAsyncAct) {
-          const newPending = generateAutoPending(
-            patches,
+          const ownPending = generateAutoPending(
+            gate.without(dispatchPatches),
             nextState.pending ?? {},
             maps.isProtectedSyncCollection,
             hideAckFields,
             maps.isUnprotectedField,
             { kindOf: syncKindOf, rowKeyOf: syncRowKeyOf, prevState: state, nextState },
           );
+          const newPending = ownPending && gate.withExcludes(ownPending);
           if (newPending) {
             fieldLocks = collectActionFieldLocks(state.pending ?? {}, newPending, state, syncRowKeyOf);
             finalState = { ...nextState, pending: newPending };
@@ -2154,9 +2284,14 @@ export function mutativeMiddleware(
           }
         }
 
+        if (vetoed) {
+          const veto = new CommitGateVetoError(key);
+          return isAsyncAct ? Promise.reject(veto) : returnValue;
+        }
+
         if (isAct || isAsyncAct) {
           const outboxId = newOutboxId();
-          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
+          const result = enqueueDispatch(key, flags, actionArgs, dispatchPatches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
           // After the dispatch is on its way, and never able to stop it: the
           // undo capture runs app code (a spec's label, inverse, confirm,
           // spell), and a bug there must cost the history its entry, never
@@ -2288,12 +2423,18 @@ export function mutativeMiddleware(
       outboxEnqueueFn = enqueue;
       outboxRemoveFn = remove;
       outboxLoadFn = load;
+      outboxSeedEpoch++;
+      outboxSeedStarted = false;
+      activeOutboxRowsById.clear();
       markOutboxDirty();
     };
 
     wrapped._clearRuntimeBindings = () => {
       dispatchEpoch++;
+      outboxSeedEpoch++;
+      outboxSeedStarted = false;
       inFlightOutboxIds.clear();
+      activeOutboxRowsById.clear();
       dispatchBinding = null;
       idbWriteFn = null;
       outboxEnqueueFn = null;
@@ -2343,6 +2484,16 @@ export function mutativeMiddleware(
         retryDelays,
         () => assertDispatchCurrent(captured),
       );
+    };
+
+    wrapped._protectedOutboxRows = () => {
+      if (!protectOutboxRows) return EMPTY_PROTECTED_OUTBOX_ROWS;
+      seedOutboxProtection();
+      const rows = new Set<string>();
+      for (const set of activeOutboxRowsById.values()) {
+        for (const key of set) rows.add(key);
+      }
+      return rows;
     };
 
     // Police raw setState (writes from outside action()/sync()): the guarded

@@ -27,6 +27,7 @@ import {
   canReadSyncScope,
   resolveHeadsScopes,
 } from "./lib/interestScopes";
+import { stripRedundantHomeScope } from "./lib/homeScopeDerivation";
 export { accessStampFromDoc, authorizedFor, type AccessStamp };
 
 export type SyncScopeKey = string; // "user:<id>" | "team:<id>"
@@ -353,21 +354,10 @@ export type ActionExtra = {
 export function userScopeKey(userId: string): SyncScopeKey {
   return `user:${userId}`;
 }
-export function teamScopeKey(teamId: string): SyncScopeKey {
-  return `team:${teamId}`;
+export function dirScopeKey(teamId: string): SyncScopeKey {
+  return `dir:${teamId}`;
 }
 
-// The scopes an entity's actions land in, derived from ACCESS, not routing
-// (sync-log-cargo E4, review): owner always; each explicit grant in their own
-// user scope (a task's assignee, a conversation's session owners); the
-// workspace key's team when the stored key is a team key, never for
-// conversations (their team activity is a separate graduated axis). A routing
-// team_id whose workspace is user:<owner> (private inside a team) therefore
-// never enters the team scope: no existence leak, no projected-delete probes,
-// and every reader who may read a row holds a scope it fans to, which is the
-// property retiring the live lists needs. Cost of the owner fan-out: one
-// indexed session_owners read per non-churn conversation write (the stamp) and
-// one head allocation per co-owner. Pure, unit-tested.
 export function scopesForChange(
   entityType: ChangeEntity,
   scope: ChangeScope,
@@ -383,13 +373,15 @@ export function scopesForChange(
     for (const g of scope.grants ?? []) addGrant(g);
     return scopes;
   }
-  const ws = scope.workspace;
-  if (typeof ws === "string" && ws.startsWith("team:"))
-    scopes.push(teamScopeKey(ws.slice(5)));
   if (entityType === "tasks") {
     for (const g of scope.grants ?? []) if (isUserGrant(g)) addGrant(g);
   }
+  const ws = scope.workspace;
   addHomeScope(scopes, scope, scopes[0]);
+  if (typeof ws === "string" && ws.startsWith("team:") && !scope.home_scope) {
+    const dirKey = dirScopeKey(ws.slice(5));
+    if (!scopes.includes(dirKey)) scopes.push(dirKey);
+  }
   return scopes;
 }
 
@@ -697,7 +689,7 @@ export async function emitScopeAction(
     await appendSyncAction(
       db,
       collector,
-      teamScopeKey(teamId),
+      dirScopeKey(teamId),
       "member",
       String(userId),
       "scope_removed",
@@ -712,10 +704,10 @@ const DEFAULT_RANGE_LIMIT = 500;
 // The caller's scope heads. Tiny payload — this is the live subscription that wakes the
 // client applier; it re-runs on tracked writes only (never on heartbeats or messages).
 export const getHeads = query({
-  args: { scopes: v.optional(v.array(v.string())) },
+  args: { scopes: v.array(v.string()) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { heads: [] };
+    if (!userId) return { heads: [], unauthenticated: true as const };
     const { scopes } = await resolveHeadsScopes(ctx, userId, args.scopes);
     const heads: Array<{
       scope_key: SyncScopeKey;
@@ -815,7 +807,11 @@ export function projectAction(
   return {
     ...base,
     op: "upsert",
-    ...(row.patch !== undefined ? { patch: row.patch } : {}),
+    ...(row.patch !== undefined
+      ? {
+          patch: stripRedundantHomeScope(row.entity_type, row.patch, row.unset),
+        }
+      : {}),
     ...(row.unset ? { unset: row.unset } : {}),
     ...(row.full ? { full: true } : {}),
     ...(row.partial ? { partial: true } : {}),

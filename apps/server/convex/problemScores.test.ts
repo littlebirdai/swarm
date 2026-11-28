@@ -353,7 +353,7 @@ describe("scheduled problem scoring", () => {
     const teamAction = async () =>
       (await t.run((ctx) => ctx.db.query("sync_actions").collect())).find(
         (a: any) =>
-          a.scope_key === `team:${team}` && a.entity_id === String(task),
+          a.scope_key === `dir:${team}` && a.entity_id === String(task),
       ) as any;
     await settle();
     await t.mutation(internal.problemScores.record, {

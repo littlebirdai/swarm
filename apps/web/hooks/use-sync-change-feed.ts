@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   useInboxStore,
@@ -9,8 +7,6 @@ import {
 import { admitUnheldSessions } from "../store/cacheRetention";
 import { planCargoApply } from "../lib/syncLogCargo";
 import { track } from "../lib/analytics";
-import { useQueryNoThrow } from "./useQueryNoThrow";
-import { onSyncWake } from "./syncWake";
 import {
   checkReplaySignal,
   inboxReplaySignal,
@@ -21,6 +17,18 @@ import {
   withReplayTimeout,
 } from "./inbox-replay-lane";
 import { beginSyncInflight } from "../store/syncActivity";
+import {
+  applyScopeLifecycleEvent,
+  buildCatchUpRunner,
+  handleUnauthorizedScope,
+  isPurgedTeamHead,
+  resetTeamResyncCaches,
+  scopedCatchUpScopes,
+  stampCatchUpScope,
+  sweepAfterHeads,
+  teamIdFromScopeKey,
+  useScopedSyncChangeFeed,
+} from "./use-scope-subscriptions";
 import {
   batchGet,
   queryReplay,
@@ -46,19 +54,6 @@ const COLLECTIONS: Collection[] = [
   "plans",
   "projects",
 ];
-
-// Legacy change-feed cursor — read once by the upgrade bridge, then dropped.
-const LEGACY_META_KEY = "changefeed:v1";
-const LEGACY_OVERLAP_MS = 10_000;
-const LEGACY_FEED_LIMIT = 1000;
-const LEGACY_MAX_PAGES = 50;
-// The bridge is worth running only for a cursor it can drain in one run. A
-// page of the legacy feed moved 148 s of history and took 14.6 s on prod
-// (2026-10-23), so an hour of history is ~25 pages and ~6 minutes, with every
-// floor held closed until the scopes stamp. An older cursor (a cache last
-// opened before the cutover) would replay for days and never reach the scopes,
-// so it takes the resync contract instead: full crawl backfill, scopes at head.
-export const LEGACY_BRIDGE_MAX_AGE_MS = 60 * 60 * 1000;
 
 // Single definition lives in the store (stampSyncAck's immediate-retire branch
 // reads the same key); re-exported here for the applier's tests.
@@ -133,8 +128,8 @@ export function emptyIdsByCollection(): Record<Collection, string[]> {
 // Pure: collapse change events into per-collection deduped id lists — the
 // applyEntityIds input. The op is deliberately ignored: deletion truth is
 // authorized absence (the byIds fetch omitting the id), never the event's op,
-// so upserts and deletes take the same path. Used by both the log applier and
-// the legacy bridge; unit-tested.
+// so upserts and deletes take the same path. Used by the log applier;
+// unit-tested.
 export function planFeedApply(
   changes: FeedChange[],
 ): Record<Collection, string[]> {
@@ -153,7 +148,7 @@ export function planFeedApply(
 
 // Stage two: fetch current state for a set of per-collection ids, overlay what
 // the authorized query returned, prune what it omitted. Shared by the log
-// applier, the legacy bridge and the sessions floor's warm-cache probe; apply
+// applier and the sessions floor's warm-cache probe; apply
 // is idempotent. `fromLog` marks the ids as a change stream's rather than a
 // surface's own request: a session this replica does not hold enters only if
 // hydration would keep it (admitUnheldSessions). The log carries every write to
@@ -203,7 +198,6 @@ export async function applyEntityIds(
     for (const id of ids) {
       if (present.has(id)) applied.add(`${coll}:${id}`);
     }
-    noteShadowApplied(ids.map((id) => `${coll}:${id}`));
     // An id the authorized query did NOT return is gone or no longer visible —
     // prune it (durable exclude). This is the ONLY deletion path: a log
     // `delete` action never prunes by itself (it is scope-local).
@@ -254,32 +248,13 @@ async function applyLogPage(
   const disowned = new Set<string>();
   for (const a of actions) {
     if (a.entity_type === "scope") {
-      if (a.op === "scope_removed") {
-        store.purgeTeamScopeRows(a.entity_id);
-        store.clearSyncMeta(scopeMetaKey(`team:${a.entity_id}`));
-        purgedTeams.add(a.entity_id);
-      } else if (a.op === "scope_added") {
-        // Cold-start the new team scope: its cursor stamps on the next heads
-        // pass, and clearing the workspace backfill marks (ALL wsArgs variants
-        // for the scope) makes the crawls run a full backfill when the
-        // workspace becomes active. The one-shot floors (plans and projects
-        // have no crawl) recut on the epoch bump; a rejoin also lifts the
-        // revocation purge's excludes — without this, rows purged on
-        // scope_removed would be dropped by every delta merge after rejoining.
-        store.clearCrawlMetaForScope(`team:${a.entity_id}`);
-        store.liftScopeExcludes(`team:${a.entity_id}`);
-        store.bumpSyncLogFloorEpoch();
-        purgedTeams.delete(a.entity_id);
-      }
+      applyScopeLifecycleEvent(store, a.op, a.entity_id, purgedTeams);
       continue;
     }
     if (a.entity_type === "member") {
-      // A teammate left this team (the row rides the TEAM's scope, entity_id
-      // is the departed user): their rows leave the team feed cache, which
-      // only grows and hears of removals from nowhere else. Conversations
-      // never fan out to a team scope, so no per row delete will follow.
-      if (a.op === "scope_removed" && scopeKey.startsWith("team:")) {
-        store.purgeMemberTeamRows(scopeKey.slice(5), a.entity_id);
+      const memberTeamId = teamIdFromScopeKey(scopeKey);
+      if (a.op === "scope_removed" && memberTeamId) {
+        store.purgeMemberTeamRows(memberTeamId, a.entity_id);
       }
       continue;
     }
@@ -447,35 +422,21 @@ if (
 
 type ScopeHead = { scope_key: string; position: number; floor: number };
 
-// Resync: the log can no longer prove the gap behind this scope's cursor (or
-// it never had one and the legacy bridge cannot cover the away window). Drop
-// the cursor and every crawl watermark the scope owns, so the next crawl is a
-// FULL backfill, then restamp at head.
-function resetScopeForResync(head: ScopeHead): void {
+function resetScopeForResync(
+  head: ScopeHead,
+  opts: { recutFloors?: boolean; clearedCrawls?: Set<string> } = {},
+): void {
   tallyApply(0, 0, 1);
   const metaKey = scopeMetaKey(head.scope_key);
   const s = useInboxStore.getState();
   s.clearSyncMeta(metaKey);
   s.clearCrawlMetaForScope(head.scope_key);
-  // The team feed cache only grows and learns of removals (a member who
-  // left) from this scope's rows alone; past retention the log cannot say
-  // which rows should have gone, so the cache goes and refills.
-  if (head.scope_key.startsWith("team:"))
-    s.dropTeamFeedCache(head.scope_key.slice(5));
+  resetTeamResyncCaches(s, head.scope_key, opts.clearedCrawls);
+  if (opts.recutFloors !== false) s.bumpSyncLogFloorEpoch();
   s.recordSyncMeta(metaKey, { cursor: head.position });
-  // Every write acknowledged at or below the head has landed in the floor
-  // the recut cursor stands on; a lock still holding one would re-assert its
-  // value over the floor's rows (found by the multi-window simulation).
   s.retireAckedPending(head.scope_key, head.position);
-  // The one-shot floors stand on the cursor that was just moved: recut them
-  // (after the restamp, so the recut query is above the new cursor).
-  s.bumpSyncLogFloorEpoch();
 }
 
-// Catch one scope up to its head. Cold scope: stamp the cursor at the head we
-// were handed — the past is owned by the snapshot floors and cold backfill
-// (design D9), the future by the log from this position. Retention passed the
-// cursor: resync (resetScopeForResync).
 export async function catchUpScope(
   convex: any,
   head: ScopeHead,
@@ -489,7 +450,7 @@ export async function catchUpScope(
   const resetForResync = () => resetScopeForResync(head);
 
   if (meta?.cursor === undefined) {
-    store.recordSyncMeta(metaKey, { cursor: head.position });
+    resetForResync();
     return;
   }
   if (head.floor > meta.cursor) {
@@ -512,14 +473,7 @@ export async function catchUpScope(
     checkReplaySignal(account);
     if (!res) return;
     if (res.authorized === false) {
-      // Membership revoked and we raced the scope_removed action (or it was
-      // already retention-pruned): treat as scope drop, not a retryable error.
-      if (head.scope_key.startsWith("team:")) {
-        const teamId = head.scope_key.slice(5);
-        store.purgeTeamScopeRows(teamId);
-        store.clearSyncMeta(metaKey);
-        purgedTeams.add(teamId);
-      }
+      handleUnauthorizedScope(store, head.scope_key, purgedTeams);
       return;
     }
     if (res.resync) {
@@ -557,344 +511,99 @@ export async function catchUpScope(
   }
 }
 
-async function drainLegacyBridge(
-  convex: any,
-  account: AbortSignal,
-): Promise<boolean> {
-  const store = useInboxStore.getState();
-  const legacy = store.syncMeta[LEGACY_META_KEY];
-  if (!legacy?.cursor) return true;
-  let since = Math.max(0, legacy.cursor - LEGACY_OVERLAP_MS);
-  try {
-    for (let page = 0; page < LEGACY_MAX_PAGES; page++) {
-      const res = await withReplayTimeout(account, (signal) =>
-        queryReplay(
-          convex,
-          api.changeFeed.getChangesSince,
-          { since, limit: LEGACY_FEED_LIMIT, _probe: Date.now() },
-          signal,
-        ),
-      );
-      checkReplaySignal(account);
-      if (!res) return false;
-      if (res.changes?.length) {
-        await withReplayTimeout(account, (signal) =>
-          applyEntityIds(convex, planFeedApply(res.changes), { signal }),
-        );
-      }
-      checkReplaySignal(account);
-      if (typeof res.nextSince === "number" && res.nextSince > since) {
-        useInboxStore
-          .getState()
-          .recordSyncMeta(LEGACY_META_KEY, { cursor: res.nextSince });
-        since = res.nextSince;
-      }
-      if (!res.hasMore) return true;
-    }
-  } catch (e) {
-    // An incomplete drain is this function's ordinary contract (the caller
-    // keeps the legacy cursor); a throw here must not escape past the scope
-    // loop and hold every floor closed (review).
-    if (!account.aborted)
-      console.warn("[syncLog] legacy bridge drain failed", e);
-    return false;
-  }
-  return false; // page cap hit with more remaining — resume next run
-}
-
 export async function catchUp(
   convex: any,
   account = inboxReplaySignal(convex),
+  opts?: { scopes?: readonly string[] },
 ): Promise<void> {
-  const runStart = Date.now();
   const store = useInboxStore.getState();
+  const scopeList = scopedCatchUpScopes(store, opts?.scopes);
+  if (scopeList.length === 0) return;
   const res = await withReplayTimeout(account, (signal) =>
-    queryReplay(convex, api.syncLog.getHeads, {}, signal),
+    queryReplay(convex, api.syncLog.getHeads, { scopes: scopeList }, signal),
   );
   checkReplaySignal(account);
   if (!res) return;
   const heads: ScopeHead[] = res.heads ?? [];
-  const legacyCursor = store.syncMeta[LEGACY_META_KEY]?.cursor;
-  const hadLegacy = !!legacyCursor;
-  // Too old to drain in a run: every scope resyncs instead, including one an
-  // earlier partial run stamped, since the gap behind it was never proven. It
-  // stands in for the drain only when there are scopes to resync; an auth blip
-  // ({heads: []}) keeps the legacy cursor for the next run.
-  const legacyStale =
-    hadLegacy && runStart - legacyCursor > LEGACY_BRIDGE_MAX_AGE_MS;
-  const drainComplete = legacyStale
-    ? heads.length > 0
-    : await drainLegacyBridge(convex, account);
-  if (account.aborted) return;
-  // Sequential by design: one serialized apply pipeline (design D7), so a stale
-  // stage-two fetch can never land after a fresher one. `purgedTeams` fences a
-  // scope revoked mid-run — its stale head must not restamp the cursor the
-  // purge just dropped.
   const purgedTeams = new Set<string>();
-  // Publish how far behind each scope is BEFORE replaying, so the header pill
-  // can show a real catch-up (cursor < head) and nothing else on a warm cache.
-  // A cold scope (no cursor) stamps at head and is therefore never "behind".
+  const cold: ScopeHead[] = [];
   for (const head of heads) {
     const cursor = store.syncMeta[scopeMetaKey(head.scope_key)]?.cursor;
+    if (cursor === undefined) cold.push(head);
     store.setSyncLogLag(
       head.scope_key,
-      cursor === undefined || legacyStale
-        ? 0
-        : Math.max(0, head.position - cursor),
+      cursor === undefined ? 0 : Math.max(0, head.position - cursor),
     );
   }
+  if (cold.length > 0) {
+    const clearedCrawls = new Set<string>();
+    useInboxStore.getState().bumpSyncLogFloorEpoch();
+    for (const head of cold)
+      resetScopeForResync(head, { recutFloors: false, clearedCrawls });
+  }
   for (const head of heads) {
-    if (
-      head.scope_key.startsWith("team:") &&
-      purgedTeams.has(head.scope_key.slice(5))
-    )
-      continue;
+    if (isPurgedTeamHead(head.scope_key, purgedTeams)) continue;
     try {
-      if (legacyStale) resetScopeForResync(head);
-      else await catchUpScope(convex, head, purgedTeams, account);
+      await catchUpScope(convex, head, purgedTeams, account);
     } catch (e) {
       if (!account.aborted)
         console.warn("[syncLog] scope catch-up failed", head.scope_key, e);
     } finally {
-      // A failed scope must not leave the pill lit forever; the next wake retries.
       useInboxStore.getState().setSyncLogLag(head.scope_key, 0);
     }
-    // The scope's cursor is stamped at a captured head: from here a bootstrap
-    // floor on it (useBootstrapCollection) can be cut without a hole — a write
-    // that commits after the floor's query has a position above the cursor
-    // and is replayed; one before it is in the floor. A revoked scope has no
-    // cursor (the purge dropped it) and is not stamped.
     if (account.aborted) return;
     const s = useInboxStore.getState();
     if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
-      s.stampSyncLogScope(head.scope_key);
+      stampCatchUpScope(s, head.scope_key);
   }
-  // Heads-absence sweep (design D5 backstop): a persisted team cursor whose
-  // scope getHeads no longer lists is a revoked membership whose scope_removed
-  // action we never saw (e.g. retention-pruned while this client was away).
-  // getHeads always lists every CURRENT membership, so absence is revocation.
-  // Guarded on a non-empty heads response — an auth blip returns {heads: []}
-  // and must not purge everything.
-  if (heads.length > 0) {
-    const present = new Set(heads.map((h) => h.scope_key));
-    const s2 = useInboxStore.getState();
-    for (const key of Object.keys(s2.syncMeta)) {
-      if (!key.startsWith("synclog:v1:team:")) continue;
-      const scopeKey = key.slice("synclog:v1:".length);
-      if (present.has(scopeKey)) continue;
-      const teamId = scopeKey.slice(5);
-      s2.purgeTeamScopeRows(teamId);
-      s2.clearSyncMeta(key);
-      s2.clearCrawlMetaForScope(scopeKey);
-    }
-  }
-  // The legacy cursor may be dropped only once BOTH are true: the drain
-  // reached the end, and every scope cursor for this run is stamped (the loop
-  // above). Until then the checkpointed legacy cursor is the recovery path.
-  if (hadLegacy && drainComplete) {
-    useInboxStore.getState().clearSyncMeta(LEGACY_META_KEY);
-  }
-  await shadowCompare(convex, runStart, account);
+  if (res.unauthenticated !== true)
+    sweepAfterHeads(useInboxStore.getState(), heads, scopeList);
 }
 
-let shadowApplied: Set<string> | null = null;
-function noteShadowApplied(keys: Iterable<string>): void {
-  if (shadowApplied) for (const k of keys) shadowApplied.add(k);
-}
-function shadowEnabled(): boolean {
-  try {
-    return (
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("SYNCLOG_SHADOW") === "1"
-    );
-  } catch {
-    return false;
-  }
-}
-/**
- * Sim seam: the cargo latch, the apply tally and its flush timer, and the
- * shadow set belong to one window. get() snapshots them (collections copied,
- * so the snapshot is detached), set() loads a snapshot back, fresh() is what
- * a window that never ran starts from.
- */
 export function __changeFeedSimSlots() {
   type Slots = {
     cargoSupported: boolean;
     applyTally: typeof applyTally;
     flushTimer: ReturnType<typeof setTimeout> | null;
-    shadowApplied: Set<string> | null;
   };
   return {
     fresh: (): Slots => ({
       cargoSupported: true,
       applyTally: { direct: 0, refetch: 0, resyncs: 0 },
       flushTimer: null,
-      shadowApplied: null,
     }),
     get: (): Slots => ({
       cargoSupported,
       applyTally: { ...applyTally },
       flushTimer,
-      shadowApplied: shadowApplied && new Set(shadowApplied),
     }),
     set: (s: Slots): void => {
       cargoSupported = s.cargoSupported;
       applyTally = { ...s.applyTally };
       flushTimer = s.flushTimer;
-      shadowApplied = s.shadowApplied && new Set(s.shadowApplied);
     },
   };
-}
-
-async function shadowCompare(
-  convex: any,
-  runStart: number,
-  account: AbortSignal,
-): Promise<void> {
-  if (!shadowEnabled()) {
-    shadowApplied = null;
-    return;
-  }
-  const applied = shadowApplied ?? new Set<string>();
-  shadowApplied = new Set(); // window resets each run
-  try {
-    const res = await withReplayTimeout(account, (signal) =>
-      queryReplay(
-        convex,
-        api.changeFeed.getChangesSince,
-        { since: runStart - 60_000, limit: 1000, _probe: Date.now() },
-        signal,
-      ),
-    );
-    checkReplaySignal(account);
-    const store = useInboxStore.getState() as any;
-    const gaps: string[] = [];
-    for (const c of res?.changes ?? []) {
-      if (c.entity_type === "conversations") continue; // churn-exempt by design
-      const coll = ENTITY_COLLECTION[c.entity_type];
-      if (!coll) continue;
-      const key = `${coll}:${c.entity_id}`;
-      const held = store[coll]?.[c.entity_id] !== undefined;
-      if (!applied.has(key) && (c.op === "upsert") === !held)
-        gaps.push(`${c.op} ${key}`);
-    }
-    if (gaps.length)
-      console.warn(
-        "[synclog:shadow] legacy feed ids the log path lacks:",
-        gaps,
-      );
-    else console.info("[synclog:shadow] superset check clean");
-  } catch {
-    // comparator is best-effort; never let it affect the applier
-  }
 }
 
 export function createCatchUpRunner(
   convex: any,
   opts: { onError?: (e: unknown) => void; onSettled?: () => void } = {},
 ) {
-  let running = false;
-  let rerun = false;
-  const run = () => {
-    if (running) {
-      // A wake arrived mid-run (e.g. our own catch-up's writes bumped a head).
-      // Queue exactly one follow-up so nothing is dropped.
-      rerun = true;
-      return;
-    }
-    running = true;
-    // The digest compare's quiescence gate: a range replay is in flight.
-    const release = beginSyncInflight("range");
-    const account = inboxReplaySignal(convex);
-    catchUp(convex, account)
-      .catch((error) => {
-        if (account.aborted) return;
-        if (opts.onError) opts.onError(error);
-        else console.warn("[syncLog] catch-up failed", error);
-      })
-      .finally(() => {
-        release();
-        running = false;
-        opts.onSettled?.();
-        if (rerun) {
-          rerun = false;
-          run();
-        }
-      });
-  };
-  return Object.assign(run, {
-    cancel() {
-      rerun = false;
-      resetInboxReplayLanes(convex);
+  return buildCatchUpRunner(
+    convex,
+    {
+      runCatchUp: catchUp,
+      beginInflight: () => beginSyncInflight("range"),
+      replaySignal: inboxReplaySignal,
+      resetLanes: resetInboxReplayLanes,
     },
-  });
+    opts,
+  );
 }
 
 export function useSyncChangeFeed(): void {
-  const convex = useConvex();
-  const hydrated = useInboxStore((s) => s.clientStateInitialized);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const run = useMemo(() => createCatchUpRunner(convex), [convex]);
-
-  const scheduleRun = useCallback(() => {
-    if (debounceRef.current) return;
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      run();
-    }, HEADS_DEBOUNCE_MS);
-  }, [run]);
-
-  // The wake signal: a tiny heads subscription. Payload is per-scope positions
-  // only; the churn exemption keeps its invalidation rate at semantic-write
-  // rate. Never a correctness dependency — any run replays exactly from the
-  // persisted cursors.
-  const { data: headsData } = useQueryNoThrow(
-    api.syncLog.getHeads,
-    hydrated ? {} : "skip",
-  );
-
-  // eslint-disable-next-line no-restricted-syntax -- self-managed wake/interval catch-up
-  useEffect(() => {
-    if (!hydrated || headsData === undefined) return;
-    scheduleRun();
-  }, [hydrated, headsData, scheduleRun]);
-
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    if (!hydrated) return;
-    run();
-    const id = setInterval(run, TICK_MS);
-    // Wake events — a backgrounded/frozen client catches up the moment the
-    // user returns. `document` is web-only; the syncWake bus below is the
-    // platform-neutral source (AppState "active" on mobile, wired by
-    // StoreSyncBridge), so an iOS resume replays the cursors too.
-    const doc = typeof document !== "undefined" ? document : undefined;
-    const win = typeof window !== "undefined" ? window : undefined;
-    const onVisible = () => {
-      if (doc?.visibilityState === "visible") run();
-    };
-    doc?.addEventListener?.("visibilitychange", onVisible);
-    win?.addEventListener?.("focus", run);
-    win?.addEventListener?.("online", run);
-    const offWake = onSyncWake(run);
-    const offAccount = useInboxStore.subscribe((next, previous) => {
-      if (next.currentUser?._id === previous.currentUser?._id) return;
-      resetInboxReplayLanes(convex);
-      if (next.currentUser?._id) run();
-    });
-    return () => {
-      offAccount();
-      run.cancel();
-      clearInterval(id);
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
-      offWake();
-      doc?.removeEventListener?.("visibilitychange", onVisible);
-      win?.removeEventListener?.("focus", run);
-      win?.removeEventListener?.("online", run);
-    };
-  }, [convex, hydrated, run]);
+  useScopedSyncChangeFeed(createCatchUpRunner, resetInboxReplayLanes, {
+    debounceMs: HEADS_DEBOUNCE_MS,
+    tickMs: TICK_MS,
+  });
 }

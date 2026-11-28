@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   action,
   asyncAction,
+  CommitGateVetoError,
   DispatchNotWiredError,
   groupPatchesByTable,
   isPermanentDispatchError,
@@ -914,5 +915,196 @@ describe("outbox rows across windows", () => {
     const b = makeHarness({ outbox, lockManager: null });
     b.wireDispatch(async () => ({}));
     await waitFor(() => b.dispatched.some((d) => d.action === "poke"));
+  });
+});
+
+describe("activeOutboxRowsById (_protectedOutboxRows)", () => {
+  const PROTECTED_CONFIG: PlatformConfig = {
+    ...CONFIG,
+    outboxProtectedRows: (entry) =>
+      typeof entry.args?.[0] === "string" ? [`items:${entry.args[0]}`] : [],
+  };
+
+  it("stays empty when outboxProtectedRows is not configured", async () => {
+    const h = makeHarness();
+    h.wrapped.poke(SERVER_ID);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+    await waitFor(() => h.outbox.size === 1);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+
+  it("seeds from load() at boot before dispatch is wired and clears on runtime reset", async () => {
+    const outbox = new Map<string, OutboxEntry>();
+    outbox.set("boot-1", {
+      id: "boot-1",
+      action: "rename",
+      args: [SERVER_ID, "from-disk"],
+      patches: {},
+      result: null,
+      ts: Date.now(),
+    });
+    const h = makeHarness({ config: PROTECTED_CONFIG, outbox });
+    await waitFor(() => h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped._clearRuntimeBindings();
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+
+  it("tracks unwired enqueue, live retry, parked failure, success retire, and stale drop", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [1] });
+    h.wrapped.poke(SERVER_ID);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`)).toBe(true);
+
+    let failAttempt = 0;
+    h.wireDispatch(async () => {
+      failAttempt++;
+      if (failAttempt <= 2) throw new Error("transient net");
+      return { ok: true };
+    });
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped._setDispatch(() => Promise.reject(new Error("still offline")));
+    h.wrapped.poke(OTHER_ID);
+    await sleep(20);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`)).toBe(true);
+
+    const oldTs = Date.now() - 8 * 86_400_000;
+    const stale = [...h.outbox.values()][0]!;
+    h.outbox.set(stale.id, { ...stale, ts: oldTs, queuedAt: oldTs });
+    h.wrapped._drainOutbox();
+    await waitFor(() => !h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`));
+  });
+
+  it("keeps a receipt row protected while its durable row waits for replay", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wireDispatch(async () => ({ status: "malformed" }));
+    void h.wrapped.createThing("stub-r").catch(() => {});
+    await waitFor(() => h.dispatched.length === 1 && h.outbox.size === 1);
+    await sleep(20);
+    expect(h.outbox.size).toBe(1);
+    expect(h.wrapped._protectedOutboxRows().has("items:stub-r")).toBe(true);
+
+    h.wireDispatch(async (_a, _args, _patches, result: any) => ({
+      commandId: result.commandId,
+      status: "acknowledged",
+      result: { _id: SERVER_ID },
+    }));
+    h.wrapped._drainOutbox();
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has("items:stub-r"));
+  });
+
+  it("clears protection on permanent refusal without leaking", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wireDispatch(async () => {
+      throw new Error("Server Error\nArgumentValidationError");
+    });
+    h.wrapped.poke(SERVER_ID);
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+  });
+
+  it("does not leak activeOutboxRowsById when enqueue fails and dispatch fails transiently", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wrapped._setOutbox(
+      async () => {
+        await sleep(5);
+        throw new Error("idb quota exceeded");
+      },
+      async () => {},
+      async () => [],
+    );
+    h.wireDispatch(async () => {
+      throw new Error("Connection lost");
+    });
+    h.wrapped.poke(SERVER_ID);
+    await waitFor(() => !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped.seedRow(OTHER_ID, { title: "x" });
+    h.wrapped._setDispatch(() => Promise.reject(new Error("Connection lost")));
+    h.wrapped.rename(OTHER_ID, "y");
+    await sleep(30);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`)).toBe(false);
+  });
+
+  it("clears protection when _setOutbox(null, null, null) is called and caps tracked entries", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG });
+    for (let i = 0; i < 525; i++) {
+      const id = `id-${String(i).padStart(4, "0")}`;
+      h.wrapped.poke(id);
+    }
+    const protectedSet = h.wrapped._protectedOutboxRows();
+    expect(protectedSet.size).toBe(512);
+    expect(protectedSet.has("items:id-0000")).toBe(false);
+    expect(protectedSet.has("items:id-0524")).toBe(true);
+
+    h.wrapped._setOutbox(null, null, null);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+});
+
+describe("commitGate", () => {
+  const gateConfig = (blocked: (row: any) => boolean): PlatformConfig => ({
+    ...CONFIG,
+    commitGate: ({ nextState, patches }) => {
+      const ids = new Set<string>();
+      for (const p of patches) {
+        if (p.path[0] !== "items" || p.path.length < 2) continue;
+        const id = String(p.path[1]);
+        const row = nextState.items?.[id];
+        if (row && blocked(row)) ids.add(id);
+      }
+      if (ids.size === 0) return null;
+      const items = { ...nextState.items };
+      const pending = { ...nextState.pending };
+      for (const id of ids) {
+        delete items[id];
+        pending[`items:${id}`] = { type: "exclude", ts: 1, scope: "dir:T" };
+      }
+      return {
+        nextState: { ...nextState, items, pending },
+        patches: [
+          ...[...ids].map((id) => ({ op: "remove" as const, path: ["items", id] })),
+          { op: "replace" as const, path: ["pending"], value: pending },
+        ],
+      };
+    },
+  });
+
+  it("removes a gated row, keeps its scoped exclude, plants no lock and sends nothing", async () => {
+    const h = makeHarness({ config: gateConfig((row) => row.title === "blocked") });
+    h.wrapped.seedRow(OTHER_ID, { title: "x" });
+    h.wrapped.rename(OTHER_ID, "blocked");
+    expect(h.state.items[OTHER_ID]).toBeUndefined();
+    expect(h.state.pending[`items:${OTHER_ID}`]).toEqual({ type: "exclude", ts: 1, scope: "dir:T" });
+    expect(h.state.pending[`items:${OTHER_ID}:title`]).toBeUndefined();
+    await waitFor(() => h.outbox.size === 1);
+    await sleep(10);
+    expect([...h.outbox.values()].map((e) => e.action)).toEqual(["seedRow"]);
+  });
+
+  it("rejects a receipt create the gate removed and queues nothing", async () => {
+    const h = makeHarness({ config: gateConfig((row) => row._id === "stub-blocked") });
+    const result = h.wrapped.createThing("stub-blocked");
+    await expect(result).rejects.toBeInstanceOf(CommitGateVetoError);
+    await sleep(10);
+    expect(h.outbox.size).toBe(0);
+    expect(h.state.items["stub-blocked"]).toBeUndefined();
+  });
+
+  it("runs a refused write's rollback through the gate", async () => {
+    let gateOn = false;
+    const h = makeHarness({ config: gateConfig((row) => gateOn && row.title === "server") });
+    h.wireDispatch(async () => ({}));
+    h.wrapped.seedRow(SERVER_ID, { title: "server" });
+    await waitFor(() => h.outbox.size === 0);
+    const teed: any[][] = [];
+    (h.wrapped as any)._setActionTee((_name: string, patches: any[]) => teed.push(patches));
+    h.wireDispatch(async () => {
+      gateOn = true;
+      throw new Error("Uncaught Error: not yours");
+    });
+    h.wrapped.rename(SERVER_ID, "refused");
+    await waitFor(() => h.state.pending[`items:${SERVER_ID}:title`] === undefined);
+    expect(h.state.items[SERVER_ID]).toBeUndefined();
+    expect(teed.flat()).toContainEqual({ op: "remove", path: ["items", SERVER_ID] });
   });
 });

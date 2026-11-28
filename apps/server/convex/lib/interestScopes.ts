@@ -1,11 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { ChangeScope } from "../changeLog";
-import {
-  accessStampFor,
-  authorizedFor,
-  heldKeysFor,
-  interestScopesEnabled,
-} from "./accessKeys";
+import { accessStampFor, authorizedFor, heldKeysFor } from "./accessKeys";
 import { teamHasFeature } from "./teamFeatureGuard";
 
 export const MAX_HEADS_SCOPES = 64;
@@ -16,7 +11,6 @@ export function addHomeScope(
   ownerScopeKey: string,
 ): void {
   if (
-    !interestScopesEnabled() ||
     typeof scope.home_scope !== "string" ||
     !scope.home_scope ||
     scopes.includes(scope.home_scope)
@@ -38,7 +32,6 @@ export async function canReadSyncScope(
 ): Promise<boolean> {
   if (!userId || !scopeKey) return false;
   if (heldKeys.has(scopeKey)) return true;
-  if (!interestScopesEnabled()) return false;
   const uid = String(userId);
   if (scopeKey.startsWith("dir:")) {
     const dirTeamId = ctx.db.normalizeId("teams", scopeKey.slice(4));
@@ -96,15 +89,12 @@ export async function canReadSyncScope(
 export async function resolveHeadsScopes(
   ctx: { db: any },
   userId: Id<"users">,
-  requestedScopes?: string[],
+  requestedScopes: string[],
 ): Promise<{ heldKeys: Set<string>; scopes: Iterable<string> }> {
-  if (requestedScopes && requestedScopes.length > MAX_HEADS_SCOPES) {
+  if (requestedScopes.length > MAX_HEADS_SCOPES) {
     throw new Error(`Too many sync scopes requested (max ${MAX_HEADS_SCOPES})`);
   }
   const heldKeys = await heldKeysFor(ctx, userId);
-  if (!requestedScopes || !interestScopesEnabled()) {
-    return { heldKeys, scopes: heldKeys };
-  }
   const allowed: string[] = [];
   const seen = new Set<string>();
   for (const scopeKey of requestedScopes) {

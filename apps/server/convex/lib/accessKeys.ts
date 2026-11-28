@@ -242,14 +242,6 @@ export function computeWorkspaceKey(
 
 export type HomeScopeKey = string;
 
-export function interestScopesEnabled(): boolean {
-  try {
-    return process.env.SWARM_INTEREST_SCOPES === "1";
-  } catch {
-    return false;
-  }
-}
-
 export function computeHomeScope(
   record: {
     user_id: Id<"users"> | string;

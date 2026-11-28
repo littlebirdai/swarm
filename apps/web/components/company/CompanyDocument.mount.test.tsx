@@ -79,7 +79,7 @@ async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
           name: "Ashot Petrosian",
         });
         store.stampSyncLogScope("user:fixture-user-me");
-        store.stampSyncLogScope("team:" + TEAM);
+        store.stampSyncLogScope("dir:" + TEAM);
 
         store.syncTable("clientState", { ui: { active_team_id: TEAM } });
         useInboxStore.setState({

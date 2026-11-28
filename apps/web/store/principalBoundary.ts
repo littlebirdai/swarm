@@ -20,7 +20,7 @@ export function onAuthPrincipalChange({
 }: AuthPrincipalChange): void {
   // The old account's channel and lock go first: a follower must not accept
   // one more update, and a host must not answer a snapshot request.
-  stopSyncReplication();
+  stopSyncReplication({ accountReset: true });
   // Drops every row and unbinds dispatch, the outbox and write-through, so no
   // late callback of the old account can land or leave this window. Also on
   // the way in from no account: whatever a signed-out window held is not the

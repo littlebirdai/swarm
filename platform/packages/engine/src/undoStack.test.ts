@@ -21,6 +21,7 @@ import {
   suspendUndoRecording,
   isUndoSuppressed,
   deferUndoGesture,
+  forgetUndoRows,
 } from "./undoStack";
 import type { UndoEntry, UndoOutcome } from "./types";
 
@@ -449,5 +450,32 @@ describe("deferUndoGesture", () => {
     commit();
     expect(value).toEqual(["stash"]);
     expect(getUndoHistory().items.length).toBe(1);
+  });
+});
+
+describe("forgetUndoRows", () => {
+  it("drops the entries that touch a row from the stacks and the history", () => {
+    const touched = generic("touched");
+    touched.changes = [
+      {
+        store: "items",
+        id: "r1",
+        field: "title",
+        before: "a",
+        after: "b",
+        hadBefore: true,
+        hadAfter: true,
+        kind: "protected",
+      },
+    ];
+    const kept = generic("kept");
+    kept.objects = [{ store: "items", id: "r2" }];
+    expect(getUndoHistory().items).toHaveLength(2);
+    forgetUndoRows(new Set(["items:r1"]));
+    expect(getUndoHistory().items.map((i) => i.label)).toEqual(["kept"]);
+    expect(canUndo()).toBe(true);
+    forgetUndoRows(new Set(["items:r2"]));
+    expect(getUndoHistory().items).toEqual([]);
+    expect(canUndo()).toBe(false);
   });
 });

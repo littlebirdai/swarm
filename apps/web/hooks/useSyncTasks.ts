@@ -372,9 +372,10 @@ export function ingestTaskDetail(
   const { subtasks, graph_tasks, comments, ...rest } = d as any;
   const id = String(rest._id);
   const store = useInboxStore.getState();
+  let thread: TaskCommentsRow | null = null;
   if (Array.isArray(comments)) {
     const prev = (store.taskComments as Record<string, TaskCommentsRow>)[id];
-    let thread = taskCommentsRow({ ...rest, comments }, prev, Date.now())!;
+    thread = taskCommentsRow({ ...rest, comments }, prev, Date.now())!;
     if (opts?.partialComments) {
       // A PARTIAL comment set (threads.listMine ships the newest 50) must
       // never shrink a fuller local list: the task page renders the same
@@ -395,11 +396,11 @@ export function ingestTaskDetail(
           : comments,
       };
     }
-    store.syncTable("taskComments", [thread]);
     // A complete set is also the count a list shows; a partial one is not.
     if (!opts?.partialComments) rest.comment_count = comments.length;
   }
   store.syncRecord("tasks", id, rest);
+  if (thread) store.syncTable("taskComments", [thread]);
   // The detail ships the task's direct children (taskMining.directSubtasks)
   // so a surface without the list feeder draws the same checklist, and the
   // tasks its graph names (lib/taskGraph graphNeighbors) so Blocked by reads
@@ -592,8 +593,8 @@ export function useSyncTaskThreads(
   }, [convex, tasks, threads, enabled, confirmed, principal]);
 }
 
-/** Write the threads these task rows carry (the tasks.ts enrichTasks shape)
- *  into `taskComments`, and the rows themselves, thin, into `tasks`. */
+/** Write these task rows, thin, into `tasks`, then the threads they carry
+ *  (the tasks.ts enrichTasks shape) into `taskComments`. */
 export function holdTaskThreads(rows: any[]): void {
   const store = useInboxStore.getState();
   const held = store.taskComments as Record<string, TaskCommentsRow>;
@@ -601,6 +602,6 @@ export function holdTaskThreads(rows: any[]): void {
   const threadRows = rows
     .map((row) => taskCommentsRow(row, held[String(row._id)], now))
     .filter((r): r is TaskCommentsRow => !!r);
-  if (threadRows.length) store.syncTable("taskComments", threadRows);
   store.syncTable("tasks", rows, { isDelta: true });
+  if (threadRows.length) store.syncTable("taskComments", threadRows);
 }

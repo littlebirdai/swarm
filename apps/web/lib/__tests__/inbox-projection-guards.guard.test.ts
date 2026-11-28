@@ -55,7 +55,7 @@ describe("sessionsProjection is read only by its owner and the compare", () => {
       // overlay, so the slot crosses to follower windows as a value and lands
       // through the owner's applyReplicatedProjection (ct-47927).
       [
-        "store/clientSyncRegistry.ts",
+        "store/replicated-ephemeral-keys.ts",
         "REPLICATED_EPHEMERAL_KEYS names the slot",
       ],
       [

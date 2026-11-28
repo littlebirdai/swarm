@@ -69,6 +69,8 @@ export const TASK = {
   assignee: "user_ada",
   labels: ["bug"],
   team_id: "team_cc",
+  workspace: "team:team_cc",
+  home_scope: "project:proj_1",
   project_id: "proj_1",
   user_id: "user_owner",
   conversation_ids: [],

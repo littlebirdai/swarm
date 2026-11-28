@@ -516,7 +516,7 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
     const log: string[] = [];
     const old = gatedCrawl("old", log);
     await old.release(); // first page lands, checkpoint written
-    useInboxStore.getState().clearCrawlMetaForScope("team:T");
+    useInboxStore.getState().clearCrawlMetaForScope("dir:T");
     expect(useInboxStore.getState().syncMeta[KEY]).toBeUndefined();
 
     const fresh = gatedCrawl("new", log); // the hook's relaunch, old run still in flight
@@ -545,7 +545,7 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
     await throttled.done;
     expect(log).toEqual(["a complete"]);
 
-    useInboxStore.getState().clearCrawlMetaForScope("team:T");
+    useInboxStore.getState().clearCrawlMetaForScope("dir:T");
     const relaunch = gatedCrawl("c", log);
     await relaunch.release();
     await relaunch.release();
@@ -557,7 +557,7 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
     const log: string[] = [];
     const old = gatedCrawl("x", log);
     await old.release();
-    useInboxStore.getState().clearCrawlMetaForScope("team:T");
+    useInboxStore.getState().clearCrawlMetaForScope("dir:T");
     await old.release();
     await old.done;
     expect(log).toEqual([]);
@@ -579,7 +579,7 @@ describe("crawlWatermarkScope", () => {
           JSON.stringify({ workspace: "team", team_id: "T" }),
         ),
       ),
-    ).toBe("team:T");
+    ).toBe("dir:T");
     expect(
       crawlWatermarkScope(
         syncMetaKey(
@@ -587,7 +587,7 @@ describe("crawlWatermarkScope", () => {
           JSON.stringify({ team_id: "T", workspace: "team" }),
         ),
       ),
-    ).toBe("team:T");
+    ).toBe("dir:T");
     expect(
       crawlWatermarkScope(
         syncMetaKey("tasks", JSON.stringify({ workspace: "personal" })),
@@ -597,9 +597,9 @@ describe("crawlWatermarkScope", () => {
       crawlWatermarkScope(syncMetaKey("sessions", inboxCrawlWsKey("u1"))),
     ).toBe("user:u1");
     expect(crawlWatermarkScope("tasks:v2:skip")).toBeNull();
-    expect(crawlWatermarkScope("synclog:v1:team:T")).toBeNull();
+    expect(crawlWatermarkScope("synclog:v1:dir:T")).toBeNull();
     expect(crawlScopesClearedBy("user:u1")).toEqual(["user:u1", "personal"]);
-    expect(crawlScopesClearedBy("team:T")).toEqual(["team:T"]);
+    expect(crawlScopesClearedBy("dir:T")).toEqual(["dir:T"]);
   });
 
   it("a first crawl with no watermark yet is superseded by its scope's resync", async () => {

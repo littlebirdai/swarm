@@ -49,7 +49,7 @@ export function floorScopeKeys(
   if (args === "skip" || !principal) return null;
   const keys = [`user:${principal}`];
   if (args.workspace === "team" && args.team_id)
-    keys.push(`team:${String(args.team_id)}`);
+    keys.push(`dir:${String(args.team_id)}`);
   return keys;
 }
 
@@ -122,7 +122,9 @@ export function bootstrapFloorKey(
 
 /** Every scope the floor's rows fan out from has a stamped cursor (false while unresolved). */
 export function floorScopesStamped(s: any, scopes: string[] | null): boolean {
-  return !!scopes && scopes.every((k) => s.syncLogScopeStamps[k] !== undefined);
+  if (!scopes) return false;
+  const stamps = s.syncLogScopeStamps ?? {};
+  return scopes.every((k) => stamps[k] !== undefined);
 }
 
 export type BootstrapFloorRun = {

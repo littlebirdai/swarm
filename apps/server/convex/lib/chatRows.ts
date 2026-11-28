@@ -4,16 +4,14 @@
 
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { computeHomeScope, interestScopesEnabled } from "./accessKeys";
+import { computeHomeScope } from "./accessKeys";
 
 export async function insertChatMessage(
   ctx: MutationCtx,
   doc: any,
 ): Promise<Id<"chat_messages">> {
   const row =
-    interestScopesEnabled() &&
-    doc?.channel_id &&
-    !(typeof doc.home_scope === "string" && doc.home_scope)
+    doc?.channel_id && !(typeof doc.home_scope === "string" && doc.home_scope)
       ? { ...doc, home_scope: computeHomeScope(doc, null) }
       : doc;
   return await ctx.db.insert("chat_messages", row);

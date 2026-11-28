@@ -305,7 +305,11 @@ export async function loadCache(
         table.bulkDelete(invalid.filter(unchanged)).catch(() => {});
       if (trimmed.length)
         table
-          .bulkPut(trimmed.filter((row) => unchanged(row._id)))
+          .bulkPut(
+            trimmed.filter(
+              (row) => unchanged(row._id) && !context.revokedOnDisk?.(key, row),
+            ),
+          )
           .catch(() => {});
       if (current) {
         for (const [id, row] of shadow)

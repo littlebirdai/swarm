@@ -9,7 +9,7 @@ import {
   cargoBytes,
   RANGE_PAGE_MAX_BYTES,
   makeSyncAckCollector,
-  teamScopeKey,
+  dirScopeKey,
   userScopeKey,
 } from "./syncLog";
 import { canAccessTask, heldKeysFor } from "./lib/access";
@@ -26,20 +26,20 @@ describe("interceptor cargo end to end", () => {
         title: "a",
         status: "open",
       });
-      let row = (await actions(teamScopeKey(teams.shared)))[0];
+      let row = (await actions(dirScopeKey(teams.shared)))[0];
       expect(row.full).toBe(true);
       expect(row.patch).toMatchObject({ title: "a", status: "open" });
       expect(row.access_owner).toBe(users.one);
       expect(row.access_key).toBe(`team:${teams.shared}`);
       const tdb2 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb2.patch(id, { status: "done" });
-      row = (await actions(teamScopeKey(teams.shared)))[0];
+      row = (await actions(dirScopeKey(teams.shared)))[0];
       expect(row.patch).toMatchObject({ title: "a", status: "done" });
       expect(row.full).toBe(true);
       expect(row.access_key).toBe(`team:${teams.shared}`);
     });
   });
-  test("locking a row private inside a team revokes it from the team scope; the owner keeps it in their own scope", async () => {
+  test("locking a row private inside a team revokes it from the dir scope; the owner keeps it in their own scope", async () => {
     await withSyncStore(async ({ db, actions, users, teams, rowsFor }) => {
       const tdb = makeChangeTrackedDb(db, makeSyncAckCollector());
       const id = await rowsFor(tdb).task(users.one, {
@@ -51,7 +51,7 @@ describe("interceptor cargo end to end", () => {
       await tdb2.patch(id, { workspace: `user:${users.one}` });
       const page = await readRangePage(
         db,
-        teamScopeKey(teams.shared),
+        dirScopeKey(teams.shared),
         0,
         10,
         {
@@ -151,7 +151,7 @@ describe("review: stamps, tombstones, moves", () => {
         team_id: teams.b,
         workspace: `team:${teams.b}`,
       });
-      const tomb = (await actions(teamScopeKey(teams.a)))[0];
+      const tomb = (await actions(dirScopeKey(teams.a)))[0];
       expect(tomb.op).toBe("delete");
       expect(tomb.access_key).toBeUndefined();
       expect(tomb.patch).toBeUndefined();
@@ -161,11 +161,11 @@ describe("review: stamps, tombstones, moves", () => {
       await makeChangeTrackedDb(db, makeSyncAckCollector()).patch(id, {
         team_id: teams.a,
       });
-      expect((await actions(teamScopeKey(teams.a)))[0].op).toBe("delete");
+      expect((await actions(dirScopeKey(teams.a)))[0].op).toBe("delete");
       await makeChangeTrackedDb(db, makeSyncAckCollector()).patch(id, {
         workspace: `team:${teams.a}`,
       });
-      const back = (await actions(teamScopeKey(teams.a)))[0];
+      const back = (await actions(dirScopeKey(teams.a)))[0];
       expect(back.op).toBe("upsert");
       expect(back.access_key).toBe(`team:${teams.a}`);
     });

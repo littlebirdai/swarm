@@ -25,7 +25,6 @@ import {
   computeWorkspaceKey,
   computeWorkspaceKeyDb,
   heldKeysFor,
-  interestScopesEnabled,
   linkedConversationId,
   parseWorkspaceKey,
   resolveWorkspaceKey,
@@ -323,15 +322,9 @@ export async function recomputeWorkspaceForConversation(
   for (const row of rows) {
     if (linkedConversationId(row) !== convId) continue;
     const key = computeWorkspaceKey(row, conv);
-    const trackHome = interestScopesEnabled();
-    const nextHome = trackHome
-      ? computeHomeScope({ ...row, workspace: key }, conv)
-      : row.home_scope;
+    const nextHome = computeHomeScope({ ...row, workspace: key }, conv);
     const workspaceChanged = row.workspace !== key;
-    const homeChanged =
-      trackHome &&
-      (workspaceChanged || typeof row.home_scope === "string") &&
-      row.home_scope !== nextHome;
+    const homeChanged = row.home_scope !== nextHome;
     if (workspaceChanged || homeChanged) {
       const patch: Record<string, any> = {};
       if (workspaceChanged) patch.workspace = key;

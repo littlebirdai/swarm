@@ -54,12 +54,14 @@ function fixture() {
         user_id: OWNER,
         created_from_conversation: "c_shared",
         workspace: `user:${OWNER}`,
+        home_scope: `user:${OWNER}`,
       },
       {
         _id: "task_private",
         user_id: OWNER,
         created_from_conversation: "c_private",
         workspace: `user:${OWNER}`,
+        home_scope: `user:${OWNER}`,
       },
     ],
     docs: [
@@ -68,6 +70,7 @@ function fixture() {
         user_id: OWNER,
         conversation_id: "c_shared",
         workspace: `user:${OWNER}`,
+        home_scope: `user:${OWNER}`,
       },
     ],
     plans: [
@@ -76,6 +79,7 @@ function fixture() {
         user_id: OWNER,
         created_from_conversation_id: "c_shared",
         workspace: `user:${OWNER}`,
+        home_scope: `user:${OWNER}`,
       },
     ],
     projects: [],

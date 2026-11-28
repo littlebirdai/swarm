@@ -26,6 +26,7 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import { heldKeysFor } from "./lib/accessKeys";
+import { isTeamMember } from "./privacy";
 
 export type ReceiptActionEnvelope = {
   receiptActionVersion: 1;
@@ -164,15 +165,30 @@ export async function runReceiptBackedCreate(
       commandName: input.commandName,
       arguments: input.arguments,
     },
-    async () => ({
-      status: "acknowledged",
-      result: await input.create(),
-      // Docs/plans/projects still use their legacy paginated sync surfaces. The
-      // receipt provides exact create dedupe/result recovery; those lists do not
-      // yet expose a revision or command-id coverage contract to name here.
-      coverageViews: [],
-    }),
+    async () => {
+      const team = createTargetTeam(input.arguments);
+      if (team && !(await isTeamMember(ctx, userId, team as Id<"teams">)))
+        return {
+          status: "rejected" as const,
+          code: "WORKSPACE_ACCESS_DENIED",
+          message: "You are no longer a member of this team",
+        };
+      return {
+        status: "acknowledged" as const,
+        result: await input.create(),
+        // Docs/plans/projects still use their legacy paginated sync surfaces. The
+        // receipt provides exact create dedupe/result recovery; those lists do not
+        // yet expose a revision or command-id coverage contract to name here.
+        coverageViews: [],
+      };
+    },
   );
+}
+
+function createTargetTeam(args: unknown): string | null {
+  const opts = args as { workspace?: unknown; team_id?: unknown } | null;
+  if (!opts || opts.workspace === "personal") return null;
+  return typeof opts.team_id === "string" && opts.team_id ? opts.team_id : null;
 }
 
 const OUTBOX_LIFETIME_MS = 8 * 24 * 60 * 60 * 1000;

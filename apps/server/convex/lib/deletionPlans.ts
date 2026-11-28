@@ -246,12 +246,27 @@ function plans() {
     value: workspaceOf,
     ...more,
   });
-  const byScope = (table: string, index: string): PurgeNode => ({
-    table,
-    index,
-    field: "scope_key",
-    value: workspaceOf,
-  });
+  const syncScopeRows = (scopeOf: (row: any) => string): PurgeNode[] => [
+    {
+      table: "sync_actions",
+      index: "by_scope_position",
+      field: "scope_key",
+      value: scopeOf,
+    },
+    {
+      table: "sync_outbox",
+      index: "by_scope_entity",
+      field: "scope_key",
+      value: scopeOf,
+    },
+    {
+      table: "sync_heads",
+      index: "by_scope",
+      field: "scope_key",
+      value: scopeOf,
+    },
+  ];
+  const projectRows = syncScopeRows((p) => `project:${p._id}`);
 
   const taskRows = [
     under("task_comments", "by_task_id", "task_id"),
@@ -303,6 +318,7 @@ function plans() {
     under("chat_typing", "by_channel_updated", "channel_id"),
     under("thread_reads", "by_channel", "channel_id"),
     under("chat_session_rooms", "by_channel", "channel_id"),
+    ...syncScopeRows((c) => `channel:${c._id}`),
   ];
   const modRows = [
     under("mod_versions", "by_mod_version", "mod_id"),
@@ -327,8 +343,8 @@ function plans() {
     byWorkspace("plans", "by_workspace", { children: planRows }),
     byTeam("docs", "by_team_id", { children: docRows, ...HEAVY }),
     byWorkspace("docs", "by_workspace", { children: docRows, ...HEAVY }),
-    byTeam("projects", "by_team_id"),
-    byWorkspace("projects", "by_workspace"),
+    byTeam("projects", "by_team_id", { children: projectRows }),
+    byWorkspace("projects", "by_workspace", { children: projectRows }),
     byTeam("initiatives", "by_team_id"),
     byWorkspace("initiatives", "by_workspace"),
     byWorkspace("env_attempts", "by_workspace", {
@@ -469,9 +485,7 @@ function plans() {
     byTeam("repo_cache", "by_team_fetched"),
     byTeam("repo_sources", "by_team_id"),
     // The sync log last: every delete above wrote its tombstone into it.
-    byScope("sync_actions", "by_scope_position"),
-    byScope("sync_outbox", "by_scope_entity"),
-    byScope("sync_heads", "by_scope"),
+    ...syncScopeRows((team) => `dir:${team._id}`),
   ];
 
   built = { artifact, conversationRows, conversation, call, teamSteps };

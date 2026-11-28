@@ -12431,7 +12431,7 @@
     "swarm/no-comments": 9
   },
   "apps/server/convex/syncLog.ts": {
-    "swarm/no-comments": 183
+    "swarm/no-comments": 172
   },
   "apps/server/convex/syncLogPrune.test.ts": {
     "swarm/no-comments": 17
@@ -21777,8 +21777,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
-    "swarm/no-comments": 152,
-    "swarm/no-direct-use-effect": 2
+    "swarm/no-comments": 71
   },
   "apps/web/hooks/use-sync-docs.ts": {
     "react/immutability": 1,
@@ -27817,7 +27816,7 @@
     "swarm/no-comments": 12
   },
   "apps/web/store/__tests__/syncLogClient.test.ts": {
-    "swarm/no-comments": 40
+    "swarm/no-comments": 31
   },
   "apps/web/store/__tests__/syncNoUpdatedAt.test.ts": {
     "swarm/no-comments": 8
@@ -27957,6 +27956,9 @@
   "apps/web/store/agentConnectionsSlice.ts": {
     "swarm/no-comments": 5
   },
+  "apps/web/store/apply-bridged-gesture.ts": {
+    "swarm/no-comments": 1
+  },
   "apps/web/store/beginLocalFork.ts": {
     "swarm/no-comments": 46
   },
@@ -28024,7 +28026,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/clientSyncRegistry.ts": {
-    "swarm/no-comments": 891
+    "swarm/no-comments": 884
   },
   "apps/web/store/composeSlice.ts": {
     "swarm/no-comments": 28
@@ -28057,7 +28059,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/idb-cache.native.ts": {
-    "swarm/no-comments": 132
+    "swarm/no-comments": 122
   },
   "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
@@ -28088,7 +28090,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5042
+    "swarm/no-comments": 5031
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -28189,6 +28191,9 @@
   "apps/web/store/projectUpdatesSlice.ts": {
     "swarm/no-comments": 10
   },
+  "apps/web/store/replicated-ephemeral-keys.ts": {
+    "swarm/no-comments": 7
+  },
   "apps/web/store/sameValue.ts": {
     "swarm/no-comments": 2
   },
@@ -28226,7 +28231,7 @@
     "swarm/no-comments": 57
   },
   "apps/web/store/sync-replication.ts": {
-    "swarm/no-comments": 101
+    "swarm/no-comments": 95
   },
   "apps/web/store/syncActivity.ts": {
     "swarm/no-comments": 26

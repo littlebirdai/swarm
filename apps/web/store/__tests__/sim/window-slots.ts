@@ -366,7 +366,6 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/use-sync-change-feed.ts:cargoSupported": "window",
   "hooks/use-sync-change-feed.ts:applyTally": "window",
   "hooks/use-sync-change-feed.ts:flushTimer": "window",
-  "hooks/use-sync-change-feed.ts:shadowApplied": "window",
   "hooks/syncWake.ts:listeners": NO_REACT,
   "hooks/useCoarseNow.ts:_clocks": {
     shared:

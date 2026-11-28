@@ -137,6 +137,8 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
   // Steady-state cost is zero: an up-to-date body (updated_at match) is
   // skipped, and each (id, updated_at) is attempted once per session.
   const attemptedRef = useRef(new Map<string, number>());
+  const floorEpoch = useInboxStore((s) => s.syncLogFloorEpoch);
+  const attemptedEpochRef = useRef(floorEpoch);
   const prefetchHydrated = useInboxStore((s) => s.clientStateInitialized);
   const wsSkip = wsArgs === "skip";
   const bodyCacheReady = useDeferredCache(
@@ -144,6 +146,10 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
     prefetchHydrated && !wsSkip && !!results?.length,
   );
   useWatchEffect(() => {
+    if (attemptedEpochRef.current !== floorEpoch) {
+      attemptedEpochRef.current = floorEpoch;
+      attemptedRef.current = new Map();
+    }
     if (!prefetchHydrated || !bodyCacheReady || wsSkip || !results?.length)
       return;
     const { docDetails } = useInboxStore.getState();
@@ -198,7 +204,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
     return () => {
       cancelled = true;
     };
-  }, [convex, results, prefetchHydrated, bodyCacheReady, wsSkip]);
+  }, [convex, results, prefetchHydrated, bodyCacheReady, wsSkip, floorEpoch]);
 
   // 2) BACKGROUND RECONCILE: crawl every page once (one-shot queries, NOT live
   //    subscriptions), then sync the full set with a workspace-scoped

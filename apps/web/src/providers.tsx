@@ -1,7 +1,7 @@
 import { ReactNode, useRef } from "react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { subscribeGestures } from "../store/gestureBridge";
-import { applyBridgedGesture } from "../store/sync-replication";
+import { applyBridgedGesture } from "../store/apply-bridged-gesture";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";

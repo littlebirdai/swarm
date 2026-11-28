@@ -23,7 +23,7 @@ import schema from "./schema";
 import { api } from "./_generated/api";
 import { allModules } from "./testModules.testkit";
 import { makeChangeTrackedDb } from "./changeLog";
-import { makeSyncAckCollector, teamScopeKey, userScopeKey } from "./syncLog";
+import { makeSyncAckCollector, dirScopeKey, userScopeKey } from "./syncLog";
 import {
   CLIENT_SYNC_REGISTRY,
   WORKSPACE_SCOPED_KEYS,
@@ -753,8 +753,8 @@ describe("access matrix", () => {
     const t = convexTest(schema, allModules);
     const ids = await seed(t);
     const scopes = [
-      teamScopeKey(ids.T),
-      teamScopeKey(ids.O),
+      dirScopeKey(ids.T),
+      dirScopeKey(ids.O),
       ...WHO.map((w) => userScopeKey(ids[w])),
     ];
     for (const table of MATRIX_KEYS) {

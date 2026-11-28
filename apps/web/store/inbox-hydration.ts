@@ -1,3 +1,5 @@
+import { dropRevokedRowMap } from "./scope-revocation-gate";
+import { revokedOnDisk } from "./scope-revocation-disk";
 import { desktopWindowKeys } from "./desktop-panel-keys";
 import { followerPersistencePatches } from "./followerPersistence";
 import {
@@ -386,7 +388,12 @@ async function hydrateInboxCacheFromIDB(
         updates[key] = merged;
         continue;
       }
-      const merge = hydrateMergeValue(key, val, cur, state.pending);
+      const merge = hydrateMergeValue(
+        key,
+        dropRevokedRowMap(state, key, val),
+        cur,
+        state.pending,
+      );
       if (merge.apply) updates[key] = merge.value;
     }
     if (updates.pendingMessages)
@@ -554,6 +561,7 @@ async function hydrateInboxCacheFromIDB(
   if (superseded()) return false;
   const deferred = await cacheStorage.loadCache(deferredKeys, {
     pending: cached?.pending,
+    revokedOnDisk,
   });
   if (superseded()) return false;
   apply(deferred, deferredKeys);

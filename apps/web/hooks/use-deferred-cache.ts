@@ -14,6 +14,7 @@ import {
 import { detailInvalidationRevision } from "../store/doc-detail-cache";
 import { cacheStorage } from "../store/idb-cache";
 import { useInboxStore } from "../store/inboxStore";
+import { revokedOnDisk } from "../store/scope-revocation-disk";
 import { useWatchEffect } from "./useWatchEffect";
 
 const deferred = {
@@ -100,7 +101,7 @@ export function useDeferredCache(
 
     const pending = useInboxStore.getState().pending;
     void cacheStorage
-      .loadCache([key], { pending })
+      .loadCache([key], { pending, revokedOnDisk })
       .then((cached) => {
         if (
           authPrincipal.epoch() === epoch &&

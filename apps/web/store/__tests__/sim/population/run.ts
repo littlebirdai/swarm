@@ -65,12 +65,9 @@ export async function runPopulation(config: {
   mode?: PopulationMode;
   realistic?: boolean;
 }) {
-  const mode: PopulationMode = config.mode ?? "team";
+  const mode: PopulationMode = config.mode ?? "interest";
   const realistic = !!config.realistic;
   const model = population(config.seed, config.people);
-  const previousInterestScopes = process.env.SWARM_INTEREST_SCOPES;
-  if (mode === "interest") process.env.SWARM_INTEREST_SCOPES = "1";
-  else delete process.env.SWARM_INTEREST_SCOPES;
   installRealm(config.seed);
   try {
     const writes = {
@@ -184,6 +181,7 @@ export async function runPopulation(config: {
       }
     }
 
+    const team0Id = String(fixtureId("teams", 0));
     const sampledPeople = model.deviceOrder.slice(0, config.devices);
     const devices = sampledPeople.map((person) => {
       const deniedScopes: string[] = [];
@@ -197,6 +195,8 @@ export async function runPopulation(config: {
       }
       return populationReplica(backend, person, {
         mode,
+        allProjectIndices: model.projects,
+        teamId: team0Id,
         extraDeniedScopes: deniedScopes,
       });
     });
@@ -388,37 +388,12 @@ export async function runPopulation(config: {
     const baselineSaves = [...model.activity, ...model.background].filter(
       ({ at }) => at < PEAK_START_MS,
     ).length;
-    const scopeWriteSummary: {
-      team: number;
-      user: number;
-      interest?: number;
-    } =
-      mode === "interest"
-        ? scopeWrites
-        : { team: scopeWrites.team, user: scopeWrites.user };
-    const canceledDrainSummary: {
-      team: number;
-      user: number;
-      interest?: number;
-    } =
-      mode === "interest"
-        ? nearbyCanceledDrains
-        : { team: nearbyCanceledDrains.team, user: nearbyCanceledDrains.user };
-    const heuristicRetriesSummary: {
-      team: number;
-      user: number;
-      interest?: number;
-    } = {
+    const scopeWriteSummary = scopeWrites;
+    const canceledDrainSummary = nearbyCanceledDrains;
+    const heuristicRetriesSummary = {
       team: ratio(nearbyCanceledDrains.team, scopeWrites.team),
       user: ratio(nearbyCanceledDrains.user, scopeWrites.user),
-      ...(mode === "interest"
-        ? {
-            interest: ratio(
-              nearbyCanceledDrains.interest,
-              scopeWrites.interest,
-            ),
-          }
-        : {}),
+      interest: ratio(nearbyCanceledDrains.interest, scopeWrites.interest),
     };
     const deniedTasks = taskRows.filter(
       (task) => task.workspace !== teamWorkspace,
@@ -463,9 +438,6 @@ export async function runPopulation(config: {
       measurements,
     };
   } finally {
-    if (previousInterestScopes === undefined)
-      delete process.env.SWARM_INTEREST_SCOPES;
-    else process.env.SWARM_INTEREST_SCOPES = previousInterestScopes;
     uninstallRealm();
   }
 }
