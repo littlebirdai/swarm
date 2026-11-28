@@ -18,33 +18,33 @@ type Counts = readonly [
 const cases = [
   {
     name: "daemon active",
-    counts: [5, 1292, 2, 503, 5],
+    counts: [5, 1292, 2, 608, 5],
     before: "idle",
     after: "working",
   },
   {
     name: "daemon reassertion",
-    counts: [5, 1298, 2, 503, 4],
+    counts: [5, 1298, 2, 608, 4],
     before: "working",
     after: "working",
   },
   {
     name: "daemon clears boundary",
-    counts: [3, 978, 1, 320, 2],
+    counts: [5, 1338, 2, 531, 3],
     before: "idle",
     after: "idle",
     boundaryBefore: true,
   },
   {
     name: "daemon turn end",
-    counts: [9, 2546, 3, 797, 15],
+    counts: [11, 2906, 4, 1008, 16],
     before: "working",
     after: "idle",
     turnEnd: true,
   },
   {
     name: "daemon permission settle",
-    counts: [4, 1252, 1, 320, 7],
+    counts: [6, 1612, 2, 531, 8],
     before: "permission_blocked",
     after: "idle",
   },
@@ -57,35 +57,35 @@ const cases = [
   },
   {
     name: "daemon park",
-    counts: [4, 1224, 1, 349, 5],
+    counts: [6, 1584, 2, 560, 6],
     before: "idle",
     after: "hibernated",
     park: true,
   },
   {
     name: "daemon resume boundary",
-    counts: [3, 990, 1, 343, 4],
+    counts: [5, 1350, 2, 554, 5],
     before: "hibernated",
     after: "idle",
     resume: true,
   },
   {
     name: "hosted seed",
-    counts: [5, 1243, 4, 988, 7],
+    counts: [5, 1243, 4, 1062, 7],
     route: "hosted",
     before: null,
     after: "working",
   },
   {
     name: "hosted unmarked",
-    counts: [6, 1617, 3, 839, 5],
+    counts: [6, 1617, 3, 944, 5],
     route: "hosted",
     before: "idle",
     after: "working",
   },
   {
     name: "hosted existing",
-    counts: [9, 2541, 3, 802, 15],
+    counts: [11, 2901, 4, 1013, 16],
     route: "hosted",
     before: "working",
     after: "idle",
@@ -194,11 +194,15 @@ for (const scenario of cases) {
     expect(trace.result).toEqual(
       stale ? { applied: false, reason: "stale_status" } : { applied: true },
     );
-    expect(jobs).toEqual(
-      ended || scenario.before === "permission_blocked"
+    const expectedJobs = [
+      ...(ended || scenario.before === "permission_blocked"
         ? ["idleSummary:classifySettle", "notifications:checkNeedsInput"]
-        : [],
-    );
+        : []),
+      ...(scenario.after === "working" && !stale
+        ? ["managedSessions:checkInboxLivenessLease"]
+        : []),
+    ].sort();
+    expect(jobs).toEqual(expectedJobs);
     expect(persisted).toEqual({
       agent: stale ? scenario.before : scenario.after,
       activity: !ended,

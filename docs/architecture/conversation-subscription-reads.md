@@ -32,11 +32,9 @@ the inventory.
 
 ## Rollout
 
-Run `internal.pageData.backfillSessionStarts` before setting
-`EXECUTION_WORK_SESSION_CARD=1` so existing sessions get a projected safety
-verdict. With the flag on, the execution-work feed still reads the full
-conversation when the card or its safety verdict is missing. The flag defaults
-off.
+Run `internal.pageData.backfillSessionStarts` so existing sessions get a projected
+safety verdict. The execution-work feed still reads the full conversation when
+the card or its safety verdict is missing.
 
 Once the web pending-queue projection ships, run
 `internal.pageData.backfillSessionStarts` before setting

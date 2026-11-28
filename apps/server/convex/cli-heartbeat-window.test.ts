@@ -170,7 +170,7 @@ test.each([2 * minute, 5 * minute, 6 * minute])(
   "full CLI response matches the unbounded read at the %i ms threshold",
   async (threshold) => {
     for (const offset of [-1, 0, 1]) {
-      const tables = account(threshold + offset, "side");
+      const tables = account(threshold + offset, "legacy");
       const { result } = await run(tables, false);
       expect(result).toEqual((await run(tables, true)).result);
       const rows = new Map(result.sessions.map((row: any) => [row.id, row]));
@@ -225,32 +225,23 @@ test.each(["legacy", "rollback"] as const)(
   },
 );
 
-test("CLI reads only the heartbeat documents inside the daemon window", async () => {
-  const tables = account(6 * minute, "side");
-  const bounded = await run(tables, false);
-  const unbounded = await run(tables, true);
-  expect(bounded.heartbeatReads).toBe(1);
-  expect(unbounded.heartbeatReads).toBe(tables.session_heartbeats.length);
-  expect(bounded.result).toEqual(unbounded.result);
-});
-
 test("the liveness overlay retains exact old heartbeat stamps", async () => {
-  const tables = account(6 * minute + 1, "side");
+  const tables = account(6 * minute + 1, "legacy");
   const { result, heartbeatReads } = await run(tables, false, sessionsLiveness);
-  expect(heartbeatReads).toBe(tables.session_heartbeats.length);
+  expect(heartbeatReads).toBe(0);
   expect(result.liveness["conversations_working"].last_heartbeat).toBe(
     now - 6 * minute - 1,
   );
 });
 
 test("the web inbox retains exact old heartbeat stamps", async () => {
-  const tables = account(6 * minute + 1, "side");
+  const tables = account(6 * minute + 1, "legacy");
   const { result, heartbeatReads } = await run(
     tables,
     false,
     listInboxSessions,
   );
-  expect(heartbeatReads).toBe(tables.session_heartbeats.length);
+  expect(heartbeatReads).toBe(0);
   expect(result.sessions).toContainEqual(
     expect.objectContaining({
       _id: "conversations_working",
@@ -262,7 +253,7 @@ test("the web inbox retains exact old heartbeat stamps", async () => {
 test("full CLI response matches inside a minute and for future heartbeats", async () => {
   for (const at of [now + 1, now + minute - 1])
     for (const age of [-5 * minute, 2 * minute, 5 * minute, 6 * minute]) {
-      const tables = account(age, "side");
+      const tables = account(age, "legacy");
       const bounded = await run(tables, false, inboxForCLI, at);
       expect(bounded.result).toEqual(
         (await run(tables, true, inboxForCLI, at)).result,

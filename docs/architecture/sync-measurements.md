@@ -51,7 +51,7 @@ bun scripts/perf/sync-alarms.ts
 | Forced scope resyncs       | Scope resets after a retention gap or expired legacy cursor in the last hour                  | 5 resets    |
 | Oldest pending outbox age  | Maximum age reported by `syncOutbox.oldestPendingAge` in the last 5 minutes                   | 120,000 ms  |
 
-The inbox digest heartbeat covers the personal projection. A heartbeat represents roughly one active replica hour. The self-heal figure counts completed requests and excludes failed requests. The outbox sample uses the same index and pending-slot timestamp as `syncOutbox.status`. An edit that coalesces into a slot updates that timestamp. The sampler reads at most one pending row and sends one personless event per minute. Set `CODECAST_SYNC_ALARMS=1` on the server to enable the sampler. Without the flag or an analytics key, the sampler sends no events and reads no rows. The telemetry opt-out also skips both.
+The inbox digest heartbeat covers the personal projection. A heartbeat represents roughly one active replica hour. The self-heal figure counts completed requests and excludes failed requests. The outbox sample uses the same index and pending-slot timestamp as `syncOutbox.status`. An edit that coalesces into a slot updates that timestamp. The sampler reads at most one pending row and sends one personless event per minute. Without an analytics key, the sampler sends no events and reads no rows. The telemetry opt-out also skips both.
 
 After a deployment, pass each definition to the existing watch command with its matching PostHog source. The queries aggregate matching events in that source.
 

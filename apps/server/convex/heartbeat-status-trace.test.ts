@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import { api } from "./_generated/api";
 import { TASK_LEASE_MS } from "./lib/claims";
@@ -8,18 +8,6 @@ import {
   serverTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-
-let originalLeaseFlag: string | undefined;
-
-beforeEach(() => {
-  originalLeaseFlag = process.env.INBOX_LIVENESS_LEASES;
-  process.env.INBOX_LIVENESS_LEASES = "1";
-});
-
-afterEach(() => {
-  if (originalLeaseFlag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
-  else process.env.INBOX_LIVENESS_LEASES = originalLeaseFlag;
-});
 
 type Counts = readonly [
   documentsRead: number,

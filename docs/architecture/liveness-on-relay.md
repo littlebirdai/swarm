@@ -4,7 +4,7 @@ Convex owns session status and the liveness lease. The relay carries short-lived
 
 ## Server lease
 
-With `INBOX_LIVENESS_LEASES=1`, routine heartbeats update `session_heartbeats`. This table also holds the write fence that rejects delayed status writes. The single status writer updates `managed_sessions` on a lease transition or an actual status change.
+Routine heartbeats update `session_heartbeats`. This table also holds the write fence that rejects delayed status writes. The single status writer updates `managed_sessions` on a lease transition or an actual status change.
 
 A scheduled check reads the latest heartbeat. If it is fresh, the check schedules the next check without a write to the inbox read set. If it is stale, the writer records expiry at 120 seconds after the last heartbeat. Scheduler delay can delay delivery of the transition. Each activation gets a new generation so a check from an earlier activation cannot renew it.
 
@@ -46,7 +46,7 @@ The viewer accepts an observation only for the current run and expected machine.
 
 ## Viewer rollout
 
-Set `VITE_RELAY_INBOX_LIVENESS=1` to enable the web inbox contact indicator. The flag defaults off and requires the existing relay presence configuration. The server also requires lease writes and machine liveness grants to be enabled.
+The web inbox contact indicator requires the existing relay presence configuration and machine liveness grants.
 
 The sync host watches up to 64 mounted inbox sessions. The target query checks full conversation access and the current fenced binding. Relay subscription grants repeat the conversation access check. A run or binding change removes the old observation. Followers use the replicated Convex facts.
 
@@ -84,9 +84,7 @@ Report relay observations and bytes separately as well as in the combined count.
 
 The read-set test proves that routine writes miss inbox documents. Use the socket meter for payload bytes. The save-to-screen probe measures a docs mutation. Use a session status mutation for a session latency probe. Rows whose change touches only heartbeat fields skip the immediate write in `writePatchesToIDB` and wait up to 60 seconds in the liveness lane, so a count at the collection writer alone reads zero. [Collection writer](../../apps/web/store/persistence/collection-writer.ts) · [Liveness lane](../../apps/web/store/persistence/idb-liveness-lane.ts) · [Save-to-screen probe](../../apps/web/scripts/sync-probe.ts).
 
-Keep `INBOX_LIVENESS_LEASES` off by default. With the flag off, Convex keeps the heartbeat timestamps that old web and mobile clients require. Old daemons use the same heartbeat requests with the flag on. Enable it only after recovery passes and client version data shows that all active web and mobile clients understand leases. Turn it off if an older client must connect again. Use a separate flag for relay display.
-
-The personal overlay uses indexed session reads when both `INBOX_INDEXED_LIVENESS=1` and `INBOX_LIVENESS_LEASES=1` are set. It reads all live leases and recent heartbeat stamps, then reads up to eight managed rows per conversation used by the overlay, including hidden children and decision-linked children. It merges these rows in creation order, as the full scan does. It reads the latest daemon heartbeat separately when the live ranges contain no daemon row. Unrelated session history has no effect on these reads.
+The personal overlay uses indexed session reads. It reads all live leases and recent heartbeat stamps, then reads up to eight managed rows per conversation used by the overlay, including hidden children and decision-linked children. It merges these rows in creation order, as the full scan does. It reads the latest daemon heartbeat separately when the live ranges contain no daemon row. Unrelated session history has no effect on these reads.
 
 The team overlay keeps the full scan. Team membership and foreign-run sessions add different candidate windows and reads. Enable indexed reads there after a separate parity and read-budget check for those scopes.
 
@@ -97,7 +95,7 @@ The team overlay keeps the full scan. Team membership and foreign-run sessions a
 3. Add the run field to relay session grants and enforce it in the relay, and deploy the relay first. An old relay rejects a grant with an unknown field. Test that the relay drops signals outside the grant.
 4. Add the Edge capability and machine grants behind a flag that is off by default. Turn it on only after the relay from step 3 is live. Test wrong owners, unfenced and hosted sessions, stale epochs and fences, and grant expiry.
 5. Add the inbox epoch contract, authorized snapshot, and log delivery through the single status writer. Compare personal and team access, placements, digests, and leases across run changes. Switch the field owners and probe together after the feeds agree.
-6. Add the machine publisher and viewer display behind the relay flag. Use relay client tests for late join, socket failure, and reconnect. Put the prior-run rejection test in the viewer liveness mount, where the viewer knows the current run. Compare the Convex writes with the relay up and down. Confirm that relay contact cannot revive an expired lease. Measure bytes and writes before enablement.
+6. Add the machine publisher and viewer display. Use relay client tests for late join, socket failure, and reconnect. Put the prior-run rejection test in the viewer liveness mount, where the viewer knows the current run. Compare the Convex writes with the relay up and down. Confirm that relay contact cannot revive an expired lease. Measure bytes and writes before enablement.
 7. Replace the base inbox subscription with its snapshot and log after relay liveness works.
 
 Use the [relay clock tests](../../packages/relay/test/relay.test.ts), [relay client recovery tests](../../packages/relay-client/test/client-recovery.test.ts), and [inbox projection tests](../../apps/server/convex/conversations.projection.test.ts).

@@ -491,6 +491,7 @@ test("renewal writes only the side row that the work subscription never reads", 
     "conversation_execution_heads",
     "conversation_execution_heads",
     "execution_bindings",
+    "session_starts",
   ]);
   expect(subscription).not.toContainEqual({ method: "get", key: lease._id });
 
@@ -571,71 +572,55 @@ test("renewal extends retention past the original seven-day cutoff", async () =>
   });
 });
 
-test.each([false, true])(
-  "owned run renewals keep a long silent working turn live with inbox leases %s",
-  async (leases) => {
-    const flag = "INBOX_LIVENESS_LEASES";
-    const previous = process.env[flag];
-    process.env[flag] = leases ? "1" : "0";
-    try {
-      const { t, owner, conversation, binding, claim, requestFence } =
-        await setup();
-      const session = await t.run(async ({ db }) => {
-        await db.patch(binding, {
-          handle: OWNED_CODEX_CHECKPOINT_PREFIX + "thread",
-        });
-        return fixtureRows(db, "renew owned Codex liveness").session(owner, {
-          conversation_id: conversation,
-          agent_status: "working",
-          agent_status_updated_at: start,
-          last_heartbeat: start,
-        });
-      });
-      const lease = await claim("silent-turn");
-      if (lease.status !== "granted")
-        throw new Error("Expected owned run lease");
-      const fence = requestFence(lease.fencing_token);
-      const through = start + HEARTBEAT_ALIVE_MS + 15_000;
-      for (let now = start + 15_000; now <= through; now += 15_000) {
-        setSystemTime(new Date(now));
-        expect(await t.mutation(renewFn, fence)).toMatchObject({
-          status: "renewed",
-        });
-      }
-      setSystemTime(new Date(through));
-      const row = await t.run(({ db }) => db.get(session));
-      expect(row?.agent_status_updated_at).toBe(start);
-      const lastBeat = await t.run((ctx) => heartbeatOf(ctx, row));
-      expect(
-        trustedAgentStatus(
-          row?.agent_status,
-          start,
-          through,
-          through - lastBeat < HEARTBEAT_ALIVE_MS,
-        ),
-      ).toBe("working");
-      if (leases) {
-        expect(row?.liveness_lease).toEqual({
-          end: start + HEARTBEAT_ALIVE_MS,
-          expired: false,
-        });
-        await t.mutation(internal.managedSessions.checkInboxLivenessLease, {
-          id: session,
-          end: row!.liveness_lease!.end,
-          generation: row!.liveness_lease_generation!,
-        });
-        expect(
-          (await t.run(({ db }) => db.get(session)))?.liveness_lease?.expired,
-        ).toBe(false);
-      } else {
-        expect(row?.last_heartbeat).toBe(lastBeat);
-      }
-    } finally {
-      if (previous === undefined) delete process.env[flag];
-      else process.env[flag] = previous;
-    }
-  },
-);
+test("owned run renewals keep a long silent working turn live with inbox leases", async () => {
+  const { t, owner, conversation, binding, claim, requestFence } =
+    await setup();
+  const session = await t.run(async ({ db }) => {
+    await db.patch(binding, {
+      handle: OWNED_CODEX_CHECKPOINT_PREFIX + "thread",
+    });
+    return fixtureRows(db, "renew owned Codex liveness").session(owner, {
+      conversation_id: conversation,
+      agent_status: "working",
+      agent_status_updated_at: start,
+      last_heartbeat: start,
+    });
+  });
+  const lease = await claim("silent-turn");
+  if (lease.status !== "granted") throw new Error("Expected owned run lease");
+  const fence = requestFence(lease.fencing_token);
+  const through = start + HEARTBEAT_ALIVE_MS + 15_000;
+  for (let now = start + 15_000; now <= through; now += 15_000) {
+    setSystemTime(new Date(now));
+    expect(await t.mutation(renewFn, fence)).toMatchObject({
+      status: "renewed",
+    });
+  }
+  setSystemTime(new Date(through));
+  const row = await t.run(({ db }) => db.get(session));
+  expect(row?.agent_status_updated_at).toBe(start);
+  const lastBeat = await t.run((ctx) => heartbeatOf(ctx, row));
+  expect(
+    trustedAgentStatus(
+      row?.agent_status,
+      start,
+      through,
+      through - lastBeat < HEARTBEAT_ALIVE_MS,
+    ),
+  ).toBe("working");
+  expect(row?.liveness_lease).toEqual({
+    end: start + HEARTBEAT_ALIVE_MS,
+    expired: false,
+  });
+  await t.mutation(internal.managedSessions.checkInboxLivenessLease, {
+    id: session,
+    end: row!.liveness_lease!.end,
+    generation: row!.liveness_lease_generation!,
+  });
+  expect(
+    (await t.run(({ db }) => db.get(session)))?.liveness_lease?.expired,
+  ).toBe(false);
+});
 
 test("a leased legacy binding keeps its existing heartbeat path", async () => {
   const { t, owner, conversation, claim, requestFence } = await setup();

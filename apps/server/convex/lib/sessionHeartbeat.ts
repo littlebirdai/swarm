@@ -21,22 +21,14 @@ export function resolveHeartbeat(
   return Math.max(beat ?? 0, session.last_heartbeat ?? 0);
 }
 
-export function inboxLeaseWritesEnabled(): boolean {
-  return process.env.INBOX_LIVENESS_LEASES === "1";
-}
-
 export function hasLiveInboxLease(
   session: Pick<Doc<"managed_sessions">, "liveness_lease">,
 ): boolean {
-  return inboxLeaseWritesEnabled() && session.liveness_lease?.expired === false;
+  return session.liveness_lease?.expired === false;
 }
 
-function inboxHeartbeatOf(
-  ctx: Reader,
-  session: Doc<"managed_sessions"> | null,
-) {
+function inboxHeartbeatOf(session: Doc<"managed_sessions"> | null) {
   if (!session) return 0;
-  if (!inboxLeaseWritesEnabled()) return heartbeatOf(ctx, session);
   return Math.max(
     session.last_heartbeat,
     (session.liveness_lease?.end ?? 0) - HEARTBEAT_ALIVE_MS,
@@ -44,46 +36,22 @@ function inboxHeartbeatOf(
 }
 
 export function inboxHeartbeatsFor(
-  ctx: Reader,
+  _ctx: Reader,
   sessions: Array<Doc<"managed_sessions"> | null>,
 ) {
-  return Promise.all(sessions.map((row) => inboxHeartbeatOf(ctx, row)));
+  return Promise.resolve(sessions.map((row) => inboxHeartbeatOf(row)));
 }
 
 export async function inboxUserHeartbeatRows(
   ctx: Reader,
   userId: Id<"users">,
-  since?: number,
+  _since?: number,
 ) {
   const sessions = await ctx.db
     .query("managed_sessions")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
-  if (inboxLeaseWritesEnabled())
-    return { sessions, beats: await inboxHeartbeatsFor(ctx, sessions) };
-  if (sessions.length === 0) return { sessions, beats: [] };
-  const rows = await ctx.db
-    .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) => {
-      const range = q.eq("user_id", userId);
-      return since === undefined ? range : range.gt("heartbeat_at", since);
-    })
-    .collect();
-  const beats = new Map(
-    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
-  );
-  return {
-    sessions,
-    beats: sessions.map((session) =>
-      resolveHeartbeat(session, beats.get(session._id)),
-    ),
-  };
-}
-
-export function indexedInboxLivenessEnabled(): boolean {
-  return (
-    process.env.INBOX_INDEXED_LIVENESS === "1" && inboxLeaseWritesEnabled()
-  );
+  return { sessions, beats: await inboxHeartbeatsFor(ctx, sessions) };
 }
 
 export async function indexedInboxSessionRows(
@@ -174,14 +142,13 @@ export async function readCliWatchLiveness(
   children: readonly Pick<Doc<"conversations">, "_id" | "user_id">[],
   now: number,
 ) {
-  const leases = inboxLeaseWritesEnabled();
   const local = parents.filter((row) => row.user_id === userId);
   const visible = new Set(
     [...local, ...children.filter((row) => row.user_id === userId)].map(
       (row) => row._id,
     ),
   );
-  const [user, recent, leased, sideBeats] = await Promise.all([
+  const [user, recent, leased] = await Promise.all([
     db.get(userId),
     visible.size
       ? db
@@ -194,22 +161,11 @@ export async function readCliWatchLiveness(
           .order("desc")
           .take(WATCH_RECENT_ROWS)
       : [],
-    leases && visible.size
+    visible.size
       ? db
           .query("managed_sessions")
           .withIndex("by_user_inbox_lease_heartbeat", (q) =>
             q.eq("user_id", userId).eq("liveness_lease.expired", false),
-          )
-          .order("desc")
-          .take(WATCH_RECENT_ROWS)
-      : [],
-    !leases && visible.size
-      ? db
-          .query("session_heartbeats")
-          .withIndex("by_user_heartbeat", (q) =>
-            q
-              .eq("user_id", userId)
-              .gt("heartbeat_at", now - HEARTBEAT_ALIVE_MS),
           )
           .order("desc")
           .take(WATCH_RECENT_ROWS)
@@ -246,12 +202,7 @@ export async function readCliWatchLiveness(
   const sessions = [...managed.values()].sort(
     (a, b) => a._creationTime - b._creationTime || a._id.localeCompare(b._id),
   );
-  const beatsById = new Map(
-    sideBeats.map((row) => [row.managed_session_id, row.heartbeat_at]),
-  );
-  const beats = leases
-    ? await inboxHeartbeatsFor({ db }, sessions)
-    : sessions.map((row) => resolveHeartbeat(row, beatsById.get(row._id)));
+  const beats = await inboxHeartbeatsFor({ db }, sessions);
   return { sessions, beats, daemonLastSeen: user?.daemon_last_seen };
 }
 
@@ -349,12 +300,6 @@ export function conversationSessionsBeatingSince(
   conversationId: Id<"conversations">,
   since: number,
 ) {
-  if (!inboxLeaseWritesEnabled())
-    return ctx.db
-      .query("managed_sessions")
-      .withIndex("by_conversation_heartbeat", (q) =>
-        q.eq("conversation_id", conversationId).gt("last_heartbeat", since),
-      );
   return ctx.db
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q) =>

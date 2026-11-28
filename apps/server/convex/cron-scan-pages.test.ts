@@ -431,21 +431,12 @@ test("a bounded apply reaches the ready session past multiple busy pages", async
   }
 });
 
-test.each([
-  [true, true],
-  [true, false],
-  [false, true],
-  [false, false],
-] as const)(
-  "a pending apply carries real liveness across stale pages (leases %s, side heartbeat %s)",
-  async (useLeases, beat) => {
+test.each([true, false] as const)(
+  "a pending apply carries real liveness across stale pages (side heartbeat %s)",
+  async (beat) => {
     const bounded = "BOUNDED_PENDING_MESSAGE_SESSIONS";
-    const leases = "INBOX_LIVENESS_LEASES";
     const priorBounded = process.env[bounded];
-    const priorLeases = process.env[leases];
     process.env[bounded] = "1";
-    if (useLeases) process.env[leases] = "1";
-    else delete process.env[leases];
     const now = Date.now();
     const t = serverTest({ documentsRead: 68 });
     try {
@@ -500,8 +491,6 @@ test.each([
     } finally {
       if (priorBounded === undefined) delete process.env[bounded];
       else process.env[bounded] = priorBounded;
-      if (priorLeases === undefined) delete process.env[leases];
-      else process.env[leases] = priorLeases;
     }
   },
 );

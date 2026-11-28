@@ -37,22 +37,22 @@ const legacy = {
     state: { agent: "idle" },
   },
   queue: {
-    counts: [8, 4, 23],
+    counts: [10, 5, 24],
     jobs: [],
     state: { agent: "waiting", turns: ["queued"] },
   },
   "start turn": {
     counts: [21, 14, 33],
-    jobs: [...runJobs, drain],
+    jobs: [...runJobs, "managedSessions:checkInboxLivenessLease", drain],
     state: { agent: "working", turns: ["running"] },
   },
   promote: {
     counts: [17, 10, 26],
-    jobs: runJobs,
+    jobs: [...runJobs, "managedSessions:checkInboxLivenessLease"],
     state: { agent: "working", turns: ["running"] },
   },
   "budget stop": {
-    counts: [43, 22, 51],
+    counts: [45, 23, 52],
     jobs: [drain, "titleGeneration:generateTitle"],
     state: { agent: "idle", stop: "budget", turns: ["done"] },
   },
