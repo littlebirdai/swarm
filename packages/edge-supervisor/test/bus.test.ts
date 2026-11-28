@@ -312,7 +312,11 @@ it.effect("closing the bus fails waiting and later requests at once", () =>
     const result = yield* live(Fiber.join(waiting), "the waiting request");
     expect(result).toMatchObject({
       _tag: "Failure",
-      failure: { _tag: "BusUnavailableError", reason: "closed" },
+      failure: {
+        _tag: "BusUnavailableError",
+        kind: "edge.permits.next",
+        reason: "closed",
+      },
     });
     const later = yield* live(
       Effect.result(askPermits(bus, "later")),
@@ -390,4 +394,41 @@ it.effect(
       });
     }).pipe(Effect.provide(SupervisorBus.layer)),
   20_000,
+);
+
+it.effect(
+  "a request whose publish waits on a full bus fails as closed when the bus closes",
+  () =>
+    Effect.gen(function* () {
+      const scope = yield* Scope.make();
+      const context = yield* Layer.buildWithScope(SupervisorBus.layer, scope);
+      const bus = Context.get(context, SupervisorBus);
+      yield* bus.subscribe();
+      for (let index = 0; index < 1_024; index++) {
+        yield* bus.publish({
+          kind: "provider.receipt",
+          session: "session-1",
+          run: 1,
+          delivery_id: `delivery-${index}`,
+          provider_item_id: "item-1",
+          turn: "turn-1",
+        });
+      }
+      const blocked = yield* Effect.forkChild(
+        Effect.result(askPermits(bus, "blocked")),
+        { startImmediately: true },
+      );
+      yield* Effect.yieldNow;
+      expect(blocked.pollUnsafe()).toBeUndefined();
+      yield* Scope.close(scope, Exit.void);
+      const result = yield* live(Fiber.join(blocked), "the blocked request");
+      expect(result).toMatchObject({
+        _tag: "Failure",
+        failure: {
+          _tag: "BusUnavailableError",
+          kind: "edge.permits.next",
+          reason: "closed",
+        },
+      });
+    }),
 );

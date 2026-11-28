@@ -10,6 +10,7 @@ import {
   parseTakeoverAckResponse,
   type EdgeParseResult,
 } from "@codecast/edge-contract";
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import { TaggedError } from "effect/Data";
@@ -364,6 +365,7 @@ export class SupervisorBus extends Context.Service<
         );
 
       type Waiter = {
+        readonly requestKind: BusMessageKind;
         readonly responseKind: BusMessageKind;
         readonly match: (response: BusMessage) => boolean;
         readonly answer: Deferred.Deferred<BusMessage, BusUnavailableError>;
@@ -381,7 +383,7 @@ export class SupervisorBus extends Context.Service<
               Deferred.fail(
                 waiter.answer,
                 new BusUnavailableError({
-                  kind: waiter.responseKind,
+                  kind: waiter.requestKind,
                   reason: "closed",
                 }),
               ),
@@ -417,17 +419,17 @@ export class SupervisorBus extends Context.Service<
 
       const register = (requestId: string, waiter: Waiter) =>
         Effect.suspend((): Effect.Effect<Waiter, BusRequestError> => {
-          if (closed) return unavailable(waiter.responseKind, "closed");
+          if (closed) return unavailable(waiter.requestKind, "closed");
           if (waiters.has(requestId)) {
             return Effect.fail(
               new BusValidationError({
-                kind: waiter.responseKind,
+                kind: waiter.requestKind,
                 cause: new Error("Duplicate bus request id"),
               }),
             );
           }
           if (waiters.size >= MAX_WAITING_REQUESTS) {
-            return unavailable(waiter.responseKind, "overloaded");
+            return unavailable(waiter.requestKind, "overloaded");
           }
           waiters.set(requestId, waiter);
           return Effect.succeed(waiter);
@@ -458,6 +460,7 @@ export class SupervisorBus extends Context.Service<
         const requestId = sent.request_id;
         const answer = yield* Deferred.make<BusMessage, BusUnavailableError>();
         const waiter: Waiter = {
+          requestKind: kind,
           responseKind,
           match: (response) => match(response as BusMessageOf<R>),
           answer,
@@ -467,6 +470,12 @@ export class SupervisorBus extends Context.Service<
           () =>
             decode(sent).pipe(
               Effect.flatMap((validated) => PubSub.publish(pubsub, validated)),
+              Effect.catchCause(
+                (cause): Effect.Effect<boolean, BusRequestError> =>
+                  closed && Cause.hasInterruptsOnly(cause)
+                    ? unavailable(kind, "closed")
+                    : Effect.failCause(cause),
+              ),
               Effect.flatMap((published) =>
                 published
                   ? Deferred.await(answer)
