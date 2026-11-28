@@ -37,7 +37,11 @@ const MATRIX_KEYS = ["tasks", "docs", "plans", "projects"] as const;
 // a registry `feeds` entry: the list queries those hooks mount, plus the byIds
 // reads the sync log's applier falls back to (hooks/use-sync-change-feed.ts).
 const HOOK_FEEDS: Record<(typeof MATRIX_KEYS)[number], string[]> = {
-  tasks: ["tasks.webList", "tasks.webListPaginated", "tasks.webGetByIds"],
+  tasks: [
+    "taskWebList.webList",
+    "taskWebList.webListPaginated",
+    "taskWebList.webGetByIds",
+  ],
   docs: ["docs.webListPaginated", "docs.webGetByIds"],
   plans: ["plans.webGetByIds"],
   projects: ["projects.webList", "projects.webGetByIds"],
@@ -111,14 +115,14 @@ const byIdsArgs = (ids: Ids) => [
 ];
 
 const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
-  "tasks.webList": listArgs,
-  "tasks.webListPaginated": (ids) => paginated(listArgs(ids)),
+  "taskWebList.webList": listArgs,
+  "taskWebList.webListPaginated": (ids) => paginated(listArgs(ids)),
   "docs.webListPaginated": (ids) =>
     paginated(listArgs(ids).filter((a) => a.workspace !== "all")),
   "plans.webList": listArgs,
   "projects.webList": (ids) =>
     listArgs(ids).filter((a) => a.workspace !== "all"),
-  "tasks.webGetByIds": byIdsArgs,
+  "taskWebList.webGetByIds": byIdsArgs,
   "docs.webGetByIds": byIdsArgs,
   "plans.webGetByIds": byIdsArgs,
   "projects.webGetByIds": byIdsArgs,
@@ -176,7 +180,7 @@ const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
   ],
   // Mention indexes (useSyncMentionTasks/Docs/Plans): rows land in store.mentionIndex,
   // not a registry key, so FEED_TABLE names their table.
-  "tasks.webMentionList": listArgs,
+  "taskWebList.webMentionList": listArgs,
   "docs.webMentionList": listArgs,
   "plans.webMentionList": listArgs,
   // One standing per env a goal names, keyed workspace|env.
@@ -185,7 +189,7 @@ const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
 
 // Feeds outside the registry: the table whose seeded rows they return.
 const FEED_TABLE: Record<string, string> = {
-  "tasks.webMentionList": "tasks",
+  "taskWebList.webMentionList": "tasks",
   "docs.webMentionList": "docs",
   "plans.webMentionList": "plans",
 };

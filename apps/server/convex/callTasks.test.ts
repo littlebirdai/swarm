@@ -16,7 +16,16 @@ const TOKEN = "c".repeat(64);
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./transcripts.ts": () => import("./transcripts"),
   "./dispatch.ts": () => import("./dispatch"),
   "./teamFeatures.ts": () => import("./teamFeatures"),
@@ -117,7 +126,7 @@ async function seed() {
 
 test("a task filed from a call by its short id is listed on the call, and unlinks with ''", async () => {
   const { t, team, call, ana, as, task } = await seed();
-  const made = await t.mutation(api.tasks.create, {
+  const made = await t.mutation(api.taskCreate.create, {
     api_token: TOKEN,
     title: "Send Ana the deck",
     from_call: "cl-7",
@@ -133,7 +142,7 @@ test("a task filed from a call by its short id is listed on the call, and unlink
   });
   expect(read.tasks.map((x: any) => x.short_id)).toEqual([made.short_id]);
 
-  await as(String(ana)).mutation(api.tasks.webUpdate, {
+  await as(String(ana)).mutation(api.taskWebUpdate.webUpdate, {
     short_id: made.short_id,
     from_call: "",
   });
@@ -148,7 +157,7 @@ test("a task filed from a call by its short id is listed on the call, and unlink
   ).toEqual([]);
 
   // The call page links by the call's full id.
-  await as(String(ana)).mutation(api.tasks.webUpdate, {
+  await as(String(ana)).mutation(api.taskWebUpdate.webUpdate, {
     short_id: made.short_id,
     from_call: String(call),
   });
@@ -157,7 +166,7 @@ test("a task filed from a call by its short id is listed on the call, and unlink
 
 test("the web create files a task on the call; someone who cannot read the call cannot link it", async () => {
   const { team, call, ana, cat, as, task } = await seed();
-  const made = await as(String(ana)).mutation(api.tasks.webCreate, {
+  const made = await as(String(ana)).mutation(api.taskCreate.webCreate, {
     title: "Fix the login bug",
     from_call: String(call),
     workspace: "team",
@@ -166,7 +175,7 @@ test("the web create files a task on the call; someone who cannot read the call 
   expect((await task(made.short_id)).from_call).toBe(call);
 
   await expect(
-    as(String(cat)).mutation(api.tasks.webCreate, {
+    as(String(cat)).mutation(api.taskCreate.webCreate, {
       title: "Snoop",
       from_call: "cl-7",
     }),

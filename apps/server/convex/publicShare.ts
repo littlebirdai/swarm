@@ -38,7 +38,7 @@ import {
 } from "./lib/callRecordingRuns";
 import { stampRoomWordsPublic } from "./callRooms";
 import { postEvent } from "./callChat";
-import { assigneeNamesFor } from "./tasks";
+import { assigneeNamesFor } from "./lib/taskAssignees";
 import { userMayRead } from "./sessionDecisions";
 import { canReadStack } from "./decisionStacks";
 import { canViewTask } from "./agentTasks";

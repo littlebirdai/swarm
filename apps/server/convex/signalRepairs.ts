@@ -3,7 +3,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import { evidenceAt, momentEvidence, retireOnClose } from "./findingGroups";
 
 const noteOn = (ctx: any, taskId: Id<"tasks">, text: string) =>

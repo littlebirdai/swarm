@@ -308,10 +308,12 @@ export async function setup(seeds: Seeds) {
     remove: (
       args: Omit<FunctionArgs<typeof api.taskWaits.removeWait>, "api_token">,
     ) => t.mutation(api.taskWaits.removeWait, { api_token: TOKEN, ...args }),
-    create: (args: Omit<FunctionArgs<typeof api.tasks.create>, "api_token">) =>
-      t.mutation(api.tasks.create, { api_token: TOKEN, ...args }),
-    update: (args: Omit<FunctionArgs<typeof api.tasks.update>, "api_token">) =>
-      t.mutation(api.tasks.update, { api_token: TOKEN, ...args }),
+    create: (
+      args: Omit<FunctionArgs<typeof api.taskCreate.create>, "api_token">,
+    ) => t.mutation(api.taskCreate.create, { api_token: TOKEN, ...args }),
+    update: (
+      args: Omit<FunctionArgs<typeof api.taskUpdate.update>, "api_token">,
+    ) => t.mutation(api.taskUpdate.update, { api_token: TOKEN, ...args }),
     comments: async (shortId: string) =>
       (await read("task_comments"))
         .filter((comment) => comment.task_id === id(shortId))

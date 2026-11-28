@@ -44,7 +44,7 @@ import { waitTargetValidator } from "./lib/taskWaitValidator";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { ExecutionAuthorityError } from "./executionBindings";
 import { emitNotification } from "./notificationRouter";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import {
   answerLabel,
   userMayRead,

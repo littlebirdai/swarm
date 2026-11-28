@@ -8,7 +8,7 @@ import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { TASK_LEASE_MS } from "./lib/claims";
-import { addDepCore, removeDepCore, type DepEdge } from "./tasks";
+import { addDepCore, removeDepCore, type DepEdge } from "./lib/taskDeps";
 
 const TOKEN = "dep-test-token";
 
@@ -64,7 +64,7 @@ async function setup(
 }
 
 const remove = (t: ServerTest, args: DepEdge & { conversation_id?: string }) =>
-  t.mutation(api.tasks.removeDep, { api_token: TOKEN, ...args });
+  t.mutation(api.taskDeps.removeDep, { api_token: TOKEN, ...args });
 
 describe("removeDep", () => {
   test("--remove-blocked-by clears the edge on both sides and unblocks the task", async () => {
@@ -251,7 +251,7 @@ describe("removeDep", () => {
       { short_id: "ct-1" },
       { short_id: "ct-2" },
     ]);
-    await t.mutation(api.tasks.addDep, {
+    await t.mutation(api.taskDeps.addDep, {
       api_token: TOKEN,
       short_id: "ct-2",
       blocked_by: "ct-1",

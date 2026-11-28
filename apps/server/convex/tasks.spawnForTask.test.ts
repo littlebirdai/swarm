@@ -166,7 +166,7 @@ describe("worktreeNameFor", () => {
 describe("spawnSessionForTaskInternal", () => {
   test("isolation, device and definition ride the start_session row", async () => {
     const { t, task, owner } = await setup();
-    await t.mutation(internal.tasks.spawnSessionForTaskInternal, {
+    await t.mutation(internal.taskSpawn.spawnSessionForTaskInternal, {
       task_id: task,
       user_id: owner,
       isolated: true,
@@ -183,7 +183,7 @@ describe("spawnSessionForTaskInternal", () => {
 
   test("with no options the row carries none, as before", async () => {
     const { t, task, owner } = await setup();
-    await t.mutation(internal.tasks.spawnSessionForTaskInternal, {
+    await t.mutation(internal.taskSpawn.spawnSessionForTaskInternal, {
       task_id: task,
       user_id: owner,
     });
@@ -195,7 +195,7 @@ describe("spawnSessionForTaskInternal", () => {
 
   test("an explicit worktree name wins over the identifier", async () => {
     const { t, task, owner } = await setup();
-    await t.mutation(internal.tasks.spawnSessionForTaskInternal, {
+    await t.mutation(internal.taskSpawn.spawnSessionForTaskInternal, {
       task_id: task,
       user_id: owner,
       isolated: true,
@@ -207,7 +207,7 @@ describe("spawnSessionForTaskInternal", () => {
   test("an unknown definition starts nothing and leaves one note, however often it is retried", async () => {
     const { t, task, owner } = await setup();
     const run = () =>
-      t.mutation(internal.tasks.spawnSessionForTaskInternal, {
+      t.mutation(internal.taskSpawn.spawnSessionForTaskInternal, {
         task_id: task,
         user_id: owner,
         isolated: true,
@@ -230,7 +230,7 @@ describe("spawnSessionForTaskInternal", () => {
 describe("spawnForTask", () => {
   test("--device resolves a name of the caller's own devices", async () => {
     const { t } = await setup();
-    await t.mutation(api.tasks.spawnForTask, {
+    await t.mutation(api.taskSpawn.spawnForTask, {
       api_token: TOKEN,
       short_id: "ct-1",
       device: "Linux - box",
@@ -263,7 +263,7 @@ describe("spawnForTask", () => {
         cloud_host: { managed_by: "laptop", state: "stopped", at: T0 },
       } as any);
     });
-    await t.mutation(api.tasks.spawnForTask, {
+    await t.mutation(api.taskSpawn.spawnForTask, {
       api_token: TOKEN,
       short_id: "ct-1",
       device: "Cloud Linux",
@@ -277,7 +277,7 @@ describe("spawnForTask", () => {
   test("a team machine is refused, naming it", async () => {
     const { t } = await setup();
     await expect(
-      t.mutation(api.tasks.spawnForTask, {
+      t.mutation(api.taskSpawn.spawnForTask, {
         api_token: TOKEN,
         short_id: "ct-1",
         device: "dev_team_box",
@@ -289,7 +289,7 @@ describe("spawnForTask", () => {
   test("an unknown device is refused", async () => {
     const { t } = await setup();
     await expect(
-      t.mutation(api.tasks.spawnForTask, {
+      t.mutation(api.taskSpawn.spawnForTask, {
         api_token: TOKEN,
         short_id: "ct-1",
         device: "nowhere",
@@ -300,7 +300,7 @@ describe("spawnForTask", () => {
   test("an unknown definition is refused", async () => {
     const { t } = await setup();
     await expect(
-      t.mutation(api.tasks.spawnForTask, {
+      t.mutation(api.taskSpawn.spawnForTask, {
         api_token: TOKEN,
         short_id: "ct-1",
         definition: "gone",
@@ -338,7 +338,7 @@ describe("launch precedence", () => {
     await t.run((ctx) =>
       ctx.db.patch(task, { model: "sonnet", effort: "high" } as any),
     );
-    await t.mutation(api.tasks.spawnForTask, {
+    await t.mutation(api.taskSpawn.spawnForTask, {
       api_token: TOKEN,
       short_id: "ct-1",
       definition: "pinned",
@@ -354,7 +354,7 @@ describe("launch precedence", () => {
       agent: "claude",
       model: "opus",
     });
-    await t.mutation(api.tasks.spawnForTask, {
+    await t.mutation(api.taskSpawn.spawnForTask, {
       api_token: TOKEN,
       short_id: "ct-1",
       definition: "claudey",
@@ -368,7 +368,7 @@ describe("launch precedence", () => {
   test("a definition with isolated true isolates the spawn and names the worktree", async () => {
     const { t, owner } = await setup();
     await addDefinition(t, owner, "iso", { isolated: true });
-    await t.mutation(api.tasks.spawnForTask, {
+    await t.mutation(api.taskSpawn.spawnForTask, {
       api_token: TOKEN,
       short_id: "ct-1",
       definition: "iso",

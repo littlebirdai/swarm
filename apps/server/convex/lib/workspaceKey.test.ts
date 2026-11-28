@@ -281,18 +281,26 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
       );
     }
   });
-  test("source-level: tasks.ts lists by the access layer's evaluators and takes a role's boundary from the workspace key, never team_id", () => {
+  test("source-level: taskList.ts and taskAssignees.ts list by the access layer's evaluators and take a role's boundary from the workspace key, never team_id", () => {
     // The task list once filtered the global assignee index with
     // `t.team_id && memberTeamIds.has(t.team_id)`, and the boundary a role must
     // be inside came from `task.team_id`, so a task routed to a team but
     // readable by its owner only reached a team role and its teammates.
-    const src = readFileSync(join(import.meta.dir, "..", "tasks.ts"), "utf8");
-    expect(src.includes("memberTeamIds")).toBe(false);
-    const start = src.indexOf("export async function boundaryOfTask(");
+    const listSrc = readFileSync(
+      join(import.meta.dir, "..", "taskList.ts"),
+      "utf8",
+    );
+    const assigneesSrc = readFileSync(
+      join(import.meta.dir, "taskAssignees.ts"),
+      "utf8",
+    );
+    expect(listSrc.includes("memberTeamIds")).toBe(false);
+    expect(assigneesSrc.includes("memberTeamIds")).toBe(false);
+    const start = assigneesSrc.indexOf("export async function boundaryOfTask(");
     expect(start).toBeGreaterThan(-1);
-    const body = src.slice(
-      src.indexOf("{\n", start),
-      src.indexOf("\n}\n", start),
+    const body = assigneesSrc.slice(
+      assigneesSrc.indexOf("{\n", start),
+      assigneesSrc.indexOf("\n}\n", start),
     );
     expect(
       body.includes("team_id"),
@@ -300,8 +308,11 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
     ).toBe(false);
     expect(body.includes("resolveWorkspaceKey")).toBe(true);
     // The list's access filter goes through the layer's own evaluators.
-    const listStart = src.indexOf("if (needsAccessFilter) {");
-    const listBody = src.slice(listStart, src.indexOf("\n  }\n", listStart));
+    const listStart = listSrc.indexOf("if (needsAccessFilter) {");
+    const listBody = listSrc.slice(
+      listStart,
+      listSrc.indexOf("\n  }\n", listStart),
+    );
     expect(listBody).toMatch(
       /authorizedFor\(\s*accessStampFromDoc\("tasks", t\)/,
     );

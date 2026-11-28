@@ -29,13 +29,16 @@ async function stamp(
 describe("create: creator enrollment follows task origin", () => {
   test("a CLI create with no source is human origin, so the creator is human", async () => {
     const world = await setup();
-    await world.t.mutation(api.tasks.create, { api_token: TOKEN, title: "t" });
+    await world.t.mutation(api.taskCreate.create, {
+      api_token: TOKEN,
+      title: "t",
+    });
     expect(await stamp(world, "creator")).toEqual(["human"]);
   });
 
   test("an agent-origin create enrolls its owner as an agent act", async () => {
     const world = await setup();
-    await world.t.mutation(api.tasks.create, {
+    await world.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "t",
       source: "agent",
@@ -46,14 +49,14 @@ describe("create: creator enrollment follows task origin", () => {
 
   test("meeting origin and promotion both count as a person deciding", async () => {
     const a = await setup();
-    await a.t.mutation(api.tasks.create, {
+    await a.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "t",
       source: "meeting",
     });
     expect(await stamp(a, "creator")).toEqual(["human"]);
     const b = await setup();
-    await b.t.mutation(api.tasks.create, {
+    await b.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "t",
       source: "agent",
@@ -64,7 +67,7 @@ describe("create: creator enrollment follows task origin", () => {
 
   test("assignee at create carries the actor's kind, not the task origin", async () => {
     const world = await setup();
-    await world.t.mutation(api.tasks.create, {
+    await world.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "t",
       source: "agent",
@@ -73,7 +76,7 @@ describe("create: creator enrollment follows task origin", () => {
     });
     expect(await stamp(world, "assignee", world.bob)).toEqual(["agent"]);
     const byHand = await setup();
-    await byHand.t.mutation(api.tasks.create, {
+    await byHand.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "t",
       source: "agent",
@@ -86,7 +89,7 @@ describe("create: creator enrollment follows task origin", () => {
 describe("CLI update, comment, batchAssign", () => {
   test("update assignee: a session call is agent, a terminal call is human", async () => {
     const a = await setup("ct-1");
-    await a.t.mutation(api.tasks.update, {
+    await a.t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       assignee: "bob",
@@ -94,7 +97,7 @@ describe("CLI update, comment, batchAssign", () => {
     });
     expect(await stamp(a, "assignee", a.bob)).toEqual(["agent"]);
     const b = await setup("ct-1");
-    await b.t.mutation(api.tasks.update, {
+    await b.t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       assignee: "bob",
@@ -104,7 +107,7 @@ describe("CLI update, comment, batchAssign", () => {
 
   test("addComment: conversation_id marks the commenter as an agent act", async () => {
     const a = await setup("ct-1");
-    await a.t.mutation(api.tasks.addComment, {
+    await a.t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "x",
@@ -112,7 +115,7 @@ describe("CLI update, comment, batchAssign", () => {
     });
     expect(await stamp(a, "commenter")).toEqual(["agent"]);
     const b = await setup("ct-1");
-    await b.t.mutation(api.tasks.addComment, {
+    await b.t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "x",
@@ -122,7 +125,7 @@ describe("CLI update, comment, batchAssign", () => {
 
   test("batchAssign is a person at the terminal", async () => {
     const world = await setup("ct-1", "ct-2");
-    await world.t.mutation(api.tasks.batchAssign, {
+    await world.t.mutation(api.taskExecution.batchAssign, {
       api_token: TOKEN,
       short_ids: ["ct-1", "ct-2"],
       assignee: "bob",
@@ -137,7 +140,7 @@ describe("CLI update, comment, batchAssign", () => {
 describe("web mutations are human acts", () => {
   test("webAddComment stamps human", async () => {
     const world = await setup("ct-1");
-    await world.web.mutation(api.tasks.webAddComment, {
+    await world.web.mutation(api.taskComments.webAddComment, {
       short_id: "ct-1",
       text: "hi",
     });
@@ -146,7 +149,7 @@ describe("web mutations are human acts", () => {
 
   test("webUpdate assignee stamps human for the assignee", async () => {
     const world = await setup("ct-1");
-    await world.web.mutation(api.tasks.webUpdate, {
+    await world.web.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       assignee: world.bob,
     });

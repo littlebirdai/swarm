@@ -44,7 +44,9 @@ import { parseWorkspaceKey } from "./lib/accessKeys";
 import { notFound } from "./lib/auth";
 import { liveRoleByHandle } from "./lib/orgAccess";
 import { nextShortId } from "./counters";
-import { addDepCore, insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { addDepCore } from "./lib/taskDeps";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import {
   MOVE_TALLY_WINDOW_MS,
   addMove,

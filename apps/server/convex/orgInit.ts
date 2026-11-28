@@ -169,7 +169,9 @@ import { roleWakeOf } from "@codecast/org/rolePlaybook";
 import { roleRoutineFor } from "./lib/orgRoutine";
 import { insertTask } from "./agentTasks";
 import { charterPatch } from "./lib/orgCharter";
-import { handTask, recalcPlanProgress, resolveStatusWrite } from "./tasks";
+import { resolveStatusWrite } from "./lib/taskStatuses";
+import { recalcPlanProgress } from "./lib/taskSubtasks";
+import { handTask } from "./lib/taskTransitions";
 import { afterStatusEdges } from "./taskLinks";
 import { mintProjectShortId } from "./lib/projectShortId";
 

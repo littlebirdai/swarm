@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { spawnSessionForTask, snippet } from "./tasks";
+import { spawnSessionForTask } from "./taskSpawn";
+import { snippet } from "./taskReads";
 import { expandMentions } from "./docs";
 import { buildShortTitlePrompt } from "./titleGeneration";
 import { hashToken } from "./apiTokens";

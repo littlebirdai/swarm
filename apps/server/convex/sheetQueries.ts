@@ -17,7 +17,7 @@ import {
 } from "./lib/access";
 import { createDataContext } from "./data";
 import { isConversationTeamVisible, teamVisibleConvTeam } from "./privacy";
-import { assigneeNamesFor } from "./tasks";
+import { assigneeNamesFor } from "./lib/taskAssignees";
 import { readLiveElements } from "./liveArtifacts";
 import { applyBatchCore } from "./lib/liveArtifactWrite";
 import {

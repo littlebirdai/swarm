@@ -12,8 +12,8 @@ import { makeFakeDb } from "./testDb";
 import {
   webList as webTaskList,
   webListPaginated as webTaskListPaginated,
-  webCreate as webTaskCreate,
-} from "./tasks";
+} from "./taskWebList";
+import { webCreate as webTaskCreate } from "./taskCreate";
 import { webList as webPlanList } from "./plans";
 import {
   webList as webDocList,

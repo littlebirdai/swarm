@@ -14,18 +14,21 @@ import {
 import {
   webList as webTaskList,
   webMentionList as webTaskMentionList,
+} from "./taskWebList";
+import {
   webPromote as webTaskPromote,
-  getReadyTasks,
-  getDependencyChain,
-  webCreate as webTaskCreate,
   webUpdate as webTaskUpdate,
-  webGet as webTaskGet,
-  update as updateTaskForCLI,
+} from "./taskWebUpdate";
+import { getReadyTasks, getDependencyChain } from "./taskList";
+import {
+  webCreate as webTaskCreate,
   create as createTaskForCLI,
-  addDep,
-  addComment as addTaskComment,
-  recalcPlanProgress,
-} from "./tasks";
+} from "./taskCreate";
+import { webGet as webTaskGet } from "./taskReads";
+import { update as updateTaskForCLI } from "./taskUpdate";
+import { addDep } from "./taskDeps";
+import { addComment as addTaskComment } from "./taskComments";
+import { recalcPlanProgress } from "./lib/taskSubtasks";
 import { hashToken } from "./apiTokens";
 import { feedForCLI } from "./cliFeed";
 import { searchForCLI } from "./cliSearch";

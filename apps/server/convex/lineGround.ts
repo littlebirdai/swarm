@@ -23,7 +23,7 @@ import { runModelCall, type CallScope } from "./modelCalls";
 import { patchTask } from "./lib/taskWrite";
 import { predictionPatch } from "./predictions";
 import { budgetHasRoom } from "./lib/teamBudget";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import { causeBrief } from "./goals";
 export { causeBrief };
 import { isPlaced } from "./lib/signalPlacement";

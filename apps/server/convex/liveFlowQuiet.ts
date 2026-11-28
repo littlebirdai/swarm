@@ -11,7 +11,8 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./functions";
 import { barWords, clearsBar, type FlowBar } from "./lib/linePriority";
 import { retireOnClose } from "./findingGroups";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 
 const DAY_MS = 86_400_000;
 /** Problems one call reads; a pass schedules its next page itself. */

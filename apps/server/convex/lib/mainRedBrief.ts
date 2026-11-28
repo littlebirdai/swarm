@@ -8,7 +8,7 @@ import { commitRecordedBy, conversationFromSessionTrailer } from "./gitRefs";
 import { scheduleTriggerMatch } from "./triggerMatch";
 import { recordExternalEventOnce } from "../externalEvents";
 import { enqueuePendingMessage } from "../pendingMessages";
-import { createTaskAs } from "../tasks";
+import { createTaskAs } from "../taskCreate";
 import { commitBySha } from "../deployTargetsState";
 import { formatSessionMessage } from "@codecast/messages/machineMessages";
 import { mainRedBrief } from "@codecast/line/mainRed";

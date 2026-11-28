@@ -380,7 +380,7 @@ export const route = action({
     // Assigning a role tells its standing session (announceAssignment); the
     // routing note rides on that one notice rather than a second wake.
     const created: { id: string; short_id: string } = await ctx.runMutation(
-      api.tasks.create,
+      api.taskCreate.create,
       {
         api_token: args.api_token,
         title,

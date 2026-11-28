@@ -22,7 +22,8 @@ import {
   standsAsEvidence,
 } from "./findingGroups";
 import type { Doc, Id } from "./_generated/dataModel";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import { refreshCauseDescription } from "./signals";
 import { latestExpectations } from "./lib/expectationsApply";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";

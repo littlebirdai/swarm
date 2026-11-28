@@ -39,17 +39,21 @@ export async function maybeDelegate(
   )
     return;
 
-  await ctx.scheduler.runAfter(0, internal.tasks.spawnSessionForTaskInternal, {
-    task_id: task._id,
-    user_id: source.user_id,
-    isolated: source.spawn_isolated !== false,
-    target_device_id: source.spawn_device || undefined,
-    definition: source.spawn_definition || undefined,
-    // Why: this is the one spawn with no human in the loop — a labelled issue
-    // launches an agent by itself — and identifier/url come from the provider,
-    // so they are escaped before they lead the prompt (ct-49559).
-    initial_message: `Picked up from ${inlineForeignText(issue.identifier)}: ${inlineForeignText(issue.url)}`,
-  });
+  await ctx.scheduler.runAfter(
+    0,
+    internal.taskSpawn.spawnSessionForTaskInternal,
+    {
+      task_id: task._id,
+      user_id: source.user_id,
+      isolated: source.spawn_isolated !== false,
+      target_device_id: source.spawn_device || undefined,
+      definition: source.spawn_definition || undefined,
+      // Why: this is the one spawn with no human in the loop — a labelled issue
+      // launches an agent by itself — and identifier/url come from the provider,
+      // so they are escaped before they lead the prompt (ct-49559).
+      initial_message: `Picked up from ${inlineForeignText(issue.identifier)}: ${inlineForeignText(issue.url)}`,
+    },
+  );
 }
 
 /** S8: one feed row per inbound event, deduped so retries do not stack. */

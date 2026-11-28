@@ -10,7 +10,7 @@
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { resolveAssigneeToUserId, roleAssigneeOf } from "./tasks";
+import { resolveAssigneeToUserId, roleAssigneeOf } from "./lib/taskAssignees";
 import { roleRunner } from "./lib/seatPlace";
 
 const LINE_SENDER = "The flow";

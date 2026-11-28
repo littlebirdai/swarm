@@ -134,7 +134,7 @@ for (const kind of ["anchor", "task", "user"] as const) {
         return result.conversation_id!;
       }
       if (kind === "task") {
-        const result = await viewer.mutation(api.tasks.assignToAgent, {
+        const result = await viewer.mutation(api.taskSpawn.assignToAgent, {
           short_id: "ct-trace",
           agent_type: "claude_code",
         });

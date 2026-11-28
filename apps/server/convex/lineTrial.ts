@@ -116,7 +116,8 @@ import {
 } from "./lib/problemEvidence";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { failedAtStation } from "@codecast/line/causeHistory";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import {
   newLineMemo,
   problemSuperseded,

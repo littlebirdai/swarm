@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveStatusWrite } from "./tasks";
+import { resolveStatusWrite } from "./lib/taskStatuses";
 import { makeFakeDb } from "./testDb";
 
 // Per-team task statuses (Linear-style). resolveStatusWrite is the ONE rule

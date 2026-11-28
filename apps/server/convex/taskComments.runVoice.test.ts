@@ -97,7 +97,7 @@ async function setup() {
     return { jason, ashot, taskId, runSession, session };
   });
   const comment = (args: Record<string, unknown>) =>
-    t.mutation(api.tasks.addComment, {
+    t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-85594",
       ...args,

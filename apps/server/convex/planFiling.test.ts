@@ -44,7 +44,7 @@ async function setup() {
     project_id: p1,
   });
   const create = (title: string, extra: Record<string, any> = {}) =>
-    t.mutation(api.tasks.create, { api_token: TOKEN, title, ...extra });
+    t.mutation(api.taskCreate.create, { api_token: TOKEN, title, ...extra });
   const projectOf = (id: string) =>
     t.run(
       async (ctx) => ((await ctx.db.get(id as any)) as any)?.project_id ?? null,
@@ -69,12 +69,12 @@ test("a task moved into a plan takes its project unless it has one", async () =>
   const { t, plan, p1, p3, create, projectOf } = await setup();
   const bare = await create("Bare");
   const filed = await create("Filed", { project_id: p3 });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: bare.short_id,
     plan_id: plan.short_id,
   });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: filed.short_id,
     plan_id: plan.short_id,
@@ -93,12 +93,12 @@ test("a task moved to another plan follows it when it followed the old plan", as
   const following = await create("Follows", { plan_id: plan.short_id });
   const own = await create("Own", { plan_id: plan.short_id, project_id: p3 });
   expect(await projectOf(following.id)).toBe(p1);
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: following.short_id,
     plan_id: other.short_id,
   });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: own.short_id,
     plan_id: other.short_id,
@@ -115,7 +115,7 @@ test("refiling a plan moves its open tasks that followed it, and leaves the rest
     project_id: p3,
   });
   const closed = await create("Done", { plan_id: plan.short_id });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: closed.short_id,
     status: "done",
@@ -149,7 +149,7 @@ test("the backfill counts per workspace when dry and fills open plan tasks when 
   const b = await create("B", { plan_id: plan.short_id });
   const own = await create("Own", { plan_id: plan.short_id, project_id: p3 });
   const closed = await create("Closed", { plan_id: plan.short_id });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: closed.short_id,
     status: "done",

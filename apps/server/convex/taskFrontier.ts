@@ -21,12 +21,8 @@ import { verifyApiToken } from "./apiTokens";
 import { canAccessTask, resolveSessionConversation } from "./lib/access";
 import { taskClaimError } from "./lib/taskClaims";
 import { readinessLookups } from "./lib/taskGraph";
-import {
-  assigneeNamesFor,
-  heldError,
-  holdingDecisionFor,
-  roleOf,
-} from "./tasks";
+import { assigneeNamesFor, roleOf } from "./lib/taskAssignees";
+import { heldError, holdingDecisionFor } from "./lib/taskTransitions";
 import { isStaleTask, STALE_TASK_WORDS } from "@codecast/tasks/frontier";
 import { notReadyLabel, readinessOf } from "@codecast/tasks/graph";
 
@@ -169,7 +165,7 @@ export const claimCandidates = internalQuery({
     const auth = await verifyApiToken(ctx, api_token, false);
     if (!auth) throw new Error("Unauthorized");
     const claimant = await claimantOf(ctx, auth.userId, conversation_id);
-    const frontier = await ctx.runQuery(api.tasks.list, {
+    const frontier = await ctx.runQuery(api.taskList.list, {
       api_token,
       ...filters,
       ...(conversation_id ? { conversation_id } : {}),
@@ -241,7 +237,7 @@ export const claimNextReady = internalMutation({
         continue;
       }
       try {
-        const started = await ctx.runMutation(api.tasks.update, {
+        const started = await ctx.runMutation(api.taskUpdate.update, {
           api_token: args.api_token,
           short_id: task.short_id,
           status: "in_progress",

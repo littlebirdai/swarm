@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import { internalMutation } from "./functions";
 import { clearClaim, findClaim } from "./lib/claims";
 import { releaseBoundSessions } from "./lib/taskOwner";
-import { moveTaskStatus } from "./tasks";
+import { moveTaskStatus } from "./lib/taskTransitions";
 
 export const expire = internalMutation({
   args: {

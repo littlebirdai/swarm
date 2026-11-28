@@ -31,7 +31,7 @@ describe("tasks.update self-assign guard", () => {
     const route = emit as typeof emit & { _handler: typeof emitNotification };
     const routed = spyOn(route, "_handler");
     try {
-      await t.mutation(api.tasks.update, {
+      await t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         status: "in_progress",
@@ -54,7 +54,7 @@ describe("tasks.update self-assign guard", () => {
 
   test("assigning someone else still notifies and enrolls them", async () => {
     const { t, bob, assignments, subscriptions } = await setup();
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       assignee: "bob",
@@ -71,7 +71,7 @@ describe("tasks.update self-assign guard", () => {
 
   test("an agent claim (session binding, no assignee) leaves assignee unset", async () => {
     const { t, readTask, assignments } = await setup();
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",

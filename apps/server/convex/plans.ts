@@ -47,7 +47,7 @@ import {
   liveConversationIdSet,
 } from "./lib/liveSessions";
 import { graphOutside, sortGraphRefs, stampGraphStatus } from "./lib/taskGraph";
-import { patchDepMirror } from "./tasks";
+import { patchDepMirror } from "./lib/taskDeps";
 import { isTeamMember, teamVisibleConvTeam } from "./privacy";
 import { linkConversationToEntityBestEffort } from "./conversationLinks";
 import {

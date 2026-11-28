@@ -24,7 +24,16 @@ const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./signals.ts": () => import("./signals"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
 };
 
@@ -84,7 +93,7 @@ describe("watch (LE12)", () => {
   test("--watch-days sets watch_until on the cause; 0 ends the watch", async () => {
     const { t, task } = await setup();
     const before = Date.now();
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-7",
       watch_days: 7,
@@ -92,14 +101,14 @@ describe("watch (LE12)", () => {
     const watched = await task();
     expect(watched.watch_until).toBeGreaterThanOrEqual(before + 7 * DAY);
     expect(watched.watch_until).toBeLessThanOrEqual(Date.now() + 7 * DAY);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-7",
       watch_days: 0,
     });
     expect((await task()).watch_until).toBeUndefined();
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-7",
         watch_days: -1,

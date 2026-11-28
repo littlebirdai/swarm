@@ -185,24 +185,24 @@ describe("edges across workspaces", () => {
     ]);
     await c.join("team_t");
     await expect(
-      c.t.mutation(api.tasks.update, {
+      c.t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         parent: "ct-5",
       }),
     ).rejects.toThrow(/another workspace/);
     await expect(
-      c.actor.mutation(api.tasks.webUpdate, {
+      c.actor.mutation(api.taskWebUpdate.webUpdate, {
         short_id: "ct-2",
         parent: "ct-5",
       }),
     ).rejects.toThrow(/another workspace/);
-    await c.t.mutation(api.tasks.update, {
+    await c.t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       parent: "ct-6",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-2",
       parent: "ct-6",
     });

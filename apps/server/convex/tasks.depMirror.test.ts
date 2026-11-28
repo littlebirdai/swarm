@@ -37,7 +37,7 @@ describe("create dependency mirror", () => {
       { short_id: "ct-12" },
       { short_id: "ct-13", workspace: undefined },
     ]);
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "New task",
       blocked_by: ["ct-12", "ct-13"],
@@ -52,7 +52,7 @@ describe("create dependency mirror", () => {
 
   test("an unresolvable reference is skipped, not a failure", async () => {
     const t = await setup([{ short_id: "ct-12" }]);
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "New task",
       blocked_by: ["ct-99", "ct-12"],
@@ -68,7 +68,7 @@ describe("update dependency mirror", () => {
       { short_id: "ct-12", blocks: ["ct-11"] },
       { short_id: "ct-13" },
     ]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-11",
       blocked_by: ["ct-13"],
@@ -84,7 +84,7 @@ describe("update dependency mirror", () => {
       { short_id: "ct-12", blocks: ["ct-11"] },
       { short_id: "ct-14" },
     ]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-12",
       blocks: ["ct-14"],
@@ -100,7 +100,7 @@ describe("update dependency mirror", () => {
       { short_id: "ct-12", blocks: ["ct-11"] },
       { short_id: "ct-13" },
     ]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-11",
       blocked_by: ["ct-12", "ct-13"],
@@ -121,7 +121,7 @@ describe("update dependency mirror", () => {
     await t.run(({ db }) =>
       db.patch(source._id, { blocked_by: [blocker._id] }),
     );
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-11",
       blocked_by: ["ct-12"],
@@ -138,7 +138,7 @@ describe("update dependency mirror", () => {
       await rows.task(await rows.user(), { short_id: "ct-24", blocks: [] });
     });
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-11",
         blocked_by: ["ct-24"],

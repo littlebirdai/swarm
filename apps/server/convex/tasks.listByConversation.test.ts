@@ -12,7 +12,7 @@
 // touches does not grow with how many tasks the caller owns.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { webListByConversation } from "./tasks";
+import { webListByConversation } from "./taskReads";
 
 const OWNER = "users_owner";
 const CONV = "conversations_target";
