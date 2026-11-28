@@ -24,6 +24,9 @@ const GUARDED = [
   ...readdirSync(join(storeDir, "persistence"))
     .filter((file) => file.endsWith(".ts"))
     .map((file) => `persistence/${file}`),
+  ...readdirSync(join(storeDir, "slices"))
+    .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+    .map((file) => `slices/${file}`),
 ];
 
 /** Module specifiers that carry eval data or its types. */

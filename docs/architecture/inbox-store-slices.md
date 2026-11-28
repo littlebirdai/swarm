@@ -31,6 +31,6 @@ In `apps/web/store/inboxStore.ts`:
 2. Extend `InboxStoreState` with `<Domain>Slice`, and add `keyof <Domain>Slice` to the `Omit<RegisteredCollectionSlots, ...>` clause if the slice narrows any key from `apps/web/store/clientSyncRegistry.ts`.
 3. Spread `...create<Domain>Slice(set)` (or `(set, get)`) inside `inboxStoreConfig`, keeping the `storeHmr` markers in `apps/web/plugins/storeHmr.ts` intact.
 4. Do not add re-export shims for moved internal helpers. Update any caller or guard test to import from the slice directly.
-5. Lower the line pin for `apps/web/store/inboxStore.ts` in `packages/ratchet/max-lines-baseline.txt` to match the new line count.
+5. Lower the line pin for `apps/web/store/inboxStore.ts` in `packages/ratchet/max-lines-baseline.txt` to the new line count, rounded up to the next multiple of 50. The max-lines guard pins in steps of 50 lines.
 
 `apps/web/store/slices/calls-slice.ts` is the reference implementation of this pattern.
