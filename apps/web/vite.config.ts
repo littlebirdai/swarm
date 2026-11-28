@@ -35,9 +35,7 @@ import {
   NAVIGATION_ROUTE,
 } from "./vite.pwa";
 
-const appShell = precacheScope({
-  includeWorkers: process.env.VITE_SQLITE_CACHE === "1",
-});
+const appShell = precacheScope();
 
 /**
  * Build identity for drivers (window.__CODECAST_BUILD) and for the running app
@@ -84,9 +82,6 @@ export default defineConfig(({ mode, command }) => ({
     ),
     "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
       process.env.VITE_CACHE_EVICTION_METADATA ?? "",
-    ),
-    "process.env.VITE_SQLITE_CACHE": JSON.stringify(
-      process.env.VITE_SQLITE_CACHE ?? "",
     ),
   },
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its
@@ -242,8 +237,7 @@ export default defineConfig(({ mode, command }) => ({
   ],
   resolve: sharedResolve,
   worker: {
-    plugins: () =>
-      process.env.VITE_SQLITE_CACHE === "1" ? [appShell.workerPlugin] : [],
+    plugins: () => [appShell.workerPlugin],
   },
   // Dev only: the same plugins as postcss.config.mjs, with Tailwind built in a
   // worker so a slow rebuild never blocks the server's thread. Production

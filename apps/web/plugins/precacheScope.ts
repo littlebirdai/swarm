@@ -80,7 +80,7 @@ type ManifestEntry = { url: string; revision: string | null; size: number };
  * the bundle's asset directory (index.html, icons, mod-host) are left to the
  * glob patterns (vite.pwa.ts).
  */
-export function precacheScope(options?: { includeWorkers?: boolean }): {
+export function precacheScope(): {
   plugin: Plugin;
   workerPlugin: Plugin;
   manifestTransform: (
@@ -91,7 +91,6 @@ export function precacheScope(options?: { includeWorkers?: boolean }): {
   const workerKeep = new Set<string>();
   let assetsDir = "assets";
   const collectWorkerAssets = (bundle: OutputBundle) => {
-    if (!options?.includeWorkers) return;
     for (const file of appShellFiles(bundle)) workerKeep.add(file);
     for (const [fileName, item] of Object.entries(bundle)) {
       if (item.type === "asset") workerKeep.add(fileName);
@@ -124,7 +123,7 @@ export function precacheScope(options?: { includeWorkers?: boolean }): {
         return (
           !url.startsWith(`${assetsDir}/`) ||
           shell.has(url) ||
-          (options?.includeWorkers === true && workerKeep.has(url))
+          workerKeep.has(url)
         );
       });
       return { manifest, warnings: [] };

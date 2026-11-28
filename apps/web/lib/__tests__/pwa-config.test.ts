@@ -180,7 +180,7 @@ describe("offline app shell precache", () => {
     });
   });
 
-  test("includes worker bundle chunks and wasm assets in precache when includeWorkers is enabled", async () => {
+  test("always includes worker bundle chunks and wasm assets in precache", async () => {
     const workerBundle: OutputBundle = {
       "assets/worker-abc.js": chunk("assets/worker-abc.js", {
         isEntry: true,
@@ -194,22 +194,12 @@ describe("offline app shell precache", () => {
       "assets/sqlite3-xyz.wasm",
     ].map((url) => ({ url, revision: null, size: 1 }));
 
-    const offScope = precacheScope({ includeWorkers: false });
-    (offScope.plugin.configResolved as any)({ build: { assetsDir: "assets" } });
-    (offScope.plugin.generateBundle as any)({}, bundle);
-    (offScope.workerPlugin.generateBundle as any)({}, workerBundle);
-    const offManifest = await offScope.manifestTransform(entries);
-    expect(offManifest.manifest.map((e) => e.url)).toEqual([
-      "index.html",
-      "assets/main.js",
-    ]);
-
-    const onScope = precacheScope({ includeWorkers: true });
-    (onScope.plugin.configResolved as any)({ build: { assetsDir: "assets" } });
-    (onScope.plugin.generateBundle as any)({}, bundle);
-    (onScope.workerPlugin.generateBundle as any)({}, workerBundle);
-    const onManifest = await onScope.manifestTransform(entries);
-    expect(onManifest.manifest.map((e) => e.url)).toEqual([
+    const scope = precacheScope();
+    (scope.plugin.configResolved as any)({ build: { assetsDir: "assets" } });
+    (scope.plugin.generateBundle as any)({}, bundle);
+    (scope.workerPlugin.generateBundle as any)({}, workerBundle);
+    const transformed = await scope.manifestTransform(entries);
+    expect(transformed.manifest.map((e) => e.url)).toEqual([
       "index.html",
       "assets/main.js",
       "assets/worker-abc.js",
