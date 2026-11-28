@@ -204,7 +204,7 @@ test("a task cannot assign a role ID outside its workspace", async () => {
 test("the first synced session stamps its owner and the second keeps the stamp", async () => {
   const { t, user } = await setup();
   const create = (session_id: string) =>
-    t.mutation(api.conversations.createConversation, {
+    t.mutation(api.conversationLifecycle.createConversation, {
       api_token: apiToken,
       user_id: user,
       agent_type: "claude_code",

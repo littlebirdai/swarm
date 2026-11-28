@@ -8,7 +8,10 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./functions";
 import { insertTaskComment } from "./tasks";
 import type { Doc, Id } from "./_generated/dataModel";
-import { readableConversation, streamMessageRows } from "./conversations";
+import {
+  readableConversation,
+  streamMessageRows,
+} from "./lib/conversationExportHelpers";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { canAccessTask } from "./lib/access";
 import { findTaskByRef } from "./taskEvidence";

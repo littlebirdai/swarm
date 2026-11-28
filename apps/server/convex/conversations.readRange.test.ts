@@ -224,7 +224,34 @@ describe("the read steps against the real queries", () => {
   const modules = {
     "./_generated/server.ts": () => import("./_generated/server"),
     "./syncOutbox.ts": () => import("./syncOutbox"),
-    "./conversations.ts": () => import("./conversations"),
+    "./cliFeed.ts": () => import("./cliFeed"),
+    "./cliInbox.ts": () => import("./cliInbox"),
+    "./cliSearch.ts": () => import("./cliSearch"),
+    "./cliSessionActions.ts": () => import("./cliSessionActions"),
+    "./conversationExport.ts": () => import("./conversationExport"),
+    "./conversationFavorites.ts": () => import("./conversationFavorites"),
+    "./conversationFeeds.ts": () => import("./conversationFeeds"),
+    "./conversationForks.ts": () => import("./conversationForks"),
+    "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+    "./conversationList.ts": () => import("./conversationList"),
+    "./conversationLookup.ts": () => import("./conversationLookup"),
+    "./conversationMessages.ts": () => import("./conversationMessages"),
+    "./conversationMetadata.ts": () => import("./conversationMetadata"),
+    "./conversationNav.ts": () => import("./conversationNav"),
+    "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+    "./conversationProjects.ts": () => import("./conversationProjects"),
+    "./conversationReads.ts": () => import("./conversationReads"),
+    "./conversationSharing.ts": () => import("./conversationSharing"),
+    "./conversationStatus.ts": () => import("./conversationStatus"),
+    "./conversationTrees.ts": () => import("./conversationTrees"),
+    "./inboxLists.ts": () => import("./inboxLists"),
+    "./inboxLiveness.ts": () => import("./inboxLiveness"),
+    "./inboxShelves.ts": () => import("./inboxShelves"),
+    "./sessionControl.ts": () => import("./sessionControl"),
+    "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+    "./sessionRestart.ts": () => import("./sessionRestart"),
+    "./sessionSearch.ts": () => import("./sessionSearch"),
+    "./sessionThreadState.ts": () => import("./sessionThreadState"),
   };
   const token = "r".repeat(64);
 
@@ -270,14 +297,14 @@ describe("the read steps against the real queries", () => {
     const steps = {
       scan: async (a: any) => {
         const r = await t.query(
-          internal.conversations.scanConversationLines,
+          internal.conversationExport.scanConversationLines,
           a,
         );
         scans.push(r);
         return r;
       },
       fetch: (a: any) =>
-        t.query(internal.conversations.readConversationLines, a),
+        t.query(internal.conversationExport.readConversationLines, a),
     };
     return { t, steps, scans, conversation_id: String(conversation_id) };
   }
@@ -404,7 +431,7 @@ describe("the read steps against the real queries", () => {
     let cursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const result: any = await t.query(
-        anyApi.conversations.exportConversationMessagesPage,
+        anyApi.conversationExport.exportConversationMessagesPage,
         { api_token: token, conversation_id, cursor, limit: 500 },
       );
       expect(result.error).toBeUndefined();
@@ -419,7 +446,7 @@ describe("the read steps against the real queries", () => {
   test("an export cursor from before this format is refused, not misread", async () => {
     const { t, conversation_id } = await seed([{ content: "a" }]);
     expect(
-      await t.query(anyApi.conversations.exportConversationMessagesPage, {
+      await t.query(anyApi.conversationExport.exportConversationMessagesPage, {
         api_token: token,
         conversation_id,
         cursor: "opaque",
@@ -491,7 +518,34 @@ describe("a short id two conversations share, against the real queries", () => {
   const modules = {
     "./_generated/server.ts": () => import("./_generated/server"),
     "./syncOutbox.ts": () => import("./syncOutbox"),
-    "./conversations.ts": () => import("./conversations"),
+    "./cliFeed.ts": () => import("./cliFeed"),
+    "./cliInbox.ts": () => import("./cliInbox"),
+    "./cliSearch.ts": () => import("./cliSearch"),
+    "./cliSessionActions.ts": () => import("./cliSessionActions"),
+    "./conversationExport.ts": () => import("./conversationExport"),
+    "./conversationFavorites.ts": () => import("./conversationFavorites"),
+    "./conversationFeeds.ts": () => import("./conversationFeeds"),
+    "./conversationForks.ts": () => import("./conversationForks"),
+    "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+    "./conversationList.ts": () => import("./conversationList"),
+    "./conversationLookup.ts": () => import("./conversationLookup"),
+    "./conversationMessages.ts": () => import("./conversationMessages"),
+    "./conversationMetadata.ts": () => import("./conversationMetadata"),
+    "./conversationNav.ts": () => import("./conversationNav"),
+    "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+    "./conversationProjects.ts": () => import("./conversationProjects"),
+    "./conversationReads.ts": () => import("./conversationReads"),
+    "./conversationSharing.ts": () => import("./conversationSharing"),
+    "./conversationStatus.ts": () => import("./conversationStatus"),
+    "./conversationTrees.ts": () => import("./conversationTrees"),
+    "./inboxLists.ts": () => import("./inboxLists"),
+    "./inboxLiveness.ts": () => import("./inboxLiveness"),
+    "./inboxShelves.ts": () => import("./inboxShelves"),
+    "./sessionControl.ts": () => import("./sessionControl"),
+    "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+    "./sessionRestart.ts": () => import("./sessionRestart"),
+    "./sessionSearch.ts": () => import("./sessionSearch"),
+    "./sessionThreadState.ts": () => import("./sessionThreadState"),
   };
   const token = "s".repeat(64);
 
@@ -548,9 +602,9 @@ describe("a short id two conversations share, against the real queries", () => {
     });
     const steps = {
       scan: (a: any) =>
-        t.query(internal.conversations.scanConversationLines, a),
+        t.query(internal.conversationExport.scanConversationLines, a),
       fetch: (a: any) =>
-        t.query(internal.conversations.readConversationLines, a),
+        t.query(internal.conversationExport.readConversationLines, a),
     };
     return { steps, ...ids };
   }

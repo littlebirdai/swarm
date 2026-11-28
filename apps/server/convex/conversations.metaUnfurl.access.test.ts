@@ -6,7 +6,10 @@
 // truly has access; a private session reveals nothing.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { getConversationMeta, getConversationMention } from "./conversations";
+import {
+  getConversationMeta,
+  getConversationMention,
+} from "./conversationLookup";
 
 const OWNER = "u_owner";
 const STRANGER = "u_stranger";

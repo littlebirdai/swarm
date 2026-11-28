@@ -23,7 +23,7 @@ import {
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { readableConversationAs } from "./conversations";
+import { readableConversationAs } from "./lib/conversationExportHelpers";
 import { bumpWindow } from "./ipRateLimit";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import {

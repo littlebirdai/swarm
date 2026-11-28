@@ -33,7 +33,7 @@ async function setup(conversation: Record<string, unknown>) {
     } as any);
   });
   const guess = (title: string) =>
-    t.mutation(api.conversations.updateTitle, {
+    t.mutation(api.conversationMetadata.updateTitle, {
       conversation_id: id,
       title,
       api_token: TOKEN,

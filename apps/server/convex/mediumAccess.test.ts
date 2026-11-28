@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import { adminFindChildren } from "./conversations";
+import { adminFindChildren } from "./sessionHierarchy";
 import { getSessionMetrics } from "./managedSessions";
 import { create as createPattern } from "./patterns";
 import { create as createDecision } from "./decisions";

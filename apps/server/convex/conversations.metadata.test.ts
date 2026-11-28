@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getConversationWithMeta } from "./conversations";
+import { getConversationWithMeta } from "./conversationReads";
 import { makeFakeDb } from "./testDb";
 
 const OWNER = "users_owner";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { writeShareLink } from "./conversations";
+import { writeShareLink } from "./conversationSharing";
 import { checkConversationAccess } from "./privacy";
 
 // One link, one permission: "anyone with the link" is the token, and turning it

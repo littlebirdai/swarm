@@ -1067,7 +1067,7 @@ describe("nothing retires a closed session after the fact", () => {
       } as any);
     });
     await s.send("closeSession", [String(s.ids.conv)]);
-    await s.as.mutation(api.conversations.markSessionCompleted, {
+    await s.as.mutation(api.conversationStatus.markSessionCompleted, {
       conversation_id: String(s.ids.conv),
     });
     expect((await s.read()).conv.status).toBe("active");
@@ -1090,7 +1090,7 @@ describe("nothing retires a closed session after the fact", () => {
     await s.t.run(async (ctx) =>
       ctx.db.patch(s.ids.conv, { status: "active" } as any),
     );
-    await s.as.mutation(api.conversations.markSessionCompleted, {
+    await s.as.mutation(api.conversationStatus.markSessionCompleted, {
       conversation_id: String(s.ids.conv),
     });
     expect((await s.read()).conv.status).toBe("completed");
@@ -1144,7 +1144,7 @@ describe("nothing retires a closed session after the fact", () => {
 
 describe("the daemon's lifecycle read", () => {
   const lifecycle = (s: Awaited<ReturnType<typeof setup>>) =>
-    s.as.query(api.conversations.getConversationLifecycle, {
+    s.as.query(api.conversationStatus.getConversationLifecycle, {
       conversation_id: String(s.ids.conv),
     }) as Promise<any>;
 
@@ -1211,7 +1211,7 @@ describe("listClosedSessions", () => {
     await s.send("restoreSession", [String(s.ids.conv)], {
       [s.ids.conv]: { inbox_dismissed_at: null },
     });
-    const page = (await s.as.query(api.conversations.listClosedSessions, {
+    const page = (await s.as.query(api.inboxShelves.listClosedSessions, {
       paginationOpts: { numItems: 10, cursor: null },
     })) as any;
     expect(page.page.map((r: any) => String(r._id))).toEqual([

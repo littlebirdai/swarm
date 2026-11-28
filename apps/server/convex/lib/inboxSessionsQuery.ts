@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import type { computeInboxSessions, splitInboxList } from "../conversations";
+import type { computeInboxSessions, splitInboxList } from "./inboxCompute";
 import { query } from "../functions";
 import type { DatabaseReader } from "../_generated/server";
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { opencodeApiForkEligible } from "./conversations";
+import { opencodeApiForkEligible } from "./lib/forkHelpers";
 
 // forkFromMessage passes the parent's real ses_ id down to the daemon ONLY when the
 // fork can actually resolve to a real, correctly-scoped opencode session:

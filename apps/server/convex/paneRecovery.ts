@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./functions";
-import { enqueueKillAndResume } from "./conversations";
+import { enqueueKillAndResume } from "./lib/sessionRestartHelpers";
 import {
   enqueuePendingMessage,
   getAuthenticatedUserId,

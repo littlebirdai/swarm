@@ -4,7 +4,7 @@ import {
   NAV_USER_MESSAGES_HARD_BYTE_CEILING,
   NAV_USER_MESSAGES_OLDEST_LIMIT,
   NAV_USER_MESSAGES_SCAN_LIMIT,
-} from "./conversations";
+} from "./conversationNav";
 import { makeFakeDb } from "./testDb";
 import { navPromptField, navPromptPatch } from "./userMessagesFilter";
 

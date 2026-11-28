@@ -70,7 +70,7 @@ test("the team message feed shows only the active team's shared prompts", async 
   const read = async (args: Record<string, unknown>) => {
     const page: any = await t
       .withIdentity({ subject: ids.viewer })
-      .query(api.conversations.getMessageFeed, { filter: "team", ...args });
+      .query(api.conversationFeeds.getMessageFeed, { filter: "team", ...args });
     return page.messages
       .map((m: any) => [m.content.replace("prompt from ", ""), m.workspace])
       .sort();

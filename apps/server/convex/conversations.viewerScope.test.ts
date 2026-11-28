@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import {
-  getConversationPublic,
-  getConversationWithMeta,
-  getTeamUnreadCount,
-  listConversations,
-  searchConversationTitles,
-} from "./conversations";
+import { getTeamUnreadCount } from "./conversationFeeds";
+import { listConversations } from "./conversationList";
+import { getConversationWithMeta } from "./conversationReads";
+import { getConversationPublic } from "./conversationSharing";
+import { searchConversationTitles } from "./sessionSearch";
 import { getCurrentUser } from "./users";
 
 // What a conversation read hands a viewer is decided by who the viewer is,

@@ -25,7 +25,7 @@ import {
 import { ROLE_CHECK_PROMPT } from "./lib/orgRoutine";
 import { roleRunner, seatPlace } from "./lib/seatPlace";
 import { performReparentSession } from "./sessionOwnership";
-import { killConversation } from "./conversations";
+import { killConversation } from "./lib/sessionRestartHelpers";
 import { applyHideTransition } from "./cleanup";
 import {
   isBootstrapPrompt,

@@ -10,7 +10,7 @@ import type { Id } from "./_generated/dataModel";
 import { allModules } from "./testModules.testkit";
 import { hashToken } from "./apiTokens";
 import { PEER_TRANSFER_TEXT_MAX } from "./peerTransfers";
-import { conversationForAccess } from "./conversations";
+import { conversationForAccess } from "./lib/conversationHelpers";
 
 setDefaultTimeout(120_000);
 
@@ -285,13 +285,13 @@ describe("getConversationWithMeta", () => {
       reason: "100.64.0.7 (mbp.tail1.ts.net) refused /Users/ann/src/family",
     });
     const mate = await as(other).query(
-      api.conversations.getConversationWithMeta,
+      api.conversationReads.getConversationWithMeta,
       { conversation_id: conv },
     );
     expect(mate?.access_level).toBe("team");
     expect(mate).toHaveProperty("peer_transfer", null);
     const mine = await as(owner).query(
-      api.conversations.getConversationWithMeta,
+      api.conversationReads.getConversationWithMeta,
       { conversation_id: conv },
     );
     expect(mine?.peer_transfer).toMatchObject({ phase: "failed" });
@@ -318,7 +318,7 @@ describe("getConversationWithMeta", () => {
   test("sends a finished transfer as null, so a merging client drops the row", async () => {
     const { as, owner, conv, report } = await setup();
     const meta = () =>
-      as(owner).query(api.conversations.getConversationWithMeta, {
+      as(owner).query(api.conversationReads.getConversationWithMeta, {
         conversation_id: conv,
         strip_volatile: true,
       });

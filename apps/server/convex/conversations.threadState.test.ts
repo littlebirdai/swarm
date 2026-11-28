@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { setThreadState, getThreadState } from "./conversations";
+import { setThreadState, getThreadState } from "./sessionThreadState";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { makeFakeDb } from "./testDb";
 

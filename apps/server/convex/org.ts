@@ -10,7 +10,7 @@ import {
   createTeamFeedFilter,
   isTeamMember,
 } from "./privacy";
-import { classifyWorkStates } from "./conversations";
+import { classifyWorkStates } from "./lib/inboxLivenessState";
 import { isOrphanOrSubagent, type WorkState } from "./inboxFilters";
 import { nestParentIdOf } from "./ccAccountsShared";
 import { derivePresenceState } from "./presenceState";

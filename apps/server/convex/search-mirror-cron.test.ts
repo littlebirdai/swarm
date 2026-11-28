@@ -67,7 +67,7 @@ test("the next eligible tick exposes a new message to search after a quiet perio
   await t.mutation(internal.searchMirror.advance, BATCH);
   const viewer = asUser(t, user);
   const search = () =>
-    viewer.query(api.conversations.searchConversations, { query: "hydrangea" });
+    viewer.query(api.sessionSearch.searchConversations, { query: "hydrangea" });
   expect(await search()).toMatchObject({ contentTier: "recent", results: [] });
 
   jest.setSystemTime(NOW + 2 * TICK_MS);
@@ -83,7 +83,7 @@ test("the next eligible tick exposes a new message to search after a quiet perio
   jest.setSystemTime(NOW + SETTLE_MS + TICK_MS);
   await t.mutation(internal.searchMirror.advance, BATCH);
   expect(
-    await viewer.query(api.conversations.searchConversations, {
+    await viewer.query(api.sessionSearch.searchConversations, {
       query: "delphinium",
     }),
   ).toMatchObject({ results: [{ matches: [{ messageId: id }] }] });

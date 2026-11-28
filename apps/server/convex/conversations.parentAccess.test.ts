@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import {
-  createConversation,
-  debugConversationVisibility,
-  getConversationTree,
-  linkPlanHandoff,
-  setParentConversation,
-} from "./conversations";
+import { createConversation } from "./conversationLifecycle";
+import { debugConversationVisibility } from "./conversationPrivacy";
+import { getConversationTree } from "./conversationTrees";
+import { linkPlanHandoff, setParentConversation } from "./sessionHierarchy";
 
 // A conversation id is not a grant. These paths took one from the caller and
 // linked to it, dismissed it, or described it without asking whose it was.

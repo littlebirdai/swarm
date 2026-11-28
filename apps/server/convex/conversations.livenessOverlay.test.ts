@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { deriveProducingParents } from "./conversations";
+import { deriveProducingParents } from "./lib/inboxLivenessPlacement";
 
 // The sessionsLiveness overlay used to run a by_parent_conversation_id scan for
 // every idle inbox row to decide "is a subagent child of this parent still

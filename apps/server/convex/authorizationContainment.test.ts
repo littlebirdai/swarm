@@ -27,7 +27,8 @@ import {
   recalcPlanProgress,
 } from "./tasks";
 import { hashToken } from "./apiTokens";
-import { searchForCLI, feedForCLI } from "./conversations";
+import { feedForCLI } from "./cliFeed";
+import { searchForCLI } from "./cliSearch";
 import {
   webListPaginated as webDocListPaginated,
   webMentionList as webDocMentionList,
@@ -53,13 +54,10 @@ import {
 } from "./plans";
 import { createReview, getReviewsForPR, resolveComment } from "./reviews";
 
-function auth(userId: string | null) {
-  return {
-    async getUserIdentity() {
-      return userId ? { subject: `${userId}|session` } : null;
-    },
-  };
-}
+const auth = (userId: string | null) => ({
+  getUserIdentity: async () =>
+    userId ? { subject: `${userId}|session` } : null,
+});
 
 function ctx(userId: string | null, tables: Record<string, any[]>) {
   return {

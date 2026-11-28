@@ -637,10 +637,13 @@ http.route({
         );
       }
 
-      const result = await ctx.runMutation(api.conversations.getSessionLinks, {
-        session_id,
-        api_token,
-      });
+      const result = await ctx.runMutation(
+        api.conversationLookup.getSessionLinks,
+        {
+          session_id,
+          api_token,
+        },
+      );
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
@@ -733,13 +736,16 @@ http.route({
       let team_id = undefined;
       if (project_path) {
         team_id =
-          (await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
-            api_token,
-            project_path,
-          })) ?? undefined;
+          (await ctx.runQuery(
+            api.conversationLifecycle.resolveTeamFromDirectory,
+            {
+              api_token,
+              project_path,
+            },
+          )) ?? undefined;
       }
 
-      const result = await ctx.runQuery(api.conversations.searchForCLI, {
+      const result = await ctx.runQuery(api.cliSearch.searchForCLI, {
         api_token,
         query,
         limit,
@@ -832,12 +838,12 @@ http.route({
         {
           scan: (stepArgs) =>
             ctx.runQuery(
-              internal.conversations.scanConversationLines,
+              internal.conversationExport.scanConversationLines,
               stepArgs,
             ),
           fetch: (stepArgs) =>
             ctx.runQuery(
-              internal.conversations.readConversationLines,
+              internal.conversationExport.readConversationLines,
               stepArgs,
             ),
         },
@@ -942,7 +948,7 @@ http.route({
         );
       }
       const result = await ctx.runQuery(
-        api.conversations.exportConversationMessagesPage,
+        api.conversationExport.exportConversationMessagesPage,
         {
           api_token,
           conversation_id,
@@ -1013,7 +1019,7 @@ http.route({
         );
       }
       const checkouts = await ctx.runQuery(
-        api.conversations.findUserLocalCheckouts,
+        api.conversationProjects.findUserLocalCheckouts,
         {
           git_remote_url,
           api_token,
@@ -1078,13 +1084,16 @@ http.route({
       let team_id = undefined;
       if (project_path) {
         team_id =
-          (await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
-            api_token,
-            project_path,
-          })) ?? undefined;
+          (await ctx.runQuery(
+            api.conversationLifecycle.resolveTeamFromDirectory,
+            {
+              api_token,
+              project_path,
+            },
+          )) ?? undefined;
       }
 
-      const result = await ctx.runQuery(api.conversations.feedForCLI, {
+      const result = await ctx.runQuery(api.cliFeed.feedForCLI, {
         api_token,
         limit,
         offset,
@@ -1155,7 +1164,7 @@ http.route({
         );
       }
       const result = await ctx.runMutation(
-        api.conversations.recordStableContext,
+        api.conversationMetadata.recordStableContext,
         {
           api_token,
           conversation_id,
@@ -1213,7 +1222,7 @@ http.route({
         });
       }
 
-      const result = await ctx.runQuery(api.conversations.inboxForCLI, {
+      const result = await ctx.runQuery(api.cliInbox.inboxForCLI, {
         api_token,
         show_all,
         state,
@@ -1275,7 +1284,7 @@ http.route({
         );
       }
       const result = await ctx.runQuery(
-        api.conversations.getConversationsBySessionIds,
+        api.conversationLookup.getConversationsBySessionIds,
         {
           api_token,
           session_ids,
@@ -3344,18 +3353,21 @@ http.route({
           },
         );
       }
-      const result = await ctx.runMutation(api.conversations.forkFromMessage, {
-        conversation_id,
-        message_uuid,
-        api_token,
-        session_id,
-        direction,
-        target_agent_type,
-        cloud_device_id: body.cloud_device_id,
-        cloud_project_path: body.cloud_project_path,
-        cloud_worktree: body.cloud_worktree,
-        cloud_seed: body.cloud_seed,
-      });
+      const result = await ctx.runMutation(
+        api.conversationForks.forkFromMessage,
+        {
+          conversation_id,
+          message_uuid,
+          api_token,
+          session_id,
+          direction,
+          target_agent_type,
+          cloud_device_id: body.cloud_device_id,
+          cloud_project_path: body.cloud_project_path,
+          cloud_worktree: body.cloud_worktree,
+          cloud_seed: body.cloud_seed,
+        },
+      );
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -3400,10 +3412,13 @@ http.route({
           },
         );
       }
-      const result = await ctx.runQuery(api.conversations.getConversationTree, {
-        conversation_id,
-        api_token,
-      });
+      const result = await ctx.runQuery(
+        api.conversationTrees.getConversationTree,
+        {
+          conversation_id,
+          api_token,
+        },
+      );
       if (result && "error" in result) {
         const status =
           result.error === "Unauthorized"
@@ -4014,10 +4029,10 @@ cliRoute("/cli/sharing/delete", async (ctx, body) =>
   ctx.runMutation(api.users.deleteConversationsForPath, body),
 );
 cliRoute("/cli/sharing/session", async (ctx, body) =>
-  ctx.runMutation(api.conversations.setPrivacy, body),
+  ctx.runMutation(api.conversationPrivacy.setPrivacy, body),
 );
 cliRoute("/cli/sharing/session/level", async (ctx, body) =>
-  ctx.runMutation(api.conversations.setTeamVisibility, body),
+  ctx.runMutation(api.conversationPrivacy.setTeamVisibility, body),
 );
 cliRoute("/cli/sharing/team", async (ctx, body) =>
   ctx.runMutation(api.teams.setTeamVisibility, body),
@@ -5475,16 +5490,16 @@ cliRoute(
 cliRoute("/cli/sessions/share", async (ctx, body) => {
   return {
     share_token: await ctx.runMutation(
-      api.conversations.generateShareLink,
+      api.conversationSharing.generateShareLink,
       body,
     ),
   };
 });
 cliRoute("/cli/sessions/pin", async (ctx, body) => {
-  return await ctx.runMutation(api.conversations.pinToProfile, body);
+  return await ctx.runMutation(api.conversationSharing.pinToProfile, body);
 });
 cliRoute("/cli/sessions/unpin", async (ctx, body) => {
-  return await ctx.runMutation(api.conversations.unpinFromProfile, body);
+  return await ctx.runMutation(api.conversationSharing.unpinFromProfile, body);
 });
 cliRoute("/cli/sessions/originator", originatorRoute);
 cliRoute("/cli/intent/verify", intentVerifyRoute);
@@ -5785,19 +5800,19 @@ cliRoute("/cli/read/ask", async (ctx, body) =>
 // Killed bucket). One mutation, action pinned per route so the URLs stay
 // self-documenting. body: { api_token, session }.
 cliRoute("/cli/sessions/dismiss", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+  ctx.runMutation(api.cliSessionActions.cliSetSessionVisibility, {
     ...body,
     action: "dismiss",
   }),
 );
 cliRoute("/cli/sessions/undismiss", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+  ctx.runMutation(api.cliSessionActions.cliSetSessionVisibility, {
     ...body,
     action: "undismiss",
   }),
 );
 cliRoute("/cli/sessions/kill", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+  ctx.runMutation(api.cliSessionActions.cliSetSessionVisibility, {
     ...body,
     action: "kill",
   }),
@@ -5805,20 +5820,20 @@ cliRoute("/cli/sessions/kill", async (ctx, body) =>
 // Retire (a flow run's subject once its change is live, flows.md FL4): a kill that refuses when anything would be
 // lost. body: { api_token, session, expected_message_count }.
 cliRoute("/cli/sessions/retire", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliRetireSession, body),
+  ctx.runMutation(api.cliSessionActions.cliRetireSession, body),
 );
 
 // Resume (cast resume <session> --tmux): bring the agent up in its managed pane
 // without killing a live one. body: { api_token, session }.
 cliRoute("/cli/sessions/resume", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliResumeSession, body),
+  ctx.runMutation(api.cliSessionActions.cliResumeSession, body),
 );
 
 // Hibernate (cast hibernate <session>): park the pane now, keep the transcript,
 // wake on the next message. `cast wake` posts to /cli/sessions/resume above.
 // body: { api_token, session }.
 cliRoute("/cli/sessions/hibernate", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliHibernateSession, body),
+  ctx.runMutation(api.cliSessionActions.cliHibernateSession, body),
 );
 cliRoute("/cli/sessions/command-results", async (ctx, body) =>
   ctx.runQuery((api as any).sessionCommands.results, body),
@@ -5828,26 +5843,26 @@ cliRoute("/cli/sessions/command-results", async (ctx, body) =>
 // daemon's resume ladder — the web header's "Restart session", from a shell.
 // body: { api_token, session, repair? }.
 cliRoute("/cli/sessions/restart", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliRestartSession, body),
+  ctx.runMutation(api.cliSessionActions.cliRestartSession, body),
 );
 
 // In-place agent/model switch (cast switch): stay on this conversation, drop a
 // divider, reconstitute as the new agent. body: { api_token, session, agent_type?, model?, effort? }.
 cliRoute("/cli/sessions/switch", async (ctx, body) =>
-  ctx.runMutation(api.conversations.switchSessionAgent, body),
+  ctx.runMutation(api.sessionControl.switchSessionAgent, body),
 );
 
 // Rename (cast rename): set a session's title with the custom flag so the
 // auto-titler never overwrites it. body: { api_token, session, title }.
 cliRoute("/cli/sessions/rename", async (ctx, body) =>
-  ctx.runMutation(api.conversations.cliRenameSession, body),
+  ctx.runMutation(api.cliSessionActions.cliRenameSession, body),
 );
 
 // Pinned thread state (cast state): the agent's standing "where this stands"
 // line, shown pinned above the composer and on the inbox card. Empty text
 // clears it. body: { api_token, session, text? }.
 cliRoute("/cli/sessions/state/set", async (ctx, body) =>
-  ctx.runMutation(api.conversations.setThreadState, body),
+  ctx.runMutation(api.sessionThreadState.setThreadState, body),
 );
 // A session's goal loop (`cast loop`, sessionGoals.ts).
 cliRoute("/cli/goals/set", async (ctx, body) =>
@@ -5862,10 +5877,10 @@ cliRoute("/cli/goals/show", async (ctx, body) =>
 // `cast browser pane <url>` / `cast preview <url>`: the agent offers a page,
 // the reader opens it beside the conversation.
 cliRoute("/cli/browser/pane-offer", async (ctx, body) =>
-  ctx.runMutation(api.conversations.offerBrowserPane, body),
+  ctx.runMutation(api.conversationProjects.offerBrowserPane, body),
 );
 cliRoute("/cli/sessions/state/get", async (ctx, body) =>
-  ctx.runQuery(api.conversations.getThreadState, body),
+  ctx.runQuery(api.sessionThreadState.getThreadState, body),
 );
 // `cast read <session> --queued`: the messages waiting to go into a session, whole.
 cliRoute("/cli/sessions/queue", async (ctx, body) =>

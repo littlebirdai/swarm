@@ -35,7 +35,7 @@ import { isDaemonManagedRow } from "./lib/liveSessions";
 import {
   buildNamedSessionMaps,
   sessionMapsFromManagedRows,
-} from "./conversations";
+} from "./lib/inboxMaps";
 import {
   HOSTED_INPUT_MAX_CHARS,
   HOSTED_TITLE_MAX_CHARS,
@@ -779,13 +779,13 @@ describe("a hosted conversation stays hosted", () => {
     });
     for (const caller of [authed, t.withIdentity({ subject: coOwner })]) {
       await expect(
-        caller.mutation(api.conversations.switchSessionAgent, {
+        caller.mutation(api.sessionControl.switchSessionAgent, {
           conversation_id: started.conversation_id,
           agent_type: "claude_code",
         } as any),
       ).rejects.toThrow(/cannot switch to a local agent/);
       await expect(
-        caller.mutation(api.conversations.reconfigureSession, {
+        caller.mutation(api.sessionControl.reconfigureSession, {
           conversation_id: started.conversation_id,
           agent_type: "codex",
         }),
@@ -1152,7 +1152,7 @@ describe("hosted stays hosted on every path out", () => {
       {},
     );
     await expect(
-      authed.mutation(api.conversations.forkFromMessage, {
+      authed.mutation(api.conversationForks.forkFromMessage, {
         conversation_id: String(started.conversation_id),
       }),
     ).rejects.toThrow(/cannot be forked/);
@@ -1163,7 +1163,7 @@ describe("hosted stays hosted on every path out", () => {
     await expect(
       t
         .withIdentity({ subject: other })
-        .mutation(api.conversations.forkConversation, {
+        .mutation(api.conversationForks.forkConversation, {
           share_token: "shared-hosted",
         }),
     ).rejects.toThrow(/cannot be forked/);

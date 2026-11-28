@@ -3,7 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { killConversation } from "./conversations";
+import { killConversation } from "./lib/sessionRestartHelpers";
 import {
   CONVERSATION_ROW_TABLES,
   conversationRowEffects,

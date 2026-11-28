@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getMoreMessages } from "./conversations";
+import { getMoreMessages } from "./conversationMessages";
 import { makeFakeDb } from "./testDb";
 
 // Regression for the owner-definition drift (audit F20): message paging,

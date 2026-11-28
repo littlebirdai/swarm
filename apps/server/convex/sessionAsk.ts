@@ -27,12 +27,12 @@ import {
   type AskResult,
 } from "@codecast/sessions/sessionAsk";
 import { internal } from "./_generated/api";
+import { isNonEmptyMessage } from "./conversationSharing";
 import {
   readableConversation,
   readableConversationAs,
   streamMessageRows,
-  isNonEmptyMessage,
-} from "./conversations";
+} from "./lib/conversationExportHelpers";
 import type { QueryCtx } from "./_generated/server";
 import { readFileChangeIndex } from "./fileChangeBodies";
 import {

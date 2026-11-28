@@ -37,7 +37,7 @@ test.each(["path", "project hash"] as const)(
       ).toMatchObject({ conversationsDeleted: 1 });
     } else {
       expect(
-        await owner.mutation(api.conversations.deleteByProjectHash, {
+        await owner.mutation(api.conversationProjects.deleteByProjectHash, {
           project_hash: "project-hash",
         }),
       ).toMatchObject({ deleted: 1 });

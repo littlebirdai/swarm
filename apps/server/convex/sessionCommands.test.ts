@@ -6,12 +6,10 @@ import {
 } from "./daemonCommandUtils";
 import { makeFakeDb } from "./testDb";
 import { normalizeWorkStateFilter } from "./inboxFilters";
-import {
-  tallyInboxRows,
-  computeInboxSessions,
-  computeSessionsLiveness,
-  sendEscapeToSession,
-} from "./conversations";
+import { tallyInboxRows } from "./cliInbox";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import { computeSessionsLiveness } from "./lib/inboxLivenessState";
+import { sendEscapeToSession } from "./sessionRestart";
 
 function fixture() {
   const db = makeFakeDb({

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { computeInboxSessions, tallyInboxRows } from "./conversations";
+import { tallyInboxRows } from "./cliInbox";
+import { computeInboxSessions } from "./lib/inboxCompute";
 import { makeFakeDb } from "./testDb";
 
 // `cast sessions <id>` naming a subagent threw "tallyInboxRows: row … is not

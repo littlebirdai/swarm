@@ -336,7 +336,7 @@ describe("other machine readers", () => {
     )) as any;
     expect(fallback.closed).toBe(true);
     const lifecycle = (await s.t.query(
-      api.conversations.getConversationLifecycle,
+      api.conversationStatus.getConversationLifecycle,
       { api_token: TOKEN, conversation_id: String(s.ids.lead) },
     )) as any;
     expect(lifecycle.inbox_closed_at).toBe(lifecycle.inbox_dismissed_at);

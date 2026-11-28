@@ -1,12 +1,9 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
-import {
-  computeInboxSessions,
-  computeSessionsLiveness,
-  INBOX_LIVENESS_FIELDS,
-  INBOX_FAST_FIELDS,
-} from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import { computeSessionsLiveness } from "./lib/inboxLivenessState";
+import { INBOX_LIVENESS_FIELDS, INBOX_FAST_FIELDS } from "./lib/inboxMaps";
 import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import {
   INBOX_WINDOW_CAPS,
@@ -100,9 +97,16 @@ describe("frozen payload contracts (minimum supported mobile 1.3.0)", () => {
       expect(row[f]).not.toBeUndefined();
     expect(row.agent_status).toBe("working");
     // …and the arg is declared optional on the public query.
-    const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
-    expect(src).toContain("include_liveness: v.optional(v.boolean())");
-    expect(src).toContain(
+    const listsSrc = readFileSync(
+      join(import.meta.dir, "inboxLists.ts"),
+      "utf8",
+    );
+    const computeSrc = readFileSync(
+      join(import.meta.dir, "lib/inboxCompute.ts"),
+      "utf8",
+    );
+    expect(listsSrc).toContain("include_liveness: v.optional(v.boolean())");
+    expect(computeSrc).toContain(
       "const includeLiveness = opts.includeLiveness !== false;",
     );
   });
@@ -122,7 +126,7 @@ describe("frozen payload contracts (minimum supported mobile 1.3.0)", () => {
       expect(row[f]).not.toBeUndefined();
     }
     // The no-auth arm of both liveness queries returns the same shape, never a bare {}.
-    const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
+    const src = readFileSync(join(import.meta.dir, "inboxLiveness.ts"), "utf8");
     for (const name of [
       "export const sessionsLiveness = query",
       "export const teamSessionsLiveness = query",
@@ -361,11 +365,11 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     expect(src).toMatch(
       /export \{[^}]*shouldShowInInbox[^}]*\} from "@codecast\/inbox\/inboxProjection"/,
     );
-    const conversations = readFileSync(
-      join(import.meta.dir, "conversations.ts"),
+    const inboxMaps = readFileSync(
+      join(import.meta.dir, "lib/inboxMaps.ts"),
       "utf8",
     );
-    expect(conversations).toContain("INBOX_WINDOW_CAPS.recent");
+    expect(inboxMaps).toContain("INBOX_WINDOW_CAPS.recent");
     const projection = readFileSync(
       join(import.meta.dir, "inboxProjection.ts"),
       "utf8",
@@ -441,20 +445,18 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     // The scan cutoffs (recent, dismissed/stashed) and the replica's
     // inWorkingSet must agree at the horizon; five agreeing literals only
     // agree until one is edited.
-    const conversations = readFileSync(
-      join(import.meta.dir, "conversations.ts"),
+    const inboxMaps = readFileSync(
+      join(import.meta.dir, "lib/inboxMaps.ts"),
       "utf8",
     );
-    expect(conversations).toContain(
+    expect(inboxMaps).toContain(
       "const INBOX_SESSION_WINDOW_MS = WORKING_SET_RECENCY_MS;",
     );
-    expect(conversations).toContain(
+    expect(inboxMaps).toContain(
       "const INBOX_DISMISSED_WINDOW_MS = WORKING_SET_RECENCY_MS;",
     );
     // No inbox window constant carries its own literal any more.
-    expect(conversations).not.toMatch(
-      /INBOX_(?:SESSION|DISMISSED)_WINDOW_MS = \d/,
-    );
+    expect(inboxMaps).not.toMatch(/INBOX_(?:SESSION|DISMISSED)_WINDOW_MS = \d/);
     expect(WORKING_SET_RECENCY_MS).toBe(30 * 24 * 60 * 60 * 1000);
   });
 });

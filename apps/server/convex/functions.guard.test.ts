@@ -240,9 +240,11 @@ describe("comments complete-view write choke", () => {
     // resurrect revoked content). Privacy/visibility/team transitions change
     // access without any comment write, so each must move the head forward or
     // regained access renders a frozen empty thread (matrix SRV-02).
-    const conversations = readFileSync(join(DIR, "conversations.ts"), "utf8");
+    const privacy = readFileSync(join(DIR, "conversationPrivacy.ts"), "utf8");
+    const control = readFileSync(join(DIR, "sessionControl.ts"), "utf8");
     const advanceCalls =
-      conversations.match(/advanceCommentsAccessRevision\(/g) ?? [];
+      (privacy + "\n" + control).match(/advanceCommentsAccessRevision\(/g) ??
+      [];
     // setPrivacy, setTeamVisibility, setPrivacyBySessionId, reconfigureSession.
     expect(advanceCalls.length).toBeGreaterThanOrEqual(4);
     const writer = readFileSync(join(DIR, "commentViewWrites.ts"), "utf8");
@@ -306,10 +308,13 @@ describe("small principal-view write chokes", () => {
   });
 
   test("favorite patches route through the owner-derived writer", () => {
-    const conversations = readFileSync(join(DIR, "conversations.ts"), "utf8");
-    expect(conversations).toContain("toggleFavoriteWithRevision");
-    expect(conversations).toContain("setFavoriteWithRevision");
-    expect(conversations).not.toMatch(
+    const favorites = readFileSync(
+      join(DIR, "conversationFavorites.ts"),
+      "utf8",
+    );
+    expect(favorites).toContain("toggleFavoriteWithRevision");
+    expect(favorites).toContain("setFavoriteWithRevision");
+    expect(favorites).not.toMatch(
       /ctx\.db\.patch\(args\.conversation_id,\s*\{\s*is_favorite\s*:/,
     );
 

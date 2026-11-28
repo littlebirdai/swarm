@@ -92,7 +92,7 @@ import {
   parkedAccountResetAt,
   recoveryModeOf,
 } from "./ccAccountsShared";
-import { performSetThreadState } from "./conversations";
+import { performSetThreadState } from "./sessionThreadState";
 import { createDataContext } from "./data";
 import { triggerSourceName } from "./ingest";
 import { canReadCall } from "./transcripts";

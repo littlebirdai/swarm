@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { performListRecentSessions } from "./conversations";
+import { performListRecentSessions } from "./conversationFeeds";
 
 // The command palette builds its list from TWO row sources: favorites carry
 // whole store rows (so inbox_killed_at arrives) while recents come from this

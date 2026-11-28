@@ -142,7 +142,7 @@ test("session grants require owner or full team access", async () => {
     status: "denied",
     omitted: [full, summary, privateConversation, deleted].map(refused),
   });
-  await stranger.mutation(api.conversations.redeemShareToken, {
+  await stranger.mutation(api.conversationSharing.redeemShareToken, {
     share_token: "share-proof",
   });
   const sharedHubs = [session(privateConversation)];
@@ -539,7 +539,7 @@ test("viewer hub grants enforce access tiers, TTL caps, and identity scope", asy
     };
   });
 
-  await asUser(t, guest).mutation(api.conversations.redeemShareToken, {
+  await asUser(t, guest).mutation(api.conversationSharing.redeemShareToken, {
     share_token: "viewer-share-token",
   });
 

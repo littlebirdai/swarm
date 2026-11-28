@@ -67,13 +67,13 @@ const scoped = (parent: Id<"conversations">, token?: string) => ({
 describe("webGet for a shared parent's workers", () => {
   test("a guest holding the parent's link names the shared worker and gets its link", async () => {
     const { t, parent, worker } = await setup({ share_token: CHILD_TOKEN });
-    const row = await t.query(api.conversations.webGet, {
+    const row = await t.query(api.conversationLookup.webGet, {
       short_id: String(worker).slice(0, 7),
       ...scoped(parent, PARENT_TOKEN),
     });
     expect(row?.title).toBe("Pandora research");
     expect(row?.share_token).toBe(CHILD_TOKEN);
-    const byId = await t.query(api.conversations.webGet, {
+    const byId = await t.query(api.conversationLookup.webGet, {
       id: String(worker),
       ...scoped(parent, PARENT_TOKEN),
     });
@@ -85,7 +85,7 @@ describe("webGet for a shared parent's workers", () => {
       share_token: CHILD_TOKEN,
       link: "spawned_by",
     });
-    const row = await t.query(api.conversations.webGet, {
+    const row = await t.query(api.conversationLookup.webGet, {
       id: String(worker),
       ...scoped(parent, PARENT_TOKEN),
     });
@@ -95,7 +95,7 @@ describe("webGet for a shared parent's workers", () => {
   test("an unshared worker stays private", async () => {
     const { t, parent, worker } = await setup();
     expect(
-      await t.query(api.conversations.webGet, {
+      await t.query(api.conversationLookup.webGet, {
         id: String(worker),
         ...scoped(parent, PARENT_TOKEN),
       }),
@@ -107,20 +107,20 @@ describe("webGet for a shared parent's workers", () => {
       share_token: CHILD_TOKEN,
     });
     expect(
-      await t.query(api.conversations.webGet, {
+      await t.query(api.conversationLookup.webGet, {
         id: String(worker),
         ...scoped(parent),
       }),
     ).toBeNull();
     expect(
-      await t.query(api.conversations.webGet, {
+      await t.query(api.conversationLookup.webGet, {
         id: String(worker),
         ...scoped(parent, CHILD_TOKEN),
       }),
     ).toBeNull();
     const asStranger = t.withIdentity({ subject: `${stranger}|session` });
     expect(
-      await asStranger.query(api.conversations.webGet, {
+      await asStranger.query(api.conversationLookup.webGet, {
         id: String(worker),
         ...scoped(parent),
       }),
@@ -133,7 +133,7 @@ describe("webGet for a shared parent's workers", () => {
       link: "none",
     });
     expect(
-      await t.query(api.conversations.webGet, {
+      await t.query(api.conversationLookup.webGet, {
         id: String(worker),
         ...scoped(parent, PARENT_TOKEN),
       }),
@@ -146,7 +146,7 @@ describe("webGet for a shared parent's workers", () => {
     });
     const row = await t
       .withIdentity({ subject: `${owner}|session` })
-      .query(api.conversations.webGet, { id: String(worker) });
+      .query(api.conversationLookup.webGet, { id: String(worker) });
     expect(row?.is_own).toBe(true);
     expect(row?.share_token).toBeUndefined();
     void parent;

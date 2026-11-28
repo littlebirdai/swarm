@@ -196,17 +196,17 @@ async function observe(scenario: Scenario) {
     let target = twin ?? id;
     switch (scenario) {
       case "complete":
-        await ctx.runMutation(api.conversations.markSessionCompleted, {
+        await ctx.runMutation(api.conversationStatus.markSessionCompleted, {
           conversation_id: id,
         });
         break;
       case "activate":
-        await ctx.runMutation(api.conversations.markSessionActive, {
+        await ctx.runMutation(api.conversationStatus.markSessionActive, {
           conversation_id: id,
         });
         break;
       case "kill":
-        await ctx.runMutation(api.conversations.killSession, {
+        await ctx.runMutation(api.sessionRestart.killSession, {
           conversation_id: id,
           mark_completed: true,
         });
@@ -214,7 +214,7 @@ async function observe(scenario: Scenario) {
       case "hide kill":
       case "stash":
       case "restore":
-        await ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+        await ctx.runMutation(api.cliSessionActions.cliSetSessionVisibility, {
           session,
           action:
             scenario === "hide kill"
@@ -237,13 +237,13 @@ async function observe(scenario: Scenario) {
         });
         break;
       case "retire":
-        await ctx.runMutation(api.conversations.cliRetireSession, {
+        await ctx.runMutation(api.cliSessionActions.cliRetireSession, {
           session,
           expected_message_count: 3,
         });
         break;
       case "blocked pin":
-        await ctx.runMutation(api.conversations.setThreadState, {
+        await ctx.runMutation(api.sessionThreadState.setThreadState, {
           session,
           text: "Waiting",
           status: "blocked",
@@ -253,16 +253,19 @@ async function observe(scenario: Scenario) {
       case "restart twin":
       case "restart ghost":
         target = (
-          await ctx.runMutation(api.conversations.restartSession, {
+          await ctx.runMutation(api.sessionRestart.restartSession, {
             conversation_id: id,
             session_id: session,
           })
         ).conversation_id;
         break;
       case "quick start":
-        target = await ctx.runMutation(api.conversations.createQuickSession, {
-          session_id: "new-session",
-        });
+        target = await ctx.runMutation(
+          api.conversationLifecycle.createQuickSession,
+          {
+            session_id: "new-session",
+          },
+        );
         break;
       case "web start":
         await ctx.runMutation(api.dispatch.dispatch, {
@@ -279,13 +282,13 @@ async function observe(scenario: Scenario) {
           .conversationId;
         break;
       case "shared fork":
-        target = await ctx.runMutation(api.conversations.forkConversation, {
+        target = await ctx.runMutation(api.conversationForks.forkConversation, {
           share_token: "share-status",
         });
         break;
       case "message fork":
         target = (
-          await ctx.runMutation(api.conversations.forkFromMessage, {
+          await ctx.runMutation(api.conversationForks.forkFromMessage, {
             conversation_id: id,
             session_id: "new-fork",
           })

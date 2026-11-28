@@ -7,7 +7,7 @@ import {
   listFavoritesV2,
   setFavoriteV2,
   toggleFavorite,
-} from "./conversations";
+} from "./conversationFavorites";
 import {
   listBookmarks,
   listBookmarksV2,

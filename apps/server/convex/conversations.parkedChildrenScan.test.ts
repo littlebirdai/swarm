@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeInboxSessions } from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
 import { makeFakeDb } from "./testDb";
 
 // listInboxSessions timed out with "too many system operations": the full

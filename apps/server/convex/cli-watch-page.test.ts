@@ -6,7 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import {
   _resetChildAuqProbeCacheForTests,
   buildAskingParents,
-} from "./conversations";
+} from "./lib/inboxLivenessPlacement";
 import { orderCliWatchCandidates } from "./lib/cli-inbox-reads.rules";
 import { readCliWatchLiveness } from "./lib/sessionHeartbeat";
 
@@ -126,7 +126,7 @@ test("a pinned parent's question is found ahead of the cold transcript budget", 
     }
     return { user, pinned };
   });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+  const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
     api_token: "fixture",
     watch: true,
   });
@@ -166,7 +166,7 @@ test("unmanaged children cannot displace a cold top-level session", async () => 
     }
     return { user, target };
   });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+  const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
     api_token: "fixture",
     watch: true,
   });
@@ -211,7 +211,7 @@ test("a partial watch page prefers waiting and working to idle pins and excludes
     return { user, working, waiting, idle };
   });
   const read = (limit: number) =>
-    asUser(t, user).query(api.conversations.inboxForCLI, {
+    asUser(t, user).query(api.cliInbox.inboxForCLI, {
       api_token: "fixture",
       watch: true,
       limit,
@@ -245,7 +245,7 @@ test("the displayed watch page breaks equal times by id", async () => {
       ],
     };
   });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+  const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
     api_token: "fixture",
     watch: true,
     limit: 1,

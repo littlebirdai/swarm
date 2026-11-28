@@ -103,22 +103,22 @@ for (const { name, age } of [
   test(`a routine heartbeat ${name} leaves the inbox read sets untouched`, async () => {
     const { viewer, team, working } = await seed(age);
     const base = await recordDocuments(() =>
-      viewer.query(api.conversations.listInboxSessions, {
+      viewer.query(api.inboxLists.listInboxSessions, {
         include_liveness: false,
         fast_fields_in_overlay: true,
         split: true,
       }),
     );
     const personal = await recordDocuments(() =>
-      viewer.query(api.conversations.sessionsLiveness, {}),
+      viewer.query(api.inboxLiveness.sessionsLiveness, {}),
     );
     const scoped = await recordDocuments(() =>
-      viewer.query(api.conversations.teamSessionsLiveness, {
+      viewer.query(api.inboxLiveness.teamSessionsLiveness, {
         activeTeamId: team,
       }),
     );
     const legacy = await recordDocuments(() =>
-      viewer.query(api.conversations.listInboxSessions, {}),
+      viewer.query(api.inboxLists.listInboxSessions, {}),
     );
     const beat = await recordDocuments(() =>
       viewer.mutation(api.managedSessions.heartbeatBatch, {
@@ -133,7 +133,7 @@ for (const { name, age } of [
     );
 
     const cli = await recordDocuments(() =>
-      viewer.query(api.conversations.inboxForCLI, { api_token: token }),
+      viewer.query(api.cliInbox.inboxForCLI, { api_token: token }),
     );
     expect(beat.writes).toEqual(new Set([working.beat]));
     for (const query of [base, personal, scoped, legacy, cli]) {
@@ -145,7 +145,7 @@ for (const { name, age } of [
 test("an inbox status transition changes the actionable row order", async () => {
   const { viewer, working, idle } = await seed();
   const order = async () => {
-    const result = await viewer.query(api.conversations.inboxForCLI, {
+    const result = await viewer.query(api.cliInbox.inboxForCLI, {
       api_token: token,
       show_all: true,
     });
@@ -215,7 +215,7 @@ test.each(["enabled", "disabled"] as const)(
 test("renewals leave the inbox read sets untouched and expire after the last beat", async () => {
   const { viewer, t, working, team } = await seed(0, false);
   const latest = async () => {
-    const result = await viewer.query(api.conversations.sessionsLiveness, {});
+    const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
     if (!("liveness" in result)) throw new Error("Expected whole liveness");
     const row = result.liveness[working.conversation];
     if (!row) throw new Error("Missing inbox liveness row");
@@ -245,18 +245,18 @@ test("renewals leave the inbox read sets untouched and expire after the last bea
   ]);
   const reads = [
     await recordDocuments(() =>
-      viewer.query(api.conversations.sessionsLiveness, {}),
+      viewer.query(api.inboxLiveness.sessionsLiveness, {}),
     ),
     await recordDocuments(() =>
-      viewer.query(api.conversations.teamSessionsLiveness, {
+      viewer.query(api.inboxLiveness.teamSessionsLiveness, {
         activeTeamId: team,
       }),
     ),
     await recordDocuments(() =>
-      viewer.query(api.conversations.listInboxSessions, {}),
+      viewer.query(api.inboxLists.listInboxSessions, {}),
     ),
     await recordDocuments(() =>
-      viewer.query(api.conversations.inboxForCLI, { api_token: token }),
+      viewer.query(api.cliInbox.inboxForCLI, { api_token: token }),
     ),
   ];
 
@@ -332,7 +332,7 @@ for (const flag of [undefined, "0"]) {
         }),
       );
       expect(writes.writes.has(working.managed)).toBe(true);
-      const result = await viewer.query(api.conversations.sessionsLiveness, {});
+      const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
       if (!("liveness" in result)) throw new Error("Expected whole liveness");
       const row = result.liveness[working.conversation];
       expect(at - row.last_heartbeat!).toBeLessThan(HEARTBEAT_ALIVE_MS);
@@ -365,7 +365,7 @@ for (const exit of ["a heartbeat", "the pending check"]) {
     ).toBe(now);
 
     delete process.env.INBOX_LIVENESS_LEASES;
-    const result = await viewer.query(api.conversations.sessionsLiveness, {});
+    const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
     if (!("liveness" in result)) throw new Error("Expected whole liveness");
     expect(result.liveness[working.conversation]?.last_heartbeat).toBe(late);
     if (exit === "a heartbeat") await beat(late + 1);
@@ -449,7 +449,7 @@ test("a cold watch keeps pinned hibernated and done sessions past its recent loo
     }
     return { user, pins };
   });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+  const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
     api_token: token,
     watch: true,
     limit: 100,
@@ -506,7 +506,7 @@ test.each([false, true])(
       }
       return { user, parent, child };
     });
-    const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+    const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
       api_token: token,
       watch: true,
     });
@@ -536,7 +536,7 @@ test("a pinned killed row keeps its plan and task references in an explicit CLI 
     });
     return { user, conversation, plan, task };
   });
-  const result = await asUser(t, user).query(api.conversations.inboxForCLI, {
+  const result = await asUser(t, user).query(api.cliInbox.inboxForCLI, {
     api_token: token,
     watch: true,
     include_killed: true,
@@ -577,7 +577,7 @@ test("foreign-run child rows do not spend the CLI watch's cold liveness budget",
     return { user, staleSession };
   });
   const { reads } = await recordDocuments(() =>
-    asUser(t, user).query(api.conversations.inboxForCLI, {
+    asUser(t, user).query(api.cliInbox.inboxForCLI, {
       api_token: token,
       watch: true,
     }),
@@ -622,7 +622,7 @@ test("user-wide CLI watch reads the inbox window and the filing of its result pa
   });
   const read = (watch: boolean) =>
     recordDocuments(() =>
-      viewer.query(api.conversations.inboxForCLI, { api_token: token, watch }),
+      viewer.query(api.cliInbox.inboxForCLI, { api_token: token, watch }),
     );
   const before = await read(true);
   expect(before.result.sessions).toContainEqual(
@@ -724,7 +724,7 @@ test("a CLI watch stays scoped when the owner lookup window overflows", async ()
 
   const read = (watch: boolean, session_ids?: string[]) =>
     recordDocuments(() =>
-      viewer.query(api.conversations.inboxForCLI, {
+      viewer.query(api.cliInbox.inboxForCLI, {
         api_token: token,
         limit: 1,
         watch,
@@ -773,7 +773,7 @@ test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async 
   });
   const read = (watch: boolean) =>
     recordDocuments(() =>
-      asUser(t, user).query(api.conversations.inboxForCLI, {
+      asUser(t, user).query(api.cliInbox.inboxForCLI, {
         api_token: token,
         watch,
       }),

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { computeInboxSessions } from "./conversations";
+import { computeInboxSessions } from "./lib/inboxCompute";
 import { makeFakeDb } from "./testDb";
 
 for (const fastFieldsInOverlay of [false, true]) {

@@ -241,7 +241,7 @@ describe("sim backend", () => {
     );
     // A local stub id is not an id of the table the validator names.
     await expect(
-      client.query(api.conversations.listTeamInboxSessions, {
+      client.query(api.inboxLists.listTeamInboxSessions, {
         activeTeamId: "k7x2m9p4q8r1s5t3v6w0yz",
       }),
     ).rejects.toThrow(/ArgumentValidationError: .*\n.*Path: \.activeTeamId/s);
@@ -282,11 +282,8 @@ describe("sim backend", () => {
       include_liveness: false,
       fast_fields_in_overlay: true,
     };
-    const first = await client.query(api.conversations.listInboxSessions, args);
-    const second = await client.query(
-      api.conversations.listInboxSessions,
-      args,
-    );
+    const first = await client.query(api.inboxLists.listInboxSessions, args);
+    const second = await client.query(api.inboxLists.listInboxSessions, args);
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
     expect(second).not.toBe(first);
     expect(sim.calls.slice(-2).map((c) => c.memo)).toEqual(["miss", "hit"]);
@@ -296,7 +293,7 @@ describe("sim backend", () => {
       args: [CONV],
     });
     expect(sim.calls.at(-1)?.writes).toBeGreaterThan(0);
-    await client.query(api.conversations.listInboxSessions, args);
+    await client.query(api.inboxLists.listInboxSessions, args);
     expect(sim.calls.at(-1)?.memo).toBe("miss");
   });
 
@@ -378,12 +375,12 @@ describe("sim backend", () => {
     const client = sim.clientFor(me);
     const args = { show_all: false };
     await Promise.all([
-      client.query(api.conversations.listInboxSessions, args),
+      client.query(api.inboxLists.listInboxSessions, args),
       client.query(api.syncLog.getHeads, {}),
     ]);
     expect(sim.calls.map((c) => c.ok)).toEqual([true, true]);
     const strict = backend({ debug: true }).clientFor(me);
-    const first = strict.query(api.conversations.listInboxSessions, args);
+    const first = strict.query(api.inboxLists.listInboxSessions, args);
     const second = strict.query(api.syncLog.getHeads, {});
     await first;
     await expect(second).rejects.toThrow(

@@ -1,5 +1,5 @@
 import { expect, spyOn, test } from "bun:test";
-import { setAvailableSkills } from "./conversations";
+import { setAvailableSkills } from "./conversationMetadata";
 import { getCurrentUser, getMySkills } from "./users";
 import { makeFakeDb } from "./testDb";
 

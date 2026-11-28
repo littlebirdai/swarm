@@ -901,9 +901,12 @@ export const regenerateSessionInsight = action({
     const currentUser = await ctx.runQuery(api.users.getCurrentUser, {} as any);
     if (!currentUser) throw new Error("Not authenticated");
 
-    const conversation = await ctx.runQuery(api.conversations.getConversation, {
-      conversation_id: args.conversation_id,
-    });
+    const conversation = await ctx.runQuery(
+      api.conversationReads.getConversation,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
 
     if (!conversation) throw new Error("Conversation not found");
 

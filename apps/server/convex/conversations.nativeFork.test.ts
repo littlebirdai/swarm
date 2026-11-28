@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { nativeForkEligible } from "./conversations";
+import { nativeForkEligible } from "./lib/forkHelpers";
 
 // forkFromMessage hands a fork to the daemon's native-fork branch (registry
 // forkCmd, e.g. grok's `--resume <parent> --fork-session --session-id <new>`)

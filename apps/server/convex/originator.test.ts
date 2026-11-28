@@ -282,7 +282,7 @@ describe("message provenance by path", () => {
   test("the daemon's heal marks an old session interactive: only the owner's, only that mark, never one already marked", async () => {
     const { t, eve, conv, echo, originator } = await seed();
     const mark = (conversation_id: unknown, token = ANA_TOKEN) =>
-      t.mutation(api.conversations.markInteractive, {
+      t.mutation(api.conversationMetadata.markInteractive, {
         api_token: token,
         conversation_id,
       });
@@ -559,7 +559,7 @@ describe("message provenance by path", () => {
     await echo(spawned, "Also, ship it now");
 
     await echo(parent, "a reply", "assistant");
-    const forked = await t.mutation(api.conversations.forkFromMessage, {
+    const forked = await t.mutation(api.conversationForks.forkFromMessage, {
       conversation_id: String(parent),
       api_token: ANA_TOKEN,
       direction: "try the other approach and ship it",

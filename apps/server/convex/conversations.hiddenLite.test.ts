@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectHiddenSessionsLite } from "./conversations";
+import { collectHiddenSessionsLite } from "./inboxShelves";
 import { makeFakeDb } from "./testDb";
 
 // The dismissed/stashed reconcile's whole-set contract: the client CLEAR pass

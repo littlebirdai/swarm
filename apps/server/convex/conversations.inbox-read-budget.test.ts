@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
-import {
-  _resetChildAuqProbeCacheForTests,
-  computeInboxSessions,
-  inboxForCLI,
-} from "./conversations";
+import { inboxForCLI } from "./cliInbox";
+import { computeInboxSessions } from "./lib/inboxCompute";
+import { _resetChildAuqProbeCacheForTests } from "./lib/inboxLivenessPlacement";
 import {
   INBOX_WINDOW_CAPS,
   shouldShowInInbox,

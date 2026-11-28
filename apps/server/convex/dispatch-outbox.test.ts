@@ -271,7 +271,7 @@ test("a replay does not schedule another job when the action can run again", asy
   };
   const first = await actor.mutation(api.dispatch.dispatch, request);
   const jobs = () =>
-    scheduledJobs(t, internal.conversations.backfillNavPromptsPage);
+    scheduledJobs(t, internal.conversationNav.backfillNavPromptsPage);
   const firstJobs = await jobs();
   expect(firstJobs).toHaveLength(1);
   await t.run(({ db }) =>

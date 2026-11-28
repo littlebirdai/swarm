@@ -14,7 +14,34 @@ setDefaultTimeout(60_000);
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./permissions.ts": () => import("./permissions"),
-  "./conversations.ts": () => import("./conversations"),
+  "./cliFeed.ts": () => import("./cliFeed"),
+  "./cliInbox.ts": () => import("./cliInbox"),
+  "./cliSearch.ts": () => import("./cliSearch"),
+  "./cliSessionActions.ts": () => import("./cliSessionActions"),
+  "./conversationExport.ts": () => import("./conversationExport"),
+  "./conversationFavorites.ts": () => import("./conversationFavorites"),
+  "./conversationFeeds.ts": () => import("./conversationFeeds"),
+  "./conversationForks.ts": () => import("./conversationForks"),
+  "./conversationLifecycle.ts": () => import("./conversationLifecycle"),
+  "./conversationList.ts": () => import("./conversationList"),
+  "./conversationLookup.ts": () => import("./conversationLookup"),
+  "./conversationMessages.ts": () => import("./conversationMessages"),
+  "./conversationMetadata.ts": () => import("./conversationMetadata"),
+  "./conversationNav.ts": () => import("./conversationNav"),
+  "./conversationPrivacy.ts": () => import("./conversationPrivacy"),
+  "./conversationProjects.ts": () => import("./conversationProjects"),
+  "./conversationReads.ts": () => import("./conversationReads"),
+  "./conversationSharing.ts": () => import("./conversationSharing"),
+  "./conversationStatus.ts": () => import("./conversationStatus"),
+  "./conversationTrees.ts": () => import("./conversationTrees"),
+  "./inboxLists.ts": () => import("./inboxLists"),
+  "./inboxLiveness.ts": () => import("./inboxLiveness"),
+  "./inboxShelves.ts": () => import("./inboxShelves"),
+  "./sessionControl.ts": () => import("./sessionControl"),
+  "./sessionHierarchy.ts": () => import("./sessionHierarchy"),
+  "./sessionRestart.ts": () => import("./sessionRestart"),
+  "./sessionSearch.ts": () => import("./sessionSearch"),
+  "./sessionThreadState.ts": () => import("./sessionThreadState"),
   "./teams.ts": () => import("./teams"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./authorityEvents.ts": () => import("./authorityEvents"),
@@ -185,7 +212,9 @@ describe("chokepoints write their audit row in the same transaction", () => {
     const { api } = await import("./_generated/api");
     await t
       .withIdentity({ subject: `${ids.owner}|x` } as any)
-      .mutation(api.conversations.pinToProfile, { conversation_id: ids.conv });
+      .mutation(api.conversationSharing.pinToProfile, {
+        conversation_id: ids.conv,
+      });
     const [row] = await events();
     expect(row.kind).toBe("share_link_minted");
     expect(row.conversation_id).toBe(ids.conv);

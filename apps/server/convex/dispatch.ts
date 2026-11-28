@@ -138,11 +138,9 @@ import {
 } from "./cleanup";
 import { closeSetsAsideOnServer } from "./lib/closeAside";
 import { isClosePatch } from "@codecast/inbox/closedSession";
-import {
-  reconfigureSessionCore,
-  stampBrowserPaneOfferHandled,
-  writeShareLink,
-} from "./conversations";
+import { stampBrowserPaneOfferHandled } from "./conversationProjects";
+import { writeShareLink } from "./conversationSharing";
+import { reconfigureSessionCore } from "./sessionControl";
 import {
   performCancelPeerTransfer,
   performDismissPeerTransfer,
@@ -5135,7 +5133,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     userId,
     [conversationId, shareToken]: [string, string?],
   ) => {
-    await (ctx as any).runMutation(api.conversations.backfillNavPrompts, {
+    await (ctx as any).runMutation(api.conversationNav.backfillNavPrompts, {
       conversation_id: conversationId,
       ...(shareToken ? { share_token: shareToken } : {}),
     });
@@ -5149,7 +5147,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   publishToDirectory: async (ctx, userId, [opts]: [any]) => {
     return await (ctx as any).runMutation(
-      api.conversations.publishToDirectory,
+      api.conversationSharing.publishToDirectory,
       opts,
     );
   },
@@ -5903,8 +5901,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   ) => {
     return await ctx.runMutation!(
       repair
-        ? api.conversations.repairSession
-        : api.conversations.restartSession,
+        ? api.sessionRestart.repairSession
+        : api.sessionRestart.restartSession,
       {
         ...(ghost ?? {}),
         conversation_id: convId as Id<"conversations">,
@@ -6104,16 +6102,16 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
 };
 
 const SESSION_COMMANDS = {
-  killSession: api.conversations.killSession,
-  restartSession: api.conversations.restartSession,
-  repairSession: api.conversations.repairSession,
-  switchSessionAgent: api.conversations.switchSessionAgent,
-  rewindSession: api.conversations.rewindSession,
-  forkFromMessage: api.conversations.forkFromMessage,
-  sendKeysToSession: api.conversations.sendKeysToSession,
-  setPermissionMode: api.conversations.setPermissionMode,
-  sendEscapeToSession: api.conversations.sendEscapeToSession,
-  stopAndSendToSession: api.conversations.stopAndSendToSession,
+  killSession: api.sessionRestart.killSession,
+  restartSession: api.sessionRestart.restartSession,
+  repairSession: api.sessionRestart.repairSession,
+  switchSessionAgent: api.sessionControl.switchSessionAgent,
+  rewindSession: api.sessionRestart.rewindSession,
+  forkFromMessage: api.conversationForks.forkFromMessage,
+  sendKeysToSession: api.sessionRestart.sendKeysToSession,
+  setPermissionMode: api.sessionRestart.setPermissionMode,
+  sendEscapeToSession: api.sessionRestart.sendEscapeToSession,
+  stopAndSendToSession: api.sessionRestart.stopAndSendToSession,
   resumeSession: api.users.resumeSession,
 };
 

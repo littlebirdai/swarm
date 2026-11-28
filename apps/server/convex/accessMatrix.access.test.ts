@@ -168,7 +168,7 @@ const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
     { team_id: ids.T },
     { team_id: ids.O },
   ],
-  "conversations.getMessageFeed": (ids) => [
+  "conversationFeeds.getMessageFeed": (ids) => [
     { filter: "team" },
     { filter: "team", activeTeamId: ids.T },
     { filter: "team", activeTeamId: ids.O },

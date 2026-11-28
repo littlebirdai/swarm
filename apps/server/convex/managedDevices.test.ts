@@ -565,12 +565,12 @@ describe("server gates", () => {
       policy: { public_sharing_disabled: true },
     });
     await expect(
-      as(member).mutation(api.conversations.generateShareLink, {
+      as(member).mutation(api.conversationSharing.generateShareLink, {
         conversation_id: teamConv,
       }),
     ).rejects.toThrow("Public sharing is turned off by Acme's admins.");
     expect(
-      await as(member).mutation(api.conversations.generateShareLink, {
+      await as(member).mutation(api.conversationSharing.generateShareLink, {
         conversation_id: personalConv,
       }),
     ).toBeString();
@@ -585,7 +585,7 @@ describe("server gates", () => {
     const personalConv = await conversation(t, member);
     const enrolled = await laptop(t, member, team);
     await expect(
-      t.mutation(api.conversations.generateShareLink, {
+      t.mutation(api.conversationSharing.generateShareLink, {
         conversation_id: personalConv,
         api_token: enrolled,
       }),

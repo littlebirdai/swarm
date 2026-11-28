@@ -11,7 +11,7 @@ import {
   performSetDeviceShares,
   resolveReachableRunnerDevice,
 } from "./devices";
-import { reconfigureSession } from "./conversations";
+import { reconfigureSession } from "./sessionControl";
 import { canAccessConversation } from "./lib/access";
 import { listTeamMachines, sessionLaunchRunner } from "./sessionLaunch";
 

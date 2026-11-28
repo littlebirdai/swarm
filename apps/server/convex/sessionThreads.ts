@@ -11,7 +11,7 @@ import { query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { resolveConversationRef } from "./conversations";
+import { resolveConversationRef } from "./lib/conversationHelpers";
 import { checkConversationAccess } from "./privacy";
 import {
   SESSION_MESSAGE_RE,

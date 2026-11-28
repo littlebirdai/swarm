@@ -7,7 +7,7 @@
 // belongs to the caller before deleting anything.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { deleteByProjectHash } from "./conversations";
+import { deleteByProjectHash } from "./conversationProjects";
 
 const VICTIM = "u_victim";
 const ATTACKER = "u_attacker";

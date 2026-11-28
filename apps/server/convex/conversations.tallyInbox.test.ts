@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { tallyInboxRows, placeConversationRow, ownAsk } from "./conversations";
+import { tallyInboxRows } from "./cliInbox";
+import { placeConversationRow, ownAsk } from "./lib/inboxLivenessPlacement";
 
 // The `cast sessions` tally. This logic has been wrong twice — a killed row
 // double-counted under a comment denying it, then `-a` zeroing the retirement

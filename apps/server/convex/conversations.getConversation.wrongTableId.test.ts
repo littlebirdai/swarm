@@ -8,15 +8,17 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import {
-  getConversation,
-  getConversationWithMeta,
   getMessagesAroundTimestamp,
   getNewMessages,
-  getTranscriptWatermark,
-  getUserMessages,
   listMessages,
+} from "./conversationMessages";
+import { getUserMessages } from "./conversationNav";
+import {
+  getConversation,
+  getConversationWithMeta,
+  getTranscriptWatermark,
   listMessagesTail,
-} from "./conversations";
+} from "./conversationReads";
 
 const OWNER = "u_owner";
 

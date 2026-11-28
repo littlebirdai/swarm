@@ -73,9 +73,12 @@ test("viewerIdentities masks email addresses, ignores non-present probes, and ma
     };
   });
 
-  await asUser(t, emailOnlyGuest).mutation(api.conversations.redeemShareToken, {
-    share_token: "identity-share-token",
-  });
+  await asUser(t, emailOnlyGuest).mutation(
+    api.conversationSharing.redeemShareToken,
+    {
+      share_token: "identity-share-token",
+    },
+  );
 
   expect(
     await asUser(t, owner).query(api.relayGrants.viewerIdentities, {
@@ -243,7 +246,7 @@ test("viewer grants support mention grants, revoke on share rotation, and cap mi
       omitted: [refused(`viewer:${summaryConv}`)],
     });
 
-    await asUser(t, guest).mutation(api.conversations.redeemShareToken, {
+    await asUser(t, guest).mutation(api.conversationSharing.redeemShareToken, {
       share_token: "initial-share-token",
     });
     const mixed = await asUser(t, guest).mutation(mint, {
