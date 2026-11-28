@@ -620,7 +620,7 @@ test("skips lateJoinSummary query before server auth, without a saved anchor, or
           api.pendingMessages.getConversationPendingMessage,
           api.messages.getConversationImages,
           api.conversationPages.list,
-          api.tasks.webListByConversation,
+          api.taskReads.webListByConversation,
           api.docSync.getPresence,
           api.sessionGoals.forConversation,
           api.guestSuggestions.listPending,
