@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
@@ -10,16 +10,17 @@ const START = 1_800_000_000_000;
 const PREVIOUS_FLAG = process.env.SWARM_TASK_CLAIMS;
 
 function advance(ms: number) {
-  setSystemTime(new Date(START + ms));
+  jest.advanceTimersByTime(ms);
 }
 
 beforeEach(() => {
   process.env.SWARM_TASK_CLAIMS = "1";
-  advance(0);
+  jest.useFakeTimers();
+  jest.setSystemTime(START);
 });
 
 afterEach(() => {
-  setSystemTime();
+  jest.useRealTimers();
   if (PREVIOUS_FLAG === undefined) delete process.env.SWARM_TASK_CLAIMS;
   else process.env.SWARM_TASK_CLAIMS = PREVIOUS_FLAG;
 });
@@ -89,6 +90,7 @@ async function setup(seed = "task-claims") {
       conversation_id?: string;
       take?: boolean;
       claim_token?: number;
+      claim_request_id?: string;
       claim_purpose?: string;
     } = {},
   ) =>
@@ -102,6 +104,9 @@ async function setup(seed = "task-claims") {
       ...(opts.take !== undefined ? { take: opts.take } : {}),
       ...(opts.claim_token !== undefined
         ? { claim_token: opts.claim_token }
+        : {}),
+      ...(opts.claim_request_id !== undefined
+        ? { claim_request_id: opts.claim_request_id }
         : {}),
       ...(opts.claim_purpose !== undefined
         ? { claim_purpose: opts.claim_purpose }
@@ -178,6 +183,7 @@ test("first claim mints token 1, renew extends lease, and stale tokens are refus
   const f = await setup("first-and-renew");
   const started: any = await f.start(f.tokA, {
     conversation_id: String(f.convA1),
+    claim_request_id: "start-req-1",
     claim_purpose: "implement",
   });
   expect(started.claim_token).toBe(1);
@@ -241,8 +247,18 @@ test("first claim mints token 1, renew extends lease, and stale tokens are refus
     reason: "busy",
   });
 
+  expect(
+    await catchClaimError(() =>
+      f.start(f.tokA, { conversation_id: String(f.convA1) }),
+    ),
+  ).toMatchObject({
+    code: "CONFLICT",
+    reason: "busy",
+  });
+
   const reStarted: any = await f.start(f.tokA, {
     conversation_id: String(f.convA1),
+    claim_request_id: "start-req-1",
   });
   expect(reStarted.claim_token).toBe(1);
   expect(reStarted.released_owners).toBeUndefined();
@@ -263,7 +279,30 @@ test("lease expiry returns task to ready list and new holder claims with token+1
   });
   expect(readyWhileHeld.map((t: any) => t.short_id)).toEqual(["ct-102"]);
 
+  jest.setSystemTime(START + TASK_LEASE_MS);
+
+  expect(
+    await catchClaimError(() =>
+      f.done(f.tokA, { claim_token: 1, conversation_id: String(f.convA1) }),
+    ),
+  ).toMatchObject({
+    code: "CONFLICT",
+    reason: "expired",
+  });
+  expect(
+    await catchClaimError(() =>
+      f.done(f.tokA, { conversation_id: String(f.convA1) }),
+    ),
+  ).toMatchObject({
+    code: "CONFLICT",
+    reason: "expired",
+  });
+
+  jest.setSystemTime(START);
   advance(TASK_LEASE_MS);
+  await f.t.finishInProgressScheduledFunctions();
+  expect((await f.getTask())?.status).toBe("open");
+  expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
 
   const readyAfterExpiry = await f.t.query(api.tasks.list, {
     api_token: f.tokB,
@@ -292,12 +331,35 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     "ct-101",
     "ct-102",
   ]);
+  const webPaginated = await asUser(f.t, f.ben).query(
+    api.tasks.webListPaginated,
+    {
+      workspace: "team",
+      team_id: f.team,
+      paginationOpts: { numItems: 50, cursor: null },
+    },
+  );
+  expect(
+    webPaginated.page
+      .filter((t: any) => t.status === "open")
+      .map((t: any) => t.short_id)
+      .sort(),
+  ).toEqual(["ct-101", "ct-102"]);
+  const webTeam = await asUser(f.t, f.ben).query(api.tasks.webTeamList, {
+    team_id: f.team,
+  });
+  expect(
+    webTeam
+      .filter((t: any) => t.status === "open")
+      .map((t: any) => t.short_id)
+      .sort(),
+  ).toEqual(["ct-101", "ct-102"]);
 
   expect(
     await catchClaimError(() => f.renew(f.tokA, 1, String(f.convA1))),
   ).toMatchObject({
     code: "CONFLICT",
-    reason: "expired",
+    reason: "free",
   });
   expect(
     await catchClaimError(() =>
@@ -305,7 +367,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     ),
   ).toMatchObject({
     code: "CONFLICT",
-    reason: "expired",
+    reason: "free",
   });
 
   const claimed: any = await f.t.action((ctx) =>
@@ -317,6 +379,8 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     }),
   );
   expect(claimed.task?.short_id).toBe("ct-101");
+  expect(claimed.claim_token).toBe(2);
+  expect(typeof claimed.lease_until).toBe("number");
 
   const row = await f.claimRow();
   expect(row).toMatchObject({
