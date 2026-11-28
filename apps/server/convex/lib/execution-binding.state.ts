@@ -368,20 +368,17 @@ export function watchesOwnedCodexInbox(
   bindings: readonly { state: string; binding?: ReadyBinding }[],
   ownsNewCodex: boolean,
 ): boolean {
-  return (
-    process.env.CODECAST_EDGE_DELIVERY_V1 === "1" &&
-    bindings.some(
-      ({ binding, state }) =>
-        state === "ready" &&
-        binding !== undefined &&
-        ((selectedConversation === String(head.conversation_id) &&
-          binding.epoch === 1) ||
-          (ownsNewCodex &&
-            binding.capabilities.includes(STEER_BATON_CAPABILITY))) &&
-        binding.epoch === head.current_epoch &&
-        binding.actualAgent === "codex" &&
-        binding.transport === "app-server" &&
-        binding.handle.startsWith(OWNED_CODEX_CHECKPOINT_PREFIX),
-    )
+  return bindings.some(
+    ({ binding, state }) =>
+      state === "ready" &&
+      binding !== undefined &&
+      ((selectedConversation === String(head.conversation_id) &&
+        binding.epoch === 1) ||
+        (ownsNewCodex &&
+          binding.capabilities.includes(STEER_BATON_CAPABILITY))) &&
+      binding.epoch === head.current_epoch &&
+      binding.actualAgent === "codex" &&
+      binding.transport === "app-server" &&
+      binding.handle.startsWith(OWNED_CODEX_CHECKPOINT_PREFIX),
   );
 }

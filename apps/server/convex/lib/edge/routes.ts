@@ -36,7 +36,6 @@ import { httpAction, type ActionCtx } from "../../_generated/server";
 import { machineRelayGrantConfig } from "../../relayGrants";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
-import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
 import { steerBatonEnabled } from "./baton-capabilities.rules";
 import type { AppendResult } from "./runEvents";
 
@@ -90,8 +89,6 @@ function linkAction<T extends { machine: string; boot: string }>(
   reply: (body: T) => HelloResponse | HeartbeatResponse,
 ) {
   return httpAction(async (ctx, request) => {
-    if (process.env.CODECAST_EDGE_V1 !== "1")
-      return new Response(null, { status: 404 });
     const bearer = request.headers
       .get("Authorization")
       ?.match(/^Bearer (\S+)$/i)?.[1];
@@ -160,14 +157,10 @@ function workAction<T>(
     maxBodyBytes?: number;
     batches?: (body: T) => number;
     enabled?: () => boolean;
-    flag?: "CODECAST_EDGE_TRANSCRIPT_UPLINK_V1";
   },
 ) {
   return httpAction(async (ctx, request) => {
-    if (
-      process.env[options?.flag ?? "CODECAST_EDGE_DELIVERY_V1"] !== "1" ||
-      options?.enabled?.() === false
-    ) {
+    if (options?.enabled?.() === false) {
       const { pathname } = new URL(request.url);
       return new Response(`No HttpAction routed for ${pathname}`, {
         status: 404,
@@ -298,7 +291,6 @@ export function registerEdgeRoutes(http: HttpRouter) {
       {
         operation: "transcript",
         maxBodyBytes: TRANSCRIPT_APPEND_MAX_BYTES,
-        flag: "CODECAST_EDGE_TRANSCRIPT_UPLINK_V1",
       },
     ),
   });
@@ -432,7 +424,6 @@ export function registerEdgeRoutes(http: HttpRouter) {
           machine,
           boot,
         }),
-      { enabled: fencedPromptAnswersEnabled },
     ),
   });
   http.route({
@@ -448,7 +439,6 @@ export function registerEdgeRoutes(http: HttpRouter) {
           command_id,
           claim,
         }),
-      { enabled: fencedPromptAnswersEnabled },
     ),
   });
   http.route({

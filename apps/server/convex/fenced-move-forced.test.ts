@@ -13,9 +13,7 @@ import { api, internal } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 
 const forcedFlag = "CODECAST_FORCED_DEVICE_MOVE_V1";
-const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
 const previousForcedFlag = process.env[forcedFlag];
-const previousEdgeFlag = process.env[edgeFlag];
 const device = "forced-move-destination";
 const destinationBoot = "destination-boot";
 const runtime = "destination-runtime";
@@ -24,15 +22,12 @@ const operation = "destination-operation";
 beforeEach(() => {
   jest.useFakeTimers({ now: start });
   process.env[forcedFlag] = "1";
-  process.env[edgeFlag] = "1";
 });
 
 afterEach(() => {
   jest.useRealTimers();
   if (previousForcedFlag === undefined) delete process.env[forcedFlag];
   else process.env[forcedFlag] = previousForcedFlag;
-  if (previousEdgeFlag === undefined) delete process.env[edgeFlag];
-  else process.env[edgeFlag] = previousEdgeFlag;
 });
 
 async function fixture(crossAccount = false) {

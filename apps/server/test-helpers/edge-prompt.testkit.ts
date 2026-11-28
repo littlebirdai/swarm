@@ -8,22 +8,11 @@ import { api, internal } from "../convex/_generated/api";
 import { asUser } from "./database.testkit";
 import { boot, machine, setupRunLease, start } from "./run-lease.testkit";
 
-export const flag = "CODECAST_FENCED_EXECUTION_V1";
-export const edge = "CODECAST_EDGE_DELIVERY_V1";
-
 export function installEdgePromptTestClock() {
-  const saved = [process.env[flag], process.env[edge]];
   beforeEach(() => {
-    process.env[flag] = "1";
-    process.env[edge] = "1";
     setSystemTime(new Date(start));
   });
   afterEach(() => {
-    for (const [index, name] of [flag, edge].entries()) {
-      const previous = saved[index];
-      if (previous === undefined) delete process.env[name];
-      else process.env[name] = previous;
-    }
     setSystemTime();
   });
 }

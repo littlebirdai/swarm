@@ -21,8 +21,6 @@ import {
   start,
 } from "../test-helpers/run-lease.testkit";
 
-const flag = "CODECAST_EDGE_DELIVERY_V1";
-const previousFlag = process.env[flag];
 const stale = { v: 1, status: "stale" };
 const rejected = { v: 1, status: "rejected", reason: "stale" };
 const parsers = {
@@ -35,13 +33,10 @@ const parsers = {
 };
 type Verb = keyof typeof parsers;
 beforeEach(() => {
-  process.env[flag] = "1";
   setSystemTime(new Date(start));
 });
 
 afterEach(() => {
-  if (previousFlag === undefined) delete process.env[flag];
-  else process.env[flag] = previousFlag;
   setSystemTime();
 });
 
@@ -107,6 +102,7 @@ test("claim and permit replay preserve authority, start and settle replay preser
     status: "granted",
     lease_ms: leaseMs - 321,
     last_pane_instance: 0,
+    terminal_lifecycle: true,
     last_event_seq: 0,
   });
   const busy = await f.post("claim", { ...f.claimBody, claim_id: "second" });
@@ -512,22 +508,11 @@ test("an unleased daemon can claim as before, but only the run holder can start 
     status: "started",
   });
   expect(await f.call("release", fence)).toMatchObject({ status: "released" });
-  delete process.env[flag];
   await expect(f.deliver()).rejects.toThrow("STALE_RUN_LEASE");
 });
 
-test("work enforces the flag, body size, and strict contract parsing before DB admission", async () => {
+test("work enforces the body size and strict contract parsing before DB admission", async () => {
   const f = await fixture();
-  delete process.env[flag];
-  for (const verb of Object.keys(parsers) as Verb[]) {
-    const unknown = await f.t.fetch("/edge/v1/unknown", { method: "POST" });
-    const disabled = await f.post(verb, f.claimBody);
-    expect(disabled.status).toBe(unknown.status);
-    expect(await disabled.text()).toBe(
-      (await unknown.text()).replace("unknown", verb),
-    );
-  }
-  process.env[flag] = "1";
   const oversized = await f.post("claim", {
     ...f.claimBody,
     claim_id: "🎉".repeat(20_000),

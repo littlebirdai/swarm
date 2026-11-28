@@ -347,12 +347,6 @@ function relayGrantConfig() {
 }
 
 export function machineRelayGrantConfig() {
-  if (
-    process.env.CODECAST_EDGE_V1 !== "1" ||
-    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
-    process.env.CODECAST_EDGE_RELAY_LIVENESS_V1 !== "1"
-  )
-    return null;
   const config = relayGrantConfig();
   const url = process.env.RELAY_PUBLIC_URL;
   return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;

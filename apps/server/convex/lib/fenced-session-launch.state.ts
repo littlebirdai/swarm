@@ -30,8 +30,6 @@ export async function enrollFreshOwnedCodex(
   now: number,
 ): Promise<boolean> {
   if (
-    process.env.CODECAST_FENCED_NEW_SESSIONS_V1 !== "1" ||
-    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
     process.env.SWARM_TURN_BATON !== "1" ||
     !launch.project_path?.trim() ||
     launch.isolated ||

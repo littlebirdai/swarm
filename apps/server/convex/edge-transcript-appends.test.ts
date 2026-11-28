@@ -1,22 +1,14 @@
 import { getFunctionName } from "convex/server";
 import crons from "./crons";
-import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
+import { afterEach, expect, setSystemTime, test } from "bun:test";
 import { setupRunLease } from "../test-helpers/run-lease.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { scheduledJobs } from "../test-helpers/database.testkit";
 import { TRANSCRIPT_RECEIPT_RETENTION_MS } from "./lib/edge/transcript-appends.route";
 import { api, internal } from "./_generated/api";
 
-const flag = "CODECAST_EDGE_TRANSCRIPT_UPLINK_V1";
-const previous = process.env[flag];
-
-beforeEach(() => {
-  process.env[flag] = "1";
-});
 afterEach(() => {
   setSystemTime();
-  if (previous === undefined) delete process.env[flag];
-  else process.env[flag] = previous;
 });
 
 async function setup() {
@@ -95,18 +87,6 @@ test("receipts are device scoped and the route requires a device bearer", async 
   );
   expect(second.status).toBe(200);
   expect((await second.json()).results).toHaveLength(1);
-});
-
-test("the flag disables the edge route while the legacy writer still works", async () => {
-  const { t, batch, append, conversation, bearer } = await setup();
-  delete process.env[flag];
-  expect((await append()).status).toBe(404);
-  const result = await t.mutation(api.messages.addMessages, {
-    conversation_id: conversation,
-    api_token: bearer,
-    messages: batch.writes[0]!.messages,
-  });
-  expect(result.inserted).toBe(1);
 });
 
 test("refuses a hosted session even for its owner", async () => {

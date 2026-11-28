@@ -17,18 +17,13 @@ const device = "move-destination";
 const destinationBoot = "destination-boot";
 const destinationRuntime = "destination-runtime";
 const operation = "destination-operation";
-const flag = "CODECAST_EDGE_DELIVERY_V1";
-const previousFlag = process.env[flag];
 
 beforeEach(() => {
   jest.useFakeTimers({ now: start });
-  process.env[flag] = "1";
 });
 
 afterEach(() => {
   jest.useRealTimers();
-  if (previousFlag === undefined) delete process.env[flag];
-  else process.env[flag] = previousFlag;
 });
 
 async function fixture() {

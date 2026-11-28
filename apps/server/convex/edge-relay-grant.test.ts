@@ -24,9 +24,6 @@ import {
 
 const flags = {
   INBOX_LIVENESS_LEASES: "1",
-  CODECAST_EDGE_V1: "1",
-  CODECAST_EDGE_DELIVERY_V1: "1",
-  CODECAST_EDGE_RELAY_LIVENESS_V1: "1",
   RELAY_PUBLIC_URL: "wss://relay.example.test/relay",
   RELAY_AUDIENCE: "fixture-cell",
   RELAY_HMAC_KEY: base64urlEncode(new Uint8Array(32).fill(4)),
@@ -85,8 +82,6 @@ test("hello advertises session liveness only when available and offered", async 
     "RELAY_HMAC_KEY",
     "RELAY_AUDIENCE",
     "RELAY_PUBLIC_URL",
-    "CODECAST_EDGE_DELIVERY_V1",
-    "CODECAST_EDGE_RELAY_LIVENESS_V1",
   ] as const) {
     delete process.env[key];
     expect(await capabilities(hello.capabilities)).toEqual(["heartbeat"]);
@@ -177,13 +172,13 @@ test("only the current run owner can obtain a signed run-scoped grant", async ()
     db.patch(f.conversation, { owner_device_id: machine }),
   );
 
-  for (const flag of ["CODECAST_EDGE_V1", "CODECAST_EDGE_RELAY_LIVENESS_V1"]) {
-    delete process.env[flag];
+  for (const key of ["RELAY_PUBLIC_URL", "RELAY_HMAC_KEY"] as const) {
+    delete process.env[key];
     expect(await (await mint()).json()).toEqual({
       v: 1,
       status: "unavailable",
     });
-    process.env[flag] = "1";
+    process.env[key] = flags[key];
   }
 
   setSystemTime(new Date(start + leaseMs - 1));

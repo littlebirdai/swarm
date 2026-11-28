@@ -8,10 +8,7 @@ import {
   readAnchorRow,
 } from "./lib/conversationReadAnchors";
 import { answerLabel } from "./lib/decisionVerdict";
-import {
-  fencedPromptAnswersEnabled,
-  readFencedBindingAndPromptState,
-} from "./lib/edge/prompt-answers.route";
+import { readFencedBindingAndPromptState } from "./lib/edge/prompt-answers.route";
 import { sharedPromptPermissionsEnabled } from "./lib/edge/prompt-authority.rules";
 import { checkConversationAccess, type AccessLevel } from "./privacy";
 import { redactSecrets } from "./redact";
@@ -340,9 +337,11 @@ async function resolvePermissionViewer(
   const ownerDoc = await ctx.db.get(conversation.user_id);
   const proposer =
     !ownerDoc?.is_bot && (await viewerSeesDetail(ctx, userId, conversation));
-  const sharedFenced =
-    fencedPromptAnswersEnabled() &&
-    (await sharedPromptPermissionsEnabled(ctx, conversation, preloadedBinding));
+  const sharedFenced = await sharedPromptPermissionsEnabled(
+    ctx,
+    conversation,
+    preloadedBinding,
+  );
   return { runner: false, proposer, sharedFenced };
 }
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
 import { deliveryRejectionCodes } from "./lib/delivery-slot.state";
@@ -38,16 +38,6 @@ const USER = "users_1" as Id<"users">;
 const OTHER_USER = "users_2" as Id<"users">;
 const CONVERSATION = "conversations_1" as Id<"conversations">;
 const OTHER_CONVERSATION = "conversations_2" as Id<"conversations">;
-
-const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
-const initialEdgeFlag = process.env[edgeFlag];
-beforeEach(() => {
-  process.env[edgeFlag] = "1";
-});
-afterEach(() => {
-  if (initialEdgeFlag === undefined) delete process.env[edgeFlag];
-  else process.env[edgeFlag] = initialEdgeFlag;
-});
 
 function tables(options?: { legacyMessages?: any[] }) {
   return {

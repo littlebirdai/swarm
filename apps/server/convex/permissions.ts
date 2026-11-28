@@ -11,7 +11,6 @@ import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
 import {
   answerablePromptAddresses,
-  fencedPromptAnswersEnabled,
   finishPromptAnswer,
   nextPromptAnswer,
   promptAddress,
@@ -351,7 +350,6 @@ export const updatePermissionStatus = mutation({
     }
 
     if (
-      fencedPromptAnswersEnabled() &&
       conversation.execution_protocol_state === "fenced" &&
       permission.fenced_prompt_id !== undefined
     )
@@ -601,7 +599,6 @@ export const getPendingPermissions = query({
     const sharedFenced =
       !runner &&
       args.as_proposer &&
-      fencedPromptAnswersEnabled() &&
       (await sharedPromptPermissionsEnabled(ctx, conversation)) &&
       (await checkConversationAccess(ctx, userId, conversation)) !== "denied";
     if (!runner && !proposer && !sharedFenced) return [];

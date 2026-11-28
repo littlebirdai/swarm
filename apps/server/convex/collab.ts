@@ -418,11 +418,7 @@ export async function dispatchSteerComposer(
     ),
   ],
 ) {
-  if (
-    process.env.SWARM_TURN_BATON !== "1" ||
-    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1"
-  )
-    return { status: "refused" };
+  if (process.env.SWARM_TURN_BATON !== "1") return { status: "refused" };
   const target = { conversation_id: convId };
   switch (command.kind) {
     case "ask":

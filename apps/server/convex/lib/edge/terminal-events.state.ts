@@ -3,9 +3,6 @@ import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { executionHead } from "../execution-binding.state";
 
-export const terminalEventsEnabled = () =>
-  process.env.CODECAST_EDGE_TERMINAL_EVENTS === "1";
-
 const TERMINAL_PANES_PER_RUN = 128;
 const TERMINAL_PANE_RETENTION_MS = 7 * 24 * 60 * 60_000;
 

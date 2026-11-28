@@ -13,21 +13,14 @@ import {
 } from "../test-helpers/run-lease.testkit";
 import { api, internal } from "./_generated/api";
 
-const flags = [
-  "CODECAST_FENCED_EXECUTION_V1",
-  "CODECAST_EDGE_DELIVERY_V1",
-  "SWARM_TURN_BATON",
-];
-const saved = flags.map((flag) => process.env[flag]);
+const savedBaton = process.env.SWARM_TURN_BATON;
 beforeEach(() => {
-  for (const flag of flags) process.env[flag] = "1";
+  process.env.SWARM_TURN_BATON = "1";
   setSystemTime(new Date(start));
 });
 afterEach(() => {
-  for (const [index, flag] of flags.entries()) {
-    if (saved[index] === undefined) delete process.env[flag];
-    else process.env[flag] = saved[index];
-  }
+  if (savedBaton === undefined) delete process.env.SWARM_TURN_BATON;
+  else process.env.SWARM_TURN_BATON = savedBaton;
   setSystemTime();
 });
 
