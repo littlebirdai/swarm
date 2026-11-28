@@ -142,7 +142,7 @@ test("follower window opens no head subscriptions", async () => {
       });
       state.syncTable("currentUser", { _id: "viewer" });
       state.syncTable("teams", [{ _id: "team1" }]);
-      backend.set(api.syncLog.getHeads, { heads: [] });
+      backend.set(api.syncLog.getHeads, { authenticated: true, heads: [] });
     },
   });
   expect(container.textContent).toBe("");
