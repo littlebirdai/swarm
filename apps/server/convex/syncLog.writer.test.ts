@@ -28,10 +28,22 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       expect(
         (await actions(teamScopeKey(teams.shared))).map((r) => r.entity_id),
       ).toEqual([String(id)]);
-      expect(collector.positions).toEqual([
-        { scope_key: `user:${users.one}`, position: 1 },
-        { scope_key: `team:${teams.shared}`, position: 1 },
-      ]);
+      const dirScope = `dir:${teams.shared}`;
+      if (process.env.SWARM_INTEREST_SCOPES === "1") {
+        expect((await actions(dirScope)).map((r) => r.entity_id)).toEqual([
+          String(id),
+        ]);
+        expect(collector.positions).toEqual([
+          { scope_key: `user:${users.one}`, position: 1 },
+          { scope_key: `team:${teams.shared}`, position: 1 },
+          { scope_key: dirScope, position: 1 },
+        ]);
+      } else {
+        expect(collector.positions).toEqual([
+          { scope_key: `user:${users.one}`, position: 1 },
+          { scope_key: `team:${teams.shared}`, position: 1 },
+        ]);
+      }
     });
   });
 

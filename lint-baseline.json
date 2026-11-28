@@ -12431,7 +12431,7 @@
     "swarm/no-comments": 9
   },
   "apps/server/convex/syncLog.ts": {
-    "swarm/no-comments": 184
+    "swarm/no-comments": 183
   },
   "apps/server/convex/syncLogPrune.test.ts": {
     "swarm/no-comments": 17

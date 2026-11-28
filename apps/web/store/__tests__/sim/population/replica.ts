@@ -15,19 +15,45 @@ type Head = {
   floor: number;
 };
 
-export function populationReplica(backend: SimBackend, person: Person) {
+export type PopulationMode = "team" | "interest";
+
+export function interestScopesForPerson(person: Person): string[] {
+  return [
+    `user:${fixtureId("users", person.id)}`,
+    ...person.follows.map(
+      (project) => `project:${fixtureId("projects", project)}`,
+    ),
+  ];
+}
+
+export function populationReplica(
+  backend: SimBackend,
+  person: Person,
+  options:
+    | PopulationMode
+    | { mode?: PopulationMode; extraDeniedScopes?: string[] } = "team",
+) {
+  const mode = typeof options === "string" ? options : (options.mode ?? "team");
+  const extraDeniedScopes =
+    typeof options === "string" ? [] : (options.extraDeniedScopes ?? []);
   const name = `population-${person.id}`;
   const window = { name, store: createWindowStore(name) };
   const client = backend.clientFor({
     kind: "user",
     userId: fixtureId("users", person.id),
   });
+  const subscribedScopes =
+    mode === "interest"
+      ? [...interestScopesForPerson(person), ...extraDeniedScopes]
+      : undefined;
   const encoder = new TextEncoder();
+  const refused = new Set<string>();
   const totals = {
     person: person.id,
     eventsByEntity: {} as Record<string, number>,
     events: 0,
     teamEvents: 0,
+    interestEvents: 0,
     bytes: 0,
     rangeBytes: 0,
     taskIdsRefetched: 0,
@@ -50,8 +76,11 @@ export function populationReplica(backend: SimBackend, person: Person) {
           totals.eventsByEntity[entity_type] =
             (totals.eventsByEntity[entity_type] ?? 0) + 1;
         }
-        if (String(args.scope_key).startsWith("team:"))
+        const scope = String(args.scope_key);
+        if (scope.startsWith("team:"))
           totals.teamEvents += result.actions.length;
+        else if (!scope.startsWith("user:"))
+          totals.interestEvents += result.actions.length;
       }
       return result;
     },
@@ -61,8 +90,14 @@ export function populationReplica(backend: SimBackend, person: Person) {
     async poll() {
       const { heads }: { heads: Head[] } = await meter.query(
         api.syncLog.getHeads,
-        {},
+        subscribedScopes ? { scopes: subscribedScopes } : {},
       );
+      if (subscribedScopes) {
+        const returned = new Set(heads.map((h) => h.scope_key));
+        for (const requested of subscribedScopes) {
+          if (!returned.has(requested)) refused.add(requested);
+        }
+      }
       await runInWindow(window, async () => {
         const purgedTeams = new Set<string>();
         for (const head of heads) await catchUpScope(meter, head, purgedTeams);
@@ -71,18 +106,29 @@ export function populationReplica(backend: SimBackend, person: Person) {
     result(
       expectedTitles: ReadonlyMap<string, string>,
       expectedDocTitles: ReadonlyMap<string, string>,
+      expectedTaskIds?: ReadonlySet<string>,
     ) {
       const { tasks: taskRows, docs } = window.store.getState();
       const tasks = Object.values(taskRows);
+      const staleTaskTitles = expectedTaskIds
+        ? [...expectedTaskIds].filter(
+            (id) => taskRows[id]?.title !== expectedTitles.get(id),
+          ).length
+        : tasks.filter(
+            ({ _id, title }) => expectedTitles.get(String(_id)) !== title,
+          ).length;
+      const unexpectedTasks = expectedTaskIds
+        ? tasks.filter(({ _id }) => !expectedTaskIds.has(String(_id))).length
+        : 0;
       return {
         ...totals,
+        refusedScopes: refused.size,
         rows: tasks.length,
         staleDocTitles: [...expectedDocTitles].filter(
           ([id, title]) => docs[id]?.title !== title,
         ).length,
-        staleTaskTitles: tasks.filter(
-          ({ _id, title }) => expectedTitles.get(String(_id)) !== title,
-        ).length,
+        staleTaskTitles,
+        unexpectedTasks,
       };
     },
   };

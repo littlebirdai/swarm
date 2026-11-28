@@ -171,6 +171,7 @@ export const chatTables = {
     // need a second read. Derived on insert, never a mutation argument.
     team_id: v.id("teams"),
     channel_id: v.id("chat_channels"),
+    home_scope: v.optional(v.string()),
     // Threads are FLAT, like Slack's: a reply points at the ROOT message and a
     // root leaves this absent. Never set it to the row's own id — the thread view
     // reads the root by id and the replies by index, and a self-reference would

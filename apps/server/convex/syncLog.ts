@@ -22,6 +22,11 @@ import {
   isUserGrant,
   type AccessStamp,
 } from "./lib/accessKeys";
+import {
+  addHomeScope,
+  canReadSyncScope,
+  resolveHeadsScopes,
+} from "./lib/interestScopes";
 export { accessStampFromDoc, authorizedFor, type AccessStamp };
 
 export type SyncScopeKey = string; // "user:<id>" | "team:<id>"
@@ -384,6 +389,7 @@ export function scopesForChange(
   if (entityType === "tasks") {
     for (const g of scope.grants ?? []) if (isUserGrant(g)) addGrant(g);
   }
+  addHomeScope(scopes, scope, scopes[0]);
   return scopes;
 }
 
@@ -706,12 +712,11 @@ const DEFAULT_RANGE_LIMIT = 500;
 // The caller's scope heads. Tiny payload — this is the live subscription that wakes the
 // client applier; it re-runs on tracked writes only (never on heartbeats or messages).
 export const getHeads = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { scopes: v.optional(v.array(v.string())) },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { heads: [] };
-    // The caller's held keys ARE their scopes (fan-out is access-derived).
-    const scopes = await heldKeysFor(ctx, userId);
+    const { scopes } = await resolveHeadsScopes(ctx, userId, args.scopes);
     const heads: Array<{
       scope_key: SyncScopeKey;
       position: number;
@@ -745,7 +750,7 @@ export const getRange = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return { actions: [], nextFrom: args.from, hasMore: false };
     const scopes = await heldKeysFor(ctx, userId);
-    if (!scopes.has(args.scope_key)) {
+    if (!(await canReadSyncScope(ctx, userId, scopes, args.scope_key))) {
       // Not an error (a client can race a scope_removed), but it must be
       // DISTINGUISHABLE from an empty caught-up scope: the applier treats it as
       // scope revocation (purge + drop cursor), and the applier's heads-absence

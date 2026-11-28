@@ -23,8 +23,10 @@ import {
 } from "./syncLog";
 import {
   accessStampFor,
+  computeHomeScopeDb,
   computeWorkspaceKeyDb,
   firstLinkedConversationStamp,
+  interestScopesEnabled,
   type AccessStamp,
 } from "./lib/accessKeys";
 import {
@@ -69,18 +71,40 @@ function syncExtra(
 }
 
 // The sync log's scope IS the access stamp (fan-out is access-derived).
-function syncScopeFromStamp(stamp: AccessStamp | null): ChangeScope {
+function syncScopeFromStamp(stamp: AccessStamp | null, doc?: any): ChangeScope {
   return {
     owner_user_id: stamp?.access_owner,
     workspace: stamp?.access_key,
     grants: stamp?.access_grants ?? [],
+    ...(interestScopesEnabled() && typeof doc?.home_scope === "string"
+      ? { home_scope: doc.home_scope }
+      : {}),
   };
 }
 
 // Document fields whose change can move the entity between sync-log scopes or
 // change who may read it: the pre-write document is read so departed scopes
 // get their revocation delete (design D4, access-derived fan-out).
-const SCOPE_FIELDS = new Set(["user_id", "team_id", "workspace", "assignee"]);
+const SCOPE_FIELDS = new Set([
+  "user_id",
+  "team_id",
+  "workspace",
+  "assignee",
+  "home_scope",
+]);
+const HOME_SCOPE_WORK_TABLES = new Set(["tasks", "plans", "docs"]);
+const HOME_SCOPE_FIELDS = new Set([
+  "user_id",
+  "team_id",
+  "workspace",
+  "project_id",
+  "created_from_conversation",
+  "created_from_conversation_id",
+  "conversation_id",
+  "conversation_ids",
+  "related_conversation_ids",
+  "first_linked_conversation",
+]);
 
 export type ChangeEntity =
   | "conversations"
@@ -108,6 +132,7 @@ export type ChangeScope = {
   // conversation's session owners). change_log ignores them.
   workspace?: string;
   grants?: string[];
+  home_scope?: string;
 };
 
 // The owner/team scope of an entity, read straight off its document. Every
@@ -265,6 +290,19 @@ export function makeChangeTrackedDb(
     async insert(table: string, doc: any) {
       const link = firstLinkedConversationStamp(table, doc);
       if (link) doc = { ...doc, ...link };
+      if (
+        interestScopesEnabled() &&
+        HOME_SCOPE_WORK_TABLES.has(table) &&
+        doc?.user_id &&
+        typeof doc.workspace === "string" &&
+        doc.workspace &&
+        !(typeof doc.home_scope === "string" && doc.home_scope)
+      ) {
+        doc = {
+          ...doc,
+          home_scope: await computeHomeScopeDb({ db: rawDb }, doc),
+        };
+      }
       const id = await rawDb.insert(table, doc);
       if (TRACKED_TABLES.has(table as any)) {
         const scope = scopeFromDoc(doc);
@@ -281,17 +319,30 @@ export function makeChangeTrackedDb(
         // creates) still mint rows without `workspace`, and every such row would
         // otherwise pay a linked-conversation read on each later write and a
         // membership query per list row, forever.
-        if (
-          table !== "conversations" &&
-          doc?.user_id &&
-          !(typeof doc.workspace === "string" && doc.workspace)
-        ) {
-          const key = await computeWorkspaceKeyDb(
-            { db: rawDb },
-            { _id: id, ...doc },
+        if (table !== "conversations" && doc?.user_id) {
+          const needsWorkspace = !(
+            typeof doc.workspace === "string" && doc.workspace
           );
-          await rawDb.patch(id, { workspace: key });
-          doc = { ...doc, workspace: key };
+          const needsHome =
+            interestScopesEnabled() &&
+            HOME_SCOPE_WORK_TABLES.has(table) &&
+            !(typeof doc.home_scope === "string" && doc.home_scope);
+          if (needsWorkspace || needsHome) {
+            const key = needsWorkspace
+              ? await computeWorkspaceKeyDb({ db: rawDb }, { _id: id, ...doc })
+              : doc.workspace;
+            const homeScope = needsHome
+              ? await computeHomeScopeDb(
+                  { db: rawDb },
+                  { _id: id, ...doc, workspace: key },
+                )
+              : undefined;
+            const stampPatch: Record<string, any> = {};
+            if (needsWorkspace) stampPatch.workspace = key;
+            if (needsHome) stampPatch.home_scope = homeScope;
+            await rawDb.patch(id, stampPatch);
+            doc = { ...doc, ...stampPatch };
+          }
         }
         if (table === "tasks" && countBucket(doc))
           await moveProjectCount({ db: rawDb }, null, await rawDb.get(id));
@@ -309,7 +360,7 @@ export function makeChangeTrackedDb(
             table as ChangeEntity,
             String(id),
             "upsert",
-            syncScopeFromStamp(await extra.access!()),
+            syncScopeFromStamp(await extra.access!(), full),
             null,
             extra,
           );
@@ -344,8 +395,14 @@ export function makeChangeTrackedDb(
       if (link) fields = { ...fields, ...link };
       // A patch that touches scope fields can MOVE the entity between scopes; the
       // departed scope needs a revocation action, which requires the pre-write doc.
+      const updatesHome =
+        interestScopesEnabled() &&
+        !!table &&
+        HOME_SCOPE_WORK_TABLES.has(table) &&
+        Object.keys(fields).some((k) => HOME_SCOPE_FIELDS.has(k));
       const movesScope =
-        !!table && Object.keys(fields).some((k) => SCOPE_FIELDS.has(k));
+        !!table &&
+        (Object.keys(fields).some((k) => SCOPE_FIELDS.has(k)) || updatesHome);
       const movesAgent = table === "conversations" && "agent_type" in fields;
       const movesCount = table === "tasks" && touchesProjectCount(fields);
       const preDoc =
@@ -357,8 +414,18 @@ export function makeChangeTrackedDb(
         movesScope && preDoc && table
           ? syncScopeFromStamp(
               await accessStampFor({ db: rawDb }, table, preDoc),
+              preDoc,
             )
           : null;
+      if (updatesHome && preDoc && !("home_scope" in fields)) {
+        const nextHome = await computeHomeScopeDb(
+          { db: rawDb },
+          { ...preDoc, ...fields },
+        );
+        if (nextHome !== preDoc.home_scope) {
+          fields = { ...fields, home_scope: nextHome };
+        }
+      }
       const res = await rawDb.patch(id, fields);
       if (movesCount)
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
@@ -389,7 +456,7 @@ export function makeChangeTrackedDb(
           // The sync log's scopes and stamp come from the POST-write document
           // (one memoized read; the D1 cost note anticipated it) — never from
           // the change_log row, which knows only owner/team_id.
-          const extra = syncExtra(
+          let extra = syncExtra(
             rawDb,
             table,
             postWriteDoc(rawDb, id),
@@ -397,7 +464,31 @@ export function makeChangeTrackedDb(
           );
           const stamp = await extra.access!();
           if (stamp) {
-            const syncScope = syncScopeFromStamp(stamp);
+            let fullDoc = await extra.fullDoc!();
+            if (
+              interestScopesEnabled() &&
+              HOME_SCOPE_WORK_TABLES.has(table) &&
+              fullDoc?.user_id &&
+              !(typeof fullDoc.home_scope === "string" && fullDoc.home_scope)
+            ) {
+              const homeScope = await computeHomeScopeDb(
+                { db: rawDb },
+                fullDoc,
+              );
+              await rawDb.patch(id, { home_scope: homeScope });
+              fullDoc = await rawDb.get(id);
+              extra = syncExtra(
+                rawDb,
+                table,
+                postWriteDoc(rawDb, id, fullDoc),
+                buildCargo(
+                  table,
+                  { ...fields, home_scope: homeScope },
+                  { full: false },
+                ),
+              );
+            }
+            const syncScope = syncScopeFromStamp(stamp, fullDoc);
             await emitSyncActions(
               rawDb,
               collector,
@@ -436,8 +527,20 @@ export function makeChangeTrackedDb(
         preDoc && table
           ? syncScopeFromStamp(
               await accessStampFor({ db: rawDb }, table, preDoc),
+              preDoc,
             )
           : null;
+      if (
+        interestScopesEnabled() &&
+        table &&
+        HOME_SCOPE_WORK_TABLES.has(table) &&
+        doc?.user_id
+      ) {
+        doc = {
+          ...doc,
+          home_scope: await computeHomeScopeDb({ db: rawDb }, doc),
+        };
+      }
       const res = await rawDb.replace(id, doc);
       if (table === "tasks")
         await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
@@ -459,7 +562,7 @@ export function makeChangeTrackedDb(
             table,
             String(id),
             "upsert",
-            syncScopeFromStamp(await extra.access!()),
+            syncScopeFromStamp(await extra.access!(), full),
             preScope,
             extra,
           );
@@ -490,6 +593,7 @@ export function makeChangeTrackedDb(
         table && preDoc
           ? syncScopeFromStamp(
               await accessStampFor({ db: rawDb }, table, preDoc),
+              preDoc,
             )
           : null;
       const res = await rawDb.delete(id);

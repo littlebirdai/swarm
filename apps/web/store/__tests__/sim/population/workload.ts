@@ -11,7 +11,8 @@ export function fixtureId<
     | "team_memberships"
     | "conversations"
     | "managed_sessions"
-    | "docs",
+    | "docs"
+    | "tasks",
 >(table: Table, index: number): Id<Table> {
   return `${table.replaceAll("_", "")}${index.toString(36).padStart(5, "0")}`.padEnd(
     32,
@@ -22,7 +23,10 @@ export function fixtureId<
 export function populationTables(
   model: ReturnType<typeof population>,
   at: number,
+  options?: { realistic?: boolean },
 ) {
+  const realistic = !!options?.realistic;
+  const multiTeam = realistic && model.people.length >= 2;
   const team = fixtureId("teams", 0);
   const projectOwners = model.projects.map(
     (project) =>
@@ -35,59 +39,164 @@ export function populationTables(
     };
     return { ...owner, workspace: computeWorkspaceKey(owner, null) };
   };
-  return {
-    users: model.people.map(({ id }) => ({
-      _id: fixtureId("users", id),
+  const users: any[] = model.people.map(({ id }) => ({
+    _id: fixtureId("users", id),
+    _creationTime: at,
+    name: `Person ${id}`,
+  }));
+  const teams: any[] = [
+    { _id: team, _creationTime: at, name: "Simulation team" },
+  ];
+  const memberships: any[] = model.people.map(({ id }) => ({
+    _id: fixtureId("team_memberships", id),
+    _creationTime: at,
+    user_id: fixtureId("users", id),
+    team_id: team,
+    role: "member",
+    joined_at: at,
+    visibility: "full",
+  }));
+  const projects: Doc<"projects">[] = model.projects.map((id) => ({
+    _id: fixtureId("projects", id),
+    _creationTime: at,
+    ...projectScope(id),
+    title: `Project ${id}`,
+    status: "active",
+    created_at: at,
+    updated_at: at,
+  }));
+  const docs: Doc<"docs">[] = model.projects.map((id) => ({
+    _id: fixtureId("docs", id),
+    _creationTime: at,
+    ...projectScope(id),
+    project_id: fixtureId("projects", id),
+    title: `Project ${id} notes`,
+    content: "Project progress",
+    doc_type: "note",
+    source: "human",
+    created_at: at,
+    updated_at: at,
+  }));
+  const conversations: any[] = model.sessions.map(({ id, owner, active }) => ({
+    _id: fixtureId("conversations", id),
+    _creationTime: at,
+    session_id: String(fixtureId("conversations", id)),
+    user_id: fixtureId("users", owner),
+    team_id: team,
+    is_private: realistic ? !active : false,
+    team_visibility: realistic && !active ? "private" : "full",
+    status: active ? "active" : "completed",
+    title: `Session ${id}`,
+    skip_title_generation: true,
+    agent_type: "claude_code",
+    message_count: 0,
+    started_at: at,
+    updated_at: at,
+  }));
+  const tasks: any[] = [];
+
+  if (multiTeam) {
+    const extIndex = model.people.length;
+    const extUser = fixtureId("users", extIndex);
+    const extTeam = fixtureId("teams", 1);
+    const extProj = fixtureId("projects", model.projects.length);
+    const extConv = fixtureId("conversations", model.sessions.length);
+    users.push({ _id: extUser, _creationTime: at, name: "External Member" });
+    teams.push({ _id: extTeam, _creationTime: at, name: "External team" });
+    memberships.push({
+      _id: fixtureId("team_memberships", extIndex),
       _creationTime: at,
-      name: `Person ${id}`,
-    })),
-    teams: [{ _id: team, _creationTime: at, name: "Simulation team" }],
-    team_memberships: model.people.map(({ id }) => ({
-      _id: fixtureId("team_memberships", id),
-      _creationTime: at,
-      user_id: fixtureId("users", id),
-      team_id: team,
+      user_id: extUser,
+      team_id: extTeam,
       role: "member",
       joined_at: at,
       visibility: "full",
-    })),
-    projects: model.projects.map((id): Doc<"projects"> => ({
-      _id: fixtureId("projects", id),
+    });
+    projects.push({
+      _id: extProj,
       _creationTime: at,
-      ...projectScope(id),
-      title: `Project ${id}`,
+      user_id: extUser,
+      team_id: extTeam,
+      workspace: `team:${extTeam}`,
+      title: "External Project",
       status: "active",
       created_at: at,
       updated_at: at,
-    })),
-    docs: model.projects.map((id): Doc<"docs"> => ({
-      _id: fixtureId("docs", id),
+    });
+    docs.push({
+      _id: fixtureId("docs", model.projects.length),
       _creationTime: at,
-      ...projectScope(id),
-      project_id: fixtureId("projects", id),
-      title: `Project ${id} notes`,
-      content: "Project progress",
+      user_id: extUser,
+      team_id: extTeam,
+      workspace: `team:${extTeam}`,
+      project_id: extProj,
+      title: "External notes",
+      content: "External progress",
       doc_type: "note",
       source: "human",
       created_at: at,
       updated_at: at,
-    })),
-    conversations: model.sessions.map(({ id, owner, active }) => ({
-      _id: fixtureId("conversations", id),
+    });
+    conversations.push({
+      _id: extConv,
       _creationTime: at,
-      session_id: String(fixtureId("conversations", id)),
-      user_id: fixtureId("users", owner),
-      team_id: team,
+      session_id: String(extConv),
+      user_id: extUser,
+      team_id: extTeam,
       is_private: false,
       team_visibility: "full",
-      status: active ? "active" : "completed",
-      title: `Session ${id}`,
+      status: "active",
+      title: "External session",
       skip_title_generation: true,
       agent_type: "claude_code",
       message_count: 0,
       started_at: at,
       updated_at: at,
-    })),
+    });
+    tasks.push({
+      _id: fixtureId("tasks", 0),
+      _creationTime: at,
+      user_id: extUser,
+      team_id: extTeam,
+      workspace: `team:${extTeam}`,
+      home_scope: `project:${extProj}`,
+      project_id: extProj,
+      short_id: "ct-900001",
+      title: "External team task",
+      task_type: "task",
+      status: "open",
+      priority: "medium",
+      source: "human",
+      created_at: at,
+      updated_at: at,
+    });
+    tasks.push({
+      _id: fixtureId("tasks", 1),
+      _creationTime: at,
+      user_id: extUser,
+      team_id: team,
+      workspace: `user:${extUser}`,
+      home_scope: `project:${fixtureId("projects", 0)}`,
+      project_id: fixtureId("projects", 0),
+      short_id: "ct-900002",
+      title: "Private in team task",
+      task_type: "task",
+      status: "open",
+      priority: "medium",
+      source: "human",
+      created_at: at,
+      updated_at: at,
+    });
+  }
+
+  return {
+    users,
+    teams,
+    team_memberships: memberships,
+    projects,
+    docs,
+    conversations,
+    tasks,
     managed_sessions: model.sessions
       .filter(({ active }) => active)
       .map(({ id, owner }) => ({
@@ -108,13 +217,48 @@ export async function saveTask(
   client: SimClient,
   event: Activity,
   shortId?: string,
+  options?: {
+    realistic?: boolean;
+    apiToken?: string;
+    nextProject?: number;
+  },
 ): Promise<string> {
   if (shortId) {
     await client.mutation("tasks:webUpdate", {
       short_id: shortId,
       title: `Verify the project changes from agent ${event.agent}`,
+      ...(options?.nextProject !== undefined
+        ? { project_id: String(fixtureId("projects", options.nextProject)) }
+        : {}),
     });
     return shortId;
+  }
+  const sessionLinked =
+    !!options?.realistic && !event.privateTask && event.agent % 4 === 1;
+  if (sessionLinked && options?.apiToken) {
+    const task = await client.mutation("tasks:create", {
+      api_token: options.apiToken,
+      workspace: "team",
+      team_id: fixtureId("teams", 0),
+      project_id: fixtureId("projects", event.project),
+      conversation_id: String(fixtureId("conversations", event.person.id * 2)),
+      title: `Review session changes from agent ${event.agent}`,
+      description: "Check the session output and record the result.",
+      status: "in_progress",
+    });
+    return task.short_id;
+  }
+  if (options?.realistic && event.privateTask && options?.apiToken) {
+    const task = await client.mutation("tasks:create", {
+      api_token: options.apiToken,
+      conversation_id: String(
+        fixtureId("conversations", event.person.id * 2 + 1),
+      ),
+      title: `Private notes from agent ${event.agent}`,
+      description: "Track private verification details for the owner only.",
+      status: "in_progress",
+    });
+    return task.short_id;
   }
   const task = await client.mutation("tasks:webCreate", {
     ...(event.privateTask

@@ -19,7 +19,7 @@ import { useQuery } from "convex/react";
 const scope = "user:viewer";
 
 function Inbox({ snapshot }: { snapshot: boolean }) {
-  useQuery(api.syncLog.getHeads);
+  useQuery(api.syncLog.getHeads, {});
   const { loading } = useLiveInboxSessions(snapshot);
   return <span>{loading ? "loading" : "ready"}</span>;
 }

@@ -154,7 +154,7 @@ import {
   parseChatMentionClientId,
   parseChatRelayClientId,
 } from "./lib/chatWakeIds";
-import { nextChatStamp, patchChat } from "./lib/chatRows";
+import { insertChatMessage, nextChatStamp, patchChat } from "./lib/chatRows";
 import {
   closeSessionReplyOnAnswer,
   openSessionReply,
@@ -442,7 +442,7 @@ export const seedCommunityPost = internalMutation({
         throw new Error("That thread is not in this channel");
       }
     }
-    const messageId = await ctx.db.insert("chat_messages", {
+    const messageId = await insertChatMessage(ctx, {
       team_id: channel.team_id,
       channel_id: channel._id,
       thread_root_id: args.thread_root_id,
@@ -3309,7 +3309,7 @@ export async function postChatMessage(
     }
   }
 
-  const messageId = await ctx.db.insert("chat_messages", {
+  const messageId = await insertChatMessage(ctx, {
     team_id: channel.team_id,
     channel_id: channel._id,
     thread_root_id: root?._id,
@@ -4131,7 +4131,7 @@ export const startVoiceBurst = mutation({
     await sweepStaleVoiceBursts(ctx, channel);
 
     const now = await nextChatStamp(ctx, channel._id);
-    const messageId = await ctx.db.insert("chat_messages", {
+    const messageId = await insertChatMessage(ctx, {
       team_id: channel.team_id,
       channel_id: channel._id,
       user_id: userId,
@@ -5232,7 +5232,7 @@ async function wakeAnchorTurn(
   const visibleSkip = async (skipped: string, content: string) => {
     if (!addressed) return no(skipped);
     const now = Math.max(Date.now(), opts.message.created_at + 1);
-    const id = await ctx.db.insert("chat_messages", {
+    const id = await insertChatMessage(ctx, {
       team_id: opts.channel.team_id,
       channel_id: opts.channel._id,
       thread_root_id: threadRootId,
@@ -5332,7 +5332,7 @@ async function wakeAnchorTurn(
   // must sort AFTER its question, and Date.now() alone can tie with — or trail —
   // a bumped message stamp from the same millisecond.
   const now = Math.max(Date.now(), opts.message.created_at + 1);
-  const placeholderId = await ctx.db.insert("chat_messages", {
+  const placeholderId = await insertChatMessage(ctx, {
     team_id: opts.channel.team_id,
     channel_id: opts.channel._id,
     thread_root_id: threadRootId,
