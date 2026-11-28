@@ -191,7 +191,7 @@ test("a task cannot assign a role ID outside its workspace", async () => {
     team_id: team,
   });
   await expect(
-    t.mutation(api.tasks.create, {
+    t.mutation(api.taskCreate.create, {
       api_token: apiToken,
       title: "Check incidents",
       assignee: role._id,

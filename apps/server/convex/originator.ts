@@ -6,7 +6,7 @@
 // drives citeRun and typedStep through lib/originatorChain.verifyCitation.
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./functions";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   readableConversation,

@@ -59,7 +59,7 @@ async function setup(seed: string) {
     token: string,
     opts: { conversation_id?: string; take?: boolean } = {},
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: token,
       short_id: "ct-101",
       status: "in_progress",
@@ -96,7 +96,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
   const f = await setup("review-fixes");
 
   await f.start(f.tokA, { conversation_id: String(f.convA1) });
-  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+  await asUser(f.t, f.ben).mutation(api.taskWebUpdate.webUpdate, {
     short_id: "ct-101",
     status: "in_progress",
   });
@@ -104,7 +104,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         priority: "high",
@@ -114,7 +114,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokB,
         short_id: "ct-101",
         priority: "urgent",
@@ -124,7 +124,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokB,
         short_id: "ct-101",
         priority: "low",
@@ -135,7 +135,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.updateExecutionStatus, {
+      f.t.mutation(api.taskExecution.updateExecutionStatus, {
         api_token: f.tokB,
         short_id: "ct-101",
         execution_status: "blocked",
@@ -154,7 +154,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokB,
         short_id: "ct-101",
         priority: "low",
@@ -207,7 +207,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
     notes.some((n) => n.text.includes("took over as owner from jx7bbbb")),
   ).toBe(true);
 
-  await f.t.mutation(api.tasks.addComment, {
+  await f.t.mutation(api.taskComments.addComment, {
     api_token: f.tokA,
     short_id: "ct-101",
     text: "Relay despite 30m idle timestamp because lease is live",
@@ -281,7 +281,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
   expect((await f.claimRow())?.holder).toBeUndefined();
   expect((await f.getConv(personalConvA))?.active_task_id).toBeUndefined();
 
-  const spawned: any = await f.t.mutation(api.tasks.spawnForTask, {
+  const spawned: any = await f.t.mutation(api.taskSpawn.spawnForTask, {
     api_token: f.tokA,
     short_id: "ct-101",
   });
@@ -296,7 +296,7 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
 test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationClaim keeps matching free/wrong_holder and real token", async () => {
   const f = await setup("unresolved-conv-match");
   await f.start(f.tokA, { conversation_id: String(f.convA1) });
-  await asUser(f.t, f.ana).mutation(api.tasks.webUpdate, {
+  await asUser(f.t, f.ana).mutation(api.taskWebUpdate.webUpdate, {
     short_id: "ct-101",
     status: "in_progress",
   });
@@ -306,7 +306,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   expect(realToken).toBeGreaterThan(0);
 
   const hbFree = await catchClaimError(() =>
-    f.t.mutation(api.tasks.heartbeat, {
+    f.t.mutation(api.taskExecution.heartbeat, {
       api_token: f.tokB,
       short_id: "ct-101",
       conversation_id: "missing-session",
@@ -319,7 +319,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   });
 
   const renewFree = await catchClaimError(() =>
-    f.t.mutation(api.tasks.renew, {
+    f.t.mutation(api.taskExecution.renew, {
       api_token: f.tokB,
       short_id: "ct-101",
       claim_token: realToken,
@@ -333,7 +333,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   });
 
   const mutFree = await catchClaimError(() =>
-    f.t.mutation(api.tasks.updateExecutionStatus, {
+    f.t.mutation(api.taskExecution.updateExecutionStatus, {
       api_token: f.tokB,
       short_id: "ct-101",
       execution_status: "blocked",
@@ -351,7 +351,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   expect(heldToken).toBe(realToken + 1);
 
   const hbHeld = await catchClaimError(() =>
-    f.t.mutation(api.tasks.heartbeat, {
+    f.t.mutation(api.taskExecution.heartbeat, {
       api_token: f.tokB,
       short_id: "ct-101",
       conversation_id: "missing-session",
@@ -364,7 +364,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   });
 
   const renewHeld = await catchClaimError(() =>
-    f.t.mutation(api.tasks.renew, {
+    f.t.mutation(api.taskExecution.renew, {
       api_token: f.tokB,
       short_id: "ct-101",
       claim_token: heldToken!,
@@ -378,7 +378,7 @@ test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationCl
   });
 
   const mutHeld = await catchClaimError(() =>
-    f.t.mutation(api.tasks.updateExecutionStatus, {
+    f.t.mutation(api.taskExecution.updateExecutionStatus, {
       api_token: f.tokB,
       short_id: "ct-101",
       execution_status: "blocked",

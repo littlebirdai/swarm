@@ -20,7 +20,16 @@ const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./workflow_runs.ts": () => import("./workflow_runs"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
   "./sessionDecisions.ts": () => import("./sessionDecisions"),
   "./issueSync.ts": () => import("./issueSync"),
@@ -351,7 +360,7 @@ describe("the gate (LE11, LE16)", () => {
     await askCard(t, ids.runId);
     expect(await waitingUnread(read)).toHaveLength(1);
     // Dropping the cause cancels the run, which withdraws its open card.
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "dropped",
@@ -414,7 +423,7 @@ describe("the gate (LE11, LE16)", () => {
 
   test("a review approve inside a live line run leaves the cause in review: the run decides done", async () => {
     const { t, ids, read } = await setup({ status: "in_progress" });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "done",
@@ -427,7 +436,7 @@ describe("the gate (LE11, LE16)", () => {
     await t.run(async (ctx) => {
       await ctx.db.patch(ids.runId, { status: "completed" } as any);
     });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "done",
@@ -443,7 +452,7 @@ describe("a person's status wins (LM3)", () => {
       { status: "in_progress" },
       { current_node_id: "implement" },
     );
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "dropped",
@@ -463,7 +472,7 @@ describe("a person's status wins (LM3)", () => {
       { status: "in_review" },
       { current_node_id: "drop" },
     );
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "dropped",
@@ -517,7 +526,7 @@ describe("a person's status wins (LM3)", () => {
         await ctx.db.patch(s.ids.taskId, { project_id: project } as any);
         await ctx.db.patch(s.ids.runId, { workflow_id: workflow } as any);
       });
-      await s.t.mutation(api.tasks.update, {
+      await s.t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         status: "dropped",
@@ -550,7 +559,7 @@ describe("a person's status wins (LM3)", () => {
         node_statuses: lineNodes("decide"),
       },
     );
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "dropped",
@@ -582,7 +591,7 @@ describe("a person's status wins (LM3)", () => {
       { status: "in_progress" },
       { current_node_id: "implement" },
     );
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "dropped",
@@ -728,7 +737,7 @@ describe("a review approve inside a run that is not a line run", () => {
     ...ids.map((id, i) => node(id, T0 + 10 + i)),
   ];
   const approve = (t: any) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "done",

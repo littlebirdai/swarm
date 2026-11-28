@@ -50,9 +50,12 @@ describe("task search", () => {
       return team;
     });
     const list = (
-      args: Pick<FunctionArgs<typeof api.tasks.list>, "query" | "include_done">,
+      args: Pick<
+        FunctionArgs<typeof api.taskList.list>,
+        "query" | "include_done"
+      >,
     ) =>
-      t.query(api.tasks.list, {
+      t.query(api.taskList.list, {
         api_token: TOKEN,
         workspace: "team",
         team_id: team,

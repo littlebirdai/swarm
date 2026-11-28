@@ -6,7 +6,7 @@ const backend = path.resolve(
   import.meta.dir,
   "../../../../../apps/server/convex",
 );
-const { create } = await import(path.join(backend, "tasks.ts"));
+const { create } = await import(path.join(backend, "taskCreate.ts"));
 const { makeFakeDb } = await import(path.join(backend, "testDb.ts"));
 const { hashToken } = await import(path.join(backend, "apiTokens.ts"));
 export async function taskReplay(f: any) {
@@ -43,7 +43,7 @@ export async function taskReplay(f: any) {
     throttle: async () => {},
     guarded: async (run: () => Promise<unknown>) => run(),
     mutate: async (name: string, args: any) => {
-      assert.equal(name, "tasks:create");
+      assert.equal(name, "taskCreate:create");
       calls.push(args);
       if (taskFailure === "before") throw new Error("task before commit");
       const result = await create._handler(ctx, args);

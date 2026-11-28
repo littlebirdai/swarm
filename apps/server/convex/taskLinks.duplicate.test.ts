@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { OTHER, TOKEN, setup, task } from "../test-helpers/taskLinks.testkit";
 import { api, internal } from "./_generated/api";
-import { addDepCore, moveTaskStatus } from "./tasks";
+import { addDepCore } from "./lib/taskDeps";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import { applyPlanStatus } from "./orgInit";
 import { normalizeLinearIssue } from "./lib/issueMapping";
 
@@ -12,7 +13,7 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
     });
@@ -27,7 +28,7 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
       status: "dropped",
@@ -43,7 +44,7 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "done" }),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
       status: "dropped",
@@ -59,7 +60,7 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"], status: "in_progress" }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
     });
@@ -74,12 +75,12 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
       status: "dropped",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "",
       status: "open",
@@ -95,19 +96,19 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "done" }),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "open",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "",
     });
@@ -127,21 +128,21 @@ describe("duplicate (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-3"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "",
     });
     expect((await c.row("ct-2")).blocked_by).toEqual(["ct-1"]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-3",
       duplicate_of: "ct-7",
       status: "dropped",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-3",
       duplicate_of: "",
     });
@@ -155,18 +156,18 @@ describe("duplicate (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-1", "ct-2"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
       status: "dropped",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-2",
       duplicate_of: "ct-7",
       status: "dropped",
     });
     expect((await c.row("ct-4")).blocked_by).toEqual(["ct-7"]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "",
       status: "open",
@@ -181,12 +182,12 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
       status: "dropped",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "open",
     });
@@ -194,7 +195,7 @@ describe("duplicate (TG5)", () => {
       (await c.row("ct-1")).duplicate_of,
       (await c.row("ct-2")).blocked_by,
     ]).toEqual(["ct-7", ["ct-1"]]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
     });
@@ -210,7 +211,7 @@ describe("duplicate (TG5)", () => {
 
   test("a dependent added after the mark moves to the canonical when the duplicate is dropped", async () => {
     const c = await setup([task("ct-1"), task("ct-3"), task("ct-7")]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       duplicate_of: "ct-7",
     });
@@ -220,7 +221,7 @@ describe("duplicate (TG5)", () => {
         blocked_by: "ct-1",
       }),
     );
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
     });
@@ -240,7 +241,7 @@ describe("duplicate (TG5)", () => {
       task("ct-3", { blocked_by: ["ct-2"] }),
       task("ct-7"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
       subtask_resolution: "cascade",
@@ -255,7 +256,7 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "dropped" }),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
     });
@@ -272,14 +273,14 @@ describe("duplicate (TG5)", () => {
       task("ct-9"),
     ]);
     await expect(
-      c.actor.mutation(api.tasks.webUpdate, {
+      c.actor.mutation(api.taskWebUpdate.webUpdate, {
         short_id: "ct-1",
         duplicate_of: "ct-7",
         status: "dropped",
       }),
     ).rejects.toThrow(/ct-7 is dropped/);
     await expect(
-      c.actor.mutation(api.tasks.webUpdate, {
+      c.actor.mutation(api.taskWebUpdate.webUpdate, {
         short_id: "ct-1",
         duplicate_of: "ct-8",
       }),
@@ -325,7 +326,7 @@ describe("duplicate (TG5)", () => {
       task("ct-7", { duplicate_of: "ct-9" }),
       task("ct-9"),
     ]);
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "dropped",
     });
@@ -345,7 +346,7 @@ describe("duplicate (TG5)", () => {
     ]);
     await c.join("team_x");
     await expect(
-      c.actor.mutation(api.tasks.webUpdate, {
+      c.actor.mutation(api.taskWebUpdate.webUpdate, {
         short_id: "ct-1",
         duplicate_of: "ct-9",
         status: "dropped",

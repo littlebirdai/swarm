@@ -20,7 +20,7 @@ const withLabel = (name: string) =>
 const spawnsOf = (scheduled: Array<{ fn: any; args: any }>) =>
   scheduled
     .filter(
-      (s) => getFunctionName(s.fn) === "tasks:spawnSessionForTaskInternal",
+      (s) => getFunctionName(s.fn) === "taskSpawn:spawnSessionForTaskInternal",
     )
     .map((s) => s.args);
 

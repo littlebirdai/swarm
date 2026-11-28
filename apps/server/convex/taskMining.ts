@@ -20,7 +20,7 @@ import { findClaim } from "./lib/claims";
 import { liveConversationIdSet } from "./lib/liveSessions";
 import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { graphNeighbors } from "./lib/taskGraph";
-import { TASKS_PER_CONVERSATION_LIMIT } from "./tasks";
+import { TASKS_PER_CONVERSATION_LIMIT } from "./taskReads";
 
 function normalizeTitle(title: string): string[] {
   return title

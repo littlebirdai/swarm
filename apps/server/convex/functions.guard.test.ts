@@ -111,7 +111,16 @@ describe("authorization boundary coverage", () => {
     expect(data).not.toMatch(/get\s+unscoped\s*\(/);
 
     for (const f of [
-      "tasks.ts",
+      "taskCreate.ts",
+      "taskUpdate.ts",
+      "taskWebUpdate.ts",
+      "taskComments.ts",
+      "taskDeps.ts",
+      "taskExecution.ts",
+      "taskSpawn.ts",
+      "taskList.ts",
+      "taskReads.ts",
+      "taskWebList.ts",
       "docs.ts",
       "plans.ts",
       "projects.ts",

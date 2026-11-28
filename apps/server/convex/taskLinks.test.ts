@@ -19,7 +19,7 @@ describe("found_during (TG5)", () => {
     const c = await setup([task("ct-1")], {
       active_task_id: "task_ct-1",
     });
-    const { short_id } = await c.t.mutation(api.tasks.create, {
+    const { short_id } = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Found bug",
       conversation_id: SESSION,
@@ -40,19 +40,19 @@ describe("found_during (TG5)", () => {
       ],
       { active_task_id: "task_ct-1" },
     );
-    const sub = await c.t.mutation(api.tasks.create, {
+    const sub = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Sub",
       conversation_id: SESSION,
       parent_id: "ct-1",
     });
-    const deep = await c.t.mutation(api.tasks.create, {
+    const deep = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Deeper",
       conversation_id: SESSION,
       parent_id: "ct-2",
     });
-    const step = await c.t.mutation(api.tasks.create, {
+    const step = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Step",
       conversation_id: SESSION,
@@ -66,13 +66,13 @@ describe("found_during (TG5)", () => {
     const c = await setup([task("ct-1"), task("ct-5")], {
       active_task_id: "task_ct-1",
     });
-    const explicit = await c.t.mutation(api.tasks.create, {
+    const explicit = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "A",
       conversation_id: SESSION,
       found_during: "ct-5",
     });
-    const none = await c.t.mutation(api.tasks.create, {
+    const none = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "B",
       conversation_id: SESSION,
@@ -93,13 +93,13 @@ describe("found_during (TG5)", () => {
     });
     await c.join("team_x");
     await expect(
-      c.t.mutation(api.tasks.create, {
+      c.t.mutation(api.taskCreate.create, {
         api_token: TOKEN,
         title: "A",
         found_during: "ct-9",
       }),
     ).rejects.toThrow(/another workspace|not found/i);
-    const auto = await c.t.mutation(api.tasks.create, {
+    const auto = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "B",
       conversation_id: SESSION,
@@ -117,13 +117,13 @@ describe("found_during (TG5)", () => {
       }),
       task("ct-3", { related: ["ct-1"] }),
     ]);
-    const shown = await c.t.query(api.tasks.get, {
+    const shown = await c.t.query(api.taskReads.get, {
       api_token: TOKEN,
       short_id: "ct-2",
     });
     expect(shown.links.found_during.short_id).toBe("ct-1");
     expect(shown.links.superseded_by.short_id).toBe("ct-3");
-    const ctx1 = await c.t.query(api.tasks.context, {
+    const ctx1 = await c.t.query(api.taskReads.context, {
       api_token: TOKEN,
       short_id: "ct-1",
     });
@@ -143,7 +143,7 @@ describe("found_during (TG5)", () => {
       }),
       task("ct-5", { blocked_by: ["ct-4"] }),
     ]);
-    const shown = await c.t.query(api.tasks.get, {
+    const shown = await c.t.query(api.taskReads.get, {
       api_token: TOKEN,
       short_id: "ct-4",
     });
@@ -164,7 +164,7 @@ describe("found_during (TG5)", () => {
       task("ct-3", { blocked_by: ["task_ct-1"] }),
       task("ct-4", { blocked_by: ["ct-9"] }),
     ]);
-    const shown = await c.t.query(api.tasks.get, {
+    const shown = await c.t.query(api.taskReads.get, {
       api_token: TOKEN,
       short_id: "ct-1",
     });
@@ -365,7 +365,7 @@ describe("supersede (TG5)", () => {
     await c.t.run(({ db }) =>
       db.patch(c.conversation, { active_task_id: c.id("ct-1") }),
     );
-    const { short_id } = await c.t.mutation(api.tasks.create, {
+    const { short_id } = await c.t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Later",
       conversation_id: SESSION,
@@ -385,7 +385,7 @@ describe("supersede (TG5)", () => {
       short_id: "ct-1",
       by: "ct-5",
     });
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "open",
     });
@@ -483,7 +483,7 @@ describe("supersede (TG5)", () => {
       by: "ct-5",
     });
     await c.t.run(({ db }) => db.patch(c.id("ct-1"), { blocked_by: ["ct-2"] }));
-    await c.actor.mutation(api.tasks.webUpdate, {
+    await c.actor.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       status: "open",
     });

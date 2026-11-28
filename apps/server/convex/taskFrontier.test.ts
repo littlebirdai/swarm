@@ -136,8 +136,8 @@ async function setup(
 
 const list = (
   t: ServerTest,
-  args: Partial<FunctionArgs<typeof api.tasks.list>>,
-) => t.query(api.tasks.list, { api_token: TOKEN, ...args });
+  args: Partial<FunctionArgs<typeof api.taskList.list>>,
+) => t.query(api.taskList.list, { api_token: TOKEN, ...args });
 const order = (rows: { short_id: string }[]) => rows.map((t) => t.short_id);
 
 describe("the ready frontier's order (TG7)", () => {
@@ -253,7 +253,7 @@ describe("ephemeral tasks (TG9)", () => {
       });
     });
     const open = await notifications();
-    await t.mutation(api.tasks.create, {
+    await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "probe",
       ephemeral: true,
@@ -261,7 +261,7 @@ describe("ephemeral tasks (TG9)", () => {
     });
     expect(await notifications()).toEqual(open);
     // The same assignment of real work folds in.
-    await t.mutation(api.tasks.create, {
+    await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "real",
       assignee: teammate,
@@ -273,7 +273,7 @@ describe("ephemeral tasks (TG9)", () => {
 
   test("keep clears it; create and update write model and effort, and '' clears", async () => {
     const { t, row } = await setup([]);
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "probe",
       ephemeral: true,
@@ -285,7 +285,7 @@ describe("ephemeral tasks (TG9)", () => {
       effort: "high",
       model: "sonnet",
     });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id,
       ephemeral: false,
@@ -293,7 +293,7 @@ describe("ephemeral tasks (TG9)", () => {
     });
     expect((await row(short_id)).ephemeral).toBeUndefined();
     expect((await row(short_id)).effort).toBe("max");
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id,
       effort: "",
@@ -337,7 +337,7 @@ describe("claiming the frontier (TG7)", () => {
     );
     expect(candidates).toEqual(["ct-1", "ct-2"]);
     // The racing claim wins ct-1 between this claim's two steps.
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",

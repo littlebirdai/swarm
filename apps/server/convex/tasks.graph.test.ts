@@ -35,8 +35,8 @@ const ids = (rows: { short_id: string }[]) =>
   rows.map((t) => t.short_id).sort();
 const list = (
   t: ServerTest,
-  args: Partial<FunctionArgs<typeof api.tasks.list>> = {},
-) => t.query(api.tasks.list, { api_token: TOKEN, ...args });
+  args: Partial<FunctionArgs<typeof api.taskList.list>> = {},
+) => t.query(api.taskList.list, { api_token: TOKEN, ...args });
 
 describe("ready (TG1)", () => {
   // The bug: list's page drops done tasks before the ready filter, which then
@@ -189,7 +189,7 @@ describe("ready (TG1)", () => {
       db.patch(taskIds["ct-6"], { parent_id: taskIds["ct-5"] }),
     );
     expect(
-      ids(await t.query(api.tasks.getReadyTasks, { api_token: TOKEN })),
+      ids(await t.query(api.taskList.getReadyTasks, { api_token: TOKEN })),
     ).toEqual(["ct-2"]);
   });
 
@@ -242,7 +242,7 @@ describe("ready (TG1)", () => {
       { short_id: "ct-2", blocked_by: ["ct-1"] },
       { short_id: "ct-3", blocked_by: ["ct-2"] },
     ]);
-    const { items } = await web.query(api.tasks.webList, {
+    const { items } = await web.query(api.taskWebList.webList, {
       ready: true,
       status: "open",
     });
@@ -264,7 +264,7 @@ describe("edges that cannot loop (TG4)", () => {
   test("addDep --blocked-by refuses the closing edge and names the path", async () => {
     const { t, row } = await setup(chain());
     await expect(
-      t.mutation(api.tasks.addDep, {
+      t.mutation(api.taskDeps.addDep, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocked_by: "ct-3",
@@ -276,7 +276,7 @@ describe("edges that cannot loop (TG4)", () => {
   test("addDep --blocks refuses it from the other side", async () => {
     const { t } = await setup(chain());
     await expect(
-      t.mutation(api.tasks.addDep, {
+      t.mutation(api.taskDeps.addDep, {
         api_token: TOKEN,
         short_id: "ct-3",
         blocks: "ct-1",
@@ -287,7 +287,7 @@ describe("edges that cannot loop (TG4)", () => {
   test("a task cannot wait on itself", async () => {
     const { t } = await setup(chain());
     await expect(
-      t.mutation(api.tasks.addDep, {
+      t.mutation(api.taskDeps.addDep, {
         api_token: TOKEN,
         short_id: "ct-2",
         blocked_by: "ct-2",
@@ -300,7 +300,7 @@ describe("edges that cannot loop (TG4)", () => {
       task.short_id === "ct-2" ? { ...task, status: "done" as const } : task,
     );
     const { t, row } = await setup(tasks);
-    await t.mutation(api.tasks.addDep, {
+    await t.mutation(api.taskDeps.addDep, {
       api_token: TOKEN,
       short_id: "ct-1",
       blocked_by: "ct-3",
@@ -312,21 +312,21 @@ describe("edges that cannot loop (TG4)", () => {
   test("update refuses a loop through blocked_by and through blocks", async () => {
     const { t, row } = await setup(chain());
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocked_by: ["ct-3"],
       }),
     ).rejects.toThrow(LOOP);
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-3",
         blocks: ["ct-1"],
       }),
     ).rejects.toThrow(LOOP);
     // Edges already on the row are not re-judged.
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-3",
       blocked_by: ["ct-2"],
@@ -341,7 +341,7 @@ describe("edges that cannot loop (TG4)", () => {
         await db.patch(id, { team_id: team });
     });
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocked_by: ["ct-3"],
@@ -365,27 +365,27 @@ describe("edges that cannot loop (TG4)", () => {
     });
     const FORBIDDEN = "dependency task belongs to another workspace";
     await expect(
-      t.mutation(api.tasks.create, {
+      t.mutation(api.taskCreate.create, {
         api_token: TOKEN,
         title: "New",
         blocked_by: ["ct-9"],
       }),
     ).rejects.toThrow(FORBIDDEN);
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocked_by: ["ct-9"],
       }),
     ).rejects.toThrow(FORBIDDEN);
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocks: ["ct-9"],
       }),
     ).rejects.toThrow(FORBIDDEN);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       blocked_by: ["ct-404"],
@@ -400,7 +400,7 @@ describe("edges that cannot loop (TG4)", () => {
       { short_id: "ct-2" },
     ]);
     await t.run(({ db }) => db.insert("counters", { name: "ct", value: 20 }));
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "New",
       blocked_by: ["CT-01", " ct-1 ", taskIds["ct-2"]],
@@ -413,21 +413,21 @@ describe("edges that cannot loop (TG4)", () => {
           .unique(),
       ))!.blocked_by,
     ).toEqual(["ct-1", taskIds["ct-2"]]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       blocks: ["CT-002"],
     });
     expect((await row("ct-1")).blocks).toEqual(["ct-2"]);
     await expect(
-      t.mutation(api.tasks.create, {
+      t.mutation(api.taskCreate.create, {
         api_token: TOKEN,
         title: "Step",
         blocked_by: ["Design the schema"],
       }),
     ).rejects.toThrow("is not a blocker");
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocked_by: ["#42"],
@@ -436,7 +436,7 @@ describe("edges that cannot loop (TG4)", () => {
       '"#42" is a wait, not a task: add it with cast task dep ct-1 --blocked-by "#42"',
     );
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         blocks: ["sd-4"],
@@ -447,7 +447,7 @@ describe("edges that cannot loop (TG4)", () => {
   test("create turns a wait-shaped blocked_by ref into a wait, as an older CLI sends it", async () => {
     const { t } = await setup([{ short_id: "ct-1" }]);
     await t.run(({ db }) => db.insert("counters", { name: "ct", value: 20 }));
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "Later",
       blocked_by: ["ct-1", "2h"],
@@ -476,7 +476,7 @@ describe("edges that cannot loop (TG4)", () => {
       { short_id: "ct-6000" },
     ]);
     await expect(
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-6000",
         blocked_by: wide.map((t) => t.short_id),
@@ -491,7 +491,7 @@ describe("edges that cannot loop (TG4)", () => {
     const { t } = await setup([{ short_id: "ct-1", blocked_by: ["ct-2"] }]);
     await t.run(({ db }) => db.insert("counters", { name: "ct", value: 1 }));
     await expect(
-      t.mutation(api.tasks.create, {
+      t.mutation(api.taskCreate.create, {
         api_token: TOKEN,
         title: "New",
         blocked_by: ["ct-1"],
@@ -513,12 +513,12 @@ describe("history (TG11)", () => {
       { short_id: "ct-1" },
       { short_id: "ct-2" },
     ]);
-    await t.mutation(api.tasks.addDep, {
+    await t.mutation(api.taskDeps.addDep, {
       api_token: TOKEN,
       short_id: "ct-2",
       blocked_by: "ct-1",
     });
-    await t.mutation(api.tasks.removeDep, {
+    await t.mutation(api.taskDeps.removeDep, {
       api_token: TOKEN,
       short_id: "ct-1",
       blocks: "ct-2",
@@ -541,13 +541,13 @@ describe("history (TG11)", () => {
       { short_id: "ct-1", labels: ["a"] },
       { short_id: "ct-2" },
     ]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       labels: ["a", "b"],
       blocked_by: ["ct-2"],
     });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       labels: ["a", "b"],
@@ -562,7 +562,7 @@ describe("history (TG11)", () => {
 
   test("status keeps the row shape it always had", async () => {
     const { t, owner, taskIds } = await setup([{ short_id: "ct-1" }]);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",

@@ -66,14 +66,14 @@ export const RETRIES_PLAN_PART: AcmePart = {
   sessions: (now) => [MAYA_DASHBOARD_SESSION(now)],
   answers: {
     // The task feed's bootstrap read: the world's tasks, so the list settles instead of syncing.
-    "tasks:webList": () => ({ items: TASKS(Date.now()) }),
+    "taskWebList:webList": () => ({ items: TASKS(Date.now()) }),
     // The reconcile crawl's one page: everything, done, so no "syncing" badge stays up.
-    "tasks:webListPaginated": () => ({
+    "taskWebList:webListPaginated": () => ({
       page: TASKS(Date.now()),
       isDone: true,
       continueCursor: "",
     }),
-    "tasks:webActiveSessions": () => ACTIVE_TASK_SESSIONS(Date.now()),
+    "taskWebList:webActiveSessions": () => ACTIVE_TASK_SESSIONS(Date.now()),
     "taskMining:webGetTaskDetail": detail,
   },
 };

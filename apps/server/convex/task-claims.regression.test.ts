@@ -90,7 +90,7 @@ async function setup(seed: string) {
       claim_request_id?: string;
     } = {},
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: token,
       short_id: opts.short_id ?? "ct-101",
       status: "in_progress",
@@ -107,7 +107,7 @@ async function setup(seed: string) {
     });
 
   const renew = (token: string, claimToken: number, conversationId?: string) =>
-    t.mutation(api.tasks.renew, {
+    t.mutation(api.taskExecution.renew, {
       api_token: token,
       short_id: "ct-101",
       claim_token: claimToken,
@@ -119,7 +119,7 @@ async function setup(seed: string) {
     claimToken: number,
     conversationId?: string,
   ) =>
-    t.mutation(api.tasks.release, {
+    t.mutation(api.taskExecution.release, {
       api_token: token,
       short_id: "ct-101",
       claim_token: claimToken,
@@ -134,7 +134,7 @@ async function setup(seed: string) {
       short_id?: string;
     } = {},
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: token,
       short_id: opts.short_id ?? "ct-101",
       status: "done",
@@ -181,7 +181,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokB,
         short_id: "ct-101",
         priority: "urgent",
@@ -191,7 +191,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         title: "No session no token",
@@ -201,7 +201,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         status: "done",
@@ -212,7 +212,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         status: "done",
@@ -224,7 +224,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.updateExecutionStatus, {
+      f.t.mutation(api.taskExecution.updateExecutionStatus, {
         api_token: f.tokA,
         short_id: "ct-101",
         execution_status: "blocked",
@@ -234,7 +234,7 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.incrementRetryCount, {
+      f.t.mutation(api.taskExecution.incrementRetryCount, {
         api_token: f.tokA,
         short_id: "ct-101",
       }),
@@ -243,14 +243,14 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
 
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.scheduleRetry, {
+      f.t.mutation(api.taskExecution.scheduleRetry, {
         api_token: f.tokA,
         short_id: "ct-101",
       }),
     ),
   ).toMatchObject({ code: "CONFLICT", reason: "wrong_holder" });
 
-  await f.t.mutation(api.tasks.update, {
+  await f.t.mutation(api.taskUpdate.update, {
     api_token: f.tokA,
     short_id: "ct-101",
     priority: "urgent",
@@ -258,21 +258,21 @@ test("field writes, verdicts, execution status, and fail-closed conversation ref
   });
   expect((await f.getTask())?.priority).toBe("urgent");
 
-  await f.t.mutation(api.tasks.updateExecutionStatus, {
+  await f.t.mutation(api.taskExecution.updateExecutionStatus, {
     api_token: f.tokA,
     short_id: "ct-101",
     execution_status: "done_with_concerns",
     claim_token: 1,
     conversation_id: String(f.convA1),
   });
-  await f.t.mutation(api.tasks.incrementRetryCount, {
+  await f.t.mutation(api.taskExecution.incrementRetryCount, {
     api_token: f.tokA,
     short_id: "ct-101",
     claim_token: 1,
     conversation_id: String(f.convA1),
   });
 
-  await f.t.mutation(api.tasks.update, {
+  await f.t.mutation(api.taskUpdate.update, {
     api_token: f.tokA,
     short_id: "ct-101",
     status: "done",
@@ -298,7 +298,7 @@ test("expired claims refuse all non-acquire writes and reschedule if renewed", a
   jest.setSystemTime(START + 60_000 + TASK_LEASE_MS);
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         priority: "high",
@@ -308,7 +308,7 @@ test("expired claims refuse all non-acquire writes and reschedule if renewed", a
   ).toMatchObject({ code: "CONFLICT", reason: "expired" });
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.update, {
+      f.t.mutation(api.taskUpdate.update, {
         api_token: f.tokA,
         short_id: "ct-101",
         review_verdict: "approve",
@@ -319,7 +319,7 @@ test("expired claims refuse all non-acquire writes and reschedule if renewed", a
   ).toMatchObject({ code: "CONFLICT", reason: "expired" });
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.scheduleRetry, {
+      f.t.mutation(api.taskExecution.scheduleRetry, {
         api_token: f.tokA,
         short_id: "ct-101",
         claim_token: 1,
@@ -373,7 +373,7 @@ test("cross-workspace starts keep session claim identity and reject foreign shar
     ),
   ).toMatchObject({ code: "CONFLICT", reason: "wrong_holder" });
 
-  await f.t.mutation(api.tasks.scheduleRetry, {
+  await f.t.mutation(api.taskExecution.scheduleRetry, {
     api_token: f.tokA,
     short_id: "ct-101",
     claim_token: 1,
@@ -391,7 +391,7 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
   });
   expect(started.claim_token).toBe(1);
 
-  await f.t.mutation(api.tasks.update, {
+  await f.t.mutation(api.taskUpdate.update, {
     api_token: f.tokA,
     short_id: "ct-101",
     status: "in_review",
@@ -407,7 +407,7 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
     conversation_id: String(f.convA1),
   });
   expect(taken2.claim_token).toBe(2);
-  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+  await asUser(f.t, f.ben).mutation(api.taskWebUpdate.webUpdate, {
     short_id: "ct-101",
     status: "open",
   });
@@ -419,7 +419,7 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
     conversation_id: String(f.convA1),
   });
   expect(taken3.claim_token).toBe(3);
-  await f.t.mutation(api.tasks.batchUpdateStatus, {
+  await f.t.mutation(api.taskExecution.batchUpdateStatus, {
     api_token: f.tokA,
     short_ids: ["ct-101"],
     status: "in_review",
@@ -427,7 +427,7 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
   expect((await f.getTask())?.status).toBe("in_review");
   expect((await f.claimRow())?.holder).toBeUndefined();
 
-  const spawned: any = await f.t.mutation(api.tasks.spawnForTask, {
+  const spawned: any = await f.t.mutation(api.taskSpawn.spawnForTask, {
     api_token: f.tokA,
     short_id: "ct-102",
   });
@@ -473,14 +473,14 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
   await expect(f.renew("invalid-token", 1)).rejects.toThrow("Unauthorized");
   await expect(f.release("invalid-token", 1)).rejects.toThrow("Unauthorized");
   await expect(
-    f.t.mutation(api.tasks.renew, {
+    f.t.mutation(api.taskExecution.renew, {
       api_token: f.tokA,
       short_id: "ct-missing",
       claim_token: 1,
     }),
   ).rejects.toThrow("Task not found");
   await expect(
-    f.t.mutation(api.tasks.release, {
+    f.t.mutation(api.taskExecution.release, {
       api_token: f.tokA,
       short_id: "ct-missing",
       claim_token: 1,
@@ -490,7 +490,7 @@ test("in_review, webUpdate, batchUpdateStatus, spawnForTask, managed heartbeat, 
 
 test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws unbind, cleanup reopen, and deletion plans", async () => {
   const f = await setup("rereview");
-  await f.t.mutation(api.tasks.heartbeat, {
+  await f.t.mutation(api.taskExecution.heartbeat, {
     api_token: f.tokA,
     short_id: "ct-101",
     progress_pct: 10,
@@ -499,7 +499,7 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
 
   await f.start(f.tokA, { conversation_id: String(f.convA1) });
   advance(60_000);
-  const beatRenewed: any = await f.t.mutation(api.tasks.heartbeat, {
+  const beatRenewed: any = await f.t.mutation(api.taskExecution.heartbeat, {
     api_token: f.tokA,
     short_id: "ct-101",
     conversation_id: String(f.convA1),
@@ -508,14 +508,14 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
   expect(beatRenewed.lease_until).toBe(START + 60_000 + TASK_LEASE_MS);
   expect(
     await catchClaimError(() =>
-      f.t.mutation(api.tasks.heartbeat, {
+      f.t.mutation(api.taskExecution.heartbeat, {
         api_token: f.tokB,
         short_id: "ct-101",
       }),
     ),
   ).toMatchObject({ code: "CONFLICT", reason: "wrong_holder" });
 
-  await f.t.mutation(api.tasks.update, {
+  await f.t.mutation(api.taskUpdate.update, {
     api_token: f.tokA,
     short_id: "ct-101",
     status: "backlog",
@@ -526,7 +526,7 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
   expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
 
   await f.start(f.tokA, { conversation_id: String(f.convA1) });
-  await f.t.mutation(api.tasks.batchUpdateStatus, {
+  await f.t.mutation(api.taskExecution.batchUpdateStatus, {
     api_token: f.tokA,
     short_ids: ["ct-101"],
     status: "in_progress",
@@ -541,7 +541,7 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
     }),
   );
   await f.start(f.tokA, { conversation_id: String(personalConvA), take: true });
-  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+  await asUser(f.t, f.ben).mutation(api.taskWebUpdate.webUpdate, {
     short_id: "ct-101",
     status: "open",
   });
@@ -589,7 +589,9 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
     short_id: "ct-102",
     conversation_id: String(f.convA1),
   });
-  await f.t.mutation(internal.tasks.adminDeleteTask, { short_id: "ct-102" });
+  await f.t.mutation(internal.taskWebUpdate.adminDeleteTask, {
+    short_id: "ct-102",
+  });
   expect(await f.claimRow(f.secondTaskId)).toBeNull();
 
   const planDelTask = await f.t.run(async ({ db }) => {
@@ -654,7 +656,7 @@ test("host-only claim holder, accountDelete claim cleanup, in_review/scheduleRet
     conversation_id: String(personalConv),
     take: true,
   });
-  await f.t.mutation(api.tasks.update, {
+  await f.t.mutation(api.taskUpdate.update, {
     api_token: f.tokA,
     short_id: "ct-101",
     status: "in_review",
@@ -670,7 +672,7 @@ test("host-only claim holder, accountDelete claim cleanup, in_review/scheduleRet
     conversation_id: String(personalConv),
     take: true,
   });
-  await f.t.mutation(api.tasks.scheduleRetry, {
+  await f.t.mutation(api.taskExecution.scheduleRetry, {
     api_token: f.tokA,
     short_id: "ct-101",
     claim_token: retryClaim.claim_token,
@@ -681,7 +683,7 @@ test("host-only claim holder, accountDelete claim cleanup, in_review/scheduleRet
   expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
 
   await f.start(f.tokA, { conversation_id: String(personalConv), take: true });
-  await f.t.mutation(api.tasks.batchUpdateStatus, {
+  await f.t.mutation(api.taskExecution.batchUpdateStatus, {
     api_token: f.tokA,
     short_ids: ["ct-101"],
     status: "in_progress",
@@ -690,7 +692,7 @@ test("host-only claim holder, accountDelete claim cleanup, in_review/scheduleRet
   expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
 
   await f.start(f.tokA, { conversation_id: String(personalConv), take: true });
-  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+  await asUser(f.t, f.ben).mutation(api.taskWebUpdate.webUpdate, {
     short_id: "ct-101",
     status: "in_progress",
   });

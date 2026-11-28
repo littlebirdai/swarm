@@ -27,7 +27,7 @@ import {
   patchTask,
   refreshArmedTriggerKind,
 } from "./lib/agentTaskRows";
-import { recalcPlanProgress } from "./tasks";
+import { recalcPlanProgress } from "./lib/taskSubtasks";
 import { setTaskStatus } from "./orgInit";
 import { outsideKeptArea, scopeIds } from "./lib/orgScope";
 import { cliDocWriter, writeDocBody } from "./lib/docBody";

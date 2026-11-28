@@ -28,7 +28,8 @@ import { internalMutation, internalQuery } from "../../functions";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { scopedFetch } from "../../data";
 import { resolveWorkspaceKey, workspaceKey } from "../../lib/access";
-import { createTaskAs, updateTaskAs } from "../../tasks";
+import { createTaskAs } from "../../taskCreate";
+import { updateTaskAs } from "../../taskWebUpdate";
 import { createDocAs, ownDocsBySourceFile, updateDocAs } from "../../docs";
 import { docLiveState, docRevision } from "../../lib/docBody";
 

@@ -52,8 +52,14 @@ async function batchGetChunk(
       );
     case "tasks":
       return (
-        (await queryReplay(convex, api.tasks.webGetByIds, { ids }, signal))
-          ?.items ?? []
+        (
+          await queryReplay(
+            convex,
+            api.taskWebList.webGetByIds,
+            { ids },
+            signal,
+          )
+        )?.items ?? []
       );
     case "docs":
       return (

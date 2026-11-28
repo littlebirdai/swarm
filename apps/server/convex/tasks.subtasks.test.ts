@@ -4,7 +4,7 @@ import {
   resolveParentTask,
   taskAncestorIds,
   MAX_TASK_ANCESTOR_WALK,
-} from "./tasks";
+} from "./lib/taskSubtasks";
 import { makeFakeDb } from "./testDb";
 
 // SUBTASKS (huddle decision 2). tasks.parent_id and by_parent_id shipped long

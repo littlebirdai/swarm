@@ -74,7 +74,7 @@ async function fixture(path: (typeof paths)[number], optedIn = true) {
       break;
     case "task":
       conversation = (
-        await viewer.mutation(api.tasks.assignToAgent, {
+        await viewer.mutation(api.taskSpawn.assignToAgent, {
           agent_type: "codex",
           short_id: "ct-launch",
         })

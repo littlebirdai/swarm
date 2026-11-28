@@ -4,7 +4,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import { refreshCauseDescription } from "./signals";
 
 /** Problem statuses a run is working or has finished: those keep their state and only lose the finding. */

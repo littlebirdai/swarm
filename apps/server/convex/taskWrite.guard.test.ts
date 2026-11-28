@@ -15,14 +15,30 @@ import { changedExternalFields, patchTask } from "./lib/taskWrite";
 // `updates` bag, must be in the allowlist below with the reason it is safe.
 
 const SYNCED = /\b(status|assignee|title|labels|priority|description)\s*:/;
-const FILES = ["tasks.ts", "workflow_runs.ts", "threadMembershipSweep.ts"];
+const FILES = [
+  "taskCreate.ts",
+  "taskUpdate.ts",
+  "taskWebUpdate.ts",
+  "taskExecution.ts",
+  "lib/taskSubtasks.ts",
+  "lib/taskTransitions.ts",
+  "lib/taskComments.ts",
+  "taskComments.ts",
+  "taskDeps.ts",
+  "taskSpawn.ts",
+  "lib/taskDeps.ts",
+  "lib/taskNotifications.ts",
+  "workflow_runs.ts",
+  "threadMembershipSweep.ts",
+];
 
 /** Raw patches that never touch a synced field, as `function(target)`. */
 const ALLOWED: Record<string, string[]> = {
-  "tasks.ts": [
+  "taskExecution.ts": [
     "updateExecutionStatus(task._id)", // execution_status only; the bag never holds a synced key
     "incrementRetryCount(task._id)", // retry_count / execution_status only
-    "heartbeat(task._id)", // last_heartbeat / progress_pct
+  ],
+  "lib/taskSubtasks.ts": [
     "recalcPlanProgress(plan._id)", // the PLAN row
     "reconcilePlanMembership(planId)", // the PLAN row
   ],

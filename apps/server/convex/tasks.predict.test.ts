@@ -16,7 +16,16 @@ const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./workflow_runs.ts": () => import("./workflow_runs"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
   "./sessionDecisions.ts": () => import("./sessionDecisions"),
   "./issueSync.ts": () => import("./issueSync"),
@@ -90,7 +99,7 @@ const LINE = "in-9:intros_a_week +5% in 21d :: replay env +6 on L2";
 
 test("update sets a prediction on open work, and an empty one clears it", async () => {
   const { t, task } = await setup();
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: "ct-1",
     predict: LINE,
@@ -104,7 +113,7 @@ test("update sets a prediction on open work, and an empty one clears it", async 
     series: "mw-14",
     basis: "replay env +6 on L2",
   });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: "ct-1",
     predict: "",
@@ -115,13 +124,13 @@ test("update sets a prediction on open work, and an empty one clears it", async 
 test("a prediction on shipped work is refused, unless the same call reopens it", async () => {
   const { t, task } = await setup();
   await expect(
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-2",
       predict: LINE,
     }),
   ).rejects.toThrow("a prediction is stated before ship");
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: "ct-2",
     status: "open",
@@ -135,7 +144,7 @@ test("a prediction on shipped work is refused, unless the same call reopens it",
 
 test("a repeat done keeps the close it had, so a reading's ship does not move", async () => {
   const { t, task } = await setup();
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: "ct-2",
     status: "done",
@@ -145,7 +154,7 @@ test("a repeat done keeps the close it had, so a reading's ship does not move", 
 
 test("create takes a goal ref and a prediction", async () => {
   const { t } = await setup();
-  await t.mutation(api.tasks.create, {
+  await t.mutation(api.taskCreate.create, {
     api_token: TOKEN,
     title: "New work",
     workspace: "personal",

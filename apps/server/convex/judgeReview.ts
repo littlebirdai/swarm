@@ -34,7 +34,7 @@ import { verifyApiToken } from "./apiTokens";
 import { createDataContext } from "./data";
 import { canAccessSignal } from "./lib/access";
 import { parseWorkspaceKey } from "./lib/accessKeys";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import { retireSignals } from "./judgeRetire";
 import {
   attachJudgeRequest,

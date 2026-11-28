@@ -271,12 +271,12 @@ describe("interest scopes never widen workspace access", () => {
       expect(action.patch).toBeUndefined();
     }
 
-    const byIdsTasks = await teammateClient.query(api.tasks.webGetByIds, {
+    const byIdsTasks = await teammateClient.query(api.taskWebList.webGetByIds, {
       ids: [String(setup.privateTask)],
     });
     expect(byIdsTasks.items).toEqual([]);
 
-    const listedTasks = await teammateClient.query(api.tasks.webList, {
+    const listedTasks = await teammateClient.query(api.taskWebList.webList, {
       workspace: "team",
       team_id: setup.team,
       project_id: String(setup.teamProj),
@@ -619,7 +619,7 @@ describe("interest scopes never widen workspace access", () => {
       { scope_key: `dir:${setup.team}`, position: 0, floor: 0 },
     ]);
 
-    const task = await ownerClient.mutation(api.tasks.create, {
+    const task = await ownerClient.mutation(api.taskCreate.create, {
       api_token: "owner-tok",
       title: "Session task",
       workspace: "team",
@@ -670,7 +670,7 @@ describe("interest scopes never widen workspace access", () => {
         a.scope_key === `team:${setup.team}`,
     ).length;
 
-    await ownerClient.mutation(api.tasks.webUpdate, {
+    await ownerClient.mutation(api.taskWebUpdate.webUpdate, {
       short_id: task.short_id,
       title: "Private follow-up edit",
     });

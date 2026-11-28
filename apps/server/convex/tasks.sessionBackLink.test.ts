@@ -68,7 +68,7 @@ describe("resolveSessionConversation", () => {
 describe("task writes survive a stranded session_id", () => {
   test("addComment records the text and drops the back-link", async () => {
     const { t } = await setup();
-    const res = await t.mutation(api.tasks.addComment, {
+    const res = await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-10",
       text: "analysis",
@@ -85,7 +85,7 @@ describe("task writes survive a stranded session_id", () => {
 
   test("addComment keeps the back-link when managed_sessions still knows the uuid", async () => {
     const { t, conversation } = await setup("managed");
-    const { id } = await t.mutation(api.tasks.addComment, {
+    const { id } = await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-10",
       text: "linked",
@@ -99,7 +99,7 @@ describe("task writes survive a stranded session_id", () => {
 
   test("update applies the status change without the link", async () => {
     const { t, readTask } = await setup();
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-10",
       status: "done",
@@ -112,7 +112,7 @@ describe("task writes survive a stranded session_id", () => {
 
   test("create makes the task without a source conversation", async () => {
     const { t } = await setup();
-    const { short_id } = await t.mutation(api.tasks.create, {
+    const { short_id } = await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "new task",
       conversation_id: LIVE_UUID,

@@ -55,13 +55,13 @@ import {
   workspaceForResource,
 } from "./lib/access";
 import { forbidden, notFound } from "./lib/auth";
+import { resolveAssigneeToUserId } from "./lib/taskAssignees";
+import { insertTaskComment } from "./lib/taskComments";
 import {
-  insertTaskComment,
   recalcPlanProgress,
   reconcilePlanMembership,
-  resolveAssigneeToUserId,
   resolveParentTask,
-} from "./tasks";
+} from "./lib/taskSubtasks";
 import { afterStatusEdges } from "./taskLinks";
 import { releaseBoundSessions } from "./lib/taskOwner";
 import {

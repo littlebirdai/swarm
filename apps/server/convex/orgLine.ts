@@ -19,7 +19,8 @@ import { flowAdmits, flowHands, liveFlowFor, planLiveFlow } from "./liveFlows";
 import { atCap } from "@codecast/org/orgCapacity";
 import { recordHandStart } from "./spawn";
 import { retainSessionCreator } from "./sessionLaunch";
-import { insertTaskComment, moveTaskStatus } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import {
   createRunCore,
   isLiveRunStatus,

@@ -34,7 +34,7 @@ export {
   type MergeAllowance,
 } from "./lib/lineMerge";
 import { performSetAuthority } from "./orgRoles";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import { getAuthenticatedUserId, tellRole } from "./pendingMessages";
 import { roleOfRun } from "./lib/actor";
 import { roleMergeAllowance } from "./lib/regretRead";

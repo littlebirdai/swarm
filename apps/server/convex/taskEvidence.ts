@@ -12,7 +12,7 @@ import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { canAccessDoc, canAccessPlan, canAccessTask } from "./lib/access";
-import { linkedSessionsFor } from "./tasks";
+import { linkedSessionsFor } from "./lib/taskEnrich";
 import {
   sessionImages,
   storageUrl,

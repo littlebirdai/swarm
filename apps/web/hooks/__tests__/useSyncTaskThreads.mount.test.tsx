@@ -81,7 +81,7 @@ let answers: Map<string, any>;
 let gate: Promise<void> | null;
 const client: any = {
   async query(ref: any, args: { ids: string[] }) {
-    expect(getFunctionName(ref)).toBe("tasks:webGetByIds");
+    expect(getFunctionName(ref)).toBe("taskWebList:webGetByIds");
     asked.push(args.ids);
     if (gate) await gate;
     // tasks.webGetByIds answers a caller it does not know with no rows.

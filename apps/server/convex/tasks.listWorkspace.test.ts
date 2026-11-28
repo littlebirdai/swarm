@@ -17,7 +17,16 @@ const MAC = "/Users/ashot/src/codecast";
 const LINUX = "/home/ubuntu/src/codecast";
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
 };
 
 async function setup() {
@@ -86,7 +95,7 @@ const ids = (rows: any[]) => rows.map((r) => r.short_id).sort();
 
 test("a listing run from one checkout shows the team's tasks filed from any checkout", async () => {
   const { t, teamId } = await setup();
-  const explicit = await t.query(api.tasks.list, {
+  const explicit = await t.query(api.taskList.list, {
     api_token: TOKEN,
     workspace: "team",
     team_id: teamId,
@@ -97,7 +106,7 @@ test("a listing run from one checkout shows the team's tasks filed from any chec
   expect(ids(explicit)).toEqual(["ct-1", "ct-2", "ct-3", "ct-4"]);
 
   // No --team: the Linux checkout's mapping picks the team, and the rows are still the whole team's.
-  const mapped = await t.query(api.tasks.list, {
+  const mapped = await t.query(api.taskList.list, {
     api_token: TOKEN,
     project_path: LINUX,
     status: "in_review",
@@ -105,7 +114,7 @@ test("a listing run from one checkout shows the team's tasks filed from any chec
   });
   expect(ids(mapped)).toEqual(["ct-1", "ct-2", "ct-3", "ct-4"]);
 
-  const working = await t.query(api.tasks.list, {
+  const working = await t.query(api.taskList.list, {
     api_token: TOKEN,
     project_path: LINUX,
     status: "in_progress",
@@ -114,7 +123,7 @@ test("a listing run from one checkout shows the team's tasks filed from any chec
   expect(ids(working)).toEqual(["ct-5"]);
 
   // The default listing (every open category) and the paged listing agree.
-  const open = await t.query(api.tasks.list, {
+  const open = await t.query(api.taskList.list, {
     api_token: TOKEN,
     project_path: LINUX,
     limit: 500,
@@ -129,7 +138,7 @@ test("a listing run from one checkout shows the team's tasks filed from any chec
     "ct-7",
     "ct-8",
   ]);
-  const page = await t.query(api.tasks.listPage, {
+  const page = await t.query(api.taskList.listPage, {
     api_token: TOKEN,
     project_path: LINUX,
     include_done: true,
@@ -154,7 +163,7 @@ test("a listing run from one checkout shows the team's tasks filed from any chec
 test("a ready listing stays in this checkout and leaves out another repo's task", async () => {
   const { t, teamId } = await setup();
   for (const scope of [{}, { workspace: "team", team_id: teamId }]) {
-    const ready = await t.query(api.tasks.list, {
+    const ready = await t.query(api.taskList.list, {
       api_token: TOKEN,
       ...scope,
       project_path: LINUX,
@@ -176,7 +185,7 @@ test("the search branch and the status branch return the same in_review set", as
     status: "in_review",
     limit: 500,
   };
-  const listed = await t.query(api.tasks.list, base);
-  const searched = await t.query(api.tasks.list, { ...base, query: "Task" });
+  const listed = await t.query(api.taskList.list, base);
+  const searched = await t.query(api.taskList.list, { ...base, query: "Task" });
   expect(ids(listed)).toEqual(ids(searched));
 });

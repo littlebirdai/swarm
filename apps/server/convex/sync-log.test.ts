@@ -666,13 +666,13 @@ describe("source guards", () => {
   test("every task_comments insert goes through insertTaskComment (the last_comment_at stamp)", () => {
     const offenders = sources().filter(
       (f) =>
-        f !== "tasks.ts" &&
+        f !== "lib/taskComments.ts" &&
         /\.insert\(\s*"task_comments"/.test(readFileSync(join(DIR, f), "utf8")),
     );
     expect(offenders).toEqual([]);
     expect(
       (
-        readFileSync(join(DIR, "tasks.ts"), "utf8").match(
+        readFileSync(join(DIR, "lib", "taskComments.ts"), "utf8").match(
           /\.insert\(\s*"task_comments"/g,
         ) ?? []
       ).length,

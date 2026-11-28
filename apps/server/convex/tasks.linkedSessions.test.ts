@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { linkedSessionsFor } from "./tasks";
+import { linkedSessionsFor } from "./lib/taskEnrich";
 import { makeFakeDb } from "./testDb";
 
 // `cast task show/context` list a task's sessions by short id. The set is the

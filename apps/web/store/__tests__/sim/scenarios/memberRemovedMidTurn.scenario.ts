@@ -21,7 +21,7 @@ scenario({ name: "memberRemovedMidTurn" }, async (w) => {
   const b = await w.device("bo", { scope: { team: "acme" } });
   await b.host.bootstrap(
     "tasks",
-    api.tasks.webList,
+    api.taskWebList.webList,
     { team_id: w.idOf("acme"), workspace: "team", include_derived: true },
     { select: (r: any) => r?.items ?? r },
   );

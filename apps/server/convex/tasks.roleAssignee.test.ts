@@ -13,7 +13,7 @@ import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
 import type { TableNames } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { batchAssign } from "./tasks";
+import { batchAssign } from "./taskExecution";
 
 const TOKEN = "role-assignee-token";
 type TaskSeed = Partial<NewRow<"tasks">> & { short_id: string };
@@ -158,12 +158,13 @@ async function setup(
   const web = asUser(t, owner);
   return {
     ...world,
-    update: (args: Omit<FunctionArgs<typeof api.tasks.update>, "api_token">) =>
-      t.mutation(api.tasks.update, { api_token: TOKEN, ...args }),
-    webUpdate: (args: FunctionArgs<typeof api.tasks.webUpdate>) =>
-      web.mutation(api.tasks.webUpdate, args),
-    list: (args: Omit<FunctionArgs<typeof api.tasks.list>, "api_token">) =>
-      t.query(api.tasks.list, {
+    update: (
+      args: Omit<FunctionArgs<typeof api.taskUpdate.update>, "api_token">,
+    ) => t.mutation(api.taskUpdate.update, { api_token: TOKEN, ...args }),
+    webUpdate: (args: FunctionArgs<typeof api.taskWebUpdate.webUpdate>) =>
+      web.mutation(api.taskWebUpdate.webUpdate, args),
+    list: (args: Omit<FunctionArgs<typeof api.taskList.list>, "api_token">) =>
+      t.query(api.taskList.list, {
         api_token: TOKEN,
         workspace: "team",
         team_id: team,
@@ -171,11 +172,11 @@ async function setup(
       }),
     create: (
       args: Omit<
-        FunctionArgs<typeof api.tasks.create>,
+        FunctionArgs<typeof api.taskCreate.create>,
         "api_token" | "team_id"
       >,
     ) =>
-      t.mutation(api.tasks.create, {
+      t.mutation(api.taskCreate.create, {
         api_token: TOKEN,
         workspace: "team",
         team_id: team,
@@ -465,7 +466,7 @@ describe("a session that files a task for people owns it", () => {
   const file = (
     c: Awaited<ReturnType<typeof setup>>,
     session: string,
-    args: Partial<FunctionArgs<typeof api.tasks.create>> = {},
+    args: Partial<FunctionArgs<typeof api.taskCreate.create>> = {},
   ) => c.create({ title: "Filed", conversation_id: session, ...args });
 
   test("a plain session's --human task is the person's", async () => {
@@ -606,7 +607,7 @@ describe("batch assign", () => {
         batchAssign as typeof batchAssign & {
           _handler: (
             ctx: MutationCtx,
-            args: FunctionArgs<typeof api.tasks.batchAssign>,
+            args: FunctionArgs<typeof api.taskExecution.batchAssign>,
           ) => Promise<unknown>;
         }
       )._handler;
@@ -631,7 +632,7 @@ describe("batch assign", () => {
     const c = await setup([task(1)]);
     const ids = Array.from({ length: 201 }, (_, i) => `ct-${i + 1}`);
     await expect(
-      c.t.mutation(api.tasks.batchAssign, {
+      c.t.mutation(api.taskExecution.batchAssign, {
         api_token: TOKEN,
         short_ids: ids,
         assignee: "@growth",

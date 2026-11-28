@@ -90,7 +90,7 @@ async function setup(seed = "task-claims") {
       claim_purpose?: string;
     } = {},
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: token,
       short_id: opts.short_id ?? "ct-101",
       status: "in_progress",
@@ -110,7 +110,7 @@ async function setup(seed = "task-claims") {
     });
 
   const renew = (token: string, claimToken: number, conversationId?: string) =>
-    t.mutation(api.tasks.renew, {
+    t.mutation(api.taskExecution.renew, {
       api_token: token,
       short_id: "ct-101",
       claim_token: claimToken,
@@ -122,7 +122,7 @@ async function setup(seed = "task-claims") {
     claimToken: number,
     conversationId?: string,
   ) =>
-    t.mutation(api.tasks.release, {
+    t.mutation(api.taskExecution.release, {
       api_token: token,
       short_id: "ct-101",
       claim_token: claimToken,
@@ -137,7 +137,7 @@ async function setup(seed = "task-claims") {
       short_id?: string;
     } = {},
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: token,
       short_id: opts.short_id ?? "ct-101",
       status: "done",
@@ -205,7 +205,7 @@ test("first claim mints token 1, renew extends lease, and stale tokens are refus
     lease_until: START + 60_000 + TASK_LEASE_MS,
   });
 
-  const beat: any = await f.t.mutation(api.tasks.heartbeat, {
+  const beat: any = await f.t.mutation(api.taskExecution.heartbeat, {
     api_token: f.tokA,
     short_id: "ct-101",
     claim_token: 1,
@@ -264,7 +264,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
   });
   expect(first.claim_token).toBe(1);
 
-  const readyWhileHeld = await f.t.query(api.tasks.list, {
+  const readyWhileHeld = await f.t.query(api.taskList.list, {
     api_token: f.tokB,
     workspace: "team",
     team_id: f.team,
@@ -297,7 +297,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
   expect((await f.getTask())?.status).toBe("open");
   expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
 
-  const readyAfterExpiry = await f.t.query(api.tasks.list, {
+  const readyAfterExpiry = await f.t.query(api.taskList.list, {
     api_token: f.tokB,
     workspace: "team",
     team_id: f.team,
@@ -307,7 +307,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     "ct-101",
     "ct-102",
   ]);
-  const apiReady = await f.t.query(api.tasks.getReadyTasks, {
+  const apiReady = await f.t.query(api.taskList.getReadyTasks, {
     api_token: f.tokB,
     project_path: "/repo",
   });
@@ -315,7 +315,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     "ct-101",
     "ct-102",
   ]);
-  const webReady = await asUser(f.t, f.ben).query(api.tasks.webList, {
+  const webReady = await asUser(f.t, f.ben).query(api.taskWebList.webList, {
     ready: true,
     workspace: "team",
     team_id: f.team,
@@ -325,7 +325,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
     "ct-102",
   ]);
   const webPaginated = await asUser(f.t, f.ben).query(
-    api.tasks.webListPaginated,
+    api.taskWebList.webListPaginated,
     {
       workspace: "team",
       team_id: f.team,
@@ -338,7 +338,7 @@ test("lease expiry returns task to ready list and new holder claims with token+1
       .map((t: any) => t.short_id)
       .sort(),
   ).toEqual(["ct-101", "ct-102"]);
-  const webTeam = await asUser(f.t, f.ben).query(api.tasks.webTeamList, {
+  const webTeam = await asUser(f.t, f.ben).query(api.taskWebList.webTeamList, {
     team_id: f.team,
   });
   expect(
@@ -580,7 +580,7 @@ test("account deletion and user merge clear task claim holders and preserve toke
 
 test("spawnForTask allows the spawned session to run cast task start idempotently", async () => {
   const f = await setup("spawn-then-start");
-  const spawned: any = await f.t.mutation(api.tasks.spawnForTask, {
+  const spawned: any = await f.t.mutation(api.taskSpawn.spawnForTask, {
     api_token: f.tokA,
     short_id: "ct-101",
   });

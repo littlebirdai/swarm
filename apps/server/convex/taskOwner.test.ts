@@ -19,7 +19,16 @@ const HOUR = 3_600_000;
 const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./taskClaims.ts": () => import("./taskClaims"),
   "./sessionOwnership.ts": () => import("./sessionOwnership"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
@@ -94,7 +103,7 @@ async function setup(ownerUpdatedAgo: number) {
     take?: boolean,
     claimRequestId?: string,
   ) =>
-    t.mutation(api.tasks.update, {
+    t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: shortId,
       status: "in_progress",
@@ -160,7 +169,7 @@ describe("one owning session per task", () => {
 
 describe("a person's comment reaches the session that owns the task", () => {
   const comment = (t: any, text: string, conversation_id?: string) =>
-    t.mutation(api.tasks.addComment, {
+    t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text,
@@ -215,7 +224,7 @@ describe("a person's comment reaches the session that owns the task", () => {
 
 describe("the session a task's change came from (change_session on /cli/work/get)", () => {
   const changeSession = async (t: any) =>
-    (await t.query(api.tasks.get, { api_token: TOKEN, short_id: "ct-1" }))
+    (await t.query(api.taskReads.get, { api_token: TOKEN, short_id: "ct-1" }))
       ?.change_session;
   const handoff = (t: any, taskId: any, convId: any, at: number) =>
     t.run(async (ctx: any) => {

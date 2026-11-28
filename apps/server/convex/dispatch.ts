@@ -101,13 +101,10 @@ import { resolveTeamForPath, buildShareUpdate, isTeamMember } from "./privacy";
 import { applyMembershipVisibilityChange } from "./teams";
 import { isTeamVisibilityLevel } from "./teamVisibility";
 import { resumeConversationSession } from "./daemonCommandUtils";
-import {
-  addDepCore,
-  removeDepCore,
-  resolveAssigneeToUserId,
-  recalcPlanProgress,
-  subscribeUser,
-} from "./tasks";
+import { resolveAssigneeToUserId } from "./lib/taskAssignees";
+import { addDepCore, removeDepCore } from "./lib/taskDeps";
+import { subscribeUser } from "./lib/taskNotifications";
+import { recalcPlanProgress } from "./lib/taskSubtasks";
 import {
   resolveWorkerParentConversation,
   resolveTaskGitContext,
@@ -2940,7 +2937,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     userId,
     [shortId, newStatus, resolution]: [string, string, string?],
   ) => {
-    await (ctx as any).runMutation(api.tasks.webUpdate, {
+    await (ctx as any).runMutation(api.taskWebUpdate.webUpdate, {
       short_id: shortId,
       status: newStatus,
       subtask_resolution:
@@ -2959,7 +2956,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     userId,
     [shortId, fields]: [string, Record<string, any>],
   ) => {
-    await (ctx as any).runMutation(api.tasks.webUpdate, {
+    await (ctx as any).runMutation(api.taskWebUpdate.webUpdate, {
       short_id: shortId,
       status: fields.status,
       status_id: fields.status_id,
@@ -3022,7 +3019,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // linked any plan by short_id without access control. Pass an explicit
   // allowlist of args — dispatch opts come straight from the client.
   createTask: async (ctx, userId, [opts]: [any]) => {
-    return await (ctx as any).runMutation(api.tasks.webCreate, {
+    return await (ctx as any).runMutation(api.taskCreate.webCreate, {
       title: opts.title,
       description: opts.description,
       task_type: opts.task_type,
@@ -3074,7 +3071,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       string[]?,
     ],
   ) => {
-    await (ctx as any).runMutation(api.tasks.webAddComment, {
+    await (ctx as any).runMutation(api.taskComments.webAddComment, {
       short_id: shortId,
       text,
       comment_type: commentType || undefined,
@@ -4882,7 +4879,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     _userId,
     [shortId, agentType, initialMessage]: [string, string, string | undefined],
   ) => {
-    return await ctx.runMutation!((api as any).tasks.assignToAgent, {
+    return await ctx.runMutation!((api as any).taskSpawn.assignToAgent, {
       short_id: shortId,
       agent_type: agentType,
       ...(initialMessage !== undefined

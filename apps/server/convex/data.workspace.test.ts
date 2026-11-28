@@ -253,7 +253,7 @@ describe("scoped reads leave skipped rows in the database", () => {
   });
 
   test("cast task ls leaves finished tasks in the database", async () => {
-    const { list } = await import("./tasks");
+    const { list } = await import("./taskList");
     const { hashToken } = await import("./apiTokens");
     const db = workspaceDb("tasks");
     db._tables.api_tokens = [
@@ -336,7 +336,7 @@ describe("scoped reads leave skipped rows in the database", () => {
 
   // Oct 26: --all on a team with tens of thousands of tasks read them in one call and ran out of memory.
   test("cast task ls --all reads the board a page at a time, newest touched first, each task once", async () => {
-    const { listPage } = await import("./tasks");
+    const { listPage } = await import("./taskList");
     const { hashToken } = await import("./apiTokens");
     const db = workspaceDb("tasks");
     db._tables.api_tokens = [

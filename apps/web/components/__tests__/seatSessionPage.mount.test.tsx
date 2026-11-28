@@ -155,8 +155,8 @@ const mount = async (qs = "", rows: Record<string, InboxSession> = {}) => {
       backend.set(api.org.scopeFeed, { rows: [] });
       backend.set(api.orgTemplates.instanceForRole, pending);
       backend.set(api.org.brief, pending);
-      backend.set(api.tasks.webActiveSessions, pending);
-      backend.set(api.tasks.webListPaginated, pending);
+      backend.set(api.taskWebList.webActiveSessions, pending);
+      backend.set(api.taskWebList.webListPaginated, pending);
       backend.set(api.docs.webListPaginated, pending);
       backend.set(api.devices.listDevices, pending);
 

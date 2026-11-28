@@ -254,7 +254,7 @@ export function EntityPill({
   const named = !!(seed && (seed.title || seed.display_title || seed.name));
   const queryArgs = type && !named ? entityQueryArgs(type, rawId) : null;
   const task = useQueryNoThrow(
-    api.tasks.webGet,
+    api.taskReads.webGet,
     type === "task" && queryArgs ? queryArgs : "skip",
   ).data;
   const plan = useQueryNoThrow(

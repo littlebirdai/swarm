@@ -4854,7 +4854,7 @@ cliRoute("/cli/role/unfollow", async (ctx, body) => {
 
 // Tasks
 cliRoute("/cli/work/create", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.create, body);
+  return await ctx.runMutation(api.taskCreate.create, body);
 });
 // Signals (the-line-end-to-end.md LE3): the one typed door in, and its reads.
 cliRoute("/cli/signal/add", async (ctx, body) => {
@@ -5146,29 +5146,29 @@ cliRoute("/cli/calls/bots/cancel", async (ctx, body) => {
   return await ctx.runMutation(api.meetingBots.cliCancel, body);
 });
 cliRoute("/cli/work/list", async (ctx, body) => {
-  return await ctx.runQuery(api.tasks.list, body);
+  return await ctx.runQuery(api.taskList.list, body);
 });
 cliRoute("/cli/work/page", async (ctx, body) => {
-  return await ctx.runQuery(api.tasks.listPage, body);
+  return await ctx.runQuery(api.taskList.listPage, body);
 });
 cliRoute("/cli/work/get", async (ctx, body) => {
-  return await ctx.runQuery(api.tasks.get, body);
+  return await ctx.runQuery(api.taskReads.get, body);
 });
 cliRoute("/cli/work/update", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.update, body);
+  return await ctx.runMutation(api.taskUpdate.update, body);
 });
 cliRoute("/cli/work/comment", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.addComment, body);
+  return await ctx.runMutation(api.taskComments.addComment, body);
 });
 // `cast task ready --claim`: start the first ready task for the caller (TG7).
 cliRoute("/cli/work/claim", async (ctx, body) => {
   return await claimFrontier(ctx, body);
 });
 cliRoute("/cli/work/dep", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.addDep, body);
+  return await ctx.runMutation(api.taskDeps.addDep, body);
 });
 cliRoute("/cli/work/undep", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.removeDep, body);
+  return await ctx.runMutation(api.taskDeps.removeDep, body);
 });
 cliRoute("/cli/work/wait", async (ctx, body) => {
   return await ctx.runMutation(api.taskWaits.addWait, body);
@@ -5187,7 +5187,7 @@ cliRoute("/cli/work/unrelate", async (ctx, body) => {
   return await ctx.runMutation(api.taskLinks.unrelate, body);
 });
 cliRoute("/cli/work/context", async (ctx, body) => {
-  return await ctx.runQuery(api.tasks.context, body);
+  return await ctx.runQuery(api.taskReads.context, body);
 });
 // `cast task history <ct>` and a line run's $cause_history (line-workspace.md LW5).
 cliRoute("/cli/work/history", async (ctx, body) => {
@@ -5197,22 +5197,22 @@ cliRoute("/cli/work/resume", async (ctx, body) => {
   return await ctx.runQuery(api.taskResume.context, body);
 });
 cliRoute("/cli/work/promote", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.promote, body);
+  return await ctx.runMutation(api.taskWebUpdate.promote, body);
 });
 cliRoute("/cli/work/snippet", async (ctx, body) => {
-  return await ctx.runQuery(api.tasks.snippet, body);
+  return await ctx.runQuery(api.taskReads.snippet, body);
 });
 cliRoute("/cli/work/heartbeat", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.heartbeat, body);
+  return await ctx.runMutation(api.taskExecution.heartbeat, body);
 });
 cliRoute("/cli/work/renew", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.renew, body);
+  return await ctx.runMutation(api.taskExecution.renew, body);
 });
 cliRoute("/cli/work/release", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.release, body);
+  return await ctx.runMutation(api.taskExecution.release, body);
 });
 cliRoute("/cli/work/spawn", async (ctx, body) => {
-  return await ctx.runMutation(api.tasks.spawnForTask, body);
+  return await ctx.runMutation(api.taskSpawn.spawnForTask, body);
 });
 
 // ── Review notes (cast review …) ──

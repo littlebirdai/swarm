@@ -129,7 +129,7 @@ const FAKE_PREVIEW = {
 const { getFunctionName } = await import("convex/server");
 
 const ROWS: Record<string, any[]> = {
-  "tasks:webGet": [FAKE_TASK],
+  "taskReads:webGet": [FAKE_TASK],
   "plans:webGet": [FAKE_PLAN],
   "conversationLookup:webGet": [FAKE_SESSION],
   "agentTasks:webGet": [FAKE_TRIGGER],

@@ -27,7 +27,7 @@ import {
   type SurfaceRequest,
 } from "./lib/anthropic";
 import { patchTask } from "./lib/taskWrite";
-import { insertTaskComment } from "./tasks";
+import { insertTaskComment } from "./lib/taskComments";
 import { runModelCall } from "./modelCalls";
 
 /** Problems one pass reads and at most how many it renames. */

@@ -1,6 +1,9 @@
 import type { MutationCtx } from "./_generated/server";
 import { describe, expect, test } from "bun:test";
-import { resolveAssigneeStr, resolveAssigneeToUserId } from "./tasks";
+import {
+  resolveAssigneeStr,
+  resolveAssigneeToUserId,
+} from "./lib/taskAssignees";
 
 import {
   serverTest,

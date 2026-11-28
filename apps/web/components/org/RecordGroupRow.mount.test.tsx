@@ -103,7 +103,7 @@ function mount(ui: React.ReactNode, focusId?: string) {
       backend.set(api.org.tree, pending);
       backend.set(api.org.roles, pending);
       backend.set(api.plans.webGet, pending);
-      backend.set(api.tasks.webGet, pending);
+      backend.set(api.taskReads.webGet, pending);
       store.syncTable("orgTree", ORG_RECORDS_FIXTURE_TREE);
       const proposals = [
         ORG_RECORDS_FIXTURE_PROPOSAL,

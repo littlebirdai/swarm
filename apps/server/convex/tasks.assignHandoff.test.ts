@@ -40,7 +40,7 @@ async function setup(...shortIds: string[]) {
 describe("assigning to someone else hands the thread off", () => {
   test("webUpdate: the assigner is muted and their thread row is dropped", async () => {
     const { web, owner, taskIds, reads, muted } = await setup("ct-1");
-    await web.mutation(api.tasks.webUpdate, {
+    await web.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       assignee: "bob",
     });
@@ -57,7 +57,7 @@ describe("assigning to someone else hands the thread off", () => {
 
   test("CLI update by hand hands off; the same call from inside a session does not", async () => {
     const { t, taskIds, reads, muted } = await setup("ct-1", "ct-2");
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       assignee: "bob",
@@ -65,7 +65,7 @@ describe("assigning to someone else hands the thread off", () => {
     expect(await muted()).toHaveLength(1);
     expect((await reads()).map((r) => r.root_key)).toEqual([taskIds[1]]);
 
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-2",
       assignee: "bob",
@@ -77,7 +77,7 @@ describe("assigning to someone else hands the thread off", () => {
 
   test("batchAssign hands off every task it assigns away", async () => {
     const { t, reads, muted } = await setup("ct-1", "ct-2");
-    await t.mutation(api.tasks.batchAssign, {
+    await t.mutation(api.taskExecution.batchAssign, {
       api_token: TOKEN,
       short_ids: ["ct-1", "ct-2"],
       assignee: "bob",
@@ -88,7 +88,7 @@ describe("assigning to someone else hands the thread off", () => {
 
   test("create with an assignee mutes the creator, so the stream never files for them", async () => {
     const { t, owner, muted } = await setup();
-    await t.mutation(api.tasks.create, {
+    await t.mutation(api.taskCreate.create, {
       api_token: TOKEN,
       title: "for bob",
       assignee: "bob",
@@ -100,11 +100,11 @@ describe("assigning to someone else hands the thread off", () => {
 
   test("assigning yourself, or an agent label, is no handoff", async () => {
     const { web, reads, muted } = await setup("ct-1", "ct-2");
-    await web.mutation(api.tasks.webUpdate, {
+    await web.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-1",
       assignee: "owner",
     });
-    await web.mutation(api.tasks.webUpdate, {
+    await web.mutation(api.taskWebUpdate.webUpdate, {
       short_id: "ct-2",
       assignee: "agent:codex",
     });

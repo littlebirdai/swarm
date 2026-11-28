@@ -65,7 +65,8 @@ const allowed: Record<string, string> = {
   "sessionMigrations.ts": "session migration projections",
   "slackSchema.ts": "Slack sync heartbeat field",
   "slackSync.ts": "Slack sync heartbeat writes",
-  "tasks.ts": "task heartbeat writes and session projections",
+  "taskExecution.ts": "task heartbeat writes",
+  "taskWebList.ts": "task session projections",
   "treeSnapshots.ts": "snapshot turn identity",
   "users.ts": "user heartbeat writes and projections",
 };

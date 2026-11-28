@@ -7,7 +7,7 @@ import type { FunctionArgs } from "convex/server";
 import { serverTest, asUser } from "../test-helpers/database.testkit";
 import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
-import { holdingDecisionFor } from "./tasks";
+import { holdingDecisionFor } from "./lib/taskTransitions";
 
 const TOKEN = "hold-token";
 
@@ -48,9 +48,9 @@ async function setup(
     t,
     cliMove: (
       session?: string,
-      fields: Partial<FunctionArgs<typeof api.tasks.update>> = {},
+      fields: Partial<FunctionArgs<typeof api.taskUpdate.update>> = {},
     ) =>
-      t.mutation(api.tasks.update, {
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         status: "in_progress",
@@ -58,7 +58,7 @@ async function setup(
         ...fields,
       }),
     boardMove: () =>
-      asUser(t, ids.owner).mutation(api.tasks.webUpdate, {
+      asUser(t, ids.owner).mutation(api.taskWebUpdate.webUpdate, {
         short_id: "ct-1",
         status: "in_progress",
       }),

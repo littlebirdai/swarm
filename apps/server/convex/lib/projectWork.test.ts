@@ -199,8 +199,11 @@ describe("projectTasks", () => {
     ).toBe(200);
   });
 
-  test("source-level: tasks.list's project branch bounds its read by the list limit and the row filters", () => {
-    const src = readFileSync(join(import.meta.dir, "..", "tasks.ts"), "utf8");
+  test("source-level: taskList.list's project branch bounds its read by the list limit and the row filters", () => {
+    const src = readFileSync(
+      join(import.meta.dir, "..", "taskList.ts"),
+      "utf8",
+    );
     const start = src.indexOf(
       "} else if (args.project_id || args.initiative) {",
     );
@@ -209,8 +212,11 @@ describe("projectTasks", () => {
     expect(branch).toContain("keep: keepRow");
   });
 
-  test("source-level: tasks.list's project and initiative branch reads through projectTasks, not the team_id filter", () => {
-    const src = readFileSync(join(import.meta.dir, "..", "tasks.ts"), "utf8");
+  test("source-level: taskList.list's project and initiative branch reads through projectTasks, not the team_id filter", () => {
+    const src = readFileSync(
+      join(import.meta.dir, "..", "taskList.ts"),
+      "utf8",
+    );
     const start = src.indexOf(
       "} else if (args.project_id || args.initiative) {",
     );

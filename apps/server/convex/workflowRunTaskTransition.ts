@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessTask } from "./lib/access";
-import { moveTaskStatus } from "./tasks";
+import { moveTaskStatus } from "./lib/taskTransitions";
 
 export const transitionTaskFromCli = mutation({
   args: {

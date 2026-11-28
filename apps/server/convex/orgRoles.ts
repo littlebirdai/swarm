@@ -119,7 +119,7 @@ import { charterPatch } from "./lib/orgCharter";
 import { takeOverSessionsSoon, takeoverPhrase } from "./orgInit";
 import { performArchiveAll } from "./orgProposals";
 import { reroutePendingDecisionsForConversation } from "./sessionDecisions";
-import { handOpenTasksUpChain } from "./tasks";
+import { handOpenTasksUpChain } from "./lib/taskTransitions";
 import {
   EMPTY_SCOPE,
   isScopeless,

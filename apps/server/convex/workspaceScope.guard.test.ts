@@ -84,11 +84,11 @@ const PUBLIC_CROSS_TEAM = new Map<string, string>([
     "PRs from the caller's teams for the timeline; rows carry team_id",
   ],
   [
-    "tasks.ts:webList",
+    "taskWebList.ts:webList",
     "the cross-workspace task cache for mention search; rows carry their workspace key",
   ],
   [
-    "tasks.ts:webMentionList",
+    "taskWebList.ts:webMentionList",
     'workspace "all" mention list only; rows carry their workspace key',
   ],
   [

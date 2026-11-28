@@ -130,7 +130,7 @@ test("a plan listing with done work included reads the plan's tasks, not the wor
     plan_id: "pl-1",
     limit: 1000,
   };
-  const all = await t.query(api.tasks.list, {
+  const all = await t.query(api.taskList.list, {
     ...base,
     include_done: true,
     include_derived: true,
@@ -146,7 +146,7 @@ test("a plan listing with done work included reads the plan's tasks, not the wor
   ]);
   expect(all[0].description).toBe(BIG);
 
-  const open = await t.query(api.tasks.list, base);
+  const open = await t.query(api.taskList.list, base);
   expect(shortIds(open)).toEqual([
     "ct-legacy",
     "ct-elsewhere",
@@ -155,7 +155,7 @@ test("a plan listing with done work included reads the plan's tasks, not the wor
     "ct-10",
   ]);
 
-  const ready = await t.query(api.tasks.list, { ...base, ready: true });
+  const ready = await t.query(api.taskList.list, { ...base, ready: true });
   expect(shortIds(ready).sort()).toEqual([
     "ct-10",
     "ct-11",
@@ -163,7 +163,7 @@ test("a plan listing with done work included reads the plan's tasks, not the wor
     "ct-legacy",
   ]);
 
-  const done = await t.query(api.tasks.list, { ...base, status: "done" });
+  const done = await t.query(api.taskList.list, { ...base, status: "done" });
   expect(shortIds(done)).toEqual(["ct-150", "ct-3"]);
 });
 
@@ -178,13 +178,13 @@ test("the whole board pages under the read cap: every row once, newest first", a
     include_derived: true,
   };
   await expect(
-    t.query(api.tasks.list, { ...base, limit: 1000 }),
+    t.query(api.taskList.list, { ...base, limit: 1000 }),
   ).rejects.toThrow(/Read too much data/);
 
   const seen: string[] = [];
   let pages = 0;
   for (let cursor: string | null = null; ;) {
-    const got: any = await t.query(api.tasks.listPage, {
+    const got: any = await t.query(api.taskList.listPage, {
       ...base,
       cursor,
       page_size: 50,
@@ -352,9 +352,9 @@ test("a plan listing equals the workspace listing narrowed to the plan, in the t
       limit: 1000,
     };
     const planned = shortIds(
-      await t.query(api.tasks.list, { ...base, plan_id: "pl-mx" }),
+      await t.query(api.taskList.list, { ...base, plan_id: "pl-mx" }),
     );
-    const plain = shortIds(await t.query(api.tasks.list, base)).filter((s) =>
+    const plain = shortIds(await t.query(api.taskList.list, base)).filter((s) =>
       s.startsWith("mx-"),
     );
     expect(planned).toEqual(plain);
@@ -374,7 +374,7 @@ test("another team's plan id lists only the viewer's own rows", async () => {
   };
   expect(
     shortIds(
-      await t.query(api.tasks.list, {
+      await t.query(api.taskList.list, {
         ...base,
         workspace: "team",
         team_id: team,
@@ -382,13 +382,15 @@ test("another team's plan id lists only the viewer's own rows", async () => {
     ),
   ).toEqual(["mx-team"]);
   expect(
-    shortIds(await t.query(api.tasks.list, { ...base, workspace: "personal" })),
+    shortIds(
+      await t.query(api.taskList.list, { ...base, workspace: "personal" }),
+    ),
   ).toEqual(["mx-owner-private"]);
 });
 
 test("a search inside a plan keeps a title matched by its words", async () => {
   const { t, team } = await setupMatrix();
-  const got = await t.query(api.tasks.list, {
+  const got = await t.query(api.taskList.list, {
     api_token: TOKEN,
     workspace: "team",
     team_id: team,
@@ -406,7 +408,7 @@ test("a search inside a plan keeps a title matched by its words", async () => {
 // final page.
 test("the page route answers a plan with every plan row once, as one final page", async () => {
   const { t, team } = await setupMatrix();
-  const got = await t.query(api.tasks.listPage, {
+  const got = await t.query(api.taskList.listPage, {
     api_token: TOKEN,
     workspace: "team",
     team_id: team,

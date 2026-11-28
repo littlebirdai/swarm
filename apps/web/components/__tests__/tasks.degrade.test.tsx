@@ -50,9 +50,9 @@ test("the tasks board paints its cached task with every query missing", async ()
     expect(describeFailures(page)).toBe("");
     expect(page.text()).toContain("Pin the flaky auth test seed");
     for (const fn of [
-      "tasks:webActiveSessions",
-      "tasks:webMentionList",
-      "tasks:webListPaginated",
+      "taskWebList:webActiveSessions",
+      "taskWebList:webMentionList",
+      "taskWebList:webListPaginated",
       "workflow_runs:listRuns",
     ]) {
       expect(backend.refused).toContain(fn);

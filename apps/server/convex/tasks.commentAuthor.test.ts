@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { hashToken } from "./apiTokens";
 import { makeFakeDb } from "./testDb";
-import { addComment, context, get, webGet, webGetByIds } from "./tasks";
+import { addComment } from "./taskComments";
+import { context, get, webGet } from "./taskReads";
+import { webGetByIds } from "./taskWebList";
 import { webGetTaskDetail } from "./taskMining";
 import { attachCommentSessionInfo } from "./lib/commentSessionInfo";
 import { restoreSessionAuthor } from "./taskCommentRepair";

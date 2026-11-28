@@ -277,7 +277,7 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
     });
 
     const client = asUser(t, setup.user);
-    const createdTask = await client.mutation(api.tasks.webCreate, {
+    const createdTask = await client.mutation(api.taskCreate.webCreate, {
       title: "Off task",
       workspace: "team",
       team_id: setup.team,
@@ -393,13 +393,13 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
     });
 
     const client = asUser(t, setup.user);
-    const teamTask = await client.mutation(api.tasks.webCreate, {
+    const teamTask = await client.mutation(api.taskCreate.webCreate, {
       title: "Team task",
       workspace: "team",
       team_id: setup.team,
       project_id: setup.p1,
     });
-    const personalTask = await client.mutation(api.tasks.webCreate, {
+    const personalTask = await client.mutation(api.taskCreate.webCreate, {
       title: "Personal task",
       workspace: "personal",
     });
@@ -430,7 +430,7 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       channel_id: setup.channel,
       room_key: "room-on-1",
     });
-    await client.mutation(api.tasks.webUpdate, {
+    await client.mutation(api.taskWebUpdate.webUpdate, {
       short_id: teamTask.short_id,
       project_id: setup.p2,
     });

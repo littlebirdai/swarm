@@ -5,7 +5,7 @@ import {
   addComment as addConversationComment,
   mirrorAgentReply,
 } from "./comments";
-import { addComment as cliAddTaskComment, webAddComment } from "./tasks";
+import { addComment as cliAddTaskComment, webAddComment } from "./taskComments";
 import { deleteForWeb, submitComments } from "./artifacts";
 import {
   backfillThreadReads,

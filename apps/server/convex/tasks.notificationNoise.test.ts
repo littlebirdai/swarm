@@ -71,7 +71,7 @@ async function setup(bobPrefs?: Doc<"users">["notification_preferences"]) {
 describe("task comments ring whom the Threads inbox files them for", () => {
   test("a person's comment reaches followers by their own hand, not ones an agent enrolled", async () => {
     const { t, bell, bob } = await setup();
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "looks good",
@@ -83,14 +83,14 @@ describe("task comments ring whom the Threads inbox files them for", () => {
 
   test("an agent's progress note rings nobody; its blocker rings the followers", async () => {
     const { t, bell, bob } = await setup();
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "rebased",
       conversation_id: "sess-1",
     });
     expect(await bell("task_commented")).toHaveLength(0);
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "need a prod key",
@@ -105,13 +105,13 @@ describe("task comments ring whom the Threads inbox files them for", () => {
   test("on an ephemeral task only a blocker or an @mention rings (TG9)", async () => {
     const { t, task, bell, bob, carol } = await setup();
     await t.run(({ db }) => db.patch(task, { ephemeral: true }));
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "looks good",
     });
     expect(await bell("task_commented")).toHaveLength(0);
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "@carol this needs your approval",
@@ -119,7 +119,7 @@ describe("task comments ring whom the Threads inbox files them for", () => {
     expect(
       (await bell("task_commented")).map((n) => n.recipient_user_id),
     ).toEqual([carol]);
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: TOKEN,
       short_id: "ct-1",
       text: "need a prod key",
@@ -131,7 +131,7 @@ describe("task comments ring whom the Threads inbox files them for", () => {
 
   test("a bot account's note counts as an agent's even from a terminal", async () => {
     const { t, bell } = await setup();
-    await t.mutation(api.tasks.addComment, {
+    await t.mutation(api.taskComments.addComment, {
       api_token: BOT_TOKEN,
       short_id: "ct-1",
       text: "READY FOR DECISION: waited 18 days",
@@ -143,12 +143,12 @@ describe("task comments ring whom the Threads inbox files them for", () => {
 describe("status changes are quiet unless the reader opts into closes", () => {
   test("no status move rings by default", async () => {
     const { t, bell } = await setup();
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",
     });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "done",
@@ -163,13 +163,13 @@ describe("status changes are quiet unless the reader opts into closes", () => {
       permission_request: true,
       task_status_changes: true,
     });
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",
     });
     expect(await bell("task_status_changed")).toHaveLength(0);
-    await t.mutation(api.tasks.update, {
+    await t.mutation(api.taskUpdate.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "done",
@@ -184,7 +184,7 @@ describe("machine assignment bursts fold into one row", () => {
   test("a bot assigning three tasks leaves one unread row that counts them", async () => {
     const { t, bell, bob } = await setup();
     for (const id of ["ct-1", "ct-2", "ct-3"]) {
-      await t.mutation(api.tasks.update, {
+      await t.mutation(api.taskUpdate.update, {
         api_token: BOT_TOKEN,
         short_id: id,
         assignee: "bob",
@@ -199,7 +199,7 @@ describe("machine assignment bursts fold into one row", () => {
   test("a person assigning by hand still gets one row per task", async () => {
     const { t, bell, bob } = await setup();
     for (const id of ["ct-1", "ct-2"]) {
-      await t.mutation(api.tasks.update, {
+      await t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: id,
         assignee: "bob",

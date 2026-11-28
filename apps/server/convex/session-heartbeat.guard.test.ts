@@ -43,7 +43,7 @@ const wireFields: Record<string, string[]> = {
   "permissions.ts": [
     "const lastBeat = device ? device.last_seen : conv ? (await ctx.db.get(conv.user_id))?.last_heartbeat : undefined;",
   ],
-  "tasks.ts": ["const updates: any = { last_heartbeat: Date.now() };"],
+  "taskExecution.ts": ["const updates: any = { last_heartbeat: Date.now() };"],
 };
 
 test("managed-session heartbeat storage is accessed through the heartbeat modules", () => {

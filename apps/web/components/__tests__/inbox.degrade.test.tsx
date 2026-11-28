@@ -59,7 +59,7 @@ test("the inbox paints its cached session with every query missing", async () =>
       "teams:getUserTeams",
       "notifications:list",
       "conversationFavorites:listFavorites",
-      "tasks:webActiveSessions",
+      "taskWebList:webActiveSessions",
       "docs:webMentionList",
       "conversationList:listConversations",
     ]) {

@@ -55,7 +55,7 @@ import {
   repairedLineStatus,
   statusHistory,
 } from "./lib/lineCauseRepair";
-import { moveTaskStatus } from "./tasks";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import { noticeCardWaiting, noticeChangeShipped } from "./lineNotices";
 import { createDataContext } from "./data";
 import { askTrialGate, trialProjectOf } from "./lineTrial";

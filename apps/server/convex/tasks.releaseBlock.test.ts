@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isBlockedExecution, releaseBlockFields } from "./tasks";
+import { isBlockedExecution, releaseBlockFields } from "./lib/taskTransitions";
 
 // Retry from the inbox's Needs Attention section clears a task's block. The
 // line (the-line.md L9) starts only open tasks with no workflow_run_id, so the

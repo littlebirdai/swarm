@@ -399,7 +399,7 @@ test.each(["flag off", "visible tab", "tab hidden while loading"] as const)(
             api.pendingMessages.getConversationPendingMessage,
             api.messages.getConversationImages,
             api.conversationPages.list,
-            api.tasks.webListByConversation,
+            api.taskReads.webListByConversation,
             api.docSync.getPresence,
             api.sessionGoals.forConversation,
             api.guestSuggestions.listPending,

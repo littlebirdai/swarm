@@ -293,7 +293,7 @@ describe("gestures on synced collections go through a store action", () => {
     expect(SYNCED_MODULES.has("codeComments")).toBe(true);
     for (const m of [
       "teams",
-      "tasks",
+      "taskWebUpdate",
       "docs",
       "orgSplit",
       "orgHandoff",
@@ -327,8 +327,8 @@ describe("gestures on synced collections go through a store action", () => {
       mutationRefs(`useMutation((api.devices as unknown as Api).enqueueX)`),
     ).toEqual(["devices.enqueueX"]);
     expect(
-      mutationRefs(`convex.mutation((api.tasks as any).update, {})`),
-    ).toEqual(["tasks.update"]);
+      mutationRefs(`convex.mutation((api.taskUpdate as any).update, {})`),
+    ).toEqual(["taskUpdate.update"]);
     expect(mutationRefs(`useMutation(api.devices.enqueueX)`)).toEqual([
       "devices.enqueueX",
     ]);

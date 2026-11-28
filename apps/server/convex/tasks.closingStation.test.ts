@@ -16,7 +16,16 @@ const modules = {
   "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
   "./workflow_runs.ts": () => import("./workflow_runs"),
-  "./tasks.ts": () => import("./tasks"),
+  "./taskComments.ts": () => import("./taskComments"),
+  "./taskCreate.ts": () => import("./taskCreate"),
+  "./taskDeps.ts": () => import("./taskDeps"),
+  "./taskExecution.ts": () => import("./taskExecution"),
+  "./taskList.ts": () => import("./taskList"),
+  "./taskReads.ts": () => import("./taskReads"),
+  "./taskSpawn.ts": () => import("./taskSpawn"),
+  "./taskUpdate.ts": () => import("./taskUpdate"),
+  "./taskWebList.ts": () => import("./taskWebList"),
+  "./taskWebUpdate.ts": () => import("./taskWebUpdate"),
   "./notificationRouter.ts": () => import("./notificationRouter"),
   "./sessionDecisions.ts": () => import("./sessionDecisions"),
   "./issueSync.ts": () => import("./issueSync"),
@@ -123,7 +132,7 @@ async function dropAt(current_node_id: string) {
     await ctx.db.patch(taskId, { workflow_run_id: run } as any);
     return run;
   });
-  await t.mutation(api.tasks.update, {
+  await t.mutation(api.taskUpdate.update, {
     api_token: TOKEN,
     short_id: "ct-1",
     status: "dropped",

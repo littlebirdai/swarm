@@ -6,7 +6,7 @@
 // viewer, every channel that returns a task returns the same row.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { webGetByIds, webList, webListPaginated } from "./tasks";
+import { webGetByIds, webList, webListPaginated } from "./taskWebList";
 
 const VIEWER = "u_viewer";
 const MATE = "u_mate";

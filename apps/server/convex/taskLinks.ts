@@ -36,14 +36,14 @@ import {
   type TaskChangeBy,
 } from "./lib/taskHistory";
 import { patchTask } from "./lib/taskWrite";
+import { insertTaskComment } from "./lib/taskComments";
+import { releaseBoundSessions } from "./lib/taskOwner";
 import {
-  insertTaskComment,
-  moveTaskStatus,
   openDirectSubtasks,
   reconcilePlanMembership,
-  releaseBoundSessions,
   taskAncestorIds,
-} from "./tasks";
+} from "./lib/taskSubtasks";
+import { moveTaskStatus } from "./lib/taskTransitions";
 import {
   cliCaller,
   isTaskUnblocked,

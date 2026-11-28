@@ -1615,7 +1615,7 @@ export class SyncService {
   }): Promise<string | null> {
     await this.throttle();
     return this.guarded(async () => {
-      const result = await this.mutate("tasks:create" as any, {
+      const result = await this.mutate("taskCreate:create" as any, {
         api_token: this.apiToken,
         title: params.title,
         description: params.description,
@@ -1638,7 +1638,7 @@ export class SyncService {
   ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("tasks:update" as any, {
+      await this.mutate("taskUpdate:update" as any, {
         api_token: this.apiToken,
         short_id: shortId,
         status,

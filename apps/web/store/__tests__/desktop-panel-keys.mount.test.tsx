@@ -48,7 +48,7 @@ const notifications = makeFunctionReference<"query">("notifications:list");
 const queries = [
   "callRecordings:getRoomRecordingEnd",
   "entities:resolveIdType",
-  "tasks:webGet",
+  "taskReads:webGet",
   "taskMining:webGetDocDetail",
   "transcripts:getLive",
   "callChat:list",

@@ -30,8 +30,8 @@ async function setup(
     });
   });
   return {
-    update: (args: Partial<FunctionArgs<typeof api.tasks.update>>) =>
-      t.mutation(api.tasks.update, {
+    update: (args: Partial<FunctionArgs<typeof api.taskUpdate.update>>) =>
+      t.mutation(api.taskUpdate.update, {
         api_token: TOKEN,
         short_id: "ct-1",
         ...args,
