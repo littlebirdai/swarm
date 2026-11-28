@@ -24,7 +24,7 @@ import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { renewLiveConversationTaskClaim } from "./lib/taskClaims";
+import { renewLiveConversationTaskClaim } from "./lib/taskClaimHeartbeat";
 import {
   AGENT_STATUSES,
   ACTIVE_AGENT_STATUSES,

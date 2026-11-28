@@ -62,11 +62,13 @@ import {
   claimRefArgs,
   handleTaskUpdateClaim,
   releaseTaskClaimIfHeld,
-  releaseTaskWithClaim,
-  renewTaskHeartbeat,
   resolveTaskUpdateConversation,
   revokeWebTaskClaim,
 } from "./lib/taskClaims";
+import {
+  releaseTaskWithClaim,
+  renewTaskHeartbeat,
+} from "./lib/taskClaimHeartbeat";
 import {
   requireAccessibleTaskByToken,
   requireClaimedTaskMutation,
@@ -3501,8 +3503,7 @@ export const update = mutation({
         auth.userId,
       );
     if (conv && releasedOwners.length) {
-      const from = releasedOwners.map((o) => o.short_id).join(", ");
-      const actorRef = linkedConvId
+      const who = linkedConvId
         ? `Session ${conv.short_id ?? conv._id}`
         : actor.name || "A session";
       await insertTaskComment(
@@ -3510,7 +3511,7 @@ export const update = mutation({
         task._id,
         {
           author: actor.name || "unknown",
-          text: `${actorRef} took over as owner from ${from}.`,
+          text: `${who} took over as owner from ${releasedOwners.map((o) => o.short_id).join(", ")}.`,
           comment_type: "note",
           conversation_id: linkedConvId,
         },

@@ -25648,26 +25648,9 @@ work
       body.execution_status = "done";
     }
     if (options.message) body.verification_evidence = options.message;
-    const workflowRunId = process.env.run_id?.trim();
-    if (workflowRunId && !options.cascade && !options.onlyParent) {
-      await cliPost("/cli/workflow-runs/task-transition", {
-        run_id: workflowRunId,
-        short_id: shortId,
-        status: "done",
-        execution_status: body.execution_status,
-        ...(body.execution_concerns !== undefined
-          ? { execution_concerns: body.execution_concerns }
-          : {}),
-        ...(body.verification_evidence !== undefined
-          ? { verification_evidence: body.verification_evidence }
-          : {}),
-      });
-    } else {
-      await cliPost(
-        "/cli/work/update",
-        withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
-      );
-    }
+    const { postWorkflowAwareTaskUpdate } =
+      await import("./task-claim-commands.js");
+    await postWorkflowAwareTaskUpdate(cliPost, shortId, sessionId, body);
     if (options.message) {
       const commentBody: Record<string, any> = {
         short_id: shortId,
@@ -25913,19 +25896,9 @@ work
     if (options.cascade) body.subtask_resolution = "cascade";
     else if (options.onlyParent) body.subtask_resolution = "only_parent";
     if (sessionId) body.conversation_id = sessionId;
-    const workflowRunId = process.env.run_id?.trim();
-    if (workflowRunId && !options.cascade && !options.onlyParent) {
-      await cliPost("/cli/workflow-runs/task-transition", {
-        run_id: workflowRunId,
-        short_id: shortId,
-        status: "dropped",
-      });
-    } else {
-      await cliPost(
-        "/cli/work/update",
-        withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
-      );
-    }
+    const { postWorkflowAwareTaskUpdate } =
+      await import("./task-claim-commands.js");
+    await postWorkflowAwareTaskUpdate(cliPost, shortId, sessionId, body);
     clearTaskPulseIfBound(sessionId, shortId);
     if (options.message) {
       const commentBody: Record<string, any> = {
@@ -26064,30 +26037,12 @@ work
     if (options.plan) body.plan_id = options.plan;
     if (options.fromCall !== undefined)
       body.from_call = await taskCallArg(options.fromCall);
-    const workflowRunId = process.env.run_id?.trim();
-    const statusOnlyRunTransition =
-      Boolean(workflowRunId) &&
-      typeof body.status === "string" &&
-      ["open", "in_progress", "in_review", "done", "dropped"].includes(
-        body.status,
-      ) &&
-      Object.keys(body).every(
-        (k) => k === "short_id" || k === "status" || k === "conversation_id",
-      );
+    const { postWorkflowAwareTaskUpdate } =
+      await import("./task-claim-commands.js");
     try {
-      if (statusOnlyRunTransition) {
-        await cliPost("/cli/workflow-runs/task-transition", {
-          run_id: workflowRunId,
-          short_id: shortId,
-          status: body.status,
-        });
-      } else {
-        await cliPost(
-          "/cli/work/update",
-          withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
-          { throwOnError: true },
-        );
-      }
+      await postWorkflowAwareTaskUpdate(cliPost, shortId, sessionId, body, {
+        throwOnError: true,
+      });
     } catch (err) {
       // A server older than the status aliases refuses `cancelled` whole; send the category it means.
       const message = err instanceof Error ? err.message : String(err);

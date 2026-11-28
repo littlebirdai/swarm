@@ -780,8 +780,8 @@ describe("line.cast offline run through the session path", () => {
       ),
     ).toBe(true);
     expect(
-      calls.find((c) => c.route === "/cli/work/update")?.body,
-    ).toMatchObject({ short_id: "ct-7", status: "open" });
+      calls.find((c) => c.route === "/cli/workflow-runs/task-transition")?.body,
+    ).toMatchObject({ run_id: "run_1", short_id: "ct-7", status: "open" });
     expect(
       calls.find((c) => c.route === "/cli/work/comment")?.body.text,
     ).toContain("showed no work");
@@ -913,8 +913,10 @@ describe("line.cast offline run through the session path", () => {
       );
       expect(calls.some((c) => c.route === "/cli/decide")).toBe(false);
       expect(
-        calls.filter((c) => c.route === "/cli/work/update").at(-1)?.body,
-      ).toMatchObject({ short_id: "ct-7", status: "open" });
+        calls
+          .filter((c) => c.route === "/cli/workflow-runs/task-transition")
+          .at(-1)?.body,
+      ).toMatchObject({ run_id: "run_1", short_id: "ct-7", status: "open" });
       const blocker = calls.find(
         (c) =>
           c.route === "/cli/work/comment" && c.body.comment_type === "blocker",
