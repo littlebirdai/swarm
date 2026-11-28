@@ -278,11 +278,11 @@ test.each([false, true])(
     const firstCapture = count(phCalls, "capture");
     try {
       slots.set(slots.fresh());
-      const scopes = ["user:fixture", "team:fixture"];
+      const scopes = ["user:fixture", "dir:fixture"];
       useInboxStore.setState({
         docs: {},
         syncMeta: Object.fromEntries(
-          [...scopes, "team:apply"].map((scope) => [
+          [...scopes, "dir:apply"].map((scope) => [
             scopeMetaKey(scope),
             { cursor: 1 },
           ]),
@@ -290,40 +290,44 @@ test.each([false, true])(
       });
       if (apply)
         useInboxStore.getState().syncTable("docs", [doc], { isDelta: true });
-      await catchUp({
-        query: async (ref: Parameters<typeof getFunctionName>[0]) => {
-          if (getFunctionName(ref) === "syncLog:getHeads") {
-            return {
-              heads: [
-                ...scopes.map((scope_key) => ({
-                  scope_key,
-                  position: 4,
-                  floor: 3,
-                })),
-                ...(apply
-                  ? [{ scope_key: "team:apply", position: 2, floor: 0 }]
-                  : []),
-              ],
-            };
-          }
-          if (getFunctionName(ref) === "syncLog:getRange") {
-            return {
-              actions: [
-                {
-                  position: 2,
-                  entity_type: "docs",
-                  entity_id: doc._id,
-                  op: "upsert",
-                  patch: { title: "After" },
-                },
-              ],
-              nextFrom: 2,
-              hasMore: false,
-            };
-          }
-          throw new Error("Unexpected sync query");
+      await catchUp(
+        {
+          query: async (ref: Parameters<typeof getFunctionName>[0]) => {
+            if (getFunctionName(ref) === "syncLog:getHeads") {
+              return {
+                heads: [
+                  ...scopes.map((scope_key) => ({
+                    scope_key,
+                    position: 4,
+                    floor: 3,
+                  })),
+                  ...(apply
+                    ? [{ scope_key: "dir:apply", position: 2, floor: 0 }]
+                    : []),
+                ],
+              };
+            }
+            if (getFunctionName(ref) === "syncLog:getRange") {
+              return {
+                actions: [
+                  {
+                    position: 2,
+                    entity_type: "docs",
+                    entity_id: doc._id,
+                    op: "upsert",
+                    patch: { title: "After" },
+                  },
+                ],
+                nextFrom: 2,
+                hasMore: false,
+              };
+            }
+            throw new Error("Unexpected sync query");
+          },
         },
-      });
+        undefined,
+        { scopes: apply ? [...scopes, "dir:apply"] : scopes },
+      );
       expect(phCalls.capture?.slice(firstCapture) ?? []).toEqual([]);
       const flushes = schedule.mock.calls.filter(([, ms]) => ms === 60_000);
       expect(flushes).toHaveLength(1);
