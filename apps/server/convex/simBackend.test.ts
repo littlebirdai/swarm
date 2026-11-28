@@ -379,12 +379,12 @@ describe("sim backend", () => {
     const args = { show_all: false };
     await Promise.all([
       client.query(api.conversations.listInboxSessions, args),
-      client.query(api.syncLog.getHeads, {}),
+      client.query(api.syncLog.getHeads, { scopes: [] }),
     ]);
     expect(sim.calls.map((c) => c.ok)).toEqual([true, true]);
     const strict = backend({ debug: true }).clientFor(me);
     const first = strict.query(api.conversations.listInboxSessions, args);
-    const second = strict.query(api.syncLog.getHeads, {});
+    const second = strict.query(api.syncLog.getHeads, { scopes: [] });
     await first;
     await expect(second).rejects.toThrow(
       /sim server: syncLog:getHeads started while conversations:listInboxSessions was running/,

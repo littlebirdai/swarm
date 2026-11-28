@@ -34,7 +34,9 @@ test("only the authenticated snapshot opt-in returns the caller's log checkpoint
   const slot = await t.run(({ db }) => db.query("sync_outbox").first());
   expect(slot).not.toBeNull();
   await t.mutation(internal.syncOutbox.drain, { id: slot!._id });
-  const heads = await owner.query(api.syncLog.getHeads, {});
+  const heads = await owner.query(api.syncLog.getHeads, {
+    scopes: [`user:${viewer}`],
+  });
   const head = heads.heads.find(
     ({ scope_key }) => scope_key === `user:${viewer}`,
   );

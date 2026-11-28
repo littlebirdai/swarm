@@ -703,10 +703,10 @@ const DEFAULT_RANGE_LIMIT = 500;
 // The caller's scope heads. Tiny payload — this is the live subscription that wakes the
 // client applier; it re-runs on tracked writes only (never on heartbeats or messages).
 export const getHeads = query({
-  args: { scopes: v.optional(v.array(v.string())) },
+  args: { scopes: v.array(v.string()) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { heads: [] };
+    if (!userId) return { authenticated: false, heads: [] };
     const { scopes } = await resolveHeadsScopes(ctx, userId, args.scopes);
     const heads: Array<{
       scope_key: SyncScopeKey;
@@ -721,7 +721,7 @@ export const getHeads = query({
         floor: head?.floor ?? 0,
       });
     }
-    return { heads };
+    return { authenticated: true, heads };
   },
 });
 

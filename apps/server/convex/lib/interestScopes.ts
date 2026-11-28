@@ -89,19 +89,12 @@ export async function canReadSyncScope(
 export async function resolveHeadsScopes(
   ctx: { db: any },
   userId: Id<"users">,
-  requestedScopes?: string[],
+  requestedScopes: string[],
 ): Promise<{ heldKeys: Set<string>; scopes: Iterable<string> }> {
-  if (requestedScopes && requestedScopes.length > MAX_HEADS_SCOPES) {
+  if (requestedScopes.length > MAX_HEADS_SCOPES) {
     throw new Error(`Too many sync scopes requested (max ${MAX_HEADS_SCOPES})`);
   }
   const heldKeys = await heldKeysFor(ctx, userId);
-  if (!requestedScopes) {
-    const defaults: string[] = [];
-    for (const key of heldKeys) {
-      defaults.push(key.startsWith("team:") ? `dir:${key.slice(5)}` : key);
-    }
-    return { heldKeys, scopes: defaults };
-  }
   const allowed: string[] = [];
   const seen = new Set<string>();
   for (const scopeKey of requestedScopes) {
