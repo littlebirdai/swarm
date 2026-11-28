@@ -12,7 +12,7 @@ import * as Layer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import { adjust } from "effect/testing/TestClock";
 import { Delivery } from "../src/effect";
-import { deliveryServiceLayer } from "../src/index";
+import { deliveryServiceLayer } from "../src/service-layer";
 import {
   fakeServerBridge,
   makeFakeServer,

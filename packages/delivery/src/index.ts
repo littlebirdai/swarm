@@ -1,9 +1,8 @@
 import { SupervisorBus } from "@codecast/edge-supervisor/effect";
 import { makeFacade } from "@codecast/effect-kit/effect";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
-import { deliveryBridgeLayer } from "./bridge";
 import { Delivery } from "./effect";
+import { deliveryServiceLayer } from "./service-layer";
 import type { DeliveryFacade, DeliveryServiceOptions } from "./types";
 
 export type {
@@ -23,17 +22,6 @@ export type {
   SteerPermit,
   TakeoverReceiptStatus,
 } from "./types";
-
-export function deliveryServiceLayer(options: DeliveryServiceOptions = {}) {
-  const { bridge, bridgeLimits, ...deliveryOptions } = options;
-  return Delivery.layer(deliveryOptions).pipe(
-    Layer.provideMerge(
-      deliveryBridgeLayer(bridge, bridgeLimits).pipe(
-        Layer.provideMerge(SupervisorBus.layer),
-      ),
-    ),
-  );
-}
 
 export function createDeliveryService(
   options: DeliveryServiceOptions = {},
