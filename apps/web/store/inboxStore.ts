@@ -36,7 +36,6 @@ import {
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { pinnableAgentIds } from "@codecast/agent-clients/agentPins";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
-import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
 import type { InitiativeMetric } from "@codecast/goals/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
@@ -83,9 +82,7 @@ import {
   setRelatedEdge,
   type TaskWaitInput,
 } from "./taskGraphDraft";
-import { carryRingStubs, dropSettledRings } from "../lib/calls/ringStubs";
 import { carryNodeSessions } from "../lib/workflowRun";
-import { runFilesOf } from "../lib/calls/callVideo";
 import {
   nextMembershipVisibility,
   type TeamVisibilityLevel,
@@ -207,7 +204,6 @@ import {
 } from "../lib/windowRole";
 import { current, isDraft, original } from "mutative";
 import { soundDismiss, soundKill } from "../lib/sounds";
-import type { AppPermissionKind } from "../lib/osPermissions";
 import { noteSnapshotSync } from "./idb-collection-diff";
 import {
   writeConversationMessages,
@@ -331,7 +327,6 @@ import {
   isNestedIdentity,
   rollupParentIdOf,
 } from "@codecast/inbox/inboxMembership";
-import { guestIdentity } from "@codecast/calls/callGuests";
 import {
   isSessionUnread,
   type SessionActivityFacts,
@@ -696,6 +691,12 @@ import {
   type ComposeInstance,
   type ComposeSliceState,
 } from "./composeSlice";
+import {
+  CALLS_SYNC_OPTS,
+  createCallsSlice,
+  rejectDeleteCallRecording,
+  type CallsSlice,
+} from "./slices/calls-slice";
 // Re-exported so chat surfaces import their selectors from the store, like every
 // other view does, instead of reaching into the slice file.
 export {
@@ -735,12 +736,6 @@ export type {
 } from "./threadTypes";
 export { threadRowId } from "./threadTypes";
 import type { ThreadsCursor } from "./threadTypes";
-import type {
-  CallRoomFlags,
-  GuestWaiting,
-  LiveRoom,
-  RoomKnock,
-} from "./callRoomTypes";
 import { isTriggerEditable } from "../lib/triggerEditable";
 import {
   isDetailKey,
@@ -7856,13 +7851,6 @@ export function findReusableBlankSession(
 
 // -- Store interface --
 
-/** Take a guest's knock off the door on a draft (the store's guest answers). */
-function dropGuestKnock(draft: any, guestId: string): void {
-  const knocks: RoomKnock[] = draft.roomKnocks ?? [];
-  if (knocks.some((k) => k.guest_id === guestId))
-    draft.roomKnocks = knocks.filter((k) => k.guest_id !== guestId);
-}
-
 type SteerComposerStore = ReturnType<typeof createSteerComposerSlice>;
 
 export interface InboxStoreState
@@ -7887,9 +7875,10 @@ export interface InboxStoreState
     MeetingBotsSliceActions,
     AgentConnectionsSliceActions,
     ComposeSliceState,
+    CallsSlice,
     Omit<
       RegisteredCollectionSlots,
-      keyof (ChatSliceState & OrgSliceState & SteerComposerStore)
+      keyof (ChatSliceState & OrgSliceState & SteerComposerStore & CallsSlice)
     > {
   sessions: Record<string, InboxSession>;
   pending: Record<string, PendingEntry>;
@@ -9986,38 +9975,6 @@ export interface InboxStoreState
   userSkills?: string;
   teams: any[];
   teamMembers: any[];
-  // Huddles (calls.ts). myCalls syncs the ring pipeline's whole world in one
-  // singleton: invites ringing at me, my outbound ring, my room membership.
-  // callOccupancy maps room_key → live roster for chips. Neither persists —
-  // a reload re-derives both from the subscription (a stale ring replayed
-  // from IDB would be a phantom ring).
-  myCalls: { incoming: any[]; outgoing: any[]; membership: any | null };
-  callOccupancy: Record<string, any[]>;
-  callConfig: { enabled: boolean; url?: string } | null;
-  // Every huddle running right now in one of my teams (calls.getLiveRooms) —
-  // what makes an occupied room visible from anywhere: the sidebar's Live now
-  // cluster, /calls' Happening now, the lock state of the room I'm in. Live
-  // occupancy is ephemeral by nature, so like myCalls it never persists: a
-  // reload re-derives it, and a room replayed from IDB would be a ghost.
-  liveRooms: LiveRoom[];
-  // People waiting at MY door (calls.getRoomKnocks) — only ever the room I am
-  // seated in, since a knock is a gesture at one door.
-  roomKnocks: RoomKnock[];
-  // Guests waiting on my links at rooms nobody is in (GuestWaiting).
-  guestsWaiting: GuestWaiting[];
-  // Rooms I have knocked at, key → when. Two jobs: the "knocked" confirmation
-  // on the row I clicked, and the auto-accept in useCallRing — the admit ring
-  // for a door I knocked on must not ask me to answer it.
-  callKnocked: Record<string, number>;
-  callRooms: Record<string, CallRoomFlags>;
-  noteKnock: (roomKey: string) => void;
-  clearKnock: (roomKey: string) => void;
-  setRoomLocked: (roomKey: string, locked: boolean) => void;
-  /** Put a board, sheet, doc, page or object on the huddle's stage for everyone in it (callStage.pin). */
-  pinToStage: (roomKey: string, ref: string) => void;
-  unpinFromStage: (roomKey: string, ref: string) => void;
-  /** The call's board on the stage, made if the call has none (callStage.pinCallBoard); resolves to its doc id. */
-  pinCallBoard: (roomKey: string) => Promise<{ doc_id: string } | undefined>;
   setTeamFeature: (teamId: string, feature: string, enabled: boolean) => void;
   setTeamBudget: (teamId: string, capUsd: number) => void;
   setTeamPolicy: (teamId: string, policy: Record<string, unknown>) => void;
@@ -10044,100 +10001,6 @@ export interface InboxStoreState
     params: Record<string, string>,
   ) => void;
   setPinnedAgents: (agents: string[]) => void;
-  /** Resolves once the server holds the flag: switching transcription back on
-   *  must land before the scribe asks transcripts.start, which refuses a room
-   *  that is still opted out. The switch itself paints synchronously. */
-  setRoomTranscribeOff: (roomKey: string, off: boolean) => Promise<unknown>;
-  /** Start or stop recording the room (callRecordings.startRecording /
-   *  stopRecording). Rejects with the server's reason when refused. */
-  setRoomRecording: (
-    roomKey: string,
-    on: boolean,
-    pressedAt: number,
-    runId?: string,
-  ) => Promise<unknown>;
-  undoRoomRecordingPress: (roomKey: string, on: boolean) => void;
-  /** The room's answers to a guest at the door (callGuests.admitGuest /
-   *  denyGuest): the knock leaves roomKnocks at once. `name` is the name the
-   *  door showed (a guest who renamed since is asked about again). Rejects
-   *  with the server's reason, and the knock comes back. */
-  admitGuestKnock: (guestId: string, name: string) => Promise<unknown>;
-  denyGuestKnock: (guestId: string, revokeLink?: boolean) => Promise<unknown>;
-  /** Put a guest out (callGuests.removeGuest), optionally closing the link
-   *  they came in on: they leave the live room's guests at once. */
-  removeCallGuest: (
-    roomKey: string,
-    guestId: string,
-    revokeLink?: boolean,
-  ) => Promise<unknown>;
-  /** Put back a guest a refused removal took off the live room. */
-  restoreCallGuest: (
-    roomKey: string,
-    guest: { identity: string; name: string; joined_at?: number },
-  ) => void;
-  /** Delete a whole recording run (the room's file and its screen files),
-   *  named by any one of its files (callRecordings.deleteRecording). The rows
-   *  leave `callRecordings` at once; a refusal puts them back and rejects
-   *  with the server's reason. */
-  deleteCallRecording: (recordingId: string) => Promise<unknown>;
-  /** A regulated team's call, with its recordings and transcript, deleted for good by a team admin (regulatedDeletion.deleteCall). */
-  deleteCall: (transcriptId: string) => Promise<unknown>;
-  /** Drop the exclude tombstones of recording rows a push no longer sends. */
-  settleCallRecordingTombstones: (
-    released: string[],
-    collection?: "callRecordings" | "callFrameShares",
-  ) => void;
-  /** Take a picture of a call off its public link (callRecordings
-   *  .deleteCallFrameShare): the row leaves on the press. */
-  deleteCallFrameShare: (shareId: string) => Promise<unknown>;
-  /** Whether the call's share link hands out the room's video
-   *  (callRecordings.setCallShareVideo). Rejects with the server's reason,
-   *  and the switch falls back with it. */
-  setCallShareVideo: (
-    transcriptId: string,
-    include: boolean,
-  ) => Promise<unknown>;
-  /** Whether an agent in a live call shows as a video avatar
-   *  (transcripts.setAgentFace). Rejects with the server's reason, and the
-   *  toggle falls back with it. */
-  setCallAgentFace: (
-    transcriptId: string,
-    target: string,
-    face: boolean,
-  ) => Promise<unknown>;
-  // Ephemeral media-plane state, written only by lib/calls/callManager. The
-  // dock renders from THIS synchronously (local-first: joining paints
-  // "connecting" before any server or SFU round-trip).
-  call: {
-    phase: "idle" | "ringing_out" | "connecting" | "connected" | "error";
-    roomKey: string | null;
-    muted: boolean;
-    /** The microphone could not be opened for this seat — denied, blocked, or
-     *  no device. A seat like that still HEARS the room; it publishes nothing.
-     *  Implies `muted`, and it is the difference between a person who chose
-     *  silence and one who has no choice, which is the whole of what the strip
-     *  and the dock have to say honestly. */
-    micDenied: boolean;
-    camera: boolean;
-    sharing: boolean;
-    speaking: string[];
-    error: string | null;
-    /** When `error` is a device that could not be opened, the OS permission
-     *  behind it — so the notice can carry the fix (lib/osPermissions). It is
-     *  always a grant this app holds itself; the codecast computer grants have
-     *  no part in a call. */
-    errorFix: AppPermissionKind | null;
-    /** The media is gone and coming back under a seat that never moved:
-     *  LiveKit retrying its own connection, or the call manager joining the
-     *  room again after LiveKit gave up. `phase` stays "connected" through it
-     *  (a drop is not the call ending); this is what the surfaces show. */
-    reconnecting?: boolean;
-    /** The room this window last hung up on, and when. The server's seat and
-     *  rings for it outlive the press by a round trip; the face row reads
-     *  them as gone from here (lib/faces/faceRow `leftRoom`). */
-    left?: { roomKey: string; at: number } | null;
-  };
-  setCallState: (patch: Partial<InboxStoreState["call"]>) => void;
   favorites: any[];
   bookmarks: any[];
 
@@ -11071,34 +10934,7 @@ const STORE_SYNC_OPTS: Record<string, SyncOpts> = {
     ...REGISTRY_SYNC_OPTS.currentUser,
     normalize: quantizePresence,
   },
-  // The calls list prunes the window each answer covers (useCallList), which
-  // leaves a tombstone; a call the server lists again (a recording shared
-  // back, a team rejoined) lifts it, the same rule as a chat room.
-  callList: {
-    ...REGISTRY_SYNC_OPTS.callList,
-    transform: liftExcludesForIncoming("callList"),
-  },
-  // Server-authoritative call state: wholesale replace (no local edits to
-  // protect — the optimistic layer for calls is the ephemeral `call` slice,
-  // not these rows). Timestamps are bucketed server-side (calls.ts), so
-  // no-change pushes bail on the JSON compare.
-  // One exception: a stub ring the engine put up from the press stands
-  // until the server lists the person, and a ring answered or declined here
-  // stays gone until the server stops listing it (lib/calls/ringStubs).
-  myCalls: {
-    kind: "singleton",
-    merge: {
-      incoming: (_local, server) => dropSettledRings(server),
-      outgoing: (local, server) => carryRingStubs(local, server),
-    },
-  },
-  callOccupancy: { kind: "singleton" },
-  callConfig: { kind: "singleton" },
-  // Live huddles, wholesale-replaced on every push (the server sorts rooms
-  // and rosters and buckets timestamps, so a heartbeat that changed nothing
-  // bails on the JSON compare). Nothing local to protect: the flags a person
-  // flips live in `callRooms`, which useCallSync splits off this feed.
-  liveRooms: { kind: "list" },
+  ...CALLS_SYNC_OPTS,
   // teams, teamMembers and bookmarks are localFirst lists (clientSyncRegistry
   // carries their kind, row identity and altKey): an action's change to a row
   // or to membership holds over pushes until the server agrees. teamMembers
@@ -20461,27 +20297,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
 
     if (actionName === "deleteCallRecording") {
-      const rows = localResult.rows;
-      if (!Array.isArray(rows)) return false;
-      const coll = (this as any).callRecordings as Record<string, unknown>;
-      for (const row of rows) {
-        if (typeof row?._id !== "string") continue;
-        // A push since may have brought the row back already, fresher.
-        if (!coll[row._id]) coll[row._id] = row;
-        delete this.pending[`callRecordings:${row._id}`];
-      }
-      const facts =
-        typeof localResult.transcriptId === "string"
-          ? (
-              (this as any).callRecordingCalls as Record<
-                string,
-                { deleted_here_at?: number }
-              >
-            )[localResult.transcriptId]
-          : undefined;
-      if (facts && facts.deleted_here_at === localResult.at)
-        delete facts.deleted_here_at;
-      return ["callRecordings", "callRecordingCalls", "pending"];
+      return rejectDeleteCallRecording(this as any, localResult);
     }
 
     if (actionName === "updateBucket") {
@@ -21390,45 +21206,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   favorites: [],
   bookmarks: [],
 
-  myCalls: { incoming: [], outgoing: [], membership: null },
-  callOccupancy: {},
-  callConfig: null,
-  liveRooms: [],
-  roomKnocks: [],
-  guestsWaiting: [],
-  callKnocked: {},
-  call: {
-    phase: "idle" as const,
-    roomKey: null,
-    muted: true,
-    micDenied: false,
-    camera: false,
-    sharing: false,
-    speaking: [],
-    error: null,
-    errorFix: null,
-  },
-  // Raw set() by convention: ephemeral UI/media state, never shared or
-  // persisted (same class as modal toggles).
-  setCallState: (patch: Partial<InboxStoreState["call"]>) =>
-    set((s: any) => ({ call: { ...s.call, ...patch } })),
-
-  // Raw set() by the same convention as the call slice: ephemeral media-plane
-  // bookkeeping, never persisted and never dispatched. A knock and a lock
-  // toggle are both server gestures whose durable state comes back through
-  // liveRooms/roomKnocks; these hold only what the client must render before
-  // that echo lands.
-  noteKnock: (roomKey: string) =>
-    set((s: any) => ({
-      callKnocked: { ...s.callKnocked, [roomKey]: Date.now() },
-    })),
-  clearKnock: (roomKey: string) =>
-    set((s: any) => {
-      if (!(roomKey in s.callKnocked)) return {};
-      const next = { ...s.callKnocked };
-      delete next[roomKey];
-      return { callKnocked: next };
-    }),
+  ...createCallsSlice(set),
 
   // A team's opt-in feature (admin only on the server). `teams` is a
   // localFirst list: the sidebar row appears or vanishes on the click, and a
@@ -21600,274 +21378,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
     if (!this.currentUser) return;
     (this.currentUser as any).pinned_agents = [...agents];
     (this.currentUser as any).pinned_agents_known = pinnableAgentIds();
-  }),
-
-  // The room flags: draft flip, then the same-named dispatch side effect
-  // (convex/dispatch.ts) runs the mutation. callRooms is localFirst, so a
-  // getLiveRooms push computed before the write committed cannot flap the
-  // control back, and a refused write surfaces like every other dispatch.
-  setRoomLocked: action(function (
-    this: Draft,
-    roomKey: string,
-    locked: boolean,
-  ) {
-    const row = (this.callRooms[roomKey] ??= {
-      _id: roomKey,
-      locked: false,
-      transcribe_off: false,
-      transcribe_off_at: null,
-    });
-    row.locked = locked;
-    return { roomKey, locked };
-  }),
-  pinToStage: action(function (this: Draft, roomKey: string, ref: string) {
-    const target = parseStagePinRef(ref);
-    if (!target) return;
-    const id = stagePinRowId(roomKey, target.ref);
-    const me = (this as any).currentUser as
-      | { _id?: string; name?: string }
-      | undefined;
-    const was = this.callStagePins[id];
-    this.callStagePins[id] = {
-      title: null,
-      doc_type: null,
-      readable: true,
-      pinned_by: me?._id ?? "",
-      pinned_by_name: me?.name ?? null,
-      pinned_by_session: null,
-      pinned_by_agent: null,
-      ...was,
-      _id: id,
-      room_key: roomKey,
-      ref: target.ref,
-      kind: target.kind,
-      doc_id: target.kind === "doc" ? target.id : null,
-      slug: target.kind === "page" ? target.slug : null,
-      at: Date.now(),
-    };
-    return { roomKey, ref: target.ref };
-  }),
-  unpinFromStage: action(function (this: Draft, roomKey: string, ref: string) {
-    const canonical = parseStagePinRef(ref)?.ref ?? ref;
-    delete this.callStagePins[stagePinRowId(roomKey, canonical)];
-    return { roomKey, ref: canonical };
-  }),
-  pinCallBoard: asyncAction(function (this: Draft, roomKey: string) {
-    return { roomKey };
-  }),
-  setRoomTranscribeOff: asyncAction(function (
-    this: Draft,
-    roomKey: string,
-    off: boolean,
-  ) {
-    const row = (this.callRooms[roomKey] ??= {
-      _id: roomKey,
-      locked: false,
-      transcribe_off: false,
-      transcribe_off_at: null,
-    });
-    row.transcribe_off = off;
-    row.transcribe_off_at = off ? Date.now() : null;
-    return { roomKey, off };
-  }),
-  // Record and Stop, for the whole room: the mark is up (or down) on this
-  // window the moment it is pressed, and a refused press (recording not set
-  // up, someone stopped it a second ago) rolls the mark back and rejects the
-  // caller, who says why. The flag is unprotected (clientSyncRegistry): the
-  // next push is the server's word on it, whatever this press said.
-  // `pressedAt` is when the person pressed: a press is a moment, so one
-  // delivered long after it (parked through an outage, replayed on a reload)
-  // is refused at both ends (lib/calls/recordingPress, convex dispatch).
-  // `runId` (Stop only) is the run the mark showed, which is all the press
-  // may end.
-  setRoomRecording: asyncAction(function (
-    this: Draft,
-    roomKey: string,
-    on: boolean,
-    _pressedAt: number,
-    _runId?: string,
-  ) {
-    const row = (this.callRooms[roomKey] ??= {
-      _id: roomKey,
-      locked: false,
-      transcribe_off: false,
-      transcribe_off_at: null,
-    });
-    row.recording = on;
-    return { roomKey, on };
-  }),
-  // The room's answers to a guest, from the door, the knock's toast or the
-  // stage: the knock leaves the door (and a removed guest the room's faces)
-  // in the frame it was pressed, and the same-named dispatch side effect
-  // (convex/dispatch.ts) runs callGuests' mutation. roomKnocks is a
-  // localFirst list keyed by from_user (clientSyncRegistry): a getRoomKnocks
-  // push computed before the answer landed cannot put the knock back, every
-  // surface of this window agrees the moment one answers, and a refusal (the
-  // guest renamed, the link closed) restores the row with the reason.
-  admitGuestKnock: asyncAction(function (
-    this: Draft,
-    guestId: string,
-    name: string,
-  ) {
-    dropGuestKnock(this, guestId);
-    return { guestId, name };
-  }),
-  denyGuestKnock: asyncAction(function (
-    this: Draft,
-    guestId: string,
-    revokeLink?: boolean,
-  ) {
-    dropGuestKnock(this, guestId);
-    return { guestId, revokeLink: !!revokeLink };
-  }),
-  // liveRooms is server truth replaced whole on every push (not localFirst:
-  // a field lock on a room's `guests` array could never match the server's
-  // fresh array and would freeze it), so the guest leaves the faces here and
-  // the server's push, which drops them too, follows; a refusal puts them
-  // back through restoreCallGuest (lib/calls/guestDoorActions).
-  removeCallGuest: asyncAction(function (
-    this: Draft,
-    roomKey: string,
-    guestId: string,
-    revokeLink?: boolean,
-  ) {
-    dropGuestKnock(this, guestId);
-    const identity = guestIdentity(guestId);
-    const room = ((this.liveRooms ?? []) as any[]).find(
-      (r) => r?.room_key === roomKey,
-    );
-    if (room?.guests?.some((g: any) => g.identity === identity))
-      room.guests = room.guests.filter((g: any) => g.identity !== identity);
-    return { roomKey, guestId, revokeLink: !!revokeLink };
-  }),
-  restoreCallGuest: sync(function (
-    this: Draft,
-    roomKey: string,
-    guest: { identity: string; name: string; joined_at?: number },
-  ) {
-    const room = ((this.liveRooms ?? []) as any[]).find(
-      (r) => r?.room_key === roomKey,
-    );
-    if (
-      room &&
-      !(room.guests ?? []).some((g: any) => g.identity === guest.identity)
-    )
-      room.guests = [...(room.guests ?? []), guest];
-  }),
-  // A refused press puts the flag back (an unprotected field has no lock for
-  // the engine to lift), unless a push has spoken for the room since.
-  undoRoomRecordingPress: sync(function (
-    this: Draft,
-    roomKey: string,
-    on: boolean,
-  ) {
-    const row = this.callRooms[roomKey];
-    if (row && row.recording === on) row.recording = !on;
-  }),
-  // A call's video (registry callRecordings / callRecordingCalls). Deleting
-  // takes the whole run, as the server does: the room's file and the screen
-  // files filmed alongside it share a run_id. Removing the rows on the draft
-  // plants their exclude tombstones, so a push computed before the delete
-  // committed cannot bring them back, and stamps the call's facts with
-  // `deleted_here_at`, so the page says the recording was deleted in the same
-  // frame rather than once the thread's line arrives. Receipt-backed: the
-  // rows ride the command as its local result, and a refusal, live or on a
-  // replay after a reload, puts them back (_handleReceiptRejection).
-  // A regulated team's call deleted for good (convex regulatedDeletion.deleteCall):
-  // it leaves the list and its page in this frame; the server purges the rest.
-  deleteCall: asyncAction(function (this: Draft, transcriptId: string) {
-    delete (this as any).callList?.[transcriptId];
-    delete (this as any).callDetails?.[transcriptId];
-  }),
-  deleteCallRecording: receiptAsyncAction(function (
-    this: Draft,
-    recordingId: string,
-  ) {
-    const rows = (this as any).callRecordings as Record<
-      string,
-      { run_id?: string; transcript_id?: string }
-    >;
-    const taken = runFilesOf(rows, recordingId);
-    // Plain copies: draft values are revocable proxies, and the result is
-    // persisted with the command after the recipe closes.
-    const snapshot = JSON.parse(
-      JSON.stringify(taken.map(([, r]) => r)),
-    ) as Array<{ _id: string; transcript_id?: string }>;
-    for (const [id] of taken) delete rows[id];
-    const transcriptId = snapshot[0]?.transcript_id ?? null;
-    const at = Date.now();
-    const facts = transcriptId
-      ? (
-          (this as any).callRecordingCalls as Record<
-            string,
-            { deleted_here_at?: number }
-          >
-        )[transcriptId]
-      : undefined;
-    if (facts) facts.deleted_here_at = at;
-    return { recordingId, transcriptId, at, rows: snapshot };
-  }),
-  // Tombstones a push has answered (the feeder decides which: a row of that
-  // call the server no longer sends is gone for good, ids never come back),
-  // so their excludes have nothing left to hold out. Without this they would
-  // pile up in the persisted pending map.
-  settleCallRecordingTombstones: sync(function (
-    this: Draft,
-    released: string[],
-    collection: "callRecordings" | "callFrameShares" = "callRecordings",
-  ) {
-    for (const id of released) {
-      const key = `${collection}:${id}`;
-      if (this.pending[key]?.type === "exclude") delete this.pending[key];
-    }
-  }),
-  // A picture of the call taken off its public link: the row leaves on the
-  // draft (its exclude tombstone holds it out of an older push) and the
-  // dispatch deletes the public object. Taking one down is any reader's and
-  // a picture already gone is acknowledged, so there is no refusal to undo.
-  deleteCallFrameShare: asyncAction(function (this: Draft, shareId: string) {
-    delete ((this as any).callFrameShares as Record<string, unknown>)[shareId];
-    return { shareId };
-  }),
-  // The switch moves on the press and holds through a push computed before
-  // the write committed (a field lock on video_shared); a refusal lifts the
-  // lock and the switch falls back to what the server holds.
-  setCallShareVideo: asyncAction(function (
-    this: Draft,
-    transcriptId: string,
-    include: boolean,
-  ) {
-    const row = (
-      (this as any).callRecordingCalls as Record<
-        string,
-        { video_shared?: boolean }
-      >
-    )[transcriptId];
-    if (row) row.video_shared = include;
-    return { transcriptId, include };
-  }),
-  // The avatar toggle moves on the press: the call's route for the agent
-  // gains or drops `face: false` on the draft, as the server writes it.
-  setCallAgentFace: asyncAction(function (
-    this: Draft,
-    transcriptId: string,
-    target: string,
-    face: boolean,
-  ) {
-    const call = (
-      (this as any).callDetails as Record<
-        string,
-        { routes?: Array<{ kind: string; target: string; face?: boolean }> }
-      >
-    )[transcriptId];
-    const route = call?.routes?.find(
-      (r) => r.kind === "session" && r.target === target,
-    );
-    if (route) {
-      if (face) delete route.face;
-      else route.face = false;
-    }
-    return { transcriptId, target, face };
   }),
 
   // =====================

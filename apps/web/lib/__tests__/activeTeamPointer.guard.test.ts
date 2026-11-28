@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { walkSources } from "./sourceWalk";
 import { join } from "node:path";
 
@@ -64,10 +64,19 @@ describe("active-team pointer", () => {
   // discardTeamStub is for create.
   test("the store's createTeam and deleteTeam are the only draft writers of the mirror, and their dispatches write the canonical pointer", () => {
     const store = readFileSync(join(ROOT, "store/inboxStore.ts"), "utf8");
+    const sliceDir = join(ROOT, "store/slices");
+    const slices = readdirSync(sliceDir)
+      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+      .map((file) => readFileSync(join(sliceDir, file), "utf8"));
     const writers = [
       ...store.matchAll(
-        /^\s*(\w+):\s*(?:asyncAction|sync|action)\(function[\s\S]*?^ {2}\}\),/gm,
+        /^\s*(\w+):\s*(?:receiptAsyncAction|asyncAction|sync|action)\(function[\s\S]*?^ {2}\}\),/gm,
       ),
+      ...slices.flatMap((source) => [
+        ...source.matchAll(
+          /^ {4}(\w+):\s*(?:receiptAsyncAction|asyncAction|sync|action)\(function[\s\S]*?^ {4}\}\)(?: as [^,\n]+)?,/gm,
+        ),
+      ]),
     ]
       .filter((m) => /\.active_team_id = /.test(m[0]))
       .map((m) => m[1]);
