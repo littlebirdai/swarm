@@ -215,6 +215,12 @@ const VIEW_TARGET_SEGMENT: Record<ScopeViewTargetKind, string> = {
   channel: "chat",
 };
 
+export function isScopeViewTargetKind(
+  kind: unknown,
+): kind is ScopeViewTargetKind {
+  return typeof kind === "string" && Object.hasOwn(VIEW_TARGET_SEGMENT, kind);
+}
+
 export function viewTargetPaths(state: ScopeStoreInput): string[] {
   const owners = state.scopeViewTargets;
   if (!owners) return [];

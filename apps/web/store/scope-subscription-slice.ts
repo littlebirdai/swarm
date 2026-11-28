@@ -7,9 +7,9 @@ import {
   purgeUnheldScopeRowsInDraft,
   revokeScopeRowsInDraft,
   SCOPE_VIEW_TARGET_OWNERS_MAX,
+  isScopeViewTargetKind,
   type PurgeTarget,
   type ScopeViewTarget,
-  type ScopeViewTargetKind,
 } from "./scope-subscription-candidates";
 import {
   SCOPE_HEADS_CHUNK_COUNT,
@@ -144,21 +144,13 @@ function denyScopesInDraft(
   return revokeScopeRowsInDraft(draft, denySet, now, userScope);
 }
 
-const VIEW_TARGET_KINDS: ReadonlySet<ScopeViewTargetKind> = new Set([
-  "project",
-  "task",
-  "doc",
-  "plan",
-  "channel",
-]);
-
 function cleanViewTargets(
   targets: readonly ScopeViewTarget[],
 ): ScopeViewTarget[] {
   const seen = new Set<string>();
   const out: ScopeViewTarget[] = [];
   for (const target of targets) {
-    if (!target || !VIEW_TARGET_KINDS.has(target.kind)) continue;
+    if (!target || !isScopeViewTargetKind(target.kind)) continue;
     if (typeof target.id !== "string" || target.id.length === 0) continue;
     const key = `${target.kind}:${target.id}`;
     if (seen.has(key)) continue;
