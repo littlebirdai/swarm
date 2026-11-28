@@ -22,6 +22,14 @@ import {
 } from "./inbox-replay-lane";
 import { beginSyncInflight } from "../store/syncActivity";
 import {
+  handleUnauthorizedScope,
+  makeScopeRunQueue,
+  scopedCatchUpScopes,
+  sweepAfterHeads,
+  useScopeSubscriptions,
+} from "./use-scope-subscriptions";
+import { useIsSyncHost } from "./use-sync-role";
+import {
   batchGet,
   queryReplay,
   settleDisownClaims,
@@ -512,14 +520,7 @@ export async function catchUpScope(
     checkReplaySignal(account);
     if (!res) return;
     if (res.authorized === false) {
-      // Membership revoked and we raced the scope_removed action (or it was
-      // already retention-pruned): treat as scope drop, not a retryable error.
-      if (head.scope_key.startsWith("team:")) {
-        const teamId = head.scope_key.slice(5);
-        store.purgeTeamScopeRows(teamId);
-        store.clearSyncMeta(metaKey);
-        purgedTeams.add(teamId);
-      }
+      handleUnauthorizedScope(store, head.scope_key, metaKey, purgedTeams);
       return;
     }
     if (res.resync) {
@@ -605,11 +606,19 @@ async function drainLegacyBridge(
 export async function catchUp(
   convex: any,
   account = inboxReplaySignal(convex),
+  opts?: { scopes?: readonly string[] },
 ): Promise<void> {
   const runStart = Date.now();
   const store = useInboxStore.getState();
+  const scopeList = scopedCatchUpScopes(store, opts?.scopes);
+  if (scopeList && scopeList.length === 0) return;
   const res = await withReplayTimeout(account, (signal) =>
-    queryReplay(convex, api.syncLog.getHeads, {}, signal),
+    queryReplay(
+      convex,
+      api.syncLog.getHeads,
+      scopeList ? { scopes: scopeList } : {},
+      signal,
+    ),
   );
   checkReplaySignal(account);
   if (!res) return;
@@ -669,25 +678,7 @@ export async function catchUp(
     if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
       s.stampSyncLogScope(head.scope_key);
   }
-  // Heads-absence sweep (design D5 backstop): a persisted team cursor whose
-  // scope getHeads no longer lists is a revoked membership whose scope_removed
-  // action we never saw (e.g. retention-pruned while this client was away).
-  // getHeads always lists every CURRENT membership, so absence is revocation.
-  // Guarded on a non-empty heads response — an auth blip returns {heads: []}
-  // and must not purge everything.
-  if (heads.length > 0) {
-    const present = new Set(heads.map((h) => h.scope_key));
-    const s2 = useInboxStore.getState();
-    for (const key of Object.keys(s2.syncMeta)) {
-      if (!key.startsWith("synclog:v1:team:")) continue;
-      const scopeKey = key.slice("synclog:v1:".length);
-      if (present.has(scopeKey)) continue;
-      const teamId = scopeKey.slice(5);
-      s2.purgeTeamScopeRows(teamId);
-      s2.clearSyncMeta(key);
-      s2.clearCrawlMetaForScope(scopeKey);
-    }
-  }
+  sweepAfterHeads(useInboxStore.getState(), heads, scopeList);
   // The legacy cursor may be dropped only once BOTH are true: the drain
   // reached the end, and every scope cursor for this run is stamped (the loop
   // above). Until then the checkpointed legacy cursor is the recovery path.
@@ -795,18 +786,17 @@ export function createCatchUpRunner(
 ) {
   let running = false;
   let rerun = false;
-  const run = () => {
+  const queue = makeScopeRunQueue();
+  const run = (scopes?: readonly string[]) => {
     if (running) {
-      // A wake arrived mid-run (e.g. our own catch-up's writes bumped a head).
-      // Queue exactly one follow-up so nothing is dropped.
       rerun = true;
+      queue.add(scopes);
       return;
     }
     running = true;
-    // The digest compare's quiescence gate: a range replay is in flight.
     const release = beginSyncInflight("range");
     const account = inboxReplaySignal(convex);
-    catchUp(convex, account)
+    catchUp(convex, account, scopes ? { scopes } : undefined)
       .catch((error) => {
         if (account.aborted) return;
         if (opts.onError) opts.onError(error);
@@ -818,13 +808,14 @@ export function createCatchUpRunner(
         opts.onSettled?.();
         if (rerun) {
           rerun = false;
-          run();
+          run(queue.take());
         }
       });
   };
   return Object.assign(run, {
     cancel() {
       rerun = false;
+      queue.clear();
       resetInboxReplayLanes(convex);
     },
   });
@@ -833,55 +824,59 @@ export function createCatchUpRunner(
 export function useSyncChangeFeed(): void {
   const convex = useConvex();
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
+  const isSyncHost = useIsSyncHost();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const queue = useMemo(() => makeScopeRunQueue(), []);
   const run = useMemo(() => createCatchUpRunner(convex), [convex]);
 
-  const scheduleRun = useCallback(() => {
-    if (debounceRef.current) return;
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      run();
-    }, HEADS_DEBOUNCE_MS);
-  }, [run]);
+  const scheduleRun = useCallback(
+    (scopes?: readonly string[]) => {
+      queue.add(scopes);
+      if (debounceRef.current) return;
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        run(queue.take());
+      }, HEADS_DEBOUNCE_MS);
+    },
+    [queue, run],
+  );
 
-  // The wake signal: a tiny heads subscription. Payload is per-scope positions
-  // only; the churn exemption keeps its invalidation rate at semantic-write
-  // rate. Never a correctness dependency — any run replays exactly from the
-  // persisted cursors.
+  const onChunkWake = useCallback(
+    (chunkScopes: readonly string[]) => scheduleRun(chunkScopes),
+    [scheduleRun],
+  );
+  const scopeSub = useScopeSubscriptions({ onChunkWake });
+
   const { data: headsData } = useQueryNoThrow(
     api.syncLog.getHeads,
-    hydrated ? {} : "skip",
+    !scopeSub.enabled && hydrated ? {} : "skip",
   );
 
   // eslint-disable-next-line no-restricted-syntax -- self-managed wake/interval catch-up
   useEffect(() => {
-    if (!hydrated || headsData === undefined) return;
+    if (scopeSub.enabled || !hydrated || headsData === undefined) return;
     scheduleRun();
-  }, [hydrated, headsData, scheduleRun]);
+  }, [scopeSub.enabled, hydrated, headsData, scheduleRun]);
 
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
-    if (!hydrated) return;
-    run();
-    const id = setInterval(run, TICK_MS);
-    // Wake events — a backgrounded/frozen client catches up the moment the
-    // user returns. `document` is web-only; the syncWake bus below is the
-    // platform-neutral source (AppState "active" on mobile, wired by
-    // StoreSyncBridge), so an iOS resume replays the cursors too.
+    if (!hydrated || (scopeSub.enabled && !isSyncHost)) return;
+    const runAll = () => run();
+    runAll();
+    const id = setInterval(runAll, TICK_MS);
     const doc = typeof document !== "undefined" ? document : undefined;
     const win = typeof window !== "undefined" ? window : undefined;
     const onVisible = () => {
-      if (doc?.visibilityState === "visible") run();
+      if (doc?.visibilityState === "visible") runAll();
     };
     doc?.addEventListener?.("visibilitychange", onVisible);
-    win?.addEventListener?.("focus", run);
-    win?.addEventListener?.("online", run);
-    const offWake = onSyncWake(run);
+    win?.addEventListener?.("focus", runAll);
+    win?.addEventListener?.("online", runAll);
+    const offWake = onSyncWake(runAll);
     const offAccount = useInboxStore.subscribe((next, previous) => {
       if (next.currentUser?._id === previous.currentUser?._id) return;
       resetInboxReplayLanes(convex);
-      if (next.currentUser?._id) run();
+      if (next.currentUser?._id) runAll();
     });
     return () => {
       offAccount();
@@ -891,10 +886,11 @@ export function useSyncChangeFeed(): void {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
+      queue.clear();
       offWake();
       doc?.removeEventListener?.("visibilitychange", onVisible);
-      win?.removeEventListener?.("focus", run);
-      win?.removeEventListener?.("online", run);
+      win?.removeEventListener?.("focus", runAll);
+      win?.removeEventListener?.("online", runAll);
     };
-  }, [convex, hydrated, run]);
+  }, [convex, hydrated, isSyncHost, scopeSub.enabled, queue, run]);
 }

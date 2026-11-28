@@ -110,6 +110,7 @@
     "components/team/__tests__/WorkspaceSharePicker.empty.mount.test.tsx",
     "hooks/__tests__/inbox-log-snapshot.mount.test.tsx",
     "hooks/__tests__/inbox-recovery.mount.test.tsx",
+    "hooks/__tests__/scope-subscriptions.mount.test.tsx",
     "hooks/__tests__/message-cache-view.mount.test.tsx",
     "hooks/__tests__/saved-reading-anchor.mount.test.tsx",
     "hooks/__tests__/use-face-row.mount.test.tsx",
