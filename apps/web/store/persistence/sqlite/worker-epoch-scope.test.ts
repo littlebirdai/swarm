@@ -165,8 +165,14 @@ describe("SQLite epoch scope", () => {
       const late = client.loadCache(["docDetails"]);
       await waitUntil(() => control.held.length === 1, 1000, "answer held");
       nextGeneration(epochStore);
-      expect(await client.readCachedDocDetails?.()).toEqual([]);
+      const sid = "n".repeat(32);
+      client.writePatches([patch("sessions", sid)], {
+        sessions: { [sid]: { _id: sid, updated_at: Date.now() } },
+      });
+      const flushing = client.flushPersistence();
+      expect(client.currentEpoch()?.generation).toBe(2);
       control.release();
+      await flushing;
 
       expect(await late).toBeNull();
       expect(client.currentEpoch()?.generation).toBe(2);
