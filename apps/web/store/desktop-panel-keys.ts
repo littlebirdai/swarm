@@ -14,6 +14,7 @@ const appearance = [
   "settingsData",
   "pending",
   "syncMeta",
+  "scopeRevocations",
 ] as const;
 const [placementProjection] = REPLICATED_EPHEMERAL_KEYS;
 const inbox = [

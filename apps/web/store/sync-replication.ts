@@ -442,6 +442,10 @@ function applyUpdatesToStoreInner(
         state.applyReplicatedProjection(u.value as any);
         continue;
       }
+      if (u.key === "scopeRevocations") {
+        state.applyReplicatedScopeRevocations(u.value);
+        continue;
+      }
 
       // Twin keys: the persisted value has an in-memory Set companion the
       // ordinary sync path derives elsewhere — use their dedicated setters.

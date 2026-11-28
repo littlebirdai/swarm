@@ -36,6 +36,32 @@ function liftDeniedExcludes(draft: any, scopes: ReadonlySet<string>): void {
   }
 }
 
+function revocationsOf(
+  denied: Record<string, ScopeDenyEntry> | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [scope, entry] of Object.entries(denied ?? {})) {
+    if (isKnownHomeScope(scope) && !scope.startsWith("user:"))
+      out[scope] = entry.at;
+  }
+  return out;
+}
+
+function sameRevocations(
+  a: Record<string, number> | undefined,
+  b: Record<string, number>,
+): boolean {
+  const keys = Object.keys(b);
+  if (!a || Object.keys(a).length !== keys.length) return false;
+  return keys.every((k) => a[k] === b[k]);
+}
+
+function publishScopeRevocationsInDraft(draft: any): void {
+  const next = revocationsOf(draft.scopeSubscriptions?.denied);
+  if (!sameRevocations(draft.scopeRevocations, next))
+    draft.scopeRevocations = next;
+}
+
 export function reconcileScopeSubscriptionsInDraft(
   draft: any,
   now: number,
@@ -77,6 +103,7 @@ export function reconcileScopeSubscriptionsInDraft(
       clearScopeMetaPair(draft, scope);
     }
   }
+  publishScopeRevocationsInDraft(draft);
   return {
     addedScopes: result.addedScopes,
     removedScopes: result.removedScopes,
@@ -141,6 +168,7 @@ function denyScopesInDraft(
     lastReconciledAt: now,
   };
 
+  publishScopeRevocationsInDraft(draft);
   return revokeScopeRowsInDraft(draft, denySet, now, userScope);
 }
 
@@ -188,7 +216,8 @@ export type ScopeSubscriptionSlice = {
   ) => PurgeTarget[];
   clearDeniedScopeSubscriptions: (scopes?: readonly string[]) => void;
   revokeTeamScope: (teamId: string, now?: number) => PurgeTarget[];
-  applyReplicatedScopeRevocation: (scopes: readonly string[]) => void;
+  scopeRevocations: Record<string, number>;
+  applyReplicatedScopeRevocations: (value: unknown) => void;
   setPeerViewScopes: (peerId: string, scopes: readonly string[]) => void;
   clearPeerViewScopes: () => void;
   _commitScopeReconcile: (
@@ -212,6 +241,7 @@ export function createScopeSubscriptionSlice(
   return {
     scopeSubscriptions: initialScopeSubscriptionState(),
     scopeViewTargets: {},
+    scopeRevocations: {},
 
     setScopeViewTargets: syncFn(function (
       this: any,
@@ -367,21 +397,41 @@ export function createScopeSubscriptionSlice(
       return out;
     },
 
-    applyReplicatedScopeRevocation: syncFn(function (
+    applyReplicatedScopeRevocations: syncFn(function (
       this: any,
-      scopes: readonly string[],
+      value: unknown,
     ) {
-      const revoked = new Set(scopes.filter((s) => isKnownHomeScope(s)));
-      if (revoked.size === 0) return;
-      const userId = this.currentUser?._id
-        ? String(this.currentUser._id)
-        : null;
-      revokeScopeRowsInDraft(
-        this,
-        revoked,
-        Date.now(),
-        userId ? `user:${userId}` : null,
-      );
+      const incoming: Record<string, number> = {};
+      if (value && typeof value === "object") {
+        for (const [scope, at] of Object.entries(value)) {
+          if (
+            isKnownHomeScope(scope) &&
+            !scope.startsWith("user:") &&
+            typeof at === "number"
+          )
+            incoming[scope] = at;
+        }
+      }
+      const prev: Record<string, number> = this.scopeRevocations ?? {};
+      const entered = new Set<string>();
+      for (const [scope, at] of Object.entries(incoming))
+        if (prev[scope] !== at) entered.add(scope);
+      const left = new Set<string>();
+      for (const scope of Object.keys(prev))
+        if (!(scope in incoming)) left.add(scope);
+      liftDeniedExcludes(this, left);
+      if (entered.size > 0) {
+        const userId = this.currentUser?._id
+          ? String(this.currentUser._id)
+          : null;
+        revokeScopeRowsInDraft(
+          this,
+          entered,
+          Date.now(),
+          userId ? `user:${userId}` : null,
+        );
+      }
+      if (!sameRevocations(prev, incoming)) this.scopeRevocations = incoming;
     }),
 
     clearDeniedScopeSubscriptions: syncFn(function (
@@ -396,6 +446,7 @@ export function createScopeSubscriptionSlice(
           ...this.scopeSubscriptions,
           denied: {},
         };
+        publishScopeRevocationsInDraft(this);
         return;
       }
       const cleared = new Set<string>();
@@ -412,6 +463,7 @@ export function createScopeSubscriptionSlice(
           ...this.scopeSubscriptions,
           denied: next,
         };
+        publishScopeRevocationsInDraft(this);
       }
     }),
 

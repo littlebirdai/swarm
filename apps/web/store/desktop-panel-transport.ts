@@ -128,10 +128,6 @@ export function scopedHostChannel(
           }
         }
         legacy.post(message);
-        if (message.type === "mut" && "scopeRevoke" in message) {
-          for (const peer of peers.values()) postScope(peer.channel, message);
-          return;
-        }
         if (message.type !== "update") return;
         for (const peer of peers.values())
           postScope(peer.channel, {

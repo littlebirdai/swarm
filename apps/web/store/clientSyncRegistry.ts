@@ -2851,7 +2851,10 @@ export const WORKSPACE_SCOPED_KEYS = registryEntries
 // the overlay. A follower without the slot buckets every row by the
 // client-only sweep and disagrees with its host on the rows the payload
 // vouches for (found by the multi-window simulation, 2026-09-02).
-export const REPLICATED_EPHEMERAL_KEYS = ["sessionsProjection"] as const;
+export const REPLICATED_EPHEMERAL_KEYS = [
+  "sessionsProjection",
+  "scopeRevocations",
+] as const;
 
 /** The slice the sync host replicates to follower windows. */
 export const REPLICATED_STORE_KEYS: readonly string[] = [
