@@ -9,9 +9,6 @@ export const storageTimings = new StorageTimingSamples([
   "meta",
   "pendingInput",
   "dispatchOutbox",
-  "conversationUserMessages",
-  "conversationMessageMeta",
-  "conversationMessageRows",
   ...[...HYDRATION_CRITICAL_READ_KEYS, ...HYDRATION_DEFERRED_KEYS].filter(
     (table) => Object.hasOwn(WEB_COLLECTION_INDEXES, table),
   ),

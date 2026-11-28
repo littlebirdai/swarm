@@ -2,52 +2,24 @@ import Dexie from "dexie";
 import type { PendingEntry } from "@platform/engine";
 import { DOCS_SHOTS } from "../../lib/docsShots/flag";
 import { recordCacheEvent } from "../cache-events";
-import { conversationsToRows } from "./migrations/conversationsToRows";
 import type { OutboxEntry } from "./outbox";
-import {
-  CACHE_SCHEMA_VERSION,
-  SYSTEM_TABLES,
-  WEB_COLLECTION_INDEXES,
-} from "./schema";
+import { CACHE_SCHEMA_VERSION, SYSTEM_TABLES } from "./schema";
 import { storageTimings } from "./storage-timings";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
 export let PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
 
-export type ConversationMessageRow = {
-  convId: string;
-  messageKey: string;
-  position: number;
-  revision: string;
-  message: any;
-};
-type ConversationMessageMeta = {
-  convId: string;
-  pagination: Record<string, unknown> | undefined;
-  latestTimestamp: number;
-};
-
 class CacheDB extends Dexie {
   meta!: Dexie.Table<{ key: string; value: any }, string>;
   pendingEntries!: Dexie.Table<{ key: string; value: PendingEntry }, string>;
-  conversationMessageMeta!: Dexie.Table<ConversationMessageMeta, string>;
-  conversationMessageRows!: Dexie.Table<
-    ConversationMessageRow,
-    [string, string]
-  >;
-  conversationUserMessages!: Dexie.Table<
-    { convId: string; userMessages: any[] },
-    string
-  >;
   dispatchOutbox!: Dexie.Table<OutboxEntry, string>;
 
   constructor() {
     super("codecast-store");
     this.version(CACHE_SCHEMA_VERSION)
-      .stores({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES })
+      .stores(SYSTEM_TABLES)
       // Keep this callback on the current version for users who skip releases.
       .upgrade(async (tx) => {
-        await conversationsToRows(tx);
         const meta = tx.table("meta");
         const pending = await meta.get("pending");
         if (pending) {
@@ -56,10 +28,6 @@ class CacheDB extends Dexie {
           );
           if (rows.length) await tx.table("pendingEntries").bulkPut(rows);
           await meta.delete("pending");
-        }
-        // Legacy navigator rows would have no transcript metadata for pruning.
-        if (tx.idbtrans.db.objectStoreNames.contains("conversationMessages")) {
-          await tx.table("conversationUserMessages").clear();
         }
       });
   }
@@ -166,30 +134,6 @@ function attachDbEvents(): void {
   });
 }
 attachDbEvents();
-
-const COLLECTION_STORE_KEYS = Object.keys(WEB_COLLECTION_INDEXES);
-export const COLLECTION_TABLES: Record<
-  string,
-  Dexie.Table<any, string>
-> = Object.fromEntries(
-  COLLECTION_STORE_KEYS.filter((key) => (db as any)[key]).map((key) => [
-    key,
-    (db as any)[key],
-  ]),
-);
-
-// The schema is derived from the registry, so every registered collection has
-// a table by construction; this list should always be empty. Kept as a loud
-// runtime guard (a registered collection with no table would reject
-// loadCache's Promise.all and silently disable the ENTIRE cache).
-export const MISSING_COLLECTION_TABLES: string[] = COLLECTION_STORE_KEYS.filter(
-  (key) => !(db as any)[key],
-);
-if (MISSING_COLLECTION_TABLES.length > 0) {
-  console.error(
-    `[idbCache] registry collections missing Dexie tables: ${MISSING_COLLECTION_TABLES.join(", ")}`,
-  );
-}
 
 const testReopenListeners: Array<() => void> = [];
 
