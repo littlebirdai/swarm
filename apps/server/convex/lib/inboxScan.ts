@@ -62,7 +62,6 @@ export async function scanInboxConversations(
     // child rows carry the fields. Off for team scope, whose list never
     // strips them.
     subagentWindow?: boolean;
-    heartbeatSince?: number;
     indexedLiveness?: boolean;
     watchedWindow?: { showAll?: boolean };
     // The caller named its sessions (extraConvIds) and wants only those: skip
@@ -669,7 +668,7 @@ export async function scanInboxConversations(
       Object.assign(maps, next);
     };
   } else {
-    maps = await buildUserSessionMaps(ctx, userId, now, opts.heartbeatSince);
+    maps = await buildUserSessionMaps(ctx, userId, now);
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;

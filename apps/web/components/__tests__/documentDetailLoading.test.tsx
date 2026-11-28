@@ -28,6 +28,7 @@ async function render(
       setup: (backend) => {
         backend.set(api.docSync.getPresence, []);
         backend.set(api.assistant.incidents.thinkingAvailable, pending);
+        backend.set(api.taskMining.webGetDocDetail, pending);
       },
     },
   );

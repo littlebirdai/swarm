@@ -18,18 +18,6 @@ import {
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 
-let originalLeaseFlag: string | undefined;
-
-beforeEach(() => {
-  originalLeaseFlag = process.env.INBOX_LIVENESS_LEASES;
-  process.env.INBOX_LIVENESS_LEASES = "1";
-});
-
-afterEach(() => {
-  if (originalLeaseFlag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
-  else process.env.INBOX_LIVENESS_LEASES = originalLeaseFlag;
-});
-
 const now = 1_750_000_020_000;
 const token = "b".repeat(64);
 
@@ -172,45 +160,41 @@ test("an inbox status transition changes the actionable row order", async () => 
   ]);
 });
 
-test.each(["enabled", "disabled"] as const)(
-  "an active lease heartbeat keeps an older park from changing inbox status with leases %s",
-  async (flag) => {
-    const { viewer, t, working } = await seed(10_000);
-    await viewer.mutation(api.managedSessions.heartbeatBatch, {
-      sessions: [
-        {
-          session_id: "working-trace",
-          agent_status: "working",
-          client_ts: now,
-        },
-      ],
-    });
-    if (flag === "disabled") delete process.env.INBOX_LIVENESS_LEASES;
-    const park = (clientTs: number) =>
-      viewer.mutation(api.managedSessions.updateAgentStatus, {
-        conversation_id: working.conversation,
-        agent_status: "hibernated",
-        hibernated_at: now,
-        client_ts: clientTs,
-      });
-    expect(await park(now - 1000)).toEqual({
-      applied: false,
-      reason: "stale_status",
-    });
-    const unchanged = await t.run(({ db }) => db.get(working.managed));
-    expect(unchanged).toMatchObject({
-      agent_status: "working",
-      agent_status_updated_at: now - 2000,
-    });
-    expect(await park(now + 1)).toMatchObject({ applied: true });
-    const parked = await t.run(({ db }) => db.get(working.managed));
-    expect(parked).toMatchObject({
+test("an active lease heartbeat keeps an older park from changing inbox status", async () => {
+  const { viewer, t, working } = await seed(10_000);
+  await viewer.mutation(api.managedSessions.heartbeatBatch, {
+    sessions: [
+      {
+        session_id: "working-trace",
+        agent_status: "working",
+        client_ts: now,
+      },
+    ],
+  });
+  const park = (clientTs: number) =>
+    viewer.mutation(api.managedSessions.updateAgentStatus, {
+      conversation_id: working.conversation,
       agent_status: "hibernated",
-      agent_status_updated_at: now + 1,
       hibernated_at: now,
+      client_ts: clientTs,
     });
-  },
-);
+  expect(await park(now - 1000)).toEqual({
+    applied: false,
+    reason: "stale_status",
+  });
+  const unchanged = await t.run(({ db }) => db.get(working.managed));
+  expect(unchanged).toMatchObject({
+    agent_status: "working",
+    agent_status_updated_at: now - 2000,
+  });
+  expect(await park(now + 1)).toMatchObject({ applied: true });
+  const parked = await t.run(({ db }) => db.get(working.managed));
+  expect(parked).toMatchObject({
+    agent_status: "hibernated",
+    agent_status_updated_at: now + 1,
+    hibernated_at: now,
+  });
+});
 
 test("renewals leave the inbox read sets untouched and expire after the last beat", async () => {
   const { viewer, t, working, team } = await seed(0, false);
@@ -310,118 +294,6 @@ test("renewals leave the inbox read sets untouched and expire after the last bea
   });
   await heartbeat();
   expect((await latest()).liveness_lease_end).toBe(LIVE_INBOX_LEASE_END);
-});
-
-for (const flag of [undefined, "0"]) {
-  test(`a legacy client stays connected when the rollout flag is ${flag ?? "unset"}`, async () => {
-    if (flag === undefined) delete process.env.INBOX_LIVENESS_LEASES;
-    else process.env.INBOX_LIVENESS_LEASES = flag;
-    const { viewer, t, working } = await seed(0, false);
-    for (let i = 1; i <= 6; i++) {
-      const at = now + i * HEARTBEAT_FLUSH_INTERVAL_MS;
-      jest.setSystemTime(at);
-      const writes = await recordDocuments(() =>
-        viewer.mutation(api.managedSessions.heartbeatBatch, {
-          sessions: [
-            {
-              session_id: "working-trace",
-              agent_status: "working",
-              client_ts: at,
-            },
-          ],
-        }),
-      );
-      expect(writes.writes.has(working.managed)).toBe(true);
-      const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
-      if (!("liveness" in result)) throw new Error("Expected whole liveness");
-      const row = result.liveness[working.conversation];
-      expect(at - row.last_heartbeat!).toBeLessThan(HEARTBEAT_ALIVE_MS);
-      expect(row.liveness_lease_end).toBe(
-        row.last_heartbeat! + HEARTBEAT_ALIVE_MS,
-      );
-    }
-    expect(
-      (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease,
-    ).toBeUndefined();
-    expect(await scheduledJobs(t)).toEqual([]);
-  });
-}
-
-for (const exit of ["a heartbeat", "the pending check"]) {
-  test(`turning the flag off restores the legacy timestamp through ${exit}`, async () => {
-    const { viewer, t, working } = await seed(0, false);
-    const beat = (clientTs: number) =>
-      viewer.mutation(api.managedSessions.heartbeat, {
-        session_id: "working-trace",
-        agent_status: "working",
-        client_ts: clientTs,
-      });
-    await beat(now);
-    const late = now + HEARTBEAT_ALIVE_MS + 1;
-    jest.setSystemTime(late);
-    await beat(late);
-    expect(
-      (await t.run(({ db }) => db.get(working.managed)))?.last_heartbeat,
-    ).toBe(now);
-
-    delete process.env.INBOX_LIVENESS_LEASES;
-    const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
-    if (!("liveness" in result)) throw new Error("Expected whole liveness");
-    expect(result.liveness[working.conversation]?.last_heartbeat).toBe(late);
-    if (exit === "a heartbeat") await beat(late + 1);
-    else {
-      await t.mutation(internal.managedSessions.checkInboxLivenessLease, {
-        id: working.managed,
-        end: now + HEARTBEAT_ALIVE_MS,
-        generation: (await t.run(({ db }) => db.get(working.managed)))
-          ?.liveness_lease_generation,
-      });
-    }
-    const restored = await t.run(({ db }) => db.get(working.managed));
-    expect(restored?.last_heartbeat).toBe(late);
-    expect(restored?.liveness_lease).toBeUndefined();
-
-    process.env.INBOX_LIVENESS_LEASES = "1";
-    await beat(late + 2);
-    expect(
-      (await t.run(({ db }) => db.get(working.managed)))?.liveness_lease
-        ?.expired,
-    ).toBe(false);
-  });
-}
-
-test("re-enabling a lease with the same deadline leaves one pending renewal", async () => {
-  const { viewer, t } = await seed(0, false);
-  const beat = () =>
-    viewer.mutation(api.managedSessions.heartbeat, {
-      session_id: "working-trace",
-      agent_status: "working",
-      client_ts: Date.now(),
-    });
-  await beat();
-  process.env.INBOX_LIVENESS_LEASES = "0";
-  await beat();
-  process.env.INBOX_LIVENESS_LEASES = "1";
-  await beat();
-
-  const check = internal.managedSessions.checkInboxLivenessLease;
-  const jobs = await scheduledJobs(t, check);
-  expect(jobs.map((job) => job.scheduledTime)).toEqual([
-    now + HEARTBEAT_ALIVE_MS,
-    now + HEARTBEAT_ALIVE_MS,
-  ]);
-
-  const freshAt = HEARTBEAT_ALIVE_MS - HEARTBEAT_FLUSH_INTERVAL_MS / 2;
-  jest.advanceTimersByTime(freshAt);
-  await beat();
-  jest.advanceTimersByTime(HEARTBEAT_ALIVE_MS - freshAt);
-  await t.finishInProgressScheduledFunctions();
-  const pending = (await scheduledJobs(t, check)).filter(
-    (job) => job.state.kind === "pending",
-  );
-  expect(pending.map((job) => job.scheduledTime)).toEqual([
-    now + freshAt + HEARTBEAT_ALIVE_MS,
-  ]);
 });
 
 test("a cold watch keeps pinned hibernated and done sessions past its recent lookup budget", async () => {
@@ -756,7 +628,6 @@ test("a CLI watch stays scoped when the owner lookup window overflows", async ()
 });
 
 test("the CLI watch uses the daemon's own beat for daemon-wide liveness", async () => {
-  process.env.INBOX_LIVENESS_LEASES = "0";
   const t = serverTest({});
   const { user, conversation, unrelated } = await t.run(async ({ db }) => {
     const rows = fixtureRows(db, "CLI watch daemon health");

@@ -16,7 +16,6 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./functions";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { inboxLeaseWritesEnabled } from "./lib/sessionHeartbeat";
 import { currentClaim } from "./lib/edge/runLease";
 import { presenceIdentity } from "./lib/presenceIdentity";
 import { canOwnerOrTeamAccess, checkConversationAccess } from "./privacy";
@@ -285,7 +284,6 @@ export const inboxTargets = query({
   args: { ids: v.array(v.id("conversations")) },
   handler: async (ctx, { ids }) => {
     if (
-      !inboxLeaseWritesEnabled() ||
       !machineRelayGrantConfig() ||
       ids.length > 4 * RELAY_MAX_GRANTS_PER_TOKEN
     )

@@ -13,7 +13,7 @@ const old = now - 45 * minute;
 
 afterEach(() => _resetChildAuqProbeCacheForTests());
 
-function account(age: number, source: "side" | "legacy" | "rollback") {
+function account(age: number, source: "lease" | "legacy" | "rollback") {
   const conversations: Record<string, unknown>[] = [];
   const managed_sessions: Record<string, unknown>[] = [];
   const session_heartbeats: Record<string, unknown>[] = [];
@@ -50,7 +50,10 @@ function account(age: number, source: "side" | "legacy" | "rollback") {
       session_id: name,
       agent_status,
       agent_status_updated_at: old,
-      last_heartbeat: source === "side" ? old : heartbeat,
+      last_heartbeat: source === "lease" ? old : heartbeat,
+      ...(source === "lease" && heartbeat > old
+        ? { liveness_lease: { end: heartbeat + 2 * minute, expired: false } }
+        : {}),
       ...daemon,
     });
     if (source !== "legacy")
@@ -108,7 +111,6 @@ function account(age: number, source: "side" | "legacy" | "rollback") {
 
 async function run(
   tables: ReturnType<typeof account>,
-  unbounded: boolean,
   queryFunction: unknown = inboxForCLI,
   at = now,
 ) {
@@ -128,23 +130,7 @@ async function run(
             return {
               ...query,
               withIndex(name: string, range: (q: any) => unknown) {
-                const indexed = query.withIndex(
-                  name,
-                  unbounded
-                    ? (q: any) => {
-                        const wrapped = {
-                          eq(field: string, value: unknown) {
-                            q.eq(field, value);
-                            return wrapped;
-                          },
-                          gt() {
-                            return wrapped;
-                          },
-                        };
-                        return range(wrapped);
-                      }
-                    : range,
-                );
+                const indexed = query.withIndex(name, range);
                 return {
                   ...indexed,
                   async collect() {
@@ -167,12 +153,12 @@ async function run(
 }
 
 test.each([2 * minute, 5 * minute, 6 * minute])(
-  "full CLI response matches the unbounded read at the %i ms threshold",
+  "full CLI response handles the %i ms threshold with zero session_heartbeats reads",
   async (threshold) => {
     for (const offset of [-1, 0, 1]) {
-      const tables = account(threshold + offset, "side");
-      const { result } = await run(tables, false);
-      expect(result).toEqual((await run(tables, true)).result);
+      const tables = account(threshold + offset, "legacy");
+      const { result, heartbeatReads } = await run(tables);
+      expect(heartbeatReads).toBe(0);
       const rows = new Map(result.sessions.map((row: any) => [row.id, row]));
       expect(rows.get("conversations_statusless")).toMatchObject({
         is_live: threshold + offset <= 5 * minute,
@@ -200,6 +186,27 @@ test.each([2 * minute, 5 * minute, 6 * minute])(
   },
 );
 
+test("active liveness_lease keeps CLI and overlay live with an old last_heartbeat and reads no session_heartbeats", async () => {
+  const tables = account(minute, "lease");
+  const cli = await run(tables, inboxForCLI);
+  expect(cli.heartbeatReads).toBe(0);
+  const cliRows = new Map(cli.result.sessions.map((row: any) => [row.id, row]));
+  expect(cliRows.get("conversations_working")).toMatchObject({
+    is_live: true,
+    agent_status: "working",
+  });
+  expect(cliRows.get("conversations_parent")).toMatchObject({
+    work_state: "dormant",
+  });
+
+  const overlay = await run(tables, sessionsLiveness);
+  expect(overlay.heartbeatReads).toBe(0);
+  expect(overlay.result.liveness["conversations_working"]).toMatchObject({
+    agent_status: "working",
+    is_connected: true,
+  });
+});
+
 test.each(["legacy", "rollback"] as const)(
   "full CLI response preserves %s heartbeats",
   async (source) => {
@@ -213,8 +220,8 @@ test.each(["legacy", "rollback"] as const)(
       6 * minute + 1,
     ]) {
       const tables = account(age, source);
-      const bounded = await run(tables, false);
-      expect(bounded.result).toEqual((await run(tables, true)).result);
+      const bounded = await run(tables);
+      expect(bounded.heartbeatReads).toBe(0);
       expect(bounded.result.sessions).toContainEqual(
         expect.objectContaining({
           id: "conversations_statusless",
@@ -225,32 +232,19 @@ test.each(["legacy", "rollback"] as const)(
   },
 );
 
-test("CLI reads only the heartbeat documents inside the daemon window", async () => {
-  const tables = account(6 * minute, "side");
-  const bounded = await run(tables, false);
-  const unbounded = await run(tables, true);
-  expect(bounded.heartbeatReads).toBe(1);
-  expect(unbounded.heartbeatReads).toBe(tables.session_heartbeats.length);
-  expect(bounded.result).toEqual(unbounded.result);
-});
-
 test("the liveness overlay retains exact old heartbeat stamps", async () => {
-  const tables = account(6 * minute + 1, "side");
-  const { result, heartbeatReads } = await run(tables, false, sessionsLiveness);
-  expect(heartbeatReads).toBe(tables.session_heartbeats.length);
+  const tables = account(6 * minute + 1, "legacy");
+  const { result, heartbeatReads } = await run(tables, sessionsLiveness);
+  expect(heartbeatReads).toBe(0);
   expect(result.liveness["conversations_working"].last_heartbeat).toBe(
     now - 6 * minute - 1,
   );
 });
 
 test("the web inbox retains exact old heartbeat stamps", async () => {
-  const tables = account(6 * minute + 1, "side");
-  const { result, heartbeatReads } = await run(
-    tables,
-    false,
-    listInboxSessions,
-  );
-  expect(heartbeatReads).toBe(tables.session_heartbeats.length);
+  const tables = account(6 * minute + 1, "legacy");
+  const { result, heartbeatReads } = await run(tables, listInboxSessions);
+  expect(heartbeatReads).toBe(0);
   expect(result.sessions).toContainEqual(
     expect.objectContaining({
       _id: "conversations_working",
@@ -259,13 +253,11 @@ test("the web inbox retains exact old heartbeat stamps", async () => {
   );
 });
 
-test("full CLI response matches inside a minute and for future heartbeats", async () => {
+test("full CLI response reads no session_heartbeats inside a minute and for future heartbeats", async () => {
   for (const at of [now + 1, now + minute - 1])
     for (const age of [-5 * minute, 2 * minute, 5 * minute, 6 * minute]) {
-      const tables = account(age, "side");
-      const bounded = await run(tables, false, inboxForCLI, at);
-      expect(bounded.result).toEqual(
-        (await run(tables, true, inboxForCLI, at)).result,
-      );
+      const tables = account(age, "legacy");
+      const cli = await run(tables, inboxForCLI, at);
+      expect(cli.heartbeatReads).toBe(0);
     }
 });

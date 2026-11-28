@@ -8,28 +8,13 @@ import { fixtureRows } from "../test-helpers/rows.testkit";
 
 const now = 1_750_000_020_000;
 const hour = 60 * 60 * 1000;
-let previousFlags: [string | undefined, string | undefined];
 
 beforeEach(() => {
-  previousFlags = [
-    process.env.INBOX_INDEXED_LIVENESS,
-    process.env.INBOX_LIVENESS_LEASES,
-  ];
-  delete process.env.INBOX_INDEXED_LIVENESS;
-  process.env.INBOX_LIVENESS_LEASES = "1";
   jest.useFakeTimers();
   jest.setSystemTime(now);
 });
 
 afterEach(() => {
-  for (const [index, name] of [
-    "INBOX_INDEXED_LIVENESS",
-    "INBOX_LIVENESS_LEASES",
-  ].entries()) {
-    const value = previousFlags[index];
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
   jest.useRealTimers();
 });
 
@@ -150,7 +135,6 @@ test("indexed personal liveness reads the same documents as unrelated history gr
   const { t, viewer, pin, liveIds, old } = await fixture();
   const read = () =>
     measureReads(() => viewer.query(api.inboxLiveness.sessionsLiveness, {}));
-  process.env.INBOX_INDEXED_LIVENESS = "1";
   const small = await read();
 
   await t.run(async ({ db }) => {
@@ -162,12 +146,8 @@ test("indexed personal liveness reads the same documents as unrelated history gr
     }
   });
 
-  delete process.env.INBOX_INDEXED_LIVENESS;
-  const legacy = await read();
-  process.env.INBOX_INDEXED_LIVENESS = "1";
   const bounded = await read();
 
-  expect(legacy.managed).toBe(2000);
   expect(bounded.managed).toBe(41);
   expect(bounded.heartbeats).toBe(0);
   expect(bounded.documents).toBe(62);
@@ -175,24 +155,11 @@ test("indexed personal liveness reads the same documents as unrelated history gr
   expect(bounded.dbCalls).toBe(small.dbCalls);
   expect(bounded.dbCalls).toBeLessThanOrEqual(121);
   expect(bounded.bytes).toBe(small.bytes);
-  expect(bounded.documents).toBeLessThan(legacy.documents / 30);
-  expect(bounded.bytes).toBeLessThan(legacy.bytes / 20);
-  expect(bounded.result).toEqual(legacy.result);
   expect(bounded.result.liveness[pin]?.agent_status).toBe("done");
   expect(bounded.result.liveness[liveIds[0]]?.is_connected).toBe(true);
   expect(bounded.result.liveness[liveIds[1]]?.liveness_lease_end).toBe(
     LIVE_INBOX_LEASE_END,
   );
-});
-
-test("the indexed read requires inbox lease writes", async () => {
-  const { viewer } = await fixture();
-  const read = () =>
-    measureReads(() => viewer.query(api.inboxLiveness.sessionsLiveness, {}));
-  delete process.env.INBOX_LIVENESS_LEASES;
-  const legacy = await read();
-  process.env.INBOX_INDEXED_LIVENESS = "1";
-  expect(await read()).toEqual(legacy);
 });
 
 test("indexed liveness keeps the latest daemon fallback separate from hosted turns", async () => {
@@ -231,10 +198,7 @@ test("indexed liveness keeps the latest daemon fallback separate from hosted tur
     return { user, shell };
   });
   const viewer = asUser(t, user);
-  const legacy = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
-  process.env.INBOX_INDEXED_LIVENESS = "1";
   const indexed = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
-  expect(indexed).toEqual(legacy);
   expect(indexed.liveness[shell]?.daemon_alive_until).toBe(now + 3 * 60_000);
 });
 
@@ -270,7 +234,6 @@ test("indexed liveness retains live children beyond the inbox child window", asy
     }
     return { user, childIds };
   });
-  process.env.INBOX_INDEXED_LIVENESS = "1";
   const { liveness } = await asUser(t, user).query(
     api.inboxLiveness.sessionsLiveness,
     {},
@@ -328,17 +291,15 @@ for (const kind of ["workflow", "pinned", "stashed decision"] as const) {
     });
     const viewer = asUser(t, user);
     const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
-    const full = await read();
-    expect(full.liveness[parent]).toMatchObject({
+    const result = await read();
+    expect(result.liveness[parent]).toMatchObject({
       child_asking: true,
       child_live: true,
       bucket: "questions",
     });
-    expect(full.liveness[child]?.agent_status).toBe(
+    expect(result.liveness[child]?.agent_status).toBe(
       kind === "stashed decision" ? "working" : "permission_blocked",
     );
-    process.env.INBOX_INDEXED_LIVENESS = "1";
-    expect(await read()).toEqual(full);
   });
 }
 
@@ -375,15 +336,12 @@ for (const newerIsLive of [false, true]) {
       return { user, conversation };
     });
     const viewer = asUser(t, user);
-    const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
-    const full = await read();
-    expect(full.liveness[conversation]).toMatchObject({
+    const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
+    expect(result.liveness[conversation]).toMatchObject({
       agent_status: "done",
       tmux_session: "pane-1",
       last_heartbeat: now - (newerIsLive ? 1_000 : 500_000),
     });
-    process.env.INBOX_INDEXED_LIVENESS = "1";
-    expect(await read()).toEqual(full);
   });
 }
 
@@ -422,10 +380,7 @@ test("indexed liveness retains child facts found by the foreign parent scan", as
     return { user, parent, child };
   });
   const viewer = asUser(t, user);
-  const read = () => viewer.query(api.inboxLiveness.sessionsLiveness, {});
-  const full = await read();
-  expect(full.liveness[parent]?.child_live).toBe(true);
-  expect(full.liveness[child]?.agent_status).toBe("working");
-  process.env.INBOX_INDEXED_LIVENESS = "1";
-  expect(await read()).toEqual(full);
+  const result = await viewer.query(api.inboxLiveness.sessionsLiveness, {});
+  expect(result.liveness[parent]?.child_live).toBe(true);
+  expect(result.liveness[child]?.agent_status).toBe("working");
 });

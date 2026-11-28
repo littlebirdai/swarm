@@ -6,11 +6,13 @@ import { CODECAST_EVENTS } from "@codecast/analytics";
 import { validateEvent } from "@platform/analytics/catalog";
 import { expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
+import { authPrincipal } from "../../lib/authPrincipal";
 import { buildClientResourceReport } from "../../lib/telemetry/client-resource-report";
 import {
   HYDRATION_CRITICAL_READ_KEYS,
   HYDRATION_DEFERRED_KEYS,
 } from "../clientSyncRegistry";
+import { HYDRATION_EAGER_DEFERRED_KEYS } from "../deferred-cache-policy";
 import { loadCache } from "./boot-loader";
 import { writePatchesToIDB } from "./collection-writer";
 import { _reopenForTests, COLLECTION_TABLES, db } from "./db";
@@ -182,6 +184,7 @@ test("untimed reads return the original promise", async () => {
 
 test("records pending input, first outbox scan, and first critical conversation reads", async () => {
   installSignedInPrincipal();
+  authPrincipal.check();
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   const convId = "fixture";
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
@@ -224,6 +227,17 @@ test("records pending input, first outbox scan, and first critical conversation 
     expect(storageTimings.take().deferredBootMs).toHaveProperty(
       "dispatchOutbox",
     );
+
+    setHydrating(true);
+    await loadCache(HYDRATION_CRITICAL_READ_KEYS);
+    await loadConversationMessages(convId);
+    expect(storageTimings.take().criticalBootMs).toBeDefined();
+    await loadCache(HYDRATION_EAGER_DEFERRED_KEYS);
+    await loadOutbox();
+    const eager = storageTimings.take();
+    expect(eager.criticalBootMs).toBeUndefined();
+    expect(eager.deferredBootMs).toHaveProperty("meta");
+    expect(eager.deferredBootMs).toHaveProperty("dispatchOutbox");
   } finally {
     setHydrating(false);
     storageTimings.take();

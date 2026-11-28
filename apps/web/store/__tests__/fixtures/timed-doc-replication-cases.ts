@@ -40,9 +40,6 @@ export function registerTimedDocReplicationCases({
   test.each(["host", "follower"] as const)(
     "timed document caps evict only in memory for a %s",
     async (role) => {
-      if (process.env.VITE_TIMED_DOC_CAPS !== "1") return;
-      const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
-      process.env.VITE_CACHE_EVICTION_METADATA = "1";
       const { persistedDocDetailWorkspace } =
         await import("../../doc-detail-disk");
       const { lastPersisted } =
@@ -84,18 +81,16 @@ export function registerTimedDocReplicationCases({
       try {
         await table.bulkPut([old, current]);
         await bootCache();
-        if (process.env.VITE_DEFERRED_CACHE_BOOT === "1") {
-          expect(state().docDetails[current._id]).toBeUndefined();
-          const { loadCache } = await import("../../persistence/boot-loader");
-          const cached = await loadCache(["docDetails"]);
-          state().syncTable(
-            "docDetails",
-            Object.values(cached?.docDetails ?? {}),
-            {
-              isDelta: true,
-            },
-          );
-        }
+        expect(state().docDetails[current._id]).toBeUndefined();
+        const { loadCache } = await import("../../persistence/boot-loader");
+        const cached = await loadCache(["docDetails"]);
+        state().syncTable(
+          "docDetails",
+          Object.values(cached?.docDetails ?? {}),
+          {
+            isDelta: true,
+          },
+        );
         expect(state().docDetails[old._id]).toBeUndefined();
         expect(persistedDocDetailWorkspace(old._id)).toBe(old.workspace);
         expect(state().docDetails[current._id]?.content).toBe(current.content);
@@ -164,9 +159,6 @@ export function registerTimedDocReplicationCases({
         stopSyncReplication();
         peer.close();
         Reflect.deleteProperty(doc, "hidden");
-        if (metadata === undefined)
-          delete process.env.VITE_CACHE_EVICTION_METADATA;
-        else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
         resetDetailInvalidations();
       }
     },

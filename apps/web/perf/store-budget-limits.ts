@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 const limits = {
   "Task list bytes": { measured: 14_661_183, margin: 146_612 },
   "Task comment detail bytes": { measured: 2_161_087, margin: 21_611 },
-  "Pull request list bytes": { measured: 897_150, margin: 8_972 },
-  "Pull request detail bytes": { measured: 1_349_847, margin: 13_499 },
+  "Pull request list bytes": { measured: 227_623, margin: 2_277 },
+  "Pull request detail bytes": { measured: 1_411_989, margin: 14_120 },
   "Doc list bytes": { measured: 470_671, margin: 4_707 },
   "Doc detail bytes": { measured: 1_639_891, margin: 16_399 },
   "Session list bytes": { measured: 188_491, margin: 1_885 },
@@ -16,13 +16,13 @@ const limits = {
   "Deploy detail bytes": { measured: 30_401, margin: 305 },
   "Settings data bytes": { measured: 915, margin: 10 },
   "Cached conversation message JSON bytes": {
-    measured: 13_488_375,
-    margin: 3_288_841,
+    measured: 14_451_612,
+    margin: 2_325_604,
   },
-  "Cached conversation message rows": { measured: 22_750, margin: 0 },
+  "Cached conversation message rows": { measured: 31_000, margin: 0 },
   "Cached conversation message bytes": {
-    measured: 27_910_610,
-    margin: 5_643_822,
+    measured: 30_175_400,
+    margin: 3_379_032,
   },
   "Retained sessions": { measured: 1200, margin: 0 },
   "Retained conversations": { measured: 1200, margin: 0 },
@@ -50,7 +50,7 @@ const limits = {
   "People populated collections": { measured: 16, margin: 0 },
   "Call panel populated collections": { measured: 49, margin: 0 },
   "Agent dock populated collections": { measured: 14, margin: 0 },
-  "Persisted IndexedDB rows after replay": { measured: 18_186, margin: 0 },
+  "Persisted IndexedDB rows after replay": { measured: 18_206, margin: 0 },
 } as const;
 
 export function checkStoreBudget(name: keyof typeof limits, actual: number) {

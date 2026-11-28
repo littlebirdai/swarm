@@ -16,7 +16,7 @@ Both drive `harness.tsx`: the real components mounted in jsdom over a synthetic 
 | the same two, Modern style (`inbox-load-modern`, `inbox-heartbeat-modern`; budgets only) | The panel under the Modern theme context, drawing `ModernSessionCardView` and its section header                                                                                                                                                          | the same counts: 51 cards, 2 subscriptions; 0 commits, 0 DOM mutations, 0 layout reads       |
 | open a long diff                                                                         | A 1,560-line TypeScript file with 52 changed lines, shown whole and highlighted, in a warm app, mounted at the top of a scroller a viewport (800px) tall                                                                                                  | 2 commits, 18 DOM mutation records, 32 layout reads, 0 store writes, 150 of 1,612 rows drawn |
 
-The warm-switch fixture leaves server authentication unconfirmed. The collaboration request feeder waits for confirmation, so the switch opens one fewer subscription than the former direct query.
+The warm-switch fixture leaves server authentication unconfirmed. The collaboration request feeder, saved reading anchors, and late-join summary wait for confirmation, so the switch opens the same 14 subscriptions with zero one-shot queries.
 
 The budgets also check that a rename arriving through the feed reaches its card.
 
@@ -33,8 +33,8 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | -------------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Task list bytes                        | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                             | Keep comment threads on task rows → 32,019,997 |
 | Task comment detail bytes              |  2,161,087 |  2,182,698 | 756 problem threads held in `taskComments` from `detail-rows-size.ts`                                                             | Hold all 4,467 threads or drop detail split    |
-| Pull request list bytes                |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                                | Keep details on pull request rows → 34,354,946 |
-| Pull request detail bytes              |  1,349,847 |  1,363,346 | First 12 opened pull requests held at `MAX_CACHED_PULL_REQUEST_DETAILS` from `detail-rows-size.ts`                                | Raise `DETAIL_ROW_CAPS.pullRequestDetails`     |
+| Pull request list bytes                |    227,623 |    229,900 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                                | Keep details on pull request rows → 34,354,946 |
+| Pull request detail bytes              |  1,411,989 |  1,426,109 | First 12 opened pull requests held at `MAX_CACHED_PULL_REQUEST_DETAILS` from `detail-rows-size.ts`                                | Raise `DETAIL_ROW_CAPS.pullRequestDetails`     |
 | Doc list bytes                         |    470,671 |    475,378 | 1,000 calibrated docs with legacy `content`, `entries` and `embedding` hydrated through `loadCache`                               | Skip `docs.hydrateRow` → 9,042,561             |
 | Doc detail bytes                       |  1,639,891 |  1,656,290 | 220 doc details carrying `embedding` hydrated through `loadCache` (capped at 200)                                                 | Keep `embedding` or skip retention             |
 | Session list bytes                     |    188,491 |    190,376 | 1,200 calibrated sessions carrying `INBOX_PROJECTION_FIELDS` synced via `syncTable`                                               | Remove `stripFields` on `sessions` → 345,691   |
@@ -45,9 +45,9 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | Run graph bytes                        |     20,921 |     21,131 | 60 calibrated `runGraphs` rows synced via `syncTable` (evicted to `DETAIL_ROW_CAPS.runGraphs`, 40)                                | Skip detail cap eviction                       |
 | Deploy detail bytes                    |     30,401 |     30,706 | 70 calibrated `deploys.get` answers fed through `deployDetailRows` (stripped and evicted to 50)                                   | Keep `commits` or skip cap eviction            |
 | Settings data bytes                    |        915 |        925 | Calibrated `settingsData` payloads synced via `syncTable`                                                                         | Keep oversized payload or heavy field          |
-| Cached conversation message rows       |     22,750 |     22,750 | Load 400 conversations with 250 messages each                                                                                     | Skip eviction → 100,000                        |
-| Cached conversation message bytes      | 27,910,610 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                             | Skip eviction → more than 33,554,432           |
-| Cached conversation message JSON bytes | 13,488,375 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                                          | Undercount strings and admit all rows          |
+| Cached conversation message rows       |     31,000 |     31,000 | Load 400 conversations with 250 messages each                                                                                     | Skip eviction → 100,000                        |
+| Cached conversation message bytes      | 30,175,400 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                             | Skip eviction → more than 33,554,432           |
+| Cached conversation message JSON bytes | 14,451,612 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                                          | Undercount strings and admit all rows          |
 | Retained sessions                      |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip session retention → 1,300                 |
 | Retained conversations                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip conversation retention → 1,300            |
 | Retained docDetails                    |        200 |        200 | 220 recent rows                                                                                                                   | Raise the cap by one → 201                     |
@@ -66,11 +66,11 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry             | Rewrite all 500 conversation rows → 503        |
 | Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                                  | Share the local repoBrowse map → 139           |
 | Main window populated collections      |        138 |        138 | Unscoped replication follower on the same 138-collection snapshot                                                                 | Share a local-only key → 139                   |
-| Palette populated collections          |         39 |         39 | Scoped palette follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                           | Disable panel scoping → 138                    |
-| People populated collections           |         16 |         16 | Scoped people follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                            | Disable panel scoping → 138                    |
-| Call panel populated collections       |         49 |         49 | Scoped call-panel follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
-| Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
-| Persisted IndexedDB rows after replay  |     18,186 |     18,186 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,436       |
+| Palette populated collections          |         39 |         39 | Scoped palette follower on the same snapshot, required below main window                                                          | Disable panel scoping → 138                    |
+| People populated collections           |         16 |         16 | Scoped people follower on the same snapshot, required below main window                                                           | Disable panel scoping → 138                    |
+| Call panel populated collections       |         49 |         49 | Scoped call-panel follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
+| Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
+| Persisted IndexedDB rows after replay  |     18,206 |     18,206 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,456       |
 
 The byte limits for synced collections add 1% for small changes to the
 row shape. The count limits (retained rows, populated collections per window,
@@ -85,8 +85,10 @@ background warming stops loading older history and only cold-loads the top 10
 inbox rows that it has never cold-loaded for the current account.
 Open transcripts, active streams, and conversations with unsent messages can
 exceed the limit. The fixture has no protected conversations. Three quarters
-of its images also have a storage ID. The store keeps inline-only images for
-offline use and includes their bytes in the estimate.
+of its images also have a storage ID. Once released, the store evicts inactive
+inline-only image conversations to free memory, leaving 124 non-inline
+conversations (31,000 rows, 30,175,400 estimated bytes, 14,451,612 JSON bytes)
+within the 32 MiB budget.
 
 Byte counts for task and pull request rows measure UTF-8 JSON. IndexedDB counts
 come from fake IndexedDB through Dexie. Boot counts row values that reach
@@ -126,7 +128,7 @@ scripts/heap-budgets.sh          # human-readable table; exits non-zero past any
 bun perf/heap-budgets.ts --json  # machine-readable JSON report
 ```
 
-Each window runs in a fresh subprocess, triggers a full GC (`Bun.gc(true)`), and measures `heapStats().heapSize` delta (`heapBytes`) after populating its store. Small desktop windows (`palette`, `people`, `call-panel`, `agent-dock`) run with `VITE_DESKTOP_PANEL_SCOPE=1` on the same 80-row-per-collection replication fixture as `main` and must stay both under their own threshold and below `main`. `main-account` loads the calibrated fixture account (`detail-rows-size.ts`, 1,000 thin docs, retained collections from `store-budget-fixture.ts`, and 400 conversations bounded by the 32 MiB message cache budget).
+Each window runs in a fresh subprocess, triggers a full GC (`Bun.gc(true)`), and measures `heapStats().heapSize` delta (`heapBytes`) after populating its store. Small desktop windows (`palette`, `people`, `call-panel`, `agent-dock`) run on the same 80-row-per-collection replication fixture as `main` and must stay both under their own threshold and below `main`. `main-account` loads the calibrated fixture account (`detail-rows-size.ts`, 1,000 thin docs, retained collections from `store-budget-fixture.ts`, and 400 conversations bounded by the 32 MiB message cache budget).
 
 | Window         | Keys | Typical heap | Threshold | Deliberate regression and failing value |
 | -------------- | ---: | -----------: | --------: | --------------------------------------- |

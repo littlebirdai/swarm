@@ -15,13 +15,6 @@ export const HYDRATION_EAGER_DEFERRED_KEYS = HYDRATION_DEFERRED_KEYS.filter(
   (key) => !HYDRATION_ON_READ_KEYS.has(key),
 );
 
-export function deferredCacheReadsEnabled(): boolean {
-  return (
-    typeof document !== "undefined" &&
-    process.env.VITE_DEFERRED_CACHE_BOOT === "1"
-  );
-}
-
 type SharedCacheSource = "disk" | "joining" | "replica";
 type DeferredDocBlock = "archive" | "denied";
 type DeferredDocEdit = {
@@ -49,13 +42,12 @@ export function subscribeDeferredSharedCache(listener: () => void) {
 }
 
 export function setDeferredSharedCacheSource(source: SharedCacheSource): void {
-  if (!deferredCacheReadsEnabled() || deferredWindow.source === source) return;
+  if (deferredWindow.source === source) return;
   deferredWindow.source = source;
   for (const listener of deferredWindow.listeners) listener();
 }
 
 export function resetDeferredCacheWindow(): void {
-  if (!deferredCacheReadsEnabled()) return;
   setDeferredSharedCacheSource("disk");
   deferredWindow.docEdits.clear();
 }
@@ -64,7 +56,6 @@ export function noteDeferredDocEdit(
   id: string,
   edit: readonly string[] | DeferredDocBlock,
 ): void {
-  if (!deferredCacheReadsEnabled()) return;
   const previous = deferredWindow.docEdits.get(id);
   if (typeof edit === "string") {
     deferredWindow.docEdits.set(id, {

@@ -1,5 +1,3 @@
-import { cacheEvictionEnabled } from "./cache-eviction";
-
 export type DetailInvalidation = {
   ids: string[];
   cause: "access" | "archive" | "crawl";
@@ -86,10 +84,7 @@ export function invalidateDetailReads(ids?: readonly string[]): number {
 }
 
 export function canHydrateDetail(id: string): boolean {
-  return (
-    !cacheEvictionEnabled() ||
-    (detailCache.confirmed.get(id) ?? 0) >= detailInvalidationRevision(id)
-  );
+  return (detailCache.confirmed.get(id) ?? 0) >= detailInvalidationRevision(id);
 }
 
 export function acceptFreshDocDetail(id: string, position: Position): boolean {
@@ -134,11 +129,7 @@ export function reportCompleteDocCrawl(
 }
 
 export function revalidateDroppedDocArchive(id: string): void {
-  if (
-    cacheEvictionEnabled() &&
-    detailCache.readFresh &&
-    detailCache.readers.has(id)
-  )
+  if (detailCache.readFresh && detailCache.readers.has(id))
     invalidateDetailReads([id]);
 }
 
@@ -183,11 +174,7 @@ export function fetchFreshDocDetail(id: string): Promise<CachedResult> {
 export function reportDetailInvalidation(
   evidence: DetailInvalidation,
 ): boolean {
-  return (
-    cacheEvictionEnabled() &&
-    !!evidence.ids.length &&
-    (detailCache.report?.(evidence) ?? false)
-  );
+  return !!evidence.ids.length && (detailCache.report?.(evidence) ?? false);
 }
 
 export function __detailCacheSimSlots() {

@@ -36,15 +36,11 @@ export async function registerArchiveFallbackCases({
   const archived = { ...detail, ...archivedDoc };
 
   function prepareFallback() {
-    const before = process.env.VITE_CACHE_EVICTION_METADATA;
-    process.env.VITE_CACHE_EVICTION_METADATA = "1";
     const restoreGlobals = replaceGlobals({ navigator: {} });
     resetDetailInvalidations();
     return () => {
       restoreGlobals();
       resetDetailInvalidations();
-      if (before === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-      else process.env.VITE_CACHE_EVICTION_METADATA = before;
     };
   }
 

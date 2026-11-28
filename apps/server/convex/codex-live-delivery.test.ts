@@ -119,8 +119,6 @@ test("a composer send changes the selected Codex work result and becomes an edge
 
 test("the projected execution work feed ignores transcript writes and still tracks safety", async () => {
   jest.useFakeTimers();
-  const cardFlag = "EXECUTION_WORK_SESSION_CARD";
-  const prior = process.env[cardFlag];
   try {
     const f = await setupRunLease();
     const insert = (i: number) =>
@@ -131,23 +129,13 @@ test("the projected execution work feed ignores transcript writes and still trac
         message_uuid: `work-feed-${i}`,
         timestamp: Date.now() + i,
       });
-    delete process.env[cardFlag];
-    const legacy = await recordDocuments(() => listWork(f));
-    expect(legacy.result).toHaveLength(1);
-    expect(legacy.reads.has(f.conversation)).toBe(true);
-    process.env[cardFlag] = "1";
     const unbackfilled = await recordDocuments(() => listWork(f));
-    expect(unbackfilled.result).toEqual(legacy.result);
+    expect(unbackfilled.result).toHaveLength(1);
     expect(unbackfilled.reads.has(f.conversation)).toBe(true);
 
     await f.t.run(({ db }) => syncSessionStart(db, f.conversation));
-    delete process.env[cardFlag];
-    expect(
-      (await recordDocuments(() => listWork(f))).reads.has(f.conversation),
-    ).toBe(true);
-    process.env[cardFlag] = "1";
     const scoped = await recordDocuments(() => listWork(f));
-    expect(scoped.result).toEqual(legacy.result);
+    expect(scoped.result).toEqual(unbackfilled.result);
     expect(scoped.reads.has(f.conversation)).toBe(false);
     for (let i = 0; i < 4; i++) {
       const ingest = await recordDocuments(() => insert(i));
@@ -174,13 +162,11 @@ test("the projected execution work feed ignores transcript writes and still trac
           session_error: undefined,
         }),
       );
-      expect(await listWork(f)).toEqual(legacy.result);
+      expect(await listWork(f)).toEqual(unbackfilled.result);
     }
   } finally {
     jest.clearAllTimers();
     jest.useRealTimers();
-    if (prior === undefined) delete process.env[cardFlag];
-    else process.env[cardFlag] = prior;
   }
 });
 
@@ -190,37 +176,29 @@ test.each([
 ] as const)(
   "execution work checks conversation safety with %s",
   async (_label, legacyCard) => {
-    const cardFlag = "EXECUTION_WORK_SESSION_CARD";
-    const prior = process.env[cardFlag];
-    process.env[cardFlag] = "1";
-    try {
-      const f = await setupRunLease();
-      if (legacyCard) {
-        await f.t.run(async ({ db }) => {
-          await syncSessionStart(db, f.conversation);
-          const card = await sessionStartOf(db, f.conversation);
-          if (!card) throw new Error("Expected a session card");
-          await db.patch(card._id, { execution_safety_blocked: undefined });
-        });
-      }
-      expect(await listWork(f)).toHaveLength(1);
+    const f = await setupRunLease();
+    if (legacyCard) {
+      await f.t.run(async ({ db }) => {
+        await syncSessionStart(db, f.conversation);
+        const card = await sessionStartOf(db, f.conversation);
+        if (!card) throw new Error("Expected a session card");
+        await db.patch(card._id, { execution_safety_blocked: undefined });
+      });
+    }
+    expect(await listWork(f)).toHaveLength(1);
 
-      for (const block of [
-        { pending_api_error_kind: "safety" as const, session_error: undefined },
-        {
-          pending_api_error_kind: undefined,
-          session_error:
-            "Safety stop: This request was blocked by our safety systems.",
-        },
-      ]) {
-        await f.t.run(({ db }) => db.patch(f.conversation, block));
-        const work = await recordDocuments(() => listWork(f));
-        expect(work.result).toEqual([]);
-        expect(work.reads.has(f.conversation)).toBe(true);
-      }
-    } finally {
-      if (prior === undefined) delete process.env[cardFlag];
-      else process.env[cardFlag] = prior;
+    for (const block of [
+      { pending_api_error_kind: "safety" as const, session_error: undefined },
+      {
+        pending_api_error_kind: undefined,
+        session_error:
+          "Safety stop: This request was blocked by our safety systems.",
+      },
+    ]) {
+      await f.t.run(({ db }) => db.patch(f.conversation, block));
+      const work = await recordDocuments(() => listWork(f));
+      expect(work.result).toEqual([]);
+      expect(work.reads.has(f.conversation)).toBe(true);
     }
   },
 );

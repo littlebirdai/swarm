@@ -4,7 +4,6 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { DiffFile } from "./FileDiffView";
 import { PullRequestFiles } from "./pr/PullRequestFiles";
 import { prPageHref } from "../lib/repoView";
-import { pullRequestBodyDetailEnabled } from "../lib/detail-rows";
 import {
   usePullRequestDetail,
   useSyncPullRequestDetail,
@@ -247,11 +246,10 @@ function PullRequestCardContents({
   body?: string;
   files?: DiffFile[];
 }) {
-  const detailId = pullRequestBodyDetailEnabled() ? id : undefined;
-  const feed = useSyncPullRequestDetail(detailId);
-  const detail = usePullRequestDetail(detailId);
+  const feed = useSyncPullRequestDetail(id);
+  const detail = usePullRequestDetail(id);
   const content = body ?? detail?.body;
-  const loading = detailId && !detail && !feed.ready && !feed.error;
+  const loading = !detail && !feed.ready && !feed.error;
   return (
     <>
       {content && (
@@ -262,7 +260,7 @@ function PullRequestCardContents({
         </div>
       )}
       <PullRequestFiles
-        id={detailId ? undefined : id}
+        id={undefined}
         files={files ?? detail?.files}
         emptyText={loading ? undefined : "No file changes synced yet"}
       />

@@ -62,26 +62,8 @@ function buildIdentity(mode: string) {
 
 export default defineConfig(({ mode, command }) => ({
   define: {
-    "process.env.VITE_DESKTOP_PANEL_SCOPE": JSON.stringify(
-      process.env.VITE_DESKTOP_PANEL_SCOPE ?? "",
-    ),
-    "process.env.VITE_MESSAGE_MEMORY_BUDGET": JSON.stringify(
-      process.env.VITE_MESSAGE_MEMORY_BUDGET ?? "",
-    ),
-    "process.env.VITE_THIN_PULL_REQUEST_ROWS": JSON.stringify(
-      process.env.VITE_THIN_PULL_REQUEST_ROWS ?? "",
-    ),
-    "process.env.VITE_DEFERRED_CACHE_BOOT": JSON.stringify(
-      process.env.VITE_DEFERRED_CACHE_BOOT ?? "",
-    ),
     "process.env.VITE_INBOX_LOG_SNAPSHOT": JSON.stringify(
       process.env.VITE_INBOX_LOG_SNAPSHOT ?? "",
-    ),
-    "process.env.VITE_TIMED_DOC_CAPS": JSON.stringify(
-      process.env.VITE_TIMED_DOC_CAPS ?? "",
-    ),
-    "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
-      process.env.VITE_CACHE_EVICTION_METADATA ?? "",
     ),
   },
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its

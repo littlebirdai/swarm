@@ -14,7 +14,6 @@ import {
   isFullPullRequest,
   sessionPullRequests,
 } from "../../lib/sessionPullRequests";
-import { pullRequestBodyDetailEnabled } from "../../lib/detail-rows";
 import { applyUpdatesToStore } from "../../store/sync-replication";
 
 const pr = (
@@ -91,9 +90,7 @@ describe("session card pull request feed", () => {
       linked_session_ids: ["c1"],
       checks_state: "success",
     });
-    expect(rows.p1.body).toBe(
-      pullRequestBodyDetailEnabled() ? undefined : "full",
-    );
+    expect(rows.p1.body).toBeUndefined();
     expect(isFullPullRequest(rows.p1)).toBe(true);
     expect(rows.p2.body).toBeUndefined();
     expect(numbers("c1")).toEqual([2, 1]);
@@ -154,7 +151,7 @@ describe("session card pull request feed", () => {
       .p1;
     const { body, ...thin } = full;
     expect(row).toMatchObject({ ...thin, checks_state: "success" });
-    expect(row.body).toBe(pullRequestBodyDetailEnabled() ? undefined : body);
+    expect(row.body).toBeUndefined();
     expect(isFullPullRequest(row)).toBe(true);
     // The host's whole row, its body days old: only its chip fields land over
     // this window's own full row, and the detail this window read for itself
@@ -174,17 +171,15 @@ describe("session card pull request feed", () => {
     expect(
       (useInboxStore.getState() as any).pullRequestDetails.p1,
     ).toMatchObject({ files, commits, checks_state: "pending" });
-    expect(after.body).toBe(pullRequestBodyDetailEnabled() ? undefined : body);
-    expect(useInboxStore.getState().pullRequestDetails.p1.body).toBe(
-      pullRequestBodyDetailEnabled() ? body : undefined,
-    );
+    expect(after.body).toBeUndefined();
+    expect(useInboxStore.getState().pullRequestDetails.p1.body).toBe(body);
     // A row this window does not hold lands as sent.
     applyUpdatesToStore([
       { key: "pullRequests", upserts: [pr("p7", 7, { body: "new" })] } as any,
     ]);
     expect(
       (useInboxStore.getState().pullRequests as Record<string, any>).p7.body,
-    ).toBe(pullRequestBodyDetailEnabled() ? undefined : "new");
+    ).toBeUndefined();
   });
 
   it("a chip push never releases a field this window wrote and the server has not echoed", () => {

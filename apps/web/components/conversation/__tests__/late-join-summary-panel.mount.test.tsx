@@ -1,20 +1,14 @@
-import { afterEach, expect, mock, test } from "bun:test";
-import { act, Profiler } from "react";
+import { expect, mock, test } from "bun:test";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
+import { act, type ReactNode } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { LateJoinSummary } from "../../../hooks/use-late-join-summary";
+import { replaceGlobals } from "../../../test-helpers/globals";
 import { mountWeb } from "../../../test-helpers/mountWeb";
 import { pending } from "../../../test-helpers/testConvex";
 import { ConversationView } from "../../conversation-view";
 import type { Message } from "../types";
-
-const FLAG = "VITE_LATE_JOIN_SUMMARY";
-const previousFlag = process.env[FLAG];
-
-afterEach(() => {
-  if (previousFlag === undefined) delete process.env[FLAG];
-  else process.env[FLAG] = previousFlag;
-});
 
 const conversationId = "j".repeat(32) as Id<"conversations">;
 const otherConversationId = "k".repeat(32) as Id<"conversations">;
@@ -84,23 +78,20 @@ const emptySummary: LateJoinSummary = {
 };
 
 async function mountConversation({
-  flag,
   summary,
   convId = conversationId,
   messages,
   hasMoreBelow = false,
   onJumpToEnd,
+  anchor = populatedSummary.anchor,
 }: {
-  flag: "1" | "0" | undefined;
   summary: LateJoinSummary | null;
   convId?: Id<"conversations">;
   messages?: Message[];
   hasMoreBelow?: boolean;
   onJumpToEnd?: () => void;
+  anchor?: LateJoinSummary["anchor"] | null;
 }) {
-  if (flag === undefined) delete process.env[FLAG];
-  else process.env[FLAG] = flag;
-
   const jump = mock((_timestamp: number) => {});
   const ui = await mountWeb(
     <ConversationView
@@ -154,9 +145,19 @@ async function mountConversation({
           api.accountSwitch.listAccountProfiles,
         ])
           backend.set(query, pending);
+        backend.set(api.conversationReadAnchors.get, ({ conversation_id }) =>
+          anchor
+            ? {
+                _id: conversation_id,
+                user_id: userId,
+                ...anchor,
+              }
+            : null,
+        );
         backend.mutation(api.users.requestTerminalEndpoints, {
           commands: [],
         });
+        backend.mutation(api.dispatch.dispatch, () => null);
         backend.set(api.lateJoinSummary.get, summary);
       },
     },
@@ -164,158 +165,8 @@ async function mountConversation({
   return { ...ui, jump };
 }
 
-test("absent when VITE_LATE_JOIN_SUMMARY flag is off and triggers no scroll or switch state updates", async () => {
-  delete process.env[FLAG];
-  const jump = mock((_timestamp: number) => {});
-  let renders = 0;
-  const ui = await mountWeb(
-    <Profiler
-      id="conv-flag-off"
-      onRender={() => {
-        renders += 1;
-      }}
-    >
-      <ConversationView
-        conversation={{
-          _id: conversationId,
-          user_id: userId,
-          title: "Flag off check",
-          messages: [
-            {
-              _id: latestMsgId,
-              timestamp: 10_000,
-              role: "user",
-              content: "Latest message",
-            } as Message,
-          ],
-        }}
-        backHref="/"
-        hideHeader
-        showMessageInput={false}
-        autoFocusInput={false}
-        onJumpToTimestamp={jump}
-      />
-    </Profiler>,
-    {
-      authenticated: true,
-      dispatch: true,
-      setup(backend, store) {
-        store.syncTable("currentUser", { _id: userId });
-        for (const query of [
-          api.transcripts.webCallsForConversation,
-          api.devices.listDevices,
-          api.sessionOwnership.listOwners,
-          api.conversationNav.getUserMessages,
-          api.commentTwins.conversationComments,
-          api.pendingMessages.getConversationPendingMessage,
-          api.messages.getConversationImages,
-          api.conversationPages.list,
-          api.taskReads.webListByConversation,
-          api.docSync.getPresence,
-          api.sessionGoals.forConversation,
-          api.guestSuggestions.listPending,
-          api.quoteDrafts.listForConversation,
-          api.externalEvents.listForConversation,
-          api.workflows.webList,
-          api.permissions.getPendingPermissions,
-          api.commits.getCommitsForConversation,
-          api.pull_requests.getPRsForConversation,
-          api.pull_requests.sessionCardPRs,
-          api.users.getMySkills,
-          api.accountSwitch.listAccountProfiles,
-        ])
-          backend.set(query, pending);
-        backend.mutation(api.users.requestTerminalEndpoints, {
-          commands: [],
-        });
-        backend.set(api.lateJoinSummary.get, populatedSummary);
-      },
-    },
-  );
-  try {
-    expect(
-      ui.container.querySelector("[data-cc-late-join-summary]"),
-    ).toBeNull();
-    expect(
-      ui.backend.queryRequests.some((q) => q.name === "lateJoinSummary:get"),
-    ).toBe(false);
-
-    const renderSwitch = async (convId: Id<"conversations">, title: string) => {
-      renders = 0;
-      await ui.rerender(
-        <Profiler
-          id="conv-flag-off"
-          onRender={() => {
-            renders += 1;
-          }}
-        >
-          <ConversationView
-            conversation={{
-              _id: convId,
-              user_id: userId,
-              title,
-              messages: [
-                {
-                  _id: latestMsgId,
-                  timestamp: 10_000,
-                  role: "user",
-                  content: "Message",
-                } as Message,
-              ],
-            }}
-            backHref="/"
-            hideHeader
-            showMessageInput={false}
-            autoFocusInput={false}
-            onJumpToTimestamp={jump}
-          />
-        </Profiler>,
-      );
-      return renders;
-    };
-
-    const feed = ui.container.querySelector<HTMLElement>("[data-sv-feed]")!;
-    let scrollTop = 0;
-    Object.defineProperty(feed, "scrollHeight", {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(feed, "clientHeight", {
-      configurable: true,
-      value: 400,
-    });
-    Object.defineProperty(feed, "scrollTop", {
-      configurable: true,
-      get: () => scrollTop,
-      set: (v: number) => {
-        scrollTop = v;
-      },
-    });
-
-    await act(async () => {
-      scrollTop = 450;
-      feed.dispatchEvent(new Event("scroll"));
-    });
-
-    renders = 0;
-    await act(async () => {
-      scrollTop = 600;
-      feed.dispatchEvent(new Event("scroll"));
-    });
-    expect(renders).toBe(0);
-
-    await renderSwitch(otherConversationId, "Next flag off");
-    expect(
-      ui.backend.queryRequests.some((q) => q.name === "lateJoinSummary:get"),
-    ).toBe(false);
-  } finally {
-    await ui.close();
-  }
-});
-
-test("absent when flag is on and there is nothing new", async () => {
+test("absent when there is nothing new", async () => {
   const ui = await mountConversation({
-    flag: "1",
     summary: emptySummary,
   });
   expect(
@@ -328,7 +179,6 @@ test("absent when flag is on and there is nothing new", async () => {
 test("queries once per conversation visit, renders truncated counts, links decisions, jumps to prompt, and hides at bottom", async () => {
   const jumpToEnd = mock(() => {});
   const ui = await mountConversation({
-    flag: "1",
     summary: truncatedSummary,
     hasMoreBelow: true,
     onJumpToEnd: jumpToEnd,
@@ -397,6 +247,7 @@ test("queries once per conversation visit, renders truncated counts, links decis
   const jumpBtn = ui.container.querySelector<HTMLButtonElement>(
     "[data-cc-late-join-jump]",
   );
+  ui.jump.mockClear();
   await act(async () => {
     jumpBtn!.click();
   });
@@ -502,7 +353,6 @@ test("open prompt buttons and top prompt chip jump to an inline AskUserQuestion 
     },
   };
   const inlineUi = await mountConversation({
-    flag: "1",
     summary: inlineSummary,
   });
 
@@ -514,6 +364,7 @@ test("open prompt buttons and top prompt chip jump to an inline AskUserQuestion 
   );
   expect(inlinePromptBtn).not.toBeNull();
   expect(inlineChipBtn).not.toBeNull();
+  inlineUi.jump.mockClear();
   await act(async () => {
     inlineChipBtn!.click();
   });
@@ -525,7 +376,6 @@ test("open prompt buttons and top prompt chip jump to an inline AskUserQuestion 
 
   const jumpToEnd = mock(() => {});
   const dockUi = await mountConversation({
-    flag: "1",
     summary: populatedSummary,
     hasMoreBelow: true,
     onJumpToEnd: jumpToEnd,
@@ -545,7 +395,6 @@ test("open prompt buttons and top prompt chip jump to an inline AskUserQuestion 
 
 test("clears pending_permission prompt on empty pendingPermissions without clearing fenced_turn permission", async () => {
   const ui = await mountConversation({
-    flag: "1",
     summary: populatedSummary,
   });
 
@@ -611,7 +460,9 @@ test("clears pending_permission prompt on empty pendingPermissions without clear
 });
 
 test("jumps locally to a loaded message folded in condensed density without remote timestamp jump", async () => {
-  process.env[FLAG] = "1";
+  const restore = replaceGlobals({
+    CSS: { escape: (value: string) => value } as typeof CSS,
+  });
   const jump = mock((_timestamp: number) => {});
   const ui = await mountWeb(
     <ConversationView
@@ -677,32 +528,162 @@ test("jumps locally to a loaded message folded in condensed density without remo
           api.accountSwitch.listAccountProfiles,
         ])
           backend.set(query, pending);
+        backend.set(api.conversationReadAnchors.get, ({ conversation_id }) => ({
+          _id: conversation_id,
+          user_id: userId,
+          ...populatedSummary.anchor,
+        }));
         backend.mutation(api.users.requestTerminalEndpoints, {
           commands: [],
         });
+        backend.mutation(api.dispatch.dispatch, () => null);
         backend.set(api.lateJoinSummary.get, populatedSummary);
       },
     },
   );
 
-  const jumpBtn = ui.container.querySelector<HTMLButtonElement>(
-    "[data-cc-late-join-jump]",
-  );
-  expect(jumpBtn).not.toBeNull();
-  await act(async () => {
-    jumpBtn!.click();
-  });
-  expect(jump).toHaveBeenCalledTimes(0);
-  await ui.close();
+  try {
+    const jumpBtn = ui.container.querySelector<HTMLButtonElement>(
+      "[data-cc-late-join-jump]",
+    );
+    expect(jumpBtn).not.toBeNull();
+    jump.mockClear();
+    await act(async () => {
+      jumpBtn!.click();
+    });
+    expect(jump).toHaveBeenCalledTimes(0);
+  } finally {
+    await ui.close();
+    restore();
+  }
 });
 
 test("omits /decisions links when can_open_decisions is false", async () => {
   const ui = await mountConversation({
-    flag: "1",
     summary: { ...populatedSummary, can_open_decisions: false },
   });
   const panel = ui.container.querySelector("[data-cc-late-join-summary]");
   expect(panel?.textContent).toContain("Keep summary behind flag?");
   expect(panel?.querySelectorAll('a[href^="/decisions/"]')).toHaveLength(0);
   await ui.close();
+});
+
+function UnauthenticatedWrap({ children }: { children: ReactNode }) {
+  const client = useConvex();
+  return (
+    <ConvexProviderWithAuth
+      client={client}
+      useAuth={() => ({
+        isLoading: true,
+        isAuthenticated: false,
+        fetchAccessToken: async () => null,
+      })}
+    >
+      {children}
+    </ConvexProviderWithAuth>
+  );
+}
+
+test("skips lateJoinSummary query before server auth, without a saved anchor, or when anchor is at latest message", async () => {
+  const unauthUi = await mountWeb(
+    <UnauthenticatedWrap>
+      <ConversationView
+        conversation={{
+          _id: conversationId,
+          user_id: userId,
+          title: "Unauth check",
+          messages: [
+            {
+              _id: latestMsgId,
+              timestamp: 10_000,
+              role: "user",
+              content: "Latest message",
+            } as Message,
+          ],
+        }}
+        backHref="/"
+        hideHeader
+        showMessageInput={false}
+        autoFocusInput={false}
+      />
+    </UnauthenticatedWrap>,
+    {
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("currentUser", { _id: userId });
+        for (const query of [
+          api.transcripts.webCallsForConversation,
+          api.devices.listDevices,
+          api.sessionOwnership.listOwners,
+          api.conversationNav.getUserMessages,
+          api.commentTwins.conversationComments,
+          api.pendingMessages.getConversationPendingMessage,
+          api.messages.getConversationImages,
+          api.conversationPages.list,
+          api.taskReads.webListByConversation,
+          api.docSync.getPresence,
+          api.sessionGoals.forConversation,
+          api.guestSuggestions.listPending,
+          api.quoteDrafts.listForConversation,
+          api.externalEvents.listForConversation,
+          api.workflows.webList,
+          api.permissions.getPendingPermissions,
+          api.commits.getCommitsForConversation,
+          api.pull_requests.getPRsForConversation,
+          api.pull_requests.sessionCardPRs,
+          api.users.getMySkills,
+          api.accountSwitch.listAccountProfiles,
+          api.conversationReadAnchors.get,
+        ])
+          backend.set(query, pending);
+        backend.mutation(api.users.requestTerminalEndpoints, {
+          commands: [],
+        });
+        backend.mutation(api.dispatch.dispatch, () => null);
+        backend.set(api.lateJoinSummary.get, populatedSummary);
+      },
+    },
+  );
+  expect(
+    unauthUi.backend.queryRequests.filter(
+      (q) =>
+        q.name === "lateJoinSummary:get" ||
+        q.name === "conversationReadAnchors:get",
+    ),
+  ).toEqual([]);
+  await unauthUi.close();
+
+  const noAnchorUi = await mountConversation({
+    summary: populatedSummary,
+    anchor: null,
+  });
+  expect(
+    noAnchorUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toEqual([]);
+  await noAnchorUi.close();
+
+  const restoreCss = replaceGlobals({
+    CSS: { escape: (value: string) => value } as typeof CSS,
+  });
+  const currentUi = await mountConversation({
+    summary: populatedSummary,
+    anchor: {
+      message_id: latestMsgId,
+      offset: 0.5,
+      timestamp: 10_000,
+      changed_at: 10_500,
+    },
+  });
+  try {
+    expect(
+      currentUi.backend.queryRequests.filter(
+        (q) => q.name === "lateJoinSummary:get",
+      ),
+    ).toEqual([]);
+  } finally {
+    await currentUi.close();
+    restoreCss();
+  }
 });

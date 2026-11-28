@@ -5,7 +5,6 @@ import { internal } from "./_generated/api";
 import { serverTest } from "../test-helpers/database.testkit";
 
 const env = {
-  CODECAST_SYNC_ALARMS: "1",
   POSTHOG_KEY: "fixture",
   POSTHOG_HOST: "https://metrics.invalid",
   VITE_POSTHOG_KEY: undefined,
@@ -74,7 +73,6 @@ test("samples the oldest pending age as a personless event and reports an empty 
 });
 
 test.each([
-  ["no flag", { CODECAST_SYNC_ALARMS: undefined }],
   ["no key", { POSTHOG_KEY: undefined }],
   ["telemetry opt-out", { DO_NOT_TRACK: "1" }],
 ] as const)(

@@ -15,19 +15,12 @@ import {
 import { isDetailPinned } from "../../lib/detail-rows";
 import { useDocDetail } from "../use-sync-docs";
 
-const flag = "VITE_CACHE_EVICTION_METADATA";
-const original = process.env[flag];
-const originalTimed = process.env.VITE_TIMED_DOC_CAPS;
 const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
 afterEach(() => {
   _resetUndoStacks();
   resetDetailInvalidations();
-  if (original === undefined) delete process.env[flag];
-  else process.env[flag] = original;
-  if (originalTimed === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-  else process.env.VITE_TIMED_DOC_CAPS = originalTimed;
 });
 
 function Body() {
@@ -37,8 +30,6 @@ function Body() {
 }
 
 test("an unrelated invalidation cannot replay the query object after archive", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const accepted = Promise.withResolvers<null>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -80,8 +71,6 @@ test("an unrelated invalidation cannot replay the query object after archive", a
 });
 
 test("a changed feeder callback does not reapply an already consumed query object", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const results = new Set<object>();
   function Reader() {
     const { detail, detailResult } = useDocDetail(id);
@@ -100,7 +89,6 @@ test("a changed feeder callback does not reapply an already consumed query objec
     expect(ui.container.textContent).toBe(row.content);
     expect(results.size).toBe(1);
     const initial = [...results][0];
-    process.env.VITE_TIMED_DOC_CAPS = "0";
     await ui.rerender(<Reader />);
     await act(async () => {
       ui.store.getState().dropDocDetail(id);
@@ -108,7 +96,6 @@ test("a changed feeder callback does not reapply an already consumed query objec
     });
     expect(ui.container.textContent).toBe("No body");
 
-    process.env.VITE_TIMED_DOC_CAPS = "1";
     await ui.rerender(<Reader />);
     await act(async () => flushSyncPublishes());
     expect([...results]).toEqual([initial]);
@@ -119,8 +106,6 @@ test("a changed feeder callback does not reapply an already consumed query objec
 });
 
 test("after an accepted archive an authority refill lets later live pushes land", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const confirmed = Promise.withResolvers<typeof row>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -170,8 +155,6 @@ test("after an accepted archive an authority refill lets later live pushes land"
 });
 
 test("a direct restore refills the detail and lets later live pushes land", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   let serverRestored = false;
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -236,8 +219,6 @@ test("a direct restore refills the detail and lets later live pushes land", asyn
 test.each([false, true])(
   "a refused archive revalidates the open body (has list row: %s)",
   async (hasListRow) => {
-    process.env[flag] = "1";
-    process.env.VITE_TIMED_DOC_CAPS = "1";
     const archive = Promise.withResolvers<null>();
     const ui = await mountWeb(<Body />, {
       authenticated: true,
@@ -285,8 +266,6 @@ test.each([false, true])(
 );
 
 test("an archive refusal without a fresh reader leaves later live pushes usable", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const archive = Promise.withResolvers<null>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -325,7 +304,6 @@ test("an archive refusal without a fresh reader leaves later live pushes usable"
 test.each([true, false])(
   "a mounted document pins its detail until it unmounts (authenticated: %s)",
   async (authenticated) => {
-    process.env[flag] = "1";
     const ui = await mountWeb(<Body />, {
       authenticated,
       setup(backend) {
@@ -335,17 +313,13 @@ test.each([true, false])(
     ui.store.getState().syncRecord("docDetails", id, row);
     await act(async () => flushSyncPublishes());
     expect(ui.container.textContent).toBe(row.content);
-    expect(isDetailPinned("docDetails", id)).toBe(
-      process.env.VITE_TIMED_DOC_CAPS === "1",
-    );
+    expect(isDetailPinned("docDetails", id)).toBe(true);
     await ui.rerender(null);
     expect(isDetailPinned("docDetails", id)).toBe(false);
   },
 );
 
 test("a permanent refusal of an overtaken archive does not refill while a newer archive is pending", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const archive1 = Promise.withResolvers<null>();
   const restore = Promise.withResolvers<null>();
   const archive2 = Promise.withResolvers<null>();
@@ -412,8 +386,6 @@ test("a permanent refusal of an overtaken archive does not refill while a newer 
 });
 
 test("a single permanent archive refusal invalidates and reads fresh once for a mounted reader", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const archive = Promise.withResolvers<null>();
   let reads = 0;
   let invalidations = 0;
@@ -466,8 +438,6 @@ test("a single permanent archive refusal invalidates and reads fresh once for a 
 });
 
 test("a non-subscribing useDocDetail caller does not strand hydration after a dropped archive", async () => {
-  process.env[flag] = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const archive = Promise.withResolvers<null>();
   function PassiveBody() {
     const { detail } = useDocDetail(id, false);

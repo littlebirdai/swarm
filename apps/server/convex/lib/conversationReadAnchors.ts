@@ -5,9 +5,6 @@ import { checkConversationAccess } from "../privacy";
 type AnchorReadCtx = Pick<QueryCtx, "db">;
 type AnchorWriteCtx = Pick<MutationCtx, "db">;
 
-export const readAnchorsEnabled = () =>
-  process.env.CODECAST_SESSION_READ_ANCHORS === "1";
-
 export async function canReadAnchor(
   ctx: AnchorReadCtx,
   userId: Id<"users">,
@@ -103,7 +100,7 @@ export async function beginReadAnchor(
   id: unknown,
   claim?: { session: string; order: number },
 ) {
-  if (!readAnchorsEnabled() || typeof id !== "string") return null;
+  if (typeof id !== "string") return null;
   const conversation_id = ctx.db.normalizeId("conversations", id);
   if (!conversation_id || !(await canReadAnchor(ctx, userId, conversation_id)))
     return null;
@@ -146,7 +143,6 @@ export async function saveReadAnchor(
   input: SaveReadAnchorArgs,
 ) {
   if (
-    !readAnchorsEnabled() ||
     typeof input?.conversation_id !== "string" ||
     typeof input.message_id !== "string" ||
     typeof input.view_id !== "string" ||

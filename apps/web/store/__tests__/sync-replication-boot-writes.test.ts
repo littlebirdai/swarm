@@ -6,15 +6,7 @@ import {
   installSignedInPrincipal,
   TEST_PRINCIPAL,
 } from "./fixtures/signedInPrincipal";
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  expect,
-  jest,
-  spyOn,
-  test,
-} from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
   createReplicationFollower,
   createReplicationHost,
@@ -322,8 +314,6 @@ test("boot hydration writes only documented row trims and retention drops", asyn
 test.each(["access", "archive", "crawl"] as const)(
   "the elected host deletes a disk-only detail after a follower reports %s",
   async (cause) => {
-    const original = process.env.VITE_CACHE_EVICTION_METADATA;
-    process.env.VITE_CACHE_EVICTION_METADATA = "1";
     const { createDetailInvalidationTransport } =
       await import("../detail-invalidation-transport");
     const { resetDetailInvalidations } = await import("../doc-detail-cache");
@@ -399,18 +389,12 @@ test.each(["access", "archive", "crawl"] as const)(
       follower.stop();
       transport.close();
       stopSyncReplication();
-      if (original === undefined)
-        delete process.env.VITE_CACHE_EVICTION_METADATA;
-      else process.env.VITE_CACHE_EVICTION_METADATA = original;
       resetDetailInvalidations();
     }
   },
 );
 
 test("the complete crawl compares disk-only details by workspace", async () => {
-  const flag = "VITE_CACHE_EVICTION_METADATA";
-  const original = process.env[flag];
-  process.env[flag] = "1";
   const {
     detailReadPosition,
     setDetailInvalidationReporter,
@@ -445,8 +429,6 @@ test("the complete crawl compares disk-only details by workspace", async () => {
     ]);
   } finally {
     resetDetailInvalidations();
-    if (original === undefined) delete process.env[flag];
-    else process.env[flag] = original;
   }
 });
 
@@ -469,8 +451,6 @@ test("a thin row disappearing during the disk transaction does not cancel a veri
 test.each(["access", "archive", "crawl"] as const)(
   "a solo window verifies and deletes a disk-only detail after %s",
   async (cause) => {
-    const flag = "VITE_CACHE_EVICTION_METADATA";
-    const enabled = process.env[flag] === "1";
     const {
       detailReadPosition,
       reportCompleteDocCrawl,
@@ -520,25 +500,18 @@ test.each(["access", "archive", "crawl"] as const)(
           detailReadPosition(),
         );
       else
-        expect(reportDetailInvalidation({ ids: [row._id], cause })).toBe(
-          enabled,
-        );
-      if (enabled) {
-        await waitFor(() =>
-          mutations!.some(
-            (mutation) =>
-              mutation.table === "docDetails" &&
-              mutation.type === "delete" &&
-              mutation.keys.includes(row._id),
-          ),
-        );
-        await drainWrites();
-        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
-        expect(verified).toEqual([row._id]);
-      } else {
-        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
-        expect(verified).toEqual([]);
-      }
+        expect(reportDetailInvalidation({ ids: [row._id], cause })).toBe(true);
+      await waitFor(() =>
+        mutations!.some(
+          (mutation) =>
+            mutation.table === "docDetails" &&
+            mutation.type === "delete" &&
+            mutation.keys.includes(row._id),
+        ),
+      );
+      await drainWrites();
+      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+      expect(verified).toEqual([row._id]);
     } finally {
       stopSyncReplication();
       resetDetailInvalidations();
@@ -549,7 +522,6 @@ test.each(["access", "archive", "crawl"] as const)(
 test.each(["elected", "follower", "solo"] as const)(
   "an accepted invalidation reaches the authority when the window becomes %s",
   async (nextRole) => {
-    const enabled = process.env.VITE_CACHE_EVICTION_METADATA === "1";
     const { reportDetailInvalidation, resetDetailInvalidations } =
       await import("../doc-detail-cache");
     resetDetailInvalidations();
@@ -632,13 +604,13 @@ test.each(["elected", "follower", "solo"] as const)(
         jest.advanceTimersByTime(8000);
       }
 
-      expect(reportDetailInvalidation(evidence)).toBe(enabled);
+      expect(reportDetailInvalidation(evidence)).toBe(true);
       if (nextRole === "solo") {
-        await waitFor(() => !enabled || requests().length === 1);
+        await waitFor(() => requests().length === 1);
         expect(localReads).toEqual([]);
         jest.advanceTimersByTime(8001);
       } else {
-        await waitFor(() => !enabled || localReads.length === 1);
+        await waitFor(() => localReads.length === 1);
         if (nextRole === "elected") {
           releaseLock();
           await waitFor(() => getStatus().elected);
@@ -648,11 +620,7 @@ test.each(["elected", "follower", "solo"] as const)(
         }
       }
       jest.useRealTimers();
-      if (!enabled) {
-        expect(localReads).toEqual([]);
-        expect(requests()).toEqual([]);
-        expect(await table.get(row._id)).toEqual(row);
-      } else if (nextRole === "follower") {
+      if (nextRole === "follower") {
         await waitFor(() => requests().length === 1);
         expect(requests()).toEqual([
           expect.objectContaining({ ...evidence, toHost: hostId }),
@@ -685,36 +653,25 @@ test.each(["elected", "follower", "solo"] as const)(
   },
 );
 
-test.each(["0", "1"])(
-  "palette IndexedDB hydration respects the desktop scope flag %s",
-  async (flag) => {
-    const before = process.env.VITE_DESKTOP_PANEL_SCOPE;
-    process.env.VITE_DESKTOP_PANEL_SCOPE = flag;
-    Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
-      configurable: true,
-      value: { isPaletteWindow: true },
-    });
-    const id = sessionId(42);
-    const doc = { _id: id, title: "Cached document", updated_at: Date.now() };
-    const details = { ...doc, content: "Full cached body" };
-    try {
-      await docs.put(doc);
-      await COLLECTION_TABLES.docDetails.put(details);
-      await bootCache();
-      expect(state().docs[id]?.title).toBe(doc.title);
-      const loadsDetailsAtBoot =
-        flag === "0" && process.env.VITE_DEFERRED_CACHE_BOOT !== "1";
-      expect(state().docDetails[id]?.content).toBe(
-        loadsDetailsAtBoot ? details.content : undefined,
-      );
-      expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(details);
-    } finally {
-      Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
-      if (before === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
-      else process.env.VITE_DESKTOP_PANEL_SCOPE = before;
-    }
-  },
-);
+test("palette IndexedDB hydration skips out-of-scope docDetails", async () => {
+  Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
+    configurable: true,
+    value: { isPaletteWindow: true },
+  });
+  const id = sessionId(42);
+  const doc = { _id: id, title: "Cached document", updated_at: Date.now() };
+  const details = { ...doc, content: "Full cached body" };
+  try {
+    await docs.put(doc);
+    await COLLECTION_TABLES.docDetails.put(details);
+    await bootCache();
+    expect(state().docs[id]?.title).toBe(doc.title);
+    expect(state().docDetails[id]).toBeUndefined();
+    expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(details);
+  } finally {
+    Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
+  }
+});
 
 registerTimedDocReplicationCases({
   window: dom.window as unknown as Window,
@@ -736,56 +693,3 @@ registerTimedDocReplicationCases({
 });
 
 await registerArchiveFallbackCases({ bootCache, waitFor, holdHostLock });
-
-test("deferred hydration does not restore the body of an archive in flight", async () => {
-  const before = process.env.VITE_CACHE_EVICTION_METADATA;
-  const beforeDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  delete process.env.VITE_DEFERRED_CACHE_BOOT;
-  const { cacheStorage } = await import("../idb-cache");
-  const { makeDispatchBinding } = await import("../../lib/dispatch-binding");
-  const { resetDetailInvalidations } = await import("../doc-detail-cache");
-  const id = sessionId(44);
-  const doc = { _id: id, title: "Doc", updated_at: Date.now() };
-  const detail = { ...doc, content: "Before archive" };
-  const captured = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const response = Promise.withResolvers<null>();
-  const read = cacheStorage.loadCache.bind(cacheStorage);
-  const spy = spyOn(cacheStorage, "loadCache").mockImplementation(
-    async (...args) => {
-      const snapshot = await read(...args);
-      if (snapshot?.docDetails?.[id]) {
-        captured.resolve();
-        await release.promise;
-      }
-      return snapshot;
-    },
-  );
-  resetDetailInvalidations();
-  try {
-    await docs.put(doc);
-    await COLLECTION_TABLES.docDetails.put(detail);
-    const boot = bootCache();
-    await captured.promise;
-    state().syncRecord("docs", id, doc);
-    state().syncRecord("docDetails", id, detail);
-    state()._setDispatch(makeDispatchBinding(async () => response.promise));
-    void state().archiveDoc(id);
-    expect(state().pending[`docs:${id}`]?.type).toBe("exclude");
-    release.resolve();
-    await boot;
-    expect(state().docDetails[id]).toBeUndefined();
-  } finally {
-    release.resolve();
-    response.resolve(null);
-    state()._setDispatch(null);
-    spy.mockRestore();
-    resetDetailInvalidations();
-    if (before === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = before;
-    if (beforeDeferred === undefined)
-      delete process.env.VITE_DEFERRED_CACHE_BOOT;
-    else process.env.VITE_DEFERRED_CACHE_BOOT = beforeDeferred;
-  }
-});

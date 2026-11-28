@@ -1,20 +1,14 @@
-import { cacheEvictionEnabled, withCacheEvictions } from "./cache-eviction";
+import { withCacheEvictions } from "./cache-eviction";
 import {
   detailRowsToEvict,
   isDetailPinned,
   type DetailKey,
 } from "../lib/detail-rows";
 import { sessionIdleAt } from "../lib/liveness";
-import { REPLICATION_CLASSIFICATION } from "./clientSyncRegistry";
-import { noteEvictedRows } from "./idb-collection-diff";
 import type { InboxStoreState } from "./inboxStore";
 
 export const MESSAGE_CACHE_BUDGET_BYTES =
   (globalThis.navigator?.product === "ReactNative" ? 16 : 32) * 1024 * 1024;
-
-export function messageMemoryBudgetEnabled(): boolean {
-  return process.env.VITE_MESSAGE_MEMORY_BUDGET === "1";
-}
 
 const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
 
@@ -205,11 +199,10 @@ export function hasEvictableMessagesOverBudget(
   releasedId?: string,
 ): boolean {
   const overBudget = state.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES;
-  const checkReleased = releasedId && messageMemoryBudgetEnabled();
-  if (!overBudget && !checkReleased) return false;
+  if (!overBudget && !releasedId) return false;
   const now = Date.now();
   if (
-    checkReleased &&
+    releasedId &&
     canEvictMessages(state, releasedId, now) &&
     Object.hasOwn(state.inlineImageConversationIds, releasedId)
   )
@@ -221,7 +214,6 @@ export function hasEvictableMessagesOverBudget(
 }
 
 export function releasedInlineMessageIds(state: MessageCacheDraft): string[] {
-  if (!messageMemoryBudgetEnabled()) return [];
   const now = Date.now();
   return Object.keys(state.inlineImageConversationIds).filter((id) =>
     canEvictMessages(state, id, now),
@@ -233,16 +225,10 @@ export function queueMessageCacheTrim(
   prev: MessageCacheDraft,
   trim: (releasedIds: readonly string[]) => void,
 ): void {
-  const strict = messageMemoryBudgetEnabled();
-  if (
-    !state.messageCacheBytes ||
-    (!strict && state.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES)
-  )
-    return;
+  if (!state.messageCacheBytes) return;
   const protectionChanged =
     state.sessions !== prev.sessions ||
-    (state.pendingMessages !== prev.pendingMessages &&
-      (state.messages === prev.messages || strict)) ||
+    state.pendingMessages !== prev.pendingMessages ||
     state.queuedMessages !== prev.queuedMessages ||
     state.pendingSessionCreates !== prev.pendingSessionCreates ||
     state.currentSessionId !== prev.currentSessionId ||
@@ -261,27 +247,23 @@ export function evictInactiveMessages(
   writtenId?: string,
   releasedIds?: readonly string[],
 ): void {
-  const strict = messageMemoryBudgetEnabled();
   const overBudget = draft.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES;
-  if (!strict && !overBudget) return;
   const now = Date.now();
-  if (strict) {
-    if (writtenId) updateInlineImageIndex(draft, writtenId);
-    const ids = writtenId
-      ? [writtenId]
-      : (releasedIds ?? Object.keys(draft.inlineImageConversationIds));
-    for (const id of ids) {
-      if (
-        Object.hasOwn(draft.inlineImageConversationIds, id) &&
-        canEvictMessages(draft, id, now)
-      ) {
-        messageWarmState.inlineEvictedAtCount.set(
-          id,
-          draft.sessions[id]?.message_count ?? 0,
-        );
-        dropCachedMessages(draft, id);
-        if (overBudget) messageWarmState.full = true;
-      }
+  if (writtenId) updateInlineImageIndex(draft, writtenId);
+  const ids = writtenId
+    ? [writtenId]
+    : (releasedIds ?? Object.keys(draft.inlineImageConversationIds));
+  for (const id of ids) {
+    if (
+      Object.hasOwn(draft.inlineImageConversationIds, id) &&
+      canEvictMessages(draft, id, now)
+    ) {
+      messageWarmState.inlineEvictedAtCount.set(
+        id,
+        draft.sessions[id]?.message_count ?? 0,
+      );
+      dropCachedMessages(draft, id);
+      if (overBudget) messageWarmState.full = true;
     }
   }
   if (draft.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return;
@@ -302,7 +284,6 @@ export function evictInactiveMessages(
     if (draft.messageCacheBytes <= MESSAGE_CACHE_LOW_WATER_BYTES) break;
   }
   if (
-    strict &&
     writtenId &&
     draft.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES &&
     canEvictMessages(draft, writtenId, now)
@@ -358,34 +339,26 @@ export function evictDetailRows(
     fresh.has(id),
   );
   if (!gone.length) return;
-  if (cacheEvictionEnabled()) {
-    const current = getState();
-    const live = current[key] as typeof rows;
-    const pending = Object.keys(current.pending);
-    const evictions = gone
-      .filter(
-        (id) =>
-          live[id] === rows[id] &&
-          !isDetailPinned(key, id) &&
-          !holdsUnsentComment(live[id]) &&
-          !pending.some(
-            (entry) =>
-              entry === `${key}:${id}` || entry.startsWith(`${key}:${id}:`),
-          ),
-      )
-      .map((id) => ({ key, id, observed: rows[id] }));
-    if (evictions.length)
-      withCacheEvictions(evictions, () => {
-        current.dropRows(
-          key,
-          evictions.map(({ id }) => id),
-        );
-      });
-    return;
-  }
-  // The rows leave disk too, where this window is the one that writes them:
-  // the sync host for a shared key, any window for a per-window one.
-  if (st.syncRole === "host" || REPLICATION_CLASSIFICATION[key] === "local")
-    noteEvictedRows(key, gone);
-  st.dropRows(key, gone);
+  const current = getState();
+  const live = current[key] as typeof rows;
+  const pending = Object.keys(current.pending);
+  const evictions = gone
+    .filter(
+      (id) =>
+        live[id] === rows[id] &&
+        !isDetailPinned(key, id) &&
+        !holdsUnsentComment(live[id]) &&
+        !pending.some(
+          (entry) =>
+            entry === `${key}:${id}` || entry.startsWith(`${key}:${id}:`),
+        ),
+    )
+    .map((id) => ({ key, id, observed: rows[id] }));
+  if (evictions.length)
+    withCacheEvictions(evictions, () => {
+      current.dropRows(
+        key,
+        evictions.map(({ id }) => id),
+      );
+    });
 }

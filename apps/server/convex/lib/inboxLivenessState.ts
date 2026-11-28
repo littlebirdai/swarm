@@ -1,4 +1,3 @@
-import { indexedInboxLivenessEnabled } from "./sessionHeartbeat";
 import { wakeFieldsOf } from "../wakeCost";
 import { v } from "convex/values";
 import {
@@ -337,7 +336,7 @@ export async function computeSessionsLiveness(
     includeLiveness: true,
     teamScope,
     subagentWindow: true,
-    indexedLiveness: teamScope === undefined && indexedInboxLivenessEnabled(),
+    indexedLiveness: teamScope === undefined,
   });
   const { conversations, maps, truncated } = scan;
   // Decisions FIRST: a parent already asking through a pending `cast decide`

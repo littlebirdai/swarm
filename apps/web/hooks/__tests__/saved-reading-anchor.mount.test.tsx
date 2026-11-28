@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
 import { act, useLayoutEffect } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -49,7 +50,6 @@ const checkpoint: SavedReadingAnchor = {
 };
 
 async function open({
-  enabled = true,
   answer = null,
   restoreResult = "restored",
   lostExit = false,
@@ -57,7 +57,6 @@ async function open({
   beginReply,
   beginError = false,
 }: {
-  enabled?: boolean;
   answer?: SavedReadingAnchor | typeof pending | null;
   restoreResult?: "restored" | "loading" | "requested";
   lostExit?: boolean;
@@ -82,7 +81,6 @@ async function open({
     const measure = useSavedReadingAnchor({
       conversationId: conversation,
       userId: viewer,
-      enabled,
       restore,
     });
     useLayoutEffect(() => {
@@ -127,24 +125,6 @@ async function open({
     );
   return { ...ui, sample, writes, restore, View, saved: () => saved };
 }
-
-test("the default-off path does not subscribe, claim a view, save, or change landing", async () => {
-  const ui = await open({ enabled: false, answer: checkpoint });
-  await ui.sample(first, 0, false);
-  await ui.sample(second, 0.7);
-  await ui.clock!.advance(30_000);
-  ui.backend.ping();
-  await ui.clock!.advance(30_000);
-  await ui.close();
-  expect(
-    ui.backend.queryRequests.filter((q) =>
-      q.name.startsWith("conversationReadAnchors:"),
-    ),
-  ).toEqual([]);
-  expect(ui.backend.mutations).toEqual([]);
-  expect(ui.restore).not.toHaveBeenCalled();
-  expect(ui.store.getState().sessionReadAnchors).toEqual({});
-});
 
 test("solo capture checkpoints at most twice per viewer-minute and saves the final position on clean exit", async () => {
   const ui = await open();
@@ -350,111 +330,103 @@ test("window focus and programmatic movement do not claim or checkpoint again", 
   ]);
 });
 
-test.each(["flag off", "visible tab", "tab hidden while loading"] as const)(
+test.each(["visible tab", "tab hidden while loading"] as const)(
   "ConversationView finishes a bounded anchor restore with %s",
   async (mode) => {
-    const flag = "VITE_SESSION_READ_ANCHORS";
-    const previous = process.env[flag];
-    try {
-      const enabled = mode !== "flag off";
-      process.env[flag] = enabled ? "1" : "0";
-      const jump = mock((_timestamp: number) => {});
-      const tail = mock(() => {});
-      const view = (isLoadingOlder: boolean) => (
-        <ConversationView
-          conversation={{
-            _id: conversation,
-            user_id: user,
-            title: "Reading history",
-            messages: [
-              {
-                _id: second,
-                timestamp: 10,
-                role: "user",
-                content: "Latest message",
-              } as Message,
-            ],
-          }}
-          backHref="/"
-          hideHeader
-          showMessageInput={false}
-          autoFocusInput={false}
-          onJumpToTimestamp={jump}
-          onJumpToEnd={tail}
-          isLoadingOlder={isLoadingOlder}
-        />
-      );
-      const ui = await mountWeb(view(false), {
-        clock: true,
-        authenticated: true,
-        dispatch: true,
-        setup(backend, store) {
-          store.syncTable("currentUser", { _id: user });
-          for (const query of [
-            api.transcripts.webCallsForConversation,
-            api.devices.listDevices,
-            api.sessionOwnership.listOwners,
-            api.conversationNav.getUserMessages,
-            api.commentTwins.conversationComments,
-            api.pendingMessages.getConversationPendingMessage,
-            api.messages.getConversationImages,
-            api.conversationPages.list,
-            api.taskReads.webListByConversation,
-            api.docSync.getPresence,
-            api.sessionGoals.forConversation,
-            api.guestSuggestions.listPending,
-            api.quoteDrafts.listForConversation,
-            api.externalEvents.listForConversation,
-            api.workflows.webList,
-            api.permissions.getPendingPermissions,
-            api.commits.getCommitsForConversation,
-            api.pull_requests.getPRsForConversation,
-            api.pull_requests.sessionCardPRs,
-            api.users.getMySkills,
-            api.accountSwitch.listAccountProfiles,
-          ])
-            backend.set(query, pending);
-          backend.mutation(api.users.requestTerminalEndpoints, {
-            commands: [],
-          });
+    const jump = mock((_timestamp: number) => {});
+    const tail = mock(() => {});
+    const view = (isLoadingOlder: boolean) => (
+      <ConversationView
+        conversation={{
+          _id: conversation,
+          user_id: user,
+          title: "Reading history",
+          messages: [
+            {
+              _id: second,
+              timestamp: 10,
+              role: "user",
+              content: "Latest message",
+            } as Message,
+          ],
+        }}
+        backHref="/"
+        hideHeader
+        showMessageInput={false}
+        autoFocusInput={false}
+        onJumpToTimestamp={jump}
+        onJumpToEnd={tail}
+        isLoadingOlder={isLoadingOlder}
+      />
+    );
+    const ui = await mountWeb(view(false), {
+      clock: true,
+      authenticated: true,
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("currentUser", { _id: user });
+        for (const query of [
+          api.transcripts.webCallsForConversation,
+          api.devices.listDevices,
+          api.sessionOwnership.listOwners,
+          api.conversationNav.getUserMessages,
+          api.commentTwins.conversationComments,
+          api.pendingMessages.getConversationPendingMessage,
+          api.messages.getConversationImages,
+          api.conversationPages.list,
+          api.taskReads.webListByConversation,
+          api.docSync.getPresence,
+          api.sessionGoals.forConversation,
+          api.guestSuggestions.listPending,
+          api.quoteDrafts.listForConversation,
+          api.externalEvents.listForConversation,
+          api.workflows.webList,
+          api.permissions.getPendingPermissions,
+          api.commits.getCommitsForConversation,
+          api.pull_requests.getPRsForConversation,
+          api.pull_requests.sessionCardPRs,
+          api.users.getMySkills,
+          api.accountSwitch.listAccountProfiles,
+          api.lateJoinSummary.get,
+        ])
+          backend.set(query, pending);
+        backend.mutation(api.users.requestTerminalEndpoints, {
+          commands: [],
+        });
 
-          backend.set(anchors.get, checkpoint);
-          backend.mutation(api.dispatch.dispatch, ({ action }) =>
-            action === "beginSavedReadingAnchor" ? viewId : null,
-          );
-        },
-      });
-      expect(jump.mock.calls).toEqual(enabled ? [[checkpoint.timestamp]] : []);
+        backend.set(anchors.get, checkpoint);
+        backend.mutation(api.dispatch.dispatch, ({ action }) =>
+          action === "beginSavedReadingAnchor" ? viewId : null,
+        );
+      },
+    });
+    expect(jump.mock.calls).toEqual([[checkpoint.timestamp]]);
+    expect(tail).not.toHaveBeenCalled();
+    await ui.rerender(view(false));
+    expect(tail).not.toHaveBeenCalled();
+    await ui.rerender(view(true));
+    expect(tail).not.toHaveBeenCalled();
+    if (mode === "tab hidden while loading") {
+      for (const visibility of ["hidden", "visible"] as const)
+        await act(async () => {
+          await setVisibility(visibility);
+          await ui.clock!.advance(0);
+        });
       expect(tail).not.toHaveBeenCalled();
-      await ui.rerender(view(false));
-      expect(tail).not.toHaveBeenCalled();
-      await ui.rerender(view(true));
-      expect(tail).not.toHaveBeenCalled();
-      if (mode === "tab hidden while loading") {
-        for (const visibility of ["hidden", "visible"] as const)
-          await act(async () => {
-            await setVisibility(visibility);
-            await ui.clock!.advance(0);
-          });
-        expect(tail).not.toHaveBeenCalled();
-      }
-      await ui.rerender(view(false));
-      expect(tail).toHaveBeenCalledTimes(enabled ? 1 : 0);
-      expect(
-        ui.backend.queryRequests.some(
-          ({ name }) => name === "conversationReadAnchors:get",
-        ),
-      ).toBe(enabled);
-      expect(
-        dispatches(ui.backend).some(
-          ({ action }) => action === "beginSavedReadingAnchor",
-        ),
-      ).toBe(enabled);
-      await ui.close();
-    } finally {
-      if (previous === undefined) delete process.env[flag];
-      else process.env[flag] = previous;
     }
+    await ui.rerender(view(false));
+    expect(tail).toHaveBeenCalledTimes(1);
+    expect(
+      ui.backend.queryRequests.some(
+        ({ name }) => name === "conversationReadAnchors:get",
+      ),
+    ).toBe(true);
+    expect(
+      dispatches(ui.backend).some(
+        ({ action }) => action === "beginSavedReadingAnchor",
+      ),
+    ).toBe(true);
+    await ui.close();
   },
 );
 
@@ -561,4 +533,42 @@ test("a visit opened before dispatch wiring claims and saves after wiring", asyn
   ]);
   await ui.close();
   expect(ui.writes()).toHaveLength(1);
+});
+
+test("waits for server auth confirmation before subscribing to saved reading anchors", async () => {
+  function UnauthAnchor() {
+    useSavedReadingAnchor({
+      conversationId: conversation,
+      userId: user,
+      restore: () => "fallback",
+    });
+    return null;
+  }
+  function UnauthView() {
+    const client = useConvex();
+    return (
+      <ConvexProviderWithAuth
+        client={client}
+        useAuth={() => ({
+          isLoading: true,
+          isAuthenticated: false,
+          fetchAccessToken: async () => null,
+        })}
+      >
+        <UnauthAnchor />
+      </ConvexProviderWithAuth>
+    );
+  }
+  const ui = await mountWeb(<UnauthView />, {
+    setup(backend) {
+      backend.set(anchors.get, checkpoint);
+    },
+  });
+  expect(
+    ui.backend.queryRequests.filter(
+      (q) => q.name === "conversationReadAnchors:get",
+    ),
+  ).toEqual([]);
+  expect(ui.backend.mutations).toEqual([]);
+  await ui.close();
 });

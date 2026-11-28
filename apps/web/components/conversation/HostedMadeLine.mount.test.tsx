@@ -76,57 +76,45 @@ describe("HostedMadeLine", () => {
 test.each(["fixture", "live"] as const)(
   "a %s hosted note uses only its document source",
   async (source) => {
-    const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
-    const timed = process.env.VITE_TIMED_DOC_CAPS;
-    process.env.VITE_CACHE_EVICTION_METADATA = "1";
-    process.env.VITE_TIMED_DOC_CAPS = "1";
     const id = "x".repeat(32);
     const refId = `doc:${id}`;
     const row = { _id: id, title: "Weekend plan", content: "Pack light" };
     const card = <HostedMadeLine words="Made a note" refId={refId} />;
-    try {
-      const ui = await mountWeb(
-        source === "fixture" ? (
-          <EntityFixtureContext.Provider
-            value={{ [refId]: { type: "doc", entity: row } }}
-          >
-            {card}
-          </EntityFixtureContext.Provider>
-        ) : (
-          card
-        ),
-        {
-          authenticated: true,
-          setup(backend) {
-            backend.set(makeFunctionReference<"query">("docs:webGet"), row);
-            backend.set(
-              makeFunctionReference<"query">("taskMining:webGetDocDetail"),
-              row,
-            );
-          },
-        },
-      );
-      try {
-        expect(ui.container.textContent).toContain(row.title);
-        expect(ui.container.textContent).toContain(row.content);
-        const docQueries = ui.backend.queryRequests
-          .map(({ name }) => name)
-          .filter(
-            (name) =>
-              name === "docs:webGet" || name === "taskMining:webGetDocDetail",
+    const ui = await mountWeb(
+      source === "fixture" ? (
+        <EntityFixtureContext.Provider
+          value={{ [refId]: { type: "doc", entity: row } }}
+        >
+          {card}
+        </EntityFixtureContext.Provider>
+      ) : (
+        card
+      ),
+      {
+        authenticated: true,
+        setup(backend) {
+          backend.set(makeFunctionReference<"query">("docs:webGet"), row);
+          backend.set(
+            makeFunctionReference<"query">("taskMining:webGetDocDetail"),
+            row,
           );
-        expect(docQueries).toEqual(
-          source === "fixture" ? [] : ["taskMining:webGetDocDetail"],
+        },
+      },
+    );
+    try {
+      expect(ui.container.textContent).toContain(row.title);
+      expect(ui.container.textContent).toContain(row.content);
+      const docQueries = ui.backend.queryRequests
+        .map(({ name }) => name)
+        .filter(
+          (name) =>
+            name === "docs:webGet" || name === "taskMining:webGetDocDetail",
         );
-      } finally {
-        await ui.close();
-      }
+      expect(docQueries).toEqual(
+        source === "fixture" ? [] : ["taskMining:webGetDocDetail"],
+      );
     } finally {
-      if (metadata === undefined)
-        delete process.env.VITE_CACHE_EVICTION_METADATA;
-      else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
-      if (timed === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-      else process.env.VITE_TIMED_DOC_CAPS = timed;
+      await ui.close();
     }
   },
 );

@@ -1,4 +1,3 @@
-import { timedDocCapsEnabled } from "../../../store/cache-eviction";
 import { useDocDetail } from "../../../hooks/use-sync-docs";
 import { useCallback, useRef, useState } from "react";
 import { useAction } from "convex/react";
@@ -45,7 +44,7 @@ export function useDrafting(docId: string) {
   const [trim, setTrim] = useState<TrimSummary | null>(null);
   const runLab = useAction(api.docLab.run);
 
-  const { detail } = useDocDetail(docId, timedDocCapsEnabled());
+  const { detail } = useDocDetail(docId);
   const s = useTrackedStore([
     (st) => st.clientState.ui?.doc_drafting,
     (st) => (st.docs[docId] as any)?.overflow,

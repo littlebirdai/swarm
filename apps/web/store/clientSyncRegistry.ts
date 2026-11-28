@@ -10,11 +10,7 @@ import * as collabRegistry from "./client-sync-registry.collab";
 import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
 import * as fencedPromptRegistry from "./client-sync-registry.fenced-prompts";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
-import {
-  thinCachedPullRequestDetail,
-  hydratePullRequestRow,
-  thinTaskRow,
-} from "../lib/detail-rows";
+import { thinPullRequestRow, thinTaskRow } from "../lib/detail-rows";
 export {
   DATA_SCOPE,
   EPHEMERAL_SLOT_SCOPE,
@@ -1485,7 +1481,7 @@ export const CLIENT_SYNC_REGISTRY = {
       "pull_requests.webGet",
       "pull_requests.sessionCardPRs",
     ],
-    hydrateRow: hydratePullRequestRow,
+    hydrateRow: thinPullRequestRow,
   },
   // A pull request's files, commits, checks and optionally its body, keyed by
   // its id: what its page and an opened card read. A row exists only for a pull request one of
@@ -1508,7 +1504,6 @@ export const CLIENT_SYNC_REGISTRY = {
       deepFields: ["files", "commits", "checks"],
     },
     feeds: ["pull_requests.getPRByNumber", "pull_requests.webGet"],
-    hydrateRow: thinCachedPullRequestDetail,
   },
   // Which sessions link which pull requests, and how strongly ("committed":
   // the session's own commit is on it; "observed": it sat on the branch): the

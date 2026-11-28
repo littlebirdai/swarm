@@ -17,7 +17,6 @@ import {
   DETAIL_ROW_CAPS,
   joinPullRequestDetail,
   pinDetailRows,
-  pullRequestBodyDetailEnabled,
   pullRequestDetailRow,
   resetDetailPins,
   taskThreadStale,
@@ -230,7 +229,7 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
       commits_count: 1,
       checks_state: "failure",
     });
-    expect(row.body).toBe(pullRequestBodyDetailEnabled() ? undefined : "why");
+    expect(row.body).toBeUndefined();
     expect(state().pullRequestDetails).toEqual({});
   });
 
@@ -271,9 +270,7 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     const held = state().pullRequestDetails[id("p")];
     expect(held.files).toEqual(files);
     expect(held.checks_state).toBe("success");
-    expect(held.body).toBe(
-      pullRequestBodyDetailEnabled() ? "Edited" : undefined,
-    );
+    expect(held.body).toBe("Edited");
   });
 
   it("the page's read lays the detail on the row, and hides checks read under another state", () => {
@@ -312,7 +309,7 @@ describe("pull requests: files, commits and checks stay off the list rows", () =
     expect(kept.files).toBeUndefined();
     expect(kept.commits).toBeUndefined();
     expect(kept.checks).toBeUndefined();
-    expect(kept.body).toBe(pullRequestBodyDetailEnabled() ? undefined : "why");
+    expect(kept.body).toBeUndefined();
   });
 
   it("a detail keeps its last-opened stamp inside the grain, so a push does not rewrite it to disk", () => {
@@ -462,11 +459,9 @@ describe("the caps hold while the window lives", () => {
     expect(state().taskComments[cid(41)]).toBeDefined();
   });
 
-  it("only legacy host evictions authorize disk removal", () => {
+  it("evictions do not authorize disk removal", () => {
     openPrs(1, PR_CAP + 1);
-    expect(deleteAllowed("pullRequestDetails", cid(1), {})).toBe(
-      process.env.VITE_CACHE_EVICTION_METADATA !== "1",
-    );
+    expect(deleteAllowed("pullRequestDetails", cid(1), {})).toBe(false);
     expect(deleteAllowed("pullRequestDetails", cid(2), {})).toBe(false);
 
     // A follower holds shared threads in memory and never writes them: it

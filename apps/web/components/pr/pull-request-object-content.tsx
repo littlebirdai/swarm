@@ -3,7 +3,6 @@ import {
   usePullRequestDetail,
   useSyncPullRequestDetail,
 } from "../../hooks/useSyncTimeline";
-import { pullRequestBodyDetailEnabled } from "../../lib/detail-rows";
 import { EntityFixtureContext } from "../../lib/entityDisplay";
 import { stripMarkdown } from "../../lib/notificationText";
 import { CardMarkdown } from "../EntityCardRows";
@@ -19,7 +18,7 @@ type Props = {
 export function PullRequestObjectContent(props: Props) {
   const fixtures = useContext(EntityFixtureContext);
   const id = props.entity._id;
-  return props.expanded && pullRequestBodyDetailEnabled() && !fixtures && id ? (
+  return props.expanded && !fixtures && id ? (
     <LivePullRequestObjectContent {...props} id={id} />
   ) : (
     <PullRequestObjectBody {...props} fileFeedId={id} />

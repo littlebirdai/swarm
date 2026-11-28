@@ -439,9 +439,7 @@ test("an inline-only image leaves memory after its reader unmounts", async () =>
       image,
     ]);
     await mounted.rerender(null);
-    expect(Boolean(mounted.store.getState().messages[sessionId])).toBe(
-      process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
-    );
+    expect(mounted.store.getState().messages[sessionId]).toBeUndefined();
   } finally {
     await mounted.close();
   }

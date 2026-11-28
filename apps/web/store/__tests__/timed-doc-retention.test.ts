@@ -15,9 +15,6 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
     document: Object.assign(new EventTarget(), { hidden: false }),
   });
   const store = __createInboxStoreForTests();
-  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  const enabled = process.env.VITE_TIMED_DOC_CAPS === "1";
   const now = Date.now();
   const day = 86_400_000;
   const history: InboxStoreState["docDetails"][string][] = [];
@@ -63,7 +60,7 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
       new Set([pinned, pending, listPinned]),
     );
     expect(Object.keys(store.getState().docDetails).sort()).toEqual(
-      (enabled ? fresh.keep : history).map((row) => row._id).sort(),
+      fresh.keep.map((row) => row._id).sort(),
     );
     const writes = notifications;
     jest.advanceTimersByTime(10 * 60_000);
@@ -73,19 +70,14 @@ test("a week of live writes settles to the fresh-cache cap without dropping prot
     jest.useRealTimers();
     release();
     restore();
-    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
   }
 });
 
 test("the first batch waits for quiet", () => {
-  if (process.env.VITE_TIMED_DOC_CAPS !== "1") return;
   const restore = replaceGlobals({
     document: Object.assign(new EventTarget(), { hidden: false }),
     performance: { now: () => Date.now() },
   });
-  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
   const store = __createInboxStoreForTests();
   const id = "l".repeat(32);
   store.getState().syncRecord("docDetails", id, { _id: id, updated_at: 1 });
@@ -101,17 +93,12 @@ test("the first batch waits for quiet", () => {
     sweep.stop();
     jest.useRealTimers();
     restore();
-    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
   }
 });
 
 test("hidden windows cancel the timer, resume immediately, and cannot restart after stop", () => {
   const document = Object.assign(new EventTarget(), { hidden: true });
   const restore = replaceGlobals({ document });
-  const metadata = process.env.VITE_CACHE_EVICTION_METADATA;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  const enabled = process.env.VITE_TIMED_DOC_CAPS === "1";
   const store = __createInboxStoreForTests();
   let attempts = 0;
   jest.useFakeTimers();
@@ -127,16 +114,16 @@ test("hidden windows cancel the timer, resume immediately, and cannot restart af
     expect(jest.getTimerCount()).toBe(0);
     show(true);
     jest.advanceTimersByTime(0);
-    expect(attempts).toBe(enabled ? 1 : 0);
-    expect(jest.getTimerCount()).toBe(enabled ? 1 : 0);
+    expect(attempts).toBe(1);
+    expect(jest.getTimerCount()).toBe(1);
     show(false);
     sweep.soon();
     expect(jest.getTimerCount()).toBe(0);
     jest.advanceTimersByTime(10 * 60_000);
-    expect(attempts).toBe(enabled ? 1 : 0);
+    expect(attempts).toBe(1);
     show(true);
     jest.advanceTimersByTime(0);
-    expect(attempts).toBe(enabled ? 2 : 0);
+    expect(attempts).toBe(2);
     sweep.stop();
     sweep.soon();
     show(false);
@@ -146,7 +133,5 @@ test("hidden windows cancel the timer, resume immediately, and cannot restart af
     sweep.stop();
     jest.useRealTimers();
     restore();
-    if (metadata === undefined) delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = metadata;
   }
 });

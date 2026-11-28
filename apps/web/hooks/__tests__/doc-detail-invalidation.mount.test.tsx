@@ -43,20 +43,12 @@ import {
 } from "../../store/doc-detail-cache";
 import { useSyncDocDetail, useSyncDocsPaginated } from "../use-sync-docs";
 
-const flag = "VITE_CACHE_EVICTION_METADATA";
-const original = process.env[flag];
-const originalDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
 const id = "j".repeat(32);
 const row = { _id: id, title: "Doc", content: "Has a body", updated_at: 1 };
 
 afterEach(() => {
   authPrincipal.check();
   resetDetailInvalidations();
-  if (original === undefined) delete process.env[flag];
-  else process.env[flag] = original;
-  if (originalDeferred === undefined)
-    delete process.env.VITE_DEFERRED_CACHE_BOOT;
-  else process.env.VITE_DEFERRED_CACHE_BOOT = originalDeferred;
 });
 
 function Body() {
@@ -66,7 +58,6 @@ function Body() {
 }
 
 test("resolved access loss reports authority even when a detail was already evicted", async () => {
-  process.env[flag] = "1";
   const ui = await mountWeb(<Body />, {
     authenticated: true,
     setup(backend) {
@@ -89,7 +80,6 @@ test("resolved access loss reports authority even when a detail was already evic
 });
 
 test("a gap hides the body until a current authority read refills it", async () => {
-  process.env[flag] = "1";
   const current = Promise.withResolvers<typeof row>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -138,7 +128,6 @@ test("a gap hides the body until a current authority read refills it", async () 
 });
 
 test("an optimistic archive reports authority only after dispatch confirms it", async () => {
-  process.env[flag] = "1";
   const accepted = Promise.withResolvers<null>();
   const ui = await mountWeb(<Body />, {
     authenticated: true,
@@ -166,7 +155,6 @@ test("an optimistic archive reports authority only after dispatch confirms it", 
 });
 
 test("a confirmed archive undo reauthorizes the body for hydration and subsequent live pushes", async () => {
-  process.env[flag] = "1";
   const ui = await mountWeb(<Body />, {
     authenticated: true,
     dispatch: true,
@@ -205,7 +193,6 @@ test("a confirmed archive undo reauthorizes the body for hydration and subsequen
 });
 
 test("a declined invalidation uses the untagged legacy store drop", async () => {
-  process.env[flag] = "1";
   const ui = await mountWeb(<Body />, {
     authenticated: true,
     setup(backend) {
@@ -224,7 +211,6 @@ test("a declined invalidation uses the untagged legacy store drop", async () => 
 test.each(["stale", "archived"] as const)(
   "hydration stays blocked when the authority read is %s",
   async (answer) => {
-    process.env[flag] = "1";
     const ui = await mountWeb(<Body />, {
       authenticated: true,
       setup(backend) {
@@ -265,9 +251,7 @@ test.each(["stale", "archived"] as const)(
 test.each(["cold", "warm", "old"] as const)(
   "a %s document reader paints from available disk state before the server answers",
   async (cache) => {
-    const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
-    const oldPinned =
-      cache === "old" && enabled && process.env.VITE_TIMED_DOC_CAPS === "1";
+    const oldPinned = cache === "old";
     const owner = `cached-doc-${cache}`;
     const ui = await mountWeb(null, {
       authenticated: true,
@@ -299,15 +283,13 @@ test.each(["cold", "warm", "old"] as const)(
           ...row,
           _cachedAt: cache === "old" ? row.updated_at : Date.now(),
         });
-      if (!enabled && cache === "warm")
-        ui.store.getState().syncRecord("docDetails", id, row);
       await ui.rerender(<Body />);
-      if (enabled) await act(async () => read.promise);
+      await act(async () => read.promise);
       expect(
         input.mock.calls.filter(
           ([keys]) => keys?.length === 1 && keys[0] === "docDetails",
         ),
-      ).toHaveLength(enabled ? 1 : 0);
+      ).toHaveLength(1);
       expect(ui.container.textContent).toBe(
         cache === "warm" || oldPinned ? row.content : "No body",
       );
@@ -330,50 +312,45 @@ test.each(["cold", "warm", "old"] as const)(
   },
 );
 
-test.each(["0", "1"])(
-  "a late deferred cache read cannot restore a refused document with eviction metadata %s",
-  async (metadata) => {
-    process.env[flag] = metadata;
-    const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
-    const disk = Promise.withResolvers<Record<string, unknown>>();
-    const input = spyOn(cacheStorage, "loadCache").mockImplementation(
-      async (keys) =>
-        keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
-    );
-    const ui = await mountWeb(null, {
-      authenticated: true,
-      setup(backend) {
-        localStorage.setItem(
-          AUTH_JWT_STORAGE_KEY,
-          issueFakeToken("deferred-denied"),
-        );
-        backend.set(api.taskMining.webGetDocDetail, pending);
-      },
+test("a late deferred cache read cannot restore a refused document", async () => {
+  const disk = Promise.withResolvers<Record<string, unknown>>();
+  const input = spyOn(cacheStorage, "loadCache").mockImplementation(
+    async (keys) =>
+      keys?.length === 1 && keys[0] === "docDetails" ? disk.promise : null,
+  );
+  const ui = await mountWeb(null, {
+    authenticated: true,
+    setup(backend) {
+      localStorage.setItem(
+        AUTH_JWT_STORAGE_KEY,
+        issueFakeToken("deferred-denied"),
+      );
+      backend.set(api.taskMining.webGetDocDetail, pending);
+    },
+  });
+  try {
+    authPrincipal.check();
+    expect(await authPrincipal.resolve()).toBe("deferred-denied");
+    const report = mock(() => true);
+    setDetailInvalidationReporter(report);
+    await ui.rerender(<Body />);
+    expect(
+      input.mock.calls.filter(
+        ([keys]) => keys?.length === 1 && keys[0] === "docDetails",
+      ),
+    ).toHaveLength(1);
+    await act(async () => {
+      ui.backend.set(api.taskMining.webGetDocDetail, null);
+      flushSyncPublishes();
     });
-    try {
-      authPrincipal.check();
-      expect(await authPrincipal.resolve()).toBe("deferred-denied");
-      const report = mock(() => true);
-      setDetailInvalidationReporter(report);
-      await ui.rerender(<Body />);
-      expect(
-        input.mock.calls.filter(
-          ([keys]) => keys?.length === 1 && keys[0] === "docDetails",
-        ),
-      ).toHaveLength(enabled ? 1 : 0);
-      await act(async () => {
-        ui.backend.set(api.taskMining.webGetDocDetail, null);
-        flushSyncPublishes();
-      });
-      expect(report).toHaveBeenCalledTimes(metadata === "1" ? 1 : 0);
-      await act(async () => disk.resolve({ docDetails: { [id]: row } }));
-      expect(ui.container.textContent).toBe("No body");
-    } finally {
-      input.mockRestore();
-      await ui.close();
-    }
-  },
-);
+    expect(report).toHaveBeenCalledTimes(1);
+    await act(async () => disk.resolve({ docDetails: { [id]: row } }));
+    expect(ui.container.textContent).toBe("No body");
+  } finally {
+    input.mockRestore();
+    await ui.close();
+  }
+});
 
 async function mountDeferred(
   owner: string,
@@ -437,7 +414,6 @@ const charter = (
 test.each(["stage", "charter", "sends"] as const)(
   "the %s reader keeps its loading state until its deferred rows arrive",
   async (reader) => {
-    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
     const disk = Promise.withResolvers<Record<string, unknown>>();
     const key = reader === "sends" ? "mySends" : "docDetails";
     const input = spyOn(cacheStorage, "loadCache").mockImplementation(
@@ -504,7 +480,6 @@ function Prefetch() {
 }
 
 test("doc body prefetch waits for cached bodies and fetches only the missing ones", async () => {
-  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
   const disk = Promise.withResolvers<Record<string, unknown>>();
   const missing = "k".repeat(32);
   const input = spyOn(cacheStorage, "loadCache").mockImplementation(
@@ -548,7 +523,6 @@ test("doc body prefetch waits for cached bodies and fetches only the missing one
 test.each(["archive", "pin", "update", "archive and undo"] as const)(
   "a local %s wins over the deferred document snapshot",
   async (action) => {
-    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
     const disk = Promise.withResolvers<Record<string, unknown>>();
     const input = spyOn(cacheStorage, "loadCache").mockImplementation(
       async (keys) =>
@@ -604,7 +578,6 @@ function DeferredProbe() {
 }
 
 test("an empty deferred table is read once across repeated mounts", async () => {
-  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
   const input = spyOn(cacheStorage, "loadCache").mockResolvedValue(null);
   const ui = await mountDeferred("deferred-empty");
   try {
@@ -625,7 +598,6 @@ test("an empty deferred table is read once across repeated mounts", async () => 
 test.each([false, true])(
   "a follower cannot reload a document absent from the host snapshot (disk read already started: %s)",
   async (started) => {
-    process.env.VITE_DEFERRED_CACHE_BOOT = "1";
     const owner = "deferred-follower";
     const peer = replicationTransport(replicationChannelName(owner), "host");
     const disk = Promise.withResolvers<Record<string, unknown>>();
@@ -686,7 +658,6 @@ test.each([
   "replay refusal",
   "no reader",
 ] as const)("a dropped archive refreshes the open body (%s)", async (mode) => {
-  process.env[flag] = "1";
   const refusal = mode === "live refusal" || mode === "replay refusal";
   const unwired = mode === "unwired" || mode === "no reader";
   const ui = await mountWeb(mode === "no reader" ? null : <Body />, {

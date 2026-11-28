@@ -1,10 +1,6 @@
 import { useDeferredCache } from "./use-deferred-cache";
 import { noteDeferredDocEdit } from "../store/deferred-cache-policy";
 import {
-  cacheEvictionEnabled,
-  timedDocCapsEnabled,
-} from "../store/cache-eviction";
-import {
   acceptRecoveryFeed,
   canHydrateDetail,
   detailInvalidationRevision,
@@ -174,11 +170,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
           if (cancelled) return;
           const store = useInboxStore.getState();
           for (const body of bodies ?? []) {
-            if (
-              cacheEvictionEnabled() &&
-              !acceptRecoveryFeed(body._id, position)
-            )
-              continue;
+            if (!acceptRecoveryFeed(body._id, position)) continue;
             // Compose a list-shaped row + body so the cached detail can carry
             // the whole read view (title, dates, labels come from the thin
             // row); the live detail query enriches with joins on open.
@@ -316,12 +308,7 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
           : { isDelta: true, pruneAbsentScope };
         const store = useInboxStore.getState();
         store.syncTable("docs", all, opts);
-        if (
-          complete &&
-          wsArgs !== "skip" &&
-          !wsArgs.project_path &&
-          cacheEvictionEnabled()
-        ) {
+        if (complete && wsArgs !== "skip" && !wsArgs.project_path) {
           const workspace =
             wsArgs.workspace === "team"
               ? `team:${wsArgs.team_id}`
@@ -400,32 +387,24 @@ function refreshInvalidatedDocDetail(id: string) {
 
 function useSyncDocDetailWithCache(id?: string, subscribe = true) {
   const cacheReady = useDeferredCache("docDetails", !!id);
-  const enabled = cacheEvictionEnabled();
-  const pin = timedDocCapsEnabled();
   const { account } = detailReadPosition();
   const authenticated = useServerAuthenticated();
   useWatchEffect(() => {
-    if (subscribe && enabled && authenticated && id)
-      return retainDocDetailReader(id);
-  }, [subscribe, enabled, authenticated, id]);
+    if (subscribe && authenticated && id) return retainDocDetailReader(id);
+  }, [subscribe, authenticated, id]);
   const syncRevision = useSyncExternalStore(
     subscribeDetailInvalidations,
-    () =>
-      enabled && id && !canHydrateDetail(id)
-        ? detailInvalidationRevision(id)
-        : 0,
+    () => (id && !canHydrateDetail(id) ? detailInvalidationRevision(id) : 0),
     () => 0,
   );
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
-    id && subscribe && !isStubDoc(id) && (!enabled || authenticated)
-      ? { id }
-      : "skip",
+    id && subscribe && !isStubDoc(id) && authenticated ? { id } : "skip",
   ).data;
 
   useLayoutEffect(() => {
-    if (pin && id) return pinDetailRows("docDetails", [id]);
-  }, [id, pin, account]);
+    if (id) return pinDetailRows("docDetails", [id]);
+  }, [id, account]);
 
   const applied = useRef<object | null>(null);
 
@@ -439,14 +418,13 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
     useCallback(
       (detail: any) => {
         if (!id) return;
-        if (pin && detail && typeof detail === "object") {
+        if (detail && typeof detail === "object") {
           if (applied.current === detail) return;
           applied.current = detail;
         }
-        if (detail === null || (enabled && detail?.archived_at !== undefined)) {
+        if (detail === null || detail?.archived_at !== undefined) {
           noteDeferredDocEdit(id, "denied");
           const reported =
-            enabled &&
             authenticated &&
             reportDetailInvalidation({
               ids: [id],
@@ -454,11 +432,11 @@ function useSyncDocDetailWithCache(id?: string, subscribe = true) {
             });
           if (!reported) useInboxStore.getState().dropDocDetail(id);
         } else if (detail) {
-          if (enabled && !canHydrateDetail(id)) refreshInvalidatedDocDetail(id);
+          if (!canHydrateDetail(id)) refreshInvalidatedDocDetail(id);
           else syncAuthorizedDocDetail(id, detail);
         }
       },
-      [id, enabled, authenticated, pin],
+      [id, authenticated],
     ),
   );
 

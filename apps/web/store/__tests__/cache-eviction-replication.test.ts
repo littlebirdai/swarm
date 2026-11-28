@@ -29,8 +29,6 @@ import { useInboxStore } from "../inboxStore";
 import { applyUpdatesToStore } from "../sync-replication";
 import { durableDeletes } from "../idb-collection-diff";
 
-const flag = "VITE_CACHE_EVICTION_METADATA";
-const original = process.env[flag];
 const docId = "j".repeat(32);
 const other = "k".repeat(32);
 const workspace = "team:alpha";
@@ -44,7 +42,6 @@ const active = () => true;
 const cleanup: Array<() => void> = [];
 
 beforeEach(() => {
-  process.env[flag] = "1";
   resetDetailInvalidations();
   useInboxStore
     .getState()
@@ -55,8 +52,6 @@ afterEach(() => {
   for (const stop of cleanup.splice(0).reverse()) stop();
   setDetailInvalidationReporter();
   resetDetailPins();
-  if (original === undefined) delete process.env[flag];
-  else process.env[flag] = original;
 });
 
 function hub() {

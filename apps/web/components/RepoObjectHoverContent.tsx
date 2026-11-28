@@ -16,7 +16,6 @@ import { repoObjectRefOf } from "../lib/repoObjects";
 import { PR_STATE_META, prStateKey } from "../lib/prView";
 import { accentVar } from "../lib/externalEvents";
 import { stripMarkdown } from "../lib/notificationText";
-import { pullRequestBodyDetailEnabled } from "../lib/detail-rows";
 import {
   usePullRequestDetail,
   useSyncPullRequestDetail,
@@ -42,7 +41,7 @@ export function PullRequestHoverContent({
   showOpen,
 }: { pr: any } & RepoCardLink) {
   const fixtures = useContext(EntityFixtureContext);
-  const id = pullRequestBodyDetailEnabled() && !fixtures ? pr._id : undefined;
+  const id = !fixtures ? pr._id : undefined;
   useSyncPullRequestDetail(id);
   const detail = usePullRequestDetail(id);
   const body = pr.body ?? detail?.body;

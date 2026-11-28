@@ -28,7 +28,6 @@ import {
 } from "./inboxLivenessPlacement";
 import {
   type InboxEnrichSkip,
-  USER_DAEMON_ALIVE_MS,
   belowFoldFor,
   makeMemoGet,
   stampInboxViewerFields,
@@ -91,7 +90,6 @@ export async function computeInboxSessions(
     extraConvIds: opts.extraConvIds,
     teamScope: opts.teamScope,
     subagentWindow: fastFieldsInOverlay || !!opts.watchedWindow,
-    heartbeatSince: opts.projection ? now - USER_DAEMON_ALIVE_MS : undefined,
     namedOnly: opts.namedOnly,
     watchedWindow: opts.watchedWindow ? { showAll: opts.show_all } : undefined,
   });

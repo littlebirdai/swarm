@@ -17,11 +17,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { pendingQueueRelinkOwner } from "./pending-queue-relink.state";
 import { statusWriteIsStale, type StatusStamps } from "./heartbeatPatch";
-import {
-  heartbeatRow,
-  inboxLeaseWritesEnabled,
-  resolveHeartbeat,
-} from "./sessionHeartbeat";
+import { heartbeatRow, resolveHeartbeat } from "./sessionHeartbeat";
 
 // Shared by heartbeat + heartbeatBatch: compute one session's heartbeat patch.
 // The heartbeat carries the daemon's current
@@ -104,24 +100,14 @@ export async function applyHeartbeat(
     now,
   );
   const at = patch?.last_heartbeat ?? lastHeartbeat;
-  const leases = inboxLeaseWritesEnabled();
   await persistSessionHeartbeat(
     ctx,
     session._id,
     session.user_id,
     row,
     at,
-    leases ? patch?.agent_status_write_at : undefined,
+    patch?.agent_status_write_at,
   );
-  if (!leases) {
-    const legacy = {
-      ...patch,
-      ...(at > session.last_heartbeat && { last_heartbeat: at }),
-      ...(session.liveness_lease && { liveness_lease: undefined }),
-    };
-    if (Object.keys(legacy).length > 0) await ctx.db.patch(session._id, legacy);
-    return patch;
-  }
   const status = patch?.agent_status;
   const lease =
     !session.liveness_lease || session.liveness_lease.expired
@@ -201,7 +187,7 @@ export async function startInboxLease(
   now: number,
 ) {
   const end = heartbeat + HEARTBEAT_ALIVE_MS;
-  if (!inboxLeaseWritesEnabled() || end <= now) return undefined;
+  if (end <= now) return undefined;
   const generation = previousGeneration + 1;
   await ctx.scheduler.runAfter(
     end - now,
@@ -229,13 +215,6 @@ export async function checkInboxLease(
     return;
   const row = await heartbeatRow(ctx, id);
   const latest = resolveHeartbeat(session, row?.heartbeat_at);
-  if (!inboxLeaseWritesEnabled()) {
-    await ctx.db.patch(id, {
-      last_heartbeat: latest,
-      liveness_lease: undefined,
-    });
-    return;
-  }
   const now = Date.now();
   const remaining = latest + HEARTBEAT_ALIVE_MS - now;
   if (remaining > 0) {
@@ -272,14 +251,7 @@ export async function writeAgentStatus(
   if (statusWriteIsStale(session, args.agent_status, args.client_ts))
     return null;
   const active = ACTIVE_AGENT_STATUSES.has(args.agent_status);
-  const leases = inboxLeaseWritesEnabled();
-  const hasLeaseHistory =
-    session.liveness_lease !== undefined ||
-    session.liveness_lease_generation !== undefined;
-  const row =
-    leases || active || (args.client_ts !== undefined && hasLeaseHistory)
-      ? await heartbeatRow(ctx, session._id)
-      : null;
+  const row = await heartbeatRow(ctx, session._id);
   if (
     statusWriteIsStale(
       session,
@@ -316,18 +288,16 @@ export async function writeAgentStatus(
 
   const at = active ? now : resolveHeartbeat(session, row?.heartbeat_at);
   const writeAt = args.client_ts ?? now;
-  if (!leases || (!active && session.liveness_lease_generation === undefined))
+  if (!active && session.liveness_lease_generation === undefined)
     patch.agent_status_write_at = writeAt;
-  if (active || leases) {
-    await persistSessionHeartbeat(
-      ctx,
-      session._id,
-      session.user_id,
-      row,
-      at,
-      leases ? writeAt : undefined,
-    );
-  }
+  await persistSessionHeartbeat(
+    ctx,
+    session._id,
+    session.user_id,
+    row,
+    at,
+    writeAt,
+  );
   if (active) {
     patch.last_heartbeat = at;
     if (!session.liveness_lease || session.liveness_lease.expired) {

@@ -8,14 +8,6 @@ export type CacheEviction = {
 
 let current: readonly CacheEviction[] = [];
 
-export function cacheEvictionEnabled(): boolean {
-  return process.env.VITE_CACHE_EVICTION_METADATA === "1";
-}
-
-export function timedDocCapsEnabled(): boolean {
-  return cacheEvictionEnabled() && process.env.VITE_TIMED_DOC_CAPS === "1";
-}
-
 export function withCacheEvictions(
   evictions: readonly CacheEviction[],
   remove: () => void,

@@ -211,13 +211,16 @@ for (const path of [
     );
     expect(result).toEqual({ applied: true });
     expect(writes).toEqual([
-      patch("session_heartbeats", heartbeat, { heartbeat_at: now }),
+      patch("session_heartbeats", heartbeat, {
+        heartbeat_at: now,
+        agent_status_write_at: now,
+      }),
       patch("managed_sessions", session, {
         agent_status: "working",
-        agent_status_write_at: now,
         agent_status_boundary: { $undefined: null },
         last_heartbeat: now,
-        liveness_lease: { $undefined: null },
+        liveness_lease: { end: now + 120_000, expired: false },
+        liveness_lease_generation: 1,
       }),
       ...(path === "presumed"
         ? []
@@ -318,7 +321,8 @@ for (const path of [
 
 for (const path of ["explicit release", "turn settle"] as const) {
   test(`${path} publishes only end-of-turn queue rows in order`, async () => {
-    const { t, viewer, conversation, session, message } = await seed();
+    const { t, viewer, conversation, heartbeat, session, message } =
+      await seed();
     const first = await message({ status: "held", queued: true });
     const standing = await message({ status: "held" });
     const second = await message({ status: "held", queued: true });
@@ -337,6 +341,9 @@ for (const path of ["explicit release", "turn settle"] as const) {
     expect(writes).toEqual([
       ...(path === "turn settle"
         ? [
+            patch("session_heartbeats", heartbeat, {
+              agent_status_write_at: now,
+            }),
             patch("managed_sessions", session, {
               agent_status: "idle",
               agent_status_updated_at: now,

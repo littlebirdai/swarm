@@ -122,9 +122,7 @@ describe("startSyncReplication", () => {
 
   it("opens the scoped channel only after an elected desktop host enables it", async () => {
     const shell = g.window.__CODECAST_ELECTRON__;
-    const before = process.env.VITE_DESKTOP_PANEL_SCOPE;
     g.window.__CODECAST_ELECTRON__ = {};
-    process.env.VITE_DESKTOP_PANEL_SCOPE = "1";
     try {
       startSyncReplication({ eligible: true, principalId: "userA" });
       const channel = `${replicationChannelName("userA")}:scope`;
@@ -134,8 +132,6 @@ describe("startSyncReplication", () => {
     } finally {
       if (shell === undefined) delete g.window.__CODECAST_ELECTRON__;
       else g.window.__CODECAST_ELECTRON__ = shell;
-      if (before === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
-      else process.env.VITE_DESKTOP_PANEL_SCOPE = before;
     }
   });
 

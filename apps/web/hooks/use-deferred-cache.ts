@@ -6,7 +6,6 @@ import {
 } from "../store/clientSyncRegistry";
 import {
   HYDRATION_ON_READ_KEYS,
-  deferredCacheReadsEnabled,
   deferredDocEdit,
   deferredSharedCacheSource,
   subscribeDeferredSharedCache,
@@ -80,11 +79,7 @@ export function useDeferredCache(
     () => deferred.epoch === epoch && deferred.complete.has(key),
     () => false,
   );
-  const enabled =
-    wanted &&
-    !!principalId &&
-    deferredCacheReadsEnabled() &&
-    HYDRATION_ON_READ_KEYS.has(key);
+  const enabled = wanted && !!principalId && HYDRATION_ON_READ_KEYS.has(key);
   const shared = REPLICATED_STORE_KEYS.includes(key);
   const readFromDisk = enabled && (!shared || source === "disk");
 

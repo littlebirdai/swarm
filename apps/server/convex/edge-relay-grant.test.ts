@@ -23,7 +23,6 @@ import {
 } from "../test-helpers/run-lease.testkit";
 
 const flags = {
-  INBOX_LIVENESS_LEASES: "1",
   RELAY_PUBLIC_URL: "wss://relay.example.test/relay",
   RELAY_AUDIENCE: "fixture-cell",
   RELAY_HMAC_KEY: base64urlEncode(new Uint8Array(32).fill(4)),
@@ -469,8 +468,6 @@ test("inbox relay targets follow conversation access and the current fenced bind
   expect(
     await owner.query(query, { ids: Array(65).fill(f.conversation) }),
   ).toBeNull();
-  delete process.env.INBOX_LIVENESS_LEASES;
-  expect(await owner.query(query, args)).toBeNull();
 });
 
 test("relay-grant mints both liveness and token_delta up to half of RELAY_MAX_GRANTS_PER_TOKEN and rejects token_deltas", async () => {

@@ -9,6 +9,7 @@ import type { ReadingAnchorsSlice } from "../store/reading-anchors-slice";
 import { useInboxStore } from "../store/inboxStore";
 import { useTabVisible } from "./usePagePresence";
 import { useQueryNoThrow } from "./useQueryNoThrow";
+import { useServerAuthenticated } from "./useServerAuthSettled";
 import { useWatchEffect } from "./useWatchEffect";
 
 export type SavedReadingAnchor = NonNullable<
@@ -158,13 +159,11 @@ function createReadingVisit(
 export function useSavedReadingAnchor({
   conversationId,
   userId,
-  enabled,
   restore,
   loadingWindow,
 }: {
   conversationId: Id<"conversations"> | null;
   userId: string | undefined;
-  enabled: boolean;
   loadingWindow?: boolean;
   restore: (
     anchor: SavedReadingAnchor,
@@ -173,6 +172,7 @@ export function useSavedReadingAnchor({
     windowLoaded: boolean,
   ) => "restored" | "loading" | "requested" | "fallback";
 }) {
+  const serverAuthenticated = useServerAuthenticated();
   const tabVisible = useTabVisible();
   const visible = useSyncExternalStore(
     subscribeVisibility,
@@ -180,7 +180,9 @@ export function useSavedReadingAnchor({
     hiddenOnServer,
   );
   const active =
-    enabled && tabVisible && visible && userId ? conversationId : null;
+    serverAuthenticated && tabVisible && visible && userId
+      ? conversationId
+      : null;
   const mountedKey =
     conversationId && userId ? `${userId}:${conversationId}` : "";
   const key = active ? mountedKey : "";

@@ -65,7 +65,6 @@ export const capture = internalAction({
 export const sampleSyncOutbox = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
-    if (process.env.CODECAST_SYNC_ALARMS !== "1") return;
     const sampler = makeAnalytics();
     if (!sampler || sampler.optedOut) return;
     const oldestAgeMs = await ctx.runQuery(
