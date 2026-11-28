@@ -1,4 +1,7 @@
 import { desktopWindowKeys } from "./desktop-panel-keys";
+import { filterFollowerRemovals } from "./scope-subscription-candidates";
+import { clientScopeSubscriptionsEnabled } from "./scope-subscriptions";
+import { scopeViewTransportFor } from "./scope-view-transport";
 import {
   panelReplicationTransport,
   scopedSnapshotSource,
@@ -562,7 +565,13 @@ function applyUpdatesToStoreInner(
         });
       }
     }
-    if (u.removes?.length) state._applyReplicatedRemovals(u.key, u.removes);
+    if (u.removes?.length) {
+      const removes =
+        !opts?.optimistic && clientScopeSubscriptionsEnabled()
+          ? filterFollowerRemovals(state, u.key, u.removes)
+          : u.removes;
+      if (removes.length) state._applyReplicatedRemovals(u.key, removes);
+    }
   }
 }
 
@@ -644,7 +653,9 @@ export function startSyncReplication(opts: {
         },
       })
     : undefined;
-  const channel = details?.channel ?? transport.channel;
+  const baseChannel = details?.channel ?? transport.channel;
+  const scopeView = scopeViewTransportFor(selfId, baseChannel, useInboxStore);
+  const channel = scopeView?.channel ?? baseChannel;
   if (details && authority)
     setDetailInvalidationReporter(
       (evidence) => {
@@ -671,6 +682,7 @@ export function startSyncReplication(opts: {
         if (keys) persistence.discardSkipped();
         else persistence.persistSkipped();
         details?.enterSolo();
+        scopeView?.stopFollowing(false);
         setDeferredSharedCacheSource("disk");
         setRole("host");
         retention.soon();
@@ -695,8 +707,10 @@ export function startSyncReplication(opts: {
             persistence.followerWrite,
           );
           setActionTee(followerActionTee(channel, selfId));
+          scopeView?.startFollowing();
           retention.soon();
         } else {
+          scopeView?.stopFollowing(false);
           setDeferredSharedCacheSource("joining");
           armSoloFallback();
         }
@@ -712,6 +726,7 @@ export function startSyncReplication(opts: {
     elected = true;
     if (soloTimer) clearTimeout(soloTimer);
     transport.activateHost();
+    scopeView?.startHost();
     host = promoteToHost(follower, () =>
       replicationHostFor(selfId, channel, () => useInboxStore.getState()),
     );
@@ -746,6 +761,7 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     stopped = true;
     retention.stop();
+    scopeView?.stop();
     stopArchivedDocs?.();
     if (soloTimer) clearTimeout(soloTimer);
     follower?.stop();

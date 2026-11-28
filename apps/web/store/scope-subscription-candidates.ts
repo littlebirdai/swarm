@@ -1,3 +1,7 @@
+import type { CacheEviction } from "./cache-eviction";
+import { isDetailPinned } from "../lib/detail-rows";
+import { isConvexId } from "../lib/entityLinks";
+import { holdsUnsentComment } from "./store-eviction";
 import { leavesOf } from "./stageSplit";
 
 export const SCOPE_FOLLOW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
@@ -47,7 +51,19 @@ export type ScopeStoreInput = {
   tasks?: Record<string, any>;
   docs?: Record<string, any>;
   docDetails?: Record<string, any>;
+  taskComments?: Record<string, any>;
   plans?: Record<string, any>;
+  pending?: Record<string, any>;
+  scopeSubscriptions?: {
+    peerViews?: Record<string, string[]>;
+  };
+  _protectedOutboxRows?: () => ReadonlySet<string>;
+};
+
+export type ScopePurgeOptions = {
+  pending?: Record<string, any>;
+  protectedOutboxRows?: ReadonlySet<string>;
+  viewerId?: string | null;
 };
 
 const SCOPE_SCOPED_COLLECTIONS: readonly ScopeScopedCollection[] = [
@@ -56,6 +72,17 @@ const SCOPE_SCOPED_COLLECTIONS: readonly ScopeScopedCollection[] = [
   "plans",
   "chatMessages",
 ];
+
+const KNOWN_HOME_SCOPE_PREFIXES = [
+  "user:",
+  "dir:",
+  "project:",
+  "channel:",
+] as const;
+
+export function isKnownHomeScope(scope: string): boolean {
+  return KNOWN_HOME_SCOPE_PREFIXES.some((prefix) => scope.startsWith(prefix));
+}
 
 function isStubId(id: string): boolean {
   return (
@@ -67,22 +94,32 @@ function isStubId(id: string): boolean {
   );
 }
 
+function isPersonalProject(proj: any): boolean {
+  if (!proj) return false;
+  if (typeof proj.workspace === "string" && proj.workspace.length > 0) {
+    return !proj.workspace.startsWith("team:");
+  }
+  return !proj.team_id;
+}
+
 function resolveProjectId(
   projects: Record<string, any> | undefined,
   ref: string,
 ): string | null {
-  if (!ref || isStubId(ref)) return null;
-  if (projects?.[ref]) return String(projects[ref]._id ?? ref);
-  if (projects) {
-    for (const id in projects) {
-      const row = projects[id];
-      if (!row) continue;
-      if (row._id === ref || row.short_id === ref) {
-        return String(row._id ?? id);
-      }
+  if (!ref || isStubId(ref) || !projects) return null;
+  if (projects[ref]) {
+    if (isPersonalProject(projects[ref])) return null;
+    return String(projects[ref]._id ?? ref);
+  }
+  for (const id in projects) {
+    const row = projects[id];
+    if (!row) continue;
+    if (row._id === ref || row.short_id === ref) {
+      if (isPersonalProject(row)) return null;
+      return String(row._id ?? id);
     }
   }
-  return ref;
+  return null;
 }
 
 function matchRouteParam(path: string, segment: string): string | null {
@@ -92,7 +129,12 @@ function matchRouteParam(path: string, segment: string): string | null {
   const rest = clean.slice(prefix.length);
   const slash = rest.indexOf("/");
   const param = slash === -1 ? rest : rest.slice(0, slash);
-  return param ? decodeURIComponent(param) : null;
+  if (!param) return null;
+  try {
+    return decodeURIComponent(param);
+  } catch {
+    return null;
+  }
 }
 
 function visitPath(visit: {
@@ -109,10 +151,9 @@ function visitPath(visit: {
   return null;
 }
 
-function activeTabPaths(state: ScopeStoreInput): string[] {
-  const tabs = state.tabs;
-  if (!Array.isArray(tabs) || !state.activeTabId) return [];
-  const tab = tabs.find((t) => t?.id === state.activeTabId);
+function tabPathsForTab(
+  tab: { path?: string | null; layout?: any } | undefined,
+): string[] {
   if (!tab) return [];
   if (tab.layout) {
     return leavesOf(tab.layout)
@@ -122,7 +163,24 @@ function activeTabPaths(state: ScopeStoreInput): string[] {
   return typeof tab.path === "string" && tab.path.length > 0 ? [tab.path] : [];
 }
 
-function findEntityRow(
+export function activeTabPaths(state: ScopeStoreInput): string[] {
+  const tabs = state.tabs;
+  if (!Array.isArray(tabs) || !state.activeTabId) return [];
+  const tab = tabs.find((t) => t?.id === state.activeTabId);
+  return tabPathsForTab(tab);
+}
+
+function allTabPaths(state: ScopeStoreInput): string[] {
+  const tabs = state.tabs;
+  if (!Array.isArray(tabs)) return [];
+  const paths: string[] = [];
+  for (const tab of tabs) {
+    for (const path of tabPathsForTab(tab)) paths.push(path);
+  }
+  return paths;
+}
+
+export function findEntityRow(
   primary: Record<string, any> | undefined,
   ref: string,
   secondary?: Record<string, any>,
@@ -144,7 +202,7 @@ export function rowHomeScope(
 ): string | null {
   if (!row) return null;
   if (typeof row.home_scope === "string" && row.home_scope.length > 0) {
-    return row.home_scope;
+    return isKnownHomeScope(row.home_scope) ? row.home_scope : null;
   }
   if (collection === "chatMessages") {
     return row.channel_id ? `channel:${String(row.channel_id)}` : null;
@@ -156,16 +214,54 @@ export function rowHomeScope(
         ? `project:${String(row.project_id)}`
         : `dir:${row.workspace.slice(5)}`;
     }
+    return null;
   }
   if (row.user_id && !row.team_id) {
     return `user:${String(row.user_id)}`;
   }
-  if (row.team_id) {
-    return row.project_id
-      ? `project:${String(row.project_id)}`
-      : `dir:${String(row.team_id)}`;
-  }
   return null;
+}
+
+export function extractViewScopes(
+  state: ScopeStoreInput,
+  paths?: string[],
+): string[] {
+  const viewSet = new Set<string>();
+  const projects = state.projects;
+  for (const path of paths ?? activeTabPaths(state)) {
+    const projRef = matchRouteParam(path, "projects");
+    if (projRef) {
+      const pid = resolveProjectId(projects, projRef);
+      if (pid) viewSet.add(`project:${pid}`);
+      continue;
+    }
+    const chanId = matchRouteParam(path, "chat");
+    if (chanId && !isStubId(chanId)) {
+      viewSet.add(`channel:${chanId}`);
+      continue;
+    }
+    const taskRef = matchRouteParam(path, "tasks");
+    if (taskRef) {
+      const row = findEntityRow(state.tasks, taskRef);
+      const scope = rowHomeScope("tasks", row);
+      if (scope) viewSet.add(scope);
+      continue;
+    }
+    const docRef = matchRouteParam(path, "docs");
+    if (docRef) {
+      const row = findEntityRow(state.docs, docRef, state.docDetails);
+      const scope = rowHomeScope("docs", row);
+      if (scope) viewSet.add(scope);
+      continue;
+    }
+    const planRef = matchRouteParam(path, "plans");
+    if (planRef) {
+      const row = findEntityRow(state.plans, planRef);
+      const scope = rowHomeScope("plans", row);
+      if (scope) viewSet.add(scope);
+    }
+  }
+  return [...viewSet];
 }
 
 export function extractScopeCandidates(
@@ -209,7 +305,7 @@ export function extractScopeCandidates(
   if (projects) {
     for (const id in projects) {
       const proj = projects[id];
-      if (!proj || isStubId(id)) continue;
+      if (!proj || isStubId(id) || isPersonalProject(proj)) continue;
       const pid = String(proj._id ?? id);
       if (isStubId(pid)) continue;
       if (
@@ -276,7 +372,7 @@ export function extractScopeCandidates(
   if (projects) {
     for (const id in projects) {
       const proj = projects[id];
-      if (!proj || isStubId(id)) continue;
+      if (!proj || isStubId(id) || isPersonalProject(proj)) continue;
       if (proj.starred === true || proj.is_favorite === true) {
         addFollow(`project:${String(proj._id ?? id)}`);
       }
@@ -299,38 +395,17 @@ export function extractScopeCandidates(
     }
   }
 
-  const viewSet = new Set<string>();
-  for (const path of opts?.activePaths ?? activeTabPaths(state)) {
-    const projRef = matchRouteParam(path, "projects");
-    if (projRef) {
-      const pid = resolveProjectId(projects, projRef);
-      if (pid) viewSet.add(`project:${pid}`);
-      continue;
-    }
-    const chanId = matchRouteParam(path, "chat");
-    if (chanId && !isStubId(chanId)) {
-      viewSet.add(`channel:${chanId}`);
-      continue;
-    }
-    const taskRef = matchRouteParam(path, "tasks");
-    if (taskRef) {
-      const row = findEntityRow(state.tasks, taskRef);
-      const scope = rowHomeScope("tasks", row);
-      if (scope) viewSet.add(scope);
-      continue;
-    }
-    const docRef = matchRouteParam(path, "docs");
-    if (docRef) {
-      const row = findEntityRow(state.docs, docRef, state.docDetails);
-      const scope = rowHomeScope("docs", row);
-      if (scope) viewSet.add(scope);
-      continue;
-    }
-    const planRef = matchRouteParam(path, "plans");
-    if (planRef) {
-      const row = findEntityRow(state.plans, planRef);
-      const scope = rowHomeScope("plans", row);
-      if (scope) viewSet.add(scope);
+  const viewSet = new Set<string>(extractViewScopes(state, opts?.activePaths));
+  const peerViews = state.scopeSubscriptions?.peerViews;
+  if (peerViews) {
+    for (const peerId in peerViews) {
+      const scopes = peerViews[peerId];
+      if (!Array.isArray(scopes)) continue;
+      for (const scope of scopes) {
+        if (typeof scope === "string" && isKnownHomeScope(scope)) {
+          viewSet.add(scope);
+        }
+      }
     }
   }
 
@@ -343,55 +418,214 @@ export function extractScopeCandidates(
   };
 }
 
-function hasPendingFieldLock(
+function hasProtectedPendingLock(
   pending: Record<string, any> | undefined,
   collection: ScopeScopedCollection,
   id: string,
 ): boolean {
   if (!pending) return false;
-  const prefix = `${collection}:${id}:`;
+  const rowKey = `${collection}:${id}`;
+  const rowType = pending[rowKey]?.type;
+  if (rowType === "include" || rowType === "field") return true;
+  const fieldPrefix = `${rowKey}:`;
   for (const key in pending) {
-    if (!key.startsWith(prefix)) continue;
-    if (pending[key]?.type === "field") return true;
+    if (!key.startsWith(fieldPrefix)) continue;
+    const entryType = pending[key]?.type;
+    if (entryType === "field" || entryType === "include") return true;
   }
   return false;
 }
 
-export function computePurgeSet(
-  collections: Partial<Record<ScopeScopedCollection, Record<string, any>>>,
+function isProtectedChatState(
+  collection: ScopeScopedCollection,
+  row: any,
+): boolean {
+  if (collection !== "chatMessages" || !row) return false;
+  return !!(row._failedAt || row._failReason || row.sync_local_only);
+}
+
+function isRowDetailProtected(
+  collections: Partial<ScopeStoreInput>,
+  collection: ScopeScopedCollection,
+  id: string,
+  row: any,
+): boolean {
+  if (isDetailPinned(collection, id)) return true;
+  if (collection === "docs" && isDetailPinned("docDetails", id)) return true;
+  if (collection === "tasks") {
+    if (isDetailPinned("taskComments", id)) return true;
+    if (holdsUnsentComment(row)) return true;
+    if (holdsUnsentComment(collections.taskComments?.[id])) return true;
+  }
+  return false;
+}
+
+function isHeldByViewerUserScope(
+  row: any,
+  viewerId: string | null,
   heldScopes: ReadonlySet<string>,
-  pending?: Record<string, any>,
+): boolean {
+  if (!row || !viewerId || !heldScopes.has(`user:${viewerId}`)) return false;
+  if (row.user_id !== undefined && String(row.user_id) === viewerId) {
+    return true;
+  }
+  if (
+    row.owner_user_id !== undefined &&
+    String(row.owner_user_id) === viewerId
+  ) {
+    return true;
+  }
+  if (
+    typeof row.assignee === "string" &&
+    row.assignee.length > 0 &&
+    !row.assignee.startsWith("agent:") &&
+    row.assignee === viewerId
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function normalizePurgeOptions(
+  collections: Partial<Record<ScopeScopedCollection, Record<string, any>>> &
+    Partial<ScopeStoreInput>,
+  pendingOrOpts?: Record<string, any> | ScopePurgeOptions,
+): {
+  pending: Record<string, any> | undefined;
+  protectedOutboxRows: ReadonlySet<string> | undefined;
+  viewerId: string | null;
+} {
+  const isOpts =
+    pendingOrOpts &&
+    typeof pendingOrOpts === "object" &&
+    ("pending" in pendingOrOpts ||
+      "protectedOutboxRows" in pendingOrOpts ||
+      "viewerId" in pendingOrOpts);
+  const opts = isOpts ? (pendingOrOpts as ScopePurgeOptions) : undefined;
+  const pending = opts
+    ? (opts.pending ?? collections.pending)
+    : ((pendingOrOpts as Record<string, any> | undefined) ??
+      collections.pending);
+  const protectedOutboxRows =
+    opts?.protectedOutboxRows ??
+    (typeof collections._protectedOutboxRows === "function"
+      ? collections._protectedOutboxRows()
+      : undefined);
+  const rawViewerId = opts?.viewerId ?? collections.currentUser?._id;
+  const viewerId = rawViewerId ? String(rawViewerId) : null;
+  return { pending, protectedOutboxRows, viewerId };
+}
+
+export function computePurgeSet(
+  collections: Partial<Record<ScopeScopedCollection, Record<string, any>>> &
+    Partial<ScopeStoreInput>,
+  heldScopes: ReadonlySet<string>,
+  pendingOrOpts?: Record<string, any> | ScopePurgeOptions,
 ): PurgeTarget[] {
+  const { pending, protectedOutboxRows, viewerId } = normalizePurgeOptions(
+    collections,
+    pendingOrOpts,
+  );
   const targets: PurgeTarget[] = [];
   for (const collection of SCOPE_SCOPED_COLLECTIONS) {
     const rows = collections[collection];
     if (!rows) continue;
     for (const id in rows) {
-      if (isStubId(id)) continue;
-      if (hasPendingFieldLock(pending, collection, id)) continue;
+      if (!isConvexId(id) || isStubId(id)) continue;
+      if (hasProtectedPendingLock(pending, collection, id)) continue;
+      if (protectedOutboxRows?.has(`${collection}:${id}`)) continue;
       const row = rows[id];
+      if (!row || typeof row !== "object") continue;
+      if (isProtectedChatState(collection, row)) continue;
+      if (isRowDetailProtected(collections, collection, id, row)) continue;
+      if (isHeldByViewerUserScope(row, viewerId, heldScopes)) continue;
       const scope = rowHomeScope(collection, row);
-      if (!scope || heldScopes.has(scope)) continue;
+      if (!scope || !isKnownHomeScope(scope) || heldScopes.has(scope)) continue;
       targets.push({ collection, id, scope });
     }
   }
   return targets;
 }
 
+export function computeEvictionsForPurge(
+  collections: Partial<Record<ScopeScopedCollection, Record<string, any>>> &
+    Partial<ScopeStoreInput>,
+  heldScopes: ReadonlySet<string>,
+  opts?: ScopePurgeOptions,
+): { targets: PurgeTarget[]; evictions: CacheEviction[] } {
+  const targets = computePurgeSet(collections, heldScopes, opts);
+  const evictions: CacheEviction[] = [];
+  for (const { collection, id } of targets) {
+    const observed = collections[collection]?.[id];
+    if (observed && typeof observed === "object") {
+      evictions.push({ key: collection, id, observed });
+    }
+  }
+  return { targets, evictions };
+}
+
 export function purgeUnheldScopeRowsInDraft(
   draft: any,
   heldScopes: ReadonlySet<string>,
-  now: number,
+  opts?: ScopePurgeOptions | number,
 ): PurgeTarget[] {
-  const targets = computePurgeSet(draft, heldScopes, draft.pending);
-  for (const { collection, id, scope } of targets) {
+  const resolvedOpts =
+    typeof opts === "number" ? { pending: draft.pending } : opts;
+  const targets = computePurgeSet(draft, heldScopes, resolvedOpts);
+  for (const { collection, id } of targets) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (rows && id in rows) delete rows[id];
-    draft.pending[`${collection}:${id}`] = {
-      type: "exclude",
-      ts: now,
-      scope,
-    };
   }
   return targets;
+}
+
+export function filterFollowerRemovals(
+  state: ScopeStoreInput,
+  key: string,
+  removes: readonly string[],
+): string[] {
+  const paths = allTabPaths(state);
+  if (paths.length === 0) return [...removes];
+  const openViewScopes = new Set(extractViewScopes(state, paths));
+  const openTasks = new Set<string>();
+  const openDocs = new Set<string>();
+  const openPlans = new Set<string>();
+  for (const path of paths) {
+    const tRef = matchRouteParam(path, "tasks");
+    if (tRef) openTasks.add(tRef);
+    const dRef = matchRouteParam(path, "docs");
+    if (dRef) openDocs.add(dRef);
+    const pRef = matchRouteParam(path, "plans");
+    if (pRef) openPlans.add(pRef);
+  }
+  const matchesRef = (refs: ReadonlySet<string>, id: string, row: any) =>
+    refs.has(id) ||
+    (typeof row?.short_id === "string" && refs.has(row.short_id));
+
+  const table = (state as any)[key] as Record<string, any> | undefined;
+  return removes.filter((id) => {
+    if (key === "docDetails") {
+      const docRow = state.docs?.[id] ?? table?.[id];
+      return !matchesRef(openDocs, id, docRow);
+    }
+    if (key === "taskComments") {
+      const taskRow = state.tasks?.[id];
+      return !matchesRef(openTasks, id, taskRow);
+    }
+    if (
+      key !== "tasks" &&
+      key !== "docs" &&
+      key !== "plans" &&
+      key !== "chatMessages"
+    ) {
+      return true;
+    }
+    const row = table?.[id];
+    if (key === "tasks" && matchesRef(openTasks, id, row)) return false;
+    if (key === "docs" && matchesRef(openDocs, id, row)) return false;
+    if (key === "plans" && matchesRef(openPlans, id, row)) return false;
+    const scope = rowHomeScope(key, row);
+    if (scope && openViewScopes.has(scope)) return false;
+    return true;
+  });
 }

@@ -15400,7 +15400,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
         delete this.pending[key];
     }
   }),
-  ...createScopeSubscriptionSlice(sync),
+  ...createScopeSubscriptionSlice(sync, get),
 
   // Drop a syncMeta key outright (recordSyncMeta only advances). Used for log
   // cursor resets: scope revocation and retention resync. A scope cursor's

@@ -83,6 +83,9 @@ export default defineConfig(({ mode, command }) => ({
     "process.env.VITE_CACHE_EVICTION_METADATA": JSON.stringify(
       process.env.VITE_CACHE_EVICTION_METADATA ?? "",
     ),
+    "process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS": JSON.stringify(
+      process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS ?? "",
+    ),
   },
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its
   // pre-bundled deps live apart so neither server rewrites the other's. Inside
