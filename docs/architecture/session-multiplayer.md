@@ -63,7 +63,6 @@ advances past the abandoned slot in the same write as the provider event
 and preserves any terminal event it already recorded there. A pane can
 still end if its first start request lost its response. Once Convex
 records an end, it refuses new starts for that run and pane instance.
-The feature is off by default.
 
 Existing daemons and legacy terminal watches keep their current frame
 protocol. Legacy watched sessions have no canonical run claim and emit no

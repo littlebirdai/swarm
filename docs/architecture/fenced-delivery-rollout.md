@@ -52,16 +52,18 @@ to that sender and a verified open turn. See [Edge events](edge-events.md).
    and the ready mutation accepts only the four base execution capabilities.
    The daemon work feed only signals new inbox rows for that selected pilot.
    The steer tests set the extra capability directly on the database row.
-   A creation flag alone would leave a new session without the intended
+   Enrollment alone would leave a new session without the intended
    consumer or turn-aware admission.
-2. **Gate new-session enrollment.** Behind a default-off flag, create the
-   first binding and head in the same transaction as the conversation, before
-   the first send and without scheduling a legacy start. Admit agent input as
-   queue unless the verified sending session holds the owner's grant and the
-   current turn is eligible. Check the grant and turn again before starting the
-   effect. Test creation through the normal launch route, a granted and an
-   ungranted send during an open turn, grant revocation, and creation with the
-   flag off. Disable enrollment without demoting any session already fenced.
+2. **Enroll new sessions.** A fresh local Codex session enrolls when the turn
+   baton setting is on and the daemon boot accepts owned Codex sessions. The
+   server creates the first binding and head in the same transaction as the
+   conversation, before the first send, and schedules no legacy start. Every
+   other launch keeps the legacy start. The server admits agent input as queue
+   unless the verified sending session holds the owner's grant and the current
+   turn is eligible. It checks the grant and turn again before it starts the
+   effect. Tests cover creation through each launch route, a granted and an
+   ungranted send during an open turn, grant revocation, and the legacy start
+   when the boot does not accept owned Codex sessions or the turn baton is off.
 3. **Move the other launch and delivery paths.** Add fenced runtime support
    per adapter and move quick launches, spawns, first-send starts, cloud ends
    of launches, resumes and forks as each path qualifies. Move hosted input
