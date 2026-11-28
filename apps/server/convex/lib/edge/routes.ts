@@ -382,10 +382,11 @@ export function registerEdgeRoutes(http: HttpRouter) {
     method: "POST",
     handler: workAction(
       parseRelayGrantRequest,
-      (ctx, bearer, { sessions }) =>
+      (ctx, bearer, { sessions, token_deltas }) =>
         ctx.runMutation(internal.relayGrants.mintMachineLiveness, {
           bearer,
           sessions,
+          ...(token_deltas !== undefined ? { token_deltas } : {}),
         }),
       { operation: "relay_grant" },
     ),

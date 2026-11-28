@@ -427,11 +427,13 @@ export const mintMachineLiveness = internalMutation({
         fencing_token: v.string(),
       }),
     ),
+    token_deltas: v.optional(v.boolean()),
   },
-  handler: async (ctx, { bearer, sessions }) => {
+  handler: async (ctx, { bearer, sessions, token_deltas }) => {
     const v = EDGE_PROTOCOL_VERSION;
     const livenessConfig = machineRelayGrantConfig();
-    const deltaConfig = machineTokenDeltaGrantConfig();
+    const deltaConfig =
+      token_deltas === true ? machineTokenDeltaGrantConfig() : null;
     const config = livenessConfig ?? deltaConfig;
     if (!config) return { v, status: "unavailable" } as const;
     if (
