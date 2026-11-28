@@ -101,7 +101,6 @@ async function setup() {
 
 test("a live claim retains terminal event bodies and fences replay by pane instance", async () => {
   const f = await setup();
-  expect(f.lease.terminal_lifecycle).toBe(true);
   expect(await f.append([f.started, f.ended], "stale")).toMatchObject({
     status: "stale",
   });

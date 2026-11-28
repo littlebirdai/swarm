@@ -27,7 +27,7 @@ export class CodexPilotEvents {
   ) {}
 
   prepare(claim: ClaimGrant): void {
-    if (claim.terminal_lifecycle && !this.terminalEvents) {
+    if (!this.terminalEvents) {
       try {
         this.terminalEvents = createTerminalEventWriter(
           claim,

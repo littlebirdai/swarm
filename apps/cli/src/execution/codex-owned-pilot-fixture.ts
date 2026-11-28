@@ -407,7 +407,6 @@ export function fixture(
   const releasing = Promise.withResolvers<void>();
   let release: Promise<void> | undefined;
   const eventCursors = new Map<string, number>();
-  let terminalLifecycle = false;
   let terminalStartFailure: "once" | "400" | "conflict" | "503" | undefined;
   const terminalStartAttempts: number[] = [];
   const network = spyOn(globalThis, "fetch").mockImplementation(
@@ -461,7 +460,6 @@ export function fixture(
               lease_ms: renewal && body.session === "pilot" ? 10 : 60_000,
               last_pane_instance: 0,
               last_event_seq: eventCursors.get(body.session) ?? 0,
-              ...(terminalLifecycle && { terminal_lifecycle: true }),
             })
           );
         }
@@ -715,7 +713,6 @@ export function fixture(
     pauseNextPermitRead: () => pauseGate((gate) => (permitRead = gate)),
     terminalStartAttempts,
     failTerminalStart(mode: typeof terminalStartFailure) {
-      terminalLifecycle = true;
       terminalStartFailure = mode;
     },
     rejectSettlements(value: boolean) {

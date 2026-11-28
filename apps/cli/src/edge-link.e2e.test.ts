@@ -13,7 +13,6 @@ const machine = "edge-test-machine";
 const secret = "edge-test-secret";
 const bearer = `${secret}.${machine}`;
 const serverEnv = {
-  CODECAST_EDGE_V1: "1",
   CODECAST_EDGE_MEMORY_PARKING_BYTES: "536870912",
 };
 

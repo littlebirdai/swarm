@@ -260,7 +260,6 @@ export async function claimRunLease(
     fencing_token: fencingToken,
     lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
-    terminal_lifecycle: true,
     last_event_seq: await activateEventRun(ctx, binding, now),
   } as const;
 }

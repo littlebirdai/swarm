@@ -102,7 +102,6 @@ test("claim and permit replay preserve authority, start and settle replay preser
     status: "granted",
     lease_ms: leaseMs - 321,
     last_pane_instance: 0,
-    terminal_lifecycle: true,
     last_event_seq: 0,
   });
   const busy = await f.post("claim", { ...f.claimBody, claim_id: "second" });

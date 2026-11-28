@@ -18,7 +18,6 @@ const grant = {
   lease_ms: 5000,
   last_event_seq: 8,
   last_pane_instance: 20,
-  terminal_lifecycle: true,
 } as const;
 
 test.each([
