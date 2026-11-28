@@ -1,5 +1,7 @@
 import { desktopWindowKeys } from "./desktop-panel-keys";
 import { scopeViewTransportFor } from "./scope-view-transport";
+import { isReplicatedEphemeralKey } from "./replicated-ephemeral-keys";
+import { takeHostRole } from "./host-role";
 import {
   panelReplicationTransport,
   scopedSnapshotSource,
@@ -74,7 +76,6 @@ import {
   transportAvailable,
 } from "./storage-transport";
 import { syncTransaction } from "./syncTransaction";
-import type { GestureMessage } from "./gestureBridge";
 import {
   isMutRowKey,
   isReplicatedCollectionKey,
@@ -350,36 +351,6 @@ export function replicationFollowerFor(
   });
 }
 
-/**
- * A follower taking the host role, in order: it stops following, takes the
- * host role, drops the follower's action tee, and starts the host runtime.
- * Run inside the promoted window.
- */
-export function promoteToHost(
-  follower: ReplicationFollower | null,
-  startHost: () => ReplicationHost,
-): ReplicationHost {
-  follower?.stop();
-  setRole("host");
-  setActionTee(null);
-  return startHost();
-}
-
-/**
- * A sibling window's gesture, landed in this window. Follow state is
- * ephemeral window state, not a row: it never enters the draft, so it takes
- * its own path to the setter.
- */
-export function applyBridgedGesture(msg: GestureMessage): void {
-  if (msg.kind === "follow") {
-    useInboxStore
-      .getState()
-      .setFollowLeader(msg.leaderId, { fromBridge: true });
-    return;
-  }
-  useInboxStore.getState().applyGestureBridge(msg);
-}
-
 // Land one batch of replicated updates through the store's own sync actions,
 // so pending protection, merge policies, and the no-op bails all behave as if
 // the rows came from a live query.
@@ -416,6 +387,7 @@ function applyUpdatesToStoreInner(
   const state = useInboxStore.getState();
   for (const original of updates) {
     if (original.kind === "authoritativeRemoval") continue;
+    if (opts?.optimistic && isReplicatedEphemeralKey(original.key)) continue;
     const u =
       original.key === "docDetails" &&
       original.upserts &&
@@ -439,11 +411,11 @@ function applyUpdatesToStoreInner(
     if (u.hasValue) {
       if (u.value == null) continue;
       if (u.key === "sessionsProjection") {
-        if (!opts?.optimistic) state.applyReplicatedProjection(u.value as any);
+        state.applyReplicatedProjection(u.value as any);
         continue;
       }
       if (u.key === "scopeRevocations") {
-        if (!opts?.optimistic) state.applyReplicatedScopeRevocations(u.value);
+        state.applyReplicatedScopeRevocations(u.value);
         continue;
       }
 
@@ -672,18 +644,22 @@ export function startSyncReplication(opts: {
         // No living host answered — behave as our own (feeders on, own
         // write-through, no mut tee). The follower runtime stays up: a later
         // snapshot demotes us again.
-        const internals = useInboxStore.getState() as any;
-        setActionTee(null);
-        internals._setIDBWrite(
-          keys ? persistence.followerWrite : persistence.hostWrite,
-        );
-        if (keys) persistence.discardSkipped();
-        else persistence.persistSkipped();
-        details?.enterSolo();
-        scopeView?.stopFollowing(false);
-        setDeferredSharedCacheSource("disk");
-        setRole("host");
-        useInboxStore.getState().adoptScopeRevocations(Date.now());
+        takeHostRole({
+          installWriter: () => {
+            setActionTee(null);
+            (useInboxStore.getState() as any)._setIDBWrite(
+              keys ? persistence.followerWrite : persistence.hostWrite,
+            );
+            if (keys) persistence.discardSkipped();
+            else persistence.persistSkipped();
+          },
+          setRole: () => setRole("host"),
+          start: () => {
+            details?.enterSolo();
+            scopeView?.stopFollowing(false);
+          },
+          useDiskCache: () => setDeferredSharedCacheSource("disk"),
+        });
         retention.soon();
       }
     }, SOLO_FALLBACK_MS);
@@ -724,25 +700,37 @@ export function startSyncReplication(opts: {
     if (stopped) return;
     elected = true;
     if (soloTimer) clearTimeout(soloTimer);
-    transport.activateHost();
-    scopeView?.startHost();
-    useInboxStore.getState().adoptScopeRevocations(Date.now());
-    host = promoteToHost(follower, () =>
-      replicationHostFor(selfId, channel, () => useInboxStore.getState()),
-    );
-    follower = null;
-    const internals = useInboxStore.getState() as any;
-    // The write-through tee: persist first, then broadcast the same patches.
-    internals._setIDBWrite((patches: Patch[], state: any) => {
-      const evictions = cacheEvictionsFor(patches, state);
-      const persisted = persistence.hostWrite(patches, state);
-      host?.tee(withoutEvictionPatches(patches, evictions), state, evictions);
-      return persisted;
+    takeHostRole({
+      installWriter: () =>
+        (useInboxStore.getState() as any)._setIDBWrite(
+          (patches: Patch[], state: any) => {
+            const evictions = cacheEvictionsFor(patches, state);
+            const persisted = persistence.hostWrite(patches, state);
+            host?.tee(
+              withoutEvictionPatches(patches, evictions),
+              state,
+              evictions,
+            );
+            return persisted;
+          },
+        ),
+      setRole: () => {
+        follower?.stop();
+        follower = null;
+        setRole("host");
+        setActionTee(null);
+      },
+      start: () => {
+        transport.activateHost();
+        scopeView?.startHost();
+        host = replicationHostFor(selfId, channel, () =>
+          useInboxStore.getState(),
+        );
+        persistence.persistSkipped();
+        details?.promote();
+      },
+      useDiskCache: () => setDeferredSharedCacheSource("disk"),
     });
-    // Straight to disk, not through the tee: followers already have the data.
-    persistence.persistSkipped();
-    details?.promote();
-    setDeferredSharedCacheSource("disk");
     retention.soon();
     if (details) stopArchivedDocs = watchArchivedDocs(details.report);
   };

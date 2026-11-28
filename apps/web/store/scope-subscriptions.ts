@@ -4,12 +4,15 @@ import {
   computeEvictionsForPurge,
   computePurgeSet,
   dropDetailsOfRemovedParents,
+  dropRevokedRows,
   extractScopeCandidates,
   extractViewScopes,
   findEntityRow,
   isKnownHomeScope,
   purgeUnheldScopeRowsInDraft,
   rowHomeScope,
+  rowInRevokedScope,
+  activeRevokedScopes,
   type PurgeTarget,
   type ScopeCandidates,
   type ScopeFollowCandidate,
@@ -31,6 +34,9 @@ export {
   computeEvictionsForPurge,
   computePurgeSet,
   dropDetailsOfRemovedParents,
+  dropRevokedRows,
+  rowInRevokedScope,
+  activeRevokedScopes,
   createScopeSubscriptionSlice,
   extractScopeCandidates,
   extractViewScopes,
@@ -278,12 +284,17 @@ export function reconcileScopeSubscriptions(
   const digest = candidatesDigest(candidates);
   const rawViewSet = new Set(candidates.view);
 
+  const candidateScopes = new Set<string>([
+    ...candidates.pinned,
+    ...candidates.membership,
+    ...candidates.follows.map((f) => f.scope),
+    ...candidates.view,
+  ]);
   const nextDeniedRaw: Record<string, ScopeDenyEntry> = {};
   for (const [scope, entry] of Object.entries(prev.denied ?? {})) {
     if (scope === userScope) continue;
-    if (entry.digest !== digest || now - entry.at >= SCOPE_DENY_TTL_MS) {
-      continue;
-    }
+    if (now - entry.at >= SCOPE_DENY_TTL_MS) continue;
+    if (entry.digest !== digest && !candidateScopes.has(scope)) continue;
     if (rawViewSet.has(scope)) {
       if (entry.waitLeaveView) nextDeniedRaw[scope] = entry;
       continue;
@@ -480,6 +491,11 @@ export function reconcileScopeSubscriptions(
     if (nextGraceExpiryAt === null || deadline < nextGraceExpiryAt) {
       nextGraceExpiryAt = deadline;
     }
+  }
+  for (const entry of Object.values(finalDenied)) {
+    const expiry = entry.at + SCOPE_DENY_TTL_MS;
+    if (nextGraceExpiryAt === null || expiry < nextGraceExpiryAt)
+      nextGraceExpiryAt = expiry;
   }
 
   const unchanged =

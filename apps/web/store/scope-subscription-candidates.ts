@@ -657,7 +657,7 @@ function rowTeamId(row: any): string | null {
   return row?.team_id ? String(row.team_id) : null;
 }
 
-function revokedScopeOfRow(
+export function revokedScopeOfRow(
   collection: string,
   row: any,
   revokedScopes: ReadonlySet<string>,
@@ -718,4 +718,82 @@ export function dropDetailsOfRemovedParents(
   for (const id of removedIds) {
     if (details[id] !== undefined) delete details[id];
   }
+}
+
+const REVOCATION_GATED: Readonly<Record<string, true>> = {
+  tasks: true,
+  docs: true,
+  plans: true,
+  chatMessages: true,
+  projects: true,
+  docDetails: true,
+};
+
+export function isRevocationGated(collection: string): boolean {
+  return REVOCATION_GATED[collection] === true;
+}
+
+export function activeRevokedScopes(state: {
+  scopeRevocations?: Record<string, number>;
+  scopeSubscriptions?: { denied?: Record<string, unknown> };
+}): ReadonlySet<string> | null {
+  const published = state.scopeRevocations;
+  const denied = state.scopeSubscriptions?.denied;
+  let out: Set<string> | null = null;
+  for (const map of [published, denied]) {
+    if (!map) continue;
+    for (const scope in map) {
+      if (scope.startsWith("user:") || !isKnownHomeScope(scope)) continue;
+      (out ??= new Set()).add(scope);
+    }
+  }
+  return out;
+}
+
+export function rowInRevokedScope(
+  state: Parameters<typeof activeRevokedScopes>[0],
+  collection: string,
+  row: any,
+): boolean {
+  if (!isRevocationGated(collection) || !row || typeof row !== "object")
+    return false;
+  const revoked = activeRevokedScopes(state);
+  return !!revoked && revokedScopeOfRow(collection, row, revoked) !== null;
+}
+
+export function dropRevokedRows<T>(
+  state: Parameters<typeof activeRevokedScopes>[0],
+  collection: string,
+  incoming: T,
+): T {
+  if (!isRevocationGated(collection) || !Array.isArray(incoming))
+    return incoming;
+  const revoked = activeRevokedScopes(state);
+  if (!revoked) return incoming;
+  const kept = incoming.filter(
+    (row) =>
+      !row ||
+      typeof row !== "object" ||
+      revokedScopeOfRow(collection, row, revoked) === null,
+  );
+  return (kept.length === incoming.length ? incoming : kept) as T;
+}
+
+export function dropRevokedRowMap<T>(
+  state: Parameters<typeof activeRevokedScopes>[0],
+  collection: string,
+  rows: T,
+): T {
+  if (!isRevocationGated(collection) || !rows || typeof rows !== "object")
+    return rows;
+  if (Array.isArray(rows)) return dropRevokedRows(state, collection, rows);
+  const revoked = activeRevokedScopes(state);
+  if (!revoked) return rows;
+  let out: Record<string, unknown> | null = null;
+  for (const [id, row] of Object.entries(rows as Record<string, unknown>)) {
+    if (revokedScopeOfRow(collection, row, revoked) === null) continue;
+    out ??= { ...(rows as Record<string, unknown>) };
+    delete out[id];
+  }
+  return (out ?? rows) as T;
 }

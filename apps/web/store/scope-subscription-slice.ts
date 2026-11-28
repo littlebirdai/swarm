@@ -38,10 +38,16 @@ function liftDeniedExcludes(draft: any, scopes: ReadonlySet<string>): void {
   }
 }
 
+function capOrder(a: [string, number], b: [string, number]): number {
+  const dirA = a[0].startsWith("dir:") ? 0 : 1;
+  const dirB = b[0].startsWith("dir:") ? 0 : 1;
+  return dirA - dirB || b[1] - a[1];
+}
+
 function capRevocations(
   entries: Array<[string, number]>,
 ): Record<string, number> {
-  entries.sort((a, b) => b[1] - a[1]);
+  entries.sort(capOrder);
   return Object.fromEntries(entries.slice(0, SCOPE_DENY_MAX));
 }
 
@@ -65,11 +71,18 @@ function sameRevocations(
   return keys.every((k) => a[k] === b[k]);
 }
 
-function publishScopeRevocationsInDraft(draft: any): void {
+function publishScopeRevocationsInDraft(
+  draft: any,
+  evicted: ReadonlySet<string> = new Set(),
+): void {
   const prev: Record<string, number> = draft.scopeRevocations ?? {};
   const next = revocationsOf(draft.scopeSubscriptions?.denied);
   if (sameRevocations(prev, next)) return;
-  const left = new Set(Object.keys(prev).filter((scope) => !(scope in next)));
+  const left = new Set(
+    Object.keys(prev).filter(
+      (scope) => !(scope in next) && !evicted.has(scope),
+    ),
+  );
   liftDeniedExcludes(draft, left);
   draft.scopeRevocations = next;
 }
@@ -84,12 +97,15 @@ function revocationsCurrent(state: any): boolean {
 function liveDenied(
   denied: Record<string, ScopeDenyEntry> | undefined,
   now: number,
-): Record<string, ScopeDenyEntry> {
-  const kept = Object.entries(denied ?? {}).filter(
+): { kept: Record<string, ScopeDenyEntry>; evicted: Set<string> } {
+  const live = Object.entries(denied ?? {}).filter(
     ([, entry]) => now - entry.at < SCOPE_DENY_TTL_MS,
   );
-  kept.sort((a, b) => b[1].at - a[1].at);
-  return Object.fromEntries(kept.slice(0, SCOPE_DENY_MAX));
+  live.sort((a, b) => capOrder([a[0], a[1].at], [b[0], b[1].at]));
+  return {
+    kept: Object.fromEntries(live.slice(0, SCOPE_DENY_MAX)),
+    evicted: new Set(live.slice(SCOPE_DENY_MAX).map(([scope]) => scope)),
+  };
 }
 
 export function reconcileScopeSubscriptionsInDraft(
@@ -175,7 +191,7 @@ function denyScopesInDraft(
   const nextViewScopes = (prev.viewScopes ?? []).filter(
     (scope) => !denySet.has(scope),
   );
-  const nextDenied = liveDenied(prev.denied, now);
+  const nextDenied = { ...liveDenied(prev.denied, now).kept };
   for (const scope of toDeny) {
     const at = Math.max(
       now,
@@ -193,18 +209,20 @@ function denyScopesInDraft(
     SCOPE_HEADS_CHUNK_SIZE,
     SCOPE_HEADS_CHUNK_COUNT,
   );
+  const capped = liveDenied(nextDenied, now);
   draft.scopeSubscriptions = {
     ...prev,
     active: nextActive,
     chunks: nextChunks,
     viewScopes: nextViewScopes,
     graceDeadlines: nextGrace,
-    denied: liveDenied(nextDenied, now),
+    denied: capped.kept,
     lastReconciledAt: now,
   };
 
-  publishScopeRevocationsInDraft(draft);
-  return revokeScopeRowsInDraft(draft, denySet, now, userScope);
+  publishScopeRevocationsInDraft(draft, capped.evicted);
+  const keptDenials = new Set(toDeny.filter((scope) => scope in capped.kept));
+  return revokeScopeRowsInDraft(draft, keptDenials, now, userScope);
 }
 
 function cleanViewTargets(
@@ -455,13 +473,14 @@ export function createScopeSubscriptionSlice(
             incoming.push([scope, Math.max(at, prev[scope] ?? at)]);
         }
       }
+      const offered = new Set(incoming.map(([scope]) => scope));
       const next = capRevocations(incoming);
       const entered = new Set<string>();
       for (const [scope, at] of Object.entries(next))
         if (prev[scope] === undefined || at > prev[scope]) entered.add(scope);
       const left = new Set<string>();
       for (const scope of Object.keys(prev))
-        if (!(scope in next)) left.add(scope);
+        if (!offered.has(scope)) left.add(scope);
       liftDeniedExcludes(this, left);
       if (entered.size > 0) {
         const userId = this.currentUser?._id
@@ -525,8 +544,8 @@ export function createScopeSubscriptionSlice(
           ...this.scopeSubscriptions,
           denied: next,
         };
-        publishScopeRevocationsInDraft(this);
       }
+      publishScopeRevocationsInDraft(this);
     }),
 
     setPeerViewScopes: syncFn(function (

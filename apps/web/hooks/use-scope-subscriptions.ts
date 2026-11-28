@@ -9,6 +9,7 @@ import {
 } from "../store/scope-subscription-candidates";
 import { SCOPE_HEADS_CHUNK_COUNT } from "../store/scope-subscriptions";
 import { useInboxStore } from "../store/inboxStore";
+import { watchRevokedDiskRows } from "../store/scope-revocation-disk";
 import { makeCollectionSig } from "../store/wakeSig";
 import { onSyncWake } from "./syncWake";
 import { useIsSyncHost } from "./use-sync-role";
@@ -88,6 +89,20 @@ function peerViewsDigest(
   entries.sort();
   const out = entries.length ? hashList(entries) : "0";
   peerViewsCache.set(peerViews, out);
+  return out;
+}
+
+const revocationsCache = new WeakMap<object, string>();
+function revocationsDigest(
+  revocations: Record<string, number> | undefined,
+): string {
+  if (!revocations || typeof revocations !== "object") return "0";
+  const hit = revocationsCache.get(revocations);
+  if (hit !== undefined) return hit;
+  const entries = Object.entries(revocations).map(([k, v]) => `${k}:${v}`);
+  entries.sort();
+  const out = entries.length ? hashList(entries) : "0";
+  revocationsCache.set(revocations, out);
   return out;
 }
 
@@ -172,6 +187,7 @@ export function scopeInputsSig(s: any): string {
     targetPaths.length ? hashList(targetPaths) : "",
     activeEntityDigest(s, paths),
     peerViewsDigest(s.scopeSubscriptions?.peerViews),
+    revocationsDigest(s.scopeRevocations),
   ]);
 }
 
@@ -373,6 +389,11 @@ export function useScopeSubscriptions(opts?: {
       .reconcileScopeSubscriptions(Date.now());
     return attachScopeGraceTimer(initial.nextGraceExpiryAt);
   }, [active, inputsSig]);
+
+  useWatchEffect(
+    () => (active ? watchRevokedDiskRows(useInboxStore) : undefined),
+    [active],
+  );
 
   const subArgs = (chunk: readonly string[] | undefined) =>
     active && chunk && chunk.length > 0 ? { scopes: [...chunk] } : "skip";

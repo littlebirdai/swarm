@@ -409,7 +409,7 @@ describe("scope subscription review regressions", () => {
     expect(useInboxStore.getState().tasks[tShort]).toBeDefined();
   });
 
-  test("Low 1: drops denied scope from active/chunks with excludes, ignores view churn, and retries on open or non-view change", () => {
+  test("Low 1: drops denied scope from active/chunks with excludes, ignores view churn, retries on open, and keeps the denial on an unrelated change", () => {
     const idBad = cid("tbadproj");
     useInboxStore.setState({
       projects: {
@@ -471,6 +471,9 @@ describe("scope subscription review regressions", () => {
     useInboxStore.getState().reconcileScopeSubscriptions(4000);
     expect(
       useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
+    ).toBeUndefined();
+    expect(
+      useInboxStore.getState().scopeSubscriptions.denied["project:p-bad"],
     ).toBeDefined();
   });
 });

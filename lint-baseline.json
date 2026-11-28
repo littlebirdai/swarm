@@ -27956,6 +27956,9 @@
   "apps/web/store/agentConnectionsSlice.ts": {
     "swarm/no-comments": 5
   },
+  "apps/web/store/apply-bridged-gesture.ts": {
+    "swarm/no-comments": 1
+  },
   "apps/web/store/beginLocalFork.ts": {
     "swarm/no-comments": 46
   },
@@ -28228,7 +28231,7 @@
     "swarm/no-comments": 57
   },
   "apps/web/store/sync-replication.ts": {
-    "swarm/no-comments": 101
+    "swarm/no-comments": 97
   },
   "apps/web/store/syncActivity.ts": {
     "swarm/no-comments": 26

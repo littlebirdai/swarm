@@ -9,3 +9,7 @@ export const REPLICATED_EPHEMERAL_KEYS = [
   "sessionsProjection",
   "scopeRevocations",
 ] as const;
+
+export function isReplicatedEphemeralKey(key: string): boolean {
+  return (REPLICATED_EPHEMERAL_KEYS as readonly string[]).includes(key);
+}

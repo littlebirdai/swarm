@@ -1,3 +1,4 @@
+import { dropRevokedRowMap } from "./scope-subscription-candidates";
 import { desktopWindowKeys } from "./desktop-panel-keys";
 import { followerPersistencePatches } from "./followerPersistence";
 import {
@@ -386,7 +387,12 @@ async function hydrateInboxCacheFromIDB(
         updates[key] = merged;
         continue;
       }
-      const merge = hydrateMergeValue(key, val, cur, state.pending);
+      const merge = hydrateMergeValue(
+        key,
+        dropRevokedRowMap(state, key, val),
+        cur,
+        state.pending,
+      );
       if (merge.apply) updates[key] = merge.value;
     }
     if (updates.pendingMessages)

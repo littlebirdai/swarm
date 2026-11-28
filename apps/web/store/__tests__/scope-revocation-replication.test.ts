@@ -3,6 +3,7 @@ import { useInboxStore } from "../inboxStore";
 import { resetSyncTransactionForTests } from "../syncTransaction";
 import { initialScopeSubscriptionState } from "../scope-subscriptions";
 import {
+  applyUpdatesToStore,
   replicationFollowerFor,
   replicationHostFor,
 } from "../sync-replication";
@@ -15,7 +16,15 @@ import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import { DESKTOP_WINDOW_KEYS } from "../desktop-panel-keys";
 import { deleteAllowed } from "../idb-collection-diff";
 import { createScopeViewTransport } from "../scope-view-transport";
-import { SCOPE_DENY_MAX, SCOPE_DENY_TTL_MS } from "../scope-subscriptions";
+import {
+  SCOPE_DENY_MAX,
+  SCOPE_DENY_TTL_MS,
+  candidatesDigest,
+  extractScopeCandidates,
+  reconcileScopeSubscriptions,
+} from "../scope-subscriptions";
+import { dropRevokedRowMap } from "../scope-subscription-candidates";
+import { takeHostRole } from "../host-role";
 
 const cid = (label: string) =>
   label
@@ -346,17 +355,13 @@ describe("scope revocations as replicated state", () => {
   test("replicated times must be finite and newer", () => {
     const apply = useInboxStore.getState().applyReplicatedScopeRevocations;
     apply({ [`dir:${T}`]: 10 });
-    useInboxStore
-      .getState()
-      .syncTable("tasks", [{ _id: tTeam, workspace: `team:${T}` }], {
-        isDelta: true,
-      });
-    useInboxStore.setState({ pending: {} } as any);
-    useInboxStore
-      .getState()
-      .syncTable("tasks", [{ _id: tTeam, workspace: `team:${T}` }], {
-        isDelta: true,
-      });
+    useInboxStore.setState({
+      pending: {},
+      tasks: {
+        ...useInboxStore.getState().tasks,
+        [tTeam]: { _id: tTeam, workspace: `team:${T}` },
+      },
+    } as any);
     apply({ [`dir:${T}`]: 5 });
     expect(useInboxStore.getState().tasks[tTeam]).toBeDefined();
     expect(useInboxStore.getState().scopeRevocations).toEqual({
@@ -468,5 +473,220 @@ describe("scope revocations as replicated state", () => {
       if (hadWindow) (globalThis as any).window = previous;
       else delete (globalThis as any).window;
     }
+  });
+
+  test("a peer mut cannot remove or patch an ephemeral key on the host", () => {
+    useInboxStore.setState({
+      syncRole: "host",
+      scopeRevocations: { [`dir:${T}`]: 5 },
+    } as any);
+    const projection = (useInboxStore.getState() as any).sessionsProjection;
+    applyUpdatesToStore(
+      [
+        { key: "scopeRevocations", removes: [`dir:${T}`] },
+        {
+          key: "sessionsProjection",
+          fields: { epoch: { value: 99 } },
+        } as any,
+      ],
+      { optimistic: true },
+    );
+    const s = useInboxStore.getState() as any;
+    expect(s.scopeRevocations).toEqual({ [`dir:${T}`]: 5 });
+    expect(s.sessionsProjection).toBe(projection);
+  });
+
+  describe("rows that arrive after the revocation", () => {
+    beforeEach(() => {
+      useInboxStore
+        .getState()
+        .applyReplicatedScopeRevocations({ [`dir:${T}`]: 5 });
+      useInboxStore.setState({ pending: {} } as any);
+    });
+
+    test("a new host's disk hydration of a doc body is dropped", () => {
+      const late = cid("dlatedisk");
+      useInboxStore
+        .getState()
+        .syncTable(
+          "docDetails",
+          [{ _id: late, workspace: `team:${T}`, content: "secret" }],
+          { isDelta: true },
+        );
+      expect(useInboxStore.getState().docDetails[late]).toBeUndefined();
+      const fromDisk = {
+        [late]: { _id: late, workspace: `team:${T}` },
+        [tMine]: { _id: tMine, workspace: "user:u1" },
+      };
+      expect(
+        Object.keys(
+          dropRevokedRowMap(useInboxStore.getState(), "tasks", fromDisk),
+        ),
+      ).toEqual([tMine]);
+    });
+
+    test("a stale follower mut relayed by the new host is dropped", () => {
+      const stale = cid("tstalemut");
+      applyUpdatesToStore(
+        [
+          {
+            key: "tasks",
+            upserts: [{ _id: stale, workspace: `team:${T}`, title: "stale" }],
+          },
+        ],
+        { optimistic: true },
+      );
+      expect(useInboxStore.getState().tasks[stale]).toBeUndefined();
+    });
+
+    test("a cold per-view query that lands after the revocation is dropped", () => {
+      const cold = cid("dcoldview");
+      useInboxStore.getState().syncRecord("docDetails", cold, {
+        _id: cold,
+        workspace: `team:${T}`,
+        content: "secret",
+      });
+      expect(useInboxStore.getState().docDetails[cold]).toBeUndefined();
+      useInboxStore.getState().syncRecord("tasks", tMine, {
+        _id: tMine,
+        workspace: "user:u1",
+        title: "still mine",
+      });
+      expect(useInboxStore.getState().tasks[tMine]?.title).toBe("still mine");
+    });
+  });
+
+  test("the follower cap keeps team scopes first and never lifts on eviction", () => {
+    const value: Record<string, number> = { [`dir:${T}`]: 1 };
+    for (let i = 0; i < SCOPE_DENY_MAX + 10; i++)
+      value[`project:p${i}`] = 100 + i;
+    useInboxStore.getState().applyReplicatedScopeRevocations(value);
+    let s = useInboxStore.getState() as any;
+    expect(Object.keys(s.scopeRevocations).length).toBe(SCOPE_DENY_MAX);
+    expect(s.scopeRevocations[`dir:${T}`]).toBe(1);
+    expect(s.tasks[tTeam]).toBeUndefined();
+    expect(s.pending[`tasks:${tTeam}`]).toMatchObject({ type: "exclude" });
+    const crowded: Record<string, number> = {};
+    for (let i = 0; i < SCOPE_DENY_MAX + 10; i++)
+      crowded[`dir:d${i}`] = 500 + i;
+    crowded[`dir:${T}`] = 1;
+    useInboxStore.getState().applyReplicatedScopeRevocations(crowded);
+    s = useInboxStore.getState() as any;
+    expect(s.scopeRevocations[`dir:${T}`]).toBeUndefined();
+    expect(s.pending[`tasks:${tTeam}`]).toMatchObject({ type: "exclude" });
+  });
+
+  test("the host cap keeps team scopes, revokes only kept scopes and never lifts on eviction", () => {
+    useInboxStore.setState({
+      currentUser: { _id: "u1" },
+      syncRole: "host",
+      teams: [{ _id: T }],
+    } as any);
+    useInboxStore.getState().revokeTeamScope(T, 100);
+    const many = Array.from(
+      { length: SCOPE_DENY_MAX + 5 },
+      (_, i) => `project:p${i}`,
+    );
+    const projectRows: Record<string, any> = {};
+    many.forEach((scope, i) => {
+      const id = cid(`tproj${i}`);
+      projectRows[id] = {
+        _id: id,
+        workspace: `team:${T2}`,
+        project_id: scope.slice(8),
+      };
+    });
+    useInboxStore.setState({
+      tasks: { ...useInboxStore.getState().tasks, ...projectRows },
+    } as any);
+    useInboxStore.getState().denyScopeSubscriptions(many, 200);
+    const s = useInboxStore.getState() as any;
+    for (const [id, row] of Object.entries(projectRows)) {
+      const kept = `project:${row.project_id}` in s.scopeRevocations;
+      expect(s.tasks[id] === undefined).toBe(kept);
+      expect(s.pending[`tasks:${id}`] !== undefined).toBe(kept);
+    }
+    expect(s.scopeSubscriptions.denied[`dir:${T}`]).toBeDefined();
+    expect(Object.keys(s.scopeSubscriptions.denied).length).toBe(
+      SCOPE_DENY_MAX,
+    );
+    expect(s.pending[`tasks:${tTeam}`]).toMatchObject({ type: "exclude" });
+    const evicted = many.filter((scope) => !(scope in s.scopeRevocations));
+    expect(evicted.length).toBe(6);
+  });
+
+  test("clearing a scope that is not denied still publishes", () => {
+    useInboxStore
+      .getState()
+      .applyReplicatedScopeRevocations({ [`dir:${T}`]: 5 });
+    useInboxStore.setState({
+      syncRole: "host",
+      scopeSubscriptions: {
+        ...initialScopeSubscriptionState(),
+        denied: { [`dir:${T2}`]: { digest: "x", at: Date.now() } },
+      },
+    } as any);
+    useInboxStore.getState().clearDeniedScopeSubscriptions(["project:none"]);
+    expect(Object.keys(useInboxStore.getState().scopeRevocations)).toEqual([
+      `dir:${T2}`,
+    ]);
+    expect(
+      (useInboxStore.getState().pending as any)[`tasks:${tTeam}`],
+    ).toBeUndefined();
+  });
+
+  test("an unrelated candidate change keeps a denial, and the deny limit is scheduled", () => {
+    const state: any = {
+      currentUser: { _id: "u1" },
+      teams: [{ _id: T }],
+      projects: {
+        pa: { _id: "pa", workspace: `team:${T}`, starred: true },
+      },
+    };
+    const first = extractScopeCandidates(state, 1000);
+    const prev = {
+      ...initialScopeSubscriptionState(),
+      principalId: "u1",
+      denied: {
+        "project:pa": { digest: candidatesDigest(first), at: 1000 },
+      },
+    };
+    state.projects.pb = { _id: "pb", workspace: `team:${T}`, starred: true };
+    const changed = extractScopeCandidates(state, 2000);
+    const out = reconcileScopeSubscriptions(prev, changed, 2000);
+    expect(out.state.denied["project:pa"]).toBeDefined();
+    expect(out.nextGraceExpiryAt).toBe(1000 + SCOPE_DENY_TTL_MS);
+    delete state.projects.pa;
+    const gone = reconcileScopeSubscriptions(
+      out.state,
+      extractScopeCandidates(state, 3000),
+      3000,
+    );
+    expect(gone.state.denied["project:pa"]).toBeUndefined();
+  });
+
+  test("promotion installs the host writer, adopts, then sets the role, starts and reads disk", () => {
+    useInboxStore
+      .getState()
+      .applyReplicatedScopeRevocations({ [`dir:${T}`]: 5 });
+    useInboxStore.setState({
+      currentUser: { _id: "u1" },
+      teams: [{ _id: T }],
+    } as any);
+    const seen: string[] = [];
+    const adopted = () =>
+      !!(useInboxStore.getState() as any).scopeSubscriptions.denied[`dir:${T}`];
+    takeHostRole({
+      installWriter: () => seen.push(`writer:${adopted()}`),
+      setRole: () => seen.push(`role:${adopted()}`),
+      start: () => seen.push(`start:${adopted()}`),
+      useDiskCache: () => seen.push(`disk:${adopted()}`),
+    });
+    expect(seen).toEqual([
+      "writer:false",
+      "role:true",
+      "start:true",
+      "disk:true",
+    ]);
   });
 });
