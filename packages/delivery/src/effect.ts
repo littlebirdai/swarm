@@ -27,6 +27,7 @@ import {
   setBoundedMap,
   toHandover,
 } from "./journals";
+import { makeReceiptWaits } from "./receipt-waits";
 import { makeSessionLocks } from "./session-locks";
 import { makeSettlement } from "./settlement";
 import { makeWakeScheduler } from "./wakes";
@@ -115,7 +116,7 @@ export class Delivery extends Context.Service<
         const locks = makeSessionLocks();
         const activeAttempts = new Set<string>();
         const activeDeliveries = new Set<string>();
-        const awaitingReceiptRuns = new Map<string, PermitsNextRequest>();
+        const receiptWaits = makeReceiptWaits();
         const activeProviderCalls = new Map<string, ActiveDelivery>();
         const timedOutDeliveries = new Map<string, TimedOutDelivery>();
 
@@ -136,7 +137,7 @@ export class Delivery extends Context.Service<
           journals,
           activeAttempts,
           attemptKey,
-          awaitingReceiptRuns,
+          receiptWaits,
         });
         const prepareInputs = makeInputPreparation(bus, options);
 
@@ -627,27 +628,20 @@ export class Delivery extends Context.Service<
           return lastOutcome;
         });
 
-        const receiptsReady = new Map<string, PermitsNextRequest>();
-
         const wakeForReceipt = (pendingRun: PermitsNextRequest) =>
           wakes.wake(pendingRun, { sendNew: false }).pipe(
             Effect.tap((accepted) =>
               Effect.sync(() => {
-                if (accepted) {
-                  awaitingReceiptRuns.delete(pendingRun.session);
-                  receiptsReady.delete(pendingRun.session);
-                } else {
-                  setBoundedMap(receiptsReady, pendingRun.session, pendingRun);
-                }
+                if (accepted) receiptWaits.clear(pendingRun.session);
+                else receiptWaits.refuse(pendingRun);
               }),
             ),
           );
 
         const retryReadyReceipts = (): Effect.Effect<void> =>
           Effect.gen(function* () {
-            for (const pendingRun of [...receiptsReady.values()]) {
-              if (awaitingReceiptRuns.get(pendingRun.session) !== pendingRun) {
-                receiptsReady.delete(pendingRun.session);
+            for (const pendingRun of receiptWaits.refused()) {
+              if (receiptWaits.awaiting(pendingRun.session) !== pendingRun) {
                 continue;
               }
               if (!(yield* wakeForReceipt(pendingRun))) return;
@@ -670,7 +664,7 @@ export class Delivery extends Context.Service<
           yield* journals
             .saveReceipt(session, receipt)
             .pipe(Effect.catch(() => Effect.void));
-          const pendingRun = awaitingReceiptRuns.get(session);
+          const pendingRun = receiptWaits.awaiting(session);
           if (pendingRun && pendingRun.run === run) {
             yield* wakeForReceipt(pendingRun);
           }
@@ -694,7 +688,7 @@ export class Delivery extends Context.Service<
                   break;
                 }
                 case "delivery.stop": {
-                  awaitingReceiptRuns.delete(message.session);
+                  receiptWaits.clear(message.session);
                   yield* wakes.stop(message.session);
                   break;
                 }

@@ -247,6 +247,12 @@ it.effect(
         const step = yield* Effect.forkChild(delivery.deliverNext(run), {
           startImmediately: true,
         });
+        yield* within(
+          Effect.repeat(Effect.yieldNow, {
+            until: () => harness.deliveries.length === 1,
+          }),
+          "the provider call",
+        );
         yield* adjust(30_000);
         expect(yield* within(Fiber.join(step), "the timed out step")).toEqual(
           expect.objectContaining({

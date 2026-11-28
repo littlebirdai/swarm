@@ -9,6 +9,7 @@ import type { DeliveryStepOutcome, DrainOptions } from "./types";
 const MAX_PENDING_WAKES = 1024;
 
 type DrainEntry = {
+  readonly run: PermitsNextRequest;
   readonly drainOptions: DrainOptions;
   fiber?: Fiber.Fiber<DeliveryStepOutcome>;
 };
@@ -62,7 +63,7 @@ export function makeWakeScheduler(deps: {
         yield* Effect.forkIn(Fiber.interrupt(previous.fiber), scope);
       }
       const options = mergeDrainOptions(previous?.drainOptions, drainOptions);
-      const entry: DrainEntry = { drainOptions: options };
+      const entry: DrainEntry = { run, drainOptions: options };
       activeDrains.set(run.session, entry);
       entry.fiber = yield* Effect.forkIn(
         drain(run, options).pipe(
@@ -94,11 +95,13 @@ export function makeWakeScheduler(deps: {
       const queued = pendingWakes.get(run.session);
       if (queued) {
         pendingWakes.set(run.session, {
-          run,
+          run: run.run >= queued.run.run ? run : queued.run,
           drainOptions: mergeDrainOptions(queued.drainOptions, drainOptions),
         });
         return Effect.succeed(true);
       }
+      const active = activeDrains.get(run.session);
+      if (active && run.run < active.run.run) return Effect.succeed(true);
       if (
         activeDrains.has(run.session) ||
         activeDrains.size < maxActiveDrains
@@ -115,9 +118,11 @@ export function makeWakeScheduler(deps: {
 
   const stop = (session: string): Effect.Effect<void> =>
     Effect.suspend(() => {
-      pendingWakes.delete(session);
+      const unqueued = pendingWakes.delete(session);
       const fiber = activeDrains.get(session)?.fiber;
-      if (!fiber) return Effect.void;
+      if (!fiber) {
+        return unqueued ? (deps.onSlotFree?.() ?? Effect.void) : Effect.void;
+      }
       return Effect.forkIn(
         Fiber.interrupt(fiber).pipe(Effect.andThen(startNextPending)),
         scope,

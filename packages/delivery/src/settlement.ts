@@ -19,6 +19,7 @@ import {
   setBoundedMap,
   type makeJournalStore,
 } from "./journals";
+import type { ReceiptWaits } from "./receipt-waits";
 import type {
   DeliveryOptions,
   DeliveryReceipt,
@@ -44,16 +45,10 @@ export function makeSettlement(deps: {
     run: Pick<PermitsNextRequest, "session" | "run">,
     attemptId: string,
   ) => string;
-  readonly awaitingReceiptRuns: Map<string, PermitsNextRequest>;
+  readonly receiptWaits: ReceiptWaits;
 }) {
-  const {
-    bus,
-    options,
-    journals,
-    activeAttempts,
-    attemptKey,
-    awaitingReceiptRuns,
-  } = deps;
+  const { bus, options, journals, activeAttempts, attemptKey, receiptWaits } =
+    deps;
 
   const clearArtifacts = (attemptId: string) =>
     options.clearArtifacts
@@ -152,7 +147,7 @@ export function makeSettlement(deps: {
     }
     yield* journals.forgetReceipt(permit.session, permit.delivery_id);
     yield* clearArtifacts(permit.attempt_id);
-    awaitingReceiptRuns.delete(permit.session);
+    receiptWaits.clear(permit.session);
     yield* publishSettled(
       permit.session,
       permit.run,
@@ -241,7 +236,7 @@ export function makeSettlement(deps: {
     if (outcome.status !== "in_doubt") {
       yield* clearArtifacts(permit.attempt_id);
     } else if (outcome.retry_after_ms === undefined) {
-      setBoundedMap(awaitingReceiptRuns, run.session, run);
+      receiptWaits.expect(run);
     }
     const retryAfterMs =
       "retry_after_ms" in outcome ? outcome.retry_after_ms : undefined;
