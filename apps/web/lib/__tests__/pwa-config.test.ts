@@ -174,6 +174,36 @@ describe("offline app shell precache", () => {
         "navigateFallback: null",
       ]);
       expect(config).toMatch(/runtimeCaching:\s*\[\s*NAVIGATION_ROUTE,/);
+      expect(config).toMatch(
+        /urlPattern:\s*\/\\\/assets\\\/\[\^\/\]\+\\\.\(\?:js\|css\|woff2\|wasm\)\$\//,
+      );
     });
+  });
+
+  test("always includes worker bundle chunks and wasm assets in precache", async () => {
+    const workerBundle: OutputBundle = {
+      "assets/worker-abc.js": chunk("assets/worker-abc.js", {
+        isEntry: true,
+        assets: ["assets/sqlite3-xyz.wasm"],
+      }),
+    };
+    const entries = [
+      "index.html",
+      "assets/main.js",
+      "assets/worker-abc.js",
+      "assets/sqlite3-xyz.wasm",
+    ].map((url) => ({ url, revision: null, size: 1 }));
+
+    const scope = precacheScope();
+    (scope.plugin.configResolved as any)({ build: { assetsDir: "assets" } });
+    (scope.plugin.generateBundle as any)({}, bundle);
+    (scope.workerPlugin.generateBundle as any)({}, workerBundle);
+    const transformed = await scope.manifestTransform(entries);
+    expect(transformed.manifest.map((e) => e.url)).toEqual([
+      "index.html",
+      "assets/main.js",
+      "assets/worker-abc.js",
+      "assets/sqlite3-xyz.wasm",
+    ]);
   });
 });

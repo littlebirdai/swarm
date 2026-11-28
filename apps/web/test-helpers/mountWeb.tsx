@@ -134,6 +134,8 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
     const { createRoot } = await import("react-dom/client");
     const { clearProtectedInboxMemory, useInboxStore } =
       await import("../store/inboxStore");
+    const { cacheStorage } = await import("../store/idb-cache");
+    await cacheStorage.flushPersistence();
     const { _resetRememberedResults } =
       await import("../hooks/useQueryNoThrow");
     const { closeCallStage, takeCallThreadRequest } =

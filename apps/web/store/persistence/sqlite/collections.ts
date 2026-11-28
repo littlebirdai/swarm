@@ -1,8 +1,12 @@
 import type { Patch } from "mutative";
+import { timedDocCapsEnabled } from "../../cache-eviction";
 import {
   COLLECTION_RETENTION,
+  partitionDocDetailRetention,
   partitionSessionRetention,
+  pendingDocDetailIds,
 } from "../../cacheRetention";
+import { isDetailPinned } from "../../../lib/detail-rows";
 import {
   collectionRowHydrator,
   collectionRowValidator,
@@ -15,6 +19,7 @@ import {
   patchedIds,
 } from "../../idb-collection-diff";
 import { META_KEYS } from "../schema";
+import type { CachedDocDetailRef } from "../storage";
 import { encode, type AfterCommit, type SqliteDriver } from "./schema";
 
 const journalKeys = new Set(["pending", "pendingMessages", "queuedMessages"]);
@@ -35,9 +40,6 @@ export function collectionStorage(db: SqliteDriver) {
   const deleteMeta = db.prepare("DELETE FROM meta WHERE key = ?");
   const readRows = db.prepare<StoredRow>(
     "SELECT id, value FROM collection_rows WHERE collection = ? ORDER BY id",
-  );
-  const readRow = db.prepare<StoredRow>(
-    "SELECT id, value FROM collection_rows WHERE collection = ? AND id = ?",
   );
   const readIds = db.prepare<{ id: string }>(
     "SELECT id FROM collection_rows WHERE collection = ?",
@@ -96,8 +98,12 @@ export function collectionStorage(db: SqliteDriver) {
       const value = getMeta(key);
       if (value !== undefined) result[key] = value;
     }
-    const live = getMeta("liveInboxIdList");
-    const focus = getMeta("lastFocusedConversationId");
+    const loadedMeta = (key: string) =>
+      metaKeys.has(key) && (!keys || keys.includes(key))
+        ? result[key]
+        : getMeta(key);
+    const live = loadedMeta("liveInboxIdList");
+    const focus = loadedMeta("lastFocusedConversationId");
     const now = Date.now();
     for (const key of keys ?? Object.keys(WEB_COLLECTION_INDEXES)) {
       if (!Object.hasOwn(WEB_COLLECTION_INDEXES, key)) continue;
@@ -115,6 +121,19 @@ export function collectionStorage(db: SqliteDriver) {
         rows.push(row);
       }
       if (!rows.length) continue;
+      const memoryOnlyDocDetails =
+        key === "docDetails" && timedDocCapsEnabled();
+      const protectedIds = memoryOnlyDocDetails
+        ? (() => {
+            const ids = pendingDocDetailIds(
+              (context.pending as Record<string, unknown> | undefined) ?? {},
+            );
+            for (const row of rows) {
+              if (isDetailPinned("docDetails", row._id)) ids.add(row._id);
+            }
+            return ids;
+          })()
+        : undefined;
       const retained =
         key === "sessions" || key === "conversations"
           ? partitionSessionRetention(
@@ -123,13 +142,15 @@ export function collectionStorage(db: SqliteDriver) {
               focus === undefined ? context.lastFocusedConversationId : focus,
               now,
             )
-          : COLLECTION_RETENTION[key]?.(rows, now);
+          : memoryOnlyDocDetails
+            ? partitionDocDetailRetention(rows, now, protectedIds)
+            : COLLECTION_RETENTION[key]?.(rows, now);
       if (afterCommit && retained?.drop.length) {
         if (key === "conversations") {
           afterCommit(() => {
             for (const id of retained.drop) conversationDrops.add(id);
           });
-        } else {
+        } else if (!memoryOnlyDocDetails) {
           for (const id of retained.drop) deleteRow.run(key, id);
         }
       }
@@ -154,6 +175,10 @@ export function collectionStorage(db: SqliteDriver) {
     state: Record<string, any>,
     cursorBlocked: boolean,
     afterCommit: AfterCommit,
+    options?: {
+      evictions?: Record<string, string[]>;
+      deferSyncMeta?: boolean;
+    },
   ) {
     const keys = new Set(
       patches.flatMap(({ path }) => (path.length ? [String(path[0])] : [])),
@@ -163,9 +188,41 @@ export function collectionStorage(db: SqliteDriver) {
       if (Object.hasOwn(WEB_COLLECTION_INDEXES, key)) {
         const data = state[key];
         if (!data || typeof data !== "object") continue;
+        if (key === "conversations" && conversationDrops.size) {
+          const candidateIds = new Set(
+            [...conversationDrops].filter((id) => data[id] == null),
+          );
+          if (candidateIds.size) {
+            const byId = new Map<string, any>();
+            for (const { id, value } of readRows.all(key)) {
+              try {
+                byId.set(id, JSON.parse(value));
+              } catch {}
+            }
+            for (const [id, row] of Object.entries(data)) {
+              if (!row || typeof row !== "object") continue;
+              const prev = byId.get(id);
+              byId.set(id, prev ? { ...prev, ...row } : row);
+            }
+            const { drop } = partitionSessionRetention(
+              [...byId.values()],
+              state.liveInboxIdList ?? getMeta("liveInboxIdList"),
+              state.lastFocusedConversationId ??
+                getMeta("lastFocusedConversationId"),
+              Date.now(),
+            );
+            for (const id of drop) {
+              if (candidateIds.has(id)) deleteRow.run(key, id);
+            }
+          }
+          afterCommit(() => conversationDrops.clear());
+        }
         const pending = state.pending ?? {};
         const snapshot = hasSnapshotDrops(key);
         const ids = snapshot ? null : patchedIds(patches, key);
+        const evicted = options?.evictions?.[key]
+          ? new Set(options.evictions[key])
+          : null;
         const affected =
           ids ??
           new Set([
@@ -176,40 +233,55 @@ export function collectionStorage(db: SqliteDriver) {
           const row = Object.hasOwn(data, id) ? data[id] : undefined;
           if (row != null) {
             if (!writeRow(key, id, row)) complete = false;
-          } else if (deleteAllowed(key, id, pending)) {
+          } else if (!evicted?.has(id) && deleteAllowed(key, id, pending)) {
             deleteRow.run(key, id);
           }
         }
         if (snapshot) afterCommit(() => clearSnapshotDrops(key));
-        if (key === "conversations" && conversationDrops.size) {
-          const candidates = [...conversationDrops].flatMap((id) => {
-            if (data[id] != null) return [];
-            const stored = readRow.get(key, id);
-            return stored ? [JSON.parse(stored.value)] : [];
-          });
-          const { drop } = partitionSessionRetention(
-            [
-              ...Object.values(data).filter((row) => row != null),
-              ...candidates,
-            ],
-            state.liveInboxIdList ?? getMeta("liveInboxIdList"),
-            state.lastFocusedConversationId ??
-              getMeta("lastFocusedConversationId"),
-            Date.now(),
-          );
-          const expired = new Set(drop);
-          for (const row of candidates) {
-            if (expired.has(row._id)) deleteRow.run(key, row._id);
-          }
-          afterCommit(() => conversationDrops.clear());
-        }
       } else if (metaKeys.has(key) && key !== "syncMeta") {
         if (!setMeta(key, state[key])) complete = false;
       }
     }
-    if (complete && !cursorBlocked && keys.has("syncMeta"))
+    if (
+      !options?.deferSyncMeta &&
+      complete &&
+      !cursorBlocked &&
+      keys.has("syncMeta")
+    )
       return setMeta("syncMeta", state.syncMeta);
     return complete;
+  }
+
+  function deleteDocDetails(ids: readonly string[]): string[] {
+    for (const id of ids) deleteRow.run("docDetails", id);
+    return [...ids];
+  }
+
+  function readDocDetailRefs(): CachedDocDetailRef[] {
+    const refs: CachedDocDetailRef[] = [];
+    for (const { id, value } of readRows.all("docDetails")) {
+      try {
+        const row = JSON.parse(value) as {
+          workspace?: unknown;
+          _cachedAt?: unknown;
+        };
+        refs.push({
+          _id: id,
+          workspace:
+            typeof row.workspace === "string" ? row.workspace : undefined,
+          cachedAt:
+            typeof row._cachedAt === "number" && Number.isFinite(row._cachedAt)
+              ? row._cachedAt
+              : null,
+        });
+      } catch {}
+    }
+    return refs.sort((a, b) => {
+      if (a.cachedAt == null && b.cachedAt == null) return 0;
+      if (a.cachedAt == null) return -1;
+      if (b.cachedAt == null) return 1;
+      return a.cachedAt - b.cachedAt;
+    });
   }
 
   return {
@@ -217,6 +289,8 @@ export function collectionStorage(db: SqliteDriver) {
     setMeta,
     load,
     write,
+    deleteDocDetails,
+    readDocDetailRefs,
     resetRetention: () => conversationDrops.clear(),
   };
 }

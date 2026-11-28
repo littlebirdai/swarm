@@ -23150,7 +23150,7 @@
   },
   "apps/web/lib/__tests__/authPrincipalIsolation.test.ts": {
     "react/immutability": 1,
-    "swarm/no-comments": 26
+    "swarm/no-comments": 25
   },
   "apps/web/lib/__tests__/authRefreshOffline.test.ts": {
     "swarm/no-comments": 29
@@ -27261,19 +27261,13 @@
     "swarm/no-comments": 3
   },
   "apps/web/store/__tests__/clientSyncRegistry.test.ts": {
-    "swarm/no-comments": 42
+    "swarm/no-comments": 40
   },
   "apps/web/store/__tests__/closeSession.test.ts": {
     "swarm/no-comments": 7
   },
   "apps/web/store/__tests__/closedShelfPlacement.test.ts": {
     "swarm/no-comments": 3
-  },
-  "apps/web/store/__tests__/conversationCacheDraftWrites.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "apps/web/store/__tests__/conversationUserMessagesCache.test.ts": {
-    "swarm/no-comments": 7
   },
   "apps/web/store/__tests__/createTeamLocalFirst.test.ts": {
     "swarm/no-comments": 8
@@ -27338,9 +27332,6 @@
   "apps/web/store/__tests__/externalEventCacheRetention.test.ts": {
     "swarm/no-comments": 27
   },
-  "apps/web/store/__tests__/fixtures/cacheOwnership.ts": {
-    "swarm/no-comments": 57
-  },
   "apps/web/store/__tests__/fixtures/fakeAuthToken.ts": {
     "swarm/no-comments": 4
   },
@@ -27388,9 +27379,6 @@
   },
   "apps/web/store/__tests__/idbCollectionDiff.test.ts": {
     "swarm/no-comments": 7
-  },
-  "apps/web/store/__tests__/idbIncrementalPersist.test.ts": {
-    "swarm/no-comments": 25
   },
   "apps/web/store/__tests__/inbox-hydration.test.ts": {
     "swarm/no-comments": 7
@@ -27552,9 +27540,6 @@
   "apps/web/store/__tests__/permissionRuleStub.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/store/__tests__/persistedMessageTail.test.ts": {
-    "swarm/no-comments": 6
-  },
   "apps/web/store/__tests__/placeTestHarness.ts": {
     "swarm/no-comments": 30
   },
@@ -27605,9 +27590,6 @@
   },
   "apps/web/store/__tests__/restState.test.ts": {
     "swarm/no-comments": 53
-  },
-  "apps/web/store/__tests__/retiredMetaKeys.test.ts": {
-    "swarm/no-comments": 2
   },
   "apps/web/store/__tests__/reviewCommentsPersist.test.ts": {
     "swarm/no-comments": 6
@@ -27806,9 +27788,6 @@
   },
   "apps/web/store/__tests__/subagentNesting.test.ts": {
     "swarm/no-comments": 5
-  },
-  "apps/web/store/__tests__/sync-replication-boot-writes.test.ts": {
-    "swarm/no-comments": 12
   },
   "apps/web/store/__tests__/sync-replication-principal.test.ts": {
     "swarm/no-comments": 17
@@ -28057,10 +28036,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/idb-cache.native.ts": {
-    "swarm/no-comments": 132
-  },
-  "apps/web/store/idb-cache.ts": {
-    "swarm/no-comments": 1
+    "swarm/no-comments": 130
   },
   "apps/web/store/idb-collection-diff.ts": {
     "swarm/no-comments": 40
@@ -28071,11 +28047,8 @@
   "apps/web/store/idbCacheWriteBehind.native.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/store/idbV2Salvage.ts": {
-    "swarm/no-comments": 7
-  },
   "apps/web/store/inbox-hydration.ts": {
-    "swarm/no-comments": 140
+    "swarm/no-comments": 137
   },
   "apps/web/store/inbox-overlay-facts.ts": {
     "swarm/no-comments": 18
@@ -28144,32 +28117,20 @@
   "apps/web/store/pendingMessageJournal.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/persistence/boot-loader.ts": {
-    "swarm/no-comments": 20
-  },
   "apps/web/store/persistence/cache-ownership.ts": {
     "swarm/no-comments": 49
   },
-  "apps/web/store/persistence/collection-writer.ts": {
-    "swarm/no-comments": 26
-  },
   "apps/web/store/persistence/db.ts": {
-    "swarm/no-comments": 40
+    "swarm/no-comments": 34
   },
   "apps/web/store/persistence/hydration.ts": {
     "swarm/no-comments": 2
-  },
-  "apps/web/store/persistence/idb-liveness-lane.ts": {
-    "swarm/no-comments": 24
-  },
-  "apps/web/store/persistence/message-cache.ts": {
-    "swarm/no-comments": 27
   },
   "apps/web/store/persistence/messageTailDiff.ts": {
     "swarm/no-comments": 4
   },
   "apps/web/store/persistence/outbox.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 8
   },
   "apps/web/store/persistence/purge.ts": {
     "swarm/no-comments": 12
@@ -28178,7 +28139,7 @@
     "swarm/no-comments": 3
   },
   "apps/web/store/persistence/schema.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 21
   },
   "apps/web/store/persistence/storage.ts": {
     "swarm/no-comments": 1

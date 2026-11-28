@@ -1,20 +1,24 @@
 import type { AuthPrincipalTracker } from "@platform/auth/web";
 import { recordCacheEvent } from "../../cache-events";
-import { HYDRATION_PAINT_KEYS } from "../../clientSyncRegistry";
 import type { CacheStorage } from "../storage";
 import { collectionStorage } from "./collections";
 import { messageStorage } from "./messages";
+import type { SqliteFlushBatchPayload } from "./protocol";
 import { openSchema, type AfterCommit, type SqliteDriver } from "./schema";
 
-type SqliteCacheStorage = Omit<
+export type SqliteCacheStorage = Omit<
   CacheStorage,
   | "enqueueDispatch"
   | "removeDispatch"
   | "loadOutbox"
   | "outboxAccountId"
   | "persistPendingMessageChanges"
+  | "loadPaintCache"
   | "loadPaintCacheSync"
->;
+> & {
+  flushBatch(batch: SqliteFlushBatchPayload): void;
+  ownerState(): { named: string[]; blocked: boolean };
+};
 
 export function createSqliteCache(
   db: SqliteDriver,
@@ -39,6 +43,7 @@ export function createSqliteCache(
   let hydrating = false;
   let blockedOwner: string | null = null;
   let purging: Promise<void> | undefined;
+  let inspected: ReturnType<typeof ownerEvidence> | null = null;
   function ownerEvidence() {
     const owner = collections.getMeta("cacheOwner");
     const stamp = owner?.principal;
@@ -96,6 +101,8 @@ export function createSqliteCache(
   async function read<Result>(
     load: (afterCommit: AfterCommit) => Result,
   ): Promise<Result | null> {
+    const preread = inspected;
+    inspected = null;
     if (purging) return null;
     const before = epoch;
     const authEpoch = auth.epoch();
@@ -110,7 +117,7 @@ export function createSqliteCache(
         return null;
       const previousOwner = boundOwner ?? blockedOwner;
       return transact((afterCommit) => {
-        const evidence = ownerEvidence();
+        const evidence = preread ?? ownerEvidence();
         if (
           principal !== null &&
           evidence.named.length &&
@@ -146,6 +153,7 @@ export function createSqliteCache(
     change: (afterCommit: AfterCommit, blocked: boolean) => boolean | void,
     stateOwner?: unknown,
   ) {
+    inspected = null;
     if (readOnly || hydrating || purging) return;
     const principal = auth.current();
     if (
@@ -191,13 +199,16 @@ export function createSqliteCache(
   }
 
   return {
+    ownerState() {
+      inspected = null;
+      inspected = ownerEvidence();
+      return { named: inspected.named, blocked: inspected.blocked };
+    },
     loadCache(keys, context = {}) {
       return read((afterCommit) =>
         collections.load(keys, context, readOnly ? undefined : afterCommit),
       );
     },
-    loadPaintCache: () =>
-      read(() => collections.load(HYDRATION_PAINT_KEYS, {})),
     setHydrating(value) {
       hydrating = value;
     },
@@ -219,7 +230,75 @@ export function createSqliteCache(
     writeConversationUserMessages(id, rows) {
       write("navigator", () => messages.writeUserMessages(id, rows));
     },
+    flushBatch(batch) {
+      const stateOwner = (
+        batch.state as { currentUser?: { _id?: string } } | undefined
+      )?.currentUser?._id;
+      const hasConversations = Boolean(batch.conversations?.length);
+      write(
+        "collections",
+        (afterCommit, blocked) => {
+          let complete = true;
+          const hasPatches = Boolean(batch.patches?.length && batch.state);
+          if (hasPatches) {
+            complete = collections.write(
+              batch.patches!,
+              batch.state!,
+              blocked,
+              afterCommit,
+              {
+                evictions: batch.evictions,
+                deferSyncMeta: true,
+              },
+            );
+          }
+          if (batch.conversations?.length) {
+            for (const item of batch.conversations) {
+              if (item.messages) {
+                messages.write(
+                  item.conversationId,
+                  item.messages.rows,
+                  item.messages.pagination,
+                );
+              }
+              if (item.userMessages) {
+                messages.writeUserMessages(
+                  item.conversationId,
+                  item.userMessages,
+                );
+              }
+            }
+            messages.retain(afterCommit);
+          }
+          const wantsSyncMeta =
+            hasPatches &&
+            batch.patches!.some((p) => p.path[0] === "syncMeta") &&
+            Object.hasOwn(batch.state!, "syncMeta");
+          if (complete && !blocked && wantsSyncMeta) {
+            return collections.setMeta("syncMeta", batch.state!.syncMeta);
+          }
+          return complete;
+        },
+        stateOwner,
+      );
+      void hasConversations;
+    },
+    deleteInvalidatedDocDetails(ids, current) {
+      if (readOnly) return Promise.resolve([]);
+      let deleted: string[] = [];
+      write("collections", () => {
+        const confirmed = ids.filter(current);
+        deleted = collections.deleteDocDetails(confirmed);
+      });
+      return Promise.resolve(deleted);
+    },
+    readCachedDocDetails() {
+      return read(() => collections.readDocDetailRefs()).then(
+        (rows) => rows ?? [],
+      );
+    },
     async purgeLocalCache(options) {
+      inspected = null;
       if (readOnly) return;
       const owner = options?.keepPendingInputFor ?? null;
       purging ??= Promise.resolve()

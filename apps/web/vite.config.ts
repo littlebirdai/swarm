@@ -198,7 +198,7 @@ export default defineConfig(({ mode, command }) => ({
           // first use. Their names change with their content, so a cached one
           // is never stale.
           {
-            urlPattern: /\/assets\/[^/]+\.(?:js|css|woff2)$/,
+            urlPattern: /\/assets\/[^/]+\.(?:js|css|woff2|wasm)$/,
             handler: "CacheFirst",
             options: {
               cacheName: "assets",
@@ -236,6 +236,9 @@ export default defineConfig(({ mode, command }) => ({
     }),
   ],
   resolve: sharedResolve,
+  worker: {
+    plugins: () => [appShell.workerPlugin],
+  },
   // Dev only: the same plugins as postcss.config.mjs, with Tailwind built in a
   // worker so a slow rebuild never blocks the server's thread. Production
   // builds read postcss.config.mjs as is.
@@ -293,7 +296,7 @@ export default defineConfig(({ mode, command }) => ({
     // Plain ESM with a top-level await the optimizer's target refuses; the
     // browser loads it as it ships, and an excluded dep never triggers a
     // mid-session re-optimize.
-    exclude: ["@novnc/novnc"],
+    exclude: ["@novnc/novnc", "@sqlite.org/sqlite-wasm"],
     include: [
       "react",
       "react-dom",

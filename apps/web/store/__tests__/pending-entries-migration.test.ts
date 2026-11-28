@@ -5,60 +5,47 @@ import {
 } from "./fixtures/signedInPrincipal";
 import { authPrincipal } from "../../lib/authPrincipal";
 import { AUTH_JWT_STORAGE_KEY } from "./fixtures/fakeAuthToken";
-import { loadCache } from "../persistence/boot-loader";
-import { expect, spyOn, test } from "bun:test";
+import { cacheStorage } from "../idb-cache";
+import { expect, test } from "bun:test";
 import Dexie from "dexie";
-import { IDBFactory, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { db, _reopenForTests } from "../persistence/db";
-import { SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "../persistence/schema";
+import { SYSTEM_TABLES } from "../persistence/schema";
 
-test("v113 pending locks survive an aborted upgrade and migrate exactly on retry", async () => {
+test("an IndexedDB cache from an older schema opens empty", async () => {
   const indexedDB = new IDBFactory();
   const legacy = new Dexie(db.name, { indexedDB, IDBKeyRange });
-  const { pendingEntries: _, ...oldTables } = SYSTEM_TABLES;
-  legacy.version(113).stores({ ...WEB_COLLECTION_INDEXES, ...oldTables });
-  const pending = {
-    "docs:first:title": { type: "field", value: "local", ts: 1 },
-    "docs:second": { type: "exclude", ts: 2 },
-  };
+  legacy.version(115).stores({ ...SYSTEM_TABLES, sessions: "_id" });
   try {
     await legacy.table("meta").bulkPut([
-      { key: "pending", value: pending },
-      { key: "currentUser", value: { _id: TEST_PRINCIPAL } },
-    ]);
-    legacy.close();
-    const remove = IDBObjectStore.prototype.delete;
-    const abort = spyOn(IDBObjectStore.prototype, "delete").mockImplementation(
-      function (this: IDBObjectStore, key) {
-        const request = remove.call(this, key);
-        if (this.name === "meta" && key === "pending") this.transaction.abort();
-        return request;
+      {
+        key: "pending",
+        value: { "docs:first:title": { type: "field", value: "local", ts: 1 } },
       },
-    );
-    try {
-      const error = await _reopenForTests({ indexedDB, IDBKeyRange }).catch(
-        (error) => error,
-      );
-      expect(error).toHaveProperty("name", "AbortError");
-    } finally {
-      abort.mockRestore();
-    }
-    await legacy.open();
-    expect(await legacy.table("meta").get("pending")).toEqual({
-      key: "pending",
-      value: pending,
+      { key: "currentUser", value: { _id: TEST_PRINCIPAL } },
+      {
+        key: "cacheOwner",
+        value: { principal: TEST_PRINCIPAL, at: 1, reason: "seed" },
+      },
+    ]);
+    await legacy.table("pendingEntries").put({
+      key: "docs:second",
+      value: { type: "exclude", ts: 2 },
     });
+    await legacy.table("dispatchOutbox").put({
+      id: "old-dispatch",
+      action: "renameSession",
+      args: [],
+      ts: 1,
+    });
+    await legacy.table("sessions").put({ _id: "old-session" });
     legacy.close();
+
     await _reopenForTests({ indexedDB, IDBKeyRange });
-    expect(await db.meta.get("pending")).toBeUndefined();
-    expect(await db.pendingEntries.toArray()).toEqual(
-      Object.entries(pending).map(([key, value]) => ({ key, value })),
+    expect(db.tables.map((table) => table.name).sort()).toEqual(
+      Object.keys(SYSTEM_TABLES).sort(),
     );
-    expect((await loadCache(["pending"]))?.pending).toEqual(
-      Object.fromEntries(
-        Object.entries(pending).filter(([key]) => key !== "docs:second"),
-      ),
-    );
+    for (const table of db.tables) expect(await table.count()).toBe(0);
   } finally {
     legacy.close();
     db.close();
@@ -69,11 +56,11 @@ test("a second account purges pending locks left by a stale window after sign-ou
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   try {
     await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
-    await loadCache(["pending"]);
+    await cacheStorage.loadCache(["pending"]);
     localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
     authPrincipal.check();
     expect(await authPrincipal.resolve()).toBeNull();
-    await loadCache(["pending"]);
+    await cacheStorage.loadCache(["pending"]);
     expect((await db.meta.get("cacheOwner"))?.value.principal).toBeNull();
     await db.pendingEntries.put({
       key: "docs:shared:title",
@@ -82,13 +69,17 @@ test("a second account purges pending locks left by a stale window after sign-ou
     installSignedInPrincipal("userB");
     authPrincipal.check();
     expect(await authPrincipal.resolve()).toBe("userB");
-    expect((await loadCache(["pending"]))?.pending).toBeUndefined();
+    expect(
+      (await cacheStorage.loadCache(["pending"]))?.pending,
+    ).toBeUndefined();
     expect(await db.pendingEntries.count()).toBe(0);
-    expect((await loadCache(["pending"]))?.pending).toBeUndefined();
+    expect(
+      (await cacheStorage.loadCache(["pending"]))?.pending,
+    ).toBeUndefined();
   } finally {
     installSignedInPrincipal();
     authPrincipal.check();
-    await loadCache(["pending"]);
+    await cacheStorage.loadCache(["pending"]);
     db.close();
   }
 });

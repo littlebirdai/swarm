@@ -8,8 +8,6 @@ import {
   spyOn,
 } from "bun:test";
 import { Database } from "bun:sqlite";
-import Dexie from "dexie";
-import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { Patch } from "mutative";
 import {
   AUTH_JWT_STORAGE_KEY,
@@ -21,7 +19,7 @@ import {
   HYDRATION_CRITICAL_READ_KEYS,
   HYDRATION_DEFERRED_KEYS,
 } from "../../clientSyncRegistry";
-import { createSqliteCache } from "./cache-storage";
+import { createSqliteCache, type SqliteCacheStorage } from "./cache-storage";
 
 const owner = "userA";
 const id = "a".repeat(32);
@@ -34,30 +32,19 @@ const patch = (...path: string[]): Patch => ({
   value: null,
 });
 const writeSessions = (
-  store: Pick<typeof dexieStorage, "writePatches">,
+  store: Pick<SqliteCacheStorage, "writePatches">,
   state = sessionState,
 ) => store.writePatches([patch("sessions")], state);
 const signIn = (principal: string) =>
   localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(principal));
-const originalStorage = Object.getOwnPropertyDescriptor(
-  globalThis,
-  "localStorage",
-);
-if (!originalStorage)
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: mapStorage(),
-  });
+const originalStorage = "localStorage" in globalThis;
+if (!originalStorage) (globalThis as any).localStorage = mapStorage();
 const originalToken = localStorage.getItem(AUTH_JWT_STORAGE_KEY);
 signIn(owner);
 const { readCacheEvents } = await import("../../cache-events");
 const { noteSnapshotSync, _resetSnapshotLedger } =
   await import("../../idb-collection-diff");
 const { authPrincipal } = await import("../../../lib/authPrincipal");
-const { _reopenForTests, db: dexie } = await import("../db");
-const dexieStorage = await import("../dexie-storage");
-const { flushLivenessWrites } = await import("../idb-liveness-lane");
-const { flushConversationMessages } = await import("../message-cache");
 beforeEach(() => {
   signIn(owner);
   _resetSnapshotLedger();
@@ -65,295 +52,263 @@ beforeEach(() => {
 afterAll(() => {
   if (originalToken === null) localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
   else localStorage.setItem(AUTH_JWT_STORAGE_KEY, originalToken);
-  if (!originalStorage) Reflect.deleteProperty(globalThis, "localStorage");
+  if (!originalStorage) localStorage.clear();
 });
-for (const engine of ["Dexie", "SQLite"]) {
-  describe(engine, () => {
-    let sqlite: Database | undefined;
-    let store: ReturnType<typeof createSqliteCache>;
-    let syncWrites: () => Promise<void>;
-    let setMeta: (key: string, value: unknown) => unknown;
-    let getMeta: (key: string) => Promise<unknown> | unknown;
-    beforeEach(async () => {
-      if (engine === "Dexie") {
-        await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-        store = dexieStorage;
-        setMeta = (key, value) => dexie.meta.put({ key, value });
-        getMeta = async (key) => (await dexie.meta.get(key))?.value;
-        syncWrites = async () => {
-          flushLivenessWrites();
-          flushConversationMessages();
-          await dexie.transaction("r", dexie.tables, () => dexie.meta.count());
-        };
-      } else {
-        const db = new Database(":memory:");
-        sqlite = db;
-        store = createSqliteCache(db, authPrincipal);
-        setMeta = (key, value) =>
-          db
-            .query("INSERT OR REPLACE INTO meta VALUES (?, ?)")
-            .run(key, JSON.stringify(value));
-        getMeta = (key) => {
-          const row = db
-            .query<{ value: string }, [string]>(
-              "SELECT value FROM meta WHERE key = ?",
-            )
-            .get(key);
-          return row && JSON.parse(row.value);
-        };
-        syncWrites = store.flushPersistence;
-      }
-      await store.loadCache(["sessions"]);
+describe("SQLite", () => {
+  let sqlite: Database;
+  let store: ReturnType<typeof createSqliteCache>;
+  let syncWrites: () => Promise<void>;
+  let setMeta: (key: string, value: unknown) => unknown;
+  let getMeta: (key: string) => Promise<unknown> | unknown;
+  beforeEach(async () => {
+    const db = new Database(":memory:");
+    sqlite = db;
+    store = createSqliteCache(db, authPrincipal);
+    setMeta = (key, value) =>
+      db
+        .query("INSERT OR REPLACE INTO meta VALUES (?, ?)")
+        .run(key, JSON.stringify(value));
+    getMeta = (key) => {
+      const row = db
+        .query<{ value: string }, [string]>(
+          "SELECT value FROM meta WHERE key = ?",
+        )
+        .get(key);
+      return row && JSON.parse(row.value);
+    };
+    syncWrites = store.flushPersistence;
+    await store.loadCache(["sessions"]);
+  });
+  afterEach(async () => {
+    await store.purgeLocalCache();
+    sqlite.close();
+  });
+  test("conflicting owner evidence purges rows despite a matching caller", async () => {
+    writeSessions(store);
+    await syncWrites();
+    await setMeta("currentUser", { _id: "userB" });
+    expect(
+      await store.loadCache(["sessions"], { currentUser: { _id: owner } }),
+    ).toBeNull();
+    expect(await getMeta("cacheOwner")).toMatchObject({ principal: owner });
+    expect(await store.loadCache(["sessions"])).toBeNull();
+  });
+  test("boot keeps live and focused sessions and drops expired sessions", async () => {
+    const focus = "c".repeat(32);
+    const expired = "d".repeat(32);
+    const updated_at = Date.now() - SESSION_CACHE_TTL_MS - 60_000;
+    await setMeta("liveInboxIdList", [oldId]);
+    await setMeta("lastFocusedConversationId", focus);
+    writeSessions(store, {
+      sessions: {
+        [id]: row,
+        [oldId]: { ...row, _id: oldId, updated_at },
+        [focus]: { ...row, _id: focus, updated_at },
+        [expired]: { ...row, _id: expired, updated_at },
+      },
     });
-    afterEach(async () => {
-      await store.purgeLocalCache();
-      if (sqlite) sqlite.close();
-      else dexie.close();
+    await syncWrites();
+    const cached = await store.loadCache(HYDRATION_CRITICAL_READ_KEYS);
+    expect(Object.keys(cached?.sessions ?? {}).sort()).toEqual([
+      id,
+      oldId,
+      focus,
+    ]);
+    await syncWrites();
+    await setMeta("liveInboxIdList", [expired]);
+    expect(
+      (await store.loadCache(["sessions"]))?.sessions[expired],
+    ).toBeUndefined();
+    expect(
+      (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.sessions,
+    ).toBeUndefined();
+  });
+  test("patches preserve an unheld row until a durable delete authorizes removal", async () => {
+    writeSessions(store);
+    await syncWrites();
+    store.writePatches([{ op: "remove", path: ["sessions", id] }], {
+      sessions: {},
     });
-    test("conflicting owner evidence purges rows despite a matching caller", async () => {
-      writeSessions(store);
-      await syncWrites();
-      await setMeta("currentUser", { _id: "userB" });
-      expect(
-        await store.loadCache(["sessions"], { currentUser: { _id: owner } }),
-      ).toBeNull();
-      expect(await getMeta("cacheOwner")).toMatchObject({ principal: owner });
-      expect(await store.loadCache(["sessions"])).toBeNull();
+    await syncWrites();
+    expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
+    store.writePatches([{ op: "remove", path: ["sessions", id] }], {
+      sessions: {},
+      pending: { [`sessions:${id}`]: { type: "exclude" } },
     });
-    test("boot keeps live and focused sessions and drops expired sessions", async () => {
-      const focus = "c".repeat(32);
-      const expired = "d".repeat(32);
-      const updated_at = Date.now() - SESSION_CACHE_TTL_MS - 60_000;
-      await setMeta("liveInboxIdList", [oldId]);
-      await setMeta("lastFocusedConversationId", focus);
-      writeSessions(store, {
-        sessions: {
-          [id]: row,
-          [oldId]: { ...row, _id: oldId, updated_at },
-          [focus]: { ...row, _id: focus, updated_at },
-          [expired]: { ...row, _id: expired, updated_at },
-        },
-      });
-      await syncWrites();
-      const cached = await store.loadCache(HYDRATION_CRITICAL_READ_KEYS);
-      expect(Object.keys(cached?.sessions ?? {}).sort()).toEqual([
-        id,
-        oldId,
-        focus,
-      ]);
-      await syncWrites();
-      await setMeta("liveInboxIdList", [expired]);
-      expect(
-        (await store.loadCache(["sessions"]))?.sessions[expired],
-      ).toBeUndefined();
-      expect(
-        (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.sessions,
-      ).toBeUndefined();
+    await syncWrites();
+    expect(await store.loadCache(["sessions"])).toBeNull();
+  });
+  test("cursor and updated liveness row commit in the same batch", async () => {
+    writeSessions(store);
+    await syncWrites();
+    expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
+    const next = { ...row, message_count: 2 };
+    const syncMeta = { s: { cursor: 2 } };
+    store.writePatches(
+      [patch("syncMeta", "s"), patch("sessions", id, "message_count")],
+      { sessions: { [id]: next }, syncMeta },
+    );
+    const before = await store.loadCache(["sessions", "syncMeta"]);
+    if (before?.syncMeta) expect(before.sessions[id]).toEqual(next);
+    await syncWrites();
+    const after = await store.loadCache(["sessions", "syncMeta"]);
+    expect(after?.syncMeta).toEqual(syncMeta);
+    expect(after?.sessions[id]).toEqual(next);
+  });
+  test("transcript tail keeps order, duplicate IDs, cursor and navigator rows", async () => {
+    const rows = Array.from({ length: MESSAGE_PAGE_SIZE + 1 }, (_, index) => ({
+      _id: "message",
+      timestamp: index + 1,
+      content: String(index),
+    }));
+    const userMessages = [{ _id: "user-message" }];
+    store.writeConversationUserMessages(id, userMessages);
+    await syncWrites();
+    expect(await store.loadConversationMessages(id)).toMatchObject({
+      messages: [],
+      userMessages,
     });
-    test("patches preserve an unheld row until a durable delete authorizes removal", async () => {
-      writeSessions(store);
-      await syncWrites();
-      store.writePatches([{ op: "remove", path: ["sessions", id] }], {
-        sessions: {},
-      });
-      await syncWrites();
-      expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
-      store.writePatches([{ op: "remove", path: ["sessions", id] }], {
-        sessions: {},
-        pending: { [`sessions:${id}`]: { type: "exclude" } },
-      });
-      await syncWrites();
-      expect(await store.loadCache(["sessions"])).toBeNull();
+    store.writeConversationMessages(id, rows, { cursor: 41 });
+    await syncWrites();
+    expect(await store.loadConversationMessages(id)).toMatchObject({
+      messages: rows.slice(1),
+      pagination: { cursor: 41, hasMoreAbove: true },
     });
-    test("cursor and updated liveness row commit in the same batch", async () => {
-      writeSessions(store);
-      await syncWrites();
-      expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
-      const next = { ...row, message_count: 2 };
-      const syncMeta = { s: { cursor: 2 } };
-      store.writePatches(
-        [patch("syncMeta", "s"), patch("sessions", id, "message_count")],
-        { sessions: { [id]: next }, syncMeta },
-      );
-      const before = await store.loadCache(["sessions", "syncMeta"]);
-      if (before?.syncMeta) expect(before.sessions[id]).toEqual(next);
-      await syncWrites();
-      const after = await store.loadCache(["sessions", "syncMeta"]);
-      expect(after?.syncMeta).toEqual(syncMeta);
-      expect(after?.sessions[id]).toEqual(next);
+    const edited = { ...rows.at(-1), timestamp: 500, content: "updated" };
+    const streamed = [...rows.slice(1, -1), edited];
+    store.writeConversationMessages(id, streamed, {
+      cursor: 42,
+      hasMoreAbove: true,
     });
-    test("transcript tail keeps order, duplicate IDs, cursor and navigator rows", async () => {
-      const rows = Array.from(
-        { length: MESSAGE_PAGE_SIZE + 1 },
-        (_, index) => ({
-          _id: "message",
-          timestamp: index + 1,
-          content: String(index),
-        }),
-      );
-      const userMessages = [{ _id: "user-message" }];
-      store.writeConversationUserMessages(id, userMessages);
-      await syncWrites();
-      expect(await store.loadConversationMessages(id)).toMatchObject({
-        messages: [],
-        userMessages,
-      });
-      store.writeConversationMessages(id, rows, { cursor: 41 });
-      await syncWrites();
-      expect(await store.loadConversationMessages(id)).toMatchObject({
-        messages: rows.slice(1),
-        pagination: { cursor: 41, hasMoreAbove: true },
-      });
-      const edited = { ...rows.at(-1), timestamp: 500, content: "updated" };
-      const streamed = [...rows.slice(1, -1), edited];
-      store.writeConversationMessages(id, streamed, {
-        cursor: 42,
-        hasMoreAbove: true,
-      });
-      await syncWrites();
-      expect(await store.loadConversationMessages(id)).toEqual({
-        messages: streamed,
-        pagination: { cursor: 42, hasMoreAbove: true },
-        latestTimestamp: 500,
-        userMessages,
-      });
-    });
-    test("purge during a write clears the old tail and permits the next epoch", async () => {
-      const entered = Promise.withResolvers<Promise<void>>();
-      const purge = () =>
-        entered.resolve(
-          Dexie.ignoreTransaction(() =>
-            store.purgeLocalCache({ keepPendingInputFor: owner }),
-          ),
-        );
-      if (sqlite) {
-        sqlite.function("purge_in_write", () => {
-          purge();
-          return 1;
-        });
-        sqlite.exec(`CREATE TRIGGER overlap BEFORE INSERT ON message_rows
-          BEGIN SELECT purge_in_write(); END`);
-      } else {
-        dexie.conversationMessageRows.hook("creating", purge);
-      }
-      store.writeConversationMessages(id, [{ _id: "old" }], { cursor: 1 });
-      const writing = syncWrites().catch(() => {});
-      try {
-        await entered.promise;
-        await writing;
-      } finally {
-        if (sqlite) sqlite.exec("DROP TRIGGER overlap");
-        else dexie.conversationMessageRows.hook("creating").unsubscribe(purge);
-      }
-      expect(await store.loadConversationMessages(id)).toBeNull();
-      expect(
-        sqlite
-          ? sqlite
-              .query<{ count: number }, []>(
-                "SELECT count(*) AS count FROM message_rows",
-              )
-              .get()?.count
-          : await dexie.conversationMessageRows.count(),
-      ).toBe(0);
-      store.writeConversationMessages(id, [{ _id: "new" }], { cursor: 2 });
-      await syncWrites();
-      expect(await store.loadConversationMessages(id)).toMatchObject({
-        messages: [{ _id: "new" }],
-        pagination: { cursor: 2 },
-      });
-    });
-    test("hydration blocks collection and transcript writes", async () => {
-      store.setHydrating(true);
-      try {
-        writeSessions(store);
-        store.writeConversationMessages(id, [{ _id: "hydrating" }], {});
-        await syncWrites();
-      } finally {
-        store.setHydrating(false);
-      }
-      expect(await store.loadCache(["sessions"])).toBeNull();
-      expect(await store.loadConversationMessages(id)).toBeNull();
-    });
-    test("an unparsable token does not purge a foreign cache", async () => {
-      writeSessions(store);
-      await syncWrites();
-      await setMeta("cacheOwner", { principal: "userB" });
-      localStorage.setItem(AUTH_JWT_STORAGE_KEY, "unparsable");
-      expect(await store.loadCache(["sessions"])).toBeNull();
-      expect(await getMeta("cacheOwner")).toMatchObject({ principal: "userB" });
-      signIn("userB");
-      expect(await store.loadCache(["sessions"])).toEqual(sessionState);
-    });
-    test("boot removes ownerless residue before accepting new writes", async () => {
-      writeSessions(store);
-      await syncWrites();
-      if (sqlite) sqlite.exec("DELETE FROM meta WHERE key = 'cacheOwner'");
-      else await dexie.meta.delete("cacheOwner");
-      expect(await store.loadCache(["sessions"])).toBeNull();
-      expect(await store.loadCache(["sessions"])).toBeNull();
-      writeSessions(store);
-      await syncWrites();
-      expect(await store.loadCache(["sessions"])).toEqual(sessionState);
-    });
-    test("snapshot drops extend a row patch to the replaced collection", async () => {
-      writeSessions(store);
-      await syncWrites();
-      noteSnapshotSync("sessions", [oldId], [id]);
-      const next = { ...row, _id: oldId };
-      store.writePatches([patch("sessions", oldId)], {
-        sessions: { [oldId]: next },
-      });
-      await syncWrites();
-      expect(await store.loadCache(["sessions"])).toEqual({
-        sessions: { [oldId]: next },
-      });
-    });
-    test("deferred boot removes expired and invalid rows from disk", async () => {
-      store.writePatches([patch("taskComments")], {
-        taskComments: {
-          [id]: { _id: id, comments: [], _cachedAt: 1 },
-          [oldId]: { _id: oldId, _cachedAt: Date.now() },
-        },
-      });
-      await syncWrites();
-      expect(
-        (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.taskComments,
-      ).toBeUndefined();
-      await syncWrites();
-      expect(
-        sqlite
-          ? sqlite
-              .query<{ count: number }, []>(
-                "SELECT count(*) AS count FROM collection_rows WHERE collection = 'taskComments'",
-              )
-              .get()?.count
-          : await dexie.table("taskComments").count(),
-      ).toBe(0);
-    });
-
-    test("account switch blocks stale writes and the new account starts empty", async () => {
-      writeSessions(store);
-      await syncWrites();
-      expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
-      signIn("userB");
-      writeSessions(store, {
-        sessions: { [id]: { ...row, message_count: 3 } },
-      });
-      await syncWrites();
-      signIn(owner);
-      expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
-      signIn("userB");
-      expect(await store.loadCache(["sessions"])).toBeNull();
-      writeSessions(store, {
-        sessions: { [id]: { ...row, message_count: 4 } },
-      });
-      await syncWrites();
-      expect(
-        (await store.loadCache(["sessions"]))?.sessions[id].message_count,
-      ).toBe(4);
+    await syncWrites();
+    expect(await store.loadConversationMessages(id)).toEqual({
+      messages: streamed,
+      pagination: { cursor: 42, hasMoreAbove: true },
+      latestTimestamp: 500,
+      userMessages,
     });
   });
-}
+  test("purge during a write clears the old tail and permits the next epoch", async () => {
+    const entered = Promise.withResolvers<Promise<void>>();
+    const purge = () =>
+      entered.resolve(store.purgeLocalCache({ keepPendingInputFor: owner }));
+    sqlite.function("purge_in_write", () => {
+      purge();
+      return 1;
+    });
+    sqlite.exec(`CREATE TRIGGER overlap BEFORE INSERT ON message_rows
+        BEGIN SELECT purge_in_write(); END`);
+    store.writeConversationMessages(id, [{ _id: "old" }], { cursor: 1 });
+    const writing = syncWrites().catch(() => {});
+    try {
+      await entered.promise;
+      await writing;
+    } finally {
+      sqlite.exec("DROP TRIGGER overlap");
+    }
+    expect(await store.loadConversationMessages(id)).toBeNull();
+    expect(
+      sqlite
+        .query<{ count: number }, []>(
+          "SELECT count(*) AS count FROM message_rows",
+        )
+        .get()?.count,
+    ).toBe(0);
+    store.writeConversationMessages(id, [{ _id: "new" }], { cursor: 2 });
+    await syncWrites();
+    expect(await store.loadConversationMessages(id)).toMatchObject({
+      messages: [{ _id: "new" }],
+      pagination: { cursor: 2 },
+    });
+  });
+  test("hydration blocks collection and transcript writes", async () => {
+    store.setHydrating(true);
+    try {
+      writeSessions(store);
+      store.writeConversationMessages(id, [{ _id: "hydrating" }], {});
+      await syncWrites();
+    } finally {
+      store.setHydrating(false);
+    }
+    expect(await store.loadCache(["sessions"])).toBeNull();
+    expect(await store.loadConversationMessages(id)).toBeNull();
+  });
+  test("an unparsable token does not purge a foreign cache", async () => {
+    writeSessions(store);
+    await syncWrites();
+    await setMeta("cacheOwner", { principal: "userB" });
+    localStorage.setItem(AUTH_JWT_STORAGE_KEY, "unparsable");
+    expect(await store.loadCache(["sessions"])).toBeNull();
+    expect(await getMeta("cacheOwner")).toMatchObject({ principal: "userB" });
+    signIn("userB");
+    expect(await store.loadCache(["sessions"])).toEqual(sessionState);
+  });
+  test("boot removes ownerless residue before accepting new writes", async () => {
+    writeSessions(store);
+    await syncWrites();
+    sqlite.exec("DELETE FROM meta WHERE key = 'cacheOwner'");
+    expect(await store.loadCache(["sessions"])).toBeNull();
+    expect(await store.loadCache(["sessions"])).toBeNull();
+    writeSessions(store);
+    await syncWrites();
+    expect(await store.loadCache(["sessions"])).toEqual(sessionState);
+  });
+  test("snapshot drops extend a row patch to the replaced collection", async () => {
+    writeSessions(store);
+    await syncWrites();
+    noteSnapshotSync("sessions", [oldId], [id]);
+    const next = { ...row, _id: oldId };
+    store.writePatches([patch("sessions", oldId)], {
+      sessions: { [oldId]: next },
+    });
+    await syncWrites();
+    expect(await store.loadCache(["sessions"])).toEqual({
+      sessions: { [oldId]: next },
+    });
+  });
+  test("deferred boot removes expired and invalid rows from disk", async () => {
+    store.writePatches([patch("taskComments")], {
+      taskComments: {
+        [id]: { _id: id, comments: [], _cachedAt: 1 },
+        [oldId]: { _id: oldId, _cachedAt: Date.now() },
+      },
+    });
+    await syncWrites();
+    expect(
+      (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.taskComments,
+    ).toBeUndefined();
+    await syncWrites();
+    expect(
+      sqlite
+        .query<{ count: number }, []>(
+          "SELECT count(*) AS count FROM collection_rows WHERE collection = 'taskComments'",
+        )
+        .get()?.count,
+    ).toBe(0);
+  });
+
+  test("account switch blocks stale writes and the new account starts empty", async () => {
+    writeSessions(store);
+    await syncWrites();
+    expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
+    signIn("userB");
+    writeSessions(store, {
+      sessions: { [id]: { ...row, message_count: 3 } },
+    });
+    await syncWrites();
+    signIn(owner);
+    expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
+    signIn("userB");
+    expect(await store.loadCache(["sessions"])).toBeNull();
+    writeSessions(store, {
+      sessions: { [id]: { ...row, message_count: 4 } },
+    });
+    await syncWrites();
+    expect(
+      (await store.loadCache(["sessions"]))?.sessions[id].message_count,
+    ).toBe(4);
+  });
+});
 
 test("SQLite reports cursor failure, saves later rows and fences later cursors until reset", async () => {
   using db = new Database(":memory:");
@@ -417,7 +372,7 @@ test("SQLite rolls back transcript rows on a pagination failure and keeps other 
   });
 });
 
-test("SQLite read-only scope projects paint keys and leaves disk unchanged", async () => {
+test("SQLite read-only scope reads sessions and leaves disk unchanged", async () => {
   using db = new Database(":memory:");
   const writer = createSqliteCache(db, authPrincipal);
   writeSessions(writer, {
@@ -433,7 +388,6 @@ test("SQLite read-only scope projects paint keys and leaves disk unchanged", asy
   writer.writePatches([patch("currentUser")], { currentUser: { _id: owner } });
   db.exec("DELETE FROM meta WHERE key = 'cacheOwner'");
   const reader = createSqliteCache(db, authPrincipal, "read-only");
-  expect(await reader.loadPaintCache()).toEqual(sessionState);
   expect(await reader.loadCache(["sessions"])).toEqual(sessionState);
   writeSessions(reader, { sessions: { [id]: { ...row, message_count: 2 } } });
   await reader.purgeLocalCache();
@@ -580,7 +534,6 @@ test("SQLite boots only the requested keys and leaves pending locks in IndexedDB
   expect(await store.loadCache(HYDRATION_DEFERRED_KEYS)).toEqual({
     mySends: { [id]: meta },
   });
-  expect(await store.loadPaintCache()).toEqual(sessionState);
   expect(
     db
       .query(

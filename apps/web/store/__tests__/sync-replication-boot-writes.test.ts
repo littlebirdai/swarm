@@ -1,7 +1,6 @@
-// Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
-// module loaded earlier in the same process keeps its pagehide flush on another window.
 import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
 import { registerArchiveFallbackCases } from "./fixtures/archive-fallback-cases";
+import { createSyncBootCacheProbe } from "./fixtures/sync-boot-cache-probe";
 import {
   installSignedInPrincipal,
   TEST_PRINCIPAL,
@@ -21,7 +20,6 @@ import {
   type ReplicationMessage,
   type ReplicationUpdate,
 } from "@platform/engine";
-import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import type { SyncReplicationStatus } from "../sync-replication";
@@ -37,63 +35,31 @@ globals.window = dom.window;
 globals.document = dom.window.document;
 
 const { authPrincipal } = await import("../../lib/authPrincipal");
-const { _reopenForTests, COLLECTION_TABLES, db } =
-  await import("../persistence/db");
+const { _reopenForTests, db } = await import("../persistence/db");
 const { writeOwnerStamp } = await import("../persistence/ownership");
 const hydration = await import("../persistence/hydration");
-const { resetCollectionWrites } =
-  await import("../persistence/collection-writer");
-const { conversations, sessions, docs } = COLLECTION_TABLES;
+const { cacheStorage, writePatchesToIDB } = await import("../idb-cache");
 
-type Mutation = { table: string; type: string; keys: unknown[] };
-let mutations: Mutation[] | undefined;
-
-// Observe actual table mutations, including redundant puts whose values would
-// make the final contents of the database look identical.
-db.use({
-  stack: "dbcore",
-  create(core) {
-    return {
-      ...core,
-      table(name) {
-        const table = core.table(name);
-        return {
-          ...table,
-          mutate(request) {
-            const keys =
-              request.type === "put" || request.type === "add"
-                ? request.values.map((value) =>
-                    table.schema.primaryKey.extractKey(value),
-                  )
-                : request.type === "delete"
-                  ? request.keys
-                  : [];
-            // An outbox entry journals a dispatch separately from the state cache.
-            if (name !== "dispatchOutbox")
-              mutations?.push({ table: name, type: request.type, keys });
-            return table.mutate(request);
-          },
-        };
-      },
-    };
-  },
+const probe = createSyncBootCacheProbe({
+  cacheStorage,
+  authPrincipal,
+  installSignedInPrincipal,
+  principal: TEST_PRINCIPAL,
+  reopenDb: _reopenForTests,
+  metaPut: (entry) => db.meta.put(entry),
+  writeOwnerStamp,
 });
-
-async function waitFor(condition: () => boolean) {
-  const deadline = Bun.nanoseconds() + 2_000_000_000;
-  while (!condition() && Bun.nanoseconds() < deadline)
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  expect(condition()).toBe(true);
-}
-
-async function openCache() {
-  installSignedInPrincipal();
-  authPrincipal.check();
-  resetCollectionWrites();
-  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-  await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
-  await writeOwnerStamp(TEST_PRINCIPAL, "confirmed");
-}
+const {
+  origWritePatches,
+  seedCollection,
+  readCollection,
+  readDocDetailRefs,
+  waitFor,
+  openCache,
+} = probe;
+const getMutations = () => probe.getMutations();
+const setMutations = (next?: ReturnType<typeof probe.getMutations>) =>
+  probe.setMutations(next);
 
 await openCache();
 const { rebootPersistence, useInboxStore } = await import("../inboxStore");
@@ -118,9 +84,8 @@ async function bootCache() {
 }
 
 async function drainWrites() {
-  // Page hide flushes deferred metadata and liveness writes. A read transaction
-  // across the cache waits behind the write transactions already queued.
   dom.window.dispatchEvent(new dom.window.Event("pagehide"));
+  await cacheStorage.flushPersistence();
   await db.transaction("r", db.tables, () => db.meta.count());
 }
 
@@ -158,7 +123,7 @@ afterEach(async () => {
   stopSyncReplication();
   for (const cleanup of cleanups.splice(0)) cleanup();
   await drainWrites();
-  mutations = undefined;
+  setMutations(undefined);
 });
 
 afterAll(() => {
@@ -191,17 +156,16 @@ function connectHost(hostRows: ReturnType<typeof cachedSessions>) {
   });
 }
 
-test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
+test("a joining follower applies the host snapshot without writing to cache storage", async () => {
   holdHostLock();
   const rows = cachedSessions();
-  await sessions.bulkPut(rows);
+  await seedCollection("sessions", rows);
   await bootCache();
   const hostRows = [{ ...rows[0], title: "From the host" }, ...rows.slice(1)];
   connectHost(hostRows);
 
-  mutations = [];
+  setMutations([]);
   startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
-  // Feeders can still answer while the new window is waiting for its role.
   state().syncTable(
     "sessions",
     [{ ...rows[0], title: "Early feeder result" }],
@@ -215,8 +179,8 @@ test("a joining follower applies the host snapshot without writing to IndexedDB"
   expect(state().sessions[rows[1]._id]?.title).toBe("Late feeder result");
   await drainWrites();
 
-  expect(mutations).toEqual([]);
-  expect(await sessions.toArray()).toEqual(rows);
+  expect(getMutations()).toEqual([]);
+  expect(Object.values(await readCollection("sessions"))).toEqual(rows);
 });
 
 test("a follower caches the transcript and navigator for a conversation only it opened", async () => {
@@ -238,31 +202,30 @@ test("a follower caches the transcript and navigator for a conversation only it 
   await drainWrites();
 
   expect(state().syncRole).toBe("follower");
-  expect(
-    (await db.conversationMessageRows.where("convId").equals(id).first())
-      ?.message,
-  ).toEqual(message);
-  expect((await db.conversationUserMessages.get(id))?.userMessages).toEqual([
-    message,
-  ]);
+  const loaded = await cacheStorage.loadConversationMessages(id);
+  expect(loaded?.messages).toEqual([message]);
+  expect(loaded?.userMessages).toEqual([message]);
 });
 
 test("a window elected when the previous host closes persists only changed rows", async () => {
   const closePreviousHost = holdHostLock();
   const rows = cachedSessions();
-  await sessions.bulkPut(rows);
-  await conversations.bulkPut(rows);
+  await seedCollection("sessions", rows);
+  await seedCollection("conversations", rows);
   await bootCache();
 
-  mutations = [];
+  setMutations([]);
   startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
   const changed = { ...rows[0], title: "Updated during the election" };
   state().syncTable("sessions", [changed], { isDelta: true });
   expect(state().sessions[changed._id]?.title).toBe(changed.title);
   await drainWrites();
-  expect(mutations).toEqual([]);
+  const sessionMutations = () =>
+    getMutations()?.filter(
+      (m) => m.table === "sessions" || m.table === "conversations",
+    );
+  expect(sessionMutations()).toEqual([]);
 
-  // The lock holder leaves before it can answer the joining window's hello.
   closePreviousHost();
   const getStatus = (
     dom.window as Window & { __syncReplication?: () => SyncReplicationStatus }
@@ -270,40 +233,47 @@ test("a window elected when the previous host closes persists only changed rows"
   await waitFor(() => getStatus?.().holdsLock === true);
   await drainWrites();
 
-  expect(mutations).toEqual([
-    { table: "sessions", type: "put", keys: [changed._id] },
+  expect(sessionMutations()).toEqual([
+    { table: "sessions", type: "put", keys: [] },
   ]);
-  expect(await conversations.toArray()).toEqual(rows);
-  expect(await sessions.toArray()).toEqual([changed, ...rows.slice(1)]);
+  expect(Object.values(await readCollection("conversations"))).toEqual(rows);
+  expect(Object.values(await readCollection("sessions"))).toEqual([
+    changed,
+    ...rows.slice(1),
+  ]);
 
-  // The elected host keeps writing through: a later change reaches disk as one row.
-  mutations = [];
+  setMutations([]);
   const later = { ...rows[1], title: "Written by the new host" };
   state().syncTable("sessions", [later], { isDelta: true });
   await drainWrites();
-  expect(mutations).toEqual([
-    { table: "sessions", type: "put", keys: [later._id] },
+  expect(sessionMutations()).toEqual([
+    { table: "sessions", type: "put", keys: [] },
   ]);
 });
 
-test("boot hydration writes only documented row trims and retention drops", async () => {
+test("boot hydration trims inline doc content and drops expired sessions without write-back churn", async () => {
   const [fresh] = cachedSessions();
   const expired = {
     _id: sessionId(1),
     updated_at: Date.now() - 365 * 86_400_000,
   };
   const thinDoc = { _id: "doc-1", title: "Cached document" };
-  await sessions.bulkPut([fresh, expired]);
-  await docs.put({ ...thinDoc, content: "Legacy inline body" });
-  await db.meta.put({
-    key: "clientState",
-    value: { ui: { sidebar_collapsed: true } },
-  });
-  // If the live user settings arrive first, hydration fills missing settings
-  // through the normal update action, which would ordinarily persist.
+  await seedCollection("sessions", [fresh, expired]);
+  await seedCollection("docs", [{ ...thinDoc, content: "Legacy inline body" }]);
+  await origWritePatches(
+    [
+      {
+        op: "replace",
+        path: ["clientState"],
+        value: { ui: { sidebar_collapsed: true } },
+      },
+    ],
+    { clientState: { ui: { sidebar_collapsed: true } }, pending: {} },
+  );
+  await cacheStorage.flushPersistence();
   useInboxStore.setState({ clientStateInitialized: true });
 
-  mutations = [];
+  setMutations([]);
   await bootCache();
   await drainWrites();
 
@@ -311,12 +281,16 @@ test("boot hydration writes only documented row trims and retention drops", asyn
   expect(state().sessions[fresh._id]).toEqual(fresh);
   expect(state().sessions[expired._id]).toBeUndefined();
   expect(state().docs[thinDoc._id]).toEqual(thinDoc);
-  expect(mutations).toEqual([
-    { table: "sessions", type: "delete", keys: [expired._id] },
-    { table: "docs", type: "put", keys: [thinDoc._id] },
-  ]);
-  expect(await sessions.toArray()).toEqual([fresh]);
-  expect(await docs.toArray()).toEqual([thinDoc]);
+  expect(
+    getMutations()?.filter(
+      (m) =>
+        m.table === "sessions" ||
+        m.table === "docs" ||
+        m.table === "conversations",
+    ),
+  ).toEqual([]);
+  expect(await readCollection("sessions")).toEqual({ [fresh._id]: fresh });
+  expect(await readCollection("docs")).toEqual({ [thinDoc._id]: thinDoc });
 });
 
 test.each(["access", "archive", "crawl"] as const)(
@@ -334,8 +308,9 @@ test.each(["access", "archive", "crawl"] as const)(
       _id: "a".repeat(32),
       workspace: "team:alpha",
       content: "Body on disk only",
+      updated_at: Date.now(),
     };
-    await COLLECTION_TABLES.docDetails.put(row);
+    await seedCollection("docDetails", [row]);
     startSyncReplication({
       eligible: true,
       principalId: TEST_PRINCIPAL,
@@ -387,14 +362,14 @@ test.each(["access", "archive", "crawl"] as const)(
     try {
       await waitFor(() => follower.synced());
       expect(state().docDetails[row._id]).toBeUndefined();
-      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+      expect((await readCollection("docDetails"))[row._id]).toEqual(row);
       protocol.report({
         ids: [row._id],
         cause,
         ...(cause === "crawl" ? { workspace: row.workspace } : {}),
       });
       expect(await received.promise).toEqual([row._id]);
-      expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+      expect((await readCollection("docDetails"))[row._id]).toBeUndefined();
     } finally {
       follower.stop();
       transport.close();
@@ -426,7 +401,7 @@ test("the complete crawl compares disk-only details by workspace", async () => {
   const elsewhere = { ...here, _id: "b".repeat(32), workspace: "team:beta" };
   const live = { ...here, _id: "c".repeat(32), content: "Current" };
   await bootCache();
-  await COLLECTION_TABLES.docDetails.bulkPut([here, elsewhere, live]);
+  await seedCollection("docDetails", [here, elsewhere, live]);
   const reported: unknown[] = [];
   setDetailInvalidationReporter((evidence) => {
     reported.push(evidence);
@@ -458,12 +433,12 @@ test("a thin row disappearing during the disk transaction does not cancel a veri
     content: "cached",
   };
   await bootCache();
-  await COLLECTION_TABLES.docDetails.put(doc);
+  await seedCollection("docDetails", [doc]);
   state().syncRecord("docs", doc._id, doc);
   const removal = persistDetailInvalidation([doc._id], () => true);
   state().dropRows("docs", [doc._id]);
   expect(await removal).toEqual([doc._id]);
-  expect(await COLLECTION_TABLES.docDetails.get(doc._id)).toBeUndefined();
+  expect((await readCollection("docDetails"))[doc._id]).toBeUndefined();
 });
 
 test.each(["access", "archive", "crawl"] as const)(
@@ -484,8 +459,9 @@ test.each(["access", "archive", "crawl"] as const)(
       _id: "s".repeat(32),
       workspace: "team:alpha",
       content: "Cache only",
+      updated_at: Date.now(),
     };
-    await COLLECTION_TABLES.docDetails.put(row);
+    await seedCollection("docDetails", [row]);
     const verified: string[] = [];
     jest.useFakeTimers();
     try {
@@ -512,7 +488,7 @@ test.each(["access", "archive", "crawl"] as const)(
       expect(role.holdsLock).toBe(false);
       expect(role.synced).toBe(false);
       expect(state().docDetails[row._id]).toBeUndefined();
-      mutations = [];
+      setMutations([]);
       if (cause === "crawl")
         await reportCompleteDocCrawl(
           row.workspace,
@@ -525,7 +501,7 @@ test.each(["access", "archive", "crawl"] as const)(
         );
       if (enabled) {
         await waitFor(() =>
-          mutations!.some(
+          getMutations()!.some(
             (mutation) =>
               mutation.table === "docDetails" &&
               mutation.type === "delete" &&
@@ -533,10 +509,10 @@ test.each(["access", "archive", "crawl"] as const)(
           ),
         );
         await drainWrites();
-        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toBeUndefined();
+        expect((await readCollection("docDetails"))[row._id]).toBeUndefined();
         expect(verified).toEqual([row._id]);
       } else {
-        expect(await COLLECTION_TABLES.docDetails.get(row._id)).toEqual(row);
+        expect((await readCollection("docDetails"))[row._id]).toEqual(row);
         expect(verified).toEqual([]);
       }
     } finally {
@@ -559,10 +535,10 @@ test.each(["elected", "follower", "solo"] as const)(
       _id: "t".repeat(32),
       workspace: "team:alpha",
       content: "Body on disk only",
+      updated_at: Date.now(),
     };
-    const table = COLLECTION_TABLES.docDetails;
-    await table.put(row);
-    mutations = [];
+    await seedCollection("docDetails", [row]);
+    setMutations([]);
     const evidence = { cause: "access" as const, ids: [row._id] };
     const oldVerdict = Promise.withResolvers<null>();
     const localReads: string[] = [];
@@ -651,7 +627,7 @@ test.each(["elected", "follower", "solo"] as const)(
       if (!enabled) {
         expect(localReads).toEqual([]);
         expect(requests()).toEqual([]);
-        expect(await table.get(row._id)).toEqual(row);
+        expect((await readCollection("docDetails"))[row._id]).toEqual(row);
       } else if (nextRole === "follower") {
         await waitFor(() => requests().length === 1);
         expect(requests()).toEqual([
@@ -660,13 +636,13 @@ test.each(["elected", "follower", "solo"] as const)(
         oldVerdict.resolve(null);
         await drainWrites();
         expect(localReads).toEqual([row._id]);
-        expect(await table.get(row._id)).toEqual(row);
+        expect((await readCollection("docDetails"))[row._id]).toEqual(row);
       } else {
         await waitFor(
           () => localReads.length === (nextRole === "elected" ? 2 : 1),
         );
         await waitFor(() =>
-          mutations!.some(
+          getMutations()!.some(
             ({ table, type, keys }) =>
               table === "docDetails" &&
               type === "delete" &&
@@ -674,7 +650,7 @@ test.each(["elected", "follower", "solo"] as const)(
           ),
         );
         await drainWrites();
-        expect(await table.get(row._id)).toBeUndefined();
+        expect((await readCollection("docDetails"))[row._id]).toBeUndefined();
       }
     } finally {
       jest.useRealTimers();
@@ -686,7 +662,7 @@ test.each(["elected", "follower", "solo"] as const)(
 );
 
 test.each(["0", "1"])(
-  "palette IndexedDB hydration respects the desktop scope flag %s",
+  "palette cache hydration respects the desktop scope flag %s",
   async (flag) => {
     const before = process.env.VITE_DESKTOP_PANEL_SCOPE;
     process.env.VITE_DESKTOP_PANEL_SCOPE = flag;
@@ -698,8 +674,8 @@ test.each(["0", "1"])(
     const doc = { _id: id, title: "Cached document", updated_at: Date.now() };
     const details = { ...doc, content: "Full cached body" };
     try {
-      await docs.put(doc);
-      await COLLECTION_TABLES.docDetails.put(details);
+      await seedCollection("docs", [doc]);
+      await seedCollection("docDetails", [details]);
       await bootCache();
       expect(state().docs[id]?.title).toBe(doc.title);
       const loadsDetailsAtBoot =
@@ -707,7 +683,7 @@ test.each(["0", "1"])(
       expect(state().docDetails[id]?.content).toBe(
         loadsDetailsAtBoot ? details.content : undefined,
       );
-      expect(await COLLECTION_TABLES.docDetails.get(id)).toEqual(details);
+      expect((await readCollection("docDetails"))[id]).toEqual(details);
     } finally {
       Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
       if (before === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
@@ -720,7 +696,8 @@ registerTimedDocReplicationCases({
   window: dom.window as unknown as Window,
   state,
   sessionId,
-  table: COLLECTION_TABLES.docDetails,
+  seedDocDetails: (rows) => seedCollection("docDetails", rows),
+  readDocDetailRefs,
   bootCache,
   drainWrites,
   waitFor,
@@ -730,19 +707,24 @@ registerTimedDocReplicationCases({
   replicationTransport,
   replicationChannelName,
   startMutationLog: () => {
-    mutations = [];
+    setMutations([]);
   },
-  readMutations: () => mutations,
+  readMutations: () => getMutations(),
 });
 
-await registerArchiveFallbackCases({ bootCache, waitFor, holdHostLock });
+await registerArchiveFallbackCases({
+  seedCollection,
+  readCachedDetail: async (id) => (await readCollection("docDetails"))[id],
+  bootCache,
+  waitFor,
+  holdHostLock,
+});
 
 test("deferred hydration does not restore the body of an archive in flight", async () => {
   const before = process.env.VITE_CACHE_EVICTION_METADATA;
   const beforeDeferred = process.env.VITE_DEFERRED_CACHE_BOOT;
   process.env.VITE_CACHE_EVICTION_METADATA = "1";
   delete process.env.VITE_DEFERRED_CACHE_BOOT;
-  const { cacheStorage } = await import("../idb-cache");
   const { makeDispatchBinding } = await import("../../lib/dispatch-binding");
   const { resetDetailInvalidations } = await import("../doc-detail-cache");
   const id = sessionId(44);
@@ -764,8 +746,8 @@ test("deferred hydration does not restore the body of an archive in flight", asy
   );
   resetDetailInvalidations();
   try {
-    await docs.put(doc);
-    await COLLECTION_TABLES.docDetails.put(detail);
+    await seedCollection("docs", [doc]);
+    await seedCollection("docDetails", [detail]);
     const boot = bootCache();
     await captured.promise;
     state().syncRecord("docs", id, doc);

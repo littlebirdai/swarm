@@ -16,7 +16,7 @@ cache alone.
    The timer discards the old merge before the check arrives. After the check,
    the timed cache holds 2,000 rows, while boot retention over full history
    keeps 2,001 because the check makes the merge relevant again.
-   `apps/web/store/persistence/boot-loader.ts:145`,
+   `apps/web/store/persistence/retention.ts`,
    `apps/web/store/cacheRetention.ts:314`,
    `apps/web/store/cacheRetention.ts:344`,
    `apps/web/store/cacheRetention.ts:369`,
@@ -192,7 +192,7 @@ invalidate its copy.
 `apps/web/store/clientSyncRegistry.ts:374`,
 `apps/web/store/inboxStore.ts:17846`,
 `apps/web/store/idb-collection-diff.ts:132`,
-`apps/web/store/persistence/collection-writer.ts:106`,
+`apps/web/store/persistence/sqlite/worker-client.ts`,
 `apps/web/hooks/use-sync-docs.ts:346`.
 
 Authorize a disk delete with an explicit detail invalidation for the current
@@ -270,11 +270,9 @@ Reject delayed work after a host or account change. Keep reclamation
 idempotent and let a fresh feed or open view restore the row. Before
 reclamation ships, protect a document that an active follower has open with
 a renewable pin that expires if the window disappears.
-`apps/web/store/persistence/idb-liveness-lane.ts:164`,
-`apps/web/store/persistence/idb-liveness-lane.ts:47`,
-`apps/web/store/persistence/idb-liveness-lane.ts:217`,
+`apps/web/store/persistence/sqlite/worker-client.ts`,
 `apps/web/store/clientSyncRegistry.ts:2360`,
-`apps/web/store/persistence/collection-writer.ts:68`,
+`apps/web/store/persistence/sqlite/patch-payload.ts`,
 `apps/web/store/sync-replication.ts:328`,
 `docs/architecture/sync-host.md:157`.
 

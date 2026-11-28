@@ -82,12 +82,20 @@ type ManifestEntry = { url: string; revision: string | null; size: number };
  */
 export function precacheScope(): {
   plugin: Plugin;
+  workerPlugin: Plugin;
   manifestTransform: (
     entries: ManifestEntry[],
   ) => Promise<{ manifest: ManifestEntry[]; warnings: string[] }>;
 } {
   let keep: Set<string> | null = null;
+  const workerKeep = new Set<string>();
   let assetsDir = "assets";
+  const collectWorkerAssets = (bundle: OutputBundle) => {
+    for (const file of appShellFiles(bundle)) workerKeep.add(file);
+    for (const [fileName, item] of Object.entries(bundle)) {
+      if (item.type === "asset") workerKeep.add(fileName);
+    }
+  };
   return {
     plugin: {
       name: "codecast-precache-scope",
@@ -99,13 +107,24 @@ export function precacheScope(): {
         keep = appShellFiles(bundle);
       },
     },
+    workerPlugin: {
+      name: "codecast-precache-worker-scope",
+      apply: "build",
+      generateBundle(_options, bundle) {
+        collectWorkerAssets(bundle);
+      },
+    },
     async manifestTransform(entries) {
       // No bundle seen (an SSR or library build): precache as configured.
       if (!keep) return { manifest: entries, warnings: [] };
       const shell = keep;
       const manifest = entries.filter((entry) => {
         const url = entry.url.replace(/^\/+/, "");
-        return !url.startsWith(`${assetsDir}/`) || shell.has(url);
+        return (
+          !url.startsWith(`${assetsDir}/`) ||
+          shell.has(url) ||
+          workerKeep.has(url)
+        );
       });
       return { manifest, warnings: [] };
     },

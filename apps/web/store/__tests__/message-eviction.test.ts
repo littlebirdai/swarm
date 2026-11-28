@@ -15,7 +15,7 @@ import {
   type InboxStoreState,
 } from "../inboxStore";
 import {
-  flushConversationMessages,
+  cacheStorage,
   flushPendingMessageJournal,
   _reopenForTests,
 } from "../idb-cache";
@@ -235,13 +235,7 @@ test("rehydrates an evicted transcript and navigator from disk without resetting
     expect(await ensureCacheOwnership()).toBe(principal);
     useInboxStore.getState().setMessages(id, [message], { initialized: true });
     useInboxStore.getState().setUserMessages(id, [message]);
-    flushConversationMessages();
-    await db.transaction(
-      "r",
-      db.conversationMessageRows,
-      db.conversationUserMessages,
-      () => db.conversationMessageRows.count(),
-    );
+    await cacheStorage.flushPersistence();
     useInboxStore.setState({
       _lastViewedAt: { [id]: 1, a: 2, b: 3, c: 4, d: 5 },
     });

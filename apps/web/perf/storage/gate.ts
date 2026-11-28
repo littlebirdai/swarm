@@ -19,7 +19,7 @@ export function evaluate(
       verdict: result.status === "not-run" ? "not-run" : "fail",
       reason: result.reason,
     };
-  const { sqlite, dexie } = result;
+  const { sqlite } = result;
   const { memory } = sqlite;
   const wasmOnly = memory.capability === "wasm-only";
   const liveMemory = wasmOnly ? memory.wasmBytes : memory.liveBytes;
@@ -34,7 +34,6 @@ export function evaluate(
       actual <= limit,
   });
   const requiredSamples = [
-    dexie.paintMs,
     sqlite.readyMs,
     sqlite.paintMs,
     sqlite.mainWriteMs,
@@ -57,10 +56,6 @@ export function evaluate(
         trialCount >= 20 &&
         requiredSamples.every((sample) => sample?.count === trialCount),
     },
-    baselineIntegrity: {
-      actual: dexie.handoffIntact && dexie.crashIntact,
-      pass: dexie.handoffIntact && dexie.crashIntact,
-    },
     rollbackJournal: {
       actual: sqlite.journal,
       pass: sqlite.journal === "delete",
@@ -70,10 +65,6 @@ export function evaluate(
       browser === "chromium" ? 120 : 200,
     ),
     paintMs: maximum(sqlite.paintMs.p95, 60),
-    paintComparedToDexieMs: maximum(
-      sqlite.paintMs.p95,
-      dexie.paintMs.p95 / (browser === "chromium" ? 2 : 1),
-    ),
     mainWriteMs: maximum(sqlite.mainWriteMs.p95, 2),
     retentionMs: maximum(sqlite.retentionMs.p95, 50),
     handoffMs: maximum(sqlite.handoffMs.p95, 100),

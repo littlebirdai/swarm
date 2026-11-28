@@ -35,14 +35,15 @@ const limits = {
   "Retained externalEvents": { measured: 2000, margin: 0 },
   "Retained settingsData": { measured: 1, margin: 0 },
   "Retained mySends": { measured: 10000, margin: 0 },
-  "First paint read groups": { measured: 21, margin: 0 },
-  "First paint IndexedDB tables": { measured: 21, margin: 0 },
-  "First paint IndexedDB rows": { measured: 2_822, margin: 0 },
+  "First paint IndexedDB tables": { measured: 2, margin: 0 },
+  "First paint IndexedDB rows": { measured: 3, margin: 0 },
+  "First paint SQLite rows": { measured: 2_819, margin: 0 },
   "Streamed batch row writes": { measured: 4, margin: 0 },
-  "Rename action row writes": { measured: 6, margin: 0 },
+  "Rename action IndexedDB row writes": { measured: 4, margin: 0 },
+  "Rename action SQLite row writes": { measured: 2, margin: 0 },
   "Rename action write bytes with pending entries": {
-    measured: 1_836,
-    margin: 18,
+    measured: 1_589,
+    margin: 16,
   },
   "Follower populated collections": { measured: 138, margin: 0 },
   "Main window populated collections": { measured: 138, margin: 0 },
@@ -50,7 +51,7 @@ const limits = {
   "People populated collections": { measured: 16, margin: 0 },
   "Call panel populated collections": { measured: 49, margin: 0 },
   "Agent dock populated collections": { measured: 14, margin: 0 },
-  "Persisted IndexedDB rows after replay": { measured: 18_186, margin: 0 },
+  "Persisted IndexedDB rows after replay": { measured: 18_185, margin: 0 },
 } as const;
 
 export function checkStoreBudget(name: keyof typeof limits, actual: number) {

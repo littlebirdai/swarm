@@ -129,6 +129,10 @@ export function clearSnapshotDrops(key: string): void {
   snapshotDrops.delete(key);
 }
 
+export function snapshotDropsFor(key: string): ReadonlySet<string> | undefined {
+  return snapshotDrops.get(key);
+}
+
 /** One row gone from the store may leave disk: an exclude, a client stub, or a snapshot prune (the rule above). */
 export function deleteAllowed(
   key: string,

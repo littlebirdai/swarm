@@ -60,6 +60,7 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const { db } = await import("../persistence/db");
+  const { cacheStorage } = await import("../idb-cache");
   const hydration = await import("../persistence/hydration");
   const { installWindowRoleTracker } = await import("../../lib/desktop");
   const { useInboxStore, rebootPersistence } = await import("../inboxStore");
@@ -86,13 +87,21 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
       value: { principal: "userA", at: 1, reason: "seed" },
     });
     const id = "a".repeat(32);
-    await db.table("sessions").put(
-      session(id, {
-        session_id: "cached",
-        user_id: "userA",
-        awaiting_input: true,
-      }),
+    const seeded = session(id, {
+      session_id: "cached",
+      user_id: "userA",
+      awaiting_input: true,
+    });
+    cacheStorage.setHydrating(false);
+    cacheStorage.writePatches(
+      [{ op: "replace", path: ["sessions"], value: { [id]: seeded } }],
+      {
+        currentUser: { _id: "userA" },
+        sessions: { [id]: seeded },
+        pending: {},
+      },
     );
+    await cacheStorage.flushPersistence();
     db.close({ disableAutoOpen: false });
 
     installWindowRoleTracker();
@@ -133,6 +142,7 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
 
     await act(async () => {
       durableAuthStorage.removeItem(AUTH_JWT_STORAGE_KEY);
+      await Bun.sleep(20);
     });
     expect(useInboxStore.getState().clientStateInitialized).toBe(false);
     expect(badgeCounts).toEqual([1, 0]);
@@ -141,6 +151,7 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
       root.unmount();
     });
     stopAuthBoundary();
+    await cacheStorage.flushPersistence();
     db.close();
     closeDomWindow(dom);
     restore();

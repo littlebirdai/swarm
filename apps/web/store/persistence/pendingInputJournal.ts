@@ -114,6 +114,7 @@ export async function loadPendingInput(
 
 export function clearPendingInputJournal(): Promise<void> | null {
   pendingJournalEpoch++;
-  clearPendingMessageJournal(localStorage);
+  if (typeof localStorage !== "undefined")
+    clearPendingMessageJournal(localStorage);
   return pendingJournalFlush;
 }

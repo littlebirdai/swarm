@@ -16,7 +16,6 @@ import { SessionCard } from "./inbox/SessionCard";
 import { useSyncInboxRelayLiveness } from "../hooks/use-sync-inbox-relay-liveness";
 import { type InboxSession } from "../store/inboxStore";
 import { webBuilders } from "../test-helpers/builders";
-import { measureIndexedDB } from "../perf/measure-indexeddb";
 import { replaceGlobals } from "../test-helpers/globals";
 import { mountWeb } from "../test-helpers/mountWeb";
 import {
@@ -137,22 +136,15 @@ test("only current-run relay contact lands and loss falls back to Convex without
   const row = ui.store.getState().sessions[inboxRowId];
 
   const { authPrincipal } = await import("../lib/authPrincipal");
-  const { db } = await import("../store/persistence/db");
-  const {
-    _reopenForTests,
-    _resetPersistedShadow,
-    flushLivenessWrites,
-    setHydrating,
-    writePatchesToIDB,
-  } = await import("../store/idb-cache");
+  const { cacheStorage, _reopenForTests, setHydrating, writePatchesToIDB } =
+    await import("../store/idb-cache");
   const restoreDispatch = replaceGlobals({
     dispatchEvent: window.dispatchEvent.bind(window),
   });
   const principal = spyOn(authPrincipal, "current").mockReturnValue(viewerId);
+  const patchSpy = spyOn(cacheStorage, "writePatches");
   try {
-    const { writes } = measureIndexedDB(db);
     await _reopenForTests({ indexedDB, IDBKeyRange });
-    _resetPersistedShadow();
     setHydrating(false);
     const writeRow = (value: InboxSession) =>
       writePatchesToIDB(
@@ -160,17 +152,9 @@ test("only current-run relay contact lands and loss falls back to Convex without
         { sessions: { [inboxRowId]: value }, pending: {} },
       );
     writeRow(row);
-    await db.table("sessions").get(inboxRowId);
-    expect(writes.get("sessions")).toBeGreaterThan(0);
-    writes.clear();
-    writeRow({
-      ...row,
-      liveness_lease_end: (row.liveness_lease_end ?? 0) + 1000,
-    });
-    flushLivenessWrites();
-    await db.table("sessions").get(inboxRowId);
-    expect(writes.get("sessions")).toBe(1);
-    writes.clear();
+    await cacheStorage.flushPersistence();
+    expect(patchSpy).toHaveBeenCalled();
+    patchSpy.mockClear();
 
     const signal = (seq: number, run: number, machine_id = device) =>
       socket.message({
@@ -189,11 +173,8 @@ test("only current-run relay contact lands and loss falls back to Convex without
     await act(() => signal(3, 2));
     expect(indication()).not.toBeNull();
     for (let seq = 4; seq < 10; seq++) await act(() => signal(seq, 2));
-    flushLivenessWrites();
-    await db.table("sessions").get(inboxRowId);
-    expect(
-      [...writes.values()].reduce((total, count) => total + count, 0),
-    ).toBe(0);
+    await cacheStorage.flushPersistence();
+    expect(patchSpy).not.toHaveBeenCalled();
     expect(ui.store.getState().sessions[inboxRowId]).toBe(row);
     await act(() => signal(10, 1));
     expect(indication()).toBeNull();
@@ -247,7 +228,7 @@ test("only current-run relay contact lands and loss falls back to Convex without
       rowHeartbeatAliveAt(ui.store.getState().sessions[inboxRowId], inboxNow),
     ).toBe(false);
   } finally {
-    db.close();
+    patchSpy.mockRestore();
     restoreDispatch();
     principal.mockRestore();
   }

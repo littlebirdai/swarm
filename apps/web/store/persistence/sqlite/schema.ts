@@ -10,6 +10,7 @@ export type SqliteDriver = {
     get(...params: SqlValue[]): Row | null;
     all(...params: SqlValue[]): Row[];
     run(...params: SqlValue[]): unknown;
+    finalize?(): void;
   };
   transaction<Result>(body: () => Result): () => Result;
 };

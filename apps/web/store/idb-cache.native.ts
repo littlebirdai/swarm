@@ -983,12 +983,6 @@ async function loadNativeOutbox(): Promise<OutboxEntry[]> {
   }
 }
 
-// Web-only surface, stubbed for Metro: the retired browser v2 databases never
-// existed on native.
-export async function salvageLocalFirstV2Data(): Promise<number> {
-  return 0;
-}
-
 // -- Cache ownership --
 //
 // The disk cache belongs to the account whose user row it holds

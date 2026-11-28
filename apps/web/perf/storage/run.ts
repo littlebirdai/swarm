@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { cpus, loadavg, release, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
@@ -127,25 +127,6 @@ const browserPaths = {
         join(apps, "Firefox.app/Contents/MacOS/firefox"),
       ],
 };
-
-async function levelDbBytes(directory: string): Promise<number | null> {
-  const entries = await readdir(directory, { withFileTypes: true });
-  let total: number | null = null;
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const path = join(directory, entry.name);
-    if (entry.name.endsWith(".indexeddb.leveldb")) {
-      for (const file of await readdir(path, { withFileTypes: true })) {
-        if (!file.isFile()) continue;
-        total = (total ?? 0) + (await stat(join(path, file.name))).size;
-      }
-    } else {
-      const bytes = await levelDbBytes(path);
-      if (bytes !== null) total = (total ?? 0) + bytes;
-    }
-  }
-  return total;
-}
 
 async function runBrowser(
   browser: Browser,
@@ -295,8 +276,6 @@ async function runBrowser(
       await server.stop(true);
       await stopBrowser(proc);
     }
-    if (measured.status === "measured" && browser !== "firefox")
-      measured.dexie.databaseBytes = await levelDbBytes(profile);
     return measured;
   } finally {
     await rm(profile, { recursive: true, force: true, maxRetries: 5 });

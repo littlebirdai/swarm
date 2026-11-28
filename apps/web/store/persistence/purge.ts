@@ -1,12 +1,10 @@
 import { recordCacheEvent } from "../cache-events";
-import { resetCollectionWrites } from "./collection-writer";
 import {
   db,
   deleteCacheDatabase,
   reopenAfterPurge,
   setPurgeInProgress,
 } from "./db";
-import { dropPendingMessageWrites } from "./message-cache";
 import { writeOwnerStamp } from "./ownership";
 import { clearPendingInputJournal } from "./pendingInputJournal";
 import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "./schema";
@@ -51,8 +49,6 @@ async function purgeLocalCacheSteps(
   keepPendingInputFor: string | null,
 ): Promise<void> {
   await clearPendingInputJournal();
-  dropPendingMessageWrites();
-  resetCollectionWrites();
   // A cache purged from under a signed-in principal (someone else's rows were
   // on disk) keeps that principal's own pending input: keyed by owner, it was
   // never the other account's, and a typed message must not vanish.

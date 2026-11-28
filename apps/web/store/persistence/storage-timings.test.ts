@@ -7,22 +7,16 @@ import { validateEvent } from "@platform/analytics/catalog";
 import { expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
 import { buildClientResourceReport } from "../../lib/telemetry/client-resource-report";
+import { cacheStorage } from "../idb-cache";
 import {
   HYDRATION_CRITICAL_READ_KEYS,
   HYDRATION_DEFERRED_KEYS,
 } from "../clientSyncRegistry";
-import { loadCache } from "./boot-loader";
-import { writePatchesToIDB } from "./collection-writer";
-import { _reopenForTests, COLLECTION_TABLES, db } from "./db";
+import { _reopenForTests, db } from "./db";
 import { setHydrating } from "./hydration";
-import {
-  dropPendingMessageWrites,
-  flushConversationMessages,
-  loadConversationMessages,
-  writeConversationMessages,
-} from "./message-cache";
 import { loadOutbox } from "./outbox";
 import { writeOwnerStamp } from "./ownership";
+import { loadPendingInput } from "./pendingInputJournal";
 import { storageTimings, timeBootRead } from "./storage-timings";
 
 test("reports slow critical and deferred reads and a slow synchronous write", async () => {
@@ -32,14 +26,7 @@ test("reports slow critical and deferred reads and a slow synchronous write", as
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
   storageTimings.take();
 
-  const sessions = COLLECTION_TABLES.sessions;
-  const tasks = COLLECTION_TABLES.tasks;
-  const readSessions = sessions.toArray.bind(sessions);
-  const readTasks = tasks.toArray.bind(tasks);
   const bulkGetMeta = db.meta.bulkGet.bind(db.meta);
-  const getMeta = db.conversationMessageMeta.get.bind(
-    db.conversationMessageMeta,
-  );
   const putRow = IDBObjectStore.prototype.put;
   let now = 0;
   const clock = spyOn(performance, "now").mockImplementation(() => now);
@@ -50,20 +37,16 @@ test("reports slow critical and deferred reads and a slow synchronous write", as
       return rows;
     },
   );
-  const read = spyOn(sessions, "toArray").mockImplementation(async () => {
-    const rows = await readSessions();
-    now += 400;
-    return rows;
-  });
-  const deferred = spyOn(tasks, "toArray").mockImplementation(async () => {
-    const rows = await readTasks();
-    now += 80;
-    return rows;
-  });
+  const readOutbox = spyOn(db.dispatchOutbox, "toArray").mockImplementation(
+    async () => {
+      now += 80;
+      return [];
+    },
+  );
   const put = spyOn(IDBObjectStore.prototype, "put").mockImplementation(
     function (this: IDBObjectStore, ...args: Parameters<typeof putRow>) {
       const request = putRow.apply(this, args);
-      if (this.name === "sessions") {
+      if (this.name === "dispatchOutbox") {
         now += 180;
         request.addEventListener("success", () => {
           now += 1000;
@@ -73,25 +56,19 @@ test("reports slow critical and deferred reads and a slow synchronous write", as
     },
   );
   try {
-    await loadCache(HYDRATION_CRITICAL_READ_KEYS);
-    await loadCache(HYDRATION_DEFERRED_KEYS);
-    const row = { _id: "private-row-id", title: "someone@example.test" };
-    const collection = new Proxy(
-      { [row._id]: row },
-      {
-        getOwnPropertyDescriptor(target, key) {
-          if (key === row._id) now += 3;
-          return Reflect.getOwnPropertyDescriptor(target, key);
-        },
-      },
+    setHydrating(true);
+    await timeBootRead("critical", "meta", () =>
+      db.meta.bulkGet(["cacheOwner"]),
     );
-    writePatchesToIDB(
-      [{ op: "add", path: ["sessions", row._id], value: row }],
-      { sessions: collection },
-    );
-    expect(
-      await db.transaction("r", sessions, () => sessions.get(row._id)),
-    ).toEqual(row);
+    await loadOutbox();
+    await cacheStorage.enqueueDispatch({
+      id: "timing-outbox",
+      action: "sendMessage",
+      args: ["conv-1", "hello"],
+      ts: 1,
+      patches: [],
+      result: null,
+    });
     const timings = storageTimings.take();
     for (const platform of ["web", "desktop"] as const) {
       const report = buildClientResourceReport({
@@ -101,76 +78,25 @@ test("reports slow critical and deferred reads and a slow synchronous write", as
         collections: [],
         storageTimings: timings,
       });
-      expect(report.idb_boot_critical_ms!.sessions).toBeGreaterThanOrEqual(400);
       expect(report.idb_boot_critical_ms!.meta).toBeGreaterThanOrEqual(20);
-      expect(report.idb_boot_deferred_ms!.tasks).toBeGreaterThanOrEqual(80);
-      expect(report.idb_boot_deferred_ms!.meta).toBeGreaterThanOrEqual(20);
-      expect(report.idb_boot_deferred_ms).not.toHaveProperty("sessions");
+      expect(
+        report.idb_boot_deferred_ms!.dispatchOutbox,
+      ).toBeGreaterThanOrEqual(80);
       expect(report.idb_write_count?.put).toBe(1);
       expect(report.idb_write_p95_ms?.put).toBe(192);
-      expect(report.idb_write_count?.collection_prepare).toBe(1);
-      expect(report.idb_write_p50_ms?.collection_prepare).toBe(3);
-      expect(report.idb_write_p95_ms?.collection_prepare).toBe(3);
       expect(
         validateEvent(CODECAST_EVENTS, "client_resource_report", report).ok,
       ).toBe(true);
-      expect(JSON.stringify(report)).not.toContain(row._id);
-      expect(JSON.stringify(report)).not.toContain(row.title);
-    }
-
-    const message = { _id: "message", timestamp: 1, content: row.title };
-    const metaread = spyOn(
-      db.conversationMessageMeta,
-      "get",
-    ).mockImplementation(async (key) => {
-      const data = await getMeta(key);
-      now += 800;
-      return data;
-    });
-    const messageRows = db.conversationMessageRows;
-    const pagination = { initialized: true, hasMoreAbove: false };
-    const timedMessage = {
-      get timestamp() {
-        now += 6;
-        Object.defineProperty(this, "timestamp", { value: message.timestamp });
-        return message.timestamp;
-      },
-      get _id() {
-        now += 12;
-        Object.defineProperty(this, "_id", { value: message._id });
-        return message._id;
-      },
-      content: message.content,
-    };
-    try {
-      for (const [snapshot, nextPagination, writes] of [
-        [timedMessage, pagination, 1],
-        [message, pagination, undefined],
-        [message, { ...pagination, hasMoreAbove: true }, 1],
-      ] as const) {
-        writeConversationMessages(row._id, [snapshot], nextPagination);
-        flushConversationMessages();
-        expect(
-          await db.transaction("r", messageRows, () => messageRows.count()),
-        ).toBe(1);
-        const timings = storageTimings.take();
-        expect(timings.writeCount?.message_prepare).toBe(writes);
-        if (snapshot === timedMessage) {
-          expect(timings.writeP50Ms?.message_prepare).toBe(24);
-          expect(timings.writeP95Ms?.message_prepare).toBe(24);
-        }
-      }
-    } finally {
-      metaread.mockRestore();
+      expect(JSON.stringify(report)).not.toContain("conv-1");
     }
   } finally {
-    dropPendingMessageWrites();
+    setHydrating(false);
     put.mockRestore();
-    deferred.mockRestore();
+    readOutbox.mockRestore();
     readMeta.mockRestore();
-    read.mockRestore();
     clock.mockRestore();
     storageTimings.take();
+    db.close();
   }
 });
 
@@ -180,46 +106,30 @@ test("untimed reads return the original promise", async () => {
   expect(await result).toBe(1);
 });
 
-test("records pending input, first outbox scan, and first critical conversation reads", async () => {
+test("records pending input and first outbox scan per boot", async () => {
   installSignedInPrincipal();
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-  const convId = "fixture";
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
-  await db.conversationMessageMeta.put({
-    convId,
-    pagination: undefined,
-    latestTimestamp: 1,
-  });
   storageTimings.take();
   setHydrating(true);
   try {
-    await loadCache(HYDRATION_CRITICAL_READ_KEYS);
-    await loadConversationMessages(convId);
-    const timings = storageTimings.take();
-    expect(Object.keys(timings.criticalBootMs ?? {})).toEqual(
-      expect.arrayContaining([
-        "pendingInput",
-        "conversationUserMessages",
-        "conversationMessageMeta",
-        "conversationMessageRows",
-      ]),
+    await timeBootRead("critical", "pendingInput", () =>
+      loadPendingInput(TEST_PRINCIPAL),
     );
-    await loadConversationMessages(convId);
-    expect(storageTimings.take()).toEqual({});
+    await cacheStorage.loadCache(HYDRATION_CRITICAL_READ_KEYS);
+    const timings = storageTimings.take();
+    expect(timings.criticalBootMs).toHaveProperty("pendingInput");
     setHydrating(false);
     await loadOutbox();
     expect(storageTimings.take().deferredBootMs).toHaveProperty(
       "dispatchOutbox",
     );
     await loadOutbox();
-    await loadConversationMessages(convId);
     expect(storageTimings.take()).toEqual({});
 
     setHydrating(true);
-    await loadCache(HYDRATION_DEFERRED_KEYS);
-    await loadConversationMessages(convId);
-    expect(storageTimings.take().criticalBootMs).toBeUndefined();
+    await cacheStorage.loadCache(HYDRATION_DEFERRED_KEYS);
     await loadOutbox();
     expect(storageTimings.take().deferredBootMs).toHaveProperty(
       "dispatchOutbox",
@@ -227,5 +137,6 @@ test("records pending input, first outbox scan, and first critical conversation 
   } finally {
     setHydrating(false);
     storageTimings.take();
+    db.close();
   }
 });

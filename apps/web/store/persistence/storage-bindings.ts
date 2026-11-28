@@ -1,4 +1,161 @@
+import type { AuthPrincipalTracker } from "@platform/auth/web";
+import {
+  cacheEvictionsFor,
+  withCacheEvictions,
+  withoutEvictionPatches,
+} from "../cache-eviction";
 import type { CacheStorage } from "./storage";
+
+export function createLazySqliteStorage(
+  loadModule: () => Promise<{ getSqliteCacheStorage(): CacheStorage }>,
+  syncFallback: Pick<
+    CacheStorage,
+    "outboxAccountId" | "persistPendingMessageChanges" | "setHydrating"
+  >,
+  auth: Pick<AuthPrincipalTracker, "current" | "epoch">,
+): () => CacheStorage {
+  type QueuedCall = {
+    owner: { principal: string | null; authEpoch: number } | null;
+    run: (storage: CacheStorage) => void;
+  };
+  let instance: CacheStorage | null = null;
+  let loaded: CacheStorage | null = null;
+  let loading: Promise<CacheStorage> | null = null;
+  const queuedSync: QueuedCall[] = [];
+
+  const queueForOwner = (run: QueuedCall["run"]) => {
+    queuedSync.push({
+      owner: { principal: auth.current(), authEpoch: auth.epoch() },
+      run,
+    });
+    void ensureLoaded().catch(() => {});
+  };
+
+  const stillOwned = ({ owner }: QueuedCall) =>
+    owner === null ||
+    (owner.principal === auth.current() && owner.authEpoch === auth.epoch());
+
+  const ensureLoaded = (): Promise<CacheStorage> => {
+    if (loaded) return Promise.resolve(loaded);
+    if (!loading) {
+      loading = loadModule()
+        .then((mod) => {
+          const storage = mod.getSqliteCacheStorage();
+          const pending = queuedSync.splice(0, queuedSync.length);
+          for (const call of pending) {
+            if (stillOwned(call)) call.run(storage);
+          }
+          loaded = storage;
+          return storage;
+        })
+        .catch((error) => {
+          loading = null;
+          throw error;
+        });
+    }
+    return loading;
+  };
+
+  return () => {
+    if (!instance) {
+      instance = {
+        loadCache: async (keys, context) =>
+          (await ensureLoaded()).loadCache(keys, context),
+        loadPaintCache: async () => (await ensureLoaded()).loadPaintCache(),
+        setHydrating(value) {
+          syncFallback.setHydrating(value);
+          if (loaded) loaded.setHydrating(value);
+          else {
+            queuedSync.push({
+              owner: null,
+              run: (storage) => storage.setHydrating(value),
+            });
+            void ensureLoaded().catch(() => {});
+          }
+        },
+        writePatches(patches, state) {
+          if (loaded) return loaded.writePatches(patches, state);
+          const evictions = cacheEvictionsFor(
+            patches,
+            state as Record<string, any>,
+          );
+          const filtered = withoutEvictionPatches(patches, evictions);
+          queueForOwner((storage) =>
+            withCacheEvictions(evictions, () =>
+              storage.writePatches(filtered, state),
+            ),
+          );
+        },
+        async flushPersistence() {
+          const storage = await ensureLoaded();
+          await storage.flushPersistence();
+        },
+        loadConversationMessages: async (conversationId) =>
+          (await ensureLoaded()).loadConversationMessages(conversationId),
+        writeConversationMessages(conversationId, messages, pagination) {
+          if (loaded) {
+            loaded.writeConversationMessages(
+              conversationId,
+              messages,
+              pagination,
+            );
+            return;
+          }
+          queueForOwner((storage) =>
+            storage.writeConversationMessages(
+              conversationId,
+              messages,
+              pagination,
+            ),
+          );
+        },
+        writeConversationUserMessages(conversationId, messages) {
+          if (loaded) {
+            loaded.writeConversationUserMessages(conversationId, messages);
+            return;
+          }
+          queueForOwner((storage) =>
+            storage.writeConversationUserMessages(conversationId, messages),
+          );
+        },
+        enqueueDispatch: async (entry) =>
+          (await ensureLoaded()).enqueueDispatch(entry),
+        removeDispatch: async (id) => (await ensureLoaded()).removeDispatch(id),
+        loadOutbox: async () => (await ensureLoaded()).loadOutbox(),
+        outboxAccountId: () =>
+          loaded ? loaded.outboxAccountId() : syncFallback.outboxAccountId(),
+        persistPendingMessageChanges(before, after, ownerId) {
+          if (loaded) {
+            loaded.persistPendingMessageChanges(before, after, ownerId);
+            return;
+          }
+          syncFallback.persistPendingMessageChanges(before, after, ownerId);
+        },
+        async purgeLocalCache(options) {
+          if (!loaded) {
+            const kept = queuedSync.filter(({ owner }) => owner === null);
+            queuedSync.splice(0, queuedSync.length, ...kept);
+          }
+          return (await ensureLoaded()).purgeLocalCache(options);
+        },
+        deleteInvalidatedDocDetails: async (ids, current, archive) =>
+          (await ensureLoaded()).deleteInvalidatedDocDetails?.(
+            ids,
+            current,
+            archive,
+          ) ?? [],
+        readCachedDocDetails: async () =>
+          (await ensureLoaded()).readCachedDocDetails?.() ?? [],
+        persistedDocDetailWorkspace: (id) =>
+          loaded?.persistedDocDetailWorkspace?.(id),
+        compactPersistedDocDetails: (ids) => {
+          loaded?.compactPersistedDocDetails?.(ids);
+        },
+      };
+    }
+    return instance;
+  };
+}
 
 export function forwardCacheStorage(
   getStorage: () => CacheStorage,
@@ -13,6 +170,15 @@ export function forwardCacheStorage(
     };
 
   return {
+    compactPersistedDocDetails: (ids) => {
+      getStorage().compactPersistedDocDetails?.(ids);
+    },
+    deleteInvalidatedDocDetails: (ids, current, archive) => {
+      const storage = getStorage();
+      return storage.deleteInvalidatedDocDetails
+        ? storage.deleteInvalidatedDocDetails(ids, current, archive)
+        : Promise.resolve([]);
+    },
     enqueueDispatch: forward((storage) => storage.enqueueDispatch),
     flushPersistence: forward((storage) => storage.flushPersistence),
     loadCache: forward((storage) => storage.loadCache),
@@ -25,7 +191,11 @@ export function forwardCacheStorage(
     persistPendingMessageChanges: forward(
       (storage) => storage.persistPendingMessageChanges,
     ),
+    persistedDocDetailWorkspace: (id) =>
+      getStorage().persistedDocDetailWorkspace?.(id),
     purgeLocalCache: forward((storage) => storage.purgeLocalCache),
+    readCachedDocDetails: () =>
+      getStorage().readCachedDocDetails?.() ?? Promise.resolve([]),
     removeDispatch: forward((storage) => storage.removeDispatch),
     setHydrating: forward((storage) => storage.setHydrating),
     writeConversationMessages: forward(

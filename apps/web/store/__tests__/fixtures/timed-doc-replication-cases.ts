@@ -1,7 +1,6 @@
 import { expect, jest, test } from "bun:test";
 import type { ReplicationMessage } from "@platform/engine";
 import type { InboxStoreState } from "../../inboxStore";
-import type { COLLECTION_TABLES } from "../../persistence/db";
 import type * as Transport from "../../storage-transport";
 import type * as Replication from "../../sync-replication";
 import { TEST_PRINCIPAL } from "./signedInPrincipal";
@@ -10,7 +9,8 @@ export function registerTimedDocReplicationCases({
   window,
   state,
   sessionId,
-  table,
+  seedDocDetails,
+  readDocDetailRefs,
   bootCache,
   drainWrites,
   waitFor,
@@ -25,7 +25,10 @@ export function registerTimedDocReplicationCases({
   window: Window;
   state: () => Pick<InboxStoreState, "docDetails" | "syncRole" | "syncTable">;
   sessionId: (n: number) => string;
-  table: (typeof COLLECTION_TABLES)["docDetails"];
+  seedDocDetails: (
+    rows: Array<{ _id: string } & Record<string, unknown>>,
+  ) => Promise<void>;
+  readDocDetailRefs: () => Promise<Array<{ _id: string; workspace?: string }>>;
   bootCache: () => Promise<void>;
   drainWrites: () => Promise<void>;
   waitFor: (condition: () => boolean) => Promise<void>;
@@ -45,10 +48,9 @@ export function registerTimedDocReplicationCases({
       process.env.VITE_CACHE_EVICTION_METADATA = "1";
       const { persistedDocDetailWorkspace } =
         await import("../../doc-detail-disk");
-      const { lastPersisted } =
-        await import("../../persistence/collection-writer");
       const { resetDetailInvalidations } =
         await import("../../doc-detail-cache");
+      const { cacheStorage } = await import("../../idb-cache");
       resetDetailInvalidations();
       const doc = window.document;
       Object.defineProperty(doc, "hidden", {
@@ -82,12 +84,11 @@ export function registerTimedDocReplicationCases({
           }
         ).__syncReplication();
       try {
-        await table.bulkPut([old, current]);
+        await seedDocDetails([old, current]);
         await bootCache();
         if (process.env.VITE_DEFERRED_CACHE_BOOT === "1") {
           expect(state().docDetails[current._id]).toBeUndefined();
-          const { loadCache } = await import("../../persistence/boot-loader");
-          const cached = await loadCache(["docDetails"]);
+          const cached = await cacheStorage.loadCache(["docDetails"]);
           state().syncTable(
             "docDetails",
             Object.values(cached?.docDetails ?? {}),
@@ -138,11 +139,12 @@ export function registerTimedDocReplicationCases({
         expect(state().docDetails[current._id]).toBeUndefined();
         jest.useRealTimers();
         await drainWrites();
-        expect(await table.toArray()).toEqual([old, current]);
-        expect(lastPersisted.get("docDetails")?.get(current._id)).toEqual({
-          _id: current._id,
-          workspace: current.workspace,
-        });
+        expect((await readDocDetailRefs()).map((r) => r._id).sort()).toEqual(
+          [old._id, current._id].sort(),
+        );
+        expect(persistedDocDetailWorkspace(current._id)).toBe(
+          current.workspace,
+        );
         expect(
           readMutations()?.filter(
             (mutation) => mutation.table === "docDetails",

@@ -4,7 +4,7 @@ import {
   issueFakeToken,
 } from "../../store/__tests__/fixtures/fakeAuthToken";
 import { authPrincipal } from "../../lib/authPrincipal";
-import { cacheStorage } from "../../store/idb-cache";
+import { cacheStorage, writePatchesToIDB } from "../../store/idb-cache";
 import { _reopenForTests, db } from "../../store/persistence/db";
 import { writeOwnerStamp } from "../../store/persistence/ownership";
 import { replaceGlobals } from "../../test-helpers/globals";
@@ -294,11 +294,21 @@ test.each(["cold", "warm", "old"] as const)(
       await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
       await db.meta.put({ key: "currentUser", value: { _id: owner } });
       await writeOwnerStamp(owner, "test-fixture");
-      if (cache !== "cold")
-        await db.table("docDetails").put({
+      await cacheStorage.purgeLocalCache({
+        keepPendingInputFor: owner,
+        reason: "test-reset",
+      });
+      if (cache !== "cold") {
+        const cached = {
           ...row,
           _cachedAt: cache === "old" ? row.updated_at : Date.now(),
-        });
+        };
+        writePatchesToIDB(
+          [{ op: "replace", path: ["docDetails", id], value: cached }],
+          { docDetails: { [id]: cached }, pending: {} },
+        );
+        await cacheStorage.flushPersistence();
+      }
       if (!enabled && cache === "warm")
         ui.store.getState().syncRecord("docDetails", id, row);
       await ui.rerender(<Body />);
