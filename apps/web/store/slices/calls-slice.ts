@@ -252,7 +252,7 @@ export function createCallsSlice(set: any): CallsSlice {
 
     pinCallBoard: asyncAction(function (this: CallsDraft, roomKey: string) {
       return { roomKey };
-    }) as CallsSliceActions["pinCallBoard"],
+    }) as unknown as CallsSliceActions["pinCallBoard"],
 
     setRoomTranscribeOff: asyncAction(function (
       this: CallsDraft,
@@ -268,7 +268,7 @@ export function createCallsSlice(set: any): CallsSlice {
       row.transcribe_off = off;
       row.transcribe_off_at = off ? Date.now() : null;
       return { roomKey, off };
-    }) as CallsSliceActions["setRoomTranscribeOff"],
+    }) as unknown as CallsSliceActions["setRoomTranscribeOff"],
 
     setRoomRecording: asyncAction(function (
       this: CallsDraft,
@@ -285,7 +285,7 @@ export function createCallsSlice(set: any): CallsSlice {
       });
       row.recording = on;
       return { roomKey, on };
-    }) as CallsSliceActions["setRoomRecording"],
+    }) as unknown as CallsSliceActions["setRoomRecording"],
 
     admitGuestKnock: asyncAction(function (
       this: CallsDraft,
@@ -294,7 +294,7 @@ export function createCallsSlice(set: any): CallsSlice {
     ) {
       dropGuestKnock(this, guestId);
       return { guestId, name };
-    }) as CallsSliceActions["admitGuestKnock"],
+    }) as unknown as CallsSliceActions["admitGuestKnock"],
 
     denyGuestKnock: asyncAction(function (
       this: CallsDraft,
@@ -303,7 +303,7 @@ export function createCallsSlice(set: any): CallsSlice {
     ) {
       dropGuestKnock(this, guestId);
       return { guestId, revokeLink: !!revokeLink };
-    }) as CallsSliceActions["denyGuestKnock"],
+    }) as unknown as CallsSliceActions["denyGuestKnock"],
 
     removeCallGuest: asyncAction(function (
       this: CallsDraft,
@@ -320,7 +320,7 @@ export function createCallsSlice(set: any): CallsSlice {
         room.guests = room.guests.filter((g: any) => g.identity !== identity);
       }
       return { roomKey, guestId, revokeLink: !!revokeLink };
-    }) as CallsSliceActions["removeCallGuest"],
+    }) as unknown as CallsSliceActions["removeCallGuest"],
 
     restoreCallGuest: sync(function (
       this: CallsDraft,
@@ -350,7 +350,7 @@ export function createCallsSlice(set: any): CallsSlice {
     deleteCall: asyncAction(function (this: CallsDraft, transcriptId: string) {
       delete this.callList?.[transcriptId];
       delete this.callDetails?.[transcriptId];
-    }) as CallsSliceActions["deleteCall"],
+    }) as unknown as CallsSliceActions["deleteCall"],
 
     deleteCallRecording: receiptAsyncAction(function (
       this: CallsDraft,
@@ -369,7 +369,7 @@ export function createCallsSlice(set: any): CallsSlice {
         : undefined;
       if (facts) facts.deleted_here_at = at;
       return { recordingId, transcriptId, at, rows: snapshot };
-    }) as CallsSliceActions["deleteCallRecording"],
+    }) as unknown as CallsSliceActions["deleteCallRecording"],
 
     settleCallRecordingTombstones: sync(function (
       this: CallsDraft,
@@ -388,7 +388,7 @@ export function createCallsSlice(set: any): CallsSlice {
     ) {
       delete this.callFrameShares[shareId];
       return { shareId };
-    }) as CallsSliceActions["deleteCallFrameShare"],
+    }) as unknown as CallsSliceActions["deleteCallFrameShare"],
 
     setCallShareVideo: asyncAction(function (
       this: CallsDraft,
@@ -398,7 +398,7 @@ export function createCallsSlice(set: any): CallsSlice {
       const row = this.callRecordingCalls[transcriptId];
       if (row) row.video_shared = include;
       return { transcriptId, include };
-    }) as CallsSliceActions["setCallShareVideo"],
+    }) as unknown as CallsSliceActions["setCallShareVideo"],
 
     setCallAgentFace: asyncAction(function (
       this: CallsDraft,
@@ -417,6 +417,6 @@ export function createCallsSlice(set: any): CallsSlice {
         else route.face = false;
       }
       return { transcriptId, target, face };
-    }) as CallsSliceActions["setCallAgentFace"],
+    }) as unknown as CallsSliceActions["setCallAgentFace"],
   };
 }
