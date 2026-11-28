@@ -23,6 +23,7 @@ import {
   type WorkerSpawner,
 } from "./protocol";
 import { createRpcChannelManager, WorkerRpcError } from "./rpc-channel";
+import { accountKeyOf } from "./hydrated-epoch";
 import { createTransitionGate } from "./transition-gate";
 import { createWorkerDrains } from "./worker-drain";
 
@@ -100,6 +101,7 @@ export function createWorkerConnection(
   let ownChannel: ChannelEndpoint | null = null;
   let knownWorkerId: string | null = null;
   let unhealthyRotations = 0;
+  let countedAccountKey: string | null = null;
   const transitions = createTransitionGate();
 
   const rpc = createRpcChannelManager({
@@ -132,13 +134,16 @@ export function createWorkerConnection(
   });
 
   const disableSqlite = (reason: string) => {
-    if (disabled) return;
+    if (disabled || closed) return;
     disabled = true;
-    transitions.run(() => {
-      teardownEpoch(false);
-      onEpochChange?.(null);
-      onOpfsMissing(reason);
-    });
+    transitions.run(
+      () => {
+        teardownEpoch(false);
+        onEpochChange?.(null);
+        onOpfsMissing(reason);
+      },
+      { essential: true },
+    );
   };
 
   const writeEpochOrDisable = (epoch: CacheEpoch): boolean => {
@@ -259,16 +264,19 @@ export function createWorkerConnection(
 
   function rotateNow(expected: CacheEpoch, reason: string) {
     if (closed || disabled) return;
+    if (!activeEpoch || !sameEpoch(activeEpoch, expected)) return;
+    const accountKey = accountKeyOf(expected);
+    if (accountKey !== countedAccountKey) {
+      countedAccountKey = accountKey;
+      unhealthyRotations = 0;
+    }
     unhealthyRotations++;
     if (unhealthyRotations > MAX_UNHEALTHY_ROTATIONS) {
       disableSqlite("rotation-limit");
       return;
     }
-    const id = epochId(expected);
-    if (activeEpoch && epochId(activeEpoch) === id) {
-      teardownEpoch(false);
-      onEpochChange?.(null);
-    }
+    teardownEpoch(false);
+    onEpochChange?.(null);
     const next = nextGenerationEpoch(expected, reason, now());
     const target = advanceEpochIfMatches(expected, next);
     if (
@@ -477,19 +485,19 @@ export function createWorkerConnection(
   const followStoredEpoch = (next: CacheEpoch | null) => {
     if (closed || disabled || !activeEpoch) return;
     if (next && compareEpochOrder(next, activeEpoch) < 0) return;
-    if (!next || !sameEpoch(next, activeEpoch)) {
-      teardownEpoch(false);
-      onEpochChange?.(null);
-      if (
-        next &&
-        next.schemaVersion === schemaVersion &&
-        next.principal !== null &&
-        next.principal === auth.current() &&
-        !next.failed
-      ) {
-        attachToEpoch(next);
-      }
+    if (next && sameEpoch(next, activeEpoch)) return;
+    if (
+      next &&
+      next.schemaVersion === schemaVersion &&
+      next.principal !== null &&
+      next.principal === auth.current() &&
+      !next.failed
+    ) {
+      attachToEpoch(next);
+      return;
     }
+    teardownEpoch(false);
+    onEpochChange?.(null);
   };
 
   const unsubscribeEpochStore = epochStore.subscribe?.((next) => {
@@ -598,7 +606,7 @@ export function createWorkerConnection(
 
     rotateForPurge(keepPrincipal) {
       transitions.run(() => {
-        if (disabled) return;
+        if (disabled || closed) return;
         const current = activeEpoch ?? epochStore.read();
         teardownEpoch(false);
         onEpochChange?.(null);
@@ -614,12 +622,15 @@ export function createWorkerConnection(
     },
 
     close() {
-      transitions.run(() => {
-        if (closed) return;
-        unsubscribeEpochStore?.();
-        teardownEpoch(true, true);
-        onEpochChange?.(null);
-      });
+      transitions.run(
+        () => {
+          if (closed) return;
+          unsubscribeEpochStore?.();
+          teardownEpoch(true, true);
+          onEpochChange?.(null);
+        },
+        { essential: true },
+      );
     },
 
     currentEpoch() {

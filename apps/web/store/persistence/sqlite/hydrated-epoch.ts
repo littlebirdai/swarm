@@ -1,5 +1,10 @@
 import { epochId, type CacheEpoch } from "./protocol";
 
+export function accountKeyOf(epoch: CacheEpoch | null): string | null {
+  if (!epoch) return null;
+  return `${epoch.principal}|v${epoch.schemaVersion}|a${epoch.accountEpoch}`;
+}
+
 export function sameAccountEpoch(a: CacheEpoch, b: CacheEpoch): boolean {
   return (
     a.principal === b.principal &&

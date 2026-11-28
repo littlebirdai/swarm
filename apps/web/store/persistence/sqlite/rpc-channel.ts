@@ -330,7 +330,8 @@ export function createRpcChannelManager(deps: RpcChannelState) {
     const resultPromise = new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         pendingRequests.delete(reqId);
-        onTimeout(epoch, "holder-hung");
+        const current = getState().activeEpoch;
+        if (current && epochId(current) === id) onTimeout(epoch, "holder-hung");
         reject(
           new WorkerRpcError("timeout", "SQLite worker request timed out"),
         );

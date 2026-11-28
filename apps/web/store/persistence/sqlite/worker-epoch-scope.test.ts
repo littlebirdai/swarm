@@ -69,6 +69,7 @@ function holdingSpawner(inner: WorkerSpawner) {
     deliver: null as ((data: unknown) => void) | null,
     swallowAll: false,
     holdClosing: false,
+    events: [] as string[],
     release() {
       const messages = control.held.splice(0);
       for (const message of messages) control.deliver?.(message);
@@ -98,7 +99,10 @@ function holdingSpawner(inner: WorkerSpawner) {
         }
         worker.postMessage(message);
       },
-      terminate: () => worker.terminate(),
+      terminate: () => {
+        control.events.push("terminated");
+        worker.terminate();
+      },
     };
   };
   return { spawner, control };
@@ -350,11 +354,15 @@ describe("SQLite epoch scope", () => {
       sessions: { [sid]: row },
     });
     control.holdClosing = true;
-    const started = Date.now();
     client.close();
     await client.flushPersistence();
-    expect(Date.now() - started).toBeLessThan(100);
-    await delay(200);
+    control.events.push("flushed");
+    await waitUntil(
+      () => control.events.includes("terminated"),
+      1000,
+      "drained worker ends",
+    );
+    expect(control.events).toEqual(["flushed", "terminated"]);
 
     const next = createSqliteWorkerClient(options(dir, shared));
     try {

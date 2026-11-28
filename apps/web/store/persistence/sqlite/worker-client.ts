@@ -16,6 +16,7 @@ import {
 } from "./memory-fallback";
 import { createEpochRequests } from "./epoch-requests";
 import {
+  accountKeyOf,
   hydratedEpochAfterLoad,
   rotatedEpochToRetry,
   sameAccountEpoch,
@@ -34,6 +35,7 @@ import {
 } from "./patch-payload";
 import {
   epochId,
+  sameEpoch,
   SQLITE_WORKER_TIMEOUT_MS,
   type CacheEpoch,
   type ChannelTransport,
@@ -163,12 +165,7 @@ export function createSqliteWorkerClient(
     code: string,
   ) => {
     const active = connection.activeEpoch();
-    if (
-      closed ||
-      auth.current() !== principal ||
-      !active ||
-      epochId(active) !== epochId(epoch)
-    )
+    if (closed || auth.current() !== principal || !sameEpoch(active, epoch))
       return;
     connection.handleEpochFailure(epoch, `flush-${code}`);
   };
@@ -180,6 +177,7 @@ export function createSqliteWorkerClient(
     if (!pendingBatch) {
       pendingBatch = {
         principal,
+        accountKey: accountKeyOf(connection.currentEpoch()),
         patches: [],
         state: {},
         evictions: new Map(),
@@ -187,6 +185,26 @@ export function createSqliteWorkerClient(
       };
     }
     return pendingBatch;
+  };
+
+  const writeBatchToMemory = (batch: PendingWriteBatch, principal: string) => {
+    if (closed || auth.current() !== principal) return;
+    if (batch.patches.length) memory.writePatches(batch.patches, batch.state);
+    for (const [conversationId, entry] of batch.conversations) {
+      if (entry.messages) {
+        memory.writeConversationMessages(
+          conversationId,
+          entry.messages.rows,
+          entry.messages.pagination,
+        );
+      }
+      if (entry.userMessages) {
+        memory.writeConversationUserMessages(
+          conversationId,
+          entry.userMessages,
+        );
+      }
+    }
   };
 
   const flushBatchNow = (closingEpoch?: CacheEpoch): Promise<void> => {
@@ -205,14 +223,15 @@ export function createSqliteWorkerClient(
     }
     const epoch = closingEpoch ?? connection.ensureActiveEpoch(principal, true);
     if (!epoch) {
+      if (opfsMissing) writeBatchToMemory(batch, principal);
       return Promise.resolve();
     }
-    const sentEpochId = epochId(epoch);
+    if (batch.accountKey !== null && batch.accountKey !== accountKeyOf(epoch))
+      return Promise.resolve();
     const built = buildFlushPayload({
       batch,
       knownIds,
-      writeSyncMeta:
-        hydratedEpoch !== null && epochId(hydratedEpoch) === sentEpochId,
+      writeSyncMeta: hydratedEpoch !== null && sameEpoch(hydratedEpoch, epoch),
     });
     if (!built) {
       return Promise.resolve();
@@ -225,27 +244,9 @@ export function createSqliteWorkerClient(
         for (const key of built.dropKeys) clearSnapshotDrops(key);
       })
       .catch((error) => {
-        resetShadowState();
+        if (sameEpoch(connection.activeEpoch(), epoch)) resetShadowState();
         if (opfsMissing) {
-          if (closed || auth.current() !== principal) return;
-          if (batch.patches.length) {
-            memory.writePatches(batch.patches, batch.state);
-          }
-          for (const [conversationId, entry] of batch.conversations) {
-            if (entry.messages) {
-              memory.writeConversationMessages(
-                conversationId,
-                entry.messages.rows,
-                entry.messages.pagination,
-              );
-            }
-            if (entry.userMessages) {
-              memory.writeConversationUserMessages(
-                conversationId,
-                entry.userMessages,
-              );
-            }
-          }
+          writeBatchToMemory(batch, principal);
           return;
         }
         if (
@@ -282,6 +283,13 @@ export function createSqliteWorkerClient(
       resetShadowState();
       if (hydratedEpoch && epoch && !sameAccountEpoch(hydratedEpoch, epoch))
         hydratedEpoch = null;
+      if (
+        epoch &&
+        pendingBatch &&
+        pendingBatch.accountKey !== null &&
+        pendingBatch.accountKey !== accountKeyOf(epoch)
+      )
+        clearPendingBatch();
     },
     onBeforeClose: (epoch) => {
       void flushBatchNow(epoch);
