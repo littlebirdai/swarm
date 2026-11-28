@@ -3502,16 +3502,21 @@ export const update = mutation({
       );
     if (conv && releasedOwners.length) {
       const from = releasedOwners.map((o) => o.short_id).join(", ");
+      const actorRef = linkedConvId
+        ? `Session ${conv.short_id ?? conv._id}`
+        : actor.name || "A session";
       await insertTaskComment(
         ctx,
         task._id,
         {
           author: actor.name || "unknown",
-          text: `Session ${conv.short_id ?? conv._id} took over as owner from ${from}.`,
+          text: `${actorRef} took over as owner from ${from}.`,
           comment_type: "note",
-          conversation_id: conv._id,
+          conversation_id: linkedConvId,
         },
         auth.userId,
+        undefined,
+        true,
       );
     }
     // blocked_by/blocks are raw overwrites; reflect the delta onto each
@@ -3739,6 +3744,7 @@ export async function insertTaskComment(
     conversationId?: Id<"conversations">;
     run?: { name: string; owner: Id<"users">; ownerOnly: boolean };
   },
+  suppressRelay = false,
 ) {
   const now = Date.now();
   const id = await ctx.db.insert("task_comments", {
@@ -3816,7 +3822,12 @@ export async function insertTaskComment(
     // A person's words, not posted from a session: they reach the session
     // doing the task while it works, so commenting on the task talks to the
     // work. A bot account's comment is an agent's and never relays.
-    if (actorId && !fields.conversation_id && !actor?.is_bot) {
+    if (
+      actorId &&
+      !fields.conversation_id &&
+      !actor?.is_bot &&
+      !suppressRelay
+    ) {
       const deliveredTo = await deliverCommentToOwner(ctx, task, {
         commentId: id,
         actorId,

@@ -51,7 +51,7 @@ import {
 import { listSessionOwnerIds } from "./sessionOwners";
 import { roleOfConversation } from "./lib/actor";
 import { actingPersonOf } from "./lib/userSend";
-import { canAccessTask } from "./lib/access";
+import { canAccessConversation, canAccessTask } from "./lib/access";
 import {
   capsFor,
   countersFor,
@@ -860,7 +860,11 @@ async function resolveReviewTarget(
     .first();
   if (!task || !(await canAccessTask(ctx, userId, task)))
     throw new Error(`Task not found: ${shortId}`);
-  const owner = await liveTaskOwnerSession(ctx, task._id);
+  const rawOwner = await liveTaskOwnerSession(ctx, task._id);
+  const owner =
+    rawOwner && (await canAccessConversation(ctx, userId, rawOwner))
+      ? rawOwner
+      : null;
   const linked = (
     await Promise.all(
       [...(task.conversation_ids ?? [])]
@@ -870,10 +874,11 @@ async function resolveReviewTarget(
   ).filter(
     (c: any) =>
       c &&
-      (!owner || String(c._id) !== String(owner._id)) &&
+      (!rawOwner || String(c._id) !== String(rawOwner._id)) &&
       String(c.review_of_task_id ?? "") !== String(task._id),
   );
   for (const conv of [...(owner ? [owner] : []), ...linked]) {
+    if (!(await canAccessConversation(ctx, userId, conv))) continue;
     const role = await roleOfConversation(ctx, conv);
     if (role) return { task, role };
   }

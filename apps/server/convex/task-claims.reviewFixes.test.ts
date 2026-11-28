@@ -292,3 +292,194 @@ test("tokenless free/unresolved refusals, orgInit/issueSync release, unheld rebi
     f.taskId,
   );
 });
+
+test("unresolvable conversation_id on heartbeat, renew, and assertTaskMutationClaim keeps matching free/wrong_holder and real token", async () => {
+  const f = await setup("unresolved-conv-match");
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  await asUser(f.t, f.ana).mutation(api.tasks.webUpdate, {
+    short_id: "ct-101",
+    status: "in_progress",
+  });
+  const freeRow = await f.claimRow();
+  expect(freeRow?.holder).toBeUndefined();
+  const realToken = freeRow?.token ?? 0;
+  expect(realToken).toBeGreaterThan(0);
+
+  const hbFree = await catchClaimError(() =>
+    f.t.mutation(api.tasks.heartbeat, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(hbFree).toMatchObject({
+    code: "CONFLICT",
+    reason: "free",
+    current_token: realToken,
+  });
+
+  const renewFree = await catchClaimError(() =>
+    f.t.mutation(api.tasks.renew, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      claim_token: realToken,
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(renewFree).toMatchObject({
+    code: "CONFLICT",
+    reason: "wrong_holder",
+    current_token: realToken,
+  });
+
+  const mutFree = await catchClaimError(() =>
+    f.t.mutation(api.tasks.updateExecutionStatus, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      execution_status: "blocked",
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(mutFree).toMatchObject({
+    code: "CONFLICT",
+    reason: "free",
+    current_token: realToken,
+  });
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  const heldToken = (await f.claimRow())?.token;
+  expect(heldToken).toBe(realToken + 1);
+
+  const hbHeld = await catchClaimError(() =>
+    f.t.mutation(api.tasks.heartbeat, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(hbHeld).toMatchObject({
+    code: "CONFLICT",
+    reason: "wrong_holder",
+    current_token: heldToken,
+  });
+
+  const renewHeld = await catchClaimError(() =>
+    f.t.mutation(api.tasks.renew, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      claim_token: heldToken!,
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(renewHeld).toMatchObject({
+    code: "CONFLICT",
+    reason: "wrong_holder",
+    current_token: heldToken,
+  });
+
+  const mutHeld = await catchClaimError(() =>
+    f.t.mutation(api.tasks.updateExecutionStatus, {
+      api_token: f.tokB,
+      short_id: "ct-101",
+      execution_status: "blocked",
+      claim_token: heldToken,
+      conversation_id: "missing-session",
+    }),
+  );
+  expect(mutHeld).toMatchObject({
+    code: "CONFLICT",
+    reason: "wrong_holder",
+    current_token: heldToken,
+  });
+});
+
+test("cross-workspace private takeover does not leak session id or conversation_id in team task comment", async () => {
+  const f = await setup("cross-ws-takeover-comment");
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  const privateConv = await f.t.run(({ db }) =>
+    fixtureRows(db, "cross-ws-priv").conversation(f.ben, {
+      short_id: "priv999",
+      title: "Secret session",
+      is_private: true,
+      updated_at: START,
+    }),
+  );
+  await f.start(f.tokB, {
+    conversation_id: String(privateConv),
+    take: true,
+  });
+  const comments = await f.t.run(({ db }) =>
+    db
+      .query("task_comments")
+      .withIndex("by_task_created", (q) => q.eq("task_id", f.taskId))
+      .collect(),
+  );
+  const takeover = comments.find((c) => c.text.includes("took over as owner"));
+  expect(takeover).toBeDefined();
+  expect(takeover?.conversation_id).toBeUndefined();
+  expect(takeover?.text).not.toContain("priv999");
+  expect(takeover?.text).not.toContain(String(privateConv));
+});
+
+test("workflowRunTaskTransition revokes live hand claim across open, in_review, and done, and updateProgress records log_note", async () => {
+  const f = await setup("wf-transition");
+  const { runId, primaryConvId } = await f.t.run(async ({ db }) => {
+    const primaryConvId = await fixtureRows(db, "wf-log").conversation(f.ana, {
+      session_id: "wf-primary-1",
+      short_id: "wfp1",
+    });
+    const runId = await db.insert("workflow_runs", {
+      user_id: f.ana,
+      task_id: f.taskId,
+      primary_conversation_id: primaryConvId,
+      workflow_name: "line",
+      status: "running",
+      node_statuses: [],
+      created_at: START,
+      updated_at: START,
+    } as any);
+    return { runId, primaryConvId };
+  });
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  expect((await f.claimRow())?.holder).toBe(f.ana);
+
+  await f.t.mutation(api.workflowRunTaskTransition.transitionTaskFromCli, {
+    api_token: f.tokA,
+    run_id: runId,
+    short_id: "ct-101",
+    status: "open",
+  });
+  expect((await f.getTask())?.status).toBe("open");
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
+
+  await f.start(f.tokA, { conversation_id: String(f.convA1) });
+  await f.t.mutation(api.workflowRunTaskTransition.transitionTaskFromCli, {
+    api_token: f.tokA,
+    run_id: runId,
+    short_id: "ct-101",
+    status: "done",
+    execution_status: "done",
+    verification_evidence: "dissolved",
+  });
+  expect((await f.getTask())?.status).toBe("done");
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(f.convA1))?.active_task_id).toBeUndefined();
+
+  await f.t.mutation(api.workflow_runs.updateProgress, {
+    api_token: f.tokA,
+    run_id: runId,
+    current_node_id: "__log",
+    log_note: "409 CONFLICT (wrong_holder) /cli/work/update: mismatch",
+  });
+  const msgs = await f.t.run(({ db }) =>
+    db
+      .query("messages")
+      .filter((q) => q.eq(q.field("conversation_id"), primaryConvId))
+      .collect(),
+  );
+  expect(
+    msgs.some((m) => m.content.includes("409 CONFLICT (wrong_holder)")),
+  ).toBe(true);
+});

@@ -43,6 +43,7 @@ async function read(
         { _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) },
       ],
       conversations: [],
+      claims: [],
       plans: [],
       task_comments: [],
       team_memberships: [],
@@ -204,11 +205,23 @@ describe("taskResume.context", () => {
       ...over,
     });
 
+    const liveClaim = (over: any = {}) => ({
+      _id: "claim_1",
+      kind: "task",
+      task_id: "task_ct-1",
+      holder: USER,
+      token: 1,
+      lease_until: Date.now() + 60_000,
+      task: { conversation_id: "conv1" },
+      ...over,
+    });
+
     test("a session the server spawned for a task has no pulse: its binding names the task", async () => {
       const out = await read(
         {
           tasks: [task("ct-1")],
           conversations: [conv({ active_task_id: "task_ct-1" })],
+          claims: [liveClaim()],
         },
         { session_id: "sess-1" },
       );
@@ -222,11 +235,35 @@ describe("taskResume.context", () => {
       ).toBeNull();
     });
 
+    test("an expired claim is no longer reported as held even before expire clears active_task_id", async () => {
+      const expired = liveClaim({ lease_until: Date.now() - 1 });
+      expect(
+        await read(
+          {
+            tasks: [task("ct-1", { status: "in_progress" })],
+            conversations: [conv({ active_task_id: "task_ct-1" })],
+            claims: [expired],
+          },
+          { session_id: "sess-1" },
+        ),
+      ).toBeNull();
+      const pulsedOut = await read(
+        {
+          tasks: [task("ct-1", { status: "in_progress" })],
+          conversations: [conv({ active_task_id: "task_ct-1" })],
+          claims: [expired],
+        },
+        { short_id: "ct-1", session_id: "sess-1", started: true },
+      );
+      expect(pulsedOut.held).toBe(false);
+    });
+
     test("a pulse naming a task the session filed restores the one it holds and mentions the other", async () => {
       const out = await read(
         {
           tasks: [task("ct-1"), task("ct-2", { title: "Follow-up" })],
           conversations: [conv({ active_task_id: "task_ct-1" })],
+          claims: [liveClaim()],
         },
         { short_id: "ct-2", session_id: "sess-1" },
       );

@@ -70,9 +70,20 @@ export const context = query({
     // The binding on the conversation is the truth; the pulse only names the
     // task the session touched last, which may be one it merely filed. A
     // session the server spawned for a task has no pulse at all.
-    const heldTask = session?.active_task_id
+    const rawHeldTask = session?.active_task_id
       ? await readable(await ctx.db.get(session.active_task_id))
       : null;
+    const heldClaim =
+      rawHeldTask && session
+        ? await findClaim(ctx.db, { kind: "task", id: rawHeldTask._id })
+        : null;
+    const heldTask =
+      heldClaim &&
+      heldClaim.holder !== undefined &&
+      heldClaim.lease_until > Date.now() &&
+      heldClaim.task?.conversation_id === session!._id
+        ? rawHeldTask
+        : null;
     const task = heldTask ?? pulsed;
     if (!task) return null;
     // A task the session only filed and that has since closed leaves it nothing to pick up.

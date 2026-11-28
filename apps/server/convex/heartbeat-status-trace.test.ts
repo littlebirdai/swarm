@@ -37,7 +37,7 @@ const cases = [
     sideRow: true,
     updated: 1,
     settles: false,
-    single: [5, 1219, 1, 211, 4],
+    single: [4, 972, 1, 211, 3],
     batch: [4, 972, 1, 211, 3],
   },
   {
@@ -47,7 +47,7 @@ const cases = [
     sideRow: true,
     updated: 0,
     settles: false,
-    single: [4, 1036, 0, 0, 4],
+    single: [3, 789, 0, 0, 3],
     batch: [3, 789, 0, 0, 3],
   },
   {
@@ -57,7 +57,7 @@ const cases = [
     sideRow: false,
     updated: 0,
     settles: false,
-    single: [3, 856, 1, 180, 4],
+    single: [2, 609, 1, 180, 3],
     batch: [2, 609, 1, 180, 3],
   },
   {
@@ -77,7 +77,7 @@ const cases = [
     sideRow: true,
     updated: 1,
     settles: true,
-    single: [7, 1831, 2, 573, 7],
+    single: [6, 1584, 2, 573, 6],
     batch: [6, 1584, 2, 573, 6],
   },
 ] as const satisfies ReadonlyArray<{
@@ -245,8 +245,6 @@ for (const entry of ["single", "batch"] as const) {
         .unique(),
     );
     expect(claim?.lease_until).toBeGreaterThanOrEqual(at + TASK_LEASE_MS);
-    expect(trace).toEqual(
-      entry === "single" ? [8, 2295, 2, 532, 6] : [7, 1994, 2, 532, 5],
-    );
+    expect(trace).toEqual([6, 1673, 2, 532, 4]);
   });
 }

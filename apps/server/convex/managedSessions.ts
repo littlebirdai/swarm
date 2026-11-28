@@ -608,13 +608,9 @@ export const heartbeat = mutation({
       await scheduleLiveActivityRefresh(ctx, session.user_id, { urgent: true });
     }
 
-    let dismissed = false;
-    if (session.conversation_id) {
-      const conv = await ctx.db.get(session.conversation_id);
-      if (conv && conv.inbox_dismissed_at && !conv.is_subagent) {
-        dismissed = true;
-      }
-    }
+    const dismissed = Boolean(
+      execConv?.inbox_dismissed_at && !execConv.is_subagent,
+    );
 
     return { found: true, dismissed };
   },

@@ -8,7 +8,7 @@ import {
   findClaim,
   readClaimToken,
   release,
-  renew,
+  renewRow,
   revoke,
   TASK_LEASE_MS,
   withHeldClaim,
@@ -129,8 +129,9 @@ export async function assertHeldTaskClaim(
   };
 }
 
-export async function renewTaskClaim(
+async function renewTaskClaimRow(
   ctx: DbCtx,
+  row: Doc<"claims"> | null,
   input: {
     taskId: Id<"tasks">;
     shortId?: string;
@@ -141,7 +142,7 @@ export async function renewTaskClaim(
   },
 ): Promise<{ token: number; leaseUntil: number; remainingMs: number }> {
   const now = input.now ?? Date.now();
-  const res = await renew(ctx, {
+  const res = await renewRow(ctx, row, {
     resource: { kind: "task", id: input.taskId },
     holder: input.holder,
     token: input.token,
@@ -159,6 +160,21 @@ export async function renewTaskClaim(
     leaseUntil: now + held.remainingMs,
     remainingMs: held.remainingMs,
   };
+}
+
+export async function renewTaskClaim(
+  ctx: DbCtx,
+  input: {
+    taskId: Id<"tasks">;
+    shortId?: string;
+    holder: Id<"users">;
+    token: number;
+    conversationId?: Id<"conversations">;
+    now?: number;
+  },
+): Promise<{ token: number; leaseUntil: number; remainingMs: number }> {
+  const row = await findClaim(ctx.db, { kind: "task", id: input.taskId });
+  return await renewTaskClaimRow(ctx, row, input);
 }
 
 export async function releaseTaskClaim(
@@ -234,8 +250,12 @@ export async function assertTaskWriteWithoutToken(
     unresolvedConversation?: boolean;
     now?: number;
   },
+  existingRow?: Doc<"claims"> | null,
 ): Promise<void> {
-  const row = await findClaim(ctx.db, { kind: "task", id: input.task._id });
+  const row =
+    existingRow !== undefined
+      ? existingRow
+      : await findClaim(ctx.db, { kind: "task", id: input.task._id });
   if (!row) return;
   const now = input.now ?? Date.now();
   if (row.holder !== undefined) {
@@ -322,7 +342,7 @@ export async function assertTaskMutationClaim(
   now: number,
   releaseOnPass?: (claimConvId?: Id<"conversations">) => Promise<void>,
 ): Promise<Id<"conversations"> | undefined> {
-  const conv = await resolveOwnedClaimConversation(
+  const { conv, unresolved } = await resolveTaskUpdateConversation(
     ctx,
     holder,
     args.conversation_id,
@@ -332,6 +352,7 @@ export async function assertTaskMutationClaim(
     holder,
     claimToken: args.claim_token,
     conversationId: conv?._id,
+    unresolvedConversation: unresolved,
     now,
   });
   if (releaseOnPass) {
@@ -433,6 +454,35 @@ export async function claimTaskWithLease<Released>(
   let clearedConvId: Id<"conversations"> | undefined;
   const released: Released[] = [];
   if (isLive && existing && existing.holder !== undefined) {
+    if (
+      String(existing.holder) === String(input.holder) &&
+      (existing.task?.conversation_id ?? undefined) ===
+        (input.conv?._id ?? undefined)
+    ) {
+      const renewed = await renewTaskClaimRow(ctx, existing, {
+        taskId: input.task._id,
+        shortId: input.task.short_id,
+        holder: input.holder,
+        token: existing.token,
+        conversationId: input.conv?._id,
+        now,
+      });
+      if (
+        input.conv &&
+        String(input.conv.active_task_id ?? "") !== String(input.task._id)
+      ) {
+        await releaseSessionTaskClaim(ctx, input.conv, input.holder, {
+          skipUnbindConv: true,
+          now,
+        });
+        await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
+      }
+      return {
+        released: [],
+        claimToken: renewed.token,
+        leaseUntil: renewed.leaseUntil,
+      };
+    }
     const prevConv = existing.task?.conversation_id
       ? await ctx.db.get(existing.task.conversation_id)
       : null;
@@ -660,27 +710,40 @@ export async function renewTaskHeartbeat(
   remaining_ms?: number;
 }> {
   const now = Date.now();
-  const conversationId = await resolveClaimConversationId(
+  const { conv, unresolved } = await resolveTaskUpdateConversation(
     ctx,
     input.holder,
     input.conversationRef,
   );
+  const conversationId = conv?._id;
+  const row = await findClaim(ctx.db, { kind: "task", id: input.task._id });
   let token = input.claimToken;
   if (token === undefined) {
-    await assertTaskWriteWithoutToken(ctx, {
-      task: input.task,
-      holder: input.holder,
-      conversationId,
-      now,
-    });
-    const row = await findClaim(ctx.db, { kind: "task", id: input.task._id });
+    await assertTaskWriteWithoutToken(
+      ctx,
+      {
+        task: input.task,
+        holder: input.holder,
+        conversationId,
+        unresolvedConversation: unresolved,
+        now,
+      },
+      row,
+    );
     if (!row || row.holder === undefined) {
       await input.writeHeartbeat();
       return { success: true };
     }
     token = row.token;
+  } else if (unresolved) {
+    await throwRefusal(
+      ctx.db,
+      input.task._id,
+      "wrong_holder",
+      input.task.short_id,
+    );
   }
-  const renewed = await renewTaskClaim(ctx, {
+  const renewed = await renewTaskClaimRow(ctx, row, {
     taskId: input.task._id,
     shortId: input.task.short_id,
     holder: input.holder,
@@ -718,7 +781,7 @@ export async function renewLiveConversationTaskClaim(
   ) {
     return;
   }
-  await renewTaskClaim(ctx, {
+  await renewTaskClaimRow(ctx, row, {
     taskId: activeTaskId,
     holder,
     token: row.token,

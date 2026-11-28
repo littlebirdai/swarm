@@ -243,14 +243,11 @@ test("first claim mints token 1, renew extends lease, and stale tokens are refus
     reason: "busy",
   });
 
-  expect(
-    await catchClaimError(() =>
-      f.start(f.tokA, { conversation_id: String(f.convA1) }),
-    ),
-  ).toMatchObject({
-    code: "CONFLICT",
-    reason: "busy",
+  const sameConvRestart: any = await f.start(f.tokA, {
+    conversation_id: String(f.convA1),
   });
+  expect(sameConvRestart.claim_token).toBe(1);
+  expect(sameConvRestart.released_owners).toBeUndefined();
 
   const reStarted: any = await f.start(f.tokA, {
     conversation_id: String(f.convA1),
@@ -579,4 +576,20 @@ test("account deletion and user merge clear task claim holders and preserve toke
   expect(afterMerge).not.toHaveProperty("task");
   expect(afterMerge).not.toHaveProperty("request_id");
   expect(afterMerge).not.toHaveProperty("request_holder");
+});
+
+test("spawnForTask allows the spawned session to run cast task start idempotently", async () => {
+  const f = await setup("spawn-then-start");
+  const spawned: any = await f.t.mutation(api.tasks.spawnForTask, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+  });
+  const firstToken = (await f.claimRow())?.token;
+  expect(typeof firstToken).toBe("number");
+
+  const started: any = await f.start(f.tokA, {
+    conversation_id: String(spawned.conversationId),
+  });
+  expect(started.claim_token).toBe(firstToken);
+  expect(started.released_owners).toBeUndefined();
 });
