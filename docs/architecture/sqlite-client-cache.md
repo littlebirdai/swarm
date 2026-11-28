@@ -32,20 +32,35 @@ A drain is not a state of the connection. It holds the worker and lock of an ear
 
 ## Events and transitions
 
-| Event                                   | From                 | To                        | Effect                                                                           |
-| --------------------------------------- | -------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Attach to an epoch                      | Idle                 | Waiting                   | Opens the epoch channels and asks for the lock.                                  |
-| Lock granted, worker ready              | Waiting              | Owner                     | Requests go to the own worker.                                                   |
-| Worker ready announced on the channel   | Waiting              | Peer                      | Requests go to that worker.                                                      |
-| Newer epoch of the same principal       | Waiting, Owner, Peer | Waiting (new epoch)       | A ready own worker drains. The window buffer stays and flushes to the new epoch. |
-| Epoch of another principal or no epoch  | Waiting, Owner, Peer | Idle or Waiting           | Tears down at once and rejects the requests of the old epoch.                    |
-| Lost write, write failed, hung holder   | Waiting, Owner, Peer | Waiting (next generation) | Rotates. More than three rotations without a good answer goes to Disabled.       |
-| Lock lost                               | Owner                | Waiting (same epoch)      | Rejects the writes in flight and asks for the lock again.                        |
-| OPFS missing, epoch record not writable | any open state       | Disabled                  | Tears down and switches to the memory cache.                                     |
-| Purge                                   | any open state       | Idle                      | Tears down and writes the next account epoch.                                    |
-| Close                                   | any open state       | Closed                    | Flushes the buffer to the closing epoch, then drains a ready own worker.         |
+Epoch changes move the window from one epoch to another. They run through the transition gate (`transition-gate.ts`) one at a time. A change that starts while another runs waits until that one ends, and nothing inside a change calls `ensureActiveEpoch`.
 
-Each transition runs through the transition gate. A transition that starts while another runs waits until that one ends. Nothing inside a transition calls `ensureActiveEpoch`.
+| Event                                                                       | From                                 | To                        | Effect                                                                                 |
+| --------------------------------------------------------------------------- | ------------------------------------ | ------------------------- | -------------------------------------------------------------------------------------- |
+| Attach to an epoch                                                          | Idle                                 | Waiting                   | Opens the epoch channels and asks for the lock.                                        |
+| Newer epoch of the same principal and account epoch                         | Waiting, Owner, Peer                 | Waiting (new epoch)       | A ready own worker drains. The window buffer stays and flushes to the new epoch.       |
+| Epoch of another schema version or account epoch, same principal            | Waiting, Owner, Peer                 | Waiting (new epoch)       | A ready own worker drains. The window buffer is dropped.                               |
+| Epoch of another principal                                                  | Waiting, Owner, Peer                 | Waiting (new epoch)       | Tears down at once, rejects the requests of the old epoch and drops the window buffer. |
+| Stored epoch removed, marked failed or of another principal                 | Waiting, Owner, Peer                 | Idle                      | Tears down at once and rejects the requests of the old epoch.                          |
+| Lost write, write failed, owner unreadable, hung holder on the active epoch | Waiting, Owner, Peer                 | Waiting (next generation) | Rotates. A failure for an epoch that is not active does nothing.                       |
+| Rotation whose stored epoch is of another principal or marked failed        | Waiting, Owner, Peer                 | Idle                      | Tears down and attaches to nothing.                                                    |
+| A fourth rotation in one account epoch without a good answer                | Waiting, Owner, Peer                 | Disabled                  | Tears down and switches to the memory cache.                                           |
+| OPFS missing, epoch record not writable                                     | Idle, Waiting, Owner, Peer           | Disabled                  | Tears down and switches to the memory cache.                                           |
+| Purge                                                                       | Idle, Waiting, Owner, Peer           | Idle                      | Tears down and writes the next account epoch.                                          |
+| Close                                                                       | Idle, Waiting, Owner, Peer, Disabled | Closed                    | Flushes the buffer to the closing epoch, then drains a ready own worker.               |
+
+Worker and lock events stay inside one epoch. They do not use the gate.
+
+| Event                                         | From           | To                        | Effect                                                                                 |
+| --------------------------------------------- | -------------- | ------------------------- | -------------------------------------------------------------------------------------- |
+| Lock granted                                  | Waiting, Peer  | Waiting                   | Spawns the own worker. Requests wait for it.                                           |
+| Own worker ready                              | Waiting        | Owner                     | Requests go to the own worker.                                                         |
+| Worker ready announced on the channel         | Waiting        | Peer                      | Requests go to that worker.                                                            |
+| Another worker ready announced on the channel | Peer           | Peer                      | Requests that wait go to the new worker. Writes sent to the old one count as lost.     |
+| Worker closing                                | Owner, Peer    | Waiting                   | Forgets that worker and asks the channel for another. Writes sent to it count as lost. |
+| Lock lost                                     | Waiting, Owner | Waiting                   | Ends the own worker, rejects the writes in flight and asks for the lock again.         |
+| Worker spawn fails                            | Waiting        | Waiting (next generation) | Rotates, as for a failed write.                                                        |
+
+A drain is not a state. It holds the worker and lock of an earlier epoch until that worker answers its queue or the close timeout ends, and then rejects only that epoch's requests. A request timeout rotates only the active epoch.
 
 ## Answers
 
