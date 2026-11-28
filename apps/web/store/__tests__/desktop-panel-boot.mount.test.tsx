@@ -120,7 +120,11 @@ test("an agent dock window paints only after its scoped critical cache loads", a
     cacheStorage.writePatches(
       (Object.keys(seeded) as (keyof typeof seeded)[])
         .filter((key) => key !== "currentUser")
-        .map((key) => ({ op: "replace", path: [key], value: seeded[key] })),
+        .map((key) => ({
+          op: "replace" as const,
+          path: [key],
+          value: seeded[key],
+        })),
       seeded,
     );
     await cacheStorage.flushPersistence();
@@ -161,6 +165,7 @@ test("an agent dock window paints only after its scoped critical cache loads", a
     expect(useInboxStore.getState().lastFocusedConversationId).toBeNull();
   } finally {
     stopWatching?.();
+    await cacheStorage.purgeLocalCache({ reason: "test-cleanup" });
     await web?.close();
     restoreEvents?.();
     if (originalFlag === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
