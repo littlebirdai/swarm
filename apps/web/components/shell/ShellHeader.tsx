@@ -16,17 +16,8 @@ import { HeaderPins } from "../anchor/AnchorPanel";
 import { SyncStatusChip } from "../SyncStatusChip";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { FollowPill } from "../presence/FollowPill";
-import {
-  useInboxStore,
-  useTrackedStore,
-  sessionsWakeSig,
-  pendingSendWakeSig,
-  resolveShowOld,
-  selectSessionRailOpen,
-  placeInboxRows,
-  filterInboxScope,
-  isSub,
-} from "../../store/inboxStore";
+import { useInboxStore, useTrackedStore, sessionsWakeSig, pendingSendWakeSig, resolveShowOld, placeInboxRows, filterInboxScope, isSub } from "../../store/inboxStore";
+import { selectSessionRailOpen } from "../../store/slices/workspace-slice";
 import { agentFleetCounts } from "../../lib/liveness";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useOpenSession } from "../../hooks/useOpenSession";

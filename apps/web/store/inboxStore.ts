@@ -674,14 +674,6 @@ import {
   writeCriticalUiPrefs,
   type WorkspaceSlice,
 } from "./slices/workspace-slice";
-export {
-  selectCommentRailOpen,
-  selectNavCollapsed,
-  selectNavHidden,
-  selectSessionRailOpen,
-  selectSessionRailUserClosed,
-} from "./slices/workspace-slice";
-export type { AnchorPanelTarget } from "./slices/workspace-slice";
 // Re-exported so chat surfaces import their selectors from the store, like every
 // other view does, instead of reaching into the slice file.
 export {

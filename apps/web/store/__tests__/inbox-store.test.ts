@@ -5,34 +5,8 @@ import {
   seedTeamInboxIdsFromCache,
 } from "../inbox-hydration";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import {
-  awaitTrackedSessionCreateResult,
-  computeInboxVisible,
-  isFavoriteInStore,
-  computeNewDividerIndex,
-  feedPagePersistence,
-  findReusableBlankSession,
-  getSessionRenderKey,
-  isConvexId,
-  isSessionDismissed,
-  isSessionStashed,
-  orchestrationGroupLabelOf,
-  PENDING_SEND_PRUNE_GRACE_MS,
-  pendingSendConsumed,
-  reconcilePendingSendForSession,
-  resolveAssigneeInfo,
-  resolveSessionAuthor,
-  resolveShowOld,
-  selectNavCollapsed,
-  selectSessionRailOpen,
-  SessionCreatePendingError,
-  sessionsWithPendingSend,
-  useInboxStore,
-  worktreeKeyOf,
-  NEW_SESSION_HOLD_MS,
-  releaseExpiredNewSessionHolds,
-  type InboxSession,
-} from "../inboxStore";
+import { awaitTrackedSessionCreateResult, computeInboxVisible, isFavoriteInStore, computeNewDividerIndex, feedPagePersistence, findReusableBlankSession, getSessionRenderKey, isConvexId, isSessionDismissed, isSessionStashed, orchestrationGroupLabelOf, PENDING_SEND_PRUNE_GRACE_MS, pendingSendConsumed, reconcilePendingSendForSession, resolveAssigneeInfo, resolveSessionAuthor, resolveShowOld, SessionCreatePendingError, sessionsWithPendingSend, useInboxStore, worktreeKeyOf, NEW_SESSION_HOLD_MS, releaseExpiredNewSessionHolds, type InboxSession } from "../inboxStore";
+import { selectNavCollapsed, selectSessionRailOpen } from "../slices/workspace-slice";
 import { convHasPendingSend, pendingRowsUnsettled } from "../inboxOverlays";
 import { _resetSnapshotLedger } from "../idb-collection-diff";
 import { isPersistedStoreKey } from "../idb-cache";

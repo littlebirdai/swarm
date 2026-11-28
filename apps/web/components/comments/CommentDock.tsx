@@ -1,7 +1,8 @@
 import { memo, useMemo, useState } from "react";
 import { Quote, FileCode2, CheckCircle2, RotateCcw } from "lucide-react";
 import { SlotActions } from "../workspace/Slot";
-import { useInboxStore, selectCommentRailOpen } from "../../store/inboxStore";
+import { useInboxStore } from "../../store/inboxStore";
+import { selectCommentRailOpen } from "../../store/slices/workspace-slice";
 import { useDiffViewerStore } from "../../store/diffViewerStore";
 import { getRelativePath } from "@codecast/render/format";
 import { useCurrentUser } from "../../hooks/useCurrentUser";

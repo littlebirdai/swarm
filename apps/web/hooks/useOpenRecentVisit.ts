@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useInboxStore, selectSessionRailOpen } from "../store/inboxStore";
+import { useInboxStore } from "../store/inboxStore";
+import { selectSessionRailOpen } from "../store/slices/workspace-slice";
 import { isNonTabRoute } from "../src/compat/tabRouting";
 import type { ResolvedVisit } from "../lib/recentVisits";
 
