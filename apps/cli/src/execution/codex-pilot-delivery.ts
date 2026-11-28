@@ -55,6 +55,14 @@ type PilotPermit = Extract<PermitsNextResponse, { status: "permit" }>;
 export class CodexPilotLeaseLost extends Error {}
 
 const HELD_WITHOUT_RECEIPT = "owned_codex_receipt_pending";
+const RECEIPT_READ_MS = 5_000;
+const STALE_SETTLE_LIMIT = 5;
+const STALE_SETTLE_BASE_MS = 2_000;
+const STALE_SETTLE_MAX_MS = 60_000;
+
+export type CodexPilotDeliveryOptions = {
+  readonly providerTimeoutMs?: number;
+};
 
 type ActiveContext = {
   readonly binding: ReadyBinding;
@@ -74,11 +82,21 @@ export class CodexPilotDelivery {
   private service?: DeliveryFacade;
   private serviceInit?: Promise<DeliveryFacade>;
   private context?: ActiveContext;
+  private staleSettle?: { readonly attemptId: string; readonly count: number };
 
   constructor(
     private readonly fetch: FetchEdge,
     private readonly log: (message: string) => void,
+    private readonly options: CodexPilotDeliveryOptions = {},
   ) {}
+
+  retryDelayMs(): number | undefined {
+    if (!this.staleSettle) return undefined;
+    return Math.min(
+      STALE_SETTLE_BASE_MS * 2 ** (this.staleSettle.count - 1),
+      STALE_SETTLE_MAX_MS,
+    );
+  }
 
   private async forgetReceipt(
     session: string,
@@ -125,16 +143,16 @@ export class CodexPilotDelivery {
 
   async clearImages(attemptId?: string): Promise<void> {
     if (attemptId === undefined) {
+      const init = this.serviceInit;
+      this.service = undefined;
+      this.serviceInit = undefined;
+      const current = await init?.catch(() => undefined);
+      await current?.dispose().catch(() => {});
       this.context = undefined;
+      this.staleSettle = undefined;
       await Promise.all(
         [...this.images.keys()].map((id) => this.clearImages(id)),
       );
-      if (this.service) {
-        const current = this.service;
-        this.service = undefined;
-        this.serviceInit = undefined;
-        await current.dispose().catch(() => {});
-      }
       return;
     }
     const directory = this.images.get(attemptId);
@@ -276,6 +294,7 @@ export class CodexPilotDelivery {
 
       const facade = createDeliveryService({
         log: this.log,
+        providerTimeoutMs: this.options.providerTimeoutMs,
         receiptJournal: receipts,
         allowTakeover: false,
         runningTurn: () => this.activeTurn,
@@ -337,6 +356,12 @@ export class CodexPilotDelivery {
                 next.attempt_id === held.attemptId &&
                 next.state === "started"
               ) {
+                if (
+                  !this.appendedReceipts.has(next.delivery_id) &&
+                  (await receipts.find(next.session, next.delivery_id, signal))
+                ) {
+                  this.appendedReceipts.add(next.delivery_id);
+                }
                 if (!this.appendedReceipts.has(next.delivery_id)) {
                   return {
                     ok: false,
@@ -482,7 +507,7 @@ export class CodexPilotDelivery {
               const recorded = await receipts.find(
                 request.session,
                 request.delivery_id,
-                signal,
+                AbortSignal.timeout(RECEIPT_READ_MS),
               );
               if (recorded) return { status: "duplicate", receipt: recorded };
               return {
@@ -496,7 +521,7 @@ export class CodexPilotDelivery {
               const recorded = await receipts.find(
                 request.session,
                 request.delivery_id,
-                signal,
+                AbortSignal.timeout(RECEIPT_READ_MS),
               );
               if (recorded) return { status: "delivered", receipt: recorded };
             }
@@ -609,6 +634,19 @@ export class CodexPilotDelivery {
         outcome.code === HELD_WITHOUT_RECEIPT
       )
         return false;
+      if (outcome.status === "lease_stale" && outcome.stage === "settle") {
+        const count =
+          this.staleSettle?.attemptId === outcome.attempt_id
+            ? this.staleSettle.count + 1
+            : 1;
+        this.staleSettle = { attemptId: outcome.attempt_id, count };
+        if (count >= STALE_SETTLE_LIMIT)
+          throw new CodexPilotLeaseLost(
+            "Owned Codex settlement stayed stale for one attempt",
+          );
+      } else {
+        this.staleSettle = undefined;
+      }
       if (outcome.status === "empty") return true;
       if (outcome.status === "held") return !sendNew;
       if (outcome.status === "lease_stale") {

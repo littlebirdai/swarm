@@ -418,7 +418,12 @@ export class DaemonExecutionRuntime {
       if (this.stopped) return;
       if (idle || pilot.closed) this.stopPilotPoll(conversationId);
       else if (!poll.timer)
-        this.schedulePilotPoll(pilot, poll.binding, current.request);
+        this.schedulePilotPoll(
+          pilot,
+          poll.binding,
+          current.request,
+          pilot.deliveryRetryDelayMs(),
+        );
       if (!awaitingSuccessor || !idle) return;
     }
 
@@ -679,7 +684,12 @@ export class DaemonExecutionRuntime {
           poll.timerToken === token &&
           !poll.timer
         )
-          this.schedulePilotPoll(pilot, binding, request);
+          this.schedulePilotPoll(
+            pilot,
+            binding,
+            request,
+            pilot.deliveryRetryDelayMs(),
+          );
       });
     }, delay);
     poll.timer.unref();

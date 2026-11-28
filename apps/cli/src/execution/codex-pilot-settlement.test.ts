@@ -107,6 +107,7 @@ test.each([
       } satisfies CanonicalEvent;
       expect(delivery.attributeTurnStart(nextTurn)).toEqual(nextTurn);
     } finally {
+      await delivery.clearImages();
       await f.dispose();
     }
   },

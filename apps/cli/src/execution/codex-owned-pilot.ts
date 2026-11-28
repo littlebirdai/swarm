@@ -609,6 +609,10 @@ export class CodexOwnedPilot {
     );
   }
 
+  deliveryRetryDelayMs(): number | undefined {
+    return this.delivery.retryDelayMs();
+  }
+
   async drain(
     binding: ReadyBinding,
     coordinator: ExecutionCoordinator,
