@@ -572,6 +572,51 @@ describe("whole-team destroy", () => {
     });
   });
 
+  test("removes the sync log of the team's directory, projects and channels", async () => {
+    const { t, admin, teamA, teamB, as } = await setup();
+    const seeded: Seeded[] = [];
+    const kept: Seeded[] = [];
+    await t.run(async (ctx: any) => {
+      const made = new Map();
+      const project = await row(
+        ctx,
+        "projects",
+        { team_id: teamA, workspace: `team:${teamA}` },
+        made,
+      );
+      const channel = await row(ctx, "chat_channels", { team_id: teamA }, made);
+      const otherProject = await row(
+        ctx,
+        "projects",
+        { team_id: teamB, workspace: `team:${teamB}` },
+        made,
+      );
+      const scopes = [
+        `dir:${teamA}`,
+        `project:${project}`,
+        `channel:${channel}`,
+      ];
+      for (const scope_key of scopes)
+        for (const table of ["sync_actions", "sync_outbox", "sync_heads"])
+          seeded.push({
+            table,
+            id: String(await row(ctx, table, { scope_key }, made)),
+          });
+      for (const scope_key of [`dir:${teamB}`, `project:${otherProject}`])
+        kept.push({
+          table: "sync_actions",
+          id: String(await row(ctx, "sync_actions", { scope_key }, made)),
+        });
+    });
+    await as(admin).mutation(api.regulatedDeletion.destroyTeam, {
+      team_id: teamA,
+      confirm_name: "Acme Health",
+    });
+    await drain(t, deletionOf("team", String(teamA)));
+    expect(await left(t, seeded)).toEqual([]);
+    expect(await left(t, kept)).toEqual(["sync_actions", "sync_actions"]);
+  });
+
   test("a stalled delete resumes from its recorded roots", async () => {
     const { t, admin, teamA, as } = await setup();
     // More than one pass of work, so the chain is cut mid-way.
