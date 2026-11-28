@@ -61,6 +61,15 @@ test("question answers deliver with the authenticated actor only to the run devi
   });
   expect(await bad.json()).toEqual({ v: 1, status: "stale" });
   expect(await f.next()).toEqual(expected);
+  const unclaimed = await f.post("commands.result", {
+    ...result,
+    claim: undefined,
+  });
+  expect(unclaimed.status).toBe(200);
+  expect(await unclaimed.json()).toEqual({ v: 1, status: "stale" });
+  expect(await f.next()).toEqual(expected);
+  expect(await f.rows()).toMatchObject([{ _id: id }]);
+  expect((await f.rows())[0]?.finished_at).toBeUndefined();
   const ack = await f.post("commands.result", result);
   expect(await ack.json()).toEqual({ v: 1, status: "recorded" });
   const retry = await f.post("commands.result", result);

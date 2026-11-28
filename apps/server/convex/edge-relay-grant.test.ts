@@ -28,6 +28,31 @@ const flags = {
   RELAY_AUDIENCE: "fixture-cell",
   RELAY_HMAC_KEY: base64urlEncode(new Uint8Array(32).fill(4)),
 };
+const invalidRelayConfig = [
+  ["RELAY_HMAC_KEY", undefined],
+  ["RELAY_HMAC_KEY", base64urlEncode(new Uint8Array(16).fill(4))],
+  ["RELAY_HMAC_KEY", "not+a/base64url=key"],
+  ["RELAY_HMAC_KEY", `${flags.RELAY_HMAC_KEY.slice(0, -1)}F`],
+  ["RELAY_AUDIENCE", undefined],
+  ["RELAY_AUDIENCE", "fixture cell"],
+  ["RELAY_PUBLIC_URL", undefined],
+  ["RELAY_PUBLIC_URL", "ws://relay.example.test/relay"],
+  ["RELAY_PUBLIC_URL", "wss://relay.example.test/other"],
+  ["RELAY_PUBLIC_URL", "not a url"],
+] as const;
+const withRelayConfig = async (
+  key: (typeof invalidRelayConfig)[number][0],
+  value: string | undefined,
+  check: () => Promise<void>,
+) => {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+  try {
+    await check();
+  } finally {
+    process.env[key] = flags[key];
+  }
+};
 const previous = Object.entries(flags).map(
   ([key]) => [key, process.env[key]] as const,
 );
@@ -78,15 +103,10 @@ test("hello advertises session liveness only when available and offered", async 
   };
   expect(await capabilities(hello.capabilities)).toEqual(hello.capabilities);
   expect(await capabilities(["heartbeat"])).toEqual(["heartbeat"]);
-  for (const key of [
-    "RELAY_HMAC_KEY",
-    "RELAY_AUDIENCE",
-    "RELAY_PUBLIC_URL",
-  ] as const) {
-    delete process.env[key];
-    expect(await capabilities(hello.capabilities)).toEqual(["heartbeat"]);
-    process.env[key] = flags[key];
-  }
+  for (const [key, value] of invalidRelayConfig)
+    await withRelayConfig(key, value, async () => {
+      expect(await capabilities(hello.capabilities)).toEqual(["heartbeat"]);
+    });
 });
 
 test("only the current run owner can obtain a signed run-scoped grant", async () => {
@@ -172,14 +192,13 @@ test("only the current run owner can obtain a signed run-scoped grant", async ()
     db.patch(f.conversation, { owner_device_id: machine }),
   );
 
-  for (const key of ["RELAY_PUBLIC_URL", "RELAY_HMAC_KEY"] as const) {
-    delete process.env[key];
-    expect(await (await mint()).json()).toEqual({
-      v: 1,
-      status: "unavailable",
+  for (const [key, value] of invalidRelayConfig)
+    await withRelayConfig(key, value, async () => {
+      expect(await (await mint()).json()).toEqual({
+        v: 1,
+        status: "unavailable",
+      });
     });
-    process.env[key] = flags[key];
-  }
 
   setSystemTime(new Date(start + leaseMs - 1));
   expect(await (await mint()).json()).toMatchObject({

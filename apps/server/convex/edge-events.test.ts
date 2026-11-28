@@ -680,3 +680,30 @@ test("Convex records a started outcome after the conversation leaves the device"
     delivery_status: "delivered",
   });
 });
+
+test("a later run without its own cursor resumes after the last event of an earlier run", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  await f.append(
+    f.batch(fencing_token, [f.event(1, { kind: "turn.started", body: {} })]),
+  );
+  await f.t.run(async ({ db }) => {
+    const old = await db.get(f.binding);
+    if (!old) throw Error("Expected an active run");
+    const { _id, _creationTime, claim_id, ...fields } = old;
+    for (const epoch of [2, 3])
+      await db.insert("execution_bindings", { ...fields, epoch });
+    await db.patch(f.head, { current_epoch: 3 });
+    expect(await db.query("run_event_cursors").collect()).toHaveLength(1);
+    expect(await db.query("run_turn_projections").collect()).toHaveLength(1);
+  });
+  const claimed = await f.grant("resumed");
+  expect(claimed).toMatchObject({ run: 3, last_event_seq: 1 });
+  expect(
+    await f.append(
+      f.batch(claimed.fencing_token, [
+        { ...f.event(2, { kind: "turn.started", body: {} }), run: 3 },
+      ]),
+    ),
+  ).toMatchObject([{ status: "appended", through_seq: 2 }]);
+});

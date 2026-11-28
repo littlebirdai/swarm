@@ -38,7 +38,7 @@ const paths = [
   "start with prompt",
 ] as const;
 
-async function fixture(path: (typeof paths)[number]) {
+async function fixture(path: (typeof paths)[number], optedIn = true) {
   const f = await setupRunLease();
   const role_id = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "local launch routes");
@@ -59,7 +59,7 @@ async function fixture(path: (typeof paths)[number]) {
     f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
       owner_device_id: machine,
       daemon_boot_id,
-      owned_codex_new_sessions: true,
+      owned_codex_new_sessions: optedIn,
       api_token: f.bearer,
     });
   await register(boot);
@@ -361,6 +361,25 @@ test.each(paths)(
     });
   },
 );
+
+test.each(
+  paths.flatMap((path) =>
+    (["boot not opted in", "turn baton off"] as const).map(
+      (reason) => [path, reason] as const,
+    ),
+  ),
+)("%s keeps its legacy start when the %s", async (path, reason) => {
+  if (reason === "turn baton off") delete process.env.SWARM_TURN_BATON;
+  const f = await fixture(path, reason !== "boot not opted in");
+  const { conversation, commands } = await f.t.run(async ({ db }) => ({
+    conversation: await db.get(f.conversation),
+    commands: await db.query("daemon_commands").collect(),
+  }));
+  expect(conversation?.execution_protocol_state).toBeUndefined();
+  expect(
+    commands.filter((cmd) => cmd.command === "start_session"),
+  ).toHaveLength(1);
+});
 
 async function fencedMergeWorker(ownerDeviceId = machine) {
   const f = await fixture("quick");
