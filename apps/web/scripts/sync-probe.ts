@@ -87,6 +87,8 @@ export async function runLocalProbe(samples: number, timeoutMs: number) {
 
     let cursor = initialPosition;
     const store = useInboxStore.getState();
+    useInboxStore.setState({ currentUser: { _id: ownerId } } as any);
+    useInboxStore.getState().reconcileScopeSubscriptions(Date.now());
     store.syncTable("docs", [row], { isDelta: true });
     store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor });
     flushSyncPublishes();

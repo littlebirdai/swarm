@@ -266,7 +266,7 @@ function fixture(seed: number): Fixture {
         const s = useInboxStore.getState();
         s.syncTable(
           "teams",
-          teamIds.map((id) => ({ _id: id })),
+          teamIds.map((id: string) => ({ _id: id })),
         );
         useInboxStore.setState({
           currentUser: { ...user },
