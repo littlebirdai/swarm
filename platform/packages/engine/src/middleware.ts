@@ -1011,7 +1011,22 @@ export function mutativeMiddleware(
     // later live send of any of them goes behind the row (as if it named it in
     // `after`), so the drain cannot land the older value last.
     const parkedCells = new Map<string, ReadonlySet<string>>();
+    const MAX_ACTIVE_OUTBOX_ROWS = 512;
+    const protectOutboxRows = !!platformConfig.outboxProtectedRows;
     const activeOutboxRowsById = new Map<string, Set<string>>();
+    const EMPTY_PROTECTED_OUTBOX_ROWS: ReadonlySet<string> = new Set();
+    let outboxSeedEpoch = 0;
+    const trackOutboxRows = (id: string, keys: Set<string>): void => {
+      if (!protectOutboxRows || keys.size === 0) return;
+      if (!activeOutboxRowsById.has(id)) {
+        while (activeOutboxRowsById.size >= MAX_ACTIVE_OUTBOX_ROWS) {
+          const oldest = activeOutboxRowsById.keys().next().value;
+          if (oldest === undefined) break;
+          activeOutboxRowsById.delete(oldest);
+        }
+      }
+      activeOutboxRowsById.set(id, keys);
+    };
     const extractOutboxRowKeys = (
       entry: Pick<OutboxEntry, "action" | "args" | "patches" | "locks">,
       rawPatches?: readonly Patch[],
@@ -1529,10 +1544,11 @@ export function mutativeMiddleware(
         // that window's later writes and revert them on the server.
         const loaded = (await capturedLoad()).filter((entry) => !ownedByAnotherLiveWindow(entry, outboxOwner, live));
         assertDispatchCurrent(captured);
-        for (const entry of loaded) {
-          if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
-          const keys = extractOutboxRowKeys(entry);
-          if (keys.size > 0) activeOutboxRowsById.set(entry.id, keys);
+        if (protectOutboxRows) {
+          for (const entry of loaded) {
+            if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+            trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
+          }
         }
         // Coalesce across reloads: rows written by a previous page load can
         // hold several generations of the same key. Keep the newest per key,
@@ -1727,9 +1743,11 @@ export function mutativeMiddleware(
           for (const id of parkedOutboxIds) if (!still.has(id)) parkedOutboxIds.delete(id);
           for (const id of parkedCells.keys()) if (!parkedOutboxIds.has(id)) parkedCells.delete(id);
         }
-        for (const id of activeOutboxRowsById.keys()) {
-          if (!still.has(id) && !inFlightOutboxIds.has(id) && !liveSends.has(id)) {
-            activeOutboxRowsById.delete(id);
+        if (protectOutboxRows) {
+          for (const id of activeOutboxRowsById.keys()) {
+            if (!still.has(id) && !inFlightOutboxIds.has(id) && !liveSends.has(id)) {
+              activeOutboxRowsById.delete(id);
+            }
           }
         }
         bootOutboxDrained = remaining.length === 0 &&
@@ -1815,6 +1833,7 @@ export function mutativeMiddleware(
       const capturedError = dispatchErrorFn;
       const receiptWaiter = usesReceiptEnvelope ? receiptWaiterFor(outboxId) : null;
       let enqueueCompleted = false;
+      let enqueueFailed = false;
       // Parked unconditionally — a rewire window (boot, HMR, account
       // switch) can clear the binding while the page stays interactive,
       // and an un-parked action fired in that window would vanish with
@@ -1824,12 +1843,14 @@ export function mutativeMiddleware(
             enqueueCompleted = true;
           })
         : null;
-      const touchedRows = extractOutboxRowKeys(entry, patches);
-      if (touchedRows.size > 0) activeOutboxRowsById.set(outboxId, touchedRows);
+      if (protectOutboxRows) {
+        trackOutboxRows(outboxId, extractOutboxRowKeys(entry, patches));
+      }
       // Mark handled: consumers below attach their own handlers, but none
       // may exist yet when a storage failure rejects this promise.
       enqueued?.catch(() => {
-        if (!inFlightOutboxIds.has(outboxId) && !liveSends.has(outboxId)) {
+        enqueueFailed = true;
+        if (protectOutboxRows && !inFlightOutboxIds.has(outboxId) && !liveSends.has(outboxId)) {
           activeOutboxRowsById.delete(outboxId);
         }
       });
@@ -1913,8 +1934,8 @@ export function mutativeMiddleware(
         liveSends.set(outboxId, { settled, retrying: false, waiting: !!waiting, overtaken: false, receipt: usesReceiptEnvelope, writes });
         void settled.then((outcome) => {
           liveSends.delete(outboxId);
-          if (!enqueued || outcome !== "parked") {
-            if (outcome !== "parked" && !enqueued) activeOutboxRowsById.delete(outboxId);
+          if (protectOutboxRows && (outcome !== "parked" || !enqueued || enqueueFailed)) {
+            activeOutboxRowsById.delete(outboxId);
           }
         });
         const enqueueDurable = () =>
@@ -2334,12 +2355,27 @@ export function mutativeMiddleware(
       outboxEnqueueFn = enqueue;
       outboxRemoveFn = remove;
       outboxLoadFn = load;
-      if (load === null) activeOutboxRowsById.clear();
+      outboxSeedEpoch++;
+      activeOutboxRowsById.clear();
+      if (load !== null && protectOutboxRows) {
+        const seedEpoch = outboxSeedEpoch;
+        void Promise.resolve(load()).then(
+          (entries) => {
+            if (outboxSeedEpoch !== seedEpoch || outboxLoadFn !== load) return;
+            for (const entry of entries) {
+              if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+              trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
+            }
+          },
+          () => {},
+        );
+      }
       markOutboxDirty();
     };
 
     wrapped._clearRuntimeBindings = () => {
       dispatchEpoch++;
+      outboxSeedEpoch++;
       inFlightOutboxIds.clear();
       activeOutboxRowsById.clear();
       dispatchBinding = null;
@@ -2394,6 +2430,7 @@ export function mutativeMiddleware(
     };
 
     wrapped._protectedOutboxRows = () => {
+      if (!protectOutboxRows) return EMPTY_PROTECTED_OUTBOX_ROWS;
       const rows = new Set<string>();
       for (const set of activeOutboxRowsById.values()) {
         for (const key of set) rows.add(key);

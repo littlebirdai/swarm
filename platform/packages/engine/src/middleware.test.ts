@@ -916,3 +916,108 @@ describe("outbox rows across windows", () => {
     await waitFor(() => b.dispatched.some((d) => d.action === "poke"));
   });
 });
+
+describe("activeOutboxRowsById (_protectedOutboxRows)", () => {
+  const PROTECTED_CONFIG: PlatformConfig = {
+    ...CONFIG,
+    outboxProtectedRows: (entry) =>
+      typeof entry.args?.[0] === "string" ? [`items:${entry.args[0]}`] : [],
+  };
+
+  it("stays empty when outboxProtectedRows is not configured", async () => {
+    const h = makeHarness();
+    h.wrapped.poke(SERVER_ID);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+    await waitFor(() => h.outbox.size === 1);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+
+  it("seeds from load() at boot before dispatch is wired and clears on runtime reset", async () => {
+    const outbox = new Map<string, OutboxEntry>();
+    outbox.set("boot-1", {
+      id: "boot-1",
+      action: "rename",
+      args: [SERVER_ID, "from-disk"],
+      patches: {},
+      result: null,
+      ts: Date.now(),
+    });
+    const h = makeHarness({ config: PROTECTED_CONFIG, outbox });
+    await waitFor(() => h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped._clearRuntimeBindings();
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+
+  it("tracks unwired enqueue, live retry, parked failure, success retire, and stale drop", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [1] });
+    h.wrapped.poke(SERVER_ID);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`)).toBe(true);
+
+    let failAttempt = 0;
+    h.wireDispatch(async () => {
+      failAttempt++;
+      if (failAttempt <= 2) throw new Error("transient net");
+      return { ok: true };
+    });
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped._setDispatch(() => Promise.reject(new Error("still offline")));
+    h.wrapped.poke(OTHER_ID);
+    await sleep(20);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`)).toBe(true);
+
+    const oldTs = Date.now() - 8 * 86_400_000;
+    const stale = [...h.outbox.values()][0]!;
+    h.outbox.set(stale.id, { ...stale, ts: oldTs, queuedAt: oldTs });
+    h.wrapped._drainOutbox();
+    await waitFor(() => !h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`));
+  });
+
+  it("clears protection on permanent refusal without leaking", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wireDispatch(async () => {
+      throw new Error("Server Error\nArgumentValidationError");
+    });
+    h.wrapped.poke(SERVER_ID);
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+  });
+
+  it("does not leak activeOutboxRowsById when enqueue fails and dispatch fails transiently", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wrapped._setOutbox(
+      async () => {
+        await sleep(5);
+        throw new Error("idb quota exceeded");
+      },
+      async () => {},
+      async () => [],
+    );
+    h.wireDispatch(async () => {
+      throw new Error("Connection lost");
+    });
+    h.wrapped.poke(SERVER_ID);
+    await waitFor(() => !h.wrapped._protectedOutboxRows().has(`items:${SERVER_ID}`));
+
+    h.wrapped.seedRow(OTHER_ID, { title: "x" });
+    h.wrapped._setDispatch(() => Promise.reject(new Error("Connection lost")));
+    h.wrapped.rename(OTHER_ID, "y");
+    await sleep(30);
+    expect(h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`)).toBe(false);
+  });
+
+  it("clears protection when _setOutbox(null, null, null) is called and caps tracked entries", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG });
+    for (let i = 0; i < 525; i++) {
+      const id = `id-${String(i).padStart(4, "0")}`;
+      h.wrapped.poke(id);
+    }
+    const protectedSet = h.wrapped._protectedOutboxRows();
+    expect(protectedSet.size).toBe(512);
+    expect(protectedSet.has("items:id-0000")).toBe(false);
+    expect(protectedSet.has("items:id-0524")).toBe(true);
+
+    h.wrapped._setOutbox(null, null, null);
+    expect(h.wrapped._protectedOutboxRows().size).toBe(0);
+  });
+});
