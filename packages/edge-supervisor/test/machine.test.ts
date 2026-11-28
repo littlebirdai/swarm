@@ -9,6 +9,7 @@ import {
   Watchdog,
   type LinkSettings,
 } from "../src/effect";
+import { startMachine } from "../src/index";
 
 const link: LinkSettings = {
   bearer: "test-token",
@@ -223,5 +224,86 @@ it.effect(
           ),
         ),
       );
+    }),
+);
+
+it.effect(
+  "MachineLive runs HeartbeatFlush on a scoped fiber and stops it on close",
+  () =>
+    Effect.gen(function* () {
+      const sessions = new Set<string>();
+      const batches: Array<ReadonlyArray<{ session_id: string }>> = [];
+      yield* Effect.gen(function* () {
+        const machine = yield* Machine;
+        yield* machine.ensureSessionHeartbeat("session-a");
+        yield* adjust(30_000);
+        expect(batches).toEqual([[{ session_id: "session-a" }]]);
+      }).pipe(
+        Effect.provide(
+          MachineLive({
+            log: () => {},
+            heartbeatFlush: {
+              log: () => {},
+              isReady: () => true,
+              sessions,
+              currentSessions: () => [...sessions],
+              agentStatus: () => undefined,
+              isParked: () => false,
+              hasPane: () => true,
+              isProcessAlive: () => true,
+              isOwnedOrSuperseded: () => false,
+              sendBatch: async (payload) => {
+                batches.push(payload);
+              },
+            },
+          }),
+        ),
+      );
+      expect(sessions.has("session-a")).toBe(true);
+      yield* adjust(60_000);
+      expect(batches).toHaveLength(1);
+    }),
+);
+
+it.effect(
+  "startMachine serializes membership operations across a rejected op followed by a succeeding op",
+  () =>
+    Effect.promise(async () => {
+      const sessions = new Set<string>();
+      const order: string[] = [];
+      const supervisor = await startMachine({
+        log: () => {},
+        heartbeatFlush: {
+          log: () => {},
+          isReady: () => true,
+          sessions,
+          currentSessions: () => [...sessions],
+          agentStatus: () => undefined,
+          isParked: () => false,
+          hasPane: () => true,
+          isProcessAlive: () => true,
+          isOwnedOrSuperseded: (id) => {
+            order.push(id);
+            if (id === "bad-session") {
+              throw new Error("membership failed");
+            }
+            return false;
+          },
+          sendBatch: async () => {},
+        },
+      });
+      try {
+        const first = supervisor.ensureSessionHeartbeat("bad-session");
+        const second = supervisor.ensureSessionHeartbeat("good-session");
+        order.push("queued");
+
+        await expect(first).rejects.toThrow("membership failed");
+        await expect(second).resolves.toBeUndefined();
+        expect(order).toEqual(["queued", "bad-session", "good-session"]);
+        expect(sessions.has("good-session")).toBe(true);
+        expect(sessions.has("bad-session")).toBe(false);
+      } finally {
+        await supervisor.close();
+      }
     }),
 );

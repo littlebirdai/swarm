@@ -15,6 +15,7 @@
     "@codecast/edge-client": "workspace:*",
     "@codecast/edge-contract": "workspace:*",
     "@codecast/effect-kit": "workspace:*",
+    "@codecast/sessions": "workspace:*",
     "effect": "catalog:"
   }
 }

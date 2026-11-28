@@ -4,6 +4,14 @@ import { makeFacade } from "@codecast/effect-kit/effect";
 import * as Effect from "effect/Effect";
 import { Machine, MachineLive, type MachineOptions } from "./machine";
 
+export type {
+  HeartbeatBatchSender,
+  HeartbeatFlushHost,
+  HeartbeatLogEntry,
+  HeartbeatSessionPayload,
+} from "./heartbeat-flush";
+export type { MachineOptions } from "./machine";
+
 export type MachineConnection = {
   siteUrl: string;
   bearer: string;
@@ -15,6 +23,13 @@ export type MachineConnection = {
 
 export interface MachineSupervisor {
   connect(connection: MachineConnection, signal?: AbortSignal): Promise<void>;
+  ensureSessionHeartbeat(
+    sessionId: string,
+    source?: "transcript",
+  ): Promise<void>;
+  stopSessionHeartbeat(sessionId: string | undefined): Promise<void>;
+  armHeartbeatFlush(): Promise<void>;
+  flushHeartbeats(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -31,6 +46,16 @@ export async function startMachine(
   }
   const lifetime = new AbortController();
   let closing: Promise<void> | undefined;
+  let membershipChain: Promise<void> = Promise.resolve();
+  const serializeMembership = (fn: () => Promise<void>): Promise<void> => {
+    const next = membershipChain.then(fn, fn);
+    membershipChain = next.catch(() => {});
+    return next;
+  };
+  const runSignal = (callerSignal?: AbortSignal) =>
+    callerSignal
+      ? AbortSignal.any([callerSignal, lifetime.signal])
+      : lifetime.signal;
   return {
     connect: ({ siteUrl, bearer, machine, boot, liveAgents, local }, signal) =>
       facade.run(
@@ -53,7 +78,37 @@ export async function startMachine(
             },
           }),
         ),
-        signal ? AbortSignal.any([signal, lifetime.signal]) : lifetime.signal,
+        runSignal(signal),
+      ),
+    ensureSessionHeartbeat: (sessionId, source) =>
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) =>
+            service.ensureSessionHeartbeat(sessionId, source),
+          ),
+          lifetime.signal,
+        ),
+      ),
+    stopSessionHeartbeat: (sessionId) =>
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) =>
+            service.stopSessionHeartbeat(sessionId),
+          ),
+          lifetime.signal,
+        ),
+      ),
+    armHeartbeatFlush: () =>
+      serializeMembership(() =>
+        facade.run(
+          Effect.flatMap(Machine, (service) => service.armHeartbeatFlush()),
+          lifetime.signal,
+        ),
+      ),
+    flushHeartbeats: () =>
+      facade.run(
+        Effect.flatMap(Machine, (service) => service.flushHeartbeats()),
+        lifetime.signal,
       ),
     close: () => {
       lifetime.abort();

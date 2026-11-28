@@ -14,6 +14,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
+import { HeartbeatFlush, type HeartbeatFlushHost } from "./heartbeat-flush";
 import { Watchdog } from "./watchdog";
 
 export type LinkSettings = {
@@ -24,6 +25,7 @@ export type LinkSettings = {
 
 export type MachineOptions = {
   log(message: string): void;
+  heartbeatFlush?: HeartbeatFlushHost;
 };
 
 type Link = {
@@ -33,7 +35,16 @@ type Link = {
 
 export class Machine extends Context.Service<
   Machine,
-  { connect(settings: LinkSettings): Effect.Effect<void> }
+  {
+    connect(settings: LinkSettings): Effect.Effect<void>;
+    ensureSessionHeartbeat(
+      sessionId: string,
+      source?: "transcript",
+    ): Effect.Effect<void>;
+    stopSessionHeartbeat(sessionId: string | undefined): Effect.Effect<void>;
+    armHeartbeatFlush(): Effect.Effect<void>;
+    flushHeartbeats(): Effect.Effect<void>;
+  }
 >()("@codecast/edge-supervisor/Machine") {}
 
 function sameLink(current: LinkSettings, next: LinkSettings) {
@@ -96,6 +107,7 @@ export function MachineLive(
   dependencies: {
     transport?: (settings: LinkSettings) => EdgeTransport;
     watchdog?: Layer.Layer<Watchdog>;
+    heartbeatFlush?: Layer.Layer<HeartbeatFlush>;
   } = {},
 ) {
   const transport =
@@ -105,10 +117,16 @@ export function MachineLive(
         Authorization: `Bearer ${settings.bearer}`,
       }));
   const watchdog = dependencies.watchdog ?? Watchdog.layer();
+  const heartbeatFlushLayer =
+    dependencies.heartbeatFlush ??
+    (options.heartbeatFlush
+      ? HeartbeatFlush.layer(options.heartbeatFlush)
+      : HeartbeatFlush.noop);
   return Layer.effect(
     Machine,
     Effect.gen(function* () {
       const scope = yield* Effect.scope;
+      const heartbeatFlush = yield* HeartbeatFlush;
       const connectionLock = yield* Semaphore.make(1);
       let link: Link | undefined;
       yield* Effect.forkIn(
@@ -151,7 +169,11 @@ export function MachineLive(
       return Machine.of({
         connect: (settings) =>
           connectionLock.withPermit(Effect.uninterruptible(connect(settings))),
+        ensureSessionHeartbeat: heartbeatFlush.ensureSession,
+        stopSessionHeartbeat: heartbeatFlush.stopSession,
+        armHeartbeatFlush: heartbeatFlush.arm,
+        flushHeartbeats: heartbeatFlush.flushNow,
       });
     }),
-  );
+  ).pipe(Layer.provide(heartbeatFlushLayer));
 }

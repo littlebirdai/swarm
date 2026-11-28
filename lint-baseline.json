@@ -2519,7 +2519,7 @@
   },
   "apps/cli/src/daemon.ts": {
     "swarm/no-blocking-child-process-call": 2,
-    "swarm/no-comments": 6717
+    "swarm/no-comments": 6668
   },
   "apps/cli/src/daemon.turn-claims-wiring.test.ts": {
     "swarm/no-comments": 23
@@ -3012,9 +3012,6 @@
   },
   "apps/cli/src/headlessRuns.ts": {
     "swarm/no-comments": 13
-  },
-  "apps/cli/src/heartbeatMembership.ts": {
-    "swarm/no-comments": 16
   },
   "apps/cli/src/heicImage.test.ts": {
     "swarm/no-comments": 2

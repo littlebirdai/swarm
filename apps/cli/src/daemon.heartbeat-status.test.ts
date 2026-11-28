@@ -23,11 +23,27 @@ const daemonPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "daemon.ts",
 );
+const heartbeatFlushPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "heartbeat-flush.ts",
+);
+const supervisorFlushPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "packages",
+  "edge-supervisor",
+  "src",
+  "heartbeat-flush.ts",
+);
 const syncServicePath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "syncService.ts",
 );
 const daemonSource = fs.readFileSync(daemonPath, "utf8");
+const heartbeatFlushSource = fs.readFileSync(heartbeatFlushPath, "utf8");
+const supervisorFlushSource = fs.readFileSync(supervisorFlushPath, "utf8");
 const syncServiceSource = fs.readFileSync(syncServicePath, "utf8");
 
 describe("heartbeat carries agent_status", () => {
@@ -58,18 +74,38 @@ describe("heartbeat carries agent_status", () => {
     // stale or fabricated value). Pin that the send path builds its payload that
     // way, and that the tick handler actually invokes it (the send lives in
     // runHeartbeatFlush; flushManagedHeartbeats is the guard shell).
-    const tickIdx = daemonSource.indexOf(
+    const hostIdx = daemonSource.indexOf("function createHeartbeatFlushHost");
+    expect(hostIdx).toBeGreaterThanOrEqual(0);
+    const hostBody = daemonSource.slice(
+      hostIdx,
+      daemonSource.indexOf("\n}", hostIdx),
+    );
+    expect(hostBody).toContain("lastSentAgentStatus.get(sessionId)");
+    expect(hostBody).toContain("heartbeatManagedSessionsBatch");
+
+    const tickIdx = heartbeatFlushSource.indexOf(
       "async function flushManagedHeartbeats",
     );
     expect(tickIdx).toBeGreaterThanOrEqual(0);
     expect(
-      daemonSource.slice(tickIdx, daemonSource.indexOf("\n}", tickIdx)),
+      heartbeatFlushSource.slice(
+        tickIdx,
+        heartbeatFlushSource.indexOf("\n  }", tickIdx),
+      ),
     ).toContain("runHeartbeatFlush()");
-    const idx = daemonSource.indexOf("async function runHeartbeatFlush");
+    const idx = heartbeatFlushSource.indexOf(
+      "async function runHeartbeatFlush",
+    );
     expect(idx).toBeGreaterThanOrEqual(0);
-    const body = daemonSource.slice(idx, daemonSource.indexOf("\n}", idx));
-    expect(body).toContain("lastSentAgentStatus.get(sessionId)");
+    const body = heartbeatFlushSource.slice(
+      idx,
+      heartbeatFlushSource.indexOf("\n  }", idx),
+    );
+    expect(body).toContain("host.agentStatus(sessionId)");
     expect(body).toContain("agent_status: status");
+
+    expect(supervisorFlushSource).toContain("host.agentStatus(sessionId)");
+    expect(supervisorFlushSource).toContain("agent_status: status");
   });
 
   test("managed started sessions stamp the real session id onto tmux", () => {
@@ -129,9 +165,12 @@ describe("heartbeat carries agent_status", () => {
 
   test("logHeartbeatStatus helper is defined and called in the flush", () => {
     // Helper must exist so we can diagnose 'stuck in X' from logs.
-    expect(daemonSource).toContain("function logHeartbeatStatus(");
-    const calls = [...daemonSource.matchAll(/logHeartbeatStatus\s*\(/g)];
+    expect(heartbeatFlushSource).toContain("function logHeartbeatStatus(");
+    const calls = [
+      ...heartbeatFlushSource.matchAll(/logHeartbeatStatus\s*\(/g),
+    ];
     // declaration + at least one call site (the per-session loop in the flush).
     expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(supervisorFlushSource).toContain("logStatus(");
   });
 });
