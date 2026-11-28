@@ -332,6 +332,11 @@ for (const order of ["answer first", "timeout first"] as const) {
           expect(
             server.settles.filter(({ outcome }) => outcome === "applied"),
           ).toHaveLength(1);
+          if (order === "answer first") {
+            expect(server.settles.map(({ outcome }) => outcome)).toEqual([
+              "applied",
+            ]);
+          }
         }).pipe(
           Effect.provide(
             Layer.provideMerge(
@@ -462,4 +467,237 @@ it.effect(
         ]);
       }).pipe(Effect.provide(context));
     }),
+);
+
+for (const timing of ["before", "after"] as const) {
+  it.effect(
+    `a provider result for another attempt is ignored ${timing} the time limit`,
+    () =>
+      Effect.gen(function* () {
+        const server = makeFakeServer([makePermit()]);
+        const harness = makeTestHarness(server, {
+          onDeliver: (req) =>
+            (timing === "before" ? Effect.void : Effect.sleep(2_000)).pipe(
+              Effect.as(deliveredFor(req.delivery_id)),
+            ),
+          replyAttemptId: () => "attempt-other",
+        });
+
+        yield* Effect.gen(function* () {
+          yield* harness.attach;
+          const delivery = yield* Delivery;
+          const step = yield* Effect.forkChild(delivery.deliverNext(run), {
+            startImmediately: true,
+          });
+          yield* within(
+            Effect.repeat(Effect.yieldNow, {
+              until: () => harness.deliveries.length === 1,
+            }),
+            "the provider call",
+          );
+          yield* pause(10);
+          yield* adjust(1_000);
+          expect(yield* within(Fiber.join(step), "the step")).toMatchObject({
+            status: "in_doubt",
+            code: "provider_timeout",
+          });
+          yield* adjust(1_000);
+          yield* pause(20);
+          expect(server.settles.map(({ outcome }) => outcome)).toEqual([
+            "in_doubt",
+          ]);
+          expect(server.head()?.state).toBe("ambiguous");
+        }).pipe(
+          Effect.provide(
+            Layer.provideMerge(
+              Delivery.layer({ providerTimeoutMs: 1_000 }),
+              SupervisorBus.layer,
+            ),
+          ),
+        );
+      }),
+  );
+}
+
+it.effect(
+  "a second wake for a queued session keeps its place and its send",
+  () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const server = makeFakeServer([
+        makePermit(),
+        makePermit({ session: "session-2" }),
+        makePermit({ session: "session-3" }),
+      ]);
+      const harness = makeTestHarness(server, {
+        onDeliver: (req) =>
+          req.session === "session-1"
+            ? Effect.gen(function* () {
+                yield* Deferred.succeed(entered, undefined);
+                yield* Deferred.await(release);
+                return deliveredFor(req.delivery_id);
+              })
+            : Effect.succeed(deliveredFor(req.delivery_id)),
+      });
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        const bus = yield* SupervisorBus;
+        yield* Delivery;
+        const settled = yield* watchSettled;
+        yield* wake("session-1");
+        yield* within(Deferred.await(entered), "session-1 to deliver");
+        yield* wake("session-2");
+        yield* wake("session-3");
+        yield* bus.publish({
+          kind: "delivery.wake",
+          session: "session-2",
+          run: 1,
+          fencing_token: "lease-1",
+          send_new: false,
+        });
+        yield* Deferred.succeed(release, undefined);
+        yield* within(settled("session-3", "delivered"), "session-3 to settle");
+        yield* within(settled("session-2", "delivered"), "session-2 to settle");
+        expect(server.settles.map(({ session }) => session)).toEqual([
+          "session-1",
+          "session-2",
+          "session-3",
+        ]);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        Effect.provide(
+          Layer.provideMerge(
+            Delivery.layer({ maxActiveDrains: 1 }),
+            SupervisorBus.layer,
+          ),
+        ),
+      );
+    }),
+);
+
+it.effect(
+  "a receipt wake refused at the wake cap runs when a drain slot frees",
+  () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const server = makeFakeServer([
+        makePermit(),
+        makePermit({ session: "session-busy" }),
+      ]);
+      const harness = makeTestHarness(server, {
+        onDeliver: (req) =>
+          req.session === "session-1"
+            ? Effect.succeed({
+                status: "in_doubt",
+                reason: "unknown",
+                code: "rpc_timeout",
+                message: "Turn start timed out",
+              })
+            : Effect.gen(function* () {
+                yield* Deferred.succeed(entered, undefined);
+                yield* Deferred.await(release);
+                return deliveredFor(req.delivery_id);
+              }),
+      });
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        const bus = yield* SupervisorBus;
+        const delivery = yield* Delivery;
+        expect(yield* delivery.deliverNext(run)).toMatchObject({
+          status: "in_doubt",
+        });
+        yield* wake("session-busy");
+        yield* within(Deferred.await(entered), "the busy session to deliver");
+        for (let index = 0; index < 1_024; index++) {
+          yield* wake(`queued-${index}`);
+        }
+        yield* bus.publish({
+          kind: "provider.receipt",
+          session: "session-1",
+          run: 1,
+          delivery_id: "delivery-1",
+          provider_item_id: "item-late",
+          turn: "turn-2",
+        });
+        yield* pause(20);
+        expect(server.head()?.state).toBe("ambiguous");
+
+        yield* Deferred.succeed(release, undefined);
+        yield* within(
+          Effect.repeat(Effect.sleep(5), { until: () => !server.head() }),
+          "the refused receipt wake to settle delivery-1",
+          5_000,
+        );
+        expect(
+          server.settles
+            .filter(({ session }) => session === "session-1")
+            .map(({ outcome }) => outcome),
+        ).toEqual(["in_doubt", "applied"]);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        Effect.provide(
+          Layer.provideMerge(
+            Delivery.layer({ maxActiveDrains: 1 }),
+            SupervisorBus.layer,
+          ),
+        ),
+      );
+    }),
+);
+
+it.effect(
+  "more than 1,024 provider calls in flight all keep their results",
+  () =>
+    Effect.gen(function* () {
+      const calls = 1_025;
+      const release = yield* Deferred.make<void>();
+      const sessions = Array.from(
+        { length: calls },
+        (_, index) => `many-${index}`,
+      );
+      const server = makeFakeServer(
+        sessions.map((session) => makePermit({ session })),
+      );
+      const harness = makeTestHarness(server, {
+        onDeliver: (req) =>
+          Deferred.await(release).pipe(
+            Effect.as(deliveredFor(req.delivery_id)),
+          ),
+      });
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        const delivery = yield* Delivery;
+        const steps = [];
+        for (const session of sessions) {
+          steps.push(
+            yield* Effect.forkChild(delivery.deliverNext(runFor(session)), {
+              startImmediately: true,
+            }),
+          );
+          yield* Effect.repeat(Effect.yieldNow, {
+            until: () => harness.deliveries.length === steps.length,
+          });
+        }
+        yield* Deferred.succeed(release, undefined);
+        yield* within(
+          Effect.forEach(steps, (step) => Fiber.join(step)),
+          "every step to finish",
+          10_000,
+        );
+        expect(
+          sessions.filter((session) => server.head(session) !== undefined),
+        ).toEqual([]);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        Effect.provide(
+          Layer.provideMerge(Delivery.layer(), SupervisorBus.layer),
+        ),
+      );
+    }),
+  20_000,
 );

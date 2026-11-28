@@ -75,14 +75,15 @@ function retryBusTimeout(
 
 const PROVIDER_TIMEOUT_MS = 30_000;
 
-type PendingDelivery = {
+type TimedOutDelivery = {
   readonly session: string;
   readonly run: number;
   readonly delivery_id: string;
   readonly attempt_id: string;
-  readonly answer: Deferred.Deferred<ProviderDeliverOutcome>;
-  timedOut: boolean;
-  result?: ProviderDeliverOutcome;
+};
+
+type ActiveDelivery = TimedOutDelivery & {
+  readonly answer: Deferred.Deferred<ProviderDeliverOutcome | undefined>;
 };
 
 export class Delivery extends Context.Service<
@@ -115,7 +116,8 @@ export class Delivery extends Context.Service<
         const activeAttempts = new Set<string>();
         const activeDeliveries = new Set<string>();
         const awaitingReceiptRuns = new Map<string, PermitsNextRequest>();
-        const pendingDeliveries = new Map<string, PendingDelivery>();
+        const activeProviderCalls = new Map<string, ActiveDelivery>();
+        const timedOutDeliveries = new Map<string, TimedOutDelivery>();
 
         const attemptKey = (
           run: Pick<PermitsNextRequest, "session" | "run">,
@@ -291,23 +293,37 @@ export class Delivery extends Context.Service<
           }
 
           const deliverReqId = requestId();
-          const answer = yield* Deferred.make<ProviderDeliverOutcome>();
-          const pending: PendingDelivery = {
+          const answer = yield* Deferred.make<
+            ProviderDeliverOutcome | undefined
+          >();
+          const pending: ActiveDelivery = {
             session: permit.session,
             run: permit.run,
             delivery_id: permit.delivery_id,
             attempt_id: permit.attempt_id,
             answer,
-            timedOut: false,
           };
-          setBoundedMap(pendingDeliveries, deliverReqId, pending);
-          const timedOut: ProviderDeliverOutcome = {
-            status: "in_doubt",
-            reason: "unknown",
-            code: "provider_timeout",
-            message: "Provider delivery timed out",
-          };
-          const outcome = yield* bus
+          activeProviderCalls.set(deliverReqId, pending);
+          const timeLimit = Effect.interruptible(
+            Effect.sleep(options.providerTimeoutMs ?? PROVIDER_TIMEOUT_MS),
+          ).pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                if (activeProviderCalls.get(deliverReqId) !== pending) {
+                  return Effect.void;
+                }
+                activeProviderCalls.delete(deliverReqId);
+                setBoundedMap(timedOutDeliveries, deliverReqId, {
+                  session: pending.session,
+                  run: pending.run,
+                  delivery_id: pending.delivery_id,
+                  attempt_id: pending.attempt_id,
+                });
+                return Deferred.succeed(answer, undefined);
+              }),
+            ),
+          );
+          const answered = yield* bus
             .publish({
               kind: "provider.deliver",
               request_id: deliverReqId,
@@ -328,29 +344,37 @@ export class Delivery extends Context.Service<
               input: inputOutcome.success,
             })
             .pipe(
-              Effect.flatMap(() => Deferred.await(answer)),
-              Effect.timeoutOrElse({
-                duration: options.providerTimeoutMs ?? PROVIDER_TIMEOUT_MS,
-                orElse: () =>
-                  Effect.gen(function* () {
-                    if (pending.result) return pending.result;
-                    pending.timedOut = true;
-                    yield* bus
-                      .publish({
-                        kind: "provider.deliver.cancel",
-                        request_id: deliverReqId,
-                      })
-                      .pipe(Effect.catch(() => Effect.void));
-                    return timedOut;
-                  }),
-              }),
+              Effect.flatMap(() =>
+                Effect.forkChild(timeLimit, { startImmediately: true }),
+              ),
+              Effect.flatMap((timer) =>
+                Deferred.await(answer).pipe(
+                  Effect.ensuring(Fiber.interrupt(timer)),
+                ),
+              ),
               Effect.ensuring(
                 Effect.sync(() => {
-                  if (!pending.timedOut) pendingDeliveries.delete(deliverReqId);
+                  if (activeProviderCalls.get(deliverReqId) === pending) {
+                    activeProviderCalls.delete(deliverReqId);
+                  }
                 }),
               ),
               Effect.mapError((error) => mapBusError("bus", error)),
             );
+          if (!answered) {
+            yield* bus
+              .publish({
+                kind: "provider.deliver.cancel",
+                request_id: deliverReqId,
+              })
+              .pipe(Effect.catch(() => Effect.void));
+          }
+          const outcome: ProviderDeliverOutcome = answered ?? {
+            status: "in_doubt",
+            reason: "unknown",
+            code: "provider_timeout",
+            message: "Provider delivery timed out",
+          };
 
           if (
             outcome.status === "delivered" ||
@@ -603,10 +627,38 @@ export class Delivery extends Context.Service<
           return lastOutcome;
         });
 
+        const receiptsReady = new Map<string, PermitsNextRequest>();
+
+        const wakeForReceipt = (pendingRun: PermitsNextRequest) =>
+          wakes.wake(pendingRun, { sendNew: false }).pipe(
+            Effect.tap((accepted) =>
+              Effect.sync(() => {
+                if (accepted) {
+                  awaitingReceiptRuns.delete(pendingRun.session);
+                  receiptsReady.delete(pendingRun.session);
+                } else {
+                  setBoundedMap(receiptsReady, pendingRun.session, pendingRun);
+                }
+              }),
+            ),
+          );
+
+        const retryReadyReceipts = (): Effect.Effect<void> =>
+          Effect.gen(function* () {
+            for (const pendingRun of [...receiptsReady.values()]) {
+              if (awaitingReceiptRuns.get(pendingRun.session) !== pendingRun) {
+                receiptsReady.delete(pendingRun.session);
+                continue;
+              }
+              if (!(yield* wakeForReceipt(pendingRun))) return;
+            }
+          });
+
         const wakes = makeWakeScheduler({
           scope,
           maxActiveDrains: options.maxActiveDrains ?? 1024,
           drain,
+          onSlotFree: retryReadyReceipts,
           log: options.log,
         });
 
@@ -620,9 +672,7 @@ export class Delivery extends Context.Service<
             .pipe(Effect.catch(() => Effect.void));
           const pendingRun = awaitingReceiptRuns.get(session);
           if (pendingRun && pendingRun.run === run) {
-            if (yield* wakes.wake(pendingRun, { sendNew: false })) {
-              awaitingReceiptRuns.delete(session);
-            }
+            yield* wakeForReceipt(pendingRun);
           }
         });
 
@@ -660,16 +710,18 @@ export class Delivery extends Context.Service<
                   break;
                 }
                 case "provider.deliver.result": {
-                  const pending = pendingDeliveries.get(message.request_id);
+                  const active = activeProviderCalls.get(message.request_id);
+                  if (active) {
+                    if (active.attempt_id !== message.attempt_id) break;
+                    activeProviderCalls.delete(message.request_id);
+                    yield* Deferred.succeed(active.answer, message.outcome);
+                    break;
+                  }
+                  const pending = timedOutDeliveries.get(message.request_id);
                   if (!pending || pending.attempt_id !== message.attempt_id) {
                     break;
                   }
-                  if (!pending.timedOut) {
-                    pending.result = message.outcome;
-                    yield* Deferred.succeed(pending.answer, message.outcome);
-                    break;
-                  }
-                  pendingDeliveries.delete(message.request_id);
+                  timedOutDeliveries.delete(message.request_id);
                   const { outcome } = message;
                   if (
                     (outcome.status === "delivered" ||

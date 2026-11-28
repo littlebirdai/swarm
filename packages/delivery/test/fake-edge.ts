@@ -337,6 +337,7 @@ export type HarnessHandlers = {
   readonly onDeliver?: (
     req: BusMessageOf<"provider.deliver">,
   ) => Effect.Effect<ProviderDeliverOutcome>;
+  readonly replyAttemptId?: (req: BusMessageOf<"provider.deliver">) => string;
   readonly onRecover?: (
     req: BusMessageOf<"provider.recover">,
   ) => Effect.Effect<ProviderRecoverOutcome>;
@@ -359,8 +360,13 @@ export function makeTestHarness(
   const attach = Effect.gen(function* () {
     const bus = yield* SupervisorBus;
     const sub = yield* bus.subscribe();
-    const reply = (message: BusMessage) =>
+    const publish = (message: BusMessage) =>
       bus.publish(message).pipe(Effect.catch(() => Effect.void));
+    const reply = (message: BusMessage) =>
+      Effect.forkChild(
+        bus.publish(message).pipe(Effect.catch(() => Effect.void)),
+        { startImmediately: true },
+      ).pipe(Effect.asVoid);
     yield* Effect.forkScoped(
       Effect.forever(
         Effect.gen(function* () {
@@ -422,11 +428,12 @@ export function makeTestHarness(
                   const outcome: ProviderDeliverOutcome = handlers.onDeliver
                     ? yield* handlers.onDeliver(message)
                     : { status: "delivered", receipt: defaultReceipt(message) };
-                  yield* reply({
+                  yield* publish({
                     kind: "provider.deliver.result",
                     request_id: message.request_id,
                     delivery_id: message.delivery_id,
-                    attempt_id: message.attempt_id,
+                    attempt_id:
+                      handlers.replyAttemptId?.(message) ?? message.attempt_id,
                     outcome,
                   });
                 }),
@@ -446,7 +453,7 @@ export function makeTestHarness(
                         code: "unknown",
                         message: "still uncertain",
                       };
-                  yield* reply({
+                  yield* publish({
                     kind: "provider.recover.result",
                     request_id: message.request_id,
                     delivery_id: message.delivery_id,
