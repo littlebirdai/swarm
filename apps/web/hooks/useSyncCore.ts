@@ -44,7 +44,11 @@ export type SyncCoreProfile = "web" | "mobile";
 // backgrounding pauses everything for free (RN freezes timers), and the
 // "active" transition emits the one catch-up pass the contract requires.
 export function useSyncCore(profile: SyncCoreProfile): void {
-  const inboxRecovery = useSyncInboxSessions(true);
+  const logSnapshot =
+    profile === "web" &&
+    process.env.NODE_ENV === "development" &&
+    process.env.VITE_INBOX_LOG_SNAPSHOT === "1";
+  const inboxRecovery = useSyncInboxSessions(logSnapshot);
   useSyncTeamInboxSessions();
   useSyncChangeFeed();
   useSyncSessionDecisions();

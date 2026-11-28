@@ -79,7 +79,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
   }
 });
 
-test("a list-mode host still subscribes and a snapshot follower opens no inbox feed", async () => {
+test("the flag-off host still subscribes and an opted-in follower opens no inbox feed", async () => {
   const list = api.inboxLists.listInboxSessions;
   const { backend, clock, rerender } = await mountWeb(
     <Inbox snapshot={false} />,

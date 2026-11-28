@@ -26,7 +26,7 @@ On reconnect, continue from the last cursor. If retention passed it, use the exi
 
 ## First slice
 
-The full sync core replaces the personal base list with one positioned snapshot and existing replay. Keep the liveness overlay, digest, and team feeds. Keep the list feeder in windows that do not mount the full sync core. This slice measures transport and server work. It does not establish parity for fields that the log omits.
+Set `VITE_INBOX_LOG_SNAPSHOT=1` in a local web development build to replace the personal base list with one positioned snapshot and existing replay. Keep the liveness overlay, digest, and team feeds. Keep the list feeder in production and in windows that do not mount the full sync core. This slice measures transport and server work. It does not establish parity for fields that the log omits.
 
 Run the same saves against both paths. Count Convex query payload bytes and server execution time after bootstrap. Include the shared log work in both totals. Report local fixture measurements separately from deployed socket and server measurements. Retain the cutover only if both costs fall.
 
