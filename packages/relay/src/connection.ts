@@ -34,6 +34,7 @@ const capabilities = [
   "baton_heartbeat",
   "session_liveness",
   "machine_liveness",
+  "token_delta",
 ] as const;
 const version = RELAY_PROTOCOL_VERSION;
 
@@ -315,7 +316,8 @@ export function openConnection(
         frame.capabilities.includes(capability) &&
         (subject.kind === "user" ||
           capability === "session_liveness" ||
-          capability === "machine_liveness")
+          capability === "machine_liveness" ||
+          capability === "token_delta")
       )
         enabled.add(capability);
     setDeadline(nextGrantDeadline());
@@ -423,7 +425,10 @@ export function openConnection(
               !recipient ||
               closed ||
               closeCode !== undefined ||
-              !enabled.has(publication.frame.type)
+              !enabled.has(publication.frame.type) ||
+              (publication.frame.type === "token_delta" &&
+                (publication.frame.connection_id === connectionId ||
+                  subject?.kind === "machine"))
             )
               return Effect.void;
             outbox.signal(
@@ -460,7 +465,7 @@ export function openConnection(
     const publishDeadline = () => {
       const grant = permission?.grant;
       if (
-        signal.type === "session_liveness" &&
+        (signal.type === "session_liveness" || signal.type === "token_delta") &&
         (grant?.kind !== "session" || grant.run !== signal.run)
       )
         return 0;

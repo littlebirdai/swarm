@@ -614,3 +614,66 @@ test("a server subscription.denied on the only granted hub closes the socket", a
   expect(sockets).toHaveLength(1);
   client.close();
 });
+
+test("delivers ordered token deltas when enabled and omits capability when disabled", async () => {
+  const { client, open } = harness();
+  const received: Array<{ delta_seq: number; text: string }> = [];
+  client.subscribe(session, (event) => {
+    if (event.type === "signal" && event.signal.type === "token_delta") {
+      received.push({
+        delta_seq: event.signal.delta_seq,
+        text: event.signal.text,
+      });
+    }
+  });
+  const socket = await open(60_000, ["token_delta"]);
+  expect(socket.frames[0]).toMatchObject({
+    type: "connect",
+    capabilities: expect.arrayContaining(["token_delta"]),
+  });
+  subscribed(socket);
+  socket.message({
+    v: 1,
+    type: "token_delta",
+    hub: session,
+    connection_id: "m1",
+    machine_id: "machine-1",
+    seq: 1,
+    ttl_ms: 15_000,
+    run: 2,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 1,
+    text: "Hel",
+  });
+  socket.message({
+    v: 1,
+    type: "token_delta",
+    hub: session,
+    connection_id: "m1",
+    machine_id: "machine-1",
+    seq: 2,
+    ttl_ms: 15_000,
+    run: 2,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 2,
+    text: "lo",
+  });
+  expect(received).toEqual([
+    { delta_seq: 1, text: "Hel" },
+    { delta_seq: 2, text: "lo" },
+  ]);
+  client.close();
+
+  const off = harness(undefined, 0, undefined, { tokenDeltas: false });
+  off.client.subscribe(session, () => {});
+  const offSocket = await off.open(60_000, []);
+  expect(offSocket.frames[0]).toMatchObject({
+    type: "connect",
+  });
+  expect(
+    (offSocket.frames[0] as { capabilities: string[] }).capabilities,
+  ).not.toContain("token_delta");
+  off.client.close();
+});

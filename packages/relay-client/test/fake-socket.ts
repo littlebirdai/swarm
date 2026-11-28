@@ -60,6 +60,7 @@ export function harness(
   getToken?: RelayClientOptions["getToken"],
   random = 0,
   onStatus?: RelayClientOptions["onStatus"],
+  extra?: Partial<RelayClientOptions>,
 ) {
   const clock = fakeClock();
   let offset = 0;
@@ -81,6 +82,7 @@ export function harness(
       requests.push([hubs, signal]);
       return getToken ? getToken(hubs, signal) : Promise.resolve(fakeGrant);
     },
+    ...extra,
   });
   async function open(
     ttl = 60_000,

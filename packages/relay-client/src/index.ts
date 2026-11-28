@@ -60,6 +60,7 @@ export type RelayClientOptions = {
   ): Promise<TokenResult>;
   WebSocket: new (url: string) => RelaySocket;
   sessionLiveness?: boolean;
+  tokenDeltas?: boolean;
   capabilities?: readonly string[];
   onReady?(hub: RelayHub): void;
   onStatus?(
@@ -78,6 +79,7 @@ const CAPABILITIES = [
   "baton_heartbeat",
   "session_liveness",
   "machine_liveness",
+  "token_delta",
 ];
 const REQUEST_MS = 5000;
 const MAX_HANDLERS = 1024;
@@ -106,9 +108,11 @@ type Request = {
 export function createRelayClient(options: RelayClientOptions) {
   const offeredCapabilities = [
     ...(options.capabilities ??
-      (options.sessionLiveness === false
-        ? CAPABILITIES.filter((name) => name !== "session_liveness")
-        : CAPABILITIES)),
+      CAPABILITIES.filter(
+        (name) =>
+          (name !== "session_liveness" || options.sessionLiveness !== false) &&
+          (name !== "token_delta" || options.tokenDeltas !== false),
+      )),
   ];
   const subscriptions = new Map<string, Subscription>();
   const grants = new Map<string, Grant>();
