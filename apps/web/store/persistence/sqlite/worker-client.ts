@@ -96,7 +96,7 @@ export function createSqliteWorkerClient(
 
   let pendingBatch: PendingWriteBatch | null = null;
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
-  let hydratedEpochId: string | null = null;
+  let hydratedEpoch: CacheEpoch | null = null;
 
   let closed = false;
   let hydrating = false;
@@ -161,6 +161,23 @@ export function createSqliteWorkerClient(
     connection.handleEpochFailure(epoch, `flush-${code}`);
   };
 
+  const bindHydratedEpoch = (
+    epoch: CacheEpoch,
+    keys: readonly string[] | undefined,
+  ) => {
+    if (keys && !keys.includes("syncMeta")) return;
+    const active = connection.activeEpoch();
+    if (!active || epochId(active) !== epochId(epoch)) return;
+    if (
+      hydratedEpoch &&
+      hydratedEpoch.principal === epoch.principal &&
+      hydratedEpoch.schemaVersion === epoch.schemaVersion &&
+      hydratedEpoch.accountEpoch === epoch.accountEpoch
+    )
+      return;
+    hydratedEpoch = epoch;
+  };
+
   const dropBufferedDocDetails = (ids: readonly string[]) => {
     const batch = pendingBatch;
     if (!batch || !ids.length) return;
@@ -197,10 +214,7 @@ export function createSqliteWorkerClient(
     return pendingBatch;
   };
 
-  const flushBatchNow = (): {
-    dispatched: boolean;
-    promise: Promise<void>;
-  } => {
+  const flushBatchNow = (): Promise<void> => {
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
@@ -208,24 +222,25 @@ export function createSqliteWorkerClient(
     const batch = pendingBatch;
     pendingBatch = null;
     if (!batch || closed || opfsMissing) {
-      return { dispatched: false, promise: Promise.resolve() };
+      return Promise.resolve();
     }
     const principal = auth.current();
     if (principal === null || batch.principal !== principal) {
-      return { dispatched: false, promise: Promise.resolve() };
+      return Promise.resolve();
     }
     const epoch = connection.ensureActiveEpoch(principal, true);
     if (!epoch) {
-      return { dispatched: false, promise: Promise.resolve() };
+      return Promise.resolve();
     }
     const sentEpochId = epochId(epoch);
     const built = buildFlushPayload({
       batch,
       knownIds,
-      writeSyncMeta: hydratedEpochId === sentEpochId,
+      writeSyncMeta:
+        hydratedEpoch !== null && epochId(hydratedEpoch) === sentEpochId,
     });
     if (!built) {
-      return { dispatched: false, promise: Promise.resolve() };
+      return Promise.resolve();
     }
     const promise = connection
       .send(epoch, principal, "flushBatch", built.payload)
@@ -278,7 +293,7 @@ export function createSqliteWorkerClient(
         handleWorkerError(epoch, error);
       });
     trackWrite(promise);
-    return { dispatched: true, promise };
+    return promise;
   };
 
   const connection = createWorkerConnection({
@@ -301,7 +316,9 @@ export function createSqliteWorkerClient(
     onEpochChange: () => {
       resetShadowState();
     },
-    onBeforeLockRelease: () => flushBatchNow().dispatched,
+    onBeforeLockRelease: () => {
+      void flushBatchNow();
+    },
   });
 
   const scheduleFlush = () => {
@@ -314,7 +331,7 @@ export function createSqliteWorkerClient(
 
   const unbindWindowFlush = bindWindowFlush(() => {
     if (closed) return;
-    const { promise } = flushBatchNow();
+    const promise = flushBatchNow();
     void Promise.race([
       promise,
       new Promise<void>((resolve) => setTimeout(resolve, BEST_EFFORT_FLUSH_MS)),
@@ -451,9 +468,7 @@ export function createSqliteWorkerClient(
           keys,
           context: sqliteContext,
         });
-        const active = connection.activeEpoch();
-        if (active && epochId(active) === epochId(epoch))
-          hydratedEpochId = epochId(epoch);
+        bindHydratedEpoch(epoch, keys);
         recordKnownState(
           knownIds,
           lastPersistedRows,
@@ -667,7 +682,15 @@ export function createSqliteWorkerClient(
         return deleted;
       } catch (error) {
         if (opfsMissing) {
+          if (closed || auth.current() !== owner) return [];
           return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
+        }
+        if (
+          error instanceof WorkerRpcError &&
+          (error.code === "closed" || error.code === "timeout")
+        ) {
+          rotateAfterLostWrite(epoch, owner, error.code);
+          return [];
         }
         handleWorkerError(epoch, error);
         return [];
@@ -747,6 +770,7 @@ export function createSqliteWorkerClient(
       });
       clearPendingBatch();
       resetShadowState();
+      hydratedEpoch = null;
       await memory.purgeLocalCache(options);
       if (!opfsMissing) connection.rotateForPurge(keep);
       await journal.purgeJournal(keep);
@@ -759,6 +783,7 @@ export function createSqliteWorkerClient(
       closed = true;
       clearPendingBatch();
       resetShadowState();
+      hydratedEpoch = null;
     },
 
     currentEpoch() {

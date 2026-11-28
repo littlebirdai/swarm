@@ -66,7 +66,10 @@ function releasableLocks(): {
   };
 }
 
-function swallowFirstFlush(inner: WorkerSpawner): {
+function swallowFirstRequest(
+  inner: WorkerSpawner,
+  op: string,
+): {
   spawner: WorkerSpawner;
   swallowed: () => boolean;
 } {
@@ -78,11 +81,7 @@ function swallowFirstFlush(inner: WorkerSpawner): {
       return {
         postMessage(message: unknown) {
           const request = message as { type?: string; op?: string };
-          if (
-            !swallowed &&
-            request?.type === "request" &&
-            request.op === "flushBatch"
-          ) {
+          if (!swallowed && request?.type === "request" && request.op === op) {
             swallowed = true;
             return;
           }
@@ -101,7 +100,10 @@ describe("SQLite worker client recovery", () => {
     const epochStore = createFakeEpochStore();
     const { locks, acquisitions, releaseFirst } = releasableLocks();
     const disk = createDiskWorkerSpawner(dir, channelTransport);
-    const { spawner, swallowed } = swallowFirstFlush(disk.spawner);
+    const { spawner, swallowed } = swallowFirstRequest(
+      disk.spawner,
+      "flushBatch",
+    );
     const client = createSqliteWorkerClient({
       auth: createTestAuth("userA"),
       schemaVersion: 116,
@@ -134,6 +136,8 @@ describe("SQLite worker client recovery", () => {
         1000,
         "lock taken again",
       );
+      expect(await client.loadCache(["sessions"])).toBeNull();
+      expect(await client.loadCache(["sessions", "syncMeta"])).toBeNull();
 
       client.writePatches([patch("sessions", s2), patch("syncMeta")], {
         sessions: { [s1]: r1, [s2]: r2 },
@@ -148,6 +152,138 @@ describe("SQLite worker client recovery", () => {
       });
     } finally {
       client.close();
+    }
+  });
+
+  test("only a load that reads the sync cursor lets the window write it", async () => {
+    const dir = tempDir("sqlite-cursor-bind-");
+    const channelTransport = createFakeChannelTransport();
+    const client = createSqliteWorkerClient({
+      auth: createTestAuth("userA"),
+      schemaVersion: 116,
+      epochStore: createFakeEpochStore(),
+      locks: createFakeLockAdapter(),
+      channelTransport,
+      spawnWorker: createDiskWorkerSpawner(dir, channelTransport).spawner,
+      opfsSupported: () => true,
+      journal: createFakeJournal(),
+      workerTimeoutMs: 2000,
+    });
+
+    try {
+      expect(await client.loadCache(["sessions"])).toBeNull();
+      client.writePatches([patch("syncMeta")], { syncMeta: { cursor: 1 } });
+      await client.flushPersistence();
+      expect(await client.loadCache(["syncMeta"])).toBeNull();
+
+      client.writePatches([patch("syncMeta")], { syncMeta: { cursor: 2 } });
+      await client.flushPersistence();
+      expect(await client.loadCache(["syncMeta"])).toEqual({
+        syncMeta: { cursor: 2 },
+      });
+    } finally {
+      client.close();
+    }
+  });
+
+  test("a doc detail delete lost to lock loss starts the next generation", async () => {
+    const dir = tempDir("sqlite-lost-delete-");
+    const channelTransport = createFakeChannelTransport();
+    const epochStore = createFakeEpochStore();
+    const { locks, acquisitions, releaseFirst } = releasableLocks();
+    const disk = createDiskWorkerSpawner(dir, channelTransport);
+    const { spawner, swallowed } = swallowFirstRequest(
+      disk.spawner,
+      "deleteDocDetails",
+    );
+    const client = createSqliteWorkerClient({
+      auth: createTestAuth("userA"),
+      schemaVersion: 116,
+      epochStore,
+      locks,
+      channelTransport,
+      spawnWorker: spawner,
+      opfsSupported: () => true,
+      journal: createFakeJournal(),
+      workerTimeoutMs: 2000,
+    });
+
+    try {
+      await client.loadCache(["docDetails"]);
+      const doc = { _id: "doc-revoked", workspace: "team:t", content: "Body" };
+      client.writePatches([patch("docDetails", doc._id)], {
+        docDetails: { [doc._id]: doc },
+      });
+      await client.flushPersistence();
+      expect(await client.loadCache(["docDetails"])).toEqual({
+        docDetails: { [doc._id]: doc },
+      });
+
+      const deleting = client.deleteInvalidatedDocDetails?.(
+        [doc._id],
+        () => true,
+      );
+      await waitUntil(swallowed, 1000, "delete reaches the worker");
+      releaseFirst();
+      expect(await deleting).toEqual([]);
+      await waitUntil(
+        () => acquisitions() >= 2 && client.holdsLock(),
+        1000,
+        "lock taken again",
+      );
+
+      expect(epochStore.read()?.generation).toBe(2);
+      expect(await client.loadCache(["docDetails"])).toBeNull();
+    } finally {
+      client.close();
+    }
+  });
+
+  test("an idle owner that closes lets a peer write finish on the same file", async () => {
+    const dir = tempDir("sqlite-owner-close-");
+    const channelTransport = createFakeChannelTransport();
+    const epochStore = createFakeEpochStore();
+    const locks = createFakeLockAdapter();
+    const auth = createTestAuth("userA");
+    const { spawner } = createDiskWorkerSpawner(dir, channelTransport);
+    const options = {
+      auth,
+      schemaVersion: 116,
+      epochStore,
+      locks,
+      channelTransport,
+      spawnWorker: spawner,
+      opfsSupported: () => true,
+      journal: createFakeJournal(),
+      workerTimeoutMs: 2000,
+    };
+    const owner = createSqliteWorkerClient(options);
+    const peer = createSqliteWorkerClient(options);
+
+    try {
+      await owner.loadCache(["sessions", "syncMeta"]);
+      await waitUntil(() => owner.holdsLock(), 1000, "owner holds the lock");
+      expect(await peer.loadCache(["sessions", "syncMeta"])).toBeNull();
+      const sid = "p".repeat(32);
+      const row = { _id: sid, updated_at: Date.now() };
+      peer.writePatches([patch("sessions", sid), patch("syncMeta")], {
+        sessions: { [sid]: row },
+        syncMeta: { cursor: 7 },
+      });
+      const writing = peer.flushPersistence();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      owner.close();
+      await writing;
+      await waitUntil(() => peer.holdsLock(), 1000, "peer takes the lock");
+
+      expect(epochStore.read()?.generation).toBe(1);
+      expect(await peer.loadCache(["sessions", "syncMeta"])).toEqual({
+        sessions: { [sid]: row },
+        syncMeta: { cursor: 7 },
+      });
+    } finally {
+      owner.close();
+      peer.close();
     }
   });
 

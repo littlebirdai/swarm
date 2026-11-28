@@ -39,7 +39,7 @@ export type WorkerConnectionDeps = {
   createId: () => string;
   onOpfsMissing: (reason: string) => void;
   onEpochChange?: (epoch: CacheEpoch | null) => void;
-  onBeforeLockRelease?: () => boolean;
+  onBeforeLockRelease?: () => void;
 };
 
 export type WorkerConnection = {
@@ -190,9 +190,8 @@ export function createWorkerConnection(
   };
 
   const teardownEpoch = (graceful: boolean) => {
-    const flushed =
-      graceful && activeEpoch ? (onBeforeLockRelease?.() ?? false) : false;
-    if (flushed && ownedWorker && ownedWorkerReady) {
+    if (graceful && activeEpoch) onBeforeLockRelease?.();
+    if (graceful && activeEpoch && ownedWorker && ownedWorkerReady) {
       const worker = ownedWorker;
       const closeTimer = setTimeout(() => {
         if (pendingGracefulClose === closeTimer) {

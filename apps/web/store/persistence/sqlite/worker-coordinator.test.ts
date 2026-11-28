@@ -71,7 +71,7 @@ describe("SQLite cache worker coordinator", () => {
     try {
       const sid = "a".repeat(32);
       const row = { _id: sid, updated_at: Date.now() };
-      await clientA.loadCache(["sessions"]);
+      await clientA.loadCache(["sessions", "syncMeta"]);
       clientA.writePatches([patch("sessions"), patch("syncMeta")], {
         sessions: { [sid]: row },
         syncMeta: { s: { cursor: 7 } },

@@ -198,7 +198,7 @@ describe("SQLite cache write direction and review fixes", () => {
     });
 
     try {
-      await client.loadCache(["sessions"]);
+      await client.loadCache(["sessions", "syncMeta"]);
       sentOps.length = 0;
 
       const s1 = "1".repeat(32);
