@@ -144,7 +144,6 @@ export async function saveReadAnchor(
 ) {
   if (
     typeof input?.conversation_id !== "string" ||
-    typeof input?.conversation_id !== "string" ||
     typeof input.message_id !== "string" ||
     typeof input.view_id !== "string" ||
     typeof input.sequence !== "number" ||

@@ -146,13 +146,8 @@ export async function buildUserSessionMaps(
   ctx: any,
   userId: Id<"users">,
   now: number,
-  heartbeatSince?: number,
 ): Promise<InboxSessionMaps> {
-  const { sessions, beats } = await inboxUserHeartbeatRows(
-    ctx,
-    userId,
-    heartbeatSince,
-  );
+  const { sessions, beats } = await inboxUserHeartbeatRows(ctx, userId);
   return sessionMapsFromManagedRows(sessions, beats, now);
 }
 

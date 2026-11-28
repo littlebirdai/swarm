@@ -42,11 +42,7 @@ export function inboxHeartbeatsFor(
   return Promise.resolve(sessions.map((row) => inboxHeartbeatOf(row)));
 }
 
-export async function inboxUserHeartbeatRows(
-  ctx: Reader,
-  userId: Id<"users">,
-  _since?: number,
-) {
+export async function inboxUserHeartbeatRows(ctx: Reader, userId: Id<"users">) {
   const sessions = await ctx.db
     .query("managed_sessions")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
