@@ -10,7 +10,10 @@ import {
 } from "./lib/terminalWatchRows";
 import { deleteBookmarkWithRevision } from "./bookmarkViewWrites";
 import { nextTerminalControl } from "./lib/claims";
-import { releaseSessionTaskClaim } from "./lib/taskClaims";
+import {
+  releaseClearedTaskClaim,
+  releaseSessionTaskClaim,
+} from "./lib/taskClaims";
 
 // Deleting an account runs in budgeted background passes: an account with a
 // few hundred sessions holds far more rows than one mutation can delete inside
@@ -87,6 +90,16 @@ export async function purgeAccountPass(
     .withIndex("by_holder", (q) => q.eq("holder", userId))
     .take(budget);
   for (const claim of heldClaims) {
+    if (claim.kind === "task") {
+      await releaseClearedTaskClaim(ctx, claim);
+      if (claim.request_holder === userId) {
+        await ctx.db.patch(claim._id, {
+          request_id: undefined,
+          request_holder: undefined,
+        });
+      }
+      continue;
+    }
     await ctx.db.patch(claim._id, {
       holder: undefined,
       lease_until: 0,
@@ -163,7 +176,11 @@ export async function purgeAccountPass(
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .take(CONVERSATIONS_PER_PASS);
   for (const conv of conversations) {
-    if (conv.active_task_id) await releaseSessionTaskClaim(ctx, conv, userId);
+    if (conv.active_task_id) {
+      await releaseSessionTaskClaim(ctx, conv, userId, {
+        skipUnbindConv: true,
+      });
+    }
     await ctx.db.delete(conv._id);
     await ctx.scheduler.runAfter(
       0,

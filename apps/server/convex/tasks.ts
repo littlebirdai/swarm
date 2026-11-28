@@ -60,7 +60,7 @@ import {
 } from "./lib/taskGraph";
 import { taskClaimsEnabled } from "./lib/claims";
 import {
-  assertTaskMutationClaim,
+  claimRefArgs,
   handleTaskUpdateClaim,
   releaseTaskClaimIfHeld,
   releaseTaskWithClaim,
@@ -68,6 +68,10 @@ import {
   resolveTaskUpdateConv,
   revokeWebTaskClaim,
 } from "./lib/taskClaims";
+import {
+  requireAccessibleTaskByToken,
+  requireClaimedTaskMutation,
+} from "./lib/taskClaimLifecycle";
 import {
   addWaitsAtCreate,
   cliCaller,
@@ -757,20 +761,20 @@ export async function moveTaskStatus(
       now,
     );
   }
-  // The fake test db patches the row in place: afterStatusMove reads the old status.
-  const before = { ...task };
-  await patchTask(ctx, task, updates);
-  if (taskClaimsEnabled() && next !== "in_progress") {
-    await releaseTaskClaimIfHeld(ctx, task._id);
-    if (
-      next === "open" ||
+  const revokedConvId = taskClaimsEnabled()
+    ? await releaseTaskClaimIfHeld(ctx, task._id)
+    : undefined;
+  if (
+    taskClaimsEnabled() &&
+    (next === "open" ||
       next === "done" ||
       next === "dropped" ||
-      next === "backlog"
-    ) {
-      await releaseBoundSessions(ctx, task, o.conversationId);
-    }
+      next === "backlog")
+  ) {
+    await releaseBoundSessions(ctx, task, o.conversationId, revokedConvId);
   }
+  const before = { ...task };
+  await patchTask(ctx, task, updates);
   await afterStatusMove(ctx, before, next, o.actorUserId, o.conversationId);
   return moved;
 }
@@ -3418,7 +3422,8 @@ export const update = mutation({
         args.take === true,
         now,
       ),
-      releaseBound: () => releaseBoundSessions(ctx, task, conv?._id),
+      releaseBound: (claimConvId) =>
+        releaseBoundSessions(ctx, task, conv?._id, claimConvId),
     });
     if (handledClaim) claimResult = handledClaim;
 
@@ -5544,11 +5549,14 @@ export async function updateTaskAs(
 
   await recordTaskChange(ctx, task._id, byUser(userId), trackFields, now);
 
-  await revokeWebTaskClaim(ctx, task._id, nextStatus, args.review_verdict);
-  await patchTask(ctx, task, updates);
-  await revokeWebTaskClaim(ctx, task._id, nextStatus, undefined, () =>
-    releaseBoundSessions(ctx, task),
+  await revokeWebTaskClaim(
+    ctx,
+    task._id,
+    nextStatus,
+    updates.review_verdict?.verdict ?? args.review_verdict,
+    (claimConvId) => releaseBoundSessions(ctx, task, claimConvId),
   );
+  await patchTask(ctx, task, updates);
   await schedulePushKeptTask(ctx, task, updates);
   if (args.duplicate_of === "")
     await afterDuplicateCleared(ctx, userId, task, nextStatus ?? task.status);
@@ -6284,11 +6292,6 @@ export const webPromote = mutation({
   },
 });
 
-const claimRefArgs = {
-  claim_token: v.optional(v.number()),
-  conversation_id: v.optional(v.string()),
-};
-
 export const incrementRetryCount = mutation({
   args: {
     api_token: v.string(),
@@ -6296,14 +6299,7 @@ export const incrementRetryCount = mutation({
     ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const { auth, task } = await requireAccessibleTaskByToken(
-      ctx,
-      args.api_token,
-      args.short_id,
-    );
-
-    const now = Date.now();
-    await assertTaskMutationClaim(ctx, task, auth.userId, args, now);
+    const { auth, task, now } = await requireClaimedTaskMutation(ctx, args);
     const newRetryCount = ((task as any).retry_count || 0) + 1;
     const maxRetries = (task as any).max_retries ?? 3;
 
@@ -6330,22 +6326,6 @@ export const incrementRetryCount = mutation({
   },
 });
 
-async function requireAccessibleTaskByToken(
-  ctx: MutationCtx,
-  apiToken: string,
-  shortId: string,
-) {
-  const auth = await verifyApiToken(ctx, apiToken);
-  if (!auth) throw new Error("Unauthorized");
-  const task = await ctx.db
-    .query("tasks")
-    .withIndex("by_short_id", (q) => q.eq("short_id", shortId))
-    .first();
-  if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-    throw new Error("Task not found");
-  return { auth, task };
-}
-
 export const updateExecutionStatus = mutation({
   args: {
     api_token: v.string(),
@@ -6360,14 +6340,7 @@ export const updateExecutionStatus = mutation({
     ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const { auth, task } = await requireAccessibleTaskByToken(
-      ctx,
-      args.api_token,
-      args.short_id,
-    );
-
-    const now = Date.now();
-    await assertTaskMutationClaim(ctx, task, auth.userId, args, now);
+    const { auth, task, now } = await requireClaimedTaskMutation(ctx, args);
     await ctx.db.patch(task._id, {
       execution_status: args.execution_status,
       updated_at: now,
@@ -6519,15 +6492,10 @@ export const scheduleRetry = mutation({
     ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const { auth, task } = await requireAccessibleTaskByToken(
+    const { auth, task, now } = await requireClaimedTaskMutation(
       ctx,
-      args.api_token,
-      args.short_id,
-    );
-
-    const now = Date.now();
-    await assertTaskMutationClaim(ctx, task, auth.userId, args, now, () =>
-      releaseBoundSessions(ctx, task),
+      args,
+      (t) => releaseBoundSessions(ctx, t),
     );
     const newAttemptCount = (task.attempt_count || 0) + 1;
 
@@ -6553,21 +6521,15 @@ export const scheduleRetry = mutation({
   },
 });
 
-async function renewHeartbeatMutation(
+async function runHeartbeat(
   ctx: MutationCtx,
+  { auth, task }: Awaited<ReturnType<typeof requireAccessibleTaskByToken>>,
   args: {
-    api_token: string;
-    short_id: string;
     progress_pct?: number;
     claim_token?: number;
     conversation_id?: string;
   },
 ) {
-  const { auth, task } = await requireAccessibleTaskByToken(
-    ctx,
-    args.api_token,
-    args.short_id,
-  );
   return await renewTaskHeartbeat(ctx, {
     task,
     holder: auth.userId,
@@ -6589,9 +6551,12 @@ export const heartbeat = mutation({
     progress_pct: v.optional(v.number()),
     ...claimRefArgs,
   },
-  handler: async (ctx, args) => {
-    return await renewHeartbeatMutation(ctx, args);
-  },
+  handler: async (ctx, args) =>
+    runHeartbeat(
+      ctx,
+      await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id),
+      args,
+    ),
 });
 
 export const renew = mutation({
@@ -6603,10 +6568,14 @@ export const renew = mutation({
     progress_pct: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id);
+    const resolved = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
     if (!taskClaimsEnabled())
       return { success: false as const, status: "disabled" as const };
-    return await renewHeartbeatMutation(ctx, args);
+    return await runHeartbeat(ctx, resolved, args);
   },
 });
 

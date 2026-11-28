@@ -200,7 +200,7 @@ export async function claimTaskOwnership(
   if (taskClaimsEnabled()) {
     const res = await claimTaskWithLease<TaskOwnerRef>(ctx, {
       task,
-      holder: opts.holder ?? (conv as any).owner_user_id ?? conv.user_id,
+      holder: opts.holder ?? conv.owner_user_id ?? conv.user_id,
       conv,
       take: opts.take,
       now,
@@ -254,12 +254,17 @@ export async function releaseBoundSessions(
   ctx: any,
   task: any,
   conversationId?: Id<"conversations">,
+  extraConversationId?: Id<"conversations">,
 ): Promise<void> {
-  if (taskClaimsEnabled()) await releaseTaskClaimIfHeld(ctx, task._id);
+  const claimConvId = taskClaimsEnabled()
+    ? await releaseTaskClaimIfHeld(ctx, task._id)
+    : undefined;
   const ids = new Set(
     [
       ...(task.conversation_ids ?? []),
       ...(conversationId ? [conversationId] : []),
+      ...(extraConversationId ? [extraConversationId] : []),
+      ...(claimConvId ? [claimConvId] : []),
     ].map(String),
   );
   for (const convId of ids) {

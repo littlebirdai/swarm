@@ -568,7 +568,12 @@ export const heartbeat = mutation({
       args.client_ts,
       now,
     );
-    if (session.conversation_id) {
+    const sessionStatus = patch?.agent_status ?? session.agent_status;
+    if (
+      session.conversation_id &&
+      sessionStatus !== "stopped" &&
+      sessionStatus !== "hibernated"
+    ) {
       await renewLiveConversationTaskClaim(
         ctx,
         session.user_id,
@@ -659,7 +664,12 @@ export const heartbeatBatch = mutation({
         entry.client_ts,
         now,
       );
-      if (session.conversation_id) {
+      const sessionStatus = patch?.agent_status ?? session.agent_status;
+      if (
+        session.conversation_id &&
+        sessionStatus !== "stopped" &&
+        sessionStatus !== "hibernated"
+      ) {
         await renewLiveConversationTaskClaim(
           ctx,
           session.user_id,

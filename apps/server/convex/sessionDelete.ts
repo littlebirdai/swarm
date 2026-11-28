@@ -125,7 +125,9 @@ export async function deleteSessionAsOwner(
       });
     }
     if (row.active_task_id) {
-      await releaseSessionTaskClaim(ctx, row);
+      await releaseSessionTaskClaim(ctx, row, undefined, {
+        skipUnbindConv: true,
+      });
     }
     await ctx.db.delete(row._id);
     purged.push(String(row._id));

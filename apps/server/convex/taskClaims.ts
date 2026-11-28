@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
-import { clearClaim, findClaim } from "./lib/claims";
+import { internalMutation } from "./functions";
+import { clearClaim, findClaim, taskClaimsEnabled } from "./lib/claims";
 import { releaseBoundSessions } from "./lib/taskOwner";
 import { moveTaskStatus } from "./tasks";
 
@@ -11,16 +11,13 @@ export const expire = internalMutation({
     token: v.number(),
   },
   handler: async (ctx, args): Promise<void> => {
+    if (!taskClaimsEnabled()) return;
     const row = await findClaim(ctx.db, { kind: "task", id: args.task_id });
     if (!row || row.holder === undefined || row.token !== args.token) return;
     const now = Date.now();
     const remaining = row.lease_until - now;
     if (remaining > 0) {
-      await ctx.scheduler.runAfter(
-        remaining,
-        (internal as any).taskClaims.expire,
-        args,
-      );
+      await ctx.scheduler.runAfter(remaining, internal.taskClaims.expire, args);
       return;
     }
     const boundConvId = row.task?.conversation_id;

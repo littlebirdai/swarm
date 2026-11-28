@@ -1,19 +1,35 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { resolveSessionConversation } from "./access";
 import {
   claim,
-  clearClaim,
   findClaim,
   readClaimToken,
   release,
   renew,
   revoke,
+  TASK_LEASE_MS,
   taskClaimsEnabled,
   withHeldClaim,
 } from "./claims";
+import {
+  releaseClearedTaskClaim,
+  releaseSessionTaskClaim,
+  releaseTaskClaimIfHeld,
+} from "./taskClaimLifecycle";
+
+export {
+  releaseClearedTaskClaim,
+  releaseSessionTaskClaim,
+  releaseTaskClaimIfHeld,
+};
+
+export const claimRefArgs = {
+  claim_token: v.optional(v.number()),
+  conversation_id: v.optional(v.string()),
+};
 
 export type TaskClaimRefusalReason =
   | "free"
@@ -24,6 +40,7 @@ export type TaskClaimRefusalReason =
   | "token_exhausted"
   | "invalid_request";
 
+type ReadDbCtx = Pick<QueryCtx | MutationCtx, "db">;
 type DbCtx = Pick<MutationCtx, "db"> & { scheduler?: MutationCtx["scheduler"] };
 
 export function taskClaimError(
@@ -171,42 +188,8 @@ export async function releaseTaskClaim(
   return { token: (res as { token: number }).token };
 }
 
-export async function releaseTaskClaimIfHeld(
-  ctx: DbCtx,
-  taskId: Id<"tasks">,
-): Promise<void> {
-  const row = await findClaim(ctx.db, { kind: "task", id: taskId });
-  if (row && row.holder !== undefined) await clearClaim(ctx, row);
-}
-
-export async function releaseSessionTaskClaim(
-  ctx: DbCtx,
-  conv:
-    | (Pick<Doc<"conversations">, "_id" | "active_task_id" | "user_id"> & {
-        owner_user_id?: Id<"users">;
-      })
-    | null
-    | undefined,
-  expectedHolder?: Id<"users">,
-): Promise<void> {
-  if (!conv?.active_task_id) return;
-  const row = await findClaim(ctx.db, {
-    kind: "task",
-    id: conv.active_task_id,
-  });
-  const holderId = expectedHolder ?? conv.owner_user_id ?? conv.user_id;
-  if (
-    row &&
-    row.holder !== undefined &&
-    String(row.holder) === String(holderId) &&
-    row.task?.conversation_id === conv._id
-  ) {
-    await clearClaim(ctx, row);
-  }
-}
-
 export async function resolveOwnedClaimConversation(
-  ctx: DbCtx,
+  ctx: ReadDbCtx,
   holder: Id<"users">,
   rawConversationId?: string,
 ): Promise<Doc<"conversations"> | null> {
@@ -215,8 +198,11 @@ export async function resolveOwnedClaimConversation(
   if (!conv) {
     throw taskClaimError("wrong_holder", 0, "Conversation not found");
   }
-  const ownerId = (conv as any).owner_user_id ?? conv.user_id;
-  if (String(ownerId) !== String(holder)) {
+  const matchesHost = String(conv.user_id) === String(holder);
+  const matchesOwner =
+    conv.owner_user_id !== undefined &&
+    String(conv.owner_user_id) === String(holder);
+  if (!matchesHost && !matchesOwner) {
     throw taskClaimError(
       "wrong_holder",
       0,
@@ -346,20 +332,23 @@ export async function revokeWebTaskClaim(
   taskId: Id<"tasks">,
   nextStatus?: string,
   reviewVerdict?: string,
-  releaseBound?: () => Promise<void>,
+  releaseBound?: (claimConvId?: Id<"conversations">) => Promise<void>,
 ): Promise<void> {
   if (!taskClaimsEnabled()) return;
+  let claimConvId: Id<"conversations"> | undefined;
   if (nextStatus !== undefined || reviewVerdict) {
-    await releaseTaskClaimIfHeld(ctx, taskId);
+    claimConvId = await releaseTaskClaimIfHeld(ctx, taskId);
   }
   if (
     releaseBound &&
     (nextStatus === "done" ||
       nextStatus === "dropped" ||
       nextStatus === "open" ||
-      nextStatus === "backlog")
+      nextStatus === "backlog" ||
+      reviewVerdict === "approve" ||
+      reviewVerdict === "reject")
   ) {
-    await releaseBound();
+    await releaseBound(claimConvId);
   }
 }
 
@@ -404,9 +393,6 @@ export async function claimTaskWithLease<Released>(
     );
   }
 
-  const sameSession = input.conv
-    ? existing?.task?.conversation_id === input.conv._id
-    : existing?.task?.conversation_id === undefined;
   const isLive =
     existing !== null &&
     existing.holder !== undefined &&
@@ -417,7 +403,10 @@ export async function claimTaskWithLease<Released>(
       input.conv &&
       String(input.conv.active_task_id ?? "") !== String(input.task._id)
     ) {
-      await releaseSessionTaskClaim(ctx, input.conv, input.holder);
+      await releaseSessionTaskClaim(ctx, input.conv, input.holder, {
+        skipUnbindConv: true,
+        now,
+      });
       await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
     }
     return {
@@ -526,18 +515,17 @@ export async function claimTaskWithLease<Released>(
     input.conv &&
     String(input.conv.active_task_id ?? "") !== String(input.task._id)
   ) {
-    await releaseSessionTaskClaim(ctx, input.conv, input.holder);
+    await releaseSessionTaskClaim(ctx, input.conv, input.holder, {
+      skipUnbindConv: true,
+      now,
+    });
     await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
   }
 
-  await ctx.scheduler?.runAfter(
-    res.remainingMs,
-    (internal as any).taskClaims.expire,
-    {
-      task_id: input.task._id,
-      token: res.token,
-    },
-  );
+  await ctx.scheduler?.runAfter(res.remainingMs, internal.taskClaims.expire, {
+    task_id: input.task._id,
+    token: res.token,
+  });
 
   return {
     released,
@@ -561,7 +549,7 @@ export async function handleTaskUpdateClaim(
     now: number;
     claimStarted?: boolean;
     checkLegacyBound?: () => Promise<unknown[]>;
-    releaseBound: () => Promise<void>;
+    releaseBound: (claimConvId?: Id<"conversations">) => Promise<void>;
   },
 ): Promise<{ claimToken: number; leaseUntil: number } | null> {
   if (!taskClaimsEnabled()) return null;
@@ -594,19 +582,21 @@ export async function handleTaskUpdateClaim(
     nextStatus === "dropped" ||
     nextStatus === "in_review" ||
     nextStatus === "open" ||
+    nextStatus === "backlog" ||
     reviewVerdict === "approve" ||
     reviewVerdict === "changes" ||
     reviewVerdict === "reject";
   if (releasesClaim) {
-    await releaseTaskClaimIfHeld(ctx, task._id);
+    const claimConvId = await releaseTaskClaimIfHeld(ctx, task._id);
     if (
       nextStatus === "open" ||
+      nextStatus === "backlog" ||
       nextStatus === "done" ||
       nextStatus === "dropped" ||
       reviewVerdict === "approve" ||
       reviewVerdict === "reject"
     ) {
-      await input.releaseBound();
+      await input.releaseBound(claimConvId);
     }
   }
   return null;
@@ -640,28 +630,34 @@ export async function renewTaskHeartbeat(
     await input.writeHeartbeat();
     return { success: true };
   }
+  const now = Date.now();
   const conversationId = await resolveClaimConversationId(
     ctx,
     input.holder,
     input.conversationRef,
   );
-  if (input.claimToken === undefined) {
-    const current = await readClaimToken(ctx.db, {
-      kind: "task",
-      id: input.task._id,
+  let token = input.claimToken;
+  if (token === undefined) {
+    await assertTaskWriteWithoutToken(ctx, {
+      task: input.task,
+      holder: input.holder,
+      conversationId,
+      now,
     });
-    throw taskClaimError(
-      "stale_token",
-      current,
-      refusalMessage("stale_token", input.task.short_id),
-    );
+    const row = await findClaim(ctx.db, { kind: "task", id: input.task._id });
+    if (!row || row.holder === undefined) {
+      await input.writeHeartbeat();
+      return { success: true };
+    }
+    token = row.token;
   }
   const renewed = await renewTaskClaim(ctx, {
     taskId: input.task._id,
     shortId: input.task.short_id,
     holder: input.holder,
-    token: input.claimToken,
+    token,
     conversationId,
+    now,
   });
   await input.writeHeartbeat();
   return {
@@ -690,7 +686,8 @@ export async function renewLiveConversationTaskClaim(
     row.holder === undefined ||
     String(row.holder) !== String(holder) ||
     row.task?.conversation_id !== conversationId ||
-    row.lease_until <= now
+    row.lease_until <= now ||
+    row.lease_until - now > TASK_LEASE_MS / 2
   ) {
     return;
   }
