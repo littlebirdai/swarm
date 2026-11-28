@@ -294,18 +294,22 @@ it.effect(
     }),
 );
 
-for (const order of ["answer first", "timeout first"] as const) {
+for (const order of [
+  "answer before the limit",
+  "answer first",
+  "timeout first",
+] as const) {
   it.effect(
-    `a provider result at the instant its request times out still settles the delivery (${order})`,
+    `a provider result near its time limit still settles the delivery (${order})`,
     () =>
       Effect.gen(function* () {
         const answer = yield* Deferred.make<void>();
         const server = makeFakeServer([makePermit()]);
         const harness = makeTestHarness(server, {
           onDeliver: (req) =>
-            (order === "answer first"
-              ? Deferred.await(answer)
-              : Effect.sleep(1_000)
+            (order === "timeout first"
+              ? Effect.sleep(1_000)
+              : Deferred.await(answer)
             ).pipe(Effect.as(deliveredFor(req.delivery_id))),
         });
 
@@ -314,9 +318,9 @@ for (const order of ["answer first", "timeout first"] as const) {
           const delivery = yield* Delivery;
           const settled = yield* watchSettled;
           yield* Effect.forkChild(
-            Effect.sleep(1_000).pipe(
-              Effect.andThen(Deferred.succeed(answer, undefined)),
-            ),
+            Effect.sleep(
+              order === "answer before the limit" ? 999 : 1_000,
+            ).pipe(Effect.andThen(Deferred.succeed(answer, undefined))),
             { startImmediately: true },
           );
           const step = yield* Effect.forkChild(delivery.deliverNext(run), {
@@ -328,7 +332,13 @@ for (const order of ["answer first", "timeout first"] as const) {
             }),
             "the provider call",
           );
-          yield* adjust(1_000);
+          if (order === "answer before the limit") {
+            yield* adjust(999);
+            yield* pause(20);
+            yield* adjust(1);
+          } else {
+            yield* adjust(1_000);
+          }
           yield* within(Fiber.await(step), "the delivery step");
           yield* within(
             settled("session-1", "delivered", "delivery-1"),
@@ -338,7 +348,7 @@ for (const order of ["answer first", "timeout first"] as const) {
           expect(
             server.settles.filter(({ outcome }) => outcome === "applied"),
           ).toHaveLength(1);
-          if (order === "answer first") {
+          if (order === "answer before the limit") {
             expect(server.settles.map(({ outcome }) => outcome)).toEqual([
               "applied",
             ]);
