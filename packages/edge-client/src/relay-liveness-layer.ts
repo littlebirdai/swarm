@@ -57,12 +57,10 @@ export function makeRelayLiveness(
 ) {
   const wantLiveness = options.sessionLiveness !== false;
   const wantDeltas = options.tokenDeltas === true;
+  const grantKinds = (wantLiveness ? 1 : 0) + (wantDeltas ? 1 : 0);
   const maxSessions = Math.max(
     1,
-    Math.floor(
-      Math.min(RELAY_MAX_HUBS_PER_CONNECTION, RELAY_MAX_GRANTS_PER_TOKEN) /
-        (wantLiveness && wantDeltas ? 2 : 1),
-    ),
+    Math.floor(RELAY_MAX_HUBS_PER_CONNECTION / Math.max(1, grantKinds)),
   );
   const bySession = (leases: readonly RunLease[]) =>
     new Map(
@@ -183,9 +181,16 @@ export function makeRelayLiveness(
           });
           if (sessions.length !== sessionIds.length)
             return { status: "unavailable" } as const;
+          const reqDeltas = activeHubs.some(({ id }) =>
+            id.startsWith(viewerHubPrefix),
+          );
           const { value } = yield* send(
             "relay-grant",
-            { v: EDGE_PROTOCOL_VERSION, sessions },
+            {
+              v: EDGE_PROTOCOL_VERSION,
+              sessions,
+              ...(reqDeltas ? { token_deltas: true } : {}),
+            },
             parseRelayGrantResponse,
           );
           if (value.status === "ok") return { ...value, omitted };
@@ -231,6 +236,11 @@ export function makeRelayLiveness(
             ...(wantLiveness ? (["session_liveness"] as const) : []),
             ...(wantDeltas ? (["token_delta"] as const) : []),
           ],
+          maxGrantGroups:
+            wantLiveness && wantDeltas
+              ? Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2))
+              : undefined,
+          grantGroup: ({ id }) => stripViewerPrefix(id),
           onReady: ({ id }) => publish(id),
           now,
           random: () => random.nextDoubleUnsafe(),

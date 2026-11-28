@@ -620,17 +620,19 @@ export async function writeOwnedPilotEvents(deps: {
 }): Promise<void> {
   const { syncService, sendAgentStatus } = deps.options.display;
   const { conversationId, runtimeId } = deps.binding;
-  const emitDelta = createCodexPilotDeltaPublisher({
-    enabled: Boolean(deps.publishDelta),
-    run: deps.claim.run,
-    session: conversationId,
-    publish: () => deps.publishDelta?.(),
-  });
+  const emitDelta = deps.publishDelta
+    ? createCodexPilotDeltaPublisher({
+        enabled: true,
+        run: deps.claim.run,
+        session: conversationId,
+        publish: deps.publishDelta,
+      })
+    : undefined;
   for await (const event of deps.session.events) {
     deps.signal.throwIfAborted();
     deps.onProgress();
     if (event.kind === "message.delta") {
-      emitDelta(event);
+      emitDelta?.(event);
       continue;
     }
     await deps.events.appendEvent(

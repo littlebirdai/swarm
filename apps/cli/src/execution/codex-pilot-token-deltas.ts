@@ -1,26 +1,30 @@
-import type { MessageDelta } from "@codecast/edge-contract";
 import type { TokenDelta } from "@codecast/edge-client/relay-liveness";
+import type { MessageDelta } from "@codecast/edge-contract";
 
-const MAX_CHUNK_UTF8_BYTES = 2048;
+const MAX_CHUNK_JSON_BYTES = 4096;
 const MAX_TRACKED_MESSAGES = 64;
 
 export type CodexPilotDeltaPublish = (delta: TokenDelta) => boolean;
 
+function jsonTextBytes(text: string): number {
+  return Buffer.byteLength(JSON.stringify(text), "utf8");
+}
+
 export function splitTokenDeltaText(
   text: string,
-  maxBytes = MAX_CHUNK_UTF8_BYTES,
+  maxJsonBytes = MAX_CHUNK_JSON_BYTES,
 ): string[] {
   if (!text) return [];
-  if (Buffer.byteLength(text, "utf8") <= maxBytes) return [text];
+  if (jsonTextBytes(text) <= maxJsonBytes) return [text];
   const chunks: string[] = [];
   let current = "";
-  let currentBytes = 0;
+  let currentBytes = 2;
   for (const ch of text) {
-    const chBytes = Buffer.byteLength(ch, "utf8");
-    if (current && currentBytes + chBytes > maxBytes) {
+    const chBytes = Buffer.byteLength(JSON.stringify(ch), "utf8") - 2;
+    if (current && currentBytes + chBytes > maxJsonBytes) {
       chunks.push(current);
       current = ch;
-      currentBytes = chBytes;
+      currentBytes = 2 + chBytes;
     } else {
       current += ch;
       currentBytes += chBytes;

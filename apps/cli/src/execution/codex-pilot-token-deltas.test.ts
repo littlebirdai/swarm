@@ -79,15 +79,35 @@ test("readOwnedCodexRelayFlags keeps tokenDeltas off by default", () => {
   });
 });
 
-test("splitTokenDeltaText splits oversized UTF-8 text on codepoint boundaries", () => {
+test("splitTokenDeltaText bounds chunks by JSON-encoded size for control characters", () => {
   const emoji = "\u{1F680}";
   const longText = `${emoji.repeat(700)}end`;
   const chunks = splitTokenDeltaText(longText, 1024);
   expect(chunks.length).toBeGreaterThan(2);
   expect(chunks.join("")).toBe(longText);
   for (const chunk of chunks) {
-    expect(Buffer.byteLength(chunk, "utf8")).toBeLessThanOrEqual(1024);
+    expect(
+      Buffer.byteLength(JSON.stringify(chunk), "utf8"),
+    ).toBeLessThanOrEqual(1024);
     expect([...chunk].every((cp) => (cp.codePointAt(0) ?? 0) > 0)).toBe(true);
+  }
+
+  const controls = "\u0001".repeat(2000);
+  const controlChunks = splitTokenDeltaText(controls);
+  expect(controlChunks.length).toBeGreaterThan(2);
+  expect(controlChunks.join("")).toBe(controls);
+  for (const [index, chunk] of controlChunks.entries()) {
+    const wire = JSON.stringify({
+      v: 1,
+      type: "token_delta",
+      hub: { kind: "session", id: "viewer:conv-1" },
+      run: 7,
+      turn: "turn-1",
+      message_id: "msg-1",
+      delta_seq: index + 1,
+      text: chunk,
+    });
+    expect(Buffer.byteLength(wire, "utf8")).toBeLessThanOrEqual(8192);
   }
 });
 
@@ -256,4 +276,67 @@ test("writeOwnedPilotEvents publishes token deltas fail-open without delaying du
       text: "second",
     },
   ]);
+});
+
+test("writeOwnedPilotEvents skips delta work when flag/publishDelta is absent", async () => {
+  const eventsList: Array<CanonicalEvent | MessageDelta> = [
+    deltaEvent("turn-1", "msg-1", "\u0001".repeat(100), 0),
+    {
+      v: 1,
+      session: "conv-1",
+      run: 7,
+      seq: 1,
+      at: 1020,
+      source: "provider",
+      turn: "turn-1",
+      kind: "turn.ended",
+      body: { reason: "completed" },
+    },
+  ];
+  async function* stream() {
+    for (const event of eventsList) yield event;
+  }
+  const appended: CanonicalEvent[] = [];
+  await writeOwnedPilotEvents({
+    claim,
+    session: { events: stream() } as unknown as ProviderOwnedSession,
+    binding,
+    model: "gpt-5",
+    signal: new AbortController().signal,
+    options: {
+      siteUrl: "https://pilot.invalid",
+      bearer: "bearer",
+      command: () => ["codex"],
+      permissions: () => ({
+        sandbox: "read-only",
+        approvalPolicy: "on-request",
+      }),
+      instructions: async () => undefined,
+      display: {
+        syncService: {} as never,
+        retryQueue: {} as never,
+        conversationCache: {},
+        mapCodexAppServerThreadStatusToAgentStatus: () => "working",
+        sendAgentStatus: () => {},
+        trackTmuxSpawns: async () => {},
+        syncMessagesBatch: async () => {},
+      },
+      log: () => {},
+    },
+    events: {
+      appendEvent: async (_claim: ClaimGrant, event: CanonicalEvent) => {
+        appended.push(event);
+      },
+    } as unknown as CodexPilotEvents,
+    delivery: {
+      attributeTurnStart: (event: CanonicalEvent) => event,
+      observe: async () => {},
+    } as unknown as CodexPilotDelivery,
+    promptCards: {
+      publish: async () => {},
+    } as unknown as CodexPilotPromptCards,
+    display: new CodexPilotDisplay(),
+    onProgress: () => {},
+  });
+  expect(appended.map((e) => e.kind)).toEqual(["turn.ended"]);
 });

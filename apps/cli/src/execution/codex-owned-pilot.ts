@@ -661,8 +661,9 @@ export class CodexOwnedPilot {
       delivery: this.delivery,
       promptCards: this.promptCards,
       display: this.display,
-      publishDelta: () =>
-        this.relayFlags.tokenDeltas ? this.relay?.publishDelta : undefined,
+      publishDelta: this.relayFlags.tokenDeltas
+        ? () => this.relay?.publishDelta
+        : undefined,
       onProgress: () => (this.streamProgress += 1),
     });
   }
