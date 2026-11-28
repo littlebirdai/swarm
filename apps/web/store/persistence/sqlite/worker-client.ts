@@ -15,7 +15,13 @@ import {
   type MemoryCacheStorage,
 } from "./memory-fallback";
 import {
+  findArchiveRestores,
+  findPendingArchives,
+  stripPendingArchives,
+} from "./doc-detail-archives";
+import {
   buildFlushPayload,
+  dropBatchDocDetails,
   journalKeys,
   recordKnownState,
   type PendingWriteBatch,
@@ -178,26 +184,6 @@ export function createSqliteWorkerClient(
     hydratedEpoch = epoch;
   };
 
-  const dropBufferedDocDetails = (ids: readonly string[]) => {
-    const batch = pendingBatch;
-    if (!batch || !ids.length) return;
-    const dropped = new Set(ids);
-    batch.patches = batch.patches.filter(
-      ({ path }) =>
-        path[0] !== "docDetails" ||
-        path.length < 2 ||
-        !dropped.has(String(path[1])),
-    );
-    const rows = batch.state.docDetails as Record<string, unknown> | undefined;
-    if (rows && typeof rows === "object") {
-      const kept: Record<string, unknown> = {};
-      for (const [id, row] of Object.entries(rows)) {
-        if (!dropped.has(id)) kept[id] = row;
-      }
-      batch.state.docDetails = kept;
-    }
-  };
-
   const ensurePendingBatch = (principal: string): PendingWriteBatch => {
     if (pendingBatch && pendingBatch.principal !== principal) {
       clearPendingBatch();
@@ -338,67 +324,6 @@ export function createSqliteWorkerClient(
     ]);
   });
 
-  const findArchiveRestores = async (archive?: {
-    accountId: string;
-    dispatchedAt: number;
-  }): Promise<Set<string>> => {
-    const restores = new Set<string>();
-    if (!archive) return restores;
-    try {
-      for (const entry of await journal.loadOutbox()) {
-        if (
-          entry.action === "restoreArchivedDoc" &&
-          (!entry.accountId || entry.accountId === archive.accountId) &&
-          entry.ts >= archive.dispatchedAt &&
-          typeof entry.args?.[0] === "string"
-        ) {
-          restores.add(entry.args[0]);
-        }
-      }
-    } catch {}
-    return restores;
-  };
-
-  const findPendingArchives = async (
-    principal: string,
-  ): Promise<Set<string>> => {
-    const archives = new Set<string>();
-    try {
-      for (const entry of await journal.loadOutbox()) {
-        if (entry.accountId !== undefined && entry.accountId !== principal)
-          continue;
-        const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
-        if (typeof id !== "string") continue;
-        if (entry.action === "archiveDoc") archives.add(id);
-        if (entry.action === "restoreArchivedDoc") archives.delete(id);
-      }
-    } catch {}
-    return archives;
-  };
-
-  const stripPendingArchives = (
-    result: Record<string, any> | null,
-    archives: Set<string> | null,
-  ): Record<string, any> | null => {
-    if (!result || !archives?.size || !result.docDetails) return result;
-    const nextDocDetails: Record<string, any> = {};
-    for (const [id, row] of Object.entries(result.docDetails)) {
-      if (archives.has(id)) {
-        const ws = (row as { workspace?: unknown } | undefined)?.workspace;
-        docDetailWorkspaces.set(id, typeof ws === "string" ? ws : undefined);
-        continue;
-      }
-      nextDocDetails[id] = row;
-    }
-    const copy = { ...result };
-    if (Object.keys(nextDocDetails).length > 0) {
-      copy.docDetails = nextDocDetails;
-    } else {
-      delete copy.docDetails;
-    }
-    return Object.keys(copy).length ? copy : null;
-  };
-
   return {
     enqueueDispatch: journal.enqueueDispatch,
     removeDispatch: journal.removeDispatch,
@@ -428,12 +353,13 @@ export function createSqliteWorkerClient(
         const [memResult, journalResult, pendingArchives] = await Promise.all([
           memory.loadCache(keys, context),
           journal.loadJournalKeys(keys, context, principal),
-          wantsPendingArchives ? findPendingArchives(principal) : null,
+          wantsPendingArchives ? findPendingArchives(journal, principal) : null,
         ]);
         const merged = { ...(memResult ?? {}), ...journalResult };
         const filtered = stripPendingArchives(
           Object.keys(merged).length ? merged : null,
           pendingArchives,
+          docDetailWorkspaces,
         );
         return filtered;
       }
@@ -447,7 +373,7 @@ export function createSqliteWorkerClient(
       const epoch = connection.ensureActiveEpoch(principal, true);
       const [journalResult, pendingArchives] = await Promise.all([
         journal.loadJournalKeys(keys, context, principal),
-        wantsPendingArchives ? findPendingArchives(principal) : null,
+        wantsPendingArchives ? findPendingArchives(journal, principal) : null,
       ]);
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;
@@ -483,6 +409,7 @@ export function createSqliteWorkerClient(
           return stripPendingArchives(
             Object.keys(merged).length ? merged : null,
             pendingArchives,
+            docDetailWorkspaces,
           );
         }
         handleWorkerError(epoch, error);
@@ -494,6 +421,7 @@ export function createSqliteWorkerClient(
       return stripPendingArchives(
         Object.keys(merged).length ? merged : null,
         pendingArchives,
+        docDetailWorkspaces,
       );
     },
 
@@ -655,11 +583,12 @@ export function createSqliteWorkerClient(
       if (closed || !ids.length) return [];
       const owner = archive?.accountId ?? auth.current();
       if (!owner) return [];
-      const restores = await findArchiveRestores(archive);
+      const restores = await findArchiveRestores(journal, archive);
       if (closed || auth.current() !== owner) return [];
       const confirmed = ids.filter((id) => !restores.has(id) && current(id));
       if (!confirmed.length) return [];
-      if (pendingBatch?.principal === owner) dropBufferedDocDetails(confirmed);
+      if (pendingBatch?.principal === owner)
+        dropBatchDocDetails(pendingBatch, confirmed);
       if (opfsMissing) {
         return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
       }

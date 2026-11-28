@@ -251,3 +251,25 @@ export function buildFlushPayload(params: {
 
   return { payload, dropKeys, commitShadow };
 }
+
+export function dropBatchDocDetails(
+  batch: PendingWriteBatch,
+  ids: readonly string[],
+): void {
+  if (!ids.length) return;
+  const dropped = new Set(ids);
+  batch.patches = batch.patches.filter(
+    ({ path }) =>
+      path[0] !== "docDetails" ||
+      path.length < 2 ||
+      !dropped.has(String(path[1])),
+  );
+  const rows = batch.state.docDetails as Record<string, unknown> | undefined;
+  if (rows && typeof rows === "object") {
+    const kept: Record<string, unknown> = {};
+    for (const [id, row] of Object.entries(rows)) {
+      if (!dropped.has(id)) kept[id] = row;
+    }
+    batch.state.docDetails = kept;
+  }
+}
