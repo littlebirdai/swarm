@@ -1,19 +1,16 @@
 import type { Patch } from "mutative";
-import {
-  COLLECTION_LIVE_FIELDS,
-  WEB_COLLECTION_INDEXES,
-} from "../../clientSyncRegistry";
+import { WEB_COLLECTION_INDEXES } from "../../clientSyncRegistry";
 import {
   deleteAllowed,
   hasSnapshotDrops,
   patchedIds,
+  snapshotDropsFor,
 } from "../../idb-collection-diff";
-import {
-  classifyMetaLiveChange,
-  onlyLiveFieldsChanged,
-} from "../idb-liveness-lane";
 import { META_KEYS } from "../schema";
-import type { SqliteWritePatchPayload } from "./protocol";
+import type {
+  SqliteFlushBatchPayload,
+  SqliteFlushConversation,
+} from "./protocol";
 
 export const journalKeys = new Set([
   "pending",
@@ -24,14 +21,18 @@ export const metaKeys = new Set(
   [...META_KEYS].filter((key) => !journalKeys.has(key)),
 );
 
-export type BuiltWritePayload = {
-  payload: SqliteWritePatchPayload;
-  dropKeys: string[];
-  heldMetaKeys: Array<{ key: string; value: unknown }>;
-  livenessRowsHeld: Map<string, Set<string>>;
-  livenessMetaHeld: Set<string>;
-  holdSyncMeta: boolean;
-  durableWritten: boolean;
+export type PendingWriteBatch = {
+  principal: string;
+  patches: Patch[];
+  state: Record<string, any>;
+  evictions: Map<string, Set<string>>;
+  conversations: Map<
+    string,
+    {
+      messages?: { rows: unknown[]; pagination: unknown };
+      userMessages?: unknown[];
+    }
+  >;
 };
 
 export function recordKnownState(
@@ -61,196 +62,188 @@ export function recordKnownState(
   }
 }
 
-export function buildWritePayload(params: {
+export function buildFlushPayload(params: {
+  batch: PendingWriteBatch;
   knownIds: Map<string, Set<string>>;
-  lastPersistedRows: Map<string, Map<string, unknown>>;
-  lastPersistedMeta: Map<string, unknown>;
-  patches: Patch[];
-  state: Record<string, any>;
 }): {
-  immediate: SqliteWritePatchPayload | null;
+  payload: SqliteFlushBatchPayload;
   dropKeys: string[];
-  bufferedMeta: Map<string, unknown>;
-  heldLivenessRows: Map<string, Set<string>>;
-  heldLivenessMeta: Set<string>;
-  holdSyncMeta: boolean;
-  flushedDurableLivenessRows: Map<string, Set<string>>;
+  commitShadow: (
+    knownIds: Map<string, Set<string>>,
+    lastPersistedRows: Map<string, Map<string, unknown>>,
+    lastPersistedMeta: Map<string, unknown>,
+  ) => void;
 } | null {
-  const { knownIds, lastPersistedRows, lastPersistedMeta, patches, state } =
-    params;
-  const filteredPatches = patches.filter(
+  const { batch, knownIds } = params;
+  const filteredPatches = batch.patches.filter(
     ({ path }) => path.length > 0 && !journalKeys.has(String(path[0])),
   );
-  if (!filteredPatches.length) return null;
 
-  const keys = new Set(filteredPatches.map(({ path }) => String(path[0])));
   const slice: Record<string, unknown> = {};
-  if (state.currentUser?._id)
-    slice.currentUser = { _id: state.currentUser._id };
+  if (batch.state.currentUser?._id)
+    slice.currentUser = { _id: batch.state.currentUser._id };
   const snapshotDrops: Record<string, string[]> = {};
+  const evictionsRecord: Record<string, string[]> = {};
   const dropKeys: string[] = [];
-  const statePending = (state.pending ?? {}) as Record<
+  const statePending = (batch.state.pending ?? {}) as Record<
     string,
     { type?: string }
   >;
   const pendingSubset: Record<string, { type?: string }> = {};
   let hasPendingSubset = false;
-  let hasImmediateWork = false;
-  let hasDurableCollectionOrMeta = false;
-  let wantsSyncMeta = false;
+  let hasCollectionOrMeta = false;
 
-  const bufferedMeta = new Map<string, unknown>();
-  const heldLivenessRows = new Map<string, Set<string>>();
-  const heldLivenessMeta = new Set<string>();
-  const flushedDurableLivenessRows = new Map<string, Set<string>>();
-  const immediatePatches: Patch[] = [];
+  const stagedRows = new Map<
+    string,
+    { replaceAll: boolean; entries: Map<string, unknown | undefined> }
+  >();
+  const stagedMeta = new Map<string, unknown>();
 
+  const keys = new Set(filteredPatches.map(({ path }) => String(path[0])));
   for (const key of keys) {
     if (Object.hasOwn(WEB_COLLECTION_INDEXES, key)) {
-      const data = state[key];
+      const data = batch.state[key];
       if (!data || typeof data !== "object") continue;
-      let known = knownIds.get(key);
-      if (!known) knownIds.set(key, (known = new Set()));
-      let shadow = lastPersistedRows.get(key);
-      if (!shadow) lastPersistedRows.set(key, (shadow = new Map()));
+      hasCollectionOrMeta = true;
+      const evicted = batch.evictions.get(key);
+      if (evicted?.size) evictionsRecord[key] = [...evicted];
 
       const hasDrops = hasSnapshotDrops(key);
       if (hasDrops) {
-        const drops: string[] = [];
-        for (const id of known) {
-          if (!Object.hasOwn(data, id) && deleteAllowed(key, id, {}))
-            drops.push(id);
+        const dropSet = new Set<string>();
+        const activeDrops = snapshotDropsFor(key);
+        if (activeDrops) {
+          for (const id of activeDrops) {
+            if (!Object.hasOwn(data, id) && !evicted?.has(id)) dropSet.add(id);
+          }
         }
-        if (drops.length) snapshotDrops[key] = drops;
+        const known = knownIds.get(key);
+        if (known) {
+          for (const id of known) {
+            if (
+              !Object.hasOwn(data, id) &&
+              !evicted?.has(id) &&
+              deleteAllowed(key, id, {})
+            )
+              dropSet.add(id);
+          }
+        }
+        if (dropSet.size) snapshotDrops[key] = [...dropSet];
         dropKeys.push(key);
       }
 
       const ids = hasDrops ? null : patchedIds(filteredPatches, key);
-      const live = COLLECTION_LIVE_FIELDS[key];
       if (ids === null) {
         slice[key] = { ...data };
-        knownIds.set(key, new Set(Object.keys(data)));
-        const nextShadow = new Map<string, unknown>();
-        for (const [id, row] of Object.entries(data)) nextShadow.set(id, row);
-        lastPersistedRows.set(key, nextShadow);
-        flushedDurableLivenessRows.set(key, new Set(Object.keys(data)));
-        hasImmediateWork = true;
-        hasDurableCollectionOrMeta = true;
-        for (const p of filteredPatches) {
-          if (String(p.path[0]) === key) immediatePatches.push(p);
-        }
+        const entries = new Map<string, unknown | undefined>();
+        for (const [id, row] of Object.entries(data)) entries.set(id, row);
+        stagedRows.set(key, { replaceAll: true, entries });
       } else {
         const partial: Record<string, unknown> = {};
-        const durableIds = new Set<string>();
+        const entries = new Map<string, unknown | undefined>();
         for (const id of ids) {
-          const nextRow = Object.hasOwn(data, id) ? data[id] : undefined;
-          if (nextRow != null) {
-            const prevRow = shadow.get(id);
-            if (
-              live &&
-              prevRow &&
-              onlyLiveFieldsChanged(prevRow, nextRow, live)
-            ) {
-              let waiting = heldLivenessRows.get(key);
-              if (!waiting) heldLivenessRows.set(key, (waiting = new Set()));
-              waiting.add(id);
-              continue;
-            }
-            partial[id] = nextRow;
-            known.add(id);
-            shadow.set(id, nextRow);
-            durableIds.add(id);
-          } else {
-            known.delete(id);
-            shadow.delete(id);
-            durableIds.add(id);
+          if (Object.hasOwn(data, id) && data[id] != null) {
+            partial[id] = data[id];
+            entries.set(id, data[id]);
+          } else if (!evicted?.has(id)) {
+            entries.set(id, undefined);
           }
         }
-        if (durableIds.size > 0) {
-          flushedDurableLivenessRows.set(key, durableIds);
-          slice[key] = partial;
-          hasImmediateWork = true;
-          hasDurableCollectionOrMeta = true;
-          for (const p of filteredPatches) {
-            if (
-              String(p.path[0]) === key &&
-              (p.path.length < 2 || durableIds.has(String(p.path[1])))
-            ) {
-              immediatePatches.push(p);
-            }
-          }
-        }
+        slice[key] = partial;
+        stagedRows.set(key, { replaceAll: false, entries });
       }
 
-      if (hasImmediateWork) {
-        const prefix = `${key}:`;
-        for (const [pendingKey, entry] of Object.entries(statePending)) {
-          if (pendingKey.startsWith(prefix)) {
-            pendingSubset[pendingKey] = entry;
-            hasPendingSubset = true;
-          }
-        }
-        if (key === "conversations") {
-          if (state.liveInboxIdList !== undefined)
-            slice.liveInboxIdList = state.liveInboxIdList;
-          if (state.lastFocusedConversationId !== undefined)
-            slice.lastFocusedConversationId = state.lastFocusedConversationId;
+      const prefix = `${key}:`;
+      for (const [pendingKey, entry] of Object.entries(statePending)) {
+        if (pendingKey.startsWith(prefix)) {
+          pendingSubset[pendingKey] = entry;
+          hasPendingSubset = true;
         }
       }
-    } else if (key === "syncMeta") {
-      wantsSyncMeta = true;
-    } else if (metaKeys.has(key)) {
-      const value = state[key];
-      const hasPrev = lastPersistedMeta.has(key);
-      if (hasPrev) {
-        const kind = classifyMetaLiveChange(
-          key,
-          lastPersistedMeta.get(key),
-          value,
-        );
-        if (kind === "same") continue;
-        if (kind === "live") {
-          heldLivenessMeta.add(key);
-          continue;
+      if (key === "conversations") {
+        if (batch.state.liveInboxIdList !== undefined) {
+          slice.liveInboxIdList = batch.state.liveInboxIdList;
+          stagedMeta.set("liveInboxIdList", batch.state.liveInboxIdList);
+        }
+        if (batch.state.lastFocusedConversationId !== undefined) {
+          slice.lastFocusedConversationId =
+            batch.state.lastFocusedConversationId;
+          stagedMeta.set(
+            "lastFocusedConversationId",
+            batch.state.lastFocusedConversationId,
+          );
         }
       }
-      lastPersistedMeta.set(key, value);
-      bufferedMeta.set(key, value);
-      hasDurableCollectionOrMeta = true;
-    }
-  }
-
-  let holdSyncMeta = false;
-  if (wantsSyncMeta) {
-    if (
-      !hasDurableCollectionOrMeta &&
-      (heldLivenessRows.size > 0 || heldLivenessMeta.size > 0)
-    ) {
-      holdSyncMeta = true;
-    } else {
-      slice.syncMeta = state.syncMeta;
-      hasImmediateWork = true;
-      for (const p of filteredPatches) {
-        if (String(p.path[0]) === "syncMeta") immediatePatches.push(p);
-      }
+    } else if (metaKeys.has(key) || key === "syncMeta") {
+      hasCollectionOrMeta = true;
+      slice[key] = batch.state[key];
+      stagedMeta.set(key, batch.state[key]);
     }
   }
 
   if (hasPendingSubset) slice.pending = pendingSubset;
 
-  return {
-    immediate: hasImmediateWork
+  const conversations: SqliteFlushConversation[] = [];
+  for (const [conversationId, entry] of batch.conversations) {
+    if (!entry.messages && !entry.userMessages) continue;
+    conversations.push({
+      conversationId,
+      ...(entry.messages ? { messages: entry.messages } : {}),
+      ...(entry.userMessages ? { userMessages: entry.userMessages } : {}),
+    });
+  }
+
+  if (!hasCollectionOrMeta && !conversations.length) return null;
+
+  const payload: SqliteFlushBatchPayload = {
+    ...(hasCollectionOrMeta
       ? {
-          patches: immediatePatches,
+          patches: filteredPatches,
           state: slice,
           snapshotDrops,
+          ...(Object.keys(evictionsRecord).length
+            ? { evictions: evictionsRecord }
+            : {}),
         }
-      : null,
-    dropKeys,
-    bufferedMeta,
-    heldLivenessRows,
-    heldLivenessMeta,
-    holdSyncMeta,
-    flushedDurableLivenessRows,
+      : {}),
+    ...(conversations.length ? { conversations } : {}),
   };
+
+  const commitShadow = (
+    targetKnown: Map<string, Set<string>>,
+    targetRows: Map<string, Map<string, unknown>>,
+    targetMeta: Map<string, unknown>,
+  ) => {
+    for (const [key, update] of stagedRows) {
+      if (update.replaceAll) {
+        const nextIds = new Set<string>();
+        const nextShadow = new Map<string, unknown>();
+        for (const [id, row] of update.entries) {
+          if (row != null) {
+            nextIds.add(id);
+            nextShadow.set(id, row);
+          }
+        }
+        targetKnown.set(key, nextIds);
+        targetRows.set(key, nextShadow);
+      } else {
+        let known = targetKnown.get(key);
+        if (!known) targetKnown.set(key, (known = new Set()));
+        let shadow = targetRows.get(key);
+        if (!shadow) targetRows.set(key, (shadow = new Map()));
+        for (const [id, row] of update.entries) {
+          if (row != null) {
+            known.add(id);
+            shadow.set(id, row);
+          } else {
+            known.delete(id);
+            shadow.delete(id);
+          }
+        }
+      }
+    }
+    for (const [key, val] of stagedMeta) targetMeta.set(key, val);
+  };
+
+  return { payload, dropKeys, commitShadow };
 }

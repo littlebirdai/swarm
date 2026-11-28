@@ -1,3 +1,8 @@
+import {
+  cacheEvictionsFor,
+  withCacheEvictions,
+  withoutEvictionPatches,
+} from "../cache-eviction";
 import type { CacheStorage } from "./storage";
 
 export function sqliteCacheEnabled(): boolean {
@@ -26,13 +31,18 @@ export function createLazySqliteStorage(
   const ensureLoaded = (): Promise<CacheStorage> => {
     if (loaded) return Promise.resolve(loaded);
     if (!loading) {
-      loading = loadModule().then((mod) => {
-        const storage = mod.getSqliteCacheStorage();
-        const pending = queuedSync.splice(0, queuedSync.length);
-        for (const fn of pending) fn(storage);
-        loaded = storage;
-        return storage;
-      });
+      loading = loadModule()
+        .then((mod) => {
+          const storage = mod.getSqliteCacheStorage();
+          const pending = queuedSync.splice(0, queuedSync.length);
+          for (const fn of pending) fn(storage);
+          loaded = storage;
+          return storage;
+        })
+        .catch((error) => {
+          loading = null;
+          throw error;
+        });
     }
     return loading;
   };
@@ -46,11 +56,24 @@ export function createLazySqliteStorage(
         setHydrating(value) {
           syncFallback.setHydrating(value);
           if (loaded) loaded.setHydrating(value);
-          else queuedSync.push((storage) => storage.setHydrating(value));
+          else {
+            queuedSync.push((storage) => storage.setHydrating(value));
+            void ensureLoaded().catch(() => {});
+          }
         },
         writePatches(patches, state) {
           if (loaded) return loaded.writePatches(patches, state);
-          queuedSync.push((storage) => storage.writePatches(patches, state));
+          const evictions = cacheEvictionsFor(
+            patches,
+            state as Record<string, any>,
+          );
+          const filtered = withoutEvictionPatches(patches, evictions);
+          queuedSync.push((storage) =>
+            withCacheEvictions(evictions, () =>
+              storage.writePatches(filtered, state),
+            ),
+          );
+          void ensureLoaded().catch(() => {});
         },
         async flushPersistence() {
           const storage = await ensureLoaded();
@@ -74,6 +97,7 @@ export function createLazySqliteStorage(
               pagination,
             ),
           );
+          void ensureLoaded().catch(() => {});
         },
         writeConversationUserMessages(conversationId, messages) {
           if (loaded) {
@@ -83,6 +107,7 @@ export function createLazySqliteStorage(
           queuedSync.push((storage) =>
             storage.writeConversationUserMessages(conversationId, messages),
           );
+          void ensureLoaded().catch(() => {});
         },
         enqueueDispatch: async (entry) =>
           (await ensureLoaded()).enqueueDispatch(entry),

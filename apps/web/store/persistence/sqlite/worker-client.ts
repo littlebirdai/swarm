@@ -4,13 +4,9 @@ import {
   cacheEvictionsFor,
   withoutEvictionPatches,
 } from "../../cache-eviction";
-import {
-  clearSnapshotDrops,
-  createCoalescedWriter,
-} from "../../idb-collection-diff";
+import { clearSnapshotDrops } from "../../idb-collection-diff";
 import { bindWindowFlush } from "../db";
 import { setHydrating as setPersistenceHydrating } from "../hydration";
-import { LIVENESS_FLUSH_MS } from "../idb-liveness-lane";
 import type { CacheStorage, CachedConversation } from "../storage";
 import type { JournalBridge } from "./journal-bridge";
 import {
@@ -18,11 +14,13 @@ import {
   type MemoryCacheStorage,
 } from "./memory-fallback";
 import {
-  buildWritePayload,
+  buildFlushPayload,
   journalKeys,
   recordKnownState,
+  type PendingWriteBatch,
 } from "./patch-payload";
 import {
+  epochId,
   SQLITE_WORKER_TIMEOUT_MS,
   type CacheEpoch,
   type ChannelTransport,
@@ -57,14 +55,8 @@ export type SqliteWorkerCacheClient = CacheStorage & {
   isMemoryFallback(): boolean;
 };
 
-type BufferedMessages = {
-  principal: string;
-  messages?: { rows: unknown[]; pagination: unknown };
-  userMessages?: unknown[];
-};
-
-const META_COALESCE_MS = 250;
-const MSG_COALESCE_MS = 300;
+const BUFFER_FLUSH_MS = 250;
+const BEST_EFFORT_FLUSH_MS = 150;
 
 function computeLatestTimestamp(messages: unknown[]): number {
   let max = 0;
@@ -100,40 +92,27 @@ export function createSqliteWorkerClient(
   const lastPersistedMeta = new Map<string, unknown>();
   const inFlightWrites = new Set<Promise<void>>();
 
-  const pendingLivenessRows = new Map<string, Set<string>>();
-  const pendingLivenessMeta = new Set<string>();
-  let pendingLivenessSyncMeta = false;
-  let livenessState: Record<string, any> | null = null;
-  let livenessTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const pendingMsgWrites = new Map<string, BufferedMessages>();
-  let msgWriteTimer: ReturnType<typeof setTimeout> | null = null;
-  let latestUser: { _id: string } | undefined;
+  let pendingBatch: PendingWriteBatch | null = null;
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   let closed = false;
   let hydrating = false;
-  let writeGeneration = 0;
   let opfsMissing = !opfsSupported() || !locks || !channelTransport;
   if (opfsMissing) onFallbackToMemory?.("opfs-unsupported");
 
-  const connection = createWorkerConnection({
-    clientId: createId(),
-    auth,
-    schemaVersion,
-    epochStore,
-    locks,
-    channelTransport,
-    spawnWorker,
-    workerTimeoutMs,
-    now,
-    createId,
-    onOpfsMissing: (reason) => {
-      if (!opfsMissing) {
-        opfsMissing = true;
-        onFallbackToMemory?.(reason);
-      }
-    },
-  });
+  const resetShadowState = () => {
+    knownIds.clear();
+    lastPersistedRows.clear();
+    lastPersistedMeta.clear();
+  };
+
+  const clearPendingBatch = () => {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    pendingBatch = null;
+  };
 
   const trackWrite = (promise: Promise<void>) => {
     inFlightWrites.add(promise);
@@ -153,199 +132,153 @@ export function createSqliteWorkerClient(
     }
   };
 
-  const metaWriter = createCoalescedWriter(
-    (key, entry: { value: unknown; gen: number }) => {
-      if (closed || hydrating || opfsMissing || entry.gen !== writeGeneration)
-        return;
-      const principal = auth.current();
-      if (principal === null) return;
-      const epoch = connection.ensureActiveEpoch(principal, true);
-      if (!epoch) return;
-      const slice: Record<string, unknown> = { [key]: entry.value };
-      if (latestUser) slice.currentUser = latestUser;
-      const promise = connection
-        .send(epoch, principal, "writePatches", {
-          patches: [{ op: "replace", path: [key], value: entry.value }],
-          state: slice,
-        })
-        .catch((error) => handleWorkerError(epoch, error))
-        .then(() => undefined);
-      trackWrite(promise);
-    },
-    META_COALESCE_MS,
-  );
-
-  const flushLiveness = () => {
-    if (livenessTimer) {
-      clearTimeout(livenessTimer);
-      livenessTimer = null;
+  const ensurePendingBatch = (principal: string): PendingWriteBatch => {
+    if (pendingBatch && pendingBatch.principal !== principal) {
+      clearPendingBatch();
     }
-    const state = livenessState;
-    livenessState = null;
-    const writeSyncMeta =
-      pendingLivenessSyncMeta && state?.syncMeta !== undefined;
-    pendingLivenessSyncMeta = false;
-    const waitingRows = [...pendingLivenessRows];
-    pendingLivenessRows.clear();
-    const waitingMeta = [...pendingLivenessMeta];
-    pendingLivenessMeta.clear();
-    if (closed || hydrating || opfsMissing || !state) return;
+    if (!pendingBatch) {
+      pendingBatch = {
+        principal,
+        patches: [],
+        state: {},
+        evictions: new Map(),
+        conversations: new Map(),
+      };
+    }
+    return pendingBatch;
+  };
 
-    metaWriter.flush();
+  const flushBatchNow = (): {
+    dispatched: boolean;
+    promise: Promise<void>;
+  } => {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    const batch = pendingBatch;
+    pendingBatch = null;
+    if (!batch || closed || opfsMissing) {
+      return { dispatched: false, promise: Promise.resolve() };
+    }
     const principal = auth.current();
-    if (principal === null) return;
-    if (state.currentUser?._id && state.currentUser._id !== principal) return;
-
-    const slice: Record<string, unknown> = {};
-    if (state.currentUser?._id)
-      slice.currentUser = { _id: state.currentUser._id };
-    const patches: Array<{
-      op: "replace";
-      path: (string | number)[];
-      value: unknown;
-    }> = [];
-
-    for (const key of waitingMeta) {
-      const value = state[key];
-      if (value === undefined || lastPersistedMeta.get(key) === value) continue;
-      lastPersistedMeta.set(key, value);
-      slice[key] = value;
-      patches.push({ op: "replace", path: [key], value });
+    if (principal === null || batch.principal !== principal) {
+      return { dispatched: false, promise: Promise.resolve() };
     }
-    for (const [key, ids] of waitingRows) {
-      const data = state[key];
-      const shadow = lastPersistedRows.get(key);
-      if (!data || !shadow) continue;
-      const partial: Record<string, unknown> = {};
-      let added = false;
-      for (const id of ids) {
-        const row = Object.hasOwn(data, id) ? data[id] : undefined;
-        if (row === undefined || shadow.get(id) === row) continue;
-        partial[id] = row;
-        shadow.set(id, row);
-        knownIds.get(key)?.add(id);
-        patches.push({ op: "replace", path: [key, id], value: row });
-        added = true;
-      }
-      if (added) slice[key] = partial;
+    const built = buildFlushPayload({ batch, knownIds });
+    if (!built) {
+      return { dispatched: false, promise: Promise.resolve() };
     }
-    if (writeSyncMeta) {
-      slice.syncMeta = state.syncMeta;
-      patches.push({
-        op: "replace",
-        path: ["syncMeta"],
-        value: state.syncMeta,
-      });
-    }
-    if (!patches.length) return;
     const epoch = connection.ensureActiveEpoch(principal, true);
-    if (!epoch) return;
+    if (!epoch) {
+      return { dispatched: false, promise: Promise.resolve() };
+    }
+    const sentEpochId = epochId(epoch);
     const promise = connection
-      .send(epoch, principal, "writePatches", { patches, state: slice })
-      .catch((error) => handleWorkerError(epoch, error))
-      .then(() => undefined);
-    trackWrite(promise);
-  };
-
-  const scheduleLiveness = (state: Record<string, any>) => {
-    livenessState = state;
-    if (!livenessTimer) {
-      livenessTimer = setTimeout(flushLiveness, LIVENESS_FLUSH_MS);
-    }
-  };
-
-  const flushMessages = () => {
-    if (msgWriteTimer) {
-      clearTimeout(msgWriteTimer);
-      msgWriteTimer = null;
-    }
-    if (!pendingMsgWrites.size) return;
-    const batch = [...pendingMsgWrites.entries()];
-    pendingMsgWrites.clear();
-    if (closed || opfsMissing) return;
-    const principal = auth.current();
-    if (principal === null) return;
-    const epoch = connection.ensureActiveEpoch(principal, true);
-    if (!epoch) return;
-
-    for (const [conversationId, entry] of batch) {
-      if (entry.principal !== principal) continue;
-      if (entry.messages) {
-        const { rows, pagination } = entry.messages;
-        const promise = connection
-          .send(epoch, principal, "writeConversationMessages", {
-            conversationId,
-            messages: rows,
-            pagination,
-          })
-          .catch((error) => {
-            if (opfsMissing) {
+      .send(epoch, principal, "flushBatch", built.payload)
+      .then(() => {
+        const current = connection.currentEpoch();
+        if (
+          closed ||
+          opfsMissing ||
+          auth.current() !== principal ||
+          !current ||
+          epochId(current) !== sentEpochId
+        ) {
+          return;
+        }
+        built.commitShadow(knownIds, lastPersistedRows, lastPersistedMeta);
+        for (const key of built.dropKeys) clearSnapshotDrops(key);
+      })
+      .catch((error) => {
+        resetShadowState();
+        if (opfsMissing) {
+          if (batch.patches.length) {
+            memory.writePatches(batch.patches, batch.state);
+          }
+          for (const [conversationId, entry] of batch.conversations) {
+            if (entry.messages) {
               memory.writeConversationMessages(
                 conversationId,
-                rows,
-                pagination,
+                entry.messages.rows,
+                entry.messages.pagination,
               );
-              return;
             }
-            handleWorkerError(epoch, error);
-          })
-          .then(() => undefined);
-        trackWrite(promise);
-      }
-      if (entry.userMessages) {
-        const userMessages = entry.userMessages;
-        const promise = connection
-          .send(epoch, principal, "writeConversationUserMessages", {
-            conversationId,
-            messages: userMessages,
-          })
-          .catch((error) => {
-            if (opfsMissing) {
+            if (entry.userMessages) {
               memory.writeConversationUserMessages(
                 conversationId,
-                userMessages,
+                entry.userMessages,
               );
-              return;
             }
-            handleWorkerError(epoch, error);
-          })
-          .then(() => undefined);
-        trackWrite(promise);
+          }
+          return;
+        }
+        handleWorkerError(epoch, error);
+      });
+    trackWrite(promise);
+    return { dispatched: true, promise };
+  };
+
+  const connection = createWorkerConnection({
+    clientId: createId(),
+    auth,
+    schemaVersion,
+    epochStore,
+    locks,
+    channelTransport,
+    spawnWorker,
+    workerTimeoutMs,
+    now,
+    createId,
+    onOpfsMissing: (reason) => {
+      if (!opfsMissing) {
+        opfsMissing = true;
+        onFallbackToMemory?.(reason);
       }
-    }
-  };
-
-  const scheduleMessagesFlush = () => {
-    if (!msgWriteTimer) {
-      msgWriteTimer = setTimeout(flushMessages, MSG_COALESCE_MS);
-    }
-  };
-
-  const clearPendingBuffers = () => {
-    writeGeneration++;
-    metaWriter.drop();
-    if (livenessTimer) {
-      clearTimeout(livenessTimer);
-      livenessTimer = null;
-    }
-    if (msgWriteTimer) {
-      clearTimeout(msgWriteTimer);
-      msgWriteTimer = null;
-    }
-    livenessState = null;
-    pendingLivenessSyncMeta = false;
-    pendingLivenessRows.clear();
-    pendingLivenessMeta.clear();
-    pendingMsgWrites.clear();
-    latestUser = undefined;
-  };
-
-  bindWindowFlush(() => {
-    if (closed) return;
-    metaWriter.flush();
-    flushLiveness();
-    flushMessages();
+    },
+    onEpochChange: () => {
+      resetShadowState();
+    },
+    onBeforeLockRelease: () => flushBatchNow().dispatched,
   });
+
+  const scheduleFlush = () => {
+    if (!flushTimer) {
+      flushTimer = setTimeout(() => {
+        void flushBatchNow();
+      }, BUFFER_FLUSH_MS);
+    }
+  };
+
+  const unbindWindowFlush = bindWindowFlush(() => {
+    if (closed) return;
+    const { promise } = flushBatchNow();
+    void Promise.race([
+      promise,
+      new Promise<void>((resolve) => setTimeout(resolve, BEST_EFFORT_FLUSH_MS)),
+    ]);
+  });
+
+  const findArchiveRestores = async (archive?: {
+    accountId: string;
+    dispatchedAt: number;
+  }): Promise<Set<string>> => {
+    const restores = new Set<string>();
+    if (!archive) return restores;
+    try {
+      for (const entry of await journal.loadOutbox()) {
+        if (
+          entry.action === "restoreArchivedDoc" &&
+          (!entry.accountId || entry.accountId === archive.accountId) &&
+          entry.ts >= archive.dispatchedAt &&
+          typeof entry.args?.[0] === "string"
+        ) {
+          restores.add(entry.args[0]);
+        }
+      }
+    } catch {}
+    return restores;
+  };
 
   return {
     enqueueDispatch: journal.enqueueDispatch,
@@ -494,69 +427,31 @@ export function createSqliteWorkerClient(
         return pendingWrite;
       }
 
-      if (state.currentUser?._id) latestUser = { _id: state.currentUser._id };
-
-      const built = buildWritePayload({
-        knownIds,
-        lastPersistedRows,
-        lastPersistedMeta,
-        patches,
-        state,
-      });
-      if (!built) return pendingWrite;
-
-      for (const [key, ids] of built.flushedDurableLivenessRows) {
-        const held = pendingLivenessRows.get(key);
-        if (held) {
-          for (const id of ids) held.delete(id);
-          if (held.size === 0) pendingLivenessRows.delete(key);
+      const batch = ensurePendingBatch(principal);
+      batch.patches.push(...patches);
+      for (const patch of patches) {
+        const root = patch.path[0];
+        if (typeof root === "string" && Object.hasOwn(state, root)) {
+          batch.state[root] = state[root];
         }
       }
-      for (const [key, ids] of built.heldLivenessRows) {
-        let waiting = pendingLivenessRows.get(key);
-        if (!waiting) pendingLivenessRows.set(key, (waiting = new Set()));
-        for (const id of ids) waiting.add(id);
-        scheduleLiveness(state);
+      if (state.currentUser?._id) batch.state.currentUser = state.currentUser;
+      if (state.pending !== undefined) batch.state.pending = state.pending;
+      if (state.liveInboxIdList !== undefined)
+        batch.state.liveInboxIdList = state.liveInboxIdList;
+      if (state.lastFocusedConversationId !== undefined)
+        batch.state.lastFocusedConversationId = state.lastFocusedConversationId;
+      for (const row of evictions) {
+        let set = batch.evictions.get(row.key);
+        if (!set) batch.evictions.set(row.key, (set = new Set()));
+        set.add(row.id);
       }
-      for (const key of built.heldLivenessMeta) {
-        pendingLivenessMeta.add(key);
-        scheduleLiveness(state);
-      }
-      for (const [key, value] of built.bufferedMeta) {
-        pendingLivenessMeta.delete(key);
-        metaWriter.write(key, { value, gen: writeGeneration });
-      }
-      if (built.holdSyncMeta) {
-        pendingLivenessSyncMeta = true;
-        scheduleLiveness(state);
-      }
-
-      if (!built.immediate) return pendingWrite;
-
-      const epoch = connection.ensureActiveEpoch(principal, true);
-      if (!epoch) return pendingWrite;
-
-      const writePromise = connection
-        .send(epoch, principal, "writePatches", built.immediate)
-        .then(() => {
-          for (const key of built.dropKeys) clearSnapshotDrops(key);
-        })
-        .catch((error) => {
-          if (opfsMissing) {
-            memory.writePatches(patches, state);
-            return;
-          }
-          handleWorkerError(epoch, error);
-        })
-        .then(() => undefined);
-      trackWrite(writePromise);
-      return pendingWrite ?? writePromise;
+      scheduleFlush();
+      return pendingWrite;
     },
 
     async flushPersistence() {
-      metaWriter.flush();
-      flushLiveness();
-      flushMessages();
+      flushBatchNow();
       while (inFlightWrites.size > 0) {
         await Promise.all([...inFlightWrites]);
       }
@@ -575,8 +470,11 @@ export function createSqliteWorkerClient(
         return null;
       }
 
-      const buffered = pendingMsgWrites.get(conversationId);
-      if (buffered && buffered.principal === principal && buffered.messages) {
+      const buffered =
+        pendingBatch && pendingBatch.principal === principal
+          ? pendingBatch.conversations.get(conversationId)
+          : undefined;
+      if (buffered?.messages) {
         return {
           messages: [...buffered.messages.rows],
           pagination: buffered.messages.pagination,
@@ -602,11 +500,7 @@ export function createSqliteWorkerClient(
           auth.current() !== principal
         )
           return null;
-        if (
-          buffered &&
-          buffered.principal === principal &&
-          buffered.userMessages
-        ) {
+        if (buffered?.userMessages) {
           return {
             messages: result?.messages ?? [],
             pagination: result?.pagination,
@@ -630,14 +524,13 @@ export function createSqliteWorkerClient(
         memory.writeConversationMessages(conversationId, messages, pagination);
         return;
       }
-      const prev = pendingMsgWrites.get(conversationId);
-      pendingMsgWrites.set(conversationId, {
-        principal,
+      const batch = ensurePendingBatch(principal);
+      const prev = batch.conversations.get(conversationId);
+      batch.conversations.set(conversationId, {
         messages: { rows: messages, pagination },
-        userMessages:
-          prev?.principal === principal ? prev.userMessages : undefined,
+        userMessages: prev?.userMessages,
       });
-      scheduleMessagesFlush();
+      scheduleFlush();
     },
 
     writeConversationUserMessages(conversationId, messages) {
@@ -648,42 +541,26 @@ export function createSqliteWorkerClient(
         memory.writeConversationUserMessages(conversationId, messages);
         return;
       }
-      const prev = pendingMsgWrites.get(conversationId);
-      pendingMsgWrites.set(conversationId, {
-        principal,
-        messages: prev?.principal === principal ? prev.messages : undefined,
+      const batch = ensurePendingBatch(principal);
+      const prev = batch.conversations.get(conversationId);
+      batch.conversations.set(conversationId, {
+        messages: prev?.messages,
         userMessages: messages,
       });
-      scheduleMessagesFlush();
+      scheduleFlush();
     },
 
     async deleteInvalidatedDocDetails(ids, current, archive) {
       if (closed || !ids.length) return [];
       const owner = archive?.accountId ?? auth.current();
       if (!owner) return [];
-      if (opfsMissing) {
-        return (
-          memory.deleteInvalidatedDocDetails?.(ids, current, archive) ?? []
-        );
-      }
-      const restores = new Set<string>();
-      if (archive) {
-        try {
-          for (const entry of await journal.loadOutbox()) {
-            if (
-              entry.action === "restoreArchivedDoc" &&
-              (!entry.accountId || entry.accountId === archive.accountId) &&
-              entry.ts >= archive.dispatchedAt &&
-              typeof entry.args?.[0] === "string"
-            ) {
-              restores.add(entry.args[0]);
-            }
-          }
-        } catch {}
-      }
+      const restores = await findArchiveRestores(archive);
       if (closed || auth.current() !== owner) return [];
       const confirmed = ids.filter((id) => !restores.has(id) && current(id));
       if (!confirmed.length) return [];
+      if (opfsMissing) {
+        return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
+      }
       const epoch = connection.ensureActiveEpoch(owner, true);
       if (!epoch) return [];
       try {
@@ -702,9 +579,7 @@ export function createSqliteWorkerClient(
         return deleted;
       } catch (error) {
         if (opfsMissing) {
-          return (
-            memory.deleteInvalidatedDocDetails?.(ids, current, archive) ?? []
-          );
+          return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
         }
         handleWorkerError(epoch, error);
         return [];
@@ -719,10 +594,8 @@ export function createSqliteWorkerClient(
         keepPendingInputFor: keep,
         ...options?.detail,
       });
-      clearPendingBuffers();
-      knownIds.clear();
-      lastPersistedRows.clear();
-      lastPersistedMeta.clear();
+      clearPendingBatch();
+      resetShadowState();
       await memory.purgeLocalCache(options);
       if (!opfsMissing) connection.rotateForPurge(keep);
       await journal.purgeJournal(keep);
@@ -730,9 +603,11 @@ export function createSqliteWorkerClient(
 
     close() {
       if (closed) return;
-      closed = true;
-      clearPendingBuffers();
+      unbindWindowFlush();
       connection.close();
+      closed = true;
+      clearPendingBatch();
+      resetShadowState();
     },
 
     currentEpoch() {

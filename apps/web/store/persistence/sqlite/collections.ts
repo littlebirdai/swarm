@@ -154,6 +154,10 @@ export function collectionStorage(db: SqliteDriver) {
     state: Record<string, any>,
     cursorBlocked: boolean,
     afterCommit: AfterCommit,
+    options?: {
+      evictions?: Record<string, string[]>;
+      deferSyncMeta?: boolean;
+    },
   ) {
     const keys = new Set(
       patches.flatMap(({ path }) => (path.length ? [String(path[0])] : [])),
@@ -166,6 +170,9 @@ export function collectionStorage(db: SqliteDriver) {
         const pending = state.pending ?? {};
         const snapshot = hasSnapshotDrops(key);
         const ids = snapshot ? null : patchedIds(patches, key);
+        const evicted = options?.evictions?.[key]
+          ? new Set(options.evictions[key])
+          : null;
         const affected =
           ids ??
           new Set([
@@ -176,7 +183,7 @@ export function collectionStorage(db: SqliteDriver) {
           const row = Object.hasOwn(data, id) ? data[id] : undefined;
           if (row != null) {
             if (!writeRow(key, id, row)) complete = false;
-          } else if (deleteAllowed(key, id, pending)) {
+          } else if (!evicted?.has(id) && deleteAllowed(key, id, pending)) {
             deleteRow.run(key, id);
           }
         }
@@ -207,7 +214,12 @@ export function collectionStorage(db: SqliteDriver) {
         if (!setMeta(key, state[key])) complete = false;
       }
     }
-    if (complete && !cursorBlocked && keys.has("syncMeta"))
+    if (
+      !options?.deferSyncMeta &&
+      complete &&
+      !cursorBlocked &&
+      keys.has("syncMeta")
+    )
       return setMeta("syncMeta", state.syncMeta);
     return complete;
   }

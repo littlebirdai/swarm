@@ -197,7 +197,7 @@ export function registerTestReopen(fn: () => void): void {
   testReopenListeners.push(fn);
 }
 
-export function bindWindowFlush(flush: () => void): void {
+export function bindWindowFlush(flush: () => void): () => void {
   let boundWindow: Window | null = null;
   const onVisibilityChange = () => {
     if (
@@ -206,12 +206,15 @@ export function bindWindowFlush(flush: () => void): void {
     )
       flush();
   };
-  const rebind = () => {
+  const detach = () => {
     if (boundWindow && typeof boundWindow.removeEventListener === "function") {
       boundWindow.removeEventListener("pagehide", flush);
       boundWindow.removeEventListener("visibilitychange", onVisibilityChange);
     }
     boundWindow = null;
+  };
+  const rebind = () => {
+    detach();
     if (
       typeof window === "undefined" ||
       typeof window.addEventListener !== "function"
@@ -223,6 +226,11 @@ export function bindWindowFlush(flush: () => void): void {
   };
   rebind();
   registerTestReopen(rebind);
+  return () => {
+    detach();
+    const index = testReopenListeners.indexOf(rebind);
+    if (index >= 0) testReopenListeners.splice(index, 1);
+  };
 }
 
 // Test hook: Dexie copies the IndexedDB API into the instance at construction

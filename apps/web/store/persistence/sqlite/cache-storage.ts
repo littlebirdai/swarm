@@ -4,9 +4,10 @@ import { HYDRATION_PAINT_KEYS } from "../../clientSyncRegistry";
 import type { CacheStorage } from "../storage";
 import { collectionStorage } from "./collections";
 import { messageStorage } from "./messages";
+import type { SqliteFlushBatchPayload } from "./protocol";
 import { openSchema, type AfterCommit, type SqliteDriver } from "./schema";
 
-type SqliteCacheStorage = Omit<
+export type SqliteCacheStorage = Omit<
   CacheStorage,
   | "enqueueDispatch"
   | "removeDispatch"
@@ -14,7 +15,9 @@ type SqliteCacheStorage = Omit<
   | "outboxAccountId"
   | "persistPendingMessageChanges"
   | "loadPaintCacheSync"
->;
+> & {
+  flushBatch(batch: SqliteFlushBatchPayload): void;
+};
 
 export function createSqliteCache(
   db: SqliteDriver,
@@ -218,6 +221,59 @@ export function createSqliteCache(
     },
     writeConversationUserMessages(id, rows) {
       write("navigator", () => messages.writeUserMessages(id, rows));
+    },
+    flushBatch(batch) {
+      const stateOwner = (
+        batch.state as { currentUser?: { _id?: string } } | undefined
+      )?.currentUser?._id;
+      const hasConversations = Boolean(batch.conversations?.length);
+      write(
+        "collections",
+        (afterCommit, blocked) => {
+          let complete = true;
+          const hasPatches = Boolean(batch.patches?.length && batch.state);
+          if (hasPatches) {
+            complete = collections.write(
+              batch.patches!,
+              batch.state!,
+              blocked,
+              afterCommit,
+              {
+                evictions: batch.evictions,
+                deferSyncMeta: true,
+              },
+            );
+          }
+          if (batch.conversations?.length) {
+            for (const item of batch.conversations) {
+              if (item.messages) {
+                messages.write(
+                  item.conversationId,
+                  item.messages.rows,
+                  item.messages.pagination,
+                );
+              }
+              if (item.userMessages) {
+                messages.writeUserMessages(
+                  item.conversationId,
+                  item.userMessages,
+                );
+              }
+            }
+            messages.retain(afterCommit);
+          }
+          const wantsSyncMeta =
+            hasPatches &&
+            batch.patches!.some((p) => p.path[0] === "syncMeta") &&
+            Object.hasOwn(batch.state!, "syncMeta");
+          if (complete && !blocked && wantsSyncMeta) {
+            return collections.setMeta("syncMeta", batch.state!.syncMeta);
+          }
+          return complete;
+        },
+        stateOwner,
+      );
+      void hasConversations;
     },
     deleteInvalidatedDocDetails(ids, current) {
       if (readOnly) return Promise.resolve([]);
