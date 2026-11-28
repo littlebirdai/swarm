@@ -238,7 +238,7 @@ const REPLAY_TABLE_BASELINES: Record<string, number> = {
   conversations: 1200,
   deployDetails: 50,
   deployReach: 300,
-  docDetails: 200,
+  docDetails: 220,
   docs: 200,
   externalEvents: 2000,
   meta: 3,
@@ -293,10 +293,6 @@ async function settleReplayIDB(
 }
 
 async function measureReplayPersistedRows() {
-  const prevEvictionMeta = process.env.VITE_CACHE_EVICTION_METADATA;
-  const prevTimedCaps = process.env.VITE_TIMED_DOC_CAPS;
-  process.env.VITE_CACHE_EVICTION_METADATA = "0";
-  process.env.VITE_TIMED_DOC_CAPS = "0";
   clearProtectedInboxMemory();
   resetCollectionWrites();
   _resetPersistedShadow();
@@ -504,19 +500,10 @@ async function measureReplayPersistedRows() {
     dropPendingMessageWrites();
     state()._setIDBWrite(null);
     db.close();
-    if (prevEvictionMeta === undefined)
-      delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = prevEvictionMeta;
-    if (prevTimedCaps === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-    else process.env.VITE_TIMED_DOC_CAPS = prevTimedCaps;
   }
 }
 
 async function measureTimedDocReplayCompaction() {
-  const prevEvictionMeta = process.env.VITE_CACHE_EVICTION_METADATA;
-  const prevTimedCaps = process.env.VITE_TIMED_DOC_CAPS;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const restore = replaceGlobals({
     document: Object.assign(new EventTarget(), { hidden: false }),
   });
@@ -595,11 +582,6 @@ async function measureTimedDocReplayCompaction() {
     state()._setIDBWrite(null);
     db.close();
     restore();
-    if (prevEvictionMeta === undefined)
-      delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = prevEvictionMeta;
-    if (prevTimedCaps === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-    else process.env.VITE_TIMED_DOC_CAPS = prevTimedCaps;
   }
 }
 

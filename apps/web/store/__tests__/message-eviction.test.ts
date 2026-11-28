@@ -364,9 +364,7 @@ test("a tail write that clears its pending echo keeps the newly loaded transcrip
     messageCacheBytes: 0,
     messageCacheBytesByConversation: {},
     pendingMessages: {
-      [id]: [
-        { ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true },
-      ],
+      [id]: [{ ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true }],
     },
   });
   try {

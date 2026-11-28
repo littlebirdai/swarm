@@ -1,4 +1,3 @@
-import { cacheEvictionEnabled } from "./cache-eviction";
 import { revalidateDroppedDocArchive } from "./doc-detail-cache";
 import { captureException } from "./pendingInputError";
 import { outboxAccountId, persistPendingMessageChanges } from "./idb-cache";
@@ -628,8 +627,7 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
-  rollbackDroppedOutboxEntry: (entry) =>
-    entry.action === "archiveDoc" && cacheEvictionEnabled(),
+  rollbackDroppedOutboxEntry: (entry) => entry.action === "archiveDoc",
   onDroppedOutboxEntry(entry, pending) {
     const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
     if (

@@ -5,7 +5,10 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { getFunctionName } from "convex/server";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
-import { useLateJoinSummary, type LateJoinSummary } from "../use-late-join-summary";
+import {
+  useLateJoinSummary,
+  type LateJoinSummary,
+} from "../use-late-join-summary";
 
 const conversationId = "j".repeat(32) as Id<"conversations">;
 const anchorMsgId = "m".repeat(32) as Id<"messages">;

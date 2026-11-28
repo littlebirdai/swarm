@@ -7,11 +7,7 @@ import { setDeferredSharedCacheSource } from "./deferred-cache-policy";
 import { forgetSeenBeforeOwnEcho } from "./replication-lock-echo";
 export { forgetSeenBeforeOwnEcho } from "./replication-lock-echo";
 import type { Patch } from "mutative";
-import {
-  cacheEvictionEnabled,
-  cacheEvictionsFor,
-  withoutEvictionPatches,
-} from "./cache-eviction";
+import { cacheEvictionsFor, withoutEvictionPatches } from "./cache-eviction";
 import {
   acceptRecoveryFeed,
   canHydrateDetail,
@@ -416,9 +412,7 @@ function applyUpdatesToStoreInner(
   for (const original of updates) {
     if (original.kind === "authoritativeRemoval") continue;
     const u =
-      original.key === "docDetails" &&
-      original.upserts &&
-      cacheEvictionEnabled()
+      original.key === "docDetails" && original.upserts
         ? {
             ...original,
             upserts: original.upserts.filter((row) =>
@@ -586,10 +580,7 @@ export function startSyncReplication(opts: {
 }): () => void {
   if (running) return running.stop;
   setRole("host");
-  const authority =
-    cacheEvictionEnabled() && opts.principalId
-      ? opts.detailAuthority
-      : undefined;
+  const authority = opts.principalId ? opts.detailAuthority : undefined;
   if (!transportAvailable() || !opts.principalId) {
     if (authority) {
       const local = startLocalDocReplication(

@@ -70,7 +70,7 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | People populated collections           |         16 |         16 | Scoped people follower on the same snapshot, required below main window                                                           | Disable panel scoping → 138                    |
 | Call panel populated collections       |         49 |         49 | Scoped call-panel follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
 | Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
-| Persisted IndexedDB rows after replay  |     18,186 |     18,186 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,436       |
+| Persisted IndexedDB rows after replay  |     18,206 |     18,206 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,456       |
 
 The byte limits for synced collections add 1% for small changes to the
 row shape. The count limits (retained rows, populated collections per window,

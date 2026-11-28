@@ -10,10 +10,7 @@ import * as collabRegistry from "./client-sync-registry.collab";
 import { MOVE_SYNC_COLLECTIONS } from "./client-sync-registry.moves";
 import * as fencedPromptRegistry from "./client-sync-registry.fenced-prompts";
 import { DATA_SCOPE } from "./client-sync-registry.scope";
-import {
-  thinPullRequestRow,
-  thinTaskRow,
-} from "../lib/detail-rows";
+import { thinPullRequestRow, thinTaskRow } from "../lib/detail-rows";
 export {
   DATA_SCOPE,
   EPHEMERAL_SLOT_SCOPE,

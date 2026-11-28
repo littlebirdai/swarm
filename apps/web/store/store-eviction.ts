@@ -1,12 +1,10 @@
-import { cacheEvictionEnabled, withCacheEvictions } from "./cache-eviction";
+import { withCacheEvictions } from "./cache-eviction";
 import {
   detailRowsToEvict,
   isDetailPinned,
   type DetailKey,
 } from "../lib/detail-rows";
 import { sessionIdleAt } from "../lib/liveness";
-import { REPLICATION_CLASSIFICATION } from "./clientSyncRegistry";
-import { noteEvictedRows } from "./idb-collection-diff";
 import type { InboxStoreState } from "./inboxStore";
 
 export const MESSAGE_CACHE_BUDGET_BYTES =
@@ -341,34 +339,26 @@ export function evictDetailRows(
     fresh.has(id),
   );
   if (!gone.length) return;
-  if (cacheEvictionEnabled()) {
-    const current = getState();
-    const live = current[key] as typeof rows;
-    const pending = Object.keys(current.pending);
-    const evictions = gone
-      .filter(
-        (id) =>
-          live[id] === rows[id] &&
-          !isDetailPinned(key, id) &&
-          !holdsUnsentComment(live[id]) &&
-          !pending.some(
-            (entry) =>
-              entry === `${key}:${id}` || entry.startsWith(`${key}:${id}:`),
-          ),
-      )
-      .map((id) => ({ key, id, observed: rows[id] }));
-    if (evictions.length)
-      withCacheEvictions(evictions, () => {
-        current.dropRows(
-          key,
-          evictions.map(({ id }) => id),
-        );
-      });
-    return;
-  }
-  // The rows leave disk too, where this window is the one that writes them:
-  // the sync host for a shared key, any window for a per-window one.
-  if (st.syncRole === "host" || REPLICATION_CLASSIFICATION[key] === "local")
-    noteEvictedRows(key, gone);
-  st.dropRows(key, gone);
+  const current = getState();
+  const live = current[key] as typeof rows;
+  const pending = Object.keys(current.pending);
+  const evictions = gone
+    .filter(
+      (id) =>
+        live[id] === rows[id] &&
+        !isDetailPinned(key, id) &&
+        !holdsUnsentComment(live[id]) &&
+        !pending.some(
+          (entry) =>
+            entry === `${key}:${id}` || entry.startsWith(`${key}:${id}:`),
+        ),
+    )
+    .map((id) => ({ key, id, observed: rows[id] }));
+  if (evictions.length)
+    withCacheEvictions(evictions, () => {
+      current.dropRows(
+        key,
+        evictions.map(({ id }) => id),
+      );
+    });
 }

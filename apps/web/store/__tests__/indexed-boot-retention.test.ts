@@ -31,7 +31,6 @@ function installIndexedBootPrincipal() {
 }
 
 test("indexed send retention keeps the same boundary ties without reading older payloads", async () => {
-  const enabled = process.env.VITE_DEFERRED_CACHE_BOOT === "1";
   const restore = installIndexedBootPrincipal();
   const { reads } = measureIndexedDB(db);
   const indexedDB = new IDBFactory();
@@ -55,9 +54,7 @@ test("indexed send retention keeps the same boundary ties without reading older 
         .filter((id) => Number(id.slice(5)) < 122)
         .sort(),
     ).toEqual(["send-000118", "send-000119"]);
-    expect(reads.get("mySends")).toBeLessThanOrEqual(
-      enabled ? MAX_CACHED_MY_SENDS + 4 : rows.length,
-    );
+    expect(reads.get("mySends")).toBeLessThanOrEqual(MAX_CACHED_MY_SENDS + 4);
     expect(await table.count()).toBe(MAX_CACHED_MY_SENDS);
   } finally {
     db.close();
@@ -66,8 +63,6 @@ test("indexed send retention keeps the same boundary ties without reading older 
 });
 
 test("an older deferred snapshot does not erase the shadow of a newer durable row", async () => {
-  const before = process.env.VITE_DEFERRED_CACHE_BOOT;
-  process.env.VITE_DEFERRED_CACHE_BOOT = "1";
   const restore = installIndexedBootPrincipal();
   _resetPersistedShadow();
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
@@ -116,7 +111,5 @@ test("an older deferred snapshot does not erase the shadow of a newer durable ro
     _resetSnapshotLedger();
     db.close();
     restore();
-    if (before === undefined) delete process.env.VITE_DEFERRED_CACHE_BOOT;
-    else process.env.VITE_DEFERRED_CACHE_BOOT = before;
   }
 });

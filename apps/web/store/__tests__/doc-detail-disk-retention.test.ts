@@ -83,10 +83,6 @@ test("the cache upgrade preserves bodies and lets a crawl read only document key
 });
 
 test("the host settles the disk cache and persistence metadata during a long replay", async () => {
-  const beforeMetadata = process.env.VITE_CACHE_EVICTION_METADATA;
-  const beforeCaps = process.env.VITE_TIMED_DOC_CAPS;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const restore = replaceGlobals({
     document: Object.assign(new EventTarget(), { hidden: false }),
   });
@@ -146,19 +142,10 @@ test("the host settles the disk cache and persistence metadata during a long rep
     db.close();
     lastPersisted.clear();
     restore();
-    if (beforeMetadata === undefined)
-      delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = beforeMetadata;
-    if (beforeCaps === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-    else process.env.VITE_TIMED_DOC_CAPS = beforeCaps;
   }
 });
 
 test("reloading a queued detail-only archive hides its cached body without a pending lock", async () => {
-  const beforeMetadata = process.env.VITE_CACHE_EVICTION_METADATA;
-  const beforeCaps = process.env.VITE_TIMED_DOC_CAPS;
-  process.env.VITE_CACHE_EVICTION_METADATA = "1";
-  process.env.VITE_TIMED_DOC_CAPS = "1";
   const indexedDB = new IDBFactory();
   const store = __createInboxStoreForTests();
   const runtime = store.getState();
@@ -230,10 +217,5 @@ test("reloading a queued detail-only archive hides its cached body without a pen
     response.resolve(null);
     db.close();
     lastPersisted.clear();
-    if (beforeMetadata === undefined)
-      delete process.env.VITE_CACHE_EVICTION_METADATA;
-    else process.env.VITE_CACHE_EVICTION_METADATA = beforeMetadata;
-    if (beforeCaps === undefined) delete process.env.VITE_TIMED_DOC_CAPS;
-    else process.env.VITE_TIMED_DOC_CAPS = beforeCaps;
   }
 });

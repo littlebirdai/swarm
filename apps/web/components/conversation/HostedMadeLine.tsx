@@ -1,4 +1,3 @@
-import { timedDocCapsEnabled } from "../../store/cache-eviction";
 import { isConvexId } from "../../lib/entityLinks";
 import { useDocDetail } from "../../hooks/use-sync-docs";
 // A hosted receipt whose one step made one thing ("Set up the routine
@@ -37,7 +36,7 @@ export function HostedNoteCard({
 }) {
   const live = !useContext(EntityFixtureContext);
   const docId = live ? refId.replace(/^doc:/i, "") : "";
-  const subscribe = timedDocCapsEnabled() && isConvexId(docId);
+  const subscribe = isConvexId(docId);
   const docDetail = useDocDetail(docId, subscribe);
   const r = useEntityResolution(
     refId,

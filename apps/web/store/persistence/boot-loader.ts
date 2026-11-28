@@ -1,9 +1,6 @@
 import { isDetailPinned } from "../../lib/detail-rows";
-import { timedDocCapsEnabled } from "../cache-eviction";
 import {
-  deferredCacheReadsEnabled,
   deferredSharedCacheSource,
-  HYDRATION_EAGER_DEFERRED_KEYS,
   HYDRATION_ON_READ_KEYS,
 } from "../deferred-cache-policy";
 import { authPrincipal } from "../../lib/authPrincipal";
@@ -101,8 +98,7 @@ export async function loadCache(
     const phase =
       keys === HYDRATION_CRITICAL_READ_KEYS
         ? "critical"
-        : keys === HYDRATION_DEFERRED_KEYS ||
-            keys === HYDRATION_EAGER_DEFERRED_KEYS
+        : keys === HYDRATION_DEFERRED_KEYS
           ? "deferred"
           : undefined;
     if (phase === "deferred") setHydrationReadPhase(phase);
@@ -146,10 +142,7 @@ export async function loadCache(
     const metaKeys = (keys ?? [...META_KEYS]).filter((key) =>
       META_KEYS.has(key),
     );
-    const onRead =
-      deferredCacheReadsEnabled() &&
-      keys?.length === 1 &&
-      HYDRATION_ON_READ_KEYS.has(keys[0]);
+    const onRead = keys?.length === 1 && HYDRATION_ON_READ_KEYS.has(keys[0]);
     const shadowAtRead = onRead
       ? new Map(lastPersisted.get(keys[0]))
       : undefined;
@@ -158,9 +151,7 @@ export async function loadCache(
         Promise.all(
           collectionEntries.map(([key, table]) =>
             timeBootRead(phase, key, () =>
-              key === "mySends" && deferredCacheReadsEnabled()
-                ? readRetainedMySends()
-                : table.toArray(),
+              key === "mySends" ? readRetainedMySends() : table.toArray(),
             ),
           ),
         ),
@@ -177,7 +168,7 @@ export async function loadCache(
               ),
             )
           : undefined,
-        timedDocCapsEnabled() && (!wanted || wanted.has("docDetails"))
+        !wanted || wanted.has("docDetails")
           ? timeBootRead(phase, "archiveOutbox", async () => {
               const rows = await db.dispatchOutbox.toArray();
               const archives = new Set<string>();
@@ -258,7 +249,7 @@ export async function loadCache(
       // Collections that bound themselves at boot (COLLECTION_RETENTION).
       const retain = COLLECTION_RETENTION[key];
       if (retain && rows.length > 0) {
-        const memoryOnly = key === "docDetails" && timedDocCapsEnabled();
+        const memoryOnly = key === "docDetails";
         const { keep, drop } = memoryOnly
           ? partitionDocDetailRetention(
               rows,

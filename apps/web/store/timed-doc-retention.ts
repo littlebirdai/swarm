@@ -2,7 +2,7 @@ import { isConvexId } from "../lib/entityLinks";
 import { isDetailPinned } from "../lib/detail-rows";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../lib/inputQuiet";
 import { whileWindowVisible } from "../lib/windowVisibleWork";
-import { timedDocCapsEnabled, withCacheEvictions } from "./cache-eviction";
+import { withCacheEvictions } from "./cache-eviction";
 import {
   partitionDocDetailRetention,
   pendingDocDetailIds,
@@ -35,8 +35,7 @@ export function startTimedDocRetention(
   canSweep: () => boolean,
   ownsDisk: () => boolean = () => false,
 ) {
-  if (!timedDocCapsEnabled() || typeof document === "undefined")
-    return { soon() {}, stop() {} };
+  if (typeof document === "undefined") return { soon() {}, stop() {} };
 
   const visibility = document;
   let stopped = false;

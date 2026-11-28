@@ -50,7 +50,7 @@ const limits = {
   "People populated collections": { measured: 16, margin: 0 },
   "Call panel populated collections": { measured: 49, margin: 0 },
   "Agent dock populated collections": { measured: 14, margin: 0 },
-  "Persisted IndexedDB rows after replay": { measured: 18_186, margin: 0 },
+  "Persisted IndexedDB rows after replay": { measured: 18_206, margin: 0 },
 } as const;
 
 export function checkStoreBudget(name: keyof typeof limits, actual: number) {

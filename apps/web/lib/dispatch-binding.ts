@@ -1,8 +1,4 @@
 import { isReadingAnchorClaimActive } from "./reading-anchor-claims";
-import {
-  cacheEvictionEnabled,
-  timedDocCapsEnabled,
-} from "../store/cache-eviction";
 import { removeVerifiedArchivedBody } from "./archive-detail-fallback";
 import {
   detailAccountIsCurrent,
@@ -112,13 +108,12 @@ export function makeDispatchBinding(
     const dead = deadRecordingPress(action, args);
     if (dead) return Promise.reject(dead);
     const detailWrite =
-      cacheEvictionEnabled() &&
-      (action === "archiveDoc" || action === "restoreArchivedDoc")
+      action === "archiveDoc" || action === "restoreArchivedDoc"
         ? detailReadPosition()
         : null;
     const docId = detailWrite && typeof args?.[0] === "string" ? args[0] : null;
     const docExclude =
-      action === "restoreArchivedDoc" && docId && timedDocCapsEnabled()
+      action === "restoreArchivedDoc" && docId
         ? useInboxStore.getState().pending[`docs:${docId}`]
         : undefined;
     const detailOwner = detailWrite
