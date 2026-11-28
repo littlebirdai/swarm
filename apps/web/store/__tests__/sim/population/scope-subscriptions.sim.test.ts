@@ -1,13 +1,12 @@
 import { expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { api } from "@codecast/convex/convex/_generated/api";
 import { makeSimBackend } from "@codecast/convex/convex/simBackend.testing";
-import { catchUpScope } from "../../../../hooks/use-sync-change-feed";
 import {
-  initialScopeSubscriptionState,
-  reconcileScopeSubscriptions,
-  extractScopeCandidates,
-} from "../../../scope-subscriptions";
+  floorScopeKeys,
+  floorScopesStamped,
+} from "../../../../hooks/useBootstrapCollection";
+import { catchUp } from "../../../../hooks/use-sync-change-feed";
+import { initialScopeSubscriptionState } from "../../../scope-subscriptions";
 import { Net } from "../net";
 import {
   T0,
@@ -88,15 +87,35 @@ async function runWithScopeManager(config: {
     attachRealm({ timers: net, serverCall: backend.activeCall });
 
     const team0 = String(fixtureId("teams", 0));
+    const projectMap: Record<string, any> = {};
+    for (const project of model.projects) {
+      const pid = String(fixtureId("projects", project));
+      projectMap[pid] = { _id: pid, workspace: `team:${team0}` };
+    }
     const sampledPeople = model.deviceOrder.slice(0, config.devices);
     const devices = sampledPeople.map((person) => {
       const name = `scope-sim-${person.id}`;
       const win = { name, store: createWindowStore(name) };
+      win.store.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+        currentUser: { _id: fixtureId("users", person.id) } as any,
+        teams: [{ _id: team0 }] as any,
+        projects: projectMap,
+        scopeSubscriptions: initialScopeSubscriptionState(),
+        clientState: {
+          ui: {
+            sidebar_pins: person.follows.map((p) => ({
+              kind: "project",
+              id: String(fixtureId("projects", p)),
+            })),
+          },
+        } as any,
+      });
       const client = backend.clientFor({
         kind: "user",
         userId: fixtureId("users", person.id),
       });
-      let scopeState = initialScopeSubscriptionState();
       const totals = { events: 0, teamEvents: 0 };
       const meter = {
         async query(ref: any, args: Record<string, unknown>) {
@@ -111,43 +130,16 @@ async function runWithScopeManager(config: {
           return result;
         },
       };
-      const storeInput = {
-        currentUser: { _id: fixtureId("users", person.id) },
-        teams: [{ _id: team0 }],
-        clientState: {
-          ui: {
-            sidebar_pins: person.follows.map((p) => ({
-              kind: "project",
-              id: String(fixtureId("projects", p)),
-            })),
-          },
-        },
-      };
       return {
         person,
+        win,
         async poll() {
-          const candidates = extractScopeCandidates(storeInput, now());
-          scopeState = reconcileScopeSubscriptions(
-            scopeState,
-            candidates,
-            now(),
-          ).state;
-          const allHeads: Array<{
-            scope_key: string;
-            position: number;
-            floor: number;
-          }> = [];
-          for (const chunk of scopeState.chunks) {
-            if (!chunk.length) continue;
-            const { heads } = await meter.query(api.syncLog.getHeads, {
-              scopes: chunk,
-            });
-            allHeads.push(...heads);
-          }
           await runInWindow(win, async () => {
-            const purgedTeams = new Set<string>();
-            for (const head of allHeads) {
-              await catchUpScope(meter, head, purgedTeams);
+            win.store.getState().reconcileScopeSubscriptions(now());
+            const chunks = win.store.getState().scopeSubscriptions.chunks;
+            for (const chunk of chunks) {
+              if (!chunk.length) continue;
+              await catchUp(meter, undefined, { scopes: chunk });
             }
           });
         },
@@ -156,10 +148,23 @@ async function runWithScopeManager(config: {
           expectedDocTitles: ReadonlyMap<string, string>,
           expectedTaskIds: ReadonlySet<string>,
         ) {
-          const { tasks: taskRows, docs } = win.store.getState();
+          const s = win.store.getState();
+          const { tasks: taskRows, docs } = s;
           const tasks = Object.values(taskRows);
+          const teamFloorReady = floorScopesStamped(
+            s,
+            floorScopeKeys(
+              { workspace: "team", team_id: team0 },
+              String(fixtureId("users", person.id)),
+            ),
+          );
+          const excludeTombstones = Object.values(s.pending).filter(
+            (e: any) => e?.type === "exclude",
+          ).length;
           return {
             ...totals,
+            teamFloorReady,
+            excludeTombstones,
             staleTaskTitles: [...expectedTaskIds].filter(
               (id) => taskRows[id]?.title !== expectedTitles.get(id),
             ).length,
@@ -276,14 +281,16 @@ async function runWithScopeManager(config: {
   } finally {
     if (prevInterest === undefined) delete process.env.SWARM_INTEREST_SCOPES;
     else process.env.SWARM_INTEREST_SCOPES = prevInterest;
-    if (prevClientFlag === undefined)
+    if (prevClientFlag === undefined) {
       delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-    else process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = prevClientFlag;
+    } else {
+      process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = prevClientFlag;
+    }
     uninstallRealm();
   }
 }
 
-test("client scope subscription manager keeps events per device at the #316 interest-scope level", async () => {
+test("client scope subscription manager drives real reconcile and catchUp in population sim", async () => {
   const people = 50;
   const seed = 42;
   const baselineTeam = await runPopulation({
@@ -306,6 +313,8 @@ test("client scope subscription manager keeps events per device at the #316 inte
 
   for (const m of managed.measurements) {
     expect(m.teamEvents).toBe(0);
+    expect(m.teamFloorReady).toBe(true);
+    expect(m.excludeTombstones).toBe(0);
     expect(m.staleTaskTitles).toBe(0);
     expect(m.staleDocTitles).toBe(0);
     expect(m.unexpectedTasks).toBe(0);

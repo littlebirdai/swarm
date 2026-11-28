@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { __cacheEvictionsIdleForTests } from "../cache-eviction";
+import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import { useInboxStore } from "../inboxStore";
 import {
   SCOPE_FOLLOW_WINDOW_MS,
@@ -8,16 +10,24 @@ import {
   clientScopeSubscriptionsEnabled,
   computePurgeSet,
   extractScopeCandidates,
+  filterFollowerRemovals,
   initialScopeSubscriptionState,
   reconcileScopeSubscriptions,
   rowHomeScope,
-  touchScopeSubscriptionInState,
 } from "../scope-subscriptions";
 
 const PREV_FLAG = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
+const cid = (label: string) =>
+  label
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase()
+    .padEnd(32, "0");
 
 beforeEach(() => {
   delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
+  resetDetailPins();
+  useInboxStore.getState()._setOutbox(null, null, null);
+  useInboxStore.getState()._setDispatch(null);
   useInboxStore.setState({
     currentUser: null,
     teams: [],
@@ -34,6 +44,7 @@ beforeEach(() => {
     tasks: {},
     docs: {},
     docDetails: {},
+    taskComments: {},
     plans: {},
     chatMessages: {},
     pending: {},
@@ -44,18 +55,25 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (PREV_FLAG === undefined)
+  resetDetailPins();
+  useInboxStore.getState()._setOutbox(null, null, null);
+  useInboxStore.getState()._setDispatch(null);
+  if (PREV_FLAG === undefined) {
     delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  else process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
+  } else {
+    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
+  }
 });
 
 describe("scope-subscriptions pure core", () => {
-  test("flag is off by default and store reconciliation is a no-op without it", () => {
+  test("flag is off by default and store actions are no-ops without it", () => {
     expect(clientScopeSubscriptionsEnabled()).toBe(false);
+    const tId = cid("tflagoff");
     useInboxStore.setState({
       currentUser: { _id: "u1" },
       teams: [{ _id: "t1" }],
       clientStateInitialized: true,
+      tasks: { [tId]: { _id: tId, home_scope: "project:p-other" } },
     } as any);
     const res = useInboxStore.getState().reconcileScopeSubscriptions(1000);
     expect(res.addedScopes).toEqual([]);
@@ -67,9 +85,13 @@ describe("scope-subscriptions pure core", () => {
       [],
       [],
     ]);
+    expect(useInboxStore.getState().purgeUnheldScopeRows(["user:u1"])).toEqual(
+      [],
+    );
+    expect(useInboxStore.getState().tasks[tId]).toBeDefined();
   });
 
-  test("extracts pinned, membership, follows (starred + 14d visits), and view scopes", () => {
+  test("extracts pinned, membership, follows, and view while skipping personal and unresolved projects", () => {
     const now = 20 * 24 * 60 * 60 * 1000;
     const candidates = extractScopeCandidates(
       {
@@ -80,7 +102,7 @@ describe("scope-subscriptions pure core", () => {
             _id: "r1",
             host_user_id: "u1",
             status: "active",
-            scope: { project_ids: ["p-role"] },
+            scope: { project_ids: ["p-role", "p-missing"] },
           },
           rRetired: {
             _id: "rRetired",
@@ -96,12 +118,43 @@ describe("scope-subscriptions pure core", () => {
           },
         },
         projects: {
-          "p-owned": { _id: "p-owned", user_id: "u1" },
-          "p-role": { _id: "p-role", user_id: "u2", short_id: "pj-role" },
-          "p-star": { _id: "p-star", user_id: "u2", short_id: "pj-star" },
-          "p-recent": { _id: "p-recent", user_id: "u2", short_id: "pj-rec" },
-          "p-old": { _id: "p-old", user_id: "u2", short_id: "pj-old" },
-          "p-view": { _id: "p-view", user_id: "u2" },
+          "p-owned": { _id: "p-owned", user_id: "u1", workspace: "team:t1" },
+          "p-personal": {
+            _id: "p-personal",
+            user_id: "u1",
+            workspace: "user:u1",
+          },
+          "p-role": {
+            _id: "p-role",
+            user_id: "u2",
+            short_id: "pj-role",
+            workspace: "team:t1",
+          },
+          "p-retired": {
+            _id: "p-retired",
+            user_id: "u2",
+            workspace: "team:t1",
+          },
+          "p-star": {
+            _id: "p-star",
+            user_id: "u2",
+            short_id: "pj-star",
+            workspace: "team:t1",
+          },
+          "p-recent": {
+            _id: "p-recent",
+            user_id: "u2",
+            short_id: "pj-rec",
+            workspace: "team:t1",
+          },
+          "p-old": {
+            _id: "p-old",
+            user_id: "u2",
+            short_id: "pj-old",
+            workspace: "team:t1",
+          },
+          "p-view": { _id: "p-view", user_id: "u2", workspace: "team:t1" },
+          "p-peer": { _id: "p-peer", user_id: "u2", workspace: "team:t1" },
         },
         chatChannels: {
           "ch-open": { _id: "ch-open" },
@@ -135,7 +188,11 @@ describe("scope-subscriptions pure core", () => {
         ],
         clientState: {
           ui: {
-            sidebar_pins: [{ kind: "project", id: "pj-star" }],
+            sidebar_pins: [
+              { kind: "project", id: "pj-star" },
+              { kind: "project", id: "p-personal" },
+              { kind: "project", id: "p-unknown" },
+            ],
           },
         },
         recentVisits: [
@@ -162,16 +219,24 @@ describe("scope-subscriptions pure core", () => {
               children: [
                 { type: "leaf", id: "l1", path: "/projects/p-view" },
                 { type: "leaf", id: "l2", path: "/chat/ch-muted-open" },
-                { type: "leaf", id: "l3", path: "/tasks/task1" },
+                { type: "leaf", id: "l3", path: "/tasks/ct-9" },
+                { type: "leaf", id: "l4", path: "/projects/%E0%A4%A" },
+                { type: "leaf", id: "l5", path: "/projects/does-not-exist" },
               ],
             },
           },
         ],
         tasks: {
-          task1: {
-            _id: "task1",
+          [cid("task1")]: {
+            _id: cid("task1"),
+            short_id: "ct-9",
             home_scope: "project:p-task-view",
             workspace: "team:t1",
+          },
+        },
+        scopeSubscriptions: {
+          peerViews: {
+            follower1: ["project:p-peer", "unknown:ignored"],
           },
         },
       },
@@ -191,52 +256,107 @@ describe("scope-subscriptions pure core", () => {
     ]);
     expect(candidates.view.sort()).toEqual([
       "channel:ch-muted-open",
+      "project:p-peer",
       "project:p-task-view",
       "project:p-view",
     ]);
   });
 
-  test("enforces 64-scope budget and evicts least recently used scopes", () => {
+  test("enforces 64-scope budget, keeps user first over 64 pins, and puts current view ahead of lastUsedAt", () => {
     let state = initialScopeSubscriptionState();
-    const pinned = ["user:u1", "dir:t1"];
-    const membership = Array.from({ length: 62 }, (_, i) => `project:p${i}`);
-
-    const first = reconcileScopeSubscriptions(
+    const pinned = [
+      "user:u1",
+      ...Array.from({ length: 69 }, (_, i) => `dir:t${i}`),
+    ];
+    const overPinned = reconcileScopeSubscriptions(
       state,
-      { principalId: "u1", pinned, membership, follows: [], view: [] },
+      { principalId: "u1", pinned, membership: [], follows: [], view: [] },
       1000,
     );
-    state = first.state;
-    expect(first.activeScopes).toHaveLength(SCOPE_SUBSCRIPTION_BUDGET);
-    expect(first.evictedScopes).toEqual([]);
+    expect(overPinned.activeScopes).toHaveLength(SCOPE_SUBSCRIPTION_BUDGET);
+    expect(overPinned.activeScopes[0]).toBe("user:u1");
 
-    state = touchScopeSubscriptionInState(state, "project:p0", 1500);
-    for (let i = 2; i < 62; i++) {
-      state = touchScopeSubscriptionInState(state, `project:p${i}`, 1500 + i);
-    }
+    state = initialScopeSubscriptionState();
+    const membership = Array.from({ length: 62 }, (_, i) => `project:p${i}`);
+    const follows = Array.from({ length: 62 }, (_, i) => ({
+      scope: `project:p${i}`,
+      at: i === 1 ? 1100 : 1200,
+    }));
+    const first = reconcileScopeSubscriptions(
+      state,
+      {
+        principalId: "u1",
+        pinned: ["user:u1", "dir:t1"],
+        membership,
+        follows,
+        view: [],
+      },
+      1500,
+    );
+    state = first.state;
+
+    const clampedFuture = reconcileScopeSubscriptions(
+      initialScopeSubscriptionState(),
+      {
+        principalId: "u1",
+        pinned: ["user:u1"],
+        membership: ["project:pfuture"],
+        follows: [{ scope: "project:pfuture", at: 99_999_999 }],
+        view: [],
+      },
+      1500,
+    );
+    expect(clampedFuture.state.active["project:pfuture"].lastUsedAt).toBe(1500);
+
+    const idleRepeat = reconcileScopeSubscriptions(
+      state,
+      {
+        principalId: "u1",
+        pinned: ["user:u1", "dir:t1"],
+        membership,
+        follows,
+        view: [],
+      },
+      1600,
+    );
+    expect(idleRepeat.state).toBe(state);
+    expect(idleRepeat.state.active).toBe(state.active);
 
     const second = reconcileScopeSubscriptions(
       state,
       {
         principalId: "u1",
-        pinned,
+        pinned: ["user:u1", "dir:t1"],
         membership,
-        follows: [],
-        view: ["project:p-new"],
+        follows,
+        view: ["project:p-view-now"],
       },
-      2000,
+      1700,
     );
     expect(second.activeScopes).toHaveLength(SCOPE_SUBSCRIPTION_BUDGET);
     expect(second.activeScopes).toContain("user:u1");
     expect(second.activeScopes).toContain("dir:t1");
-    expect(second.activeScopes).toContain("project:p0");
-    expect(second.activeScopes).toContain("project:p-new");
-    expect(second.activeScopes).not.toContain("project:p1");
+    expect(second.activeScopes).toContain("project:p-view-now");
     expect(second.evictedScopes).toEqual(["project:p1"]);
-    expect(second.removedScopes).toEqual(["project:p1"]);
+
+    const third = reconcileScopeSubscriptions(
+      second.state,
+      {
+        principalId: "u1",
+        pinned: ["user:u1", "dir:t1"],
+        membership,
+        follows: membership
+          .filter((s) => s !== "project:p2")
+          .map((scope) => ({ scope, at: 1800 })),
+        view: ["project:p-view-2"],
+      },
+      1800,
+    );
+    expect(third.activeScopes).toContain("project:p-view-2");
+    expect(third.activeScopes).not.toContain("project:p2");
   });
 
-  test("keeps viewed scopes for 60 s grace after leaving, then expires them", () => {
+  test("starts 60 s grace on leaving view, clears on return, then expires", () => {
     let state = initialScopeSubscriptionState();
     const t0 = 10_000;
     const opened = reconcileScopeSubscriptions(
@@ -253,7 +373,9 @@ describe("scope-subscriptions pure core", () => {
     state = opened.state;
     expect(opened.activeScopes).toContain("project:p-view");
     expect(opened.nextGraceExpiryAt).toBeNull();
+    expect(state.graceDeadlines).toEqual({});
 
+    const stayedAt90s = t0 + 90_000;
     const left = reconcileScopeSubscriptions(
       state,
       {
@@ -263,11 +385,11 @@ describe("scope-subscriptions pure core", () => {
         follows: [],
         view: [],
       },
-      t0 + 1000,
+      stayedAt90s,
     );
     state = left.state;
     expect(left.activeScopes).toContain("project:p-view");
-    expect(left.nextGraceExpiryAt).toBe(t0 + SCOPE_VIEW_GRACE_MS);
+    expect(left.nextGraceExpiryAt).toBe(stayedAt90s + SCOPE_VIEW_GRACE_MS);
 
     const beforeExpiry = reconcileScopeSubscriptions(
       state,
@@ -278,13 +400,29 @@ describe("scope-subscriptions pure core", () => {
         follows: [],
         view: [],
       },
-      t0 + SCOPE_VIEW_GRACE_MS - 1,
+      stayedAt90s + SCOPE_VIEW_GRACE_MS - 1,
     );
     state = beforeExpiry.state;
     expect(beforeExpiry.activeScopes).toContain("project:p-view");
     expect(beforeExpiry.expiredGraceScopes).toEqual([]);
 
-    const atExpiry = reconcileScopeSubscriptions(
+    const returned = reconcileScopeSubscriptions(
+      state,
+      {
+        principalId: "u1",
+        pinned: ["user:u1"],
+        membership: [],
+        follows: [],
+        view: ["project:p-view"],
+      },
+      stayedAt90s + SCOPE_VIEW_GRACE_MS - 1,
+    );
+    state = returned.state;
+    expect(returned.nextGraceExpiryAt).toBeNull();
+    expect(state.graceDeadlines).toEqual({});
+
+    const leftAgainAt = stayedAt90s + 120_000;
+    const leftAgain = reconcileScopeSubscriptions(
       state,
       {
         principalId: "u1",
@@ -293,7 +431,20 @@ describe("scope-subscriptions pure core", () => {
         follows: [],
         view: [],
       },
-      t0 + SCOPE_VIEW_GRACE_MS,
+      leftAgainAt,
+    );
+    expect(leftAgain.nextGraceExpiryAt).toBe(leftAgainAt + SCOPE_VIEW_GRACE_MS);
+
+    const atExpiry = reconcileScopeSubscriptions(
+      leftAgain.state,
+      {
+        principalId: "u1",
+        pinned: ["user:u1"],
+        membership: [],
+        follows: [],
+        view: [],
+      },
+      leftAgainAt + SCOPE_VIEW_GRACE_MS,
     );
     expect(atExpiry.activeScopes).toEqual(["user:u1"]);
     expect(atExpiry.expiredGraceScopes).toEqual(["project:p-view"]);
@@ -301,7 +452,7 @@ describe("scope-subscriptions pure core", () => {
     expect(atExpiry.nextGraceExpiryAt).toBeNull();
   });
 
-  test("preserves chunk assignments across additions and removals in chunks of 16", () => {
+  test("preserves chunk assignments across additions, removals, and denied scopes", () => {
     let state = initialScopeSubscriptionState();
     const initialMembership = Array.from(
       { length: 20 },
@@ -321,12 +472,8 @@ describe("scope-subscriptions pure core", () => {
     state = r1.state;
     expect(state.chunks[0]).toHaveLength(SCOPE_HEADS_CHUNK_SIZE);
     expect(state.chunks[1]).toHaveLength(5);
-    expect(state.chunks[2]).toEqual([]);
-    expect(state.chunks[3]).toEqual([]);
 
     const prevChunk0 = state.chunks[0];
-    const prevChunk1 = state.chunks[1];
-
     const r2 = reconcileScopeSubscriptions(
       state,
       {
@@ -340,10 +487,9 @@ describe("scope-subscriptions pure core", () => {
     );
     state = r2.state;
     expect(state.chunks[0]).toBe(prevChunk0);
-    expect(state.chunks[1]).toEqual([...prevChunk1, "project:p-added"]);
+    expect(state.chunks[1]).toContain("project:p-added");
 
     const withoutP00 = initialMembership.filter((s) => s !== "project:p00");
-    const prevChunk1AfterAdd = state.chunks[1];
     const r3 = reconcileScopeSubscriptions(
       state,
       {
@@ -357,87 +503,209 @@ describe("scope-subscriptions pure core", () => {
     );
     expect(r3.state.chunks[0]).toHaveLength(15);
     expect(r3.state.chunks[0]).not.toContain("project:p00");
-    expect(r3.state.chunks[1]).toBe(prevChunk1AfterAdd);
   });
 
-  test("computes purge set and purges unheld rows in store while lifting excludes on rejoin", () => {
+  test("protects local/pending/outbox/pinned/owned/unknown rows and evicts without excludes", () => {
     expect(
       rowHomeScope("tasks", {
-        _id: "t1",
+        _id: cid("t1"),
         workspace: "team:team1",
         project_id: "p1",
       }),
     ).toBe("project:p1");
     expect(
       rowHomeScope("docs", {
-        _id: "d1",
+        _id: cid("d1"),
         workspace: "team:team1",
       }),
     ).toBe("dir:team1");
     expect(
       rowHomeScope("plans", {
-        _id: "pl1",
-        workspace: "user:u1",
-        project_id: "p1",
+        _id: cid("pl1"),
+        workspace: "restricted:org1",
+        team_id: "team1",
       }),
-    ).toBe("user:u1");
+    ).toBeNull();
     expect(
-      rowHomeScope("chatMessages", {
-        _id: "m1",
-        channel_id: "ch1",
+      rowHomeScope("tasks", {
+        _id: cid("tnotws"),
+        team_id: "team1",
       }),
-    ).toBe("channel:ch1");
+    ).toBeNull();
+    expect(
+      rowHomeScope("docs", {
+        _id: cid("dunknown"),
+        home_scope: "session:s1",
+      }),
+    ).toBeNull();
+
+    const idDrop = cid("tdrop");
+    const idDocDrop = cid("ddrop");
+    const idPlanDrop = cid("pldrop");
+    const idMsgDrop = cid("mdrop");
+    const idFieldLock = cid("tfield");
+    const idIncludeLock = cid("tinclude");
+    const idDocPinned = cid("ddetailpin");
+    const idTaskPinned = cid("ttaskpin");
+    const idUnsentRowComment = cid("tunsentrow");
+    const idUnsentSplitComment = cid("tunsentsplit");
+    const idOwnedByViewer = cid("towned");
+    const idAssignedToViewer = cid("tassigned");
+    const idOutboxChat = cid("moutbox");
+    const idFailedChat = cid("mfailed");
+    const idUnknownPrefix = cid("tunknownscope");
+
+    const releaseDoc = pinDetailRows("docDetails", [idDocPinned]);
+    const releaseTask = pinDetailRows("taskComments", [idTaskPinned]);
 
     const held = new Set(["user:u1", "dir:team1", "project:p-held"]);
     const purgeTargets = computePurgeSet(
       {
+        currentUser: { _id: "u1" },
         tasks: {
-          tHeld: { _id: "tHeld", home_scope: "project:p-held" },
-          tDrop: { _id: "tDrop", home_scope: "project:p-evicted" },
-          tLocked: { _id: "tLocked", home_scope: "project:p-evicted" },
-          tUser: { _id: "tUser", home_scope: "user:u1" },
+          "docstub-not-convex": {
+            _id: "docstub-not-convex",
+            home_scope: "project:p-evicted",
+          },
+          [idDrop]: { _id: idDrop, home_scope: "project:p-evicted" },
+          [idFieldLock]: { _id: idFieldLock, home_scope: "project:p-evicted" },
+          [idIncludeLock]: {
+            _id: idIncludeLock,
+            home_scope: "project:p-evicted",
+          },
+          [idTaskPinned]: {
+            _id: idTaskPinned,
+            home_scope: "project:p-evicted",
+          },
+          [idUnsentRowComment]: {
+            _id: idUnsentRowComment,
+            home_scope: "project:p-evicted",
+            comments: [{ _id: "temp_c1", text: "draft" }],
+          },
+          [idUnsentSplitComment]: {
+            _id: idUnsentSplitComment,
+            home_scope: "project:p-evicted",
+          },
+          [idOwnedByViewer]: {
+            _id: idOwnedByViewer,
+            user_id: "u1",
+            home_scope: "project:p-evicted",
+          },
+          [idAssignedToViewer]: {
+            _id: idAssignedToViewer,
+            assignee: "u1",
+            home_scope: "project:p-evicted",
+          },
+          [idUnknownPrefix]: {
+            _id: idUnknownPrefix,
+            home_scope: "future:scope1",
+          },
+        },
+        taskComments: {
+          [idUnsentSplitComment]: {
+            _id: idUnsentSplitComment,
+            comments: [{ _id: "temp_split", text: "unsent" }],
+          },
         },
         docs: {
-          dDir: { _id: "dDir", home_scope: "dir:team1" },
-          dDrop: { _id: "dDrop", workspace: "team:team1", project_id: "p-old" },
+          "docstub-1": { _id: "docstub-1", home_scope: "project:p-evicted" },
+          [idDocPinned]: { _id: idDocPinned, home_scope: "project:p-evicted" },
+          [idDocDrop]: {
+            _id: idDocDrop,
+            workspace: "team:team1",
+            project_id: "p-old",
+          },
         },
         plans: {
-          plDrop: { _id: "plDrop", home_scope: "project:p-evicted" },
+          [idPlanDrop]: { _id: idPlanDrop, home_scope: "project:p-evicted" },
         },
         chatMessages: {
-          mDrop: { _id: "mDrop", channel_id: "ch-muted" },
+          "chatmsgstub-1": {
+            _id: "chatmsgstub-1",
+            channel_id: "ch-muted",
+            content: "sending",
+          },
+          [idOutboxChat]: {
+            _id: idOutboxChat,
+            channel_id: "ch-muted",
+            content: "edited offline",
+          },
+          [idFailedChat]: {
+            _id: idFailedChat,
+            channel_id: "ch-muted",
+            content: "failed",
+            _failedAt: 100,
+          },
+          [idMsgDrop]: { _id: idMsgDrop, channel_id: "ch-muted" },
         },
       },
       held,
-      { "tasks:tLocked:title": { type: "field", value: "locked", ts: 1 } },
+      {
+        pending: {
+          [`tasks:${idFieldLock}:title`]: {
+            type: "field",
+            value: "locked",
+            ts: 1,
+          },
+          [`tasks:${idIncludeLock}`]: {
+            type: "include",
+            ts: 1,
+          },
+        },
+        protectedOutboxRows: new Set([`chatMessages:${idOutboxChat}`]),
+        viewerId: "u1",
+      },
     );
+    releaseDoc();
+    releaseTask();
 
     expect(purgeTargets).toEqual([
-      { collection: "tasks", id: "tDrop", scope: "project:p-evicted" },
-      { collection: "docs", id: "dDrop", scope: "project:p-old" },
-      { collection: "plans", id: "plDrop", scope: "project:p-evicted" },
-      { collection: "chatMessages", id: "mDrop", scope: "channel:ch-muted" },
+      { collection: "tasks", id: idDrop, scope: "project:p-evicted" },
+      { collection: "docs", id: idDocDrop, scope: "project:p-old" },
+      { collection: "plans", id: idPlanDrop, scope: "project:p-evicted" },
+      { collection: "chatMessages", id: idMsgDrop, scope: "channel:ch-muted" },
     ]);
 
     process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+    const parkedOutbox: any[] = [];
+    useInboxStore.getState()._setOutbox(
+      async (entry) => {
+        parkedOutbox.push(entry);
+      },
+      async () => {},
+      async () => parkedOutbox,
+    );
+
+    const idStarTask = cid("tstar1");
+    const idEditChat = cid("mreal1");
     useInboxStore.setState({
       currentUser: { _id: "u1" },
       teams: [{ _id: "team1" }],
+      projects: { "p-star": { _id: "p-star", workspace: "team:team1" } },
       clientStateInitialized: true,
       clientState: {
         ui: { sidebar_pins: [{ kind: "project", id: "p-star" }] },
       } as any,
       tasks: {
-        tKeep: { _id: "tKeep", home_scope: "project:p-star" },
-        tDrop: { _id: "tDrop", home_scope: "project:p-star" },
+        [idStarTask]: { _id: idStarTask, home_scope: "project:p-star" },
+      },
+      chatMessages: {
+        [idEditChat]: {
+          _id: idEditChat,
+          channel_id: "ch-unsubscribed",
+          content: "before edit",
+          user_id: "u2",
+        },
       },
       syncMeta: { "synclog:v1:project:p-star": { cursor: 5 } },
       syncLogScopeStamps: { "project:p-star": 100 },
     } as any);
 
+    useInboxStore.getState().editChatMessage(idEditChat, "edited offline");
+
     const joinRes = useInboxStore.getState().reconcileScopeSubscriptions(1000);
     expect(joinRes.addedScopes).toContain("project:p-star");
-    expect(useInboxStore.getState().tasks.tDrop).toBeDefined();
+    expect(__cacheEvictionsIdleForTests()).toBe(true);
 
     useInboxStore.setState({
       clientState: { ui: { sidebar_pins: [] } } as any,
@@ -445,25 +713,83 @@ describe("scope-subscriptions pure core", () => {
 
     const dropRes = useInboxStore.getState().reconcileScopeSubscriptions(2000);
     expect(dropRes.removedScopes).toContain("project:p-star");
-    expect(useInboxStore.getState().tasks.tDrop).toBeUndefined();
-    expect(useInboxStore.getState().tasks.tKeep).toBeUndefined();
-    expect(useInboxStore.getState().pending["tasks:tDrop"]).toMatchObject({
-      type: "exclude",
-      scope: "project:p-star",
-    });
+    expect(useInboxStore.getState().tasks[idStarTask]).toBeUndefined();
+    expect(useInboxStore.getState().chatMessages[idEditChat]?.content).toBe(
+      "edited offline",
+    );
     expect(
-      useInboxStore.getState().syncMeta["synclog:v1:project:p-star"],
+      useInboxStore.getState().pending[`tasks:${idStarTask}`],
+    ).toBeUndefined();
+    expect(__cacheEvictionsIdleForTests()).toBe(true);
+
+    useInboxStore
+      .getState()
+      .syncTable(
+        "tasks",
+        [{ _id: idStarTask, home_scope: "project:p-star", title: "Restored" }],
+        { isDelta: true },
+      );
+    expect(useInboxStore.getState().tasks[idStarTask]?.title).toBe("Restored");
+
+    const keptByFollower = filterFollowerRemovals(
+      {
+        activeTabId: "tab1",
+        tabs: [{ id: "tab1", path: "/projects/p-star" }],
+        projects: { "p-star": { _id: "p-star", workspace: "team:team1" } },
+        tasks: {
+          [idStarTask]: { _id: idStarTask, home_scope: "project:p-star" },
+          [idDrop]: { _id: idDrop, home_scope: "project:p-other" },
+        },
+      },
+      "tasks",
+      [idStarTask, idDrop],
+    );
+    expect(keptByFollower).toEqual([idDrop]);
+  });
+
+  test("drops denied scope from active/chunks and clears deny when inputs change", () => {
+    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+    const idBad = cid("tbadproj");
+    useInboxStore.setState({
+      currentUser: { _id: "u1" },
+      teams: [{ _id: "team1" }],
+      projects: {
+        "p-bad": { _id: "p-bad", workspace: "team:team1", starred: true },
+      },
+      clientStateInitialized: true,
+      tasks: {
+        [idBad]: { _id: idBad, home_scope: "project:p-bad" },
+      },
+    } as any);
+
+    useInboxStore.getState().reconcileScopeSubscriptions(1000);
+    expect(
+      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
+    ).toBeDefined();
+
+    useInboxStore.getState().denyScopeSubscriptions(["project:p-bad"], 2000);
+    expect(
+      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
+    ).toBeUndefined();
+    expect(
+      useInboxStore.getState().scopeSubscriptions.chunks.flat(),
+    ).not.toContain("project:p-bad");
+    expect(useInboxStore.getState().tasks[idBad]).toBeUndefined();
+
+    useInboxStore.getState().reconcileScopeSubscriptions(3000);
+    expect(
+      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
     ).toBeUndefined();
 
     useInboxStore.setState({
-      clientState: {
-        ui: { sidebar_pins: [{ kind: "project", id: "p-star" }] },
-      } as any,
+      projects: {
+        "p-bad": { _id: "p-bad", workspace: "team:team1", starred: true },
+        "p-new": { _id: "p-new", workspace: "team:team1", starred: true },
+      },
     } as any);
-    const rejoinRes = useInboxStore
-      .getState()
-      .reconcileScopeSubscriptions(3000);
-    expect(rejoinRes.addedScopes).toContain("project:p-star");
-    expect(useInboxStore.getState().pending["tasks:tDrop"]).toBeUndefined();
+    useInboxStore.getState().reconcileScopeSubscriptions(4000);
+    expect(
+      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
+    ).toBeDefined();
   });
 });
