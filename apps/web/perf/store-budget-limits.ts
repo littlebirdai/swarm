@@ -37,7 +37,7 @@ const limits = {
   "Retained mySends": { measured: 10000, margin: 0 },
   "First paint IndexedDB tables": { measured: 2, margin: 0 },
   "First paint IndexedDB rows": { measured: 3, margin: 0 },
-  "First paint SQLite rows": { measured: 2_823, margin: 0 },
+  "First paint SQLite rows": { measured: 2_819, margin: 0 },
   "Streamed batch row writes": { measured: 4, margin: 0 },
   "Rename action IndexedDB row writes": { measured: 4, margin: 0 },
   "Rename action SQLite row writes": { measured: 2, margin: 0 },

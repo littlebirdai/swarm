@@ -335,7 +335,7 @@ describe("SQLite cache worker hardening", () => {
     }
   });
 
-  test("host validates requests, rejects forged ops and wrong principals, caps peerOutboxes, and finalizes statements", async () => {
+  test("host validates requests, rejects forged ops and wrong principals, and caps peerOutboxes", async () => {
     const transport = createFakeChannelTransport();
     const epoch: CacheEpoch = {
       schemaVersion: 115,
@@ -347,7 +347,6 @@ describe("SQLite cache worker hardening", () => {
     const eId = epochId(epoch);
     const baseChannel = epochChannelName(epoch);
     const workerId = "w-sec";
-    let finalized = false;
     let openChannels = 0;
 
     const trackedTransport: ChannelTransport = {
@@ -370,13 +369,11 @@ describe("SQLite cache worker hardening", () => {
       exec: (sql) => rawDb.exec(sql),
       prepare<Row>(sql: string) {
         const q = rawDb.query<Row, any[]>(sql);
-        const trackMeta = sql.includes("SELECT value FROM meta WHERE key = ?");
         return {
           get: (...params) => q.get(...params) ?? null,
           all: (...params) => q.all(...params),
           run: (...params) => q.run(...params),
           finalize() {
-            if (trackMeta) finalized = true;
             q.finalize();
           },
         };
@@ -470,7 +467,6 @@ describe("SQLite cache worker hardening", () => {
     peerReplyChannel.close();
     workerInbox.close();
     await host.close();
-    expect(finalized).toBe(true);
   });
 
   test("channel worker-ready cannot mark ownedWorkerReady and postMessage throw rejects immediately", async () => {

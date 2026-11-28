@@ -98,8 +98,12 @@ export function collectionStorage(db: SqliteDriver) {
       const value = getMeta(key);
       if (value !== undefined) result[key] = value;
     }
-    const live = getMeta("liveInboxIdList");
-    const focus = getMeta("lastFocusedConversationId");
+    const loadedMeta = (key: string) =>
+      metaKeys.has(key) && (!keys || keys.includes(key))
+        ? result[key]
+        : getMeta(key);
+    const live = loadedMeta("liveInboxIdList");
+    const focus = loadedMeta("lastFocusedConversationId");
     const now = Date.now();
     for (const key of keys ?? Object.keys(WEB_COLLECTION_INDEXES)) {
       if (!Object.hasOwn(WEB_COLLECTION_INDEXES, key)) continue;

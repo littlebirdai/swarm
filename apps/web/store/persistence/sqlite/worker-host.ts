@@ -45,25 +45,12 @@ export type SqliteWorkerHost = {
 
 const MAX_PEER_OUTBOXES = 16;
 
-type ReadMetaStmt = ReturnType<SqliteDriver["prepare"]>;
-
-function readFileOwnerState(readMeta: ReadMetaStmt | null): {
+function fileOwnerState(cache: ReturnType<typeof createSqliteCache>): {
   named: string[];
   blocked: boolean;
 } {
-  if (!readMeta) return { named: [], blocked: false };
   try {
-    const ownerRaw = readMeta.get("cacheOwner") as { value: string } | null;
-    const userRaw = readMeta.get("currentUser") as { value: string } | null;
-    const owner = ownerRaw ? JSON.parse(ownerRaw.value) : null;
-    const user = userRaw ? JSON.parse(userRaw.value) : null;
-    const named = [owner?.principal, user?._id].filter(
-      (id): id is string => typeof id === "string",
-    );
-    return {
-      named,
-      blocked: owner?.blocked === true,
-    };
+    return cache.ownerState();
   } catch {
     return { named: [], blocked: false };
   }
@@ -198,7 +185,6 @@ export function createSqliteWorkerHost(
   const peerOutboxes = new Map<string, ChannelEndpoint>();
 
   let openedDb: OpenedWorkerDatabase | null = null;
-  let readMetaStmt: ReadMetaStmt | null = null;
   let cache: ReturnType<typeof createSqliteCache> | null = null;
   let ready = false;
   let closing = false;
@@ -359,7 +345,7 @@ export function createSqliteWorkerHost(
       req.op === "loadConversationMessages" ||
       req.op === "readDocDetailRefs";
     if (isRead) {
-      const ownerState = readFileOwnerState(readMetaStmt);
+      const ownerState = fileOwnerState(cache);
       if (ownerState.blocked) {
         failEpoch("write-failed", "write-failed");
         respondErr("write-failed", "Database marked write-failed");
@@ -446,7 +432,7 @@ export function createSqliteWorkerHost(
           )) ?? [];
       }
 
-      const ownerAfter = readFileOwnerState(readMetaStmt);
+      const ownerAfter = fileOwnerState(cache);
       if (pendingWriteError || ownerAfter.blocked) {
         const reason = pendingWriteError
           ? String(pendingWriteError)
@@ -512,10 +498,6 @@ export function createSqliteWorkerHost(
       } catch {}
     }
     peerOutboxes.clear();
-    if (readMetaStmt) {
-      readMetaStmt.finalize?.();
-      readMetaStmt = null;
-    }
     if (openedDb) {
       const dbToClose = openedDb;
       openedDb = null;
@@ -566,9 +548,6 @@ export function createSqliteWorkerHost(
           },
           "read-write",
         );
-        readMetaStmt = openedDb.driver.prepare<{ value: string }>(
-          "SELECT value FROM meta WHERE key = ?",
-        );
       } catch (error) {
         const code: SqliteErrorCode = isVersionMismatchError(error)
           ? "version-mismatch"
@@ -577,7 +556,7 @@ export function createSqliteWorkerHost(
         await this.close();
         return false;
       }
-      const ownerState = readFileOwnerState(readMetaStmt);
+      const ownerState = fileOwnerState(cache);
       if (ownerState.blocked) {
         failEpoch("write-failed", "write-failed");
         await this.close();

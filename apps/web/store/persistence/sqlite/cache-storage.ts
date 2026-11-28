@@ -17,6 +17,7 @@ export type SqliteCacheStorage = Omit<
   | "loadPaintCacheSync"
 > & {
   flushBatch(batch: SqliteFlushBatchPayload): void;
+  ownerState(): { named: string[]; blocked: boolean };
 };
 
 export function createSqliteCache(
@@ -42,6 +43,7 @@ export function createSqliteCache(
   let hydrating = false;
   let blockedOwner: string | null = null;
   let purging: Promise<void> | undefined;
+  let inspected: ReturnType<typeof ownerEvidence> | null = null;
   function ownerEvidence() {
     const owner = collections.getMeta("cacheOwner");
     const stamp = owner?.principal;
@@ -99,6 +101,8 @@ export function createSqliteCache(
   async function read<Result>(
     load: (afterCommit: AfterCommit) => Result,
   ): Promise<Result | null> {
+    const preread = inspected;
+    inspected = null;
     if (purging) return null;
     const before = epoch;
     const authEpoch = auth.epoch();
@@ -113,7 +117,7 @@ export function createSqliteCache(
         return null;
       const previousOwner = boundOwner ?? blockedOwner;
       return transact((afterCommit) => {
-        const evidence = ownerEvidence();
+        const evidence = preread ?? ownerEvidence();
         if (
           principal !== null &&
           evidence.named.length &&
@@ -149,6 +153,7 @@ export function createSqliteCache(
     change: (afterCommit: AfterCommit, blocked: boolean) => boolean | void,
     stateOwner?: unknown,
   ) {
+    inspected = null;
     if (readOnly || hydrating || purging) return;
     const principal = auth.current();
     if (
@@ -194,6 +199,10 @@ export function createSqliteCache(
   }
 
   return {
+    ownerState() {
+      inspected = ownerEvidence();
+      return { named: inspected.named, blocked: inspected.blocked };
+    },
     loadCache(keys, context = {}) {
       return read((afterCommit) =>
         collections.load(keys, context, readOnly ? undefined : afterCommit),
@@ -288,6 +297,7 @@ export function createSqliteCache(
       );
     },
     async purgeLocalCache(options) {
+      inspected = null;
       if (readOnly) return;
       const owner = options?.keepPendingInputFor ?? null;
       purging ??= Promise.resolve()
