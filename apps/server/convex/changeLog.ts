@@ -26,7 +26,6 @@ import {
   computeHomeScopeDb,
   computeWorkspaceKeyDb,
   firstLinkedConversationStamp,
-  interestScopesEnabled,
   type AccessStamp,
 } from "./lib/accessKeys";
 import {
@@ -76,7 +75,7 @@ function syncScopeFromStamp(stamp: AccessStamp | null, doc?: any): ChangeScope {
     owner_user_id: stamp?.access_owner,
     workspace: stamp?.access_key,
     grants: stamp?.access_grants ?? [],
-    ...(interestScopesEnabled() && typeof doc?.home_scope === "string"
+    ...(typeof doc?.home_scope === "string"
       ? { home_scope: doc.home_scope }
       : {}),
   };
@@ -291,7 +290,6 @@ export function makeChangeTrackedDb(
       const link = firstLinkedConversationStamp(table, doc);
       if (link) doc = { ...doc, ...link };
       if (
-        interestScopesEnabled() &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
         doc?.user_id &&
         typeof doc.workspace === "string" &&
@@ -324,7 +322,6 @@ export function makeChangeTrackedDb(
             typeof doc.workspace === "string" && doc.workspace
           );
           const needsHome =
-            interestScopesEnabled() &&
             HOME_SCOPE_WORK_TABLES.has(table) &&
             !(typeof doc.home_scope === "string" && doc.home_scope);
           if (needsWorkspace || needsHome) {
@@ -396,7 +393,6 @@ export function makeChangeTrackedDb(
       // A patch that touches scope fields can MOVE the entity between scopes; the
       // departed scope needs a revocation action, which requires the pre-write doc.
       const updatesHome =
-        interestScopesEnabled() &&
         !!table &&
         HOME_SCOPE_WORK_TABLES.has(table) &&
         Object.keys(fields).some((k) => HOME_SCOPE_FIELDS.has(k));
@@ -466,7 +462,6 @@ export function makeChangeTrackedDb(
           if (stamp) {
             let fullDoc = await extra.fullDoc!();
             if (
-              interestScopesEnabled() &&
               HOME_SCOPE_WORK_TABLES.has(table) &&
               fullDoc?.user_id &&
               !(typeof fullDoc.home_scope === "string" && fullDoc.home_scope)
@@ -530,12 +525,7 @@ export function makeChangeTrackedDb(
               preDoc,
             )
           : null;
-      if (
-        interestScopesEnabled() &&
-        table &&
-        HOME_SCOPE_WORK_TABLES.has(table) &&
-        doc?.user_id
-      ) {
+      if (table && HOME_SCOPE_WORK_TABLES.has(table) && doc?.user_id) {
         doc = {
           ...doc,
           home_scope: await computeHomeScopeDb({ db: rawDb }, doc),

@@ -11,7 +11,7 @@ import {
   emitSyncActions,
   makeSyncAckCollector,
   scopesForChange,
-  teamScopeKey,
+  dirScopeKey,
   userScopeKey,
 } from "./syncLog";
 import { prunablePrefix } from "./syncLogPrune";
@@ -20,7 +20,7 @@ import { accessStampFor } from "./lib/accessKeys";
 import { withSyncStore } from "../test-helpers/syncLog.testkit";
 
 describe("scopesForChange (access-derived fan-out)", () => {
-  test("tasks land in owner + the WORKSPACE team + the assignee's scope", () => {
+  test("tasks land in owner + home interest scope + the assignee's scope", () => {
     expect(
       scopesForChange("tasks", {
         owner_user_id: "users:1",
@@ -28,7 +28,7 @@ describe("scopesForChange (access-derived fan-out)", () => {
         workspace: "team:teams:9",
         grants: ["users:2"],
       }),
-    ).toEqual(["user:users:1", "team:teams:9", "user:users:2"]);
+    ).toEqual(["user:users:1", "user:users:2", "dir:teams:9"]);
   });
   test("private inside a team (team_id set, workspace user:owner) never enters the team scope", () => {
     expect(
@@ -216,10 +216,10 @@ describe("emitSyncActions — scope moves", () => {
           workspace: `team:${teams.a}`,
         },
       );
-      const departed = await actions(teamScopeKey(teams.a));
+      const departed = await actions(dirScopeKey(teams.a));
       expect(departed).toHaveLength(1);
       expect(departed[0].op).toBe("delete");
-      const entered = await actions(teamScopeKey(teams.b));
+      const entered = await actions(dirScopeKey(teams.b));
       expect(entered).toHaveLength(1);
       expect(entered[0].op).toBe("upsert");
       // Owner scope keeps one moved upsert row.
@@ -248,7 +248,7 @@ describe("emitSyncActions — scope moves", () => {
           workspace: `team:${teams.a}`,
         },
       );
-      expect((await actions(teamScopeKey(teams.a))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.a))).map((r) => r.op)).toEqual([
         "upsert",
       ]);
     });

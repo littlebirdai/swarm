@@ -5,7 +5,7 @@ import {
   buildCargo,
   isChurnOnlyPatch,
   makeSyncAckCollector,
-  teamScopeKey,
+  dirScopeKey,
   userScopeKey,
 } from "./syncLog";
 import { rollUpUsage } from "./messages";
@@ -25,25 +25,15 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       expect(
         (await actions(userScopeKey(users.one))).map((r) => r.entity_id),
       ).toEqual([String(id)]);
-      expect(
-        (await actions(teamScopeKey(teams.shared))).map((r) => r.entity_id),
-      ).toEqual([String(id)]);
-      const dirScope = `dir:${teams.shared}`;
-      if (process.env.SWARM_INTEREST_SCOPES === "1") {
-        expect((await actions(dirScope)).map((r) => r.entity_id)).toEqual([
-          String(id),
-        ]);
-        expect(collector.positions).toEqual([
-          { scope_key: `user:${users.one}`, position: 1 },
-          { scope_key: `team:${teams.shared}`, position: 1 },
-          { scope_key: dirScope, position: 1 },
-        ]);
-      } else {
-        expect(collector.positions).toEqual([
-          { scope_key: `user:${users.one}`, position: 1 },
-          { scope_key: `team:${teams.shared}`, position: 1 },
-        ]);
-      }
+      const dirScope = dirScopeKey(teams.shared);
+      expect((await actions(dirScope)).map((r) => r.entity_id)).toEqual([
+        String(id),
+      ]);
+      expect(await actions(`team:${teams.shared}`)).toEqual([]);
+      expect(collector.positions).toEqual([
+        { scope_key: `user:${users.one}`, position: 1 },
+        { scope_key: dirScope, position: 1 },
+      ]);
     });
   });
 
@@ -71,7 +61,7 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
         workspace: `user:${users.one}`,
         title: "t",
       });
-      expect(await actions(teamScopeKey(teams.routed))).toHaveLength(0);
+      expect(await actions(`team:${teams.routed}`)).toHaveLength(0);
       await db.insert("sync_actions", {
         scope_key: `team:${teams.routed}`,
         position: 1,
@@ -82,19 +72,19 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       });
       const tdb2 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb2.patch(id, { title: "t2" });
-      const stale = await actions(teamScopeKey(teams.routed));
+      const stale = await actions(`team:${teams.routed}`);
       expect(stale).toHaveLength(1);
       expect(stale[0].op).toBe("delete");
       expect(stale[0].patch).toBeUndefined();
       const tdb3 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb3.patch(id, { title: "t3" });
-      expect(
-        (await actions(teamScopeKey(teams.routed))).map((r) => r.op),
-      ).toEqual(["delete"]);
+      expect((await actions(`team:${teams.routed}`)).map((r) => r.op)).toEqual([
+        "delete",
+      ]);
     });
   });
 
-  test("a current team scope's upsert is never flipped", async () => {
+  test("a current dir scope's upsert is never flipped", async () => {
     await withSyncStore(async ({ db, actions, users, teams, rowsFor }) => {
       const tdb = makeChangeTrackedDb(db, makeSyncAckCollector());
       const id = await rowsFor(tdb).task(users.one, {
@@ -105,12 +95,12 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       const tdb2 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb2.patch(id, { title: "t2" });
       expect(
-        (await actions(teamScopeKey(teams.routed))).map((r) => r.op),
+        (await actions(dirScopeKey(teams.routed))).map((r) => r.op),
       ).toEqual(["upsert"]);
     });
   });
 
-  test("patch that moves team emits revocation in the departed team scope", async () => {
+  test("patch that moves team emits revocation in the departed dir scope", async () => {
     await withSyncStore(async ({ db, actions, users, teams, rowsFor }) => {
       const tdb = makeChangeTrackedDb(db, makeSyncAckCollector());
       const id = await rowsFor(tdb).task(users.one, {
@@ -119,10 +109,10 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       });
       const tdb2 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb2.patch(id, { team_id: teams.b, workspace: `team:${teams.b}` });
-      const departed = await actions(teamScopeKey(teams.a));
+      const departed = await actions(dirScopeKey(teams.a));
       expect(departed).toHaveLength(1);
       expect(departed[0].op).toBe("delete");
-      expect((await actions(teamScopeKey(teams.b))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.b))).map((r) => r.op)).toEqual([
         "upsert",
       ]);
     });
@@ -186,7 +176,7 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
         ["delete"],
       );
       expect(
-        (await actions(teamScopeKey(teams.shared))).map((r) => r.op),
+        (await actions(dirScopeKey(teams.shared))).map((r) => r.op),
       ).toEqual(["delete"]);
     });
   });
@@ -209,7 +199,7 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
         ["scope", "scope_removed"],
       ]);
       expect(
-        (await actions(teamScopeKey(teams.shared))).map((r) => [
+        (await actions(dirScopeKey(teams.shared))).map((r) => [
           r.entity_type,
           r.entity_id,
           r.op,
@@ -218,12 +208,12 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
     });
   });
 
-  test("a member removal row never coalesces with the team's entity rows or a repeat", async () => {
+  test("a member removal row never coalesces with the dir's entity rows or a repeat", async () => {
     await withSyncStore(async ({ db, actions, users, teams }) => {
       await appendSyncAction(
         db,
         null,
-        `team:${teams.shared}`,
+        `dir:${teams.shared}`,
         "tasks",
         users.seven,
         "upsert",
@@ -231,7 +221,7 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       await appendSyncAction(
         db,
         null,
-        `team:${teams.shared}`,
+        `dir:${teams.shared}`,
         "member",
         users.seven,
         "scope_removed",
@@ -239,13 +229,13 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
       await appendSyncAction(
         db,
         null,
-        `team:${teams.shared}`,
+        `dir:${teams.shared}`,
         "member",
         users.seven,
         "scope_removed",
       );
       expect(
-        (await actions(`team:${teams.shared}`)).map((r) => [
+        (await actions(`dir:${teams.shared}`)).map((r) => [
           r.entity_type,
           r.op,
         ]),
@@ -257,14 +247,15 @@ describe("makeChangeTrackedDb — dual emission through the interceptor", () => 
     });
   });
 
-  test("conversations never emit into the team scope", async () => {
+  test("conversations never emit into the dir or team scope", async () => {
     await withSyncStore(async ({ db, actions, users, teams, rowsFor }) => {
       const tdb = makeChangeTrackedDb(db, makeSyncAckCollector());
       await rowsFor(tdb).conversation(users.one, {
         team_id: teams.shared,
         team_visibility: "full",
       });
-      expect(await actions(teamScopeKey(teams.shared))).toHaveLength(0);
+      expect(await actions(dirScopeKey(teams.shared))).toHaveLength(0);
+      expect(await actions(`team:${teams.shared}`)).toHaveLength(0);
       expect(await actions(userScopeKey(users.one))).toHaveLength(1);
     });
   });
@@ -433,10 +424,10 @@ describe("scope-move sequences (review majors)", () => {
       const tdb2 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb2.patch(id, { team_id: teams.b, workspace: `team:${teams.b}` });
       await tdb2.patch(id, { title: "renamed" });
-      expect((await actions(teamScopeKey(teams.a))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.a))).map((r) => r.op)).toEqual([
         "delete",
       ]);
-      expect((await actions(teamScopeKey(teams.b))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.b))).map((r) => r.op)).toEqual([
         "upsert",
       ]);
       expect((await actions(userScopeKey(users.one))).map((r) => r.op)).toEqual(
@@ -456,13 +447,13 @@ describe("scope-move sequences (review majors)", () => {
       await tdb2.patch(id, { team_id: teams.b, workspace: `team:${teams.b}` });
       const tdb3 = makeChangeTrackedDb(db, makeSyncAckCollector());
       await tdb3.patch(id, { team_id: teams.c, workspace: `team:${teams.c}` });
-      expect((await actions(teamScopeKey(teams.a))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.a))).map((r) => r.op)).toEqual([
         "delete",
       ]);
-      expect((await actions(teamScopeKey(teams.b))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.b))).map((r) => r.op)).toEqual([
         "delete",
       ]);
-      expect((await actions(teamScopeKey(teams.c))).map((r) => r.op)).toEqual([
+      expect((await actions(dirScopeKey(teams.c))).map((r) => r.op)).toEqual([
         "upsert",
       ]);
     });

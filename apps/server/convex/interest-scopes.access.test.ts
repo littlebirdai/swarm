@@ -10,8 +10,6 @@ import {
 import { asUser, serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 
-const PREVIOUS_FLAG = process.env.SWARM_INTEREST_SCOPES;
-
 async function assertDenied(client: any, scope_key: string) {
   expect(
     (await client.query(api.syncLog.getHeads, { scopes: [scope_key] })).heads,
@@ -28,16 +26,10 @@ async function assertDenied(client: any, scope_key: string) {
 
 afterEach(() => {
   jest.useRealTimers();
-  if (PREVIOUS_FLAG === undefined) {
-    delete process.env.SWARM_INTEREST_SCOPES;
-  } else {
-    process.env.SWARM_INTEREST_SCOPES = PREVIOUS_FLAG;
-  }
 });
 
 describe("interest scopes never widen workspace access", () => {
   test("getHeads and getRange reject unauthorized project, session, dir, channel, and user scopes", async () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
       const rows = fixtureRows(ctx.db, "interest-access-gates");
@@ -161,20 +153,9 @@ describe("interest scopes never widen workspace access", () => {
     ]) {
       await assertDenied(teammateClient, forbidden);
     }
-
-    delete process.env.SWARM_INTEREST_SCOPES;
-    const offRange = await teammateClient.query(api.syncLog.getRange, {
-      scope_key: `project:${setup.teamProj}`,
-      from: 0,
-      cargo: true,
-      limit: 50,
-    });
-    expect(offRange.authorized).toBe(false);
-    expect(offRange.actions).toEqual([]);
   });
 
   test("rows stamped with private workspace inside an accessible interest scope are projected as delete without cargo and hidden from entity queries", async () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
       const rows = fixtureRows(ctx.db, "interest-adversarial-row");
@@ -307,7 +288,6 @@ describe("interest scopes never widen workspace access", () => {
   });
 
   test("caps and dedupes getHeads scopes, rejects forged and unauthenticated calls, and isolates channel workspace and kind checks", async () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
       const rows = fixtureRows(ctx.db, "interest-bounds-channels");
@@ -537,7 +517,6 @@ describe("interest scopes never widen workspace access", () => {
   });
 
   test("message flushes and heartbeats do not re-run getHeads, and locking a session private revokes via delete and stops further emission", async () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
     jest.useFakeTimers();
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
@@ -656,18 +635,15 @@ describe("interest scopes never widen workspace access", () => {
       actionsAfterLock.some(
         (a) =>
           a.scope_key === `team:${setup.team}` &&
-          a.entity_id === String(task.id) &&
-          a.op === "delete",
+          a.entity_id === String(task.id),
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       actionsAfterLock.some((a) => a.scope_key === `session:${setup.conv}`),
     ).toBe(false);
 
     const countBeforeUpdate = actionsAfterLock.filter(
-      (a) =>
-        a.scope_key === `dir:${setup.team}` ||
-        a.scope_key === `team:${setup.team}`,
+      (a) => a.scope_key === `dir:${setup.team}`,
     ).length;
 
     await ownerClient.mutation(api.tasks.webUpdate, {
@@ -680,9 +656,7 @@ describe("interest scopes never widen workspace access", () => {
       return await ctx.db.query("sync_actions").collect();
     });
     const countAfterUpdate = actionsAfterFollowUp.filter(
-      (a) =>
-        a.scope_key === `dir:${setup.team}` ||
-        a.scope_key === `team:${setup.team}`,
+      (a) => a.scope_key === `dir:${setup.team}`,
     ).length;
     expect(countAfterUpdate).toBe(countBeforeUpdate);
     expect(

@@ -6,25 +6,11 @@ import { patchConversationVisibility } from "../lib/conversationVisibility";
 import { scopesForChange } from "../syncLog";
 import { asUser, serverTest } from "../../test-helpers/database.testkit";
 import { fixtureRows } from "../../test-helpers/rows.testkit";
-import {
-  computeHomeScope as reexportedComputeHomeScope,
-  interestScopesEnabled as reexportedInterestScopesEnabled,
-} from "./access";
-import {
-  computeHomeScope,
-  computeHomeScopeDb,
-  interestScopesEnabled,
-} from "./accessKeys";
-
-const PREVIOUS_FLAG = process.env.SWARM_INTEREST_SCOPES;
+import { computeHomeScope as reexportedComputeHomeScope } from "./access";
+import { computeHomeScope, computeHomeScopeDb } from "./accessKeys";
 
 afterEach(() => {
   jest.useRealTimers();
-  if (PREVIOUS_FLAG === undefined) {
-    delete process.env.SWARM_INTEREST_SCOPES;
-  } else {
-    process.env.SWARM_INTEREST_SCOPES = PREVIOUS_FLAG;
-  }
 });
 
 const U1 = "user_001" as Id<"users">;
@@ -38,7 +24,6 @@ const CH1 = "chan_001" as Id<"chat_channels">;
 describe("computeHomeScope", () => {
   test("re-exports helper through convex/lib/access.ts", () => {
     expect(reexportedComputeHomeScope).toBe(computeHomeScope);
-    expect(reexportedInterestScopesEnabled).toBe(interestScopesEnabled);
   });
 
   test("returns channel:<id> whenever channel_id is present", () => {
@@ -174,28 +159,14 @@ describe("computeHomeScope", () => {
 });
 
 describe("scopesForChange", () => {
-  test("keeps team-only emission when SWARM_INTEREST_SCOPES is off", () => {
-    delete process.env.SWARM_INTEREST_SCOPES;
-    expect(interestScopesEnabled()).toBe(false);
-    expect(
-      scopesForChange("tasks", {
-        owner_user_id: U2,
-        workspace: `team:${T1}`,
-        home_scope: `project:${P1}`,
-      }),
-    ).toEqual([`user:${U2}`, `team:${T1}`]);
-  });
-
-  test("dual-writes home_scope alongside team scope when SWARM_INTEREST_SCOPES is on", () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
-    expect(interestScopesEnabled()).toBe(true);
+  test("routes team-workspace work to home_scope or dir:<team> without team:<id> fan-out", () => {
     expect(
       scopesForChange("tasks", {
         owner_user_id: U1,
         workspace: `team:${T1}`,
         home_scope: `project:${P1}`,
       }),
-    ).toEqual([`user:${U1}`, `team:${T1}`, `project:${P1}`]);
+    ).toEqual([`user:${U1}`, `project:${P1}`]);
 
     expect(
       scopesForChange("docs", {
@@ -203,7 +174,7 @@ describe("scopesForChange", () => {
         workspace: `team:${T1}`,
         home_scope: `dir:${T1}`,
       }),
-    ).toEqual([`user:${U2}`, `team:${T1}`, `dir:${T1}`]);
+    ).toEqual([`user:${U2}`, `dir:${T1}`]);
 
     expect(
       scopesForChange("plans", {
@@ -211,7 +182,7 @@ describe("scopesForChange", () => {
         workspace: `team:${T1}`,
         home_scope: `project:${P1}`,
       }),
-    ).toEqual([`user:${U1}`, `team:${T1}`, `project:${P1}`]);
+    ).toEqual([`user:${U1}`, `project:${P1}`]);
 
     expect(
       scopesForChange("docs", {
@@ -219,11 +190,17 @@ describe("scopesForChange", () => {
         workspace: `team:${T1}`,
         home_scope: `channel:${CH1}`,
       }),
-    ).toEqual([`user:${U1}`, `team:${T1}`, `channel:${CH1}`]);
+    ).toEqual([`user:${U1}`, `channel:${CH1}`]);
+
+    expect(
+      scopesForChange("projects", {
+        owner_user_id: U1,
+        workspace: `team:${T1}`,
+      }),
+    ).toEqual([`user:${U1}`, `dir:${T1}`]);
   });
 
   test("never fans a personal workspace row into shared home scopes", () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
     expect(
       scopesForChange("tasks", {
         owner_user_id: U1,
@@ -242,100 +219,8 @@ describe("scopesForChange", () => {
   });
 });
 
-describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", () => {
-  test("writes behave identically without home_scope when flag is off", async () => {
-    delete process.env.SWARM_INTEREST_SCOPES;
-    jest.useFakeTimers();
-    const t = serverTest();
-    const setup = await t.run(async (ctx) => {
-      const rows = fixtureRows(ctx.db, "flag-off");
-      const user = await rows.user({ name: "Alice" });
-      const team = await rows.team({
-        name: "Alpha",
-        features: { chat: true },
-      });
-      await rows.membership(user, team);
-      const project = await ctx.db.insert("projects", {
-        user_id: user,
-        team_id: team,
-        workspace: `team:${team}`,
-        title: "Core",
-        status: "active",
-        created_at: 1,
-        updated_at: 1,
-      });
-      const channel = await ctx.db.insert("chat_channels", {
-        team_id: team,
-        name: "general",
-        kind: "public",
-        workspace: `team:${team}`,
-        created_by: user,
-        created_at: 1,
-        updated_at: 1,
-      });
-      return { user, team, project, channel };
-    });
-
-    const client = asUser(t, setup.user);
-    const createdTask = await client.mutation(api.tasks.webCreate, {
-      title: "Off task",
-      workspace: "team",
-      team_id: setup.team,
-      project_id: setup.project,
-    });
-    const createdPlan = await client.mutation(api.plans.webCreate, {
-      title: "Off plan",
-      workspace: "team",
-      team_id: setup.team,
-    });
-    const createdDoc = await client.mutation(api.docs.webCreate, {
-      title: "Off doc",
-      workspace: "team",
-      team_id: setup.team,
-    });
-    const messageResult = await client.mutation(api.chat.sendMessage, {
-      channel_id: setup.channel,
-      content: "hello off",
-    });
-    const voiceResult = await client.mutation(api.chat.startVoiceBurst, {
-      channel_id: setup.channel,
-      room_key: "room-off-1",
-    });
-    await t.finishAllScheduledFunctions(() => jest.runAllTimers());
-
-    await t.run(async (ctx) => {
-      const task = await ctx.db.get(createdTask.id);
-      const plan = await ctx.db.get(createdPlan.id);
-      const doc = await ctx.db.get(createdDoc.id);
-      const msg = await ctx.db.get(messageResult.message_id);
-      const voiceMsg = await ctx.db.get(voiceResult.message_id);
-      expect(task?.home_scope).toBeUndefined();
-      expect(plan?.home_scope).toBeUndefined();
-      expect(doc?.home_scope).toBeUndefined();
-      expect(msg?.home_scope).toBeUndefined();
-      expect(voiceMsg?.home_scope).toBeUndefined();
-      const actions = await ctx.db.query("sync_actions").collect();
-      expect(
-        actions.some(
-          (a) =>
-            a.scope_key === `team:${setup.team}` &&
-            a.entity_id === String(createdTask.id),
-        ),
-      ).toBe(true);
-      expect(
-        actions.some(
-          (a) =>
-            a.scope_key.startsWith("project:") ||
-            a.scope_key.startsWith("dir:") ||
-            a.scope_key.startsWith("session:") ||
-            a.scope_key.startsWith("channel:"),
-        ),
-      ).toBe(false);
-    });
-  });
-
-  test("stamps home_scope for tasks, plans, docs, and chat_messages and dual-writes sync_actions when flag is on", async () => {
-    process.env.SWARM_INTEREST_SCOPES = "1";
+describe("write-time home_scope and interest-scope sync_actions emission", () => {
+  test("stamps home_scope for tasks, plans, docs, and chat_messages and writes sync_actions without team fan-out", async () => {
     jest.useFakeTimers();
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
@@ -473,7 +358,7 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       );
       expect(taskP1.some((a) => a.op === "delete")).toBe(true);
       expect(taskP2.some((a) => a.op === "upsert")).toBe(true);
-      expect(taskTeam.some((a) => a.op === "upsert")).toBe(true);
+      expect(taskTeam).toHaveLength(0);
 
       expect(
         actions.some(
@@ -540,7 +425,7 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
     });
   });
 
-  test("syncOutbox.getReceipts enforces heldKeys and canReadSyncScope across flag states", async () => {
+  test("syncOutbox.getReceipts enforces heldKeys and canReadSyncScope", async () => {
     const t = serverTest();
     const setup = await t.run(async (ctx) => {
       const rows = fixtureRows(ctx.db, "outbox-receipts");
@@ -618,33 +503,6 @@ describe("write-time home_scope and dual-write behind SWARM_INTEREST_SCOPES", ()
       { id: setup.sessionSlot, revision: 1 },
     ];
 
-    delete process.env.SWARM_INTEREST_SCOPES;
-    const memberOff = await memberClient.query(api.syncOutbox.getReceipts, {
-      receipts: request,
-    });
-    expect(memberOff).toEqual([
-      {
-        id: setup.teamSlot,
-        revision: 2,
-        scope_key: `team:${setup.team}`,
-        position: 10,
-      },
-      { id: setup.dirSlot, revision: 1, revoked: true },
-      { id: setup.projSlot, revision: 1, revoked: true },
-      { id: setup.privProjSlot, revision: 1, revoked: true },
-      { id: setup.sessionSlot, revision: 1, revoked: true },
-    ]);
-
-    const outsiderOff = await outsiderClient.query(api.syncOutbox.getReceipts, {
-      receipts: request.slice(0, 3),
-    });
-    expect(outsiderOff).toEqual([
-      { id: setup.teamSlot, revision: 1, revoked: true },
-      { id: setup.dirSlot, revision: 1, revoked: true },
-      { id: setup.projSlot, revision: 1, revoked: true },
-    ]);
-
-    process.env.SWARM_INTEREST_SCOPES = "1";
     const memberOn = await memberClient.query(api.syncOutbox.getReceipts, {
       receipts: request,
     });
