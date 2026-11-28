@@ -75,6 +75,7 @@ export class CodexPilotDelivery {
   private headDeliveryId: string | null = null;
   private service?: DeliveryFacade;
   private serviceInit?: Promise<DeliveryFacade>;
+  private serviceGeneration = 0;
   private context?: ActiveContext;
   private staleSettle?: { readonly attemptId: string; readonly count: number };
 
@@ -139,6 +140,7 @@ export class CodexPilotDelivery {
       const init = this.serviceInit;
       this.service = undefined;
       this.serviceInit = undefined;
+      this.serviceGeneration += 1;
       const current = await init?.catch(() => undefined);
       await current?.dispose().catch(() => {});
       if (this.service === current) this.service = undefined;
@@ -240,6 +242,7 @@ export class CodexPilotDelivery {
   private async ensureService(): Promise<DeliveryFacade> {
     if (this.service) return this.service;
     if (this.serviceInit) return this.serviceInit;
+    const generation = ++this.serviceGeneration;
     const init: Promise<DeliveryFacade> = (async () => {
       const { createDeliveryService } = await import("@codecast/delivery");
       const checkpoint = () => this.context?.session.getCheckpoint();
@@ -478,7 +481,7 @@ export class CodexPilotDelivery {
           }),
         },
       });
-      if (this.serviceInit === init) this.service = facade;
+      if (this.serviceGeneration === generation) this.service = facade;
       return facade;
     })();
     this.serviceInit = init;
