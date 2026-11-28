@@ -115,6 +115,10 @@ const providerRecoverOutcomeSchema = Schema.Union([
     message: Schema.String,
     retry_after_ms: Schema.optionalKey(nonNegativeInt),
   }),
+  Schema.Struct({
+    status: Schema.Literal("busy"),
+    retry_after_ms: nonNegativeInt,
+  }),
 ]);
 
 const expectedTurnSchema = Schema.Struct({

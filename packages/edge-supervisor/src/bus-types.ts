@@ -59,7 +59,8 @@ export type ProviderRecoverOutcome =
       readonly code: string;
       readonly message: string;
       readonly retry_after_ms?: number;
-    };
+    }
+  | { readonly status: "busy"; readonly retry_after_ms: number };
 
 export type EdgeBusResult<T> =
   | { readonly ok: true; readonly response: T }
