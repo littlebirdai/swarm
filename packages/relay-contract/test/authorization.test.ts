@@ -42,7 +42,7 @@ test("grant claims accept publish rights tied to their subject and hub", () => {
     ...claims,
     subject: machine,
     grants: [
-      { ...session, run: 3, publish: ["session_liveness"] },
+      { ...session, run: 3, publish: ["session_liveness", "token_delta"] },
       { ...machine, publish: ["machine_liveness"] },
       { ...machine, id: "other-machine", publish: [] },
     ],
@@ -56,21 +56,22 @@ test("grant claims accept publish rights tied to their subject and hub", () => {
 });
 
 test("only machine session liveness grants carry a run epoch", () => {
-  const publish = ["session_liveness"];
-  for (const [subject, grant] of [
-    [machine, { ...session, publish }],
-    [machine, { ...session, run: 0, publish }],
-    [machine, { ...session, run: 3, publish: [] }],
-    [user, { ...session, run: 3, publish: ["presence"] }],
-  ] as const) {
-    expect(
-      parseRelayGrantClaims(
-        JSON.stringify({ ...claims, subject, grants: [grant] }),
-      ),
-    ).toEqual({
-      ok: false,
-      error: { code: "invalid_field", path: "$.grants[0].run" },
-    });
+  for (const publish of [["session_liveness"], ["token_delta"]] as const) {
+    for (const [subject, grant] of [
+      [machine, { ...session, publish: [...publish] }],
+      [machine, { ...session, run: 0, publish: [...publish] }],
+      [machine, { ...session, run: 3, publish: [] }],
+      [user, { ...session, run: 3, publish: ["presence"] }],
+    ] as const) {
+      expect(
+        parseRelayGrantClaims(
+          JSON.stringify({ ...claims, subject, grants: [grant] }),
+        ),
+      ).toEqual({
+        ok: false,
+        error: { code: "invalid_field", path: "$.grants[0].run" },
+      });
+    }
   }
   expect(
     parseRelayGrantClaims(
@@ -86,6 +87,7 @@ test("only machine session liveness grants carry a run epoch", () => {
 test("grant claims reject publish rights outside the subject's role and scope", () => {
   const forbidden = [
     { ...claims, grants: [{ ...session, publish: ["session_liveness"] }] },
+    { ...claims, grants: [{ ...session, publish: ["token_delta"] }] },
     { ...claims, grants: [{ ...machine, publish: ["machine_liveness"] }] },
     {
       ...claims,

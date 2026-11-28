@@ -185,6 +185,16 @@ export const token = string(
   new RegExp(`^[a-zA-Z0-9_.-]{1,${RELAY_MAX_TOKEN_BYTES}}$`),
 );
 export const id = string(/^[a-zA-Z0-9_:-]{1,128}$/);
+export const nonEmptyText: Reader<string> = (value, path) => {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > RELAY_MAX_FRAME_BYTES
+  ) {
+    throw new RelayParseError("invalid_field", path);
+  }
+  return value;
+};
 export const fraction: Reader<number> = (value, path) => {
   if (
     typeof value !== "number" ||
