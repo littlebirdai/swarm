@@ -123,7 +123,7 @@ export function readOwnedCodexRelayFlags(
 ): OwnedCodexRelayFlags {
   return {
     liveness: env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
-    tokenDeltas: env.CODECAST_RELAY_TOKEN_DELTAS === "1",
+    tokenDeltas: true,
   };
 }
 
@@ -135,7 +135,7 @@ export function startOwnedCodexRelayContact(
   signal: AbortSignal,
   deadline: () => number,
   onRelay: (relay: ReturnType<typeof startRelayLiveness>) => void,
-  flags: OwnedCodexRelayFlags = { liveness: true, tokenDeltas: false },
+  flags: OwnedCodexRelayFlags = { liveness: true, tokenDeltas: true },
 ): void {
   const { bearer, siteUrl, log } = options;
   if (!bearer || (!flags.liveness && !flags.tokenDeltas)) return;

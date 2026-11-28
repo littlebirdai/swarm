@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import {
   agentSwitchConversationId,
-  buildAppServerStreamingTailMessages,
   buildCodexUserTurnMessage,
   codexForkParentIdFromHead,
   isAppServerOwnedCodexTranscript,
@@ -137,37 +136,6 @@ describe("buildCodexUserTurnMessage", () => {
     const a = buildCodexUserTurnMessage("hi", "pm-9", 1);
     const b = buildCodexUserTurnMessage("hi", "pm-9", 2);
     expect(a.uuid).toBe(b.uuid);
-  });
-});
-
-describe("buildAppServerStreamingTailMessages", () => {
-  test("uses the final converter identity for an adjacent streaming assistant item", () => {
-    const messages = buildAppServerStreamingTailMessages(
-      [
-        {
-          type: "agentMessage",
-          id: "msg-1",
-          text: "Already synced.",
-          phase: "commentary",
-        } as any,
-      ],
-      [{ itemId: "msg-2", content: "Still streaming." }],
-    );
-
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.uuid).toBe("msg-1");
-    expect(messages[0]?.role).toBe("assistant");
-    expect(messages[0]?.content).toBe("Already synced.\nStill streaming.");
-    expect(messages[0]?.subtype).toBeUndefined();
-  });
-
-  test("skips whitespace-only streaming tails", () => {
-    expect(
-      buildAppServerStreamingTailMessages(
-        [],
-        [{ itemId: "msg-1", content: "   " }],
-      ),
-    ).toEqual([]);
   });
 });
 

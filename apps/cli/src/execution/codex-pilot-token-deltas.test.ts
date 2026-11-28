@@ -66,15 +66,15 @@ function deltaEvent(
   };
 }
 
-test("readOwnedCodexRelayFlags keeps tokenDeltas off by default", () => {
+test("readOwnedCodexRelayFlags enables tokenDeltas without requiring a feature flag", () => {
   expect(readOwnedCodexRelayFlags({})).toEqual({
     liveness: false,
-    tokenDeltas: false,
+    tokenDeltas: true,
   });
   expect(
-    readOwnedCodexRelayFlags({ CODECAST_RELAY_TOKEN_DELTAS: "1" }),
+    readOwnedCodexRelayFlags({ CODECAST_RELAY_LIVENESS_PUBLISH: "1" }),
   ).toEqual({
-    liveness: false,
+    liveness: true,
     tokenDeltas: true,
   });
 });
