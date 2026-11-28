@@ -43,6 +43,7 @@ import { readGateCard } from "../cardFile.js";
 import { agentResultPreview, resultPreview } from "./chainWorkflow.js";
 import { graphEdgesPayload, graphNodesPayload } from "./graphPayload.js";
 import { spawnSync } from "../proc.js";
+import { callWorkflowCliRoute } from "../taskPulse.js";
 import { argvOnLaunchAccount } from "../ccAccounts.js";
 import { deviceId } from "../remote/device.js";
 import {
@@ -574,19 +575,24 @@ async function cliCall(
   route: string,
   body: Record<string, any>,
 ): Promise<any | null> {
-  if (!options.convexSiteUrl || !options.apiToken) return null;
-  try {
-    const resp = await cliFetch(`${options.convexSiteUrl}${route}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_token: options.apiToken, ...body }),
-    });
-    const data = (await resp.json()) as any;
-    if (!resp.ok || data?.error) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  return callWorkflowCliRoute(
+    options,
+    route,
+    body,
+    async (url, payload) => {
+      const resp = await cliFetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      return { status: resp.status, ok: resp.ok, data: await resp.json() };
+    },
+    (reason, detail) => {
+      console.error(
+        `  ${c.red}409 CONFLICT${reason ? ` (${reason})` : ""}${c.reset} ${route}: ${detail}`,
+      );
+    },
+  );
 }
 
 // How long a settled hand with an empty session may still be waiting on its
@@ -2442,6 +2448,7 @@ export interface RunOptions {
   loadedFlowVersions?: string;
   /** The flow versions the run is pinned to now, or null when that cannot be read. */
   pinnedFlowVersions?: () => Promise<string | null>;
+  claimToken?: number;
   /** Set when the server answers a report with the run already over (workflow_runs runOver): why it ended. */
   endedOnServer?: string;
 }

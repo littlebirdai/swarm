@@ -12,6 +12,7 @@ import {
 } from "./lib/conversationCommentRows";
 import { moveBookmarkPrincipalWithRevision } from "./bookmarkViewWrites";
 import { clearTerminalClaim, deleteTerminalTypingGrant } from "./lib/claims";
+import { releaseClearedTaskClaim } from "./lib/taskClaims";
 import { mergeReadAnchor } from "./lib/conversationReadAnchors";
 
 // (table, field, indexName | null) — when indexName is present, use the
@@ -297,8 +298,10 @@ export const mergeDuplicateUser = internalMutation({
           if (table === "terminal_typing_grants") {
             await deleteTerminalTypingGrant(ctx.db, row);
           } else if (table === "claims") {
-            if (field === "holder") await clearTerminalClaim(ctx, row);
-            else
+            if (field === "holder") {
+              if (row.kind === "task") await releaseClearedTaskClaim(ctx, row);
+              else await clearTerminalClaim(ctx, row);
+            } else
               await ctx.db.patch(row._id, {
                 request_id: undefined,
                 request_holder: undefined,

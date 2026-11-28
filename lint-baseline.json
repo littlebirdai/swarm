@@ -3167,8 +3167,8 @@
     "swarm/no-comments": 8
   },
   "apps/cli/src/index.ts": {
-    "swarm/no-blocking-child-process-call": 69,
-    "swarm/no-comments": 1638
+    "swarm/no-blocking-child-process-call": 68,
+    "swarm/no-comments": 1632
   },
   "apps/cli/src/infraExit.ts": {
     "swarm/no-comments": 1
@@ -4685,6 +4685,9 @@
   },
   "apps/cli/src/systemdDaemonUnit.ts": {
     "swarm/no-comments": 7
+  },
+  "apps/cli/src/task-claim-commands.ts": {
+    "swarm/no-blocking-child-process-call": 1
   },
   "apps/cli/src/taskClaim.test.ts": {
     "swarm/no-comments": 10
@@ -12575,7 +12578,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/tasks.ts": {
-    "swarm/no-comments": 873
+    "swarm/no-comments": 870
   },
   "apps/server/convex/teamBilling.test.ts": {
     "swarm/no-comments": 20

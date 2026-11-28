@@ -256,6 +256,7 @@ function plans() {
   const taskRows = [
     under("task_comments", "by_task_id", "task_id"),
     under("task_history", "by_task_id", "task_id"),
+    under("claims", "by_task_kind", "task_id"),
     {
       ...artifactBase,
       table: "artifacts",

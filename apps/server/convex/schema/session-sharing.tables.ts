@@ -4,10 +4,12 @@ import { followViewValidator } from "../lib/followView";
 
 export const sessionSharingTables = {
   claims: defineTable({
-    conversation_id: v.id("conversations"),
-    kind: v.union(v.literal("steer"), v.literal("terminal")),
+    conversation_id: v.optional(v.id("conversations")),
+    task_id: v.optional(v.id("tasks")),
+    kind: v.union(v.literal("steer"), v.literal("terminal"), v.literal("task")),
     pane_instance: v.optional(v.number()),
     holder: v.optional(v.id("users")),
+    purpose: v.optional(v.string()),
     token: v.number(),
     lease_until: v.number(),
     request_id: v.optional(v.string()),
@@ -48,8 +50,14 @@ export const sessionSharingTables = {
         ended_at: v.optional(v.number()),
       }),
     ),
+    task: v.optional(
+      v.object({
+        conversation_id: v.optional(v.id("conversations")),
+      }),
+    ),
   })
     .index("by_conversation_kind", ["conversation_id", "kind"])
+    .index("by_task_kind", ["task_id", "kind"])
     .index("by_holder", ["holder"])
     .index("by_request_holder", ["request_holder"])
     .index("by_takeover_owner", ["takeover.owner"])

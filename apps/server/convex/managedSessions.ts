@@ -24,6 +24,7 @@ import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import { renewLiveConversationTaskClaim } from "./lib/taskClaims";
 import {
   AGENT_STATUSES,
   ACTIVE_AGENT_STATUSES,
@@ -567,6 +568,19 @@ export const heartbeat = mutation({
       args.client_ts,
       now,
     );
+    const sessionStatus = patch?.agent_status ?? session.agent_status;
+    if (
+      session.conversation_id &&
+      sessionStatus !== "stopped" &&
+      sessionStatus !== "hibernated"
+    ) {
+      await renewLiveConversationTaskClaim(
+        ctx,
+        session.user_id,
+        session.conversation_id,
+        now,
+      );
+    }
 
     // The heartbeat self-heals dropped status transitions (a lost Stop hook) —
     // those healed transitions must feed the needs-input push like any other.
@@ -650,6 +664,19 @@ export const heartbeatBatch = mutation({
         entry.client_ts,
         now,
       );
+      const sessionStatus = patch?.agent_status ?? session.agent_status;
+      if (
+        session.conversation_id &&
+        sessionStatus !== "stopped" &&
+        sessionStatus !== "hibernated"
+      ) {
+        await renewLiveConversationTaskClaim(
+          ctx,
+          session.user_id,
+          session.conversation_id,
+          now,
+        );
+      }
       if (!patch) continue;
       // Same self-healed-transition hook as the single heartbeat above.
       if (

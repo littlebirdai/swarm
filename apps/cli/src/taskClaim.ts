@@ -22,10 +22,47 @@ import { TASK_EFFORTS } from "@codecast/tasks/statuses";
 // `ownSessionId` (the agent's own exported id, then the process walk), which
 // is the same witness that stamps source:"agent" on create.
 
+export function formatTaskConflict(
+  status: number,
+  result: any,
+  fallbackMessage?: string,
+): string | null {
+  const isConflict = status === 409 || result?.code === "CONFLICT";
+  if (!isConflict) return null;
+  const base =
+    fallbackMessage ||
+    (typeof result?.error === "string" && result.error) ||
+    (typeof result?.message === "string" && result.message) ||
+    "Task claim conflict";
+  const reason = typeof result?.reason === "string" ? result.reason : "";
+  if (reason === "busy" && !base.includes("--take")) {
+    return `409 CONFLICT (${reason}): ${base}. Wait for the owner or use --take.`;
+  }
+  if (
+    (reason === "stale_token" ||
+      reason === "expired" ||
+      reason === "wrong_holder" ||
+      reason === "free") &&
+    !base.includes("CONFLICT")
+  ) {
+    return `409 CONFLICT (${reason}): ${base}`;
+  }
+  return base.includes("CONFLICT") ? base : `409 CONFLICT: ${base}`;
+}
+
+export function withTaskClaimToken(
+  body: Record<string, any>,
+  claimToken: number | undefined,
+): Record<string, any> {
+  return claimToken !== undefined && body.claim_token === undefined
+    ? { ...body, claim_token: claimToken }
+    : body;
+}
+
 export function buildTaskStartBody(
   shortId: string,
   sessionId: string | null,
-  opts: { take?: boolean } = {},
+  opts: { take?: boolean; claimToken?: number } = {},
 ): Record<string, any> {
   const body: Record<string, any> = {
     short_id: shortId,
@@ -33,6 +70,7 @@ export function buildTaskStartBody(
     ...taskClaimant(sessionId),
   };
   if (opts.take) body.take = true;
+  if (opts.claimToken !== undefined) body.claim_token = opts.claimToken;
   return body;
 }
 
@@ -359,4 +397,54 @@ export function verdictCommentText(
   return note?.trim()
     ? `Verdict: ${verdict}\n\n${note.trim()}`
     : `Verdict: ${verdict}`;
+}
+
+export function registerTaskClaimCommands(
+  work: any,
+  deps: {
+    cliPost: (
+      urlPath: string,
+      body: Record<string, any>,
+      opts?: { timeoutMs?: number; throwOnError?: boolean },
+    ) => Promise<any>;
+    ownSessionId: (cwd: string) => string | null;
+    getRealCwd: () => string;
+    colors: {
+      green: string;
+      cyan: string;
+      dim: string;
+      yellow: string;
+      reset: string;
+    };
+  },
+): void {
+  const specs = [
+    [
+      "heartbeat",
+      "Send a task heartbeat and renew its active claim lease",
+      "runTaskHeartbeat",
+      true,
+    ],
+    ["renew", "Renew an active task claim lease", "runTaskRenew", true],
+    [
+      "release",
+      "Release the active claim lease on a task and return it to open",
+      "runTaskRelease",
+      false,
+    ],
+  ] as const;
+  for (const [name, desc, fn, withProgress] of specs) {
+    const cmd = work
+      .command(name)
+      .description(desc)
+      .argument("<short_id>", "Task short ID");
+    if (withProgress)
+      cmd.option("--progress <pct>", "Progress percentage (0-100)");
+    cmd
+      .option("--token <n>", "Explicit claim token")
+      .action(async (shortId: string, options: any) => {
+        const mod = await import("./task-claim-commands.js");
+        await mod[fn](deps, shortId, options);
+      });
+  }
 }

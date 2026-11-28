@@ -2622,10 +2622,10 @@ export class SyncService {
     }>,
   ): Promise<{ updated: number; unknown?: string[] } | undefined> {
     if (sessions.length === 0) return;
-    return await this.mutate("managedSessions:heartbeatBatch" as any, {
+    return (await this.mutate("managedSessions:heartbeatBatch" as any, {
       api_token: this.apiToken,
       sessions,
-    });
+    })) as { updated: number; unknown?: string[] } | undefined;
   }
 
   async reportSessionMetrics(

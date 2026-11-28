@@ -41,15 +41,12 @@ import {
   toConvexAgentType,
 } from "@codecast/agent-clients/agentClients";
 import { inlineForeignText } from "@codecast/fence/fence";
-import {
-  blockersHoldingBack,
-  readinessOf,
-  topologicalOrder,
-} from "@codecast/tasks/graph";
+import { blockersHoldingBack, readinessOf } from "@codecast/tasks/graph";
 import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { isStaleTask } from "@codecast/tasks/frontier";
 import {
   assertDependencyEdges,
+  buildDependencyChain,
   offFrontierReason,
   openBlockersOf,
   orderFrontier,
@@ -61,6 +58,20 @@ import {
   taskByRef,
   writeEdges,
 } from "./lib/taskGraph";
+import { taskClaimsEnabled } from "./lib/claims";
+import {
+  claimRefArgs,
+  handleTaskUpdateClaim,
+  releaseTaskClaimIfHeld,
+  releaseTaskWithClaim,
+  renewTaskHeartbeat,
+  resolveTaskUpdateConv,
+  revokeWebTaskClaim,
+} from "./lib/taskClaims";
+import {
+  requireAccessibleTaskByToken,
+  requireClaimedTaskMutation,
+} from "./lib/taskClaimLifecycle";
 import {
   addWaitsAtCreate,
   cliCaller,
@@ -197,8 +208,11 @@ import {
   changeSessionOf,
   claimTaskOwnership,
   isSessionWorking,
+  legacyBoundReleaser,
+  releaseBoundSessions,
   type TaskOwnerRef,
 } from "./lib/taskOwner";
+export { releaseBoundSessions };
 import { changeGuideInputValidator } from "./lib/changeGuideValidator";
 import { runWorkflowOf } from "./lib/runGraph";
 export { canAccessTask };
@@ -747,7 +761,20 @@ export async function moveTaskStatus(
       now,
     );
   }
-  // The fake test db patches the row in place: afterStatusMove reads the old status.
+  const revokedConvId = taskClaimsEnabled()
+    ? await releaseTaskClaimIfHeld(ctx, task._id)
+    : undefined;
+  if (
+    taskClaimsEnabled() &&
+    (next === "open" ||
+      next === "done" ||
+      next === "dropped" ||
+      next === "backlog")
+  ) {
+    await releaseBoundSessions(ctx, task, o.conversationId, revokedConvId);
+  } else if (revokedConvId) {
+    await releaseBoundSessions(ctx, task, revokedConvId);
+  }
   const before = { ...task };
   await patchTask(ctx, task, updates);
   await afterStatusMove(ctx, before, next, o.actorUserId, o.conversationId);
@@ -1416,32 +1443,6 @@ async function noteMovedPastHold(
   );
 }
 
-/** Release every session bound to a task that just closed, so none is left
- *  on a closed task: the task's linked sessions and `conversationId` (the
- *  closing session, which may not be linked). The binding ended, so a session
- *  held only for it returns to its starter (S35). */
-export async function releaseBoundSessions(
-  ctx: any,
-  task: any,
-  conversationId?: Id<"conversations">,
-): Promise<void> {
-  const ids = new Set(
-    [
-      ...(task.conversation_ids ?? []),
-      ...(conversationId ? [conversationId] : []),
-    ].map(String),
-  );
-  for (const convId of ids) {
-    const conv: any = await ctx.db.get(convId as Id<"conversations">);
-    if (!conv || String(conv.active_task_id ?? "") !== String(task._id))
-      continue;
-    await ctx.db.patch(conv._id, { active_task_id: undefined });
-    await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
-      conversation_id: conv._id,
-    });
-  }
-}
-
 /**
  * Cascade-close the subtree ids guardParentClose returned. `parent` scopes the
  * writes: only same-workspace descendants are touched (a pre-guard row could
@@ -1981,15 +1982,11 @@ export const promote = mutation({
     project_path: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     await ctx.db.patch(task._id, {
       promoted: true,
@@ -2766,7 +2763,9 @@ async function listTasksCore(
   );
   // Every row carries its verdict and open blockers, so the CLI's "blocked"
   // tag and counts render from the rule, never from a raw blocked_by.
-  const lookupsOf = lookupsFor ?? (await readinessLookups(ctx, result));
+  const lookupsOf = lookupsFor
+    ? lookupsFor
+    : await readinessLookups(ctx, result);
   const rows = result.map((t: any, i: number) => {
     const { statusOf, parentStatusOf } = lookupsOf(t);
     return {
@@ -2784,7 +2783,11 @@ async function listTasksCore(
       // A ready page holds only rows readyTasks already judged ready.
       ready: args.ready
         ? true
-        : readinessOf(t, { statusOf, parentStatusOf, ...readiness }).ready,
+        : readinessOf(t, {
+            statusOf,
+            parentStatusOf,
+            ...readiness,
+          }).ready,
       // Structured (TG1): the reader labels them, a time wait in its own zone.
       // A closed task waits on nothing, so no reader marks it blocked.
       open_blockers: isTerminalTaskStatus(t.status)
@@ -3042,17 +3045,16 @@ export const update = mutation({
     predict: v.optional(v.string()),
     // model, effort and ephemeral (TG8, TG9); ephemeral:false is `cast task keep`.
     ...executionHintArgs,
+    claim_token: v.optional(v.number()),
+    claim_request_id: v.optional(v.string()),
+    claim_purpose: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
     // Edges are stored canonical; a wait goes through cast task dep.
     args = { ...args, ...storedGraphRefs(ctx, args) };
 
@@ -3067,9 +3069,11 @@ export const update = mutation({
     // Link conversation if provided. Unresolvable session ref = apply the
     // update without the link, never reject the update itself (see
     // resolveSessionConversation).
-    const conv = args.conversation_id
-      ? await resolveSessionConversation(ctx, auth.userId, args.conversation_id)
-      : null;
+    const conv = await resolveTaskUpdateConv(
+      ctx,
+      auth.userId,
+      args.conversation_id,
+    );
     // A session handing off a task held by a decision (L5): the evidence is
     // recorded and the task stays at its station, where the person's answer
     // moves it. Any other session move of a held task is refused below.
@@ -3277,6 +3281,7 @@ export const update = mutation({
     let linkedConvId: Id<"conversations"> | undefined;
     let startedForRole: any | null = null;
     let releasedOwners: TaskOwnerRef[] = [];
+    let claimResult: { claimToken: number; leaseUntil: number } | null = null;
     if (args.review_verdict) {
       updates.review_verdict = {
         verdict: args.review_verdict,
@@ -3342,12 +3347,21 @@ export const update = mutation({
       // session the task's one owner and moves its own focus here, so a
       // session bound to another task rebinds rather than silently staying.
       if (explicitStart) {
-        releasedOwners = (
-          await claimTaskOwnership(ctx, conv, task, {
-            take: args.take === true,
-            now,
-          })
-        ).released;
+        const owned = await claimTaskOwnership(ctx, conv, task, {
+          take: args.take === true,
+          now,
+          holder: auth.userId,
+          expectedToken: args.claim_token,
+          requestId: args.claim_request_id,
+          purpose: args.claim_purpose,
+        });
+        releasedOwners = owned.released;
+        if (owned.claimToken !== undefined && owned.leaseUntil !== undefined) {
+          claimResult = {
+            claimToken: owned.claimToken,
+            leaseUntil: owned.leaseUntil,
+          };
+        }
         // The binding may file the session under the lead that owns the work (S35).
         await ctx.scheduler.runAfter(
           0,
@@ -3390,6 +3404,30 @@ export const update = mutation({
         );
       }
     }
+
+    const handledClaim = await handleTaskUpdateClaim(ctx, {
+      task,
+      holder: auth.userId,
+      conv,
+      nextStatus,
+      reviewVerdict: args.review_verdict,
+      claimToken: args.claim_token,
+      requestId: args.claim_request_id,
+      purpose: args.claim_purpose,
+      take: args.take,
+      now,
+      claimStarted: claimResult !== null,
+      checkLegacyBound: legacyBoundReleaser(
+        ctx,
+        task,
+        conv,
+        args.take === true,
+        now,
+      ),
+      releaseBound: (claimConvId) =>
+        releaseBoundSessions(ctx, task, conv?._id, claimConvId),
+    });
+    if (handledClaim) claimResult = handledClaim;
 
     if (nextStatus === "in_progress") {
       updates.attempt_count = (task.attempt_count || 0) + 1;
@@ -3642,6 +3680,12 @@ export const update = mutation({
             station: heldHandoff.station,
           }
         : undefined,
+      ...(claimResult
+        ? {
+            claim_token: claimResult.claimToken,
+            lease_until: claimResult.leaseUntil,
+          }
+        : {}),
     };
   },
 });
@@ -3862,15 +3906,11 @@ export const addComment = mutation({
     to_owner: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     const conv = args.conversation_id
       ? await resolveSessionConversation(ctx, auth.userId, args.conversation_id)
@@ -5511,6 +5551,13 @@ export async function updateTaskAs(
 
   await recordTaskChange(ctx, task._id, byUser(userId), trackFields, now);
 
+  await revokeWebTaskClaim(
+    ctx,
+    task._id,
+    nextStatus,
+    updates.review_verdict?.verdict ?? args.review_verdict,
+    (claimConvId) => releaseBoundSessions(ctx, task, claimConvId),
+  );
   await patchTask(ctx, task, updates);
   await schedulePushKeptTask(ctx, task, updates);
   if (args.duplicate_of === "")
@@ -5732,10 +5779,12 @@ export async function spawnSessionForTask(
   await addConversationToWorkItem(ctx, userId, "task", task, conversationId);
   // The launcher chose this session to do the work: it becomes the task's one
   // owner, and any earlier bound session lets go.
-  await claimTaskOwnership(ctx, await ctx.db.get(conversationId), task, {
-    take: true,
-    now,
-  });
+  const claimed = await claimTaskOwnership(
+    ctx,
+    await ctx.db.get(conversationId),
+    task,
+    { take: true, now },
+  );
   await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
     conversation_id: conversationId,
   });
@@ -5794,7 +5843,13 @@ export async function spawnSessionForTask(
     await schedulePushComment(ctx, task, commentId);
   }
 
-  return { conversationId, sessionId };
+  return {
+    conversationId,
+    sessionId,
+    ...(claimed.claimToken !== undefined
+      ? { claim_token: claimed.claimToken, lease_until: claimed.leaseUntil }
+      : {}),
+  };
 }
 
 export const assignToAgent = mutation({
@@ -6243,19 +6298,10 @@ export const incrementRetryCount = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
-
-    const now = Date.now();
+    const { auth, task, now } = await requireClaimedTaskMutation(ctx, args);
     const newRetryCount = ((task as any).retry_count || 0) + 1;
     const maxRetries = (task as any).max_retries ?? 3;
 
@@ -6293,19 +6339,10 @@ export const updateExecutionStatus = mutation({
       v.literal("needs_context"),
     ),
     execution_comment: v.optional(v.string()),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
-
-    const now = Date.now();
+    const { auth, task, now } = await requireClaimedTaskMutation(ctx, args);
     await ctx.db.patch(task._id, {
       execution_status: args.execution_status,
       updated_at: now,
@@ -6454,19 +6491,14 @@ export const scheduleRetry = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
-
-    const now = Date.now();
+    const { auth, task, now } = await requireClaimedTaskMutation(
+      ctx,
+      args,
+      (t, claimConvId) => releaseBoundSessions(ctx, t, claimConvId),
+    );
     const newAttemptCount = (task.attempt_count || 0) + 1;
 
     await patchTask(ctx, task, {
@@ -6491,83 +6523,94 @@ export const scheduleRetry = mutation({
   },
 });
 
+async function runHeartbeat(
+  ctx: MutationCtx,
+  { auth, task }: Awaited<ReturnType<typeof requireAccessibleTaskByToken>>,
+  args: {
+    progress_pct?: number;
+    claim_token?: number;
+    conversation_id?: string;
+  },
+) {
+  return await renewTaskHeartbeat(ctx, {
+    task,
+    holder: auth.userId,
+    claimToken: args.claim_token,
+    conversationRef: args.conversation_id,
+    writeHeartbeat: async () => {
+      const updates: any = { last_heartbeat: Date.now() };
+      if (args.progress_pct !== undefined)
+        updates.progress_pct = args.progress_pct;
+      await patchTask(ctx, task, updates);
+    },
+  });
+}
+
 export const heartbeat = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
     progress_pct: v.optional(v.number()),
+    ...claimRefArgs,
+  },
+  handler: async (ctx, args) =>
+    runHeartbeat(
+      ctx,
+      await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id),
+      args,
+    ),
+});
+
+export const renew = mutation({
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    claim_token: v.number(),
+    conversation_id: v.optional(v.string()),
+    progress_pct: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q: any) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
-
-    const updates: any = { last_heartbeat: Date.now() };
-    if (args.progress_pct !== undefined)
-      updates.progress_pct = args.progress_pct;
-
-    await ctx.db.patch(task._id, updates);
-    return { success: true };
+    const resolved = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
+    if (!taskClaimsEnabled())
+      return { success: false as const, status: "disabled" as const };
+    return await runHeartbeat(ctx, resolved, args);
   },
 });
 
-// --- Dependency graph helpers ---
-
-type TaskNode = { short_id: string; blocked_by?: string[]; status?: string };
-
-function getCriticalPath(tasks: TaskNode[]): string[] {
-  const taskMap = new Map<string, TaskNode>();
-  for (const t of tasks) taskMap.set(t.short_id, t);
-
-  const { sorted, cycles } = topologicalOrder(tasks);
-  if (cycles.length > 0) return [];
-
-  const dist = new Map<string, number>();
-  const prev = new Map<string, string | null>();
-  for (const id of sorted) {
-    dist.set(id, 0);
-    prev.set(id, null);
-  }
-
-  for (const id of sorted) {
-    const node = taskMap.get(id);
-    if (node?.blocked_by) {
-      for (const dep of node.blocked_by) {
-        if (taskMap.has(dep)) {
-          const newDist = (dist.get(dep) || 0) + 1;
-          if (newDist > (dist.get(id) || 0)) {
-            dist.set(id, newDist);
-            prev.set(id, dep);
-          }
-        }
-      }
-    }
-  }
-
-  let maxId = sorted[0];
-  let maxDist = 0;
-  for (const [id, d] of dist) {
-    if (d > maxDist) {
-      maxDist = d;
-      maxId = id;
-    }
-  }
-
-  const path: string[] = [];
-  let cur: string | null | undefined = maxId;
-  while (cur) {
-    path.unshift(cur);
-    cur = prev.get(cur);
-  }
-
-  return path;
-}
+export const release = mutation({
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    claim_token: v.number(),
+    conversation_id: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
+    if (!taskClaimsEnabled())
+      return { success: false as const, status: "disabled" as const };
+    return await releaseTaskWithClaim(ctx, {
+      task,
+      holder: auth.userId,
+      claimToken: args.claim_token,
+      conversationRef: args.conversation_id,
+      releaseBound: (c) => releaseBoundSessions(ctx, task, c),
+      reopen: (c) =>
+        moveTaskStatus(ctx, task, "open", {
+          actorUserId: auth.userId,
+          actorType: c ? "agent" : "user",
+          conversationId: c,
+        }),
+    });
+  },
+});
 
 export const getReadyTasks = query({
   args: {
@@ -6636,56 +6679,9 @@ export const getDependencyChain = query({
       throw new Error("Task not found");
 
     const allTasks = await db.query("tasks").collect();
-    const taskByShortId = new Map<string, any>();
-    for (const t of allTasks) taskByShortId.set(t.short_id, t);
-
-    const ancestors = new Set<string>();
-    const descendants = new Set<string>();
-
-    function collectAncestors(shortId: string) {
-      const task = taskByShortId.get(shortId);
-      if (!task?.blocked_by) return;
-      for (const dep of task.blocked_by) {
-        if (!ancestors.has(dep) && taskByShortId.has(dep)) {
-          ancestors.add(dep);
-          collectAncestors(dep);
-        }
-      }
-    }
-
-    function collectDescendants(shortId: string) {
-      const task = taskByShortId.get(shortId);
-      if (!task?.blocks) return;
-      for (const dep of task.blocks) {
-        if (!descendants.has(dep) && taskByShortId.has(dep)) {
-          descendants.add(dep);
-          collectDescendants(dep);
-        }
-      }
-      for (const t of allTasks) {
-        if (t.blocked_by?.includes(shortId) && !descendants.has(t.short_id)) {
-          descendants.add(t.short_id);
-          collectDescendants(t.short_id);
-        }
-      }
-    }
-
-    collectAncestors(args.short_id);
-    collectDescendants(args.short_id);
-
-    const chainIds = new Set([...ancestors, args.short_id, ...descendants]);
-    const chainTasks = allTasks.filter((t: any) => chainIds.has(t.short_id));
-
-    const { sorted, cycles } = topologicalOrder(chainTasks);
-    const criticalPath = getCriticalPath(chainTasks);
-
     return {
       task: root,
-      ancestors: allTasks.filter((t: any) => ancestors.has(t.short_id)),
-      descendants: allTasks.filter((t: any) => descendants.has(t.short_id)),
-      topological_order: sorted,
-      critical_path: criticalPath,
-      cycles,
+      ...buildDependencyChain(allTasks, args.short_id),
     };
   },
 });
@@ -6708,6 +6704,11 @@ export const adminDeleteTask = internalMutation({
         .collect();
       for (const row of rows) await ctx.db.delete(row._id);
     }
+    const taskClaims = await ctx.db
+      .query("claims")
+      .withIndex("by_task_kind", (q) => q.eq("task_id", task._id))
+      .collect();
+    for (const row of taskClaims) await ctx.db.delete(row._id);
     await ctx.db.delete(task._id);
     return {
       found: true,
