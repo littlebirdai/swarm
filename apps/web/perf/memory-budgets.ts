@@ -81,10 +81,7 @@ async function awaitWithin<T>(
   }
 }
 
-async function measureWindowPopulatedCollections(
-  roleFlag: string | null,
-  scopeFlag: string,
-) {
+async function measureWindowPopulatedCollections(roleFlag: string | null) {
   const name = `budget-scope-${crypto.randomUUID()}`;
   const hostState = Object.fromEntries(
     allKeys.map((key, index) => {
@@ -103,8 +100,6 @@ async function measureWindowPopulatedCollections(
     syncRole: "follower",
   } as any);
 
-  const prevFlag = process.env.VITE_DESKTOP_PANEL_SCOPE;
-  process.env.VITE_DESKTOP_PANEL_SCOPE = scopeFlag;
   const restore = replaceGlobals({
     window: { __CODECAST_ELECTRON__: roleFlag ? { [roleFlag]: true } : {} },
   });
@@ -212,13 +207,11 @@ async function measureWindowPopulatedCollections(
     panelTransport.close();
     hostTransport.close();
     restore();
-    if (prevFlag === undefined) delete process.env.VITE_DESKTOP_PANEL_SCOPE;
-    else process.env.VITE_DESKTOP_PANEL_SCOPE = prevFlag;
   }
 }
 
 async function measureDesktopWindowCollections() {
-  const main = await measureWindowPopulatedCollections(null, "0");
+  const main = await measureWindowPopulatedCollections(null);
   checkStoreBudget("Main window populated collections", main);
 
   const panels = [
@@ -229,7 +222,7 @@ async function measureDesktopWindowCollections() {
   ] as const;
 
   for (const [budgetName, roleFlag] of panels) {
-    const count = await measureWindowPopulatedCollections(roleFlag, "1");
+    const count = await measureWindowPopulatedCollections(roleFlag);
     assert(
       count < main,
       `${budgetName} (${count}) must stay below main window (${main})`,

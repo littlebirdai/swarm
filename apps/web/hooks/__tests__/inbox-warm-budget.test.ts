@@ -702,8 +702,6 @@ test.each(["hit", "miss"] as const)(
 test("an inline-only warm is tried once until the transcript changes", async () => {
   const restore = resetFixture();
   const clock = startTestClock();
-  const before = process.env.VITE_MESSAGE_MEMORY_BUDGET;
-  process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
   const disk = spyOn(
     cacheStorage,
     "loadConversationMessages",
@@ -761,8 +759,6 @@ test("an inline-only warm is tried once until the transcript changes", async () 
     stop();
     disk.mockRestore();
     clock.close();
-    if (before === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
-    else process.env.VITE_MESSAGE_MEMORY_BUDGET = before;
     restore();
   }
 });

@@ -66,10 +66,10 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry             | Rewrite all 500 conversation rows → 503        |
 | Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                                  | Share the local repoBrowse map → 139           |
 | Main window populated collections      |        138 |        138 | Unscoped replication follower on the same 138-collection snapshot                                                                 | Share a local-only key → 139                   |
-| Palette populated collections          |         39 |         39 | Scoped palette follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                           | Disable panel scoping → 138                    |
-| People populated collections           |         16 |         16 | Scoped people follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                            | Disable panel scoping → 138                    |
-| Call panel populated collections       |         49 |         49 | Scoped call-panel follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
-| Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower (`VITE_DESKTOP_PANEL_SCOPE=1`) on the same snapshot, required below main window                        | Disable panel scoping → 138                    |
+| Palette populated collections          |         39 |         39 | Scoped palette follower on the same snapshot, required below main window                                                          | Disable panel scoping → 138                    |
+| People populated collections           |         16 |         16 | Scoped people follower on the same snapshot, required below main window                                                           | Disable panel scoping → 138                    |
+| Call panel populated collections       |         49 |         49 | Scoped call-panel follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
+| Agent dock populated collections       |         14 |         14 | Scoped agent-dock follower on the same snapshot, required below main window                                                       | Disable panel scoping → 138                    |
 | Persisted IndexedDB rows after replay  |     18,186 |     18,186 | Hydrate over-cap cache, replay deltas, detail splits, liveness ticks, rename + echo, meta write, and five 250-message transcripts | Skip `persistedMessageTail` cap → 18,436       |
 
 The byte limits for synced collections add 1% for small changes to the
@@ -126,7 +126,7 @@ scripts/heap-budgets.sh          # human-readable table; exits non-zero past any
 bun perf/heap-budgets.ts --json  # machine-readable JSON report
 ```
 
-Each window runs in a fresh subprocess, triggers a full GC (`Bun.gc(true)`), and measures `heapStats().heapSize` delta (`heapBytes`) after populating its store. Small desktop windows (`palette`, `people`, `call-panel`, `agent-dock`) run with `VITE_DESKTOP_PANEL_SCOPE=1` on the same 80-row-per-collection replication fixture as `main` and must stay both under their own threshold and below `main`. `main-account` loads the calibrated fixture account (`detail-rows-size.ts`, 1,000 thin docs, retained collections from `store-budget-fixture.ts`, and 400 conversations bounded by the 32 MiB message cache budget).
+Each window runs in a fresh subprocess, triggers a full GC (`Bun.gc(true)`), and measures `heapStats().heapSize` delta (`heapBytes`) after populating its store. Small desktop windows (`palette`, `people`, `call-panel`, `agent-dock`) run on the same 80-row-per-collection replication fixture as `main` and must stay both under their own threshold and below `main`. `main-account` loads the calibrated fixture account (`detail-rows-size.ts`, 1,000 thin docs, retained collections from `store-budget-fixture.ts`, and 400 conversations bounded by the 32 MiB message cache budget).
 
 | Window         | Keys | Typical heap | Threshold | Deliberate regression and failing value |
 | -------------- | ---: | -----------: | --------: | --------------------------------------- |

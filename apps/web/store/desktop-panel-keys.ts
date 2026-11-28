@@ -136,11 +136,7 @@ export const DESKTOP_WINDOW_KEYS = {
 >;
 
 export function desktopPanelScopeEnabled(): boolean {
-  return (
-    process.env.VITE_DESKTOP_PANEL_SCOPE === "1" &&
-    typeof window !== "undefined" &&
-    !!window.__CODECAST_ELECTRON__
-  );
+  return typeof window !== "undefined" && !!window.__CODECAST_ELECTRON__;
 }
 
 export function desktopWindowKeys(): readonly StoreKey[] | undefined {

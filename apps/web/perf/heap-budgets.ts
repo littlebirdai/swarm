@@ -105,7 +105,7 @@ async function measureMainAccountWorker() {
 
 function runSubprocess(args: string[]): HeapMeasurement {
   const result = Bun.spawnSync(["bun", ...args], {
-    env: { ...process.env, VITE_DESKTOP_PANEL_SCOPE: "1" },
+    env: { ...process.env },
     stdout: "pipe",
     stderr: "pipe",
     timeout: 30_000,

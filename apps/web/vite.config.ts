@@ -62,12 +62,6 @@ function buildIdentity(mode: string) {
 
 export default defineConfig(({ mode, command }) => ({
   define: {
-    "process.env.VITE_DESKTOP_PANEL_SCOPE": JSON.stringify(
-      process.env.VITE_DESKTOP_PANEL_SCOPE ?? "",
-    ),
-    "process.env.VITE_MESSAGE_MEMORY_BUDGET": JSON.stringify(
-      process.env.VITE_MESSAGE_MEMORY_BUDGET ?? "",
-    ),
     "process.env.VITE_DEFERRED_CACHE_BOOT": JSON.stringify(
       process.env.VITE_DEFERRED_CACHE_BOOT ?? "",
     ),

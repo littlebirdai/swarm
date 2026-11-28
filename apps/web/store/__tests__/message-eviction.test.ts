@@ -117,7 +117,6 @@ test("protects open panes, pending sends, queued sends and streaming conversatio
       "pane",
       "pending",
       "queued",
-      ...(process.env.VITE_MESSAGE_MEMORY_BUDGET === "1" ? [] : ["recent"]),
       "stream",
     ]);
     expect(store.getState().pendingMessages.queued).toBeUndefined();
@@ -162,9 +161,7 @@ test("an open reader keeps inline-only images and strips redundant bytes from at
     release();
   }
   store.getState().trimMessageCache();
-  expect(store.getState().messages["image-chat"] === undefined).toBe(
-    process.env.VITE_MESSAGE_MEMORY_BUDGET === "1",
-  );
+  expect(store.getState().messages["image-chat"]).toBeUndefined();
 });
 
 test("incremental byte counts match a full recount after edits, deletions and rekeys", () => {
@@ -354,55 +351,44 @@ test("session updates do not schedule a trim if only protected conversations are
   }
 });
 
-test.each(["off", "on"] as const)(
-  "a tail write that clears its pending echo keeps the newly loaded transcript with budget flag %s",
-  async (budget) => {
-    const enabled = budget === "on";
-    const original = useInboxStore.getState();
-    const id = "echoed-conversation";
-    const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
-    if (enabled) process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
-    else delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
-    const release = enabled ? retainOpenMessageView(id) : undefined;
-    const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
-    useInboxStore.setState({
-      currentUser: { _id: "echo-owner" },
-      messages: {},
-      userMessages: {},
-      pagination: {},
-      messageCacheBytes: 0,
-      messageCacheBytesByConversation: {},
-      pendingMessages: {
-        [id]: [
-          { ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true },
-        ],
-      },
-    });
-    try {
-      await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-      const echoed = { ...row(2, large.repeat(4)), client_id: "send-id" };
-      useInboxStore.getState().applyTailMessages(id, 0, [echoed], 2);
-      expect(useInboxStore.getState().pendingMessages[id]).toEqual([]);
-      expect(useInboxStore.getState().messageCacheBytes).toBeGreaterThan(
-        MESSAGE_CACHE_BUDGET_BYTES,
-      );
-      await Promise.resolve();
-      expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
-      await flushPendingMessageJournal();
-    } finally {
-      release?.();
-      if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
-      else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
-      useInboxStore.setState(original);
-      db.close();
-      restoreGlobals();
-    }
-  },
-);
+test("a tail write that clears its pending echo keeps the newly loaded transcript", async () => {
+  const original = useInboxStore.getState();
+  const id = "echoed-conversation";
+  const release = retainOpenMessageView(id);
+  const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
+  useInboxStore.setState({
+    currentUser: { _id: "echo-owner" },
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+    pendingMessages: {
+      [id]: [
+        { ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true },
+      ],
+    },
+  });
+  try {
+    await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+    const echoed = { ...row(2, large.repeat(4)), client_id: "send-id" };
+    useInboxStore.getState().applyTailMessages(id, 0, [echoed], 2);
+    expect(useInboxStore.getState().pendingMessages[id]).toEqual([]);
+    expect(useInboxStore.getState().messageCacheBytes).toBeGreaterThan(
+      MESSAGE_CACHE_BUDGET_BYTES,
+    );
+    await Promise.resolve();
+    expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
+    await flushPendingMessageJournal();
+  } finally {
+    release();
+    useInboxStore.setState(original);
+    db.close();
+    restoreGlobals();
+  }
+});
 
 test("an idle session heartbeat leaves cached transcript rows unread", async () => {
-  const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
-  process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
   const store = useInboxStore;
   const original = store.getState();
   const now = Date.now();
@@ -442,21 +428,17 @@ test("an idle session heartbeat leaves cached transcript rows unread", async () 
     expect(store.getState().messages[id]).toBe(transcript);
   } finally {
     store.setState(original);
-    if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
-    else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
   }
 });
 
 test.each(["idle", "stopped"] as const)(
   "a local agent's %s update releases an inline transcript after the grace period",
   async (status) => {
-    const flag = process.env.VITE_MESSAGE_MEMORY_BUDGET;
     const store = useInboxStore;
     const original = store.getState();
     const id = `idle-grace-${status}`;
     const { session } = webBuilders("message-cache-idle-grace");
     jest.useFakeTimers();
-    process.env.VITE_MESSAGE_MEMORY_BUDGET = "1";
     const now = Date.now();
     const idle = session.build({
       _id: id,
@@ -493,8 +475,6 @@ test.each(["idle", "stopped"] as const)(
     } finally {
       store.setState(original);
       messageWarmState.inlineEvictedAtCount.delete(id);
-      if (flag === undefined) delete process.env.VITE_MESSAGE_MEMORY_BUDGET;
-      else process.env.VITE_MESSAGE_MEMORY_BUDGET = flag;
       jest.useRealTimers();
     }
   },
@@ -536,12 +516,8 @@ test("an oversized unobserved transcript cannot keep the cache above its byte bu
     0,
   );
   expect(actual.messageCacheBytes).toBe(bytes);
-  if (process.env.VITE_MESSAGE_MEMORY_BUDGET === "1") {
-    expect(bytes).toBeLessThanOrEqual(MESSAGE_CACHE_BUDGET_BYTES);
-    expect(actual.messages.oversized).toBeUndefined();
-  } else {
-    expect(bytes).toBeGreaterThan(MESSAGE_CACHE_BUDGET_BYTES);
-  }
+  expect(bytes).toBeLessThanOrEqual(MESSAGE_CACHE_BUDGET_BYTES);
+  expect(actual.messages.oversized).toBeUndefined();
 });
 
 test("warming stays available after inline eviction below the byte budget", () => {
@@ -553,9 +529,7 @@ test("warming stays available after inline eviction below the byte budget", () =
     store
       .getState()
       .setMessages("image", [{ ...row(1), images: [image] }], {}, "cache");
-    expect(Boolean(store.getState().messages.image)).toBe(
-      process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
-    );
+    expect(store.getState().messages.image).toBeUndefined();
     expect(messageWarmState.full).toBe(false);
     for (const id of ["first", "second", "third", "fourth"]) {
       store.getState().setMessages(id, [row(1, large)], {}, "cache");
@@ -623,9 +597,7 @@ test.each(["stream", "send", "send with transcript update", "panel"] as const)(
         }));
       else useInboxStore.setState({ sidePanelSessionId: null });
       await Promise.resolve();
-      expect(Boolean(useInboxStore.getState().messages[id])).toBe(
-        process.env.VITE_MESSAGE_MEMORY_BUDGET !== "1",
-      );
+      expect(useInboxStore.getState().messages[id]).toBeUndefined();
       expect(messageWarmState.full).toBe(false);
     } finally {
       useInboxStore.setState(original);

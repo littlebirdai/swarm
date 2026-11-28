@@ -85,8 +85,6 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
   test(`${kind} store reads`, async () => {
     const Page = (await windows[windowKind]()).default;
     const reads = new Map<string, string>();
-    const originalFlag = process.env.VITE_DESKTOP_PANEL_SCOPE;
-    process.env.VITE_DESKTOP_PANEL_SCOPE = "1";
     let restoreWindowRole: (() => void) | undefined;
     const badges: number[] = [];
     const keys = new Set<string>([
@@ -370,9 +368,6 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
       stop?.();
       await web?.close();
       restoreWindowRole?.();
-      if (originalFlag === undefined)
-        delete process.env.VITE_DESKTOP_PANEL_SCOPE;
-      else process.env.VITE_DESKTOP_PANEL_SCOPE = originalFlag;
     }
   });
 }

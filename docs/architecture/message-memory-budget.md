@@ -1,7 +1,6 @@
 # Message memory budget
 
-Set `VITE_MESSAGE_MEMORY_BUDGET=1` in the web build to enable strict transcript
-eviction for web and desktop. The flag defaults off. The store estimates the
+Web and desktop enforce strict transcript eviction. The store estimates the
 bytes held by message pages and user-message rows against a 32 MiB budget.
 Inactive pages can be evicted and restored from the cache when reopened.
 
