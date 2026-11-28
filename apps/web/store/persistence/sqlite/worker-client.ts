@@ -14,7 +14,12 @@ import {
   createMemoryCacheFallback,
   type MemoryCacheStorage,
 } from "./memory-fallback";
-import { hydratedEpochAfterLoad, rotatedEpochToRetry } from "./hydrated-epoch";
+import { createEpochRequests } from "./epoch-requests";
+import {
+  hydratedEpochAfterLoad,
+  rotatedEpochToRetry,
+  sameAccountEpoch,
+} from "./hydrated-epoch";
 import {
   findArchiveRestores,
   findPendingArchives,
@@ -184,7 +189,7 @@ export function createSqliteWorkerClient(
     return pendingBatch;
   };
 
-  const flushBatchNow = (): Promise<void> => {
+  const flushBatchNow = (closingEpoch?: CacheEpoch): Promise<void> => {
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
@@ -198,7 +203,7 @@ export function createSqliteWorkerClient(
     if (principal === null || batch.principal !== principal) {
       return Promise.resolve();
     }
-    const epoch = connection.ensureActiveEpoch(principal, true);
+    const epoch = closingEpoch ?? connection.ensureActiveEpoch(principal, true);
     if (!epoch) {
       return Promise.resolve();
     }
@@ -212,19 +217,9 @@ export function createSqliteWorkerClient(
     if (!built) {
       return Promise.resolve();
     }
-    const promise = connection
+    const promise = requests
       .send(epoch, principal, "flushBatch", built.payload)
       .then(() => {
-        const current = connection.currentEpoch();
-        if (
-          closed ||
-          opfsMissing ||
-          auth.current() !== principal ||
-          !current ||
-          epochId(current) !== sentEpochId
-        ) {
-          return;
-        }
         built.commitShadow(knownIds, lastPersistedRows, lastPersistedMeta);
         syncDocDetailWorkspacesFromShadow();
         for (const key of built.dropKeys) clearSnapshotDrops(key);
@@ -283,12 +278,20 @@ export function createSqliteWorkerClient(
         onFallbackToMemory?.(reason);
       }
     },
-    onEpochChange: () => {
+    onEpochChange: (epoch) => {
       resetShadowState();
+      if (hydratedEpoch && epoch && !sameAccountEpoch(hydratedEpoch, epoch))
+        hydratedEpoch = null;
     },
-    onBeforeLockRelease: () => {
-      void flushBatchNow();
+    onBeforeClose: (epoch) => {
+      void flushBatchNow(epoch);
     },
+  });
+
+  const requests = createEpochRequests({
+    connection,
+    auth,
+    isOpen: () => !closed,
   });
 
   const scheduleFlush = () => {
@@ -378,7 +381,7 @@ export function createSqliteWorkerClient(
         const sent: CacheEpoch = target;
         target = null;
         try {
-          sqliteResult = await connection.send(sent, principal, "loadCache", {
+          sqliteResult = await requests.send(sent, principal, "loadCache", {
             keys,
             context: sqliteContext,
           });
@@ -519,7 +522,7 @@ export function createSqliteWorkerClient(
       const epoch = connection.ensureActiveEpoch(principal, true);
       if (!epoch) return null;
       try {
-        const result = await connection.send(
+        const result = await requests.send(
           epoch,
           principal,
           "loadConversationMessages",
@@ -597,12 +600,9 @@ export function createSqliteWorkerClient(
       const epoch = connection.ensureActiveEpoch(owner, true);
       if (!epoch) return [];
       try {
-        const deleted = await connection.send(
-          epoch,
-          owner,
-          "deleteDocDetails",
-          { ids: confirmed },
-        );
+        const deleted = await requests.send(epoch, owner, "deleteDocDetails", {
+          ids: confirmed,
+        });
         const known = knownIds.get("docDetails");
         const shadow = lastPersistedRows.get("docDetails");
         for (const id of deleted) {
@@ -642,7 +642,7 @@ export function createSqliteWorkerClient(
       const epoch = connection.ensureActiveEpoch(principal, true);
       if (!epoch) return [];
       try {
-        const refs = await connection.send(
+        const refs = await requests.send(
           epoch,
           principal,
           "readDocDetailRefs",

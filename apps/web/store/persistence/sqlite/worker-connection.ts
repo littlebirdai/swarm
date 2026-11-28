@@ -23,6 +23,7 @@ import {
   type WorkerSpawner,
 } from "./protocol";
 import { createRpcChannelManager, WorkerRpcError } from "./rpc-channel";
+import { createTransitionGate } from "./transition-gate";
 import { createWorkerDrains } from "./worker-drain";
 
 export { WorkerRpcError };
@@ -40,7 +41,7 @@ export type WorkerConnectionDeps = {
   createId: () => string;
   onOpfsMissing: (reason: string) => void;
   onEpochChange?: (epoch: CacheEpoch | null) => void;
-  onBeforeLockRelease?: () => void;
+  onBeforeClose?: (epoch: CacheEpoch) => void;
 };
 
 export type WorkerConnection = {
@@ -63,6 +64,7 @@ export type WorkerConnection = {
 };
 
 const GRACEFUL_CLOSE_TIMEOUT_MS = 150;
+const MAX_UNHEALTHY_ROTATIONS = 3;
 
 export function createWorkerConnection(
   deps: WorkerConnectionDeps,
@@ -80,7 +82,7 @@ export function createWorkerConnection(
     createId,
     onOpfsMissing,
     onEpochChange,
-    onBeforeLockRelease,
+    onBeforeClose,
   } = deps;
 
   let closed = false;
@@ -97,6 +99,8 @@ export function createWorkerConnection(
   let sharedChannel: ChannelEndpoint | null = null;
   let ownChannel: ChannelEndpoint | null = null;
   let knownWorkerId: string | null = null;
+  let unhealthyRotations = 0;
+  const transitions = createTransitionGate();
 
   const rpc = createRpcChannelManager({
     clientId,
@@ -130,10 +134,11 @@ export function createWorkerConnection(
   const disableSqlite = (reason: string) => {
     if (disabled) return;
     disabled = true;
-    teardownEpoch(false);
-    activeEpoch = null;
-    onEpochChange?.(null);
-    onOpfsMissing(reason);
+    transitions.run(() => {
+      teardownEpoch(false);
+      onEpochChange?.(null);
+      onOpfsMissing(reason);
+    });
   };
 
   const writeEpochOrDisable = (epoch: CacheEpoch): boolean => {
@@ -220,7 +225,7 @@ export function createWorkerConnection(
 
   const teardownEpoch = (graceful: boolean, closing = false) => {
     const epoch = activeEpoch;
-    if (graceful && epoch) onBeforeLockRelease?.();
+    if (closing && epoch) onBeforeClose?.(epoch);
     if (closing) closed = true;
     activeEpoch = null;
     if (graceful && epoch && drainOwnedWorker(epoch)) return;
@@ -249,11 +254,19 @@ export function createWorkerConnection(
   };
 
   function rotateToNextGeneration(expected: CacheEpoch, reason: string) {
+    transitions.run(() => rotateNow(expected, reason));
+  }
+
+  function rotateNow(expected: CacheEpoch, reason: string) {
     if (closed || disabled) return;
+    unhealthyRotations++;
+    if (unhealthyRotations > MAX_UNHEALTHY_ROTATIONS) {
+      disableSqlite("rotation-limit");
+      return;
+    }
     const id = epochId(expected);
     if (activeEpoch && epochId(activeEpoch) === id) {
       teardownEpoch(false);
-      activeEpoch = null;
       onEpochChange?.(null);
     }
     const next = nextGenerationEpoch(expected, reason, now());
@@ -287,6 +300,8 @@ export function createWorkerConnection(
     if (!data || typeof data !== "object") return;
     const msg = data as SqliteWorkerResponse | SqliteWorkerAnnouncement;
     if (msg.type === "response") {
+      if (msg.ok && activeEpoch && msg.epochId === epochId(activeEpoch))
+        unhealthyRotations = 0;
       rpc.handleResponse(msg);
       return;
     }
@@ -459,12 +474,11 @@ export function createWorkerConnection(
     requestLock(epoch);
   }
 
-  const unsubscribeEpochStore = epochStore.subscribe?.((next) => {
+  const followStoredEpoch = (next: CacheEpoch | null) => {
     if (closed || disabled || !activeEpoch) return;
     if (next && compareEpochOrder(next, activeEpoch) < 0) return;
     if (!next || !sameEpoch(next, activeEpoch)) {
       teardownEpoch(false);
-      activeEpoch = null;
       onEpochChange?.(null);
       if (
         next &&
@@ -476,45 +490,59 @@ export function createWorkerConnection(
         attachToEpoch(next);
       }
     }
+  };
+
+  const unsubscribeEpochStore = epochStore.subscribe?.((next) => {
+    transitions.run(() => followStoredEpoch(next));
   });
+
+  const ensureNow = (
+    principal: string | null,
+    createIfMissing: boolean,
+  ): CacheEpoch | null => {
+    if (disabled || closed) return null;
+    const stored = epochStore.read();
+    const resolution = resolveTargetEpoch({
+      stored,
+      schemaVersion,
+      principal,
+      tokenState: auth.tokenState(),
+      now: now(),
+    });
+    if (resolution.action === "hold") {
+      if (
+        principal === null &&
+        auth.tokenState() !== "unparsable" &&
+        auth.tokenState() !== "unreadable"
+      ) {
+        teardownEpoch(false);
+        onEpochChange?.(null);
+      }
+      return null;
+    }
+    const target = resolution.epoch;
+    if (!target) return null;
+    if (resolution.action === "create") {
+      if (!createIfMissing && target.principal !== null) return null;
+      if (!writeEpochOrDisable(target)) return null;
+    }
+    if (target.principal === null) {
+      teardownEpoch(false);
+      onEpochChange?.(null);
+      return null;
+    }
+    attachToEpoch(target);
+    return activeEpoch;
+  };
 
   return {
     ensureActiveEpoch(principal, createIfMissing) {
-      if (disabled || closed) return null;
-      const stored = epochStore.read();
-      const resolution = resolveTargetEpoch({
-        stored,
-        schemaVersion,
-        principal,
-        tokenState: auth.tokenState(),
-        now: now(),
+      if (transitions.isRunning()) return null;
+      let result: CacheEpoch | null = null;
+      transitions.run(() => {
+        result = ensureNow(principal, createIfMissing);
       });
-      if (resolution.action === "hold") {
-        if (
-          principal === null &&
-          auth.tokenState() !== "unparsable" &&
-          auth.tokenState() !== "unreadable"
-        ) {
-          teardownEpoch(false);
-          activeEpoch = null;
-          onEpochChange?.(null);
-        }
-        return null;
-      }
-      const target = resolution.epoch;
-      if (!target) return null;
-      if (resolution.action === "create") {
-        if (!createIfMissing && target.principal !== null) return null;
-        if (!writeEpochOrDisable(target)) return null;
-      }
-      if (target.principal === null) {
-        teardownEpoch(false);
-        activeEpoch = null;
-        onEpochChange?.(null);
-        return null;
-      }
-      attachToEpoch(target);
-      return activeEpoch;
+      return result;
     },
 
     send<K extends SqliteWorkerOp>(
@@ -569,25 +597,29 @@ export function createWorkerConnection(
     handleEpochFailure,
 
     rotateForPurge(keepPrincipal) {
-      if (disabled) return;
-      const current = activeEpoch ?? epochStore.read();
-      teardownEpoch(false);
-      activeEpoch = null;
-      onEpochChange?.(null);
-      writeEpochOrDisable({
-        schemaVersion,
-        accountEpoch: (current?.accountEpoch ?? 0) + 1,
-        generation: 1,
-        principal: keepPrincipal,
-        updatedAt: now(),
+      transitions.run(() => {
+        if (disabled) return;
+        const current = activeEpoch ?? epochStore.read();
+        teardownEpoch(false);
+        onEpochChange?.(null);
+        unhealthyRotations = 0;
+        writeEpochOrDisable({
+          schemaVersion,
+          accountEpoch: (current?.accountEpoch ?? 0) + 1,
+          generation: 1,
+          principal: keepPrincipal,
+          updatedAt: now(),
+        });
       });
     },
 
     close() {
-      if (closed) return;
-      unsubscribeEpochStore?.();
-      teardownEpoch(true, true);
-      onEpochChange?.(null);
+      transitions.run(() => {
+        if (closed) return;
+        unsubscribeEpochStore?.();
+        teardownEpoch(true, true);
+        onEpochChange?.(null);
+      });
     },
 
     currentEpoch() {

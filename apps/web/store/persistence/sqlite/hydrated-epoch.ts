@@ -1,6 +1,6 @@
 import { epochId, type CacheEpoch } from "./protocol";
 
-function sameAccountEpoch(a: CacheEpoch, b: CacheEpoch): boolean {
+export function sameAccountEpoch(a: CacheEpoch, b: CacheEpoch): boolean {
   return (
     a.principal === b.principal &&
     a.schemaVersion === b.schemaVersion &&
@@ -30,7 +30,8 @@ export function rotatedEpochToRetry(
   active: CacheEpoch | null,
   keys: readonly string[] | undefined,
 ): CacheEpoch | null {
-  if (hydrated || !active || !readsSyncCursor(keys)) return null;
+  if (!active || !readsSyncCursor(keys)) return null;
+  if (hydrated && sameAccountEpoch(hydrated, failed)) return null;
   if (!sameAccountEpoch(active, failed)) return null;
   return active.generation > failed.generation ? active : null;
 }
