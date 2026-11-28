@@ -99,6 +99,7 @@ const relayGrantRequest = object({
     }
     return sessions;
   },
+  token_deltas: optional(boolean),
 });
 
 export function isRelayGrantUrl(value: string): boolean {

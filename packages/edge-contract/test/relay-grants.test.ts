@@ -25,6 +25,23 @@ test("relay grant requests accept one through sixteen distinct fenced sessions",
     };
     expectParsed(parseRelayGrantRequest(request), request);
   }
+  for (const token_deltas of [true, false]) {
+    const request: RelayGrantRequest = {
+      v: 1,
+      sessions: sessions.slice(0, 2),
+      token_deltas,
+    };
+    expectParsed(parseRelayGrantRequest(request), request);
+  }
+  expectParseError(
+    parseRelayGrantRequest({
+      v: 1,
+      sessions: sessions.slice(0, 1),
+      token_deltas: "yes",
+    }),
+    "invalid_type",
+    "$.token_deltas",
+  );
   for (const invalid of [[], sessions, [sessions[0], sessions[0]]]) {
     expectParseError(
       parseRelayGrantRequest({ v: 1, sessions: invalid }),
