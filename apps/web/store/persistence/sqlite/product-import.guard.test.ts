@@ -1,8 +1,11 @@
 import { expect, test } from "bun:test";
 import { dirname, resolve } from "node:path";
 import { preProcessFile } from "typescript";
+import { sqliteCacheEnabled } from "../storage-bindings";
 
-test("the product has no imports of the SQLite cache engine", async () => {
+const ALLOWED_PRODUCT_IMPORTERS = new Set(["apps/web/store/idb-cache.ts"]);
+
+test("the product imports the SQLite cache engine only through the storage binding", async () => {
   const root = resolve(import.meta.dir, "../../../../..");
   const web = resolve(root, "apps/web");
   const engine = import.meta.dir.toLowerCase();
@@ -29,6 +32,7 @@ test("the product has no imports of the SQLite cache engine", async () => {
       )
     )
       continue;
+    if (ALLOWED_PRODUCT_IMPORTERS.has(relative)) continue;
     const path = resolve(root, relative);
     if (path.toLowerCase().startsWith(engine + "/")) continue;
     const file = Bun.file(path);
@@ -47,4 +51,17 @@ test("the product has no imports of the SQLite cache engine", async () => {
     }
   }
   expect(violations).toEqual([]);
+});
+
+test("SQLite cache flag is off by default", () => {
+  const saved = process.env.VITE_SQLITE_CACHE;
+  delete process.env.VITE_SQLITE_CACHE;
+  try {
+    expect(sqliteCacheEnabled()).toBe(false);
+    process.env.VITE_SQLITE_CACHE = "1";
+    expect(sqliteCacheEnabled()).toBe(true);
+  } finally {
+    if (saved === undefined) delete process.env.VITE_SQLITE_CACHE;
+    else process.env.VITE_SQLITE_CACHE = saved;
+  }
 });
