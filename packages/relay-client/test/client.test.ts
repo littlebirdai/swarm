@@ -243,6 +243,47 @@ test("caps queued signals and prevents WebSocket send buffer growth", async () =
   client.close();
 });
 
+test("drops token_delta on full send buffer without closing shared connection, but retries on broken send", async () => {
+  const { client, sockets, open } = harness();
+  client.subscribe(session, () => {});
+  const socket = await open(60_000, [
+    "presence",
+    "session_liveness",
+    "token_delta",
+  ]);
+  subscribed(socket);
+
+  const delta = {
+    v: 1 as const,
+    type: "token_delta" as const,
+    hub: session,
+    run: 1,
+    turn: "turn-1",
+    message_id: "msg-1",
+    delta_seq: 1,
+    text: "dropped-when-full",
+  };
+  const baseline = socket.frames.length;
+  socket.bufferedAmount = 32_768;
+  expect(client.publish(delta)).toBe(false);
+  expect(socket.frames).toHaveLength(baseline);
+  expect(socket.closed).toBe(false);
+
+  socket.bufferedAmount = 0;
+  expect(
+    client.publish({ v: 1, type: "session_liveness", hub: session, run: 1 }),
+  ).toBe(true);
+  expect(socket.frames).toHaveLength(baseline + 1);
+
+  socket.send = () => {
+    throw new Error("socket broken");
+  };
+  client.publish(delta);
+  expect(socket.closed).toBe(true);
+  expect(sockets).toHaveLength(1);
+  client.close();
+});
+
 test("uses bounded jitter, honors retry-after, and gets a fresh token for policy closes", async () => {
   const { client, sockets, open, requests, advance } = harness(undefined, 0.5);
   client.subscribe(session, () => {});

@@ -62,6 +62,8 @@ export type RelayClientOptions = {
   sessionLiveness?: boolean;
   tokenDeltas?: boolean;
   capabilities?: readonly string[];
+  maxGrantGroups?: number;
+  grantGroup?(hub: RelayHub): string;
   onReady?(hub: RelayHub): void;
   onStatus?(
     hub: RelayHub,
@@ -218,15 +220,19 @@ export function createRelayClient(options: RelayClientOptions) {
     for (const sub of subscriptions.values()) sub.retryAt = Infinity;
   }
 
-  function write(wire: string) {
-    if (!socket || (socket.bufferedAmount ?? 0) >= MAX_BUFFERED_BYTES)
-      return false;
+  function writeStatus(wire: string): "sent" | "full" | "broken" {
+    if (!socket) return "broken";
+    if ((socket.bufferedAmount ?? 0) >= MAX_BUFFERED_BYTES) return "full";
     try {
       socket.send(wire);
-      return true;
+      return "sent";
     } catch {
-      return false;
+      return "broken";
     }
+  }
+
+  function write(wire: string) {
+    return writeStatus(wire) === "sent";
   }
 
   function send(frame: RelayClientFrame) {
@@ -537,9 +543,21 @@ export function createRelayClient(options: RelayClientOptions) {
     if (retryAt > timestamp) return;
     if (!pending && due.length) {
       const batchKey = due[0].batchKey;
-      const batch = due
-        .filter((sub) => sub.batchKey === batchKey)
-        .slice(0, RELAY_MAX_GRANTS_PER_TOKEN);
+      const sameKey = due.filter((sub) => sub.batchKey === batchKey);
+      const batch: Subscription[] = [];
+      if (options.maxGrantGroups !== undefined && options.grantGroup) {
+        const groups = new Set<string>();
+        for (const sub of sameKey) {
+          if (batch.length >= RELAY_MAX_GRANTS_PER_TOKEN) break;
+          const group = options.grantGroup(sub.hub);
+          if (!groups.has(group) && groups.size >= options.maxGrantGroups)
+            continue;
+          groups.add(group);
+          batch.push(sub);
+        }
+      } else {
+        batch.push(...sameKey.slice(0, RELAY_MAX_GRANTS_PER_TOKEN));
+      }
       void requestToken(batch, next);
     } else schedule(next);
   }
@@ -627,7 +645,9 @@ export function createRelayClient(options: RelayClientOptions) {
         sub.status === "ready" &&
         (grants.get(key)?.expires ?? -Infinity) > now();
       if (canSend && !capabilities?.has(frame.type)) return;
-      if (canSend && write(wire)) return true;
+      const outcome = canSend ? writeStatus(wire) : undefined;
+      if (outcome === "sent") return true;
+      if (outcome === "full" && frame.type === "token_delta") return false;
       const coalesces =
         (frame.type === "presence" && frame.state === "active") ||
         ((frame.type === "draft_cursor" || frame.type === "reading_cursor") &&
