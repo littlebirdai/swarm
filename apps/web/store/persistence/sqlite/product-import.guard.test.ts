@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import { dirname, resolve } from "node:path";
-import { preProcessFile } from "typescript";
+import * as ts from "typescript";
 import { sqliteCacheEnabled } from "../storage-bindings";
+
+const { preProcessFile } = ts;
 
 const ALLOWED_PRODUCT_IMPORTERS = new Set(["apps/web/store/idb-cache.ts"]);
 
@@ -64,4 +66,29 @@ test("SQLite cache flag is off by default", () => {
     if (saved === undefined) delete process.env.VITE_SQLITE_CACHE;
     else process.env.VITE_SQLITE_CACHE = saved;
   }
+});
+
+test("idb-cache loads SQLite storage dynamically only inside the VITE_SQLITE_CACHE branch", async () => {
+  const root = resolve(import.meta.dir, "../../../../..");
+  const idbCachePath = resolve(root, "apps/web/store/idb-cache.ts");
+  const source = await Bun.file(idbCachePath).text();
+  const sf = ts.createSourceFile(
+    idbCachePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const staticSqliteImports: string[] = [];
+  for (const stmt of sf.statements) {
+    if (
+      ts.isImportDeclaration(stmt) &&
+      ts.isStringLiteral(stmt.moduleSpecifier) &&
+      stmt.moduleSpecifier.text.includes("sqlite")
+    ) {
+      staticSqliteImports.push(stmt.moduleSpecifier.text);
+    }
+  }
+  expect(staticSqliteImports).toEqual([]);
+  expect(source).toContain('process.env.VITE_SQLITE_CACHE === "1"');
+  expect(source).toContain('import("./persistence/sqlite/storage")');
 });

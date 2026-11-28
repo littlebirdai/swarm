@@ -460,6 +460,25 @@ describe("SQLite cache worker coordinator", () => {
       }
 
       expect(await clientB.loadCache(["sessions"])).toBeNull();
+
+      const clientA2 = createSqliteWorkerClient({
+        auth: authA,
+        schemaVersion: 115,
+        epochStore: createFakeEpochStore(epochOfA),
+        locks,
+        channelTransport,
+        spawnWorker: spawner,
+        opfsSupported: () => true,
+        journal: createFakeJournal(),
+        workerTimeoutMs: 500,
+      });
+      try {
+        expect(await clientA2.loadCache(["sessions"])).toMatchObject({
+          sessions: { [sid]: row },
+        });
+      } finally {
+        clientA2.close();
+      }
     } finally {
       clientA.close();
       clientB.close();

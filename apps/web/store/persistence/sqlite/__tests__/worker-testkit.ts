@@ -201,6 +201,11 @@ function wrapBunSqliteDriver(
             throw error;
           }
         },
+        finalize() {
+          try {
+            query.finalize();
+          } catch {}
+        },
       };
     },
     transaction<Result>(body: () => Result): () => Result {
@@ -226,6 +231,7 @@ export function createDiskWorkerSpawner(
     hang?: () => boolean;
     hangRpc?: () => boolean;
     failOpfs?: () => boolean;
+    failOpenError?: () => unknown;
   },
 ): { spawner: WorkerSpawner; openDbs: Database[] } {
   let seq = 0;
@@ -234,12 +240,36 @@ export function createDiskWorkerSpawner(
     opts?.onSpawn?.(epoch);
     const workerId = `w-${++seq}`;
     let host: ReturnType<typeof createSqliteWorkerHost> | null = null;
+    let workerDb: Database | null = null;
     let terminated = false;
+    const workerEndpoints = new Set<ReturnType<ChannelTransport["open"]>>();
+    const workerTransport: ChannelTransport = {
+      open(channelName, handler) {
+        const endpoint = channelTransport.open(channelName, (data) => {
+          if (!terminated) handler(data);
+        });
+        const wrapped = {
+          post(data: unknown) {
+            if (!terminated) endpoint.post(data);
+          },
+          close() {
+            workerEndpoints.delete(wrapped);
+            endpoint.close();
+          },
+        };
+        workerEndpoints.add(wrapped);
+        return wrapped;
+      },
+    };
 
     const handle: WorkerHandle = {
       postMessage(msg: unknown) {
         if (terminated) return;
         const cmd = msg as { type?: string; epoch?: CacheEpoch };
+        if (cmd.type === "close") {
+          if (host) void host.close();
+          return;
+        }
         if (cmd.type === "init") {
           if (opts?.hang?.()) return;
           const dbDir = join(rootDir, epochDirectory(epoch).slice(1));
@@ -247,13 +277,18 @@ export function createDiskWorkerSpawner(
           host = createSqliteWorkerHost({
             workerId,
             epoch,
-            channelTransport,
+            channelTransport: workerTransport,
             openDatabase: async (_ep, onWriteError) => {
+              if (opts?.failOpenError) {
+                const injected = opts.failOpenError();
+                if (injected) throw injected;
+              }
               if (opts?.failOpfs?.()) {
                 throw new Error("Missing required OPFS APIs.");
               }
               mkdirSync(dbDir, { recursive: true });
               const db = new Database(file);
+              workerDb = db;
               openDbs.push(db);
               opts?.beforeOpen?.(db, epoch);
               return {
@@ -277,7 +312,14 @@ export function createDiskWorkerSpawner(
       },
       terminate() {
         terminated = true;
-        if (host) void host.close();
+        for (const ep of [...workerEndpoints]) ep.close();
+        workerEndpoints.clear();
+        if (workerDb) {
+          try {
+            workerDb.close();
+          } catch {}
+          workerDb = null;
+        }
       },
     };
     return handle;
