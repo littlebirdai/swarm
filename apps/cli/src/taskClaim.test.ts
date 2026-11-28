@@ -7,11 +7,13 @@ import {
   buildTaskClaimBody,
   buildTaskStartBody,
   foldStaleTasks,
+  formatTaskConflict,
   readyCountLine,
   startedLines,
   taskClaimant,
   taskHintBody,
   unclaimedLine,
+  withTaskClaimToken,
 } from "./taskClaim.js";
 import { readTaskPulseFor, recordTaskStart } from "./taskPulse.js";
 import { resolveTaskModelFull } from "./agents/prompts.js";
@@ -380,6 +382,27 @@ describe("cast task ready --claim and the execution hints (task-graph.md TG7-TG9
       else process.env.CODECAST_DIR = prev;
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("withTaskClaimToken and formatTaskConflict propagate tokens and 409 conflict messages", () => {
+    expect(withTaskClaimToken({ short_id: "ct-1" }, 4)).toEqual({
+      short_id: "ct-1",
+      claim_token: 4,
+    });
+    expect(withTaskClaimToken({ short_id: "ct-1", claim_token: 9 }, 4)).toEqual(
+      {
+        short_id: "ct-1",
+        claim_token: 9,
+      },
+    );
+    expect(formatTaskConflict(200, { ok: true })).toBeNull();
+    expect(
+      formatTaskConflict(409, {
+        code: "CONFLICT",
+        reason: "busy",
+        error: "ct-1 is owned by another session",
+      }),
+    ).toContain("409 CONFLICT (busy)");
   });
 
   test("ready --claim --json records the start before printing it", () => {

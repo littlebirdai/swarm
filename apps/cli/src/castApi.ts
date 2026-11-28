@@ -166,8 +166,12 @@ async function readApiResult(
       ? serverErrorLine(String(raw))
       : String(raw);
     const error = opts.describeError ? opts.describeError(said) : said;
-    if (opts.exitOnError === false) throw new Error(error);
-    console.error(`Error: ${error}`);
+    const message =
+      response.status === 409 || result?.code === "CONFLICT"
+        ? `409 CONFLICT${result?.reason ? ` (${result.reason})` : ""}: ${error}`
+        : error;
+    if (opts.exitOnError === false) throw new Error(message);
+    console.error(`Error: ${message}`);
     process.exit(1);
   }
   return result;

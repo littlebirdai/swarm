@@ -43,11 +43,14 @@ import {
   buildTaskClaimBody,
   buildTaskStartBody,
   foldStaleTasks,
+  formatTaskConflict,
   groupTasksByAssignee,
   readyCountLine,
+  registerTaskClaimCommands,
   startedLines,
   taskHintBody,
   unclaimedLine,
+  withTaskClaimToken,
 } from "./taskClaim.js";
 import { ASSIGNEE_MEANS } from "@codecast/org/orgAssignee";
 import { usedOf } from "@codecast/org/orgCapacity";
@@ -579,11 +582,15 @@ import { resolveCurrentConversationId } from "./linkResolve.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import { readLocalConversationMap } from "./localConversationMap.js";
 import {
+  clearStaleClaimOnConflict,
   clearTaskPulse,
   clearTaskPulseIfBound,
+  prepareTaskClaimBody,
+  readTaskClaimToken,
   readTaskPulseFor,
   recordTaskFiled,
   recordTaskStart,
+  settleTaskClaimResult,
   writeTaskPulse,
 } from "./taskPulse.js";
 import type { MachineCapKey } from "./machineCaps.js";
@@ -24327,6 +24334,8 @@ async function cliPost(
     fail((err as Error).message);
   }
   const { siteUrl, apiToken } = getCliEndpoint();
+  const { payload: requestBody, sessionId: claimSessionId } =
+    prepareTaskClaimBody(urlPath, body, detectCurrentSessionId());
   // Bound the call with a timeout so a slow/contended backend can't hang the CLI
   // forever. No auto-retry here: cliPost serves mutating endpoints too, and a
   // timed-out create may have committed server-side.
@@ -24335,7 +24344,7 @@ async function cliPost(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_token: apiToken, ...body }),
+      body: JSON.stringify({ api_token: apiToken, ...requestBody }),
     },
     opts,
   );
@@ -24347,7 +24356,22 @@ async function cliPost(
     const { nonJsonError } = await import("./castApi.js");
     fail(nonJsonError(urlPath, response.status, text), "");
   }
+  const conflict = formatTaskConflict(
+    response.status,
+    result,
+    result?.error ? cliErrorMessage(result.error) : undefined,
+  );
+  if (conflict) {
+    clearStaleClaimOnConflict(
+      result?.reason,
+      claimSessionId,
+      requestBody.short_id,
+    );
+    fail(conflict);
+  }
   if (result?.error) fail(cliErrorMessage(result.error));
+  if (!response.ok) fail(`HTTP ${response.status}`);
+  settleTaskClaimResult(urlPath, requestBody, claimSessionId, result);
   return result;
 }
 
@@ -25499,6 +25523,7 @@ async function afterTaskStarted(
     result.plan_id,
     (planId, session) =>
       cliPost("/cli/plans/bind", { short_id: planId, session_id: session }),
+    result,
   );
   if (opts.quiet) return;
   const blockers = listedBlockers(
@@ -25570,19 +25595,13 @@ work
     // assign-to-agent action), so --spawn needs no local session and no daemon
     // of its own — docs/architecture/issue-sync.md S7.
     if (options.spawn) {
-      const spawnBody: Record<string, any> = { short_id: shortId };
-      if (options.agent) spawnBody.agent_type = options.agent;
-      if (options.message) spawnBody.initial_message = options.message;
-      if (options.isolated || options.worktree) spawnBody.isolated = true;
-      if (options.worktree) spawnBody.worktree_name = options.worktree;
-      if (options.device) spawnBody.device = options.device;
-      if (options.as) spawnBody.definition = options.as;
-      const spawned = await cliPost("/cli/work/spawn", spawnBody);
-      const link = `${readConfig()?.web_url || WEB_URL}/conversation/${spawned.conversationId}`;
-      console.log(
-        `${c.green}ok${c.reset} spawned ${c.cyan}${spawned.sessionId}${c.reset} for ${c.cyan}${shortId}${c.reset}`,
+      const { runTaskSpawnForStart } = await import("./task-claim-commands.js");
+      await runTaskSpawnForStart(
+        { cliPost, colors: c, readConfig, webUrl: WEB_URL },
+        shortId,
+        sessionId,
+        options,
       );
-      console.log(`  ${c.dim}${link}${c.reset}`);
     }
     await warnIfThreadStateStale();
   });
@@ -25613,7 +25632,10 @@ work
       body.execution_status = "done";
     }
     if (options.message) body.verification_evidence = options.message;
-    await cliPost("/cli/work/update", body);
+    await cliPost(
+      "/cli/work/update",
+      withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
+    );
     if (options.message) {
       const commentBody: Record<string, any> = {
         short_id: shortId,
@@ -25739,7 +25761,10 @@ work
         pages,
         guide,
       };
-      body = buildTaskHandoffBody(shortId, ownSessionId(getRealCwd()), input);
+      body = withTaskClaimToken(
+        buildTaskHandoffBody(shortId, ownSessionId(getRealCwd()), input),
+        readTaskClaimToken(ownSessionId(getRealCwd()), shortId),
+      );
     } catch (err) {
       console.error(`Error: ${(err as Error).message}`);
       process.exit(1);
@@ -25814,11 +25839,10 @@ work
       console.error(`Error: ${(err as Error).message}`);
       process.exit(1);
     }
-    const body = buildTaskVerdictBody(
-      shortId,
-      ownSessionId(getRealCwd()),
-      verdict,
-      options.note,
+    const verdictSessionId = ownSessionId(getRealCwd());
+    const body = withTaskClaimToken(
+      buildTaskVerdictBody(shortId, verdictSessionId, verdict, options.note),
+      readTaskClaimToken(verdictSessionId, shortId),
     );
     await cliPost("/cli/work/update", body);
     const commentBody: Record<string, any> = {
@@ -25832,75 +25856,13 @@ work
     console.log(
       `${c.green}ok${c.reset} Verdict ${c.bold}${verdict}${c.reset} on ${c.cyan}${shortId}${c.reset} → ${body.status}`,
     );
-    // Findings written in the line grammar (reviewFindings.ts) become
-    // review_comments rows on the task; a deferred one is a promise.
-    const { parseFindings } = await import("./reviewFindings.js");
-    const { findings } = parseFindings(options.note);
-    if (findings.length > 0) {
-      const task = await cliPost("/cli/work/get", { short_id: shortId }).catch(
-        () => null,
-      );
-      const taskId = task?.task?._id ?? task?._id ?? task?.id;
-      const gitRoot = (() => {
-        try {
-          return execSync("git rev-parse --show-toplevel", {
-            cwd: getRealCwd(),
-            stdio: ["ignore", "pipe", "ignore"],
-          })
-            .toString()
-            .trim();
-        } catch {
-          return getRealCwd();
-        }
-      })();
-      // The verdict above is already recorded: a finding that fails is
-      // reported on its own line and never turns the command into a failure.
-      const failed: string[] = [];
-      for (const f of findings) {
-        const add = (session: boolean) =>
-          cliPost(
-            "/cli/review/add",
-            {
-              git_root: gitRoot,
-              file_path: f.file_path,
-              line_number: f.line_number,
-              line_end: f.line_end,
-              content: `[${f.severity}] ${f.content}`,
-              severity: f.severity,
-              task_id: taskId,
-              ...(session ? { conversation_id: body.conversation_id } : {}),
-              author_kind: "agent",
-              disposition: f.disposition,
-              owner: f.owner,
-              due_at: f.due_at,
-            },
-            { throwOnError: true },
-          );
-        try {
-          // A server from before it resolved session ids takes only a
-          // conversation id; the finding is filed without the session there.
-          await add(true).catch((err: Error) => {
-            if (isOlderBackendRefusal(err, "conversation_id"))
-              return add(false);
-            throw err;
-          });
-        } catch (err) {
-          failed.push(
-            `${f.file_path}${f.line_number ? `:${f.line_number}` : ""}: ${(err as Error).message}`,
-          );
-        }
-      }
-      const filed = findings.length - failed.length;
-      console.log(
-        `${c.dim}${filed}/${findings.length} findings recorded on ${shortId}${c.reset}`,
-      );
-      if (failed.length) {
-        console.error(
-          `${c.yellow}note${c.reset} verdict recorded; ${failed.length} finding${failed.length === 1 ? "" : "s"} not filed:`,
-        );
-        for (const line of failed) console.error(`  ${line}`);
-      }
-    }
+    const { fileVerdictFindings } = await import("./task-claim-commands.js");
+    await fileVerdictFindings(
+      { cliPost, getRealCwd, colors: c, isOlderBackendRefusal },
+      shortId,
+      body.conversation_id,
+      options.note,
+    );
     await warnIfThreadStateStale();
   });
 
@@ -25920,7 +25882,10 @@ work
     if (options.cascade) body.subtask_resolution = "cascade";
     else if (options.onlyParent) body.subtask_resolution = "only_parent";
     if (sessionId) body.conversation_id = sessionId;
-    await cliPost("/cli/work/update", body);
+    await cliPost(
+      "/cli/work/update",
+      withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
+    );
     if (sessionId) clearTaskPulseIfBound(sessionId, shortId);
     if (options.message) {
       const commentBody: Record<string, any> = {
@@ -26060,7 +26025,11 @@ work
     if (options.fromCall !== undefined)
       body.from_call = await taskCallArg(options.fromCall);
     try {
-      await cliPost("/cli/work/update", body, { throwOnError: true });
+      await cliPost(
+        "/cli/work/update",
+        withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
+        { throwOnError: true },
+      );
     } catch (err) {
       // A server older than the status aliases refuses `cancelled` whole; send the category it means.
       const message = err instanceof Error ? err.message : String(err);
@@ -26077,7 +26046,13 @@ work
       console.error(
         `${c.yellow}note${c.reset} "${body.status}" is not a status; set ${alias}`,
       );
-      await cliPost("/cli/work/update", { ...body, status: alias });
+      await cliPost(
+        "/cli/work/update",
+        withTaskClaimToken(
+          { ...body, status: alias },
+          readTaskClaimToken(sessionId, shortId),
+        ),
+      );
     }
     console.log(`${c.green}ok${c.reset} Updated ${c.cyan}${shortId}${c.reset}`);
   });
@@ -26546,6 +26521,13 @@ work
       `${c.green}ok${c.reset} Promoted ${c.cyan}${shortId}${c.reset}`,
     );
   });
+
+registerTaskClaimCommands(work, {
+  cliPost,
+  ownSessionId,
+  getRealCwd,
+  colors: c,
+});
 
 work
   .command("snippet")
