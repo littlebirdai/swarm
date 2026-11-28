@@ -39,15 +39,8 @@ const writeSessions = (
 ) => store.writePatches([patch("sessions")], state);
 const signIn = (principal: string) =>
   localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(principal));
-const originalStorage = Object.getOwnPropertyDescriptor(
-  globalThis,
-  "localStorage",
-);
-if (!originalStorage)
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: mapStorage(),
-  });
+const originalStorage = "localStorage" in globalThis;
+if (!originalStorage) (globalThis as any).localStorage = mapStorage();
 const originalToken = localStorage.getItem(AUTH_JWT_STORAGE_KEY);
 signIn(owner);
 const { readCacheEvents } = await import("../../cache-events");
@@ -65,7 +58,7 @@ beforeEach(() => {
 afterAll(() => {
   if (originalToken === null) localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
   else localStorage.setItem(AUTH_JWT_STORAGE_KEY, originalToken);
-  if (!originalStorage) Reflect.deleteProperty(globalThis, "localStorage");
+  if (!originalStorage) localStorage.clear();
 });
 for (const engine of ["Dexie", "SQLite"]) {
   describe(engine, () => {
