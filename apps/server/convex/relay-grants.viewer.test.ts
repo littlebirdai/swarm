@@ -436,3 +436,67 @@ test("mergeDuplicateUser deduplicates relay_viewer_grants by (conversation_id, u
     expires_at: now + 30_000,
   });
 });
+
+test("CODECAST_RELAY_TOKEN_DELTAS enables read-only viewer hub grants without enabling presence publish", async () => {
+  const t = serverTest();
+  const { owner, teammate, outsider, conv } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "token-deltas-viewer");
+    const owner = await rows.user({ name: "Owner" });
+    const teammate = await rows.user({ name: "Teammate" });
+    const outsider = await rows.user({ name: "Outsider" });
+    const team = await rows.team();
+    await rows.membership(owner, team, { visibility: "full" });
+    await rows.membership(teammate, team, { visibility: "full" });
+    const conv = await rows.conversation(owner, {
+      team_id: team,
+      team_visibility: "full",
+    });
+    return { owner, teammate, outsider, conv };
+  });
+
+  expect(
+    await asUser(t, owner).query(api.relayGrants.viewerTarget, {
+      conversation_id: conv,
+    }),
+  ).toBeNull();
+
+  process.env.CODECAST_RELAY_TOKEN_DELTAS = "1";
+  try {
+    expect(
+      await asUser(t, teammate).query(api.relayGrants.viewerTarget, {
+        conversation_id: conv,
+      }),
+    ).toEqual({
+      viewer: teammate,
+      hub: `viewer:${conv}`,
+      tier: "member",
+    });
+
+    const granted = await asUser(t, teammate).mutation(mint, {
+      hubs: [viewerSession(conv)],
+    });
+    expect(granted).toMatchObject({ status: "ok", omitted: [] });
+    if (granted.status !== "ok") throw new Error("Expected ok");
+    const payload = JSON.parse(
+      Buffer.from(granted.token.split(".")[1], "base64url").toString("utf8"),
+    );
+    expect(payload.grants).toEqual([
+      {
+        kind: "session",
+        id: `viewer:${conv}`,
+        publish: [],
+      },
+    ]);
+
+    expect(
+      await asUser(t, outsider).mutation(mint, {
+        hubs: [viewerSession(conv)],
+      }),
+    ).toEqual({
+      status: "denied",
+      omitted: [refused(`viewer:${conv}`)],
+    });
+  } finally {
+    delete process.env.CODECAST_RELAY_TOKEN_DELTAS;
+  }
+});

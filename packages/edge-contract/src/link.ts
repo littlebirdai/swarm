@@ -17,6 +17,7 @@ export const EXPECTED_CAPABILITY = "expected";
 export const STEER_BATON_CAPABILITY = "steer-baton-v1";
 export const TAKEOVER_FENCE_CAPABILITY = "takeover-fence-v1";
 export const RELAY_SESSION_LIVENESS_CAPABILITY = "relay_session_liveness";
+export const RELAY_TOKEN_DELTAS_CAPABILITY = "relay_token_deltas";
 
 export const daemon = {
   machine: nonEmptyString,

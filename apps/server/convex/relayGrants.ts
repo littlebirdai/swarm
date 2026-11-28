@@ -39,9 +39,17 @@ export function viewerPresenceEnabled() {
   return process.env.CODECAST_RELAY_VIEWER_PRESENCE === "1";
 }
 
+export function tokenDeltasEnabled() {
+  return process.env.CODECAST_RELAY_TOKEN_DELTAS === "1";
+}
+
+function viewerHubEnabled() {
+  return viewerPresenceEnabled() || tokenDeltasEnabled();
+}
+
 export function sharedViewerPresenceEnabled() {
   return (
-    viewerPresenceEnabled() &&
+    viewerHubEnabled() &&
     process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED === "1"
   );
 }
@@ -112,7 +120,7 @@ export const mint = mutation({
         if (rawId.startsWith(VIEWER_HUB_PREFIX)) {
           const convRaw = rawId.slice(VIEWER_HUB_PREFIX.length);
           const id =
-            viewerPresenceEnabled() && relayId.test(rawId) && convRaw
+            viewerHubEnabled() && relayId.test(rawId) && convRaw
               ? ctx.db.normalizeId("conversations", convRaw)
               : null;
           const conversation = id ? await ctx.db.get(id) : null;
@@ -130,7 +138,7 @@ export const mint = mutation({
             grants.push({
               kind: "session",
               id: `${VIEWER_HUB_PREFIX}${conversation._id}`,
-              publish: [...VIEWER_SIGNALS],
+              publish: viewerPresenceEnabled() ? [...VIEWER_SIGNALS] : [],
             });
           } else {
             omitted.push({ id: rawId, reason: "inaccessible" });
@@ -216,7 +224,7 @@ export const mint = mutation({
 export const viewerTarget = query({
   args: { conversation_id: v.string() },
   handler: async (ctx, { conversation_id }) => {
-    if (!viewerPresenceEnabled() || !relayGrantConfig()) return null;
+    if (!viewerHubEnabled() || !relayGrantConfig()) return null;
     const userId = await getAuthUserId(ctx);
     if (!userId || !(await ctx.db.get(userId))) return null;
     const id = ctx.db.normalizeId("conversations", conversation_id);
@@ -374,6 +382,18 @@ export function machineRelayGrantConfig() {
   return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
 }
 
+export function machineTokenDeltaGrantConfig() {
+  if (
+    process.env.CODECAST_EDGE_V1 !== "1" ||
+    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1" ||
+    !tokenDeltasEnabled()
+  )
+    return null;
+  const config = relayGrantConfig();
+  const url = process.env.RELAY_PUBLIC_URL;
+  return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
+}
+
 async function signRelayGrant(
   { audience, key }: NonNullable<ReturnType<typeof relayGrantConfig>>,
   claims: Omit<RelayGrantClaims, "v" | "audience">,
@@ -410,7 +430,9 @@ export const mintMachineLiveness = internalMutation({
   },
   handler: async (ctx, { bearer, sessions }) => {
     const v = EDGE_PROTOCOL_VERSION;
-    const config = machineRelayGrantConfig();
+    const livenessConfig = machineRelayGrantConfig();
+    const deltaConfig = machineTokenDeltaGrantConfig();
+    const config = livenessConfig ?? deltaConfig;
     if (!config) return { v, status: "unavailable" } as const;
     if (
       !sessions.length ||
@@ -432,14 +454,25 @@ export const mintMachineLiveness = internalMutation({
       if (!claim) return { v, status: "stale" } as const;
       owner ??= claim;
       expires = Math.min(expires, claim.lease.expires_at);
-      grants.push({
-        kind: "session",
-        id: claim.binding.conversation_id,
-        run,
-        publish: ["session_liveness"],
-      });
+      if (livenessConfig) {
+        grants.push({
+          kind: "session",
+          id: claim.binding.conversation_id,
+          run,
+          publish: ["session_liveness"],
+        });
+      }
+      if (deltaConfig) {
+        grants.push({
+          kind: "session",
+          id: `${VIEWER_HUB_PREFIX}${claim.binding.conversation_id}`,
+          run,
+          publish: ["token_delta"],
+        });
+      }
     }
-    if (!owner) return { v, status: "stale" } as const;
+    if (!owner || grants.length > RELAY_MAX_GRANTS_PER_TOKEN)
+      return { v, status: "stale" } as const;
     const { binding } = owner;
     try {
       const issuance = await checkRateLimit(

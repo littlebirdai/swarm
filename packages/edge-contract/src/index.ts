@@ -25,6 +25,7 @@ export {
   STEER_BATON_CAPABILITY,
   TAKEOVER_FENCE_CAPABILITY,
   RELAY_SESSION_LIVENESS_CAPABILITY,
+  RELAY_TOKEN_DELTAS_CAPABILITY,
   parseHelloRequest,
   parseHelloResponse,
   parseHeartbeatRequest,

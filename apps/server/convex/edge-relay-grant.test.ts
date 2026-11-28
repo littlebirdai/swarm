@@ -6,6 +6,7 @@ import {
 import {
   parseRelayGrantResponse,
   RELAY_SESSION_LIVENESS_CAPABILITY,
+  RELAY_TOKEN_DELTAS_CAPABILITY,
 } from "@codecast/edge-contract";
 import { parseRelayGrantClaims } from "@codecast/relay-contract";
 import { api, internal } from "./_generated/api";
@@ -440,4 +441,79 @@ test("inbox relay targets follow conversation access and the current fenced bind
   ).toBeNull();
   delete process.env.INBOX_LIVENESS_LEASES;
   expect(await owner.query(query, args)).toBeNull();
+});
+
+test("hello and relay-grant include token_delta only when CODECAST_RELAY_TOKEN_DELTAS=1", async () => {
+  const f = await fixture();
+  const hello = {
+    machine,
+    boot,
+    versions: [1],
+    capabilities: [
+      "heartbeat",
+      RELAY_SESSION_LIVENESS_CAPABILITY,
+      RELAY_TOKEN_DELTAS_CAPABILITY,
+    ],
+    providers: [],
+    runtimes: [],
+    capacity: {
+      memory_total_bytes: 1024,
+      memory_available_bytes: 512,
+      live_agents: 1,
+    },
+  };
+  const offCaps = (await (await f.post("hello", hello)).json()).policy
+    .capabilities;
+  expect(offCaps).toEqual(["heartbeat", RELAY_SESSION_LIVENESS_CAPABILITY]);
+
+  process.env.CODECAST_RELAY_TOKEN_DELTAS = "1";
+  try {
+    const onCaps = (await (await f.post("hello", hello)).json()).policy
+      .capabilities;
+    expect(onCaps).toEqual([
+      "heartbeat",
+      RELAY_SESSION_LIVENESS_CAPABILITY,
+      RELAY_TOKEN_DELTAS_CAPABILITY,
+    ]);
+
+    const claim = await f.claim("token delta claim");
+    if (claim.status !== "granted") throw new Error("Expected active claim");
+    const response = await f.post("relay-grant", {
+      v: 1,
+      sessions: [
+        {
+          session: f.conversation,
+          run: claim.run,
+          fencing_token: claim.fencing_token,
+        },
+      ],
+    });
+    const result = await response.json();
+    expect(result.status).toBe("ok");
+    const [, payload] = (result.token as string).split(".");
+    const parsed = parseRelayGrantClaims(
+      new TextDecoder().decode(base64urlDecode(payload)!),
+    );
+    expect(parsed).toMatchObject({
+      ok: true,
+      value: {
+        grants: [
+          {
+            kind: "session",
+            id: f.conversation,
+            run: claim.run,
+            publish: ["session_liveness"],
+          },
+          {
+            kind: "session",
+            id: `viewer:${f.conversation}`,
+            run: claim.run,
+            publish: ["token_delta"],
+          },
+        ],
+      },
+    });
+  } finally {
+    delete process.env.CODECAST_RELAY_TOKEN_DELTAS;
+  }
 });
