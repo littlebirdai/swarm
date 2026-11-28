@@ -445,6 +445,48 @@ export function sweepMissingInterestScopes(
   }
 }
 
+function attachScopeGraceTimer(initialExpiry: number | null): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let nextExpiry = initialExpiry;
+  const clear = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  const scheduleGrace = (resumed: boolean) => {
+    if (disposed) return () => {};
+    if (resumed) {
+      const res = useInboxStore
+        .getState()
+        .reconcileScopeSubscriptions(Date.now());
+      nextExpiry = res.nextGraceExpiryAt;
+    }
+    clear();
+    if (!disposed && nextExpiry !== null) {
+      timer = setTimeout(
+        () => {
+          if (disposed) return;
+          const res = useInboxStore
+            .getState()
+            .reconcileScopeSubscriptions(Date.now());
+          nextExpiry = res.nextGraceExpiryAt;
+          if (!disposed && nextExpiry !== null) scheduleGrace(false);
+        },
+        Math.max(0, nextExpiry - Date.now()),
+      );
+    }
+    return clear;
+  };
+  const stopVisible = whileWindowVisible((resumed) => scheduleGrace(resumed));
+  return () => {
+    disposed = true;
+    clear();
+    stopVisible();
+  };
+}
+
 export function useScopeSubscriptions(opts?: {
   enabled?: boolean;
   onChunkWake?: (
@@ -469,35 +511,10 @@ export function useScopeSubscriptions(opts?: {
 
   useWatchEffect(() => {
     if (!active) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let disposed = false;
-    const clear = () => {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-        timer = undefined;
-      }
-    };
-    const reconcile = () => {
-      if (disposed) return;
-      clear();
-      const res = useInboxStore
-        .getState()
-        .reconcileScopeSubscriptions(Date.now());
-      if (!disposed && res.nextGraceExpiryAt !== null) {
-        timer = setTimeout(
-          reconcile,
-          Math.max(0, res.nextGraceExpiryAt - Date.now()),
-        );
-      }
-    };
-    const stopVisible = whileWindowVisible(() => {
-      reconcile();
-      return clear;
-    });
-    return () => {
-      disposed = true;
-      stopVisible();
-    };
+    const initial = useInboxStore
+      .getState()
+      .reconcileScopeSubscriptions(Date.now());
+    return attachScopeGraceTimer(initial.nextGraceExpiryAt);
   }, [active, inputsSig]);
 
   const subArgs = (chunk: readonly string[] | undefined) =>
@@ -525,13 +542,33 @@ export function useScopeSubscriptions(opts?: {
       prevChunkDataRef.current = [undefined, undefined, undefined, undefined];
       return;
     }
+    const store = useInboxStore.getState();
     for (let i = 0; i < SCOPE_HEADS_CHUNK_COUNT; i++) {
-      const nextData = chunkHeads[i];
+      const nextData = chunkHeads[i] as
+        | { heads?: ScopeHead[]; interest_scopes?: boolean }
+        | undefined;
       if (nextData !== undefined && nextData !== prevChunkDataRef.current[i]) {
         prevChunkDataRef.current[i] = nextData;
         const chunkScopes = chunks[i];
+        const heads = nextData.heads ?? [];
         if (chunkScopes?.length) {
-          onChunkWake?.(chunkScopes, nextData.heads ?? []);
+          const wasConfirmed = store.scopeSubscriptions.serverConfirmed;
+          if (
+            serverConfirmedInterestScopes(
+              chunkScopes,
+              heads,
+              nextData.interest_scopes,
+            )
+          ) {
+            store.setScopeServerConfirmed?.(true);
+            if (!wasConfirmed) store.purgeUnheldScopeRows?.();
+          } else if (
+            nextData.interest_scopes === false ||
+            heads.some((h) => h.scope_key.startsWith("team:"))
+          ) {
+            store.setScopeServerConfirmed?.(false);
+          }
+          onChunkWake?.(chunkScopes, heads);
         }
       } else if (nextData === undefined) {
         prevChunkDataRef.current[i] = undefined;
