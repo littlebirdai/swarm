@@ -809,12 +809,7 @@ export function projectAction(
     op: "upsert",
     ...(row.patch !== undefined
       ? {
-          patch: stripRedundantHomeScope(
-            row.entity_type,
-            row.patch,
-            row.access_key,
-            row.unset,
-          ),
+          patch: stripRedundantHomeScope(row.entity_type, row.patch, row.unset),
         }
       : {}),
     ...(row.unset ? { unset: row.unset } : {}),

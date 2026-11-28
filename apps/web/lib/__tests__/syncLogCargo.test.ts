@@ -96,13 +96,35 @@ describe("planCargoApply — tasks/docs/plans/projects", () => {
     expect(personal.unset).toContain("team_id");
     const moved = planCargoApply(
       "tasks",
-      { patch: { project_id: "p1" } },
+      { patch: { workspace: "team:T", project_id: "p1" } },
       { workspace: "team:T", home_scope: "dir:T" },
     );
     expect(moved.fields.home_scope).toBe("project:p1");
+    const sticky = planCargoApply(
+      "tasks",
+      { patch: { project_id: "p1", title: "x" } },
+      { workspace: "team:T", project_id: "p1", home_scope: "channel:CH1" },
+    );
+    expect("home_scope" in sticky.fields).toBe(false);
+    expect(sticky.unset).not.toContain("home_scope");
+    const stickyNoWorkspace = planCargoApply(
+      "tasks",
+      { patch: { project_id: "p1", title: "x" } },
+      { project_id: "p1", home_scope: "channel:CH1" },
+    );
+    expect(stickyNoWorkspace.unset).not.toContain("home_scope");
+    const movedPersonal = planCargoApply(
+      "tasks",
+      { patch: { home_scope: "user:u1" }, unset: ["workspace", "team_id"] },
+      { workspace: "team:T1", team_id: "T1", home_scope: "dir:T1" },
+    );
+    expect(movedPersonal.fields.home_scope).toBe("user:u1");
     const unlinked = planCargoApply(
       "tasks",
-      { patch: {}, unset: ["project_id"] },
+      {
+        patch: { workspace: "team:T", home_scope: "dir:T" },
+        unset: ["project_id"],
+      },
       { workspace: "team:T", project_id: "p1", home_scope: "project:p1" },
     );
     expect(unlinked.fields.home_scope).toBe("dir:T");

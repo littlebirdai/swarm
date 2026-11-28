@@ -7,8 +7,8 @@
 // from the merged row, and when the row still needs a byIds refetch for joins
 // the replica cannot derive (the enrichment audit's verdicts, pl-498).
 import {
+  cargoDerivesHomeScope,
   derivedHomeScope,
-  touchesHomeScope,
 } from "@codecast/convex/convex/lib/homeScopeDerivation";
 import {
   INBOX_FACT_FIELDS,
@@ -125,14 +125,9 @@ export function planCargoApply(
         ? raw.conversation_ids.length
         : 0;
   }
-  if (
-    (coll === "tasks" || coll === "docs" || coll === "plans") &&
-    !("home_scope" in raw) &&
-    touchesHomeScope(raw, unsetIn)
-  ) {
-    const home = derivedHomeScope(coll, raw, existing?.workspace);
+  if (!("home_scope" in raw) && cargoDerivesHomeScope(coll, raw, unsetIn)) {
+    const home = derivedHomeScope(raw);
     if (home) fields.home_scope = home;
-    else unset.push("home_scope");
   }
   if (
     coll === "docs" &&

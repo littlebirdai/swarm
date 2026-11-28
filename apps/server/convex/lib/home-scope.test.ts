@@ -8,7 +8,7 @@ import { asUser, serverTest } from "../../test-helpers/database.testkit";
 import { fixtureRows } from "../../test-helpers/rows.testkit";
 import { computeHomeScope as reexportedComputeHomeScope } from "./access";
 import { computeHomeScope, computeHomeScopeDb } from "./accessKeys";
-import { derivedHomeScope } from "./homeScopeDerivation";
+import { cargoDerivesHomeScope, derivedHomeScope } from "./homeScopeDerivation";
 
 afterEach(() => {
   jest.useRealTimers();
@@ -586,7 +586,9 @@ describe("write-time home_scope and interest-scope sync_actions emission", () =>
       const shipped = projectAction(latest, undefined, true).patch ?? {};
       expect(
         shipped.home_scope ??
-          derivedHomeScope("tasks", shipped, latest.access_key),
+          (cargoDerivesHomeScope("tasks", shipped, latest.unset)
+            ? derivedHomeScope(shipped)
+            : undefined),
       ).toBe(`project:${setup.project}`);
     });
   });
@@ -615,12 +617,69 @@ describe("write-time home_scope and interest-scope sync_actions emission", () =>
         op: "upsert",
         access_owner: "u1",
         access_key: "team:T",
+        patch: {
+          workspace: "team:T",
+          project_id: "P",
+          home_scope: "project:P",
+        },
+      },
+      undefined,
+      true,
+    );
+    expect(teamProject.patch).toEqual({ workspace: "team:T", project_id: "P" });
+
+    const stickyProject = projectAction(
+      {
+        position: 5,
+        entity_type: "tasks",
+        entity_id: "t4",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "team:T",
         patch: { project_id: "P", home_scope: "project:P" },
       },
       undefined,
       true,
     );
-    expect(teamProject.patch).toEqual({ project_id: "P" });
+    expect(stickyProject.patch).toEqual({
+      project_id: "P",
+      home_scope: "project:P",
+    });
+
+    const movedPersonal = projectAction(
+      {
+        position: 6,
+        entity_type: "tasks",
+        entity_id: "t5",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "user:u1",
+        patch: { home_scope: "user:u1" },
+        unset: ["workspace", "team_id"],
+      },
+      undefined,
+      true,
+    );
+    expect(movedPersonal.patch).toEqual({ home_scope: "user:u1" });
+
+    const unlinked = projectAction(
+      {
+        position: 7,
+        entity_type: "tasks",
+        entity_id: "t6",
+        op: "upsert",
+        access_owner: "u1",
+        access_key: "team:T",
+        patch: { workspace: "team:T", home_scope: "dir:T" },
+        unset: ["project_id"],
+      },
+      undefined,
+      true,
+    );
+    expect(unlinked.patch).toEqual({
+      workspace: "team:T",
+      home_scope: "dir:T",
+    });
 
     const channelOverride = projectAction(
       {
