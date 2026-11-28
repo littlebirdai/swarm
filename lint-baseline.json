@@ -9689,7 +9689,7 @@
     "swarm/no-comments": 1
   },
   "apps/server/convex/http.ts": {
-    "swarm/no-comments": 493
+    "swarm/no-comments": 489
   },
   "apps/server/convex/huddleBackfill.test.ts": {
     "swarm/no-comments": 2
@@ -28208,7 +28208,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5042
+    "swarm/no-comments": 4928
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
