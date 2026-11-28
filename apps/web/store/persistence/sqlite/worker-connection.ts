@@ -14,25 +14,17 @@ import {
   type ChannelTransport,
   type EpochStore,
   type LockAdapter,
-  type SqliteErrorCode,
   type SqliteWorkerAnnouncement,
   type SqliteWorkerOp,
   type SqliteWorkerPayloads,
-  type SqliteWorkerRequest,
   type SqliteWorkerResponse,
   type SqliteWorkerResults,
   type WorkerHandle,
   type WorkerSpawner,
 } from "./protocol";
+import { createRpcChannelManager, WorkerRpcError } from "./rpc-channel";
 
-export class WorkerRpcError extends Error {
-  constructor(
-    readonly code: SqliteErrorCode | "timeout" | "closed",
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export { WorkerRpcError };
 
 export type WorkerConnectionDeps = {
   clientId: string;
@@ -46,6 +38,8 @@ export type WorkerConnectionDeps = {
   now: () => number;
   createId: () => string;
   onOpfsMissing: (reason: string) => void;
+  onEpochChange?: (epoch: CacheEpoch | null) => void;
+  onBeforeLockRelease?: () => boolean;
 };
 
 export type WorkerConnection = {
@@ -66,18 +60,7 @@ export type WorkerConnection = {
   holdsLock(): boolean;
 };
 
-type PendingWaiter = {
-  id: string;
-  epochId: string;
-  principal: string | null;
-  op: SqliteWorkerOp;
-  payload: SqliteWorkerPayloads[SqliteWorkerOp];
-  deadline: number;
-  targetWorkerId: string | null;
-  resolve: (value: unknown) => void;
-  reject: (error: unknown) => void;
-  timer: ReturnType<typeof setTimeout>;
-};
+const GRACEFUL_CLOSE_TIMEOUT_MS = 150;
 
 export function createWorkerConnection(
   deps: WorkerConnectionDeps,
@@ -94,6 +77,8 @@ export function createWorkerConnection(
     now,
     createId,
     onOpfsMissing,
+    onEpochChange,
+    onBeforeLockRelease,
   } = deps;
 
   let closed = false;
@@ -110,17 +95,35 @@ export function createWorkerConnection(
   let sharedChannel: ChannelEndpoint | null = null;
   let ownChannel: ChannelEndpoint | null = null;
   let knownWorkerId: string | null = null;
-  let peerWorkerOutbox: { workerId: string; endpoint: ChannelEndpoint } | null =
-    null;
+  let pendingGracefulClose: ReturnType<typeof setTimeout> | null = null;
 
-  const workerReadyWaiters = new Set<() => void>();
-  const pendingRequests = new Map<string, PendingWaiter>();
+  const rpc = createRpcChannelManager({
+    clientId,
+    channelTransport,
+    workerTimeoutMs,
+    now,
+    getState: () => ({
+      closed,
+      disabled,
+      activeEpoch,
+      ownedWorker,
+      ownedWorkerId,
+      ownedWorkerReady,
+      knownWorkerId,
+      sharedChannel,
+    }),
+    clearKnownWorker: () => {
+      knownWorkerId = null;
+    },
+    onTimeout: (epoch, reason) => rotateToNextGeneration(epoch, reason),
+  });
 
   const disableSqlite = (reason: string) => {
     if (disabled) return;
     disabled = true;
+    teardownEpoch(false);
     activeEpoch = null;
-    teardownEpoch();
+    onEpochChange?.(null);
     onOpfsMissing(reason);
   };
 
@@ -138,38 +141,19 @@ export function createWorkerConnection(
     }
   };
 
-  const notifyReadyWaiters = () => {
-    for (const notify of workerReadyWaiters) notify();
-  };
-
-  const closeWorkerOutbox = () => {
-    try {
-      peerWorkerOutbox?.endpoint.close();
-    } catch {}
-    peerWorkerOutbox = null;
-  };
-
-  const settleReject = (id: string, error: unknown) => {
-    const waiter = pendingRequests.get(id);
-    if (!waiter) return;
-    clearTimeout(waiter.timer);
-    pendingRequests.delete(id);
-    waiter.reject(error);
-  };
-
-  const rejectPendingForEpoch = (reason: string) => {
-    for (const [id, waiter] of pendingRequests) {
-      clearTimeout(waiter.timer);
-      pendingRequests.delete(id);
-      waiter.reject(new WorkerRpcError("closed", reason));
-    }
+  const clearKnownWorkerIfMatches = (deadId: string | null) => {
+    if (!deadId) return;
+    if (knownWorkerId === deadId) knownWorkerId = null;
+    rpc.closeWorkerOutbox(deadId);
   };
 
   const terminateOwnedWorker = () => {
     const worker = ownedWorker;
+    const prevWorkerId = ownedWorkerId;
     ownedWorker = null;
     ownedWorkerId = null;
     ownedWorkerReady = false;
+    clearKnownWorkerIfMatches(prevWorkerId);
     if (worker) {
       try {
         worker.terminate();
@@ -177,10 +161,14 @@ export function createWorkerConnection(
     }
   };
 
-  const teardownEpoch = () => {
+  const finishTeardownLocksAndChannels = () => {
+    if (pendingGracefulClose) {
+      clearTimeout(pendingGracefulClose);
+      pendingGracefulClose = null;
+    }
     terminateOwnedWorker();
     knownWorkerId = null;
-    closeWorkerOutbox();
+    rpc.closeWorkerOutbox();
     try {
       sharedChannel?.close();
     } catch {}
@@ -196,102 +184,30 @@ export function createWorkerConnection(
     lockHeld = false;
     activeLockToken = null;
     release?.();
-    rejectPendingForEpoch("Epoch changed");
-    notifyReadyWaiters();
+    rpc.rejectAll("Epoch changed");
+    rpc.notifyReadyWaiters();
   };
 
-  const sendDiscover = (targetEpochId: string) => {
-    if (!ownedWorker && sharedChannel) {
-      try {
-        sharedChannel.post({
-          type: "discover",
-          replyTo: clientId,
-          epochId: targetEpochId,
-        });
-      } catch {}
-    }
-  };
-
-  const currentTargetWorkerId = (): string | null => {
-    if (ownedWorker && ownedWorkerReady && ownedWorkerId) return ownedWorkerId;
-    if (knownWorkerId && channelTransport) return knownWorkerId;
-    return null;
-  };
-
-  const dispatchWaiter = (waiter: PendingWaiter): void => {
-    if (
-      closed ||
-      disabled ||
-      !activeEpoch ||
-      epochId(activeEpoch) !== waiter.epochId
-    ) {
-      settleReject(
-        waiter.id,
-        new WorkerRpcError("closed", "SQLite worker epoch closed"),
-      );
-      return;
-    }
-    const request: SqliteWorkerRequest = {
-      type: "request",
-      id: waiter.id,
-      replyTo: clientId,
-      epochId: waiter.epochId,
-      principal: waiter.principal,
-      op: waiter.op,
-      payload: waiter.payload,
-    };
-    if (ownedWorker && ownedWorkerReady && ownedWorkerId) {
-      waiter.targetWorkerId = ownedWorkerId;
-      try {
-        ownedWorker.postMessage(request);
-      } catch (error) {
-        settleReject(waiter.id, new WorkerRpcError("closed", String(error)));
-      }
-      return;
-    }
-    if (knownWorkerId && channelTransport) {
-      waiter.targetWorkerId = knownWorkerId;
-      try {
-        if (!peerWorkerOutbox || peerWorkerOutbox.workerId !== knownWorkerId) {
-          closeWorkerOutbox();
-          peerWorkerOutbox = {
-            workerId: knownWorkerId,
-            endpoint: channelTransport.open(
-              addressedChannelName(
-                epochChannelName(activeEpoch),
-                knownWorkerId,
-              ),
-              () => {},
-            ),
-          };
+  const teardownEpoch = (graceful: boolean) => {
+    const flushed =
+      graceful && activeEpoch ? (onBeforeLockRelease?.() ?? false) : false;
+    if (flushed && ownedWorker && ownedWorkerReady) {
+      const worker = ownedWorker;
+      const closeTimer = setTimeout(() => {
+        if (pendingGracefulClose === closeTimer) {
+          finishTeardownLocksAndChannels();
         }
-        peerWorkerOutbox.endpoint.post(request);
-      } catch (error) {
-        closeWorkerOutbox();
-        knownWorkerId = null;
-        settleReject(waiter.id, new WorkerRpcError("closed", String(error)));
-      }
-      return;
-    }
-    waiter.targetWorkerId = null;
-    sendDiscover(waiter.epochId);
-  };
-
-  const redispatchForWorkerChange = (
-    targetEpochId: string,
-    newWorkerId: string | null,
-  ) => {
-    const t = now();
-    for (const waiter of [...pendingRequests.values()]) {
-      if (waiter.epochId !== targetEpochId) continue;
-      if (newWorkerId === null) {
-        waiter.targetWorkerId = null;
-        continue;
-      }
-      if (waiter.targetWorkerId !== newWorkerId && t < waiter.deadline) {
-        dispatchWaiter(waiter);
+      }, GRACEFUL_CLOSE_TIMEOUT_MS);
+      pendingGracefulClose = closeTimer;
+      try {
+        worker.postMessage({ type: "close" });
+        return;
+      } catch {
+        clearTimeout(closeTimer);
+        pendingGracefulClose = null;
       }
     }
+    finishTeardownLocksAndChannels();
   };
 
   const advanceEpochIfMatches = (
@@ -313,11 +229,12 @@ export function createWorkerConnection(
     return stored ?? next;
   };
 
-  const rotateToNextGeneration = (expected: CacheEpoch, reason: string) => {
+  function rotateToNextGeneration(expected: CacheEpoch, reason: string) {
     const id = epochId(expected);
     if (activeEpoch && epochId(activeEpoch) === id) {
-      teardownEpoch();
+      teardownEpoch(false);
       activeEpoch = null;
+      onEpochChange?.(null);
     }
     const next = nextGenerationEpoch(expected, reason, now());
     const target = advanceEpochIfMatches(expected, next);
@@ -331,7 +248,7 @@ export function createWorkerConnection(
     ) {
       attachToEpoch(target);
     }
-  };
+  }
 
   const handleEpochFailure = (failedEpoch: CacheEpoch, reason: string) => {
     if (disabled || closed) return;
@@ -347,16 +264,19 @@ export function createWorkerConnection(
     data: unknown,
     source: "owner" | "channel",
   ) => {
+    if (
+      pendingGracefulClose &&
+      data &&
+      typeof data === "object" &&
+      (data as { type?: string }).type === "worker-closing"
+    ) {
+      finishTeardownLocksAndChannels();
+      return;
+    }
     if (closed || !data || typeof data !== "object") return;
     const msg = data as SqliteWorkerResponse | SqliteWorkerAnnouncement;
     if (msg.type === "response") {
-      if (typeof msg.id !== "string" || typeof msg.ok !== "boolean") return;
-      const waiter = pendingRequests.get(msg.id);
-      if (!waiter || msg.epochId !== waiter.epochId) return;
-      clearTimeout(waiter.timer);
-      pendingRequests.delete(msg.id);
-      if (msg.ok) waiter.resolve(msg.result);
-      else waiter.reject(new WorkerRpcError(msg.code, msg.error));
+      rpc.handleResponse(msg);
       return;
     }
     if (!activeEpoch || msg.epochId !== epochId(activeEpoch)) return;
@@ -371,24 +291,21 @@ export function createWorkerConnection(
           knownWorkerId = msg.workerId;
         }
       } else if (!ownedWorker) {
-        if (knownWorkerId !== msg.workerId) closeWorkerOutbox();
+        if (knownWorkerId !== msg.workerId) rpc.closeWorkerOutbox();
         knownWorkerId = msg.workerId;
       }
-      notifyReadyWaiters();
-      redispatchForWorkerChange(msg.epochId, currentTargetWorkerId());
+      rpc.notifyReadyWaiters();
+      rpc.redispatchForWorkerChange(msg.epochId, rpc.currentTargetWorkerId());
       return;
     }
     if (msg.type === "worker-closing") {
-      if (knownWorkerId === msg.workerId) {
-        knownWorkerId = null;
-        closeWorkerOutbox();
-      }
+      clearKnownWorkerIfMatches(msg.workerId);
       if (source === "owner" && ownedWorkerId === msg.workerId) {
         ownedWorkerId = null;
         ownedWorkerReady = false;
       }
-      redispatchForWorkerChange(msg.epochId, null);
-      sendDiscover(msg.epochId);
+      rpc.redispatchForWorkerChange(msg.epochId, null);
+      rpc.sendDiscover(msg.epochId);
       return;
     }
     if (msg.type === "worker-opfs-missing") {
@@ -401,23 +318,16 @@ export function createWorkerConnection(
     }
   };
 
-  const attachToEpoch = (epoch: CacheEpoch) => {
-    if (closed || disabled || epoch.principal === null) return;
-    if (activeEpoch && sameEpoch(activeEpoch, epoch)) return;
-    teardownEpoch();
-    activeEpoch = epoch;
-    if (!channelTransport || !locks) return;
-
-    const baseChannel = epochChannelName(epoch);
+  const requestLock = (epoch: CacheEpoch) => {
+    if (
+      closed ||
+      disabled ||
+      !locks ||
+      !activeEpoch ||
+      !sameEpoch(activeEpoch, epoch)
+    )
+      return;
     const id = epochId(epoch);
-    sharedChannel = channelTransport.open(baseChannel, (data) =>
-      handleIncomingMessage(data, "channel"),
-    );
-    ownChannel = channelTransport.open(
-      addressedChannelName(baseChannel, clientId),
-      (data) => handleIncomingMessage(data, "channel"),
-    );
-
     const controller = new AbortController();
     lockAbort = controller;
     let lockOwnedByCall = false;
@@ -444,8 +354,8 @@ export function createWorkerConnection(
         activeLockToken = lockToken;
         lockHeld = true;
         knownWorkerId = null;
-        closeWorkerOutbox();
-        redispatchForWorkerChange(id, null);
+        rpc.closeWorkerOutbox();
+        rpc.redispatchForWorkerChange(id, null);
         try {
           const worker = spawnWorker(
             epoch,
@@ -478,19 +388,65 @@ export function createWorkerConnection(
           lockHeld = false;
           releaseLock = null;
           activeLockToken = null;
-          if (activeEpoch && epochId(activeEpoch) === id && ownedWorker) {
-            terminateOwnedWorker();
+          terminateOwnedWorker();
+          knownWorkerId = null;
+          rpc.closeWorkerOutbox();
+          rpc.rejectWritesForEpoch(id, "Lock lost");
+          if (
+            !closed &&
+            !disabled &&
+            activeEpoch &&
+            epochId(activeEpoch) === id
+          ) {
+            rpc.redispatchForWorkerChange(id, null);
+            rpc.sendDiscover(id);
+            queueMicrotask(() => {
+              if (
+                !closed &&
+                !disabled &&
+                activeEpoch &&
+                epochId(activeEpoch) === id &&
+                !lockHeld &&
+                !lockAbort
+              ) {
+                requestLock(activeEpoch);
+              }
+            });
           }
         }
       });
   };
 
+  function attachToEpoch(epoch: CacheEpoch) {
+    if (closed || disabled || epoch.principal === null) return;
+    if (activeEpoch && sameEpoch(activeEpoch, epoch)) return;
+    const prevEpoch = activeEpoch;
+    teardownEpoch(
+      Boolean(prevEpoch && prevEpoch.principal === epoch.principal),
+    );
+    activeEpoch = epoch;
+    onEpochChange?.(epoch);
+    if (!channelTransport || !locks) return;
+
+    const baseChannel = epochChannelName(epoch);
+    sharedChannel = channelTransport.open(baseChannel, (data) =>
+      handleIncomingMessage(data, "channel"),
+    );
+    ownChannel = channelTransport.open(
+      addressedChannelName(baseChannel, clientId),
+      (data) => handleIncomingMessage(data, "channel"),
+    );
+
+    requestLock(epoch);
+  }
+
   const unsubscribeEpochStore = epochStore.subscribe?.((next) => {
     if (closed || disabled || !activeEpoch) return;
     if (next && compareEpochOrder(next, activeEpoch) < 0) return;
     if (!next || !sameEpoch(next, activeEpoch)) {
-      teardownEpoch();
+      teardownEpoch(false);
       activeEpoch = null;
+      onEpochChange?.(null);
       if (
         next &&
         next.schemaVersion === schemaVersion &&
@@ -502,45 +458,6 @@ export function createWorkerConnection(
       }
     }
   });
-
-  const waitForReadyOrTimeout = (id: string, deadline: number) =>
-    new Promise<"ready" | "timeout" | "closed">((resolve) => {
-      if (closed || disabled || !activeEpoch || epochId(activeEpoch) !== id) {
-        resolve("closed");
-        return;
-      }
-      if ((ownedWorker && ownedWorkerReady) || knownWorkerId) {
-        resolve("ready");
-        return;
-      }
-      const remaining = Math.max(0, deadline - now());
-      const probeIntervalMs = Math.max(
-        10,
-        Math.min(50, Math.floor(workerTimeoutMs / 4)),
-      );
-      let done = false;
-      const finish = (outcome: "ready" | "timeout" | "closed") => {
-        if (done) return;
-        done = true;
-        clearTimeout(timeoutTimer);
-        clearInterval(probeTimer);
-        workerReadyWaiters.delete(onWake);
-        resolve(outcome);
-      };
-      const onWake = () => {
-        if (closed || disabled || !activeEpoch || epochId(activeEpoch) !== id) {
-          finish("closed");
-          return;
-        }
-        if ((ownedWorker && ownedWorkerReady) || knownWorkerId) {
-          finish("ready");
-        }
-      };
-      workerReadyWaiters.add(onWake);
-      const timeoutTimer = setTimeout(() => finish("timeout"), remaining);
-      const probeTimer = setInterval(() => sendDiscover(id), probeIntervalMs);
-      sendDiscover(id);
-    });
 
   return {
     ensureActiveEpoch(principal, createIfMissing) {
@@ -559,8 +476,9 @@ export function createWorkerConnection(
           auth.tokenState() !== "unparsable" &&
           auth.tokenState() !== "unreadable"
         ) {
-          teardownEpoch();
+          teardownEpoch(false);
           activeEpoch = null;
+          onEpochChange?.(null);
         }
         return null;
       }
@@ -571,15 +489,16 @@ export function createWorkerConnection(
         if (!writeEpochOrDisable(target)) return null;
       }
       if (target.principal === null) {
-        teardownEpoch();
+        teardownEpoch(false);
         activeEpoch = null;
+        onEpochChange?.(null);
         return null;
       }
       attachToEpoch(target);
       return activeEpoch;
     },
 
-    async send<K extends SqliteWorkerOp>(
+    send<K extends SqliteWorkerOp>(
       epoch: CacheEpoch,
       principal: string | null,
       op: K,
@@ -589,60 +508,43 @@ export function createWorkerConnection(
       const deadline = now() + workerTimeoutMs;
       const reqId = createId();
 
-      const readyOutcome = await waitForReadyOrTimeout(id, deadline);
-      if (readyOutcome === "timeout") {
-        rotateToNextGeneration(epoch, "holder-hung");
-        throw new WorkerRpcError(
-          "timeout",
-          "SQLite worker discovery timed out",
-        );
-      }
       if (
-        readyOutcome === "closed" ||
-        disabled ||
-        !activeEpoch ||
-        epochId(activeEpoch) !== id
+        !closed &&
+        !disabled &&
+        activeEpoch &&
+        epochId(activeEpoch) === id &&
+        rpc.currentTargetWorkerId()
       ) {
-        throw new WorkerRpcError("closed", "SQLite worker epoch closed");
-      }
-
-      const remaining = Math.max(1, deadline - now());
-      let waiter!: PendingWaiter;
-      const resultPromise = new Promise<SqliteWorkerResults[K]>(
-        (resolve, reject) => {
-          const timer = setTimeout(() => {
-            pendingRequests.delete(reqId);
-            rotateToNextGeneration(epoch, "holder-hung");
-            reject(
-              new WorkerRpcError("timeout", "SQLite worker request timed out"),
-            );
-          }, remaining);
-          waiter = {
-            id: reqId,
-            epochId: id,
-            principal,
-            op,
-            payload,
-            deadline,
-            targetWorkerId: null,
-            resolve: resolve as (value: unknown) => void,
-            reject,
-            timer,
-          };
-          pendingRequests.set(reqId, waiter);
-        },
-      );
-
-      if (!currentTargetWorkerId()) {
-        settleReject(
+        return rpc.enqueueAndDispatch({
+          epoch,
+          principal,
+          op,
+          payload,
           reqId,
-          new WorkerRpcError("closed", "No worker target available"),
-        );
-        return resultPromise;
+          deadline,
+        }) as Promise<SqliteWorkerResults[K]>;
       }
 
-      dispatchWaiter(waiter);
-      return resultPromise;
+      return rpc.waitForReadyOrTimeout(id, deadline).then((readyOutcome) => {
+        if (readyOutcome === "timeout") {
+          rotateToNextGeneration(epoch, "holder-hung");
+          throw new WorkerRpcError(
+            "timeout",
+            "SQLite worker discovery timed out",
+          );
+        }
+        if (readyOutcome === "closed") {
+          throw new WorkerRpcError("closed", "SQLite worker epoch closed");
+        }
+        return rpc.enqueueAndDispatch({
+          epoch,
+          principal,
+          op,
+          payload,
+          reqId,
+          deadline,
+        }) as Promise<SqliteWorkerResults[K]>;
+      });
     },
 
     handleEpochFailure,
@@ -650,8 +552,9 @@ export function createWorkerConnection(
     rotateForPurge(keepPrincipal) {
       if (disabled) return;
       const current = activeEpoch ?? epochStore.read();
-      teardownEpoch();
+      teardownEpoch(false);
       activeEpoch = null;
+      onEpochChange?.(null);
       writeEpochOrDisable({
         schemaVersion,
         accountEpoch: (current?.accountEpoch ?? 0) + 1,
@@ -663,10 +566,11 @@ export function createWorkerConnection(
 
     close() {
       if (closed) return;
-      closed = true;
       unsubscribeEpochStore?.();
-      teardownEpoch();
+      teardownEpoch(true);
+      closed = true;
       activeEpoch = null;
+      onEpochChange?.(null);
     },
 
     currentEpoch() {

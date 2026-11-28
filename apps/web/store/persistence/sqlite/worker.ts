@@ -33,9 +33,22 @@ const workerId = crypto.randomUUID();
 let host: SqliteWorkerHost | null = null;
 let queue: Promise<void> = Promise.resolve();
 
+export function dispatchWorkerMessage(
+  data: unknown,
+  handler: (message: SqliteOwnerCommand) => Promise<void>,
+): void {
+  if (!data || typeof data !== "object") return;
+  const msg = data as { type?: unknown };
+  if (typeof msg.type !== "string") return;
+  if (msg.type === "init") {
+    const epoch = (data as { epoch?: unknown }).epoch;
+    if (!epoch || typeof epoch !== "object") return;
+  }
+  queue = queue.then(() => handler(data as SqliteOwnerCommand)).catch(() => {});
+}
+
 self.onmessage = (event: MessageEvent<SqliteOwnerCommand>) => {
-  const message = event.data;
-  queue = queue.then(async () => {
+  dispatchWorkerMessage(event?.data, async (message) => {
     if (message.type === "close") {
       if (host) {
         await host.close();

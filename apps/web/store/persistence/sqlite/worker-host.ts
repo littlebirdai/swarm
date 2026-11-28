@@ -10,6 +10,7 @@ import {
   type ChannelEndpoint,
   type ChannelTransport,
   type SqliteErrorCode,
+  type SqliteFlushBatchPayload,
   type SqliteWorkerAnnouncement,
   type SqliteWorkerOp,
   type SqliteWorkerRequest,
@@ -72,16 +73,70 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function isStringArrayRecord(value: unknown): boolean {
+  if (!isPlainObject(value)) return false;
+  for (const list of Object.values(value)) {
+    if (!Array.isArray(list) || list.some((item) => typeof item !== "string"))
+      return false;
+  }
+  return true;
+}
+
+function isValidPatches(patches: unknown): boolean {
+  if (!Array.isArray(patches)) return false;
+  return patches.every(
+    (item) =>
+      isPlainObject(item) &&
+      typeof item.op === "string" &&
+      Array.isArray(item.path) &&
+      item.path.every(
+        (seg) => typeof seg === "string" || typeof seg === "number",
+      ),
+  );
+}
+
+function isValidFlushConversations(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  return value.every((item) => {
+    if (!isPlainObject(item) || typeof item.conversationId !== "string")
+      return false;
+    if (item.messages !== undefined) {
+      if (!isPlainObject(item.messages) || !Array.isArray(item.messages.rows))
+        return false;
+    }
+    if (item.userMessages !== undefined && !Array.isArray(item.userMessages))
+      return false;
+    return true;
+  });
+}
+
 const VALID_OPS = new Set<string>([
   "ping",
   "loadCache",
   "loadPaintCache",
   "writePatches",
+  "flushBatch",
   "loadConversationMessages",
   "writeConversationMessages",
   "writeConversationUserMessages",
   "deleteDocDetails",
 ]);
+
+function hasValidPatchEnvelope(payload: Record<string, unknown>): boolean {
+  if (!isValidPatches(payload.patches) || !isPlainObject(payload.state))
+    return false;
+  if (
+    payload.snapshotDrops !== undefined &&
+    !isStringArrayRecord(payload.snapshotDrops)
+  )
+    return false;
+  if (
+    payload.evictions !== undefined &&
+    !isStringArrayRecord(payload.evictions)
+  )
+    return false;
+  return true;
+}
 
 function hasValidPayload(op: SqliteWorkerOp, payload: unknown): boolean {
   if (!isPlainObject(payload)) return false;
@@ -97,8 +152,17 @@ function hasValidPayload(op: SqliteWorkerOp, payload: unknown): boolean {
       return false;
     return true;
   }
-  if (op === "writePatches") {
-    return Array.isArray(payload.patches) && isPlainObject(payload.state);
+  if (op === "writePatches") return hasValidPatchEnvelope(payload);
+  if (op === "flushBatch") {
+    if (payload.patches !== undefined || payload.state !== undefined) {
+      if (!hasValidPatchEnvelope(payload)) return false;
+    }
+    if (
+      payload.conversations !== undefined &&
+      !isValidFlushConversations(payload.conversations)
+    )
+      return false;
+    return payload.patches !== undefined || payload.conversations !== undefined;
   }
   if (op === "loadConversationMessages") {
     return typeof payload.conversationId === "string";
@@ -333,7 +397,15 @@ export function createSqliteWorkerHost(
 
       pendingWriteError = null;
       let writeResult: unknown = undefined;
-      if (req.op === "writePatches") {
+      if (req.op === "flushBatch") {
+        const payload = req.payload as SqliteFlushBatchPayload;
+        if (payload.snapshotDrops) {
+          for (const [key, ids] of Object.entries(payload.snapshotDrops)) {
+            if (ids.length) noteSnapshotSync(key, [], ids);
+          }
+        }
+        cache.flushBatch(payload);
+      } else if (req.op === "writePatches") {
         const payload = req.payload as {
           patches: Patch[];
           state: Record<string, unknown>;
