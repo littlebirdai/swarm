@@ -172,6 +172,7 @@ export function updateTaskPulseLease(
 
 export async function callWorkflowCliRoute(
   options: {
+    runId?: string;
     convexSiteUrl?: string;
     apiToken?: string;
     runSession?: string;
@@ -188,8 +189,14 @@ export async function callWorkflowCliRoute(
 ): Promise<any | null> {
   if (!options.convexSiteUrl || !options.apiToken) return null;
   const fallbackSession = options.runSession ?? options.spawnerSession;
+  const skipAttachedToken =
+    route === "/cli/work/update" &&
+    body.status === "in_progress" &&
+    !body.review_verdict;
   const enriched =
-    options.claimToken !== undefined && body.claim_token === undefined
+    !skipAttachedToken &&
+    options.claimToken !== undefined &&
+    body.claim_token === undefined
       ? { ...body, claim_token: options.claimToken }
       : body;
   const { payload, sessionId } = prepareTaskClaimBody(
@@ -211,6 +218,15 @@ export async function callWorkflowCliRoute(
             ? data.message
             : "Task claim conflict";
       onConflict(reason, detail);
+      if (options.runId && route !== "/cli/workflow-runs/progress") {
+        const tag = reason ? ` (${reason})` : "";
+        await fetchJson(`${options.convexSiteUrl}/cli/workflow-runs/progress`, {
+          api_token: options.apiToken,
+          run_id: options.runId,
+          current_node_id: "__log",
+          log_note: `409 CONFLICT${tag} ${route}: ${detail}`,
+        }).catch(() => {});
+      }
       if (
         clearStaleClaimOnConflict(data?.reason, sessionId, payload.short_id)
       ) {
@@ -223,6 +239,7 @@ export async function callWorkflowCliRoute(
     if (typeof data?.claim_token === "number") {
       options.claimToken = data.claim_token;
     } else if (
+      route === "/cli/workflow-runs/task-transition" ||
       route === "/cli/work/release" ||
       (route === "/cli/work/update" &&
         TASK_CLAIM_RELEASE_STATUSES.has(String(payload.status ?? "")))

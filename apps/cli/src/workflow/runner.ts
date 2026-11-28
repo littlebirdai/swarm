@@ -1296,10 +1296,16 @@ async function waitOnStation(
   // handoff can put it in review (a check that sent the round back leaves
   // the old one standing).
   if (answersByHandoff && !reattach && (await handedOff(options))) {
-    await cliCall(options, "/cli/work/update", {
-      short_id: options.taskId,
-      status: "in_progress",
-    });
+    if (!subject) {
+      await cliCall(options, "/cli/work/update", {
+        short_id: options.taskId,
+        status: "in_progress",
+        conversation_id: conversationId,
+        take: true,
+      });
+    } else {
+      await transitionRunTask(options, { status: "in_progress" });
+    }
   }
   let askedForHandoffAt = 0;
   let seenMessages = -1;
@@ -2789,6 +2795,23 @@ export function stationTitle(
 // Retries exhausted parks it in review as blocked. Anything else (a killed
 // hand, a hand that ended without a handoff) returns it to open. Either way
 // a blocker comment says what happened, and a parked task gets a decision.
+async function transitionRunTask(
+  options: RunOptions,
+  payload: Record<string, any>,
+): Promise<any | null> {
+  if (options.runId) {
+    return await cliCall(options, "/cli/workflow-runs/task-transition", {
+      run_id: options.runId,
+      short_id: options.taskId,
+      ...payload,
+    });
+  }
+  return await cliCall(options, "/cli/work/update", {
+    short_id: options.taskId,
+    ...payload,
+  });
+}
+
 async function returnTaskOnFailure(
   options: RunOptions,
   graph: WorkflowGraph,
@@ -2824,10 +2847,7 @@ async function returnTaskOnFailure(
     ? graph.nodes.get(state.context["stopped_at"])
     : undefined;
   if (stoppedAt?.machine) {
-    await cliCall(options, "/cli/work/update", {
-      short_id: options.taskId,
-      status: "in_review",
-    });
+    await transitionRunTask(options, { status: "in_review" });
     const why = (state.failReason ?? "").replace(/^Stopped:\s*/, "");
     await runComment(options, "note", `${why}${output}`, {
       toOwner: !subjectOf(state.context),
@@ -2840,10 +2860,7 @@ async function returnTaskOnFailure(
     const stopped = state.context["stopped_at"]
       ? `${state.failReason}${state.context[`${state.context["stopped_at"]}.from`] ?? ""}${output}`
       : text;
-    await cliCall(options, "/cli/work/update", {
-      short_id: options.taskId,
-      status: "open",
-    });
+    await transitionRunTask(options, { status: "open" });
     await runComment(options, "blocker", stopped);
     return;
   }
@@ -2851,16 +2868,11 @@ async function returnTaskOnFailure(
   // station that only pinned blocked did not, so the run parks it.
   const stationBlocked = !!state.context["station_blocked"];
   if (!parkedByHand || stationBlocked) {
-    await cliCall(
+    await transitionRunTask(
       options,
-      "/cli/work/update",
       exhausted || stationBlocked
-        ? {
-            short_id: options.taskId,
-            status: "in_review",
-            execution_status: "blocked",
-          }
-        : { short_id: options.taskId, status: "open" },
+        ? { status: "in_review", execution_status: "blocked" }
+        : { status: "open" },
     );
   }
   if (parkedByHand || exhausted) {

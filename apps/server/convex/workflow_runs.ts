@@ -1853,6 +1853,7 @@ export const updateProgress = mutation({
         }),
       ),
     ),
+    log_note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
@@ -1860,6 +1861,28 @@ export const updateProgress = mutation({
 
     const run = await ctx.db.get(args.run_id);
     if (!run || run.user_id !== auth.userId) return { error: "Not found" };
+    if (args.log_note) {
+      const logNow = Date.now();
+      const primaryConv = run.primary_conversation_id
+        ? await ctx.db.get(run.primary_conversation_id)
+        : null;
+      if (primaryConv) {
+        await ctx.db.insert("messages", {
+          conversation_id: primaryConv._id,
+          role: "assistant",
+          content: args.log_note,
+          subtype: "workflow_event",
+          timestamp: logNow,
+        });
+        await patchConversationLifecycle(ctx, primaryConv._id, {
+          message_count: (primaryConv.message_count || 0) + 1,
+          updated_at: logNow,
+          last_message_role: "assistant",
+        });
+      }
+      if (!args.node_id && !args.run_status && !args.graph_hash)
+        return { ok: true };
+    }
     const over = runOver(run);
     if (over) return over;
 

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  callWorkflowCliRoute,
   clearTaskClaimFor,
   clearTaskPulseIfBound,
   isTaskClaimConflictRoute,
@@ -171,6 +172,69 @@ describe("task claim tokens in taskPulse", () => {
           );
           expect(readTaskClaimToken("s1", "ct-12")).toBeUndefined();
         }
+
+        const calls: Array<{ url: string; payload: Record<string, any> }> = [];
+        const conflicts: Array<{ reason: string; detail: string }> = [];
+        const routeOpts = {
+          runId: "run-409",
+          convexSiteUrl: "https://convex.test",
+          apiToken: "tok",
+          claimToken: 3,
+        };
+        const res = await callWorkflowCliRoute(
+          routeOpts,
+          "/cli/work/update",
+          { short_id: "ct-13", status: "open" },
+          async (url, payload) => {
+            calls.push({ url, payload });
+            if (url.endsWith("/cli/work/update")) {
+              return {
+                status: 409,
+                ok: false,
+                data: {
+                  code: "CONFLICT",
+                  reason: "wrong_holder",
+                  error: "claimed by another holder",
+                },
+              };
+            }
+            return { status: 200, ok: true, data: { ok: true } };
+          },
+          (reason, detail) => conflicts.push({ reason, detail }),
+        );
+        expect(res).toBeNull();
+        expect(conflicts).toEqual([
+          { reason: "wrong_holder", detail: "claimed by another holder" },
+        ]);
+        expect(calls).toHaveLength(2);
+        expect(calls[1]?.url).toBe(
+          "https://convex.test/cli/workflow-runs/progress",
+        );
+        expect(calls[1]?.payload).toMatchObject({
+          run_id: "run-409",
+          log_note:
+            "409 CONFLICT (wrong_holder) /cli/work/update: claimed by another holder",
+        });
+
+        calls.length = 0;
+        routeOpts.claimToken = 9;
+        await callWorkflowCliRoute(
+          routeOpts,
+          "/cli/work/update",
+          {
+            short_id: "ct-14",
+            status: "in_progress",
+            conversation_id: "conv-hand",
+            take: true,
+          },
+          async (url, payload) => {
+            calls.push({ url, payload });
+            return { status: 200, ok: true, data: { claim_token: 10 } };
+          },
+          () => {},
+        );
+        expect(calls[0]?.payload.claim_token).toBeUndefined();
+        expect(routeOpts.claimToken).toBe(10);
       } finally {
         if (prev === undefined) delete process.env.CODECAST_DIR;
         else process.env.CODECAST_DIR = prev;
