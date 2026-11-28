@@ -80,7 +80,12 @@ import { ChatSearch } from "../../components/chat/ChatSearch";
 import { useShortcutAction } from "../../shortcuts";
 import { channelDisplayName } from "../../lib/chatViews";
 import { useSwitchWorkspace } from "../../hooks/useSwitchWorkspace";
-import { useInboxStore, selectChannelReadMarker, type ChatNotifyLevel, type ChatRailScope } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  selectChannelReadMarker,
+  type ChatNotifyLevel,
+  type ChatRailScope,
+} from "../../store/inboxStore";
 import { selectNavHidden } from "../../store/slices/workspace-slice";
 import { windowOrgTree } from "../../store/orgSlice";
 import { useAuthGate } from "@platform/auth/web";

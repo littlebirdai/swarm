@@ -75,7 +75,24 @@ import {
 import { useInboxSelection } from "../lib/inboxSelection";
 import { useVaultStore } from "../store/vaultStore";
 import { filesHref } from "../lib/vault/vaultHref";
-import { useInboxStore, isConvexId, InboxSession, TaskItem, DocItem, BucketItem, BucketAssignmentItem, placeInboxRows, filterInboxScopeFromState, convBucketMap, sortLabels, computeChipCounts, projectOfFromState, getProjectName, RecentVisit, sessionRowFromSummary } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  InboxSession,
+  TaskItem,
+  DocItem,
+  BucketItem,
+  BucketAssignmentItem,
+  placeInboxRows,
+  filterInboxScopeFromState,
+  convBucketMap,
+  sortLabels,
+  computeChipCounts,
+  projectOfFromState,
+  getProjectName,
+  RecentVisit,
+  sessionRowFromSummary,
+} from "../store/inboxStore";
 import { selectSessionRailOpen } from "../store/slices/workspace-slice";
 import { projectChipLabel } from "../store/workProjects";
 import {

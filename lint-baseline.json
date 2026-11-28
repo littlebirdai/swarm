@@ -27576,7 +27576,7 @@
     "swarm/no-comments": 96
   },
   "apps/web/store/__tests__/inbox-store.test.ts": {
-    "swarm/no-comments": 613
+    "swarm/no-comments": 602
   },
   "apps/web/store/__tests__/inboxConvergenceSim.test.ts": {
     "swarm/no-comments": 63
@@ -28007,6 +28007,9 @@
   },
   "apps/web/store/__tests__/syncTransaction.test.ts": {
     "swarm/no-comments": 12
+  },
+  "apps/web/store/__tests__/tab-frames.test.ts": {
+    "swarm/no-comments": 7
   },
   "apps/web/store/__tests__/tabActionOutbox.guard.test.ts": {
     "swarm/no-comments": 10
