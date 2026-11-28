@@ -48,7 +48,6 @@ type RelayFixture = {
 
 export function fixture(
   selected: string | null = "pilot",
-  _legacyUnused = true,
   useReceiptPeer: false | "receipt" | "receipt-before-reply" = false,
   manyOrRelay: boolean | RelayFixture = false,
   relayArg?: RelayFixture,
@@ -528,7 +527,8 @@ export function fixture(
           if (!parsed.ok) throw parsed.error;
           expect(parsed.value.fencing_token).toBe(lease);
           expect(parsed.value.attempt_id).toBe(queue[0]?.attempt_id);
-          if (refuseSettlement) return Response.json({ v: 1, status: "stale" });
+          if (refuseSettlement || queue[0]?.state !== "started")
+            return Response.json({ v: 1, status: "stale" });
           settlements.push(parsed.value);
           if (parsed.value.outcome === "applied") queue.shift();
           return Response.json({ v: 1, status: "recorded" });

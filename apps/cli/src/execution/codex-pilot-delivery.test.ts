@@ -85,8 +85,21 @@ async function reportReceipt(
   if (beforeRpcReply) await f.sendFrame({ ackStart: true });
 }
 
+async function reportReceiptWhileSettlementRefused(
+  f: ReturnType<typeof fixture>,
+  index: number,
+) {
+  const settles = () =>
+    f.actions.filter((action) => action === "edge:delivery.settle").length;
+  const before = settles();
+  f.rejectSettlements(true);
+  await reportReceipt(f, index);
+  await until(() => settles() > before, "the receipt wake tries to settle");
+  f.rejectSettlements(false);
+}
+
 test("a live work update sends a newly queued message through the owned bridge", async () => {
-  const f = fixture("pilot", true, "receipt-before-reply");
+  const f = fixture("pilot", "receipt-before-reply");
   try {
     f.initial([item(f.pilotRequest)]);
     await f.runtime.start();
@@ -119,7 +132,7 @@ test("a live work update sends a newly queued message through the owned bridge",
 });
 
 test("a negotiated owned session attributes a queue delivery's turn to its sender", async () => {
-  const f = fixture("pilot", true, "receipt-before-reply", true);
+  const f = fixture("pilot", "receipt-before-reply", true);
   try {
     f.initial([item(f.newRequest)]);
     await f.runtime.start();
@@ -144,7 +157,7 @@ test("a negotiated owned session attributes a queue delivery's turn to its sende
 test.each(["poll", "wake"])(
   "a %s in flight serializes the poll and two close delivery wakes",
   async (first) => {
-    const f = fixture("pilot", true, "receipt-before-reply");
+    const f = fixture("pilot", "receipt-before-reply");
     const schedule = globalThis.setTimeout;
     const polls: (() => void)[] = [];
     const timers = spyOn(globalThis, "setTimeout").mockImplementation(((
@@ -206,7 +219,7 @@ test.each(["poll", "wake"])(
 );
 
 test("a live wake after lease loss does not try the legacy drain", async () => {
-  const f = fixture("pilot", true, "receipt-before-reply");
+  const f = fixture("pilot", "receipt-before-reply");
   try {
     f.initial([item(f.pilotRequest)]);
     await f.runtime.start();
@@ -229,7 +242,7 @@ test("a live wake after lease loss does not try the legacy drain", async () => {
 });
 
 test("the pilot settles two identical messages with separate durable receipts", async () => {
-  const f = fixture("pilot", true, "receipt-before-reply");
+  const f = fixture("pilot", "receipt-before-reply");
   const { deliveryReceipts } = new FileExecutionOperationJournal(
     f.journalDirectory,
   );
@@ -314,7 +327,7 @@ test("the pilot settles two identical messages with separate durable receipts", 
 });
 
 test("a missing receipt holds the slot until the server settles that delivery", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const work = [item(f.pilotRequest)];
   try {
     await f.runtime.processWorkUpdate(work);
@@ -365,8 +378,43 @@ test("a missing receipt holds the slot until the server settles that delivery", 
   }
 });
 
+test("a late receipt settles an in-doubt delivery without another work update or a new send", async () => {
+  const f = fixture("pilot", "receipt");
+  const work = [item(f.pilotRequest)];
+  try {
+    await f.runtime.processWorkUpdate(work);
+    f.enqueue(1);
+    f.enqueue(2);
+    await f.runtime.processWorkUpdate(work);
+    await until(() => f.settlements.length === 1, "server records ambiguity");
+    expect(f.runtime.coordinator.getActiveDelivery("pilot")?.state).toBe(
+      "ambiguous",
+    );
+
+    await reportReceipt(f, 1);
+    await until(
+      () => f.settlements.some(({ outcome }) => outcome === "applied"),
+      "the late receipt settles the delivery",
+    );
+    expect(
+      f.settlements.map(({ delivery_id, outcome }) => [delivery_id, outcome]),
+    ).toEqual([
+      ["delivery-1", "in_doubt"],
+      ["delivery-1", "applied"],
+    ]);
+    await until(
+      () => f.runtime.coordinator.getActiveDelivery("pilot") === undefined,
+      "the coordinator releases the settled delivery",
+    );
+    expect(providerSends(f)).toHaveLength(1);
+    expect(f.logs.filter((line) => line.includes("drain failed"))).toEqual([]);
+  } finally {
+    await f.dispose();
+  }
+});
+
 test("a receipt arriving after the server clears its attempt is removed", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const work = [item(f.pilotRequest)];
   try {
     await f.runtime.processWorkUpdate(work);
@@ -394,7 +442,7 @@ test("a receipt arriving after the server clears its attempt is removed", async 
 test.each(["started", "replacement"] as const)(
   "cancel-unstarted settles a %s delivery before activating the successor",
   async (mode) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const work = [item(f.pilotRequest)];
     try {
       await f.runtime.processWorkUpdate(work);
@@ -418,13 +466,15 @@ test.each(["started", "replacement"] as const)(
         "ambiguous",
       );
 
-      await reportReceipt(f, 1);
       if (mode === "replacement") {
+        await reportReceiptWhileSettlementRefused(f, 1);
         f.queue[0] = {
           ...f.queue[0]!,
           attempt_id: "replacement-attempt",
           state: "new",
         };
+      } else {
+        await reportReceipt(f, 1);
       }
       await f.runtime.processWorkUpdate(successorWork);
       expect(
@@ -450,7 +500,7 @@ test.each(["started", "replacement"] as const)(
 );
 
 test("the pilot replays its journal receipt on restart and never resends the started attempt", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const { deliveryReceipts } = new FileExecutionOperationJournal(
     f.journalDirectory,
   );
@@ -521,7 +571,7 @@ test("the pilot replays its journal receipt on restart and never resends the sta
 test.each(["live", "restarted"] as const)(
   "a %s pilot settles a replacement attempt from the same delivery receipt",
   async (mode) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const work = item(f.pilotRequest);
     const replay = Promise.withResolvers<void>();
     try {
@@ -529,7 +579,7 @@ test.each(["live", "restarted"] as const)(
       f.enqueue(1);
       await f.runtime.processWorkUpdate([work]);
       await until(() => f.settlements.length === 1, "server records ambiguity");
-      await reportReceipt(f, 1);
+      await reportReceiptWhileSettlementRefused(f, 1);
       expect(f.runtime.coordinator.getActiveDelivery("pilot")?.state).toBe(
         "ambiguous",
       );
@@ -593,7 +643,7 @@ test.each(["live", "restarted"] as const)(
 test.each(["idle", "active"] as const)(
   "a journal receipt settles without fetching unavailable blobs in an %s session",
   async (state) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const work = [item(f.pilotRequest)];
     try {
       await f.runtime.processWorkUpdate(work);
@@ -648,7 +698,7 @@ test.each(["idle", "active"] as const)(
 );
 
 test("a restart without a receipt holds the started attempt without resending", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   try {
     const work = [item(f.pilotRequest)];
     await f.runtime.processWorkUpdate(work);
@@ -676,7 +726,7 @@ test("a restart without a receipt holds the started attempt without resending", 
 });
 
 test("an in-doubt image stays readable until the server releases its delivery", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const work = [item(f.pilotRequest)];
   try {
     await f.runtime.processWorkUpdate(work);

@@ -95,7 +95,7 @@ async function exhaustResume(
 }
 
 test("exhaustion then 503 wake then busy wake makes at most one claim per wake with no retry storm", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const now = fakeNow();
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
@@ -159,7 +159,7 @@ test("exhaustion then 503 wake then busy wake makes at most one claim per wake w
 });
 
 test("a burst of 100 messages within backoff makes zero extra claims and one claim when notBeforeMs passes", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const now = fakeNow();
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
@@ -210,7 +210,7 @@ test("a burst of 100 messages within backoff makes zero extra claims and one cla
 });
 
 test("retry_after_ms from the server is respected by park backoff", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const now = fakeNow();
   const serverRetryAfterMs = 15_000;
   let clock: ReturnType<typeof interceptTimers> | undefined;
@@ -257,7 +257,7 @@ test("retry_after_ms from the server is respected by park backoff", async () => 
 });
 
 test("a pre-restart session_error clears on resume with retry while unrelated errors are kept", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
@@ -315,7 +315,7 @@ test("a pre-restart session_error clears on resume with retry while unrelated er
 });
 
 test("stop during an ensureBinding await makes no new child or timer", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     clock = interceptTimers((delay) => delay >= 1_000);
@@ -353,7 +353,7 @@ test("stop during an ensureBinding await makes no new child or timer", async () 
 });
 
 test("a binding that moves to stopped clears its poll timer", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     clock = interceptTimers((delay) => delay === 2_000);
@@ -387,7 +387,7 @@ test("a binding that moves to stopped clears its poll timer", async () => {
 });
 
 test("park records are pruned on close, on epoch advance, and capped in size", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     await f.runtime.processWorkUpdate([
@@ -462,7 +462,7 @@ test("park records are pruned on close, on epoch advance, and capped in size", a
 });
 
 test("post-claim stale permit and open failure park with failure backoff", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const now = fakeNow();
   try {
     await f.runtime.processWorkUpdate([
@@ -534,7 +534,7 @@ test("post-claim stale permit and open failure park with failure backoff", async
 });
 
 test("error clear stops immediately on ArgumentValidationError or 4xx and caps transient retries with one log", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
@@ -599,7 +599,7 @@ test("error clear stops immediately on ArgumentValidationError or 4xx and caps t
 });
 
 test("deferred-wake timers are cancelled on epoch advance and on runtime.forgetConversation", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptTimers> | undefined;
   try {
     await f.runtime.processWorkUpdate([

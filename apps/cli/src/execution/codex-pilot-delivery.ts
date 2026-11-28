@@ -54,16 +54,14 @@ type PilotPermit = Extract<PermitsNextResponse, { status: "permit" }>;
 
 export class CodexPilotLeaseLost extends Error {}
 
+const HELD_WITHOUT_RECEIPT = "owned_codex_receipt_pending";
+
 type ActiveContext = {
-  binding: ReadyBinding;
-  coordinator: ExecutionCoordinator;
-  session: OwnedSession;
-  claim: ClaimGrant;
-  prepareText: (text: string) => Promise<string>;
-  permitsStale: boolean;
-  settleStale: boolean;
-  heldWithoutReceipt: boolean;
-  lastAttempt?: { attemptId: string; deliveryId: string };
+  readonly binding: ReadyBinding;
+  readonly coordinator: ExecutionCoordinator;
+  readonly session: OwnedSession;
+  readonly claim: ClaimGrant;
+  readonly prepareText: (text: string) => Promise<string>;
 };
 
 export class CodexPilotDelivery {
@@ -119,8 +117,15 @@ export class CodexPilotDelivery {
     }
   }
 
+  private activeContext(): ActiveContext {
+    if (!this.context)
+      throw new Error("Owned Codex delivery has no active session");
+    return this.context;
+  }
+
   async clearImages(attemptId?: string): Promise<void> {
     if (attemptId === undefined) {
+      this.context = undefined;
       await Promise.all(
         [...this.images.keys()].map((id) => this.clearImages(id)),
       );
@@ -270,6 +275,7 @@ export class CodexPilotDelivery {
       };
 
       const facade = createDeliveryService({
+        log: this.log,
         receiptJournal: receipts,
         allowTakeover: false,
         runningTurn: () => this.activeTurn,
@@ -302,7 +308,7 @@ export class CodexPilotDelivery {
         clearArtifacts: async (attemptId) => this.clearImages(attemptId),
         bridge: {
           permitsNext: async (request, signal) => {
-            const ctx = this.context!;
+            const ctx = this.activeContext();
             const next = await readEdge(
               this.fetch,
               signal,
@@ -316,7 +322,6 @@ export class CodexPilotDelivery {
               );
             }
             if (next.status === "stale") {
-              ctx.permitsStale = true;
               this.headDeliveryId = null;
               return { ok: true, response: next };
             }
@@ -333,8 +338,11 @@ export class CodexPilotDelivery {
                 next.state === "started"
               ) {
                 if (!this.appendedReceipts.has(next.delivery_id)) {
-                  ctx.heldWithoutReceipt = true;
-                  return { ok: true, response: { v: 1, status: "empty" } };
+                  return {
+                    ok: false,
+                    retryable: true,
+                    code: HELD_WITHOUT_RECEIPT,
+                  };
                 }
               } else {
                 await ctx.coordinator.reconcileOwnedDelivery(
@@ -387,7 +395,7 @@ export class CodexPilotDelivery {
             return { ok: true, response: value };
           },
           deliverySettle: async (request, signal) => {
-            const ctx = this.context!;
+            const ctx = this.activeContext();
             const value = await readEdge(
               this.fetch,
               signal,
@@ -406,7 +414,6 @@ export class CodexPilotDelivery {
               };
             }
             if (value.status === "stale") {
-              ctx.settleStale = true;
               return { ok: true, response: value };
             }
             if (value.status !== "recorded" && value.status !== "duplicate") {
@@ -442,11 +449,7 @@ export class CodexPilotDelivery {
             return { ok: true, content_type: contentType, bytes };
           },
           deliver: async (request, signal) => {
-            const ctx = this.context!;
-            ctx.lastAttempt = {
-              attemptId: request.attempt_id,
-              deliveryId: request.delivery_id,
-            };
+            const ctx = this.activeContext();
             signal.throwIfAborted();
             const turn =
               request.intent === "queue"
@@ -529,11 +532,6 @@ export class CodexPilotDelivery {
             };
           },
           recover: async (request, signal) => {
-            const ctx = this.context!;
-            ctx.lastAttempt = {
-              attemptId: request.attempt_id,
-              deliveryId: request.delivery_id,
-            };
             const recorded = await receipts.find(
               request.session,
               request.delivery_id,
@@ -581,18 +579,15 @@ export class CodexPilotDelivery {
   ): Promise<boolean> {
     const service = await this.ensureService();
     const fence: PermitsNextRequest = { v: 1, ...deliveryFence(claim) };
+    const ctx: ActiveContext = {
+      binding,
+      coordinator,
+      session,
+      claim,
+      prepareText,
+    };
+    this.context = ctx;
     for (let count = 0; count < 1024 && !signal.aborted; count++) {
-      const ctx: ActiveContext = {
-        binding,
-        coordinator,
-        session,
-        claim,
-        prepareText,
-        permitsStale: false,
-        settleStale: false,
-        heldWithoutReceipt: false,
-      };
-      this.context = ctx;
       let outcome;
       try {
         outcome = await service.deliverNext(fence, { sendNew }, signal);
@@ -607,30 +602,24 @@ export class CodexPilotDelivery {
           );
         }
         throw error;
-      } finally {
-        if (this.context === ctx) this.context = undefined;
       }
 
-      if (ctx.heldWithoutReceipt) return false;
+      if (
+        outcome.status === "retry_scheduled" &&
+        outcome.code === HELD_WITHOUT_RECEIPT
+      )
+        return false;
       if (outcome.status === "empty") return true;
       if (outcome.status === "held") return !sendNew;
       if (outcome.status === "lease_stale") {
-        if (ctx.permitsStale) {
+        if (outcome.stage === "permits") {
           throw new CodexPilotLeaseLost("Owned Codex delivery lease is stale");
         }
-        if (ctx.settleStale && ctx.lastAttempt) {
-          await this.markAmbiguous(
-            ctx,
-            ctx.lastAttempt.attemptId,
-            ctx.lastAttempt.deliveryId,
-            {
-              code: "DELIVERY_TERMINAL_WRITE_AMBIGUOUS",
-              message: "Owned Codex settlement was not confirmed: stale",
-            },
-          );
-          return false;
-        }
-        throw new CodexPilotLeaseLost("Owned Codex delivery lease is stale");
+        await this.markAmbiguous(ctx, outcome.attempt_id, outcome.delivery_id, {
+          code: "DELIVERY_TERMINAL_WRITE_AMBIGUOUS",
+          message: "Owned Codex settlement was not confirmed: stale",
+        });
+        return false;
       }
       if (outcome.status === "in_doubt") {
         await this.markAmbiguous(ctx, outcome.attempt_id, outcome.delivery_id, {
