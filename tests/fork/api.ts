@@ -253,18 +253,8 @@ export async function exportMessages(
 }
 
 export async function deleteConversation(
-  conversationId: string,
-): Promise<void> {
-  const config = getConfig();
-  try {
-    await convexMutation("conversations:deleteConversation", {
-      conversation_id: conversationId,
-      api_token: config.auth_token,
-    });
-  } catch {
-    // Ignore deletion errors in cleanup
-  }
-}
+  _conversationId: string,
+): Promise<void> {}
 
 export function countTreeNodes(node: TreeNode): number {
   return (
