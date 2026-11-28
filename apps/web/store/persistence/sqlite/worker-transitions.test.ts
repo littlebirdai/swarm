@@ -45,18 +45,32 @@ const BLOCKED_OWNER = (principal: string) => `
 
 type Tap = {
   dropRequest?: (epoch: CacheEpoch, op: string) => boolean;
+  failAnswers?: (epoch: CacheEpoch) => boolean;
+  batchFailures?: number;
   holdReply?: (epoch: CacheEpoch, type: string) => boolean;
   events: string[];
 };
 
 function tapSpawner(inner: WorkerSpawner, tap: Tap): WorkerSpawner {
   return (epoch, onMessage, onError) => {
+    const held: unknown[] = [];
     const worker = inner(
       epoch,
       (data) => {
         const type = (data as { type?: string })?.type ?? "";
         if (tap.holdReply?.(epoch, type)) return;
         if (type === "response") tap.events.push(`g${epoch.generation}:answer`);
+        if (type === "response" && tap.failAnswers?.(epoch)) {
+          held.push({
+            ...(data as object),
+            ok: false,
+            code: "write-failed",
+            error: "Injected write failure",
+          });
+          if (held.length >= (tap.batchFailures ?? 1))
+            for (const answer of held.splice(0)) onMessage(answer);
+          return;
+        }
         onMessage(data);
       },
       onError,
@@ -140,23 +154,32 @@ describe("SQLite epoch transitions", () => {
     const dir = tempDir("sqlite-stale-failures-");
     const channelTransport = createFakeChannelTransport();
     const epochStore = createFakeEpochStore();
+    let failing = false;
+    const tap: Tap = {
+      events: [],
+      failAnswers: (epoch) => failing && epoch.generation === 1,
+      batchFailures: 5,
+    };
     const client = createSqliteWorkerClient(
       options(dir, {
         epochStore,
         channelTransport,
-        spawnWorker: createDiskWorkerSpawner(dir, channelTransport, {
-          beforeOpen: (db, epoch) => {
-            if (epoch.generation === 1) db.exec(BLOCKED_OWNER("userA"));
-          },
-        }).spawner,
+        spawnWorker: tapSpawner(
+          createDiskWorkerSpawner(dir, channelTransport).spawner,
+          tap,
+        ),
       }),
     );
     try {
+      await client.loadCache(["sessions", "syncMeta"]);
+      await waitUntil(() => client.holdsLock(), 1000, "owner holds gen 1");
+      failing = true;
       const loads = await Promise.all(
         Array.from({ length: 5 }, () => client.loadCache(["sessions"])),
       );
       expect(loads.every((result) => result === null)).toBe(true);
       await waitUntil(() => client.holdsLock(), 1000, "lock on generation 2");
+      await delay(50);
 
       expect(client.isMemoryFallback()).toBe(false);
       expect(epochStore.read()?.generation).toBe(2);
