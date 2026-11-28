@@ -109,6 +109,13 @@ export function createRpcChannelManager(deps: RpcChannelState) {
     }
   };
 
+  const rejectEpoch = (targetEpochId: string, reason: string) => {
+    for (const [id, waiter] of pendingRequests) {
+      if (waiter.epochId === targetEpochId)
+        settleReject(id, new WorkerRpcError("closed", reason));
+    }
+  };
+
   const rejectAll = (reason: string) => {
     for (const [id, waiter] of pendingRequests) {
       clearTimeout(waiter.timer);
@@ -358,6 +365,7 @@ export function createRpcChannelManager(deps: RpcChannelState) {
     closeWorkerOutbox,
     notifyReadyWaiters,
     rejectWritesForEpoch,
+    rejectEpoch,
     rejectAll,
     handleResponse,
     currentTargetWorkerId,

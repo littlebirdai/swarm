@@ -364,6 +364,75 @@ describe("SQLite worker client recovery", () => {
     }
   });
 
+  for (const cutOff of ["account switch", "close"] as const) {
+    test(`a doc detail delete cut off by ${cutOff} deletes nothing in the memory cache`, async () => {
+      const dir = tempDir("sqlite-delete-fallback-");
+      const channelTransport = createFakeChannelTransport();
+      const auth = createTestAuth("userA");
+      const disk = createDiskWorkerSpawner(dir, channelTransport);
+      const owner = {
+        report: null as ((data: unknown) => void) | null,
+        held: null as { epochId: string } | null,
+      };
+      const spawner: WorkerSpawner = (epoch, onMessage, onError) => {
+        const worker = disk.spawner(epoch, onMessage, onError);
+        owner.report = onMessage;
+        return {
+          postMessage(message: unknown) {
+            const request = message as {
+              type?: string;
+              op?: string;
+              epochId: string;
+            };
+            if (
+              request?.type === "request" &&
+              request.op === "deleteDocDetails"
+            ) {
+              owner.held = request;
+              return;
+            }
+            worker.postMessage(message);
+          },
+          terminate: () => worker.terminate(),
+        };
+      };
+      const client = createSqliteWorkerClient({
+        auth,
+        schemaVersion: 116,
+        epochStore: createFakeEpochStore(),
+        locks: createFakeLockAdapter(),
+        channelTransport,
+        spawnWorker: spawner,
+        opfsSupported: () => true,
+        journal: createFakeJournal(),
+        workerTimeoutMs: 2000,
+      });
+
+      try {
+        await client.loadCache(["docDetails"]);
+        const deleting = client.deleteInvalidatedDocDetails?.(
+          ["doc-cut-off"],
+          () => true,
+        );
+        await waitUntil(() => owner.held !== null, 1000, "delete dispatched");
+
+        if (cutOff === "account switch") auth.setPrincipal("userB");
+        owner.report!({
+          type: "worker-opfs-missing",
+          epochId: owner.held!.epochId,
+          workerId: "w-1",
+          error: "Missing required OPFS APIs.",
+        });
+        if (cutOff === "close") client.close();
+
+        expect(await deleting).toEqual([]);
+        expect(client.isMemoryFallback()).toBe(true);
+      } finally {
+        client.close();
+      }
+    });
+  }
+
   test("a doc detail deleted while its write is buffered stays deleted", async () => {
     const dir = tempDir("sqlite-doc-delete-");
     const channelTransport = createFakeChannelTransport();

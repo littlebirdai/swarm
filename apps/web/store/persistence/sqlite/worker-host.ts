@@ -52,7 +52,7 @@ function fileOwnerState(cache: ReturnType<typeof createSqliteCache>): {
   try {
     return cache.ownerState();
   } catch {
-    return { named: [], blocked: false };
+    return { named: [], blocked: true };
   }
 }
 

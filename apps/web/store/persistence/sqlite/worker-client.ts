@@ -14,6 +14,7 @@ import {
   createMemoryCacheFallback,
   type MemoryCacheStorage,
 } from "./memory-fallback";
+import { hydratedEpochAfterLoad, rotatedEpochToRetry } from "./hydrated-epoch";
 import {
   findArchiveRestores,
   findPendingArchives,
@@ -165,23 +166,6 @@ export function createSqliteWorkerClient(
     )
       return;
     connection.handleEpochFailure(epoch, `flush-${code}`);
-  };
-
-  const bindHydratedEpoch = (
-    epoch: CacheEpoch,
-    keys: readonly string[] | undefined,
-  ) => {
-    if (keys && !keys.includes("syncMeta")) return;
-    const active = connection.activeEpoch();
-    if (!active || epochId(active) !== epochId(epoch)) return;
-    if (
-      hydratedEpoch &&
-      hydratedEpoch.principal === epoch.principal &&
-      hydratedEpoch.schemaVersion === epoch.schemaVersion &&
-      hydratedEpoch.accountEpoch === epoch.accountEpoch
-    )
-      return;
-    hydratedEpoch = epoch;
   };
 
   const ensurePendingBatch = (principal: string): PendingWriteBatch => {
@@ -389,31 +373,49 @@ export function createSqliteWorkerClient(
           ? { ...context, pending: journalResult.pending }
           : context;
       let sqliteResult: Record<string, any> | null = null;
-      try {
-        sqliteResult = await connection.send(epoch, principal, "loadCache", {
-          keys,
-          context: sqliteContext,
-        });
-        bindHydratedEpoch(epoch, keys);
-        recordKnownState(
-          knownIds,
-          lastPersistedRows,
-          lastPersistedMeta,
-          sqliteResult,
-        );
-        syncDocDetailWorkspacesFromShadow();
-      } catch (error) {
-        if (opfsMissing) {
-          const memResult = await memory.loadCache(keys, context);
-          const merged = { ...(memResult ?? {}), ...journalResult };
-          return stripPendingArchives(
-            Object.keys(merged).length ? merged : null,
-            pendingArchives,
-            docDetailWorkspaces,
+      let target: CacheEpoch | null = epoch;
+      for (let attempt = 0; target && attempt < 2; attempt++) {
+        const sent: CacheEpoch = target;
+        target = null;
+        try {
+          sqliteResult = await connection.send(sent, principal, "loadCache", {
+            keys,
+            context: sqliteContext,
+          });
+          hydratedEpoch = hydratedEpochAfterLoad(
+            hydratedEpoch,
+            sent,
+            connection.activeEpoch(),
+            keys,
           );
+          recordKnownState(
+            knownIds,
+            lastPersistedRows,
+            lastPersistedMeta,
+            sqliteResult,
+          );
+          syncDocDetailWorkspacesFromShadow();
+        } catch (error) {
+          if (opfsMissing) {
+            const memResult = await memory.loadCache(keys, context);
+            const merged = { ...(memResult ?? {}), ...journalResult };
+            return stripPendingArchives(
+              Object.keys(merged).length ? merged : null,
+              pendingArchives,
+              docDetailWorkspaces,
+            );
+          }
+          handleWorkerError(sent, error);
+          sqliteResult = null;
+          if (closed || auth.current() !== principal) break;
+          if (attempt === 0)
+            target = rotatedEpochToRetry(
+              hydratedEpoch,
+              sent,
+              connection.activeEpoch(),
+              keys,
+            );
         }
-        handleWorkerError(epoch, error);
-        sqliteResult = null;
       }
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;

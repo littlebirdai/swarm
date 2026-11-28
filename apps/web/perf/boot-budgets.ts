@@ -168,6 +168,10 @@ try {
 } finally {
   clearTimeout(timeout);
   unsubscribe();
+  const hydration = await import("../store/persistence/hydration");
+  const settleBy = Date.now() + 5_000;
+  while (hydration._hydrating && Date.now() < settleBy) await Bun.sleep(5);
+  await cacheStorage.flushPersistence();
   sqlite.restore();
   rmSync(sqliteDir, { recursive: true, force: true });
 }

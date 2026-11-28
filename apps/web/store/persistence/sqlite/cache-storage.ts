@@ -200,6 +200,7 @@ export function createSqliteCache(
 
   return {
     ownerState() {
+      inspected = null;
       inspected = ownerEvidence();
       return { named: inspected.named, blocked: inspected.blocked };
     },

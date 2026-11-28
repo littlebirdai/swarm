@@ -23,6 +23,7 @@ import {
   type WorkerSpawner,
 } from "./protocol";
 import { createRpcChannelManager, WorkerRpcError } from "./rpc-channel";
+import { createWorkerDrains } from "./worker-drain";
 
 export { WorkerRpcError };
 
@@ -96,7 +97,6 @@ export function createWorkerConnection(
   let sharedChannel: ChannelEndpoint | null = null;
   let ownChannel: ChannelEndpoint | null = null;
   let knownWorkerId: string | null = null;
-  let pendingGracefulClose: ReturnType<typeof setTimeout> | null = null;
 
   const rpc = createRpcChannelManager({
     clientId,
@@ -117,6 +117,14 @@ export function createWorkerConnection(
       knownWorkerId = null;
     },
     onTimeout: (epoch, reason) => rotateToNextGeneration(epoch, reason),
+  });
+
+  const drains = createWorkerDrains({
+    timeoutMs: GRACEFUL_CLOSE_TIMEOUT_MS,
+    onDrained: (drain) => {
+      rpc.rejectEpoch(drain.epochId, "Epoch changed");
+      rpc.notifyReadyWaiters();
+    },
   });
 
   const disableSqlite = (reason: string) => {
@@ -162,12 +170,7 @@ export function createWorkerConnection(
     }
   };
 
-  const finishTeardownLocksAndChannels = () => {
-    if (pendingGracefulClose) {
-      clearTimeout(pendingGracefulClose);
-      pendingGracefulClose = null;
-    }
-    terminateOwnedWorker();
+  const closeClientChannels = () => {
     knownWorkerId = null;
     rpc.closeWorkerOutbox();
     try {
@@ -178,6 +181,32 @@ export function createWorkerConnection(
       ownChannel?.close();
     } catch {}
     ownChannel = null;
+  };
+
+  const drainOwnedWorker = (epoch: CacheEpoch): boolean => {
+    if (!ownedWorker || !ownedWorkerReady || !ownedWorkerId) return false;
+    const started = drains.start({
+      epochId: epochId(epoch),
+      workerId: ownedWorkerId,
+      worker: ownedWorker,
+      releaseLock,
+    });
+    if (!started) return false;
+    ownedWorker = null;
+    ownedWorkerId = null;
+    ownedWorkerReady = false;
+    releaseLock = null;
+    lockAbort = null;
+    lockHeld = false;
+    activeLockToken = null;
+    closeClientChannels();
+    rpc.notifyReadyWaiters();
+    return true;
+  };
+
+  const finishTeardownLocksAndChannels = () => {
+    terminateOwnedWorker();
+    closeClientChannels();
     lockAbort?.abort();
     lockAbort = null;
     const release = releaseLock;
@@ -189,24 +218,12 @@ export function createWorkerConnection(
     rpc.notifyReadyWaiters();
   };
 
-  const teardownEpoch = (graceful: boolean) => {
-    if (graceful && activeEpoch) onBeforeLockRelease?.();
-    if (graceful && activeEpoch && ownedWorker && ownedWorkerReady) {
-      const worker = ownedWorker;
-      const closeTimer = setTimeout(() => {
-        if (pendingGracefulClose === closeTimer) {
-          finishTeardownLocksAndChannels();
-        }
-      }, GRACEFUL_CLOSE_TIMEOUT_MS);
-      pendingGracefulClose = closeTimer;
-      try {
-        worker.postMessage({ type: "close" });
-        return;
-      } catch {
-        clearTimeout(closeTimer);
-        pendingGracefulClose = null;
-      }
-    }
+  const teardownEpoch = (graceful: boolean, closing = false) => {
+    const epoch = activeEpoch;
+    if (graceful && epoch) onBeforeLockRelease?.();
+    if (closing) closed = true;
+    activeEpoch = null;
+    if (graceful && epoch && drainOwnedWorker(epoch)) return;
     finishTeardownLocksAndChannels();
   };
 
@@ -232,6 +249,7 @@ export function createWorkerConnection(
   };
 
   function rotateToNextGeneration(expected: CacheEpoch, reason: string) {
+    if (closed || disabled) return;
     const id = epochId(expected);
     if (activeEpoch && epochId(activeEpoch) === id) {
       teardownEpoch(false);
@@ -266,21 +284,20 @@ export function createWorkerConnection(
     data: unknown,
     source: "owner" | "channel",
   ) => {
-    if (
-      pendingGracefulClose &&
-      data &&
-      typeof data === "object" &&
-      (data as { type?: string }).type === "worker-closing"
-    ) {
-      finishTeardownLocksAndChannels();
-      return;
-    }
-    if (closed || !data || typeof data !== "object") return;
+    if (!data || typeof data !== "object") return;
     const msg = data as SqliteWorkerResponse | SqliteWorkerAnnouncement;
     if (msg.type === "response") {
       rpc.handleResponse(msg);
       return;
     }
+    if (
+      source === "owner" &&
+      msg.type === "worker-closing" &&
+      typeof msg.workerId === "string" &&
+      drains.finish(msg.workerId)
+    )
+      return;
+    if (closed) return;
     if (!activeEpoch || msg.epochId !== epochId(activeEpoch)) return;
     if (typeof msg.workerId !== "string") return;
 
@@ -569,9 +586,7 @@ export function createWorkerConnection(
     close() {
       if (closed) return;
       unsubscribeEpochStore?.();
-      teardownEpoch(true);
-      closed = true;
-      activeEpoch = null;
+      teardownEpoch(true, true);
       onEpochChange?.(null);
     },
 
