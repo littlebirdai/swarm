@@ -983,8 +983,9 @@ describe("a change named by branch from inside a session (ct-85594)", () => {
     expect(note.text).toContain("/workflows/runs/run-9");
     expect(note.text).not.toContain("{");
     expect(
-      s.calls.find((c) => c.route === "/cli/work/update")?.body,
-    ).toMatchObject({ status: "in_review" });
+      s.calls.find((c) => c.route === "/cli/workflow-runs/task-transition")
+        ?.body,
+    ).toMatchObject({ run_id: "run-9", short_id: "ct-9", status: "in_review" });
     const told = s.sent();
     expect(told).toHaveLength(1);
     expect(told[0].body).toContain(

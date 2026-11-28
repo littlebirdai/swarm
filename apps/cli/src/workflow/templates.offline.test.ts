@@ -165,10 +165,15 @@ describe("line.cast offline run through the session path", () => {
         out = { status: "paused", gate_response: gateAnswers.shift() ?? null };
       } else if (
         route === "/cli/work/update" ||
+        route === "/cli/workflow-runs/task-transition" ||
         route === "/cli/work/comment" ||
         route === "/cli/decide"
       ) {
-        if (route === "/cli/work/update" && body.status)
+        if (
+          (route === "/cli/work/update" ||
+            route === "/cli/workflow-runs/task-transition") &&
+          body.status
+        )
           task = { ...task, status: body.status };
         out = { success: true, id: "sd-1" };
       }
