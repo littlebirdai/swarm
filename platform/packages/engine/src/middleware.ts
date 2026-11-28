@@ -1951,7 +1951,9 @@ export function mutativeMiddleware(
         liveSends.set(outboxId, { settled, retrying: false, waiting: !!waiting, overtaken: false, receipt: usesReceiptEnvelope, writes });
         void settled.then((outcome) => {
           liveSends.delete(outboxId);
-          if (protectOutboxRows && (outcome !== "parked" || !enqueued || enqueueFailed)) {
+          const durableRowLost = !enqueued || enqueueFailed;
+          const releasesOnSettle = !usesReceiptEnvelope && outcome !== "parked";
+          if (protectOutboxRows && (durableRowLost || releasesOnSettle)) {
             activeOutboxRowsById.delete(outboxId);
           }
         });

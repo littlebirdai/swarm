@@ -974,6 +974,24 @@ describe("activeOutboxRowsById (_protectedOutboxRows)", () => {
     await waitFor(() => !h.wrapped._protectedOutboxRows().has(`items:${OTHER_ID}`));
   });
 
+  it("keeps a receipt row protected while its durable row waits for replay", async () => {
+    const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
+    h.wireDispatch(async () => ({ status: "malformed" }));
+    void h.wrapped.createThing("stub-r").catch(() => {});
+    await waitFor(() => h.dispatched.length === 1 && h.outbox.size === 1);
+    await sleep(20);
+    expect(h.outbox.size).toBe(1);
+    expect(h.wrapped._protectedOutboxRows().has("items:stub-r")).toBe(true);
+
+    h.wireDispatch(async (_a, _args, _patches, result: any) => ({
+      commandId: result.commandId,
+      status: "acknowledged",
+      result: { _id: SERVER_ID },
+    }));
+    h.wrapped._drainOutbox();
+    await waitFor(() => h.outbox.size === 0 && !h.wrapped._protectedOutboxRows().has("items:stub-r"));
+  });
+
   it("clears protection on permanent refusal without leaking", async () => {
     const h = makeHarness({ config: PROTECTED_CONFIG, retryDelays: [0] });
     h.wireDispatch(async () => {
