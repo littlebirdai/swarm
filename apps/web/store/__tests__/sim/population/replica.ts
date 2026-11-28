@@ -15,7 +15,7 @@ type Head = {
   floor: number;
 };
 
-export type PopulationMode = "team" | "interest";
+export type PopulationMode = "all-projects" | "interest";
 
 export function interestScopesForPerson(person: Person): string[] {
   return [
@@ -31,11 +31,20 @@ export function populationReplica(
   person: Person,
   options:
     | PopulationMode
-    | { mode?: PopulationMode; extraDeniedScopes?: string[] } = "team",
+    | {
+        mode?: PopulationMode;
+        allProjectIndices?: readonly number[];
+        teamId?: string;
+        extraDeniedScopes?: string[];
+      } = "interest",
 ) {
-  const mode = typeof options === "string" ? options : (options.mode ?? "team");
+  const mode =
+    typeof options === "string" ? options : (options.mode ?? "interest");
   const extraDeniedScopes =
     typeof options === "string" ? [] : (options.extraDeniedScopes ?? []);
+  const allProjectIndices =
+    typeof options === "string" ? [] : (options.allProjectIndices ?? []);
+  const teamId = typeof options === "string" ? undefined : options.teamId;
   const name = `population-${person.id}`;
   const window = { name, store: createWindowStore(name) };
   const client = backend.clientFor({
@@ -45,7 +54,13 @@ export function populationReplica(
   const subscribedScopes =
     mode === "interest"
       ? [...interestScopesForPerson(person), ...extraDeniedScopes]
-      : undefined;
+      : [
+          `user:${fixtureId("users", person.id)}`,
+          ...(teamId ? [`dir:${teamId}`] : []),
+          ...allProjectIndices.map(
+            (project) => `project:${fixtureId("projects", project)}`,
+          ),
+        ];
   const encoder = new TextEncoder();
   const refused = new Set<string>();
   const totals = {

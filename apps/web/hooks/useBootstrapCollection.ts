@@ -15,7 +15,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { useInboxStore } from "../store/inboxStore";
-import { clientScopeSubscriptionsEnabled } from "../store/scope-subscriptions";
 import { mapSlots } from "../store/simSlot";
 import { useIsSyncHost } from "./use-sync-role";
 
@@ -50,7 +49,7 @@ export function floorScopeKeys(
   if (args === "skip" || !principal) return null;
   const keys = [`user:${principal}`];
   if (args.workspace === "team" && args.team_id)
-    keys.push(`team:${String(args.team_id)}`);
+    keys.push(`dir:${String(args.team_id)}`);
   return keys;
 }
 
@@ -125,17 +124,7 @@ export function bootstrapFloorKey(
 export function floorScopesStamped(s: any, scopes: string[] | null): boolean {
   if (!scopes) return false;
   const stamps = s.syncLogScopeStamps ?? {};
-  const acceptDir = clientScopeSubscriptionsEnabled();
-  return scopes.every((k) => {
-    if (stamps[k] !== undefined) return true;
-    if (acceptDir && k.startsWith("team:")) {
-      return stamps[`dir:${k.slice(5)}`] !== undefined;
-    }
-    if (acceptDir && k.startsWith("dir:")) {
-      return stamps[`team:${k.slice(4)}`] !== undefined;
-    }
-    return false;
-  });
+  return scopes.every((k) => stamps[k] !== undefined);
 }
 
 export type BootstrapFloorRun = {

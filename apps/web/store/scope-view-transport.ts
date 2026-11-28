@@ -5,10 +5,7 @@ import {
   isKnownHomeScope,
   type ScopeStoreInput,
 } from "./scope-subscription-candidates";
-import {
-  SCOPE_SUBSCRIPTION_BUDGET,
-  clientScopeSubscriptionsEnabled,
-} from "./scope-subscriptions";
+import { SCOPE_SUBSCRIPTION_BUDGET } from "./scope-subscriptions";
 
 type ScopeViewMsg = Extract<ReplicationMessage, { type: "mut" }> & {
   scopeView?: string[];
@@ -81,7 +78,7 @@ export function createScopeViewTransport(opts: {
   };
 
   const sendCurrentView = (force = false) => {
-    if (!clientScopeSubscriptionsEnabled() || !isFollowing) return;
+    if (!isFollowing) return;
     const state = opts.getState();
     const scopes = extractViewScopes(state, activeTabPaths(state))
       .filter((s) => isKnownHomeScope(s))
@@ -113,7 +110,7 @@ export function createScopeViewTransport(opts: {
           updates?: unknown;
           scopeView?: unknown;
         };
-        if (isHost && clientScopeSubscriptionsEnabled()) {
+        if (isHost) {
           const fromId =
             typeof raw.from === "string" &&
             raw.from.length > 0 &&
@@ -156,7 +153,7 @@ export function createScopeViewTransport(opts: {
       pagehideOff();
       pagehideOff = null;
     }
-    if (isFollowing && sendClear && clientScopeSubscriptionsEnabled()) {
+    if (isFollowing && sendClear) {
       const msg: ScopeViewMsg = {
         type: "mut",
         from: opts.selfId,
@@ -171,7 +168,6 @@ export function createScopeViewTransport(opts: {
   };
 
   const startFollowing = () => {
-    if (!clientScopeSubscriptionsEnabled()) return;
     clearAllPeerTimers();
     isHost = false;
     isFollowing = true;
@@ -199,7 +195,7 @@ export function createScopeViewTransport(opts: {
     }
     if (!pagehideOff && typeof window !== "undefined") {
       const onPageHide = () => {
-        if (isFollowing && clientScopeSubscriptionsEnabled()) postLeave();
+        if (isFollowing) postLeave();
       };
       window.addEventListener("pagehide", onPageHide);
       pagehideOff = () => window.removeEventListener("pagehide", onPageHide);
@@ -240,15 +236,13 @@ export function scopeViewTransportFor(
     subscribe: (listener: (state: any, prev: any) => void) => () => void;
   },
 ) {
-  return clientScopeSubscriptionsEnabled()
-    ? createScopeViewTransport({
-        selfId,
-        channel,
-        getState: store.getState,
-        subscribe: store.subscribe,
-        onPeerView: (peerId, scopes) =>
-          store.getState().setPeerViewScopes(peerId, scopes),
-        onClearPeerViews: () => store.getState().clearPeerViewScopes(),
-      })
-    : undefined;
+  return createScopeViewTransport({
+    selfId,
+    channel,
+    getState: store.getState,
+    subscribe: store.subscribe,
+    onPeerView: (peerId, scopes) =>
+      store.getState().setPeerViewScopes(peerId, scopes),
+    onClearPeerViews: () => store.getState().clearPeerViewScopes(),
+  });
 }

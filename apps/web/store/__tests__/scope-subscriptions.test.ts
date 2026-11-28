@@ -8,7 +8,6 @@ import {
   SCOPE_HEADS_CHUNK_SIZE,
   SCOPE_SUBSCRIPTION_BUDGET,
   SCOPE_VIEW_GRACE_MS,
-  clientScopeSubscriptionsEnabled,
   computePurgeSet,
   extractScopeCandidates,
   initialScopeSubscriptionState,
@@ -16,7 +15,6 @@ import {
   rowHomeScope,
 } from "../scope-subscriptions";
 
-const PREV_FLAG = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
 const cid = (label: string) =>
   label
     .replace(/[^a-z0-9]/gi, "")
@@ -24,7 +22,6 @@ const cid = (label: string) =>
     .padEnd(32, "0");
 
 beforeEach(() => {
-  delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
   resetDetailPins();
   useInboxStore.getState()._setOutbox(null, null, null);
   useInboxStore.getState()._setDispatch(null);
@@ -60,39 +57,9 @@ afterEach(() => {
   useInboxStore.getState()._setOutbox(null, null, null);
   useInboxStore.getState()._setDispatch(null);
   useInboxStore.getState()._setIDBWrite(null);
-  if (PREV_FLAG === undefined) {
-    delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  } else {
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
-  }
 });
 
 describe("scope-subscriptions pure core", () => {
-  test("flag is off by default and store actions are no-ops without it", () => {
-    expect(clientScopeSubscriptionsEnabled()).toBe(false);
-    const tId = cid("tflagoff");
-    useInboxStore.setState({
-      currentUser: { _id: "u1" },
-      teams: [{ _id: "t1" }],
-      clientStateInitialized: true,
-      tasks: { [tId]: { _id: tId, home_scope: "project:p-other" } },
-    } as any);
-    const res = useInboxStore.getState().reconcileScopeSubscriptions(1000);
-    expect(res.addedScopes).toEqual([]);
-    expect(res.removedScopes).toEqual([]);
-    expect(useInboxStore.getState().scopeSubscriptions.active).toEqual({});
-    expect(useInboxStore.getState().scopeSubscriptions.chunks).toEqual([
-      [],
-      [],
-      [],
-      [],
-    ]);
-    expect(useInboxStore.getState().purgeUnheldScopeRows(["user:u1"])).toEqual(
-      [],
-    );
-    expect(useInboxStore.getState().tasks[tId]).toBeDefined();
-  });
-
   test("extracts pinned, membership, follows, and view while skipping personal and unresolved projects", () => {
     const now = 20 * 24 * 60 * 60 * 1000;
     const candidates = extractScopeCandidates(
@@ -668,7 +635,6 @@ describe("scope-subscriptions pure core", () => {
       { collection: "chatMessages", id: idMsgDrop, scope: "channel:ch-muted" },
     ]);
 
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
     const parkedOutbox: any[] = [];
     useInboxStore.getState()._setOutbox(
       async (entry) => {
@@ -702,7 +668,6 @@ describe("scope-subscriptions pure core", () => {
       syncMeta: { "synclog:v1:project:p-star": { cursor: 5 } },
       syncLogScopeStamps: { "project:p-star": 100 },
     } as any);
-    useInboxStore.getState().setScopeServerConfirmed(true);
 
     useInboxStore.getState().editChatMessage(idEditChat, "edited offline");
 

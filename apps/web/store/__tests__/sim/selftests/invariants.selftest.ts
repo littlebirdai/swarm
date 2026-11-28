@@ -257,8 +257,17 @@ function fixture(seed: number): Fixture {
         opts?.listFeeder,
       );
       const user = await backend.db.get(userId);
+      const teamIds = (backend.db._tables.team_memberships ?? [])
+        .filter((m: any) => String(m.user_id) === String(userId))
+        .map((m: any) => String(m.team_id));
+      if (scope?.team && !teamIds.includes(scope.team))
+        teamIds.push(scope.team);
       await w.run(async () => {
         const s = useInboxStore.getState();
+        s.syncTable(
+          "teams",
+          teamIds.map((id) => ({ _id: id })),
+        );
         useInboxStore.setState({
           currentUser: { ...user },
           clientState: {
@@ -270,6 +279,7 @@ function fixture(seed: number): Fixture {
             },
           },
         } as any);
+        (useInboxStore.getState() as any).reconcileScopeSubscriptions?.(0);
         await w.refeed();
         await catchUp(w.client);
       });
@@ -586,17 +596,17 @@ describe("invariants", () => {
     const meta = (key: string, cursor: number) => (s: any) => ({
       syncMeta: { ...s.syncMeta, [syncLogScopeMetaKey(key)]: { cursor } },
     });
-    await plant(ada, meta(`team:${ACME}`, 7));
+    await plant(ada, meta(`dir:${ACME}`, 7));
     expect(
-      await planted(world, "INV-cursors", "scope team:acme: cursor 7", {
+      await planted(world, "INV-cursors", "scope dir:acme: cursor 7", {
         onRow: false,
       }),
     ).toContain("head 0");
     const other = teamIdFor("other");
     world.labels.register(other, "other");
-    await plant(ada, meta(`team:${ACME}`, 0));
-    await plant(ada, meta(`team:${other}`, 3));
-    await planted(world, "INV-cursors", "scope team:other is not held", {
+    await plant(ada, meta(`dir:${ACME}`, 0));
+    await plant(ada, meta(`dir:${other}`, 3));
+    await planted(world, "INV-cursors", "scope dir:other is not held", {
       onRow: false,
     });
   });

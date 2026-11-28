@@ -599,6 +599,7 @@ describe("crawlWatermarkScope", () => {
     expect(crawlWatermarkScope("tasks:v2:skip")).toBeNull();
     expect(crawlWatermarkScope("synclog:v1:team:T")).toBeNull();
     expect(crawlScopesClearedBy("user:u1")).toEqual(["user:u1", "personal"]);
+    expect(crawlScopesClearedBy("dir:T")).toEqual(["dir:T", "team:T"]);
     expect(crawlScopesClearedBy("team:T")).toEqual(["team:T"]);
   });
 

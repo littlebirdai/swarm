@@ -14,7 +14,6 @@ import {
   SCOPE_SUBSCRIPTION_BUDGET,
   candidatesDigest,
   clearScopeMetaPair,
-  clientScopeSubscriptionsEnabled,
   distributeChunks,
   initialScopeSubscriptionState,
   reconcileScopeSubscriptions,
@@ -47,16 +46,6 @@ export function reconcileScopeSubscriptionsInDraft(
   nextGraceExpiryAt: number | null;
   purged: PurgeTarget[];
 } {
-  if (!clientScopeSubscriptionsEnabled()) {
-    return {
-      addedScopes: [],
-      removedScopes: [],
-      evictedScopes: [],
-      expiredGraceScopes: [],
-      nextGraceExpiryAt: null,
-      purged: [],
-    };
-  }
   const candidates = extractScopeCandidates(draft, now, { activePaths });
   const prev = draft.scopeSubscriptions ?? initialScopeSubscriptionState();
   const result = reconcileScopeSubscriptions(prev, candidates, now);
@@ -70,11 +59,7 @@ export function reconcileScopeSubscriptionsInDraft(
   liftDeniedExcludes(draft, clearedDenied);
 
   let purged: PurgeTarget[] = [];
-  if (
-    result.state.serverConfirmed &&
-    result.removedScopes.length > 0 &&
-    candidates.principalId
-  ) {
+  if (result.removedScopes.length > 0 && candidates.principalId) {
     const outboxRows =
       protectedOutboxRows ??
       (typeof draft._protectedOutboxRows === "function"
@@ -104,7 +89,7 @@ function denyScopesInDraft(
   scopes: readonly string[],
   now: number,
 ): PurgeTarget[] {
-  if (!clientScopeSubscriptionsEnabled() || scopes.length === 0) return [];
+  if (scopes.length === 0) return [];
   const prev: ScopeSubscriptionState =
     draft.scopeSubscriptions ?? initialScopeSubscriptionState();
   const userId = draft.currentUser?._id
@@ -172,7 +157,6 @@ export type ScopeSubscriptionSlice = {
   clearDeniedScopeSubscriptions: (scopes?: readonly string[]) => void;
   setPeerViewScopes: (peerId: string, scopes: readonly string[]) => void;
   clearPeerViewScopes: () => void;
-  setScopeServerConfirmed: (confirmed: boolean) => void;
   _commitScopeReconcile: (
     now: number,
     activePaths?: string[],
@@ -233,16 +217,6 @@ export function createScopeSubscriptionSlice(
       now = Date.now(),
       activePaths?: string[],
     ) {
-      if (!clientScopeSubscriptionsEnabled()) {
-        return {
-          addedScopes: [],
-          removedScopes: [],
-          evictedScopes: [],
-          expiredGraceScopes: [],
-          nextGraceExpiryAt: null,
-          purged: [],
-        };
-      }
       const state = readState(this);
       const outboxRows = state._protectedOutboxRows?.();
       const candidates = extractScopeCandidates(state, now, { activePaths });
@@ -260,9 +234,7 @@ export function createScopeSubscriptionSlice(
         };
       }
       const { evictions } =
-        preview.state.serverConfirmed &&
-        preview.removedScopes.length > 0 &&
-        candidates.principalId
+        preview.removedScopes.length > 0 && candidates.principalId
           ? computeEvictionsForPurge(state, new Set(preview.activeScopes), {
               pending: state.pending,
               protectedOutboxRows: outboxRows,
@@ -284,9 +256,8 @@ export function createScopeSubscriptionSlice(
       this: any,
       heldScopes?: ReadonlySet<string> | readonly string[],
     ) {
-      if (!clientScopeSubscriptionsEnabled()) return [];
       const state = readState(this);
-      if (!state.scopeSubscriptions?.serverConfirmed) return [];
+      if (!state.scopeSubscriptions) return [];
       const outboxRows = state._protectedOutboxRows?.();
       const set =
         heldScopes instanceof Set
@@ -310,7 +281,7 @@ export function createScopeSubscriptionSlice(
       scopes: readonly string[],
       now = Date.now(),
     ) {
-      if (!clientScopeSubscriptionsEnabled() || scopes.length === 0) return [];
+      if (scopes.length === 0) return [];
       const state = readState(this);
       const userId = state.currentUser?._id
         ? String(state.currentUser._id)
@@ -325,7 +296,6 @@ export function createScopeSubscriptionSlice(
       this: any,
       scopes?: readonly string[],
     ) {
-      if (!clientScopeSubscriptionsEnabled()) return;
       const denied = this.scopeSubscriptions?.denied;
       if (!denied || Object.keys(denied).length === 0) return;
       if (!scopes) {
@@ -358,7 +328,7 @@ export function createScopeSubscriptionSlice(
       peerId: string,
       scopes: readonly string[],
     ) {
-      if (!clientScopeSubscriptionsEnabled() || !peerId) return;
+      if (!peerId) return;
       const prev = this.scopeSubscriptions ?? initialScopeSubscriptionState();
       const clean = [
         ...new Set(
@@ -384,31 +354,11 @@ export function createScopeSubscriptionSlice(
     }),
 
     clearPeerViewScopes: syncFn(function (this: any) {
-      if (!clientScopeSubscriptionsEnabled()) return;
       const prev = this.scopeSubscriptions;
       if (!prev?.peerViews || Object.keys(prev.peerViews).length === 0) return;
       this.scopeSubscriptions = {
         ...prev,
         peerViews: {},
-      };
-    }),
-
-    setScopeServerConfirmed: syncFn(function (this: any, confirmed: boolean) {
-      if (!clientScopeSubscriptionsEnabled()) return;
-      const prev = this.scopeSubscriptions ?? initialScopeSubscriptionState();
-      const principalId =
-        prev.principalId ??
-        (this.currentUser?._id ? String(this.currentUser._id) : null);
-      if (
-        prev.serverConfirmed === confirmed &&
-        prev.principalId === principalId
-      ) {
-        return;
-      }
-      this.scopeSubscriptions = {
-        ...prev,
-        principalId,
-        serverConfirmed: confirmed,
       };
     }),
   };

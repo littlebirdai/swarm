@@ -46,7 +46,10 @@ export function crawlWatermarkScope(key: string): string | null {
 /** The tokens a resync of one sync-log scope clears: its own, and for the
  *  viewer's personal scope the personal tasks and docs too. */
 export function crawlScopesClearedBy(scopeKey: string): string[] {
-  return scopeKey.startsWith("user:") ? [scopeKey, "personal"] : [scopeKey];
+  if (scopeKey.startsWith("user:")) return [scopeKey, "personal"];
+  if (scopeKey.startsWith("dir:"))
+    return [scopeKey, `team:${scopeKey.slice(4)}`];
+  return [scopeKey];
 }
 
 /** The inbox floor's workspace key for one principal. */

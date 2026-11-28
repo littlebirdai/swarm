@@ -36,10 +36,6 @@ async function runWithScopeManager(config: {
   seed: number;
 }) {
   const model = population(config.seed, config.people);
-  const prevInterest = process.env.SWARM_INTEREST_SCOPES;
-  const prevClientFlag = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  process.env.SWARM_INTEREST_SCOPES = "1";
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
   installRealm(config.seed);
   try {
     const writes = {
@@ -279,13 +275,6 @@ async function runWithScopeManager(config: {
       measurements.reduce((sum, m) => sum + m.events, 0) / measurements.length;
     return { measurements, meanEvents };
   } finally {
-    if (prevInterest === undefined) delete process.env.SWARM_INTEREST_SCOPES;
-    else process.env.SWARM_INTEREST_SCOPES = prevInterest;
-    if (prevClientFlag === undefined) {
-      delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-    } else {
-      process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = prevClientFlag;
-    }
     uninstallRealm();
   }
 }
@@ -293,11 +282,11 @@ async function runWithScopeManager(config: {
 test("client scope subscription manager drives real reconcile and catchUp in population sim", async () => {
   const people = 50;
   const seed = 42;
-  const baselineTeam = await runPopulation({
+  const baselineAllProjects = await runPopulation({
     people,
     devices: people,
     seed,
-    mode: "team",
+    mode: "all-projects",
   });
   const baselineInterest = await runPopulation({
     people,
@@ -320,5 +309,7 @@ test("client scope subscription manager drives real reconcile and catchUp in pop
     expect(m.unexpectedTasks).toBe(0);
   }
   expect(managed.meanEvents).toBe(baselineInterest.eventsPerDevice.mean);
-  expect(managed.meanEvents).toBeLessThan(baselineTeam.eventsPerDevice.mean);
+  expect(managed.meanEvents).toBeLessThan(
+    baselineAllProjects.eventsPerDevice.mean,
+  );
 }, 30_000);

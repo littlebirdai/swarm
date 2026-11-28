@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { getFunctionName } from "convex/server";
 import { act } from "react";
@@ -14,7 +14,6 @@ import {
 } from "../use-scope-subscriptions";
 import { catchUpScope, createCatchUpRunner } from "../use-sync-change-feed";
 
-const PREV_FLAG = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
 const cid = (s: string) =>
   s
     .replace(/[^a-z0-9]/gi, "")
@@ -45,20 +44,7 @@ function ScopedChangeFeedProbe() {
   return <span data-scoped-feed="1" />;
 }
 
-beforeEach(() => {
-  delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-});
-
-afterEach(() => {
-  if (PREV_FLAG === undefined) {
-    delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  } else {
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
-  }
-});
-
 test("account switch reconciles before runAll, scopeInputsSig stays compact, and LRU uses visits", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
   const projects: Record<string, any> = {};
   for (let i = 0; i < 65; i++) {
     projects[`p${i}`] = {
@@ -219,60 +205,7 @@ test("account switch reconciles before runAll, scopeInputsSig stays compact, and
   expect(purgedTeams.has("team1")).toBe(false);
 });
 
-test("module-level gate switches useSyncChangeFeed to scoped mode when flag is 1", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
-  const mod = await import(
-    /* @vite-ignore */ `../use-sync-change-feed?scoped=${Date.now()}`
-  );
-  const ScopedFromEntry = () => {
-    mod.useSyncChangeFeed();
-    return <span data-entry="1" />;
-  };
-  const { backend, clock } = await mountWeb(<ScopedFromEntry />, {
-    clock: true,
-    setup(backend, state) {
-      useInboxStore.setState({
-        syncRole: "host",
-        clientStateInitialized: true,
-        scopeSubscriptions: initialScopeSubscriptionState(),
-      });
-      state.syncTable("currentUser", { _id: "viewer" });
-      state.syncTable("teams", [{ _id: "team1" }]);
-      backend.set(
-        api.syncLog.getHeads,
-        ({ scopes }: { scopes?: string[] }) => ({
-          heads: (scopes ?? []).map((scope_key) => ({
-            scope_key,
-            position: 1,
-            floor: 0,
-          })),
-        }),
-      );
-      backend.set(api.syncLog.getRange, {
-        actions: [],
-        nextFrom: 1,
-        hasMore: false,
-      });
-    },
-  });
-  await flushMicrotasks();
-  await clock!.advance(1);
-  await flushMicrotasks();
-  const scopedHeadCalls = backend.queryRequests
-    .filter(({ name }) => name === getFunctionName(api.syncLog.getHeads))
-    .filter(({ args }) => Array.isArray((args as any).scopes));
-  expect(scopedHeadCalls.length).toBeGreaterThan(0);
-  expect(
-    backend.queryRequests.some(
-      ({ name, args }) =>
-        name === getFunctionName(api.syncLog.getHeads) &&
-        !Array.isArray((args as any).scopes),
-    ),
-  ).toBe(false);
-});
-
-test("whileWindowVisible pauses grace timer when hidden and handles project/dir unauthorized under flag", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+test("whileWindowVisible pauses grace timer when hidden and handles project/dir unauthorized", async () => {
   const tView = cid("thiddenview");
   const tTeam = cid("tdirteam");
   const { backend, clock, store } = await mountWeb(<ScopeHookProbe />, {
@@ -300,7 +233,6 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
         } as any,
         syncMeta: {
           "synclog:v1:dir:team1": { cursor: 1 },
-          "synclog:v1:team:team1": { cursor: 1 },
           "synclog:v1:project:p-auth": { cursor: 1 },
         },
       });
@@ -392,7 +324,6 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
   });
   expect(purgedTeams.has("team1")).toBe(true);
   expect(store.getState().syncMeta["synclog:v1:dir:team1"]).toBeUndefined();
-  expect(store.getState().syncMeta["synclog:v1:team:team1"]).toBeUndefined();
   expect(
     store.getState().syncMeta["synclog:v1:project:p-auth"],
   ).toBeUndefined();
@@ -402,11 +333,9 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
   expect(store.getState().tasks[tTeam]).toBeUndefined();
 });
 
-test("live getHeads confirms server before evicting, and hidden host reconciles follower peerViews", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+test("unpin evicts immediately and hidden host reconciles follower peerViews", async () => {
   const tOff = cid("tserverunconfirmed");
   let hidden = false;
-  let headsMode: "legacy" | "interest" = "legacy";
   const { backend, clock, store } = await mountWeb(<ScopeHookProbe />, {
     clock: true,
     setup(backend, state) {
@@ -439,22 +368,15 @@ test("live getHeads confirms server before evicting, and hidden host reconciles 
       });
       state.syncTable("currentUser", { _id: "viewer" });
       state.syncTable("teams", [{ _id: "team1" }]);
-      backend.set(api.syncLog.getHeads, ({ scopes }: { scopes?: string[] }) =>
-        headsMode === "legacy"
-          ? {
-              heads: [
-                { scope_key: "user:viewer", position: 1, floor: 0 },
-                { scope_key: "team:team1", position: 1, floor: 0 },
-              ],
-            }
-          : {
-              interest_scopes: true,
-              heads: (scopes ?? []).map((scope_key) => ({
-                scope_key,
-                position: 1,
-                floor: 0,
-              })),
-            },
+      backend.set(
+        api.syncLog.getHeads,
+        ({ scopes }: { scopes?: string[] }) => ({
+          heads: (scopes ?? []).map((scope_key) => ({
+            scope_key,
+            position: 1,
+            floor: 0,
+          })),
+        }),
       );
     },
   });
@@ -468,7 +390,9 @@ test("live getHeads confirms server before evicting, and hidden host reconciles 
     await flushMicrotasks();
     await clock!.advance(1);
     await flushMicrotasks();
-    expect(store.getState().scopeSubscriptions.serverConfirmed).toBe(false);
+    expect(
+      store.getState().scopeSubscriptions.active["project:p-off"],
+    ).toBeDefined();
 
     await act(async () => {
       useInboxStore.setState({
@@ -497,7 +421,7 @@ test("live getHeads confirms server before evicting, and hidden host reconciles 
     expect(
       store.getState().scopeSubscriptions.active["project:p-off"],
     ).toBeUndefined();
-    expect(store.getState().tasks[tOff]).toBeDefined();
+    expect(store.getState().tasks[tOff]).toBeUndefined();
 
     hidden = true;
     await act(async () => {
@@ -511,25 +435,6 @@ test("live getHeads confirms server before evicting, and hidden host reconciles 
     expect(
       store.getState().scopeSubscriptions.active["project:p-peer-hid"],
     ).toBeDefined();
-
-    await act(async () => {
-      headsMode = "interest";
-      backend.set(
-        api.syncLog.getHeads,
-        ({ scopes }: { scopes?: string[] }) => ({
-          interest_scopes: true,
-          heads: (scopes ?? []).map((scope_key) => ({
-            scope_key,
-            position: 1,
-            floor: 0,
-          })),
-        }),
-      );
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(store.getState().scopeSubscriptions.serverConfirmed).toBe(true);
-    expect(store.getState().tasks[tOff]).toBeUndefined();
   } finally {
     if (prevHiddenDesc) {
       Object.defineProperty(document, "hidden", prevHiddenDesc);

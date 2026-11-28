@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { ReplicationChannel, ReplicationMessage } from "@platform/engine";
 import { getFunctionName } from "convex/server";
@@ -25,7 +25,6 @@ import {
   useSyncChangeFeed,
 } from "../use-sync-change-feed";
 
-const PREV_FLAG = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
 const cid = (s: string) =>
   s
     .replace(/[^a-z0-9]/gi, "")
@@ -48,11 +47,6 @@ function ScopeHookProbe() {
   );
 }
 
-function ChangeFeedProbe() {
-  useSyncChangeFeed();
-  return <span data-feed="1" />;
-}
-
 function ScopedChangeFeedProbe() {
   useScopedSyncChangeFeed(createCatchUpRunner, resetInboxReplayLanes, {
     debounceMs: 1500,
@@ -71,20 +65,13 @@ function TeamBootstrapProbe({ teamId }: { teamId: string }) {
   return <span data-ready={ready ? "1" : "0"} />;
 }
 
-beforeEach(() => {
-  delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-});
-
-afterEach(() => {
-  if (PREV_FLAG === undefined) {
-    delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  } else {
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
-  }
-});
-
-test("flag off subscribes to nothing in useScopeSubscriptions", async () => {
-  const { backend, container } = await mountWeb(<ScopeHookProbe />, {
+test("useSyncChangeFeed always runs scoped without flag and revokes unauthorized project scope", async () => {
+  const FeedFromEntry = () => {
+    useSyncChangeFeed();
+    return <span data-feed="1" />;
+  };
+  const { backend, clock } = await mountWeb(<FeedFromEntry />, {
+    clock: true,
     setup(backend, state) {
       useInboxStore.setState({
         syncRole: "host",
@@ -92,32 +79,32 @@ test("flag off subscribes to nothing in useScopeSubscriptions", async () => {
         scopeSubscriptions: initialScopeSubscriptionState(),
       });
       state.syncTable("currentUser", { _id: "viewer" });
-      state.syncTable("teams", [{ _id: "team1" }]);
-      backend.set(api.syncLog.getHeads, { heads: [] });
-    },
-  });
-  expect(container.textContent).toBe("");
-  expect(backend.queryRequests).toEqual([]);
-});
-
-test("flag off leaves useSyncChangeFeed and handleUnauthorizedScope identical to main", async () => {
-  const { backend } = await mountWeb(<ChangeFeedProbe />, {
-    setup(backend, state) {
-      useInboxStore.setState({
-        syncRole: "host",
-        clientStateInitialized: true,
-        scopeSubscriptions: initialScopeSubscriptionState(),
+      backend.set(
+        api.syncLog.getHeads,
+        ({ scopes }: { scopes?: string[] }) => ({
+          heads: (scopes ?? []).map((scope_key) => ({
+            scope_key,
+            position: 1,
+            floor: 0,
+          })),
+        }),
+      );
+      backend.set(api.syncLog.getRange, {
+        actions: [],
+        nextFrom: 1,
+        hasMore: false,
       });
-      state.syncTable("currentUser", { _id: "viewer" });
-      backend.set(api.syncLog.getHeads, { heads: [] });
     },
   });
+  await flushMicrotasks();
+  await clock!.advance(1);
+  await flushMicrotasks();
   const headCalls = backend.queryRequests.filter(
     ({ name }) => name === getFunctionName(api.syncLog.getHeads),
   );
   expect(headCalls.length).toBeGreaterThan(0);
   for (const call of headCalls) {
-    expect(call.args).toEqual({});
+    expect(Array.isArray((call.args as any).scopes)).toBe(true);
   }
   const nonTeamId = cid("non-team-task");
   useInboxStore.setState({
@@ -138,14 +125,13 @@ test("flag off leaves useSyncChangeFeed and handleUnauthorizedScope identical to
       purgedTeams,
     );
   });
-  expect(useInboxStore.getState().syncMeta["synclog:v1:project:p1"]).toEqual({
-    cursor: 1,
-  });
-  expect(useInboxStore.getState().tasks[nonTeamId]).toBeDefined();
+  expect(
+    useInboxStore.getState().syncMeta["synclog:v1:project:p1"],
+  ).toBeUndefined();
+  expect(useInboxStore.getState().tasks[nonTeamId]).toBeUndefined();
 });
 
-test("follower window opens no head subscriptions when the flag is on", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+test("follower window opens no head subscriptions", async () => {
   const { backend, container } = await mountWeb(<ScopeHookProbe />, {
     setup(backend, state) {
       useInboxStore.setState({
@@ -162,57 +148,7 @@ test("follower window opens no head subscriptions when the flag is on", async ()
   expect(backend.queryRequests).toEqual([]);
 });
 
-test("client flag on + server flag off keeps all team rows and writes zero tombstones", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
-  const tTeam = cid("tserveroff");
-  const { backend } = await mountWeb(<ScopeHookProbe />, {
-    setup(backend, state) {
-      useInboxStore.setState({
-        syncRole: "host",
-        clientStateInitialized: true,
-        scopeSubscriptions: initialScopeSubscriptionState(),
-        projects: {
-          "p-team": { _id: "p-team", workspace: "team:team1", starred: true },
-        },
-        tasks: {
-          [tTeam]: {
-            _id: tTeam,
-            workspace: "team:team1",
-            project_id: "p-team",
-            home_scope: "project:p-team",
-          },
-        },
-      } as any);
-      state.syncTable("currentUser", { _id: "viewer" });
-      state.syncTable("teams", [{ _id: "team1" }]);
-      backend.set(api.syncLog.getHeads, () => ({
-        heads: [
-          { scope_key: "user:viewer", position: 1, floor: 0 },
-          { scope_key: "team:team1", position: 1, floor: 0 },
-        ],
-      }));
-      backend.set(api.syncLog.getRange, {
-        actions: [],
-        nextFrom: 1,
-        hasMore: false,
-      });
-    },
-  });
-
-  await act(async () => {
-    useInboxStore.getState().reconcileScopeSubscriptions(1000);
-    await catchUp(backend.client as any);
-  });
-
-  expect(useInboxStore.getState().tasks[tTeam]).toBeDefined();
-  expect(useInboxStore.getState().pending[`tasks:${tTeam}`]).toBeUndefined();
-  expect(
-    useInboxStore.getState().scopeSubscriptions.active["project:p-team"],
-  ).toBeDefined();
-});
-
-test("team bootstrap floor opens when dir:<teamId> is stamped under client flag", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+test("team bootstrap floor opens when dir:<teamId> is stamped", async () => {
   const tBoot = cid("tboot1");
   const { backend, clock, container } = await mountWeb(
     <TeamBootstrapProbe teamId="team1" />,
@@ -234,7 +170,6 @@ test("team bootstrap floor opens when dir:<teamId> is stamped under client flag"
         backend.set(
           api.syncLog.getHeads,
           ({ scopes }: { scopes?: string[] }) => ({
-            interest_scopes: true,
             heads: (scopes ?? []).map((scope_key) => ({
               scope_key,
               position: 1,
@@ -276,7 +211,6 @@ test("team bootstrap floor opens when dir:<teamId> is stamped under client flag"
 });
 
 test("chunks head subscriptions by 16, wakes dirty chunk, and sweeps chunk with all scopes refused", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
   const projects: Record<string, any> = {};
   const pins = Array.from({ length: 18 }, (_, i) => {
     const id = `p${String(i).padStart(2, "0")}`;
@@ -416,7 +350,6 @@ test("chunks head subscriptions by 16, wakes dirty chunk, and sweeps chunk with 
 });
 
 test("grace expires on visible window after 60 s, evicts without excludes, and handles follower views", async () => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
   const tView = cid("tview");
   const tUser = cid("tuser");
   const { backend, clock, store } = await mountWeb(<ScopeHookProbe />, {

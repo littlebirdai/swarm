@@ -97,13 +97,13 @@ describe("loadFloorOnce", () => {
 });
 
 describe("floorScopeKeys", () => {
-  test("a personal floor waits on the user scope; a team floor on the user AND team scopes", () => {
+  test("a personal floor waits on the user scope; a team floor on the user AND dir scopes", () => {
     expect(floorScopeKeys({ workspace: "personal" }, "u1")).toEqual([
       "user:u1",
     ]);
     expect(floorScopeKeys({ workspace: "team", team_id: "T" }, "u1")).toEqual([
       "user:u1",
-      "team:T",
+      "dir:T",
     ]);
   });
   test("unresolvable until there is a principal and args", () => {

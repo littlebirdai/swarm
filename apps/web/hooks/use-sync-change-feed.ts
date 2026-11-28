@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   useInboxStore,
@@ -9,8 +7,6 @@ import {
 import { admitUnheldSessions } from "../store/cacheRetention";
 import { planCargoApply } from "../lib/syncLogCargo";
 import { track } from "../lib/analytics";
-import { useQueryNoThrow } from "./useQueryNoThrow";
-import { onSyncWake } from "./syncWake";
 import {
   checkReplaySignal,
   inboxReplaySignal,
@@ -24,7 +20,6 @@ import { beginSyncInflight } from "../store/syncActivity";
 import {
   applyScopeLifecycleEvent,
   buildCatchUpRunner,
-  confirmCatchUpInterestScopes,
   handleUnauthorizedScope,
   isPurgedTeamHead,
   resetTeamResyncCaches,
@@ -34,7 +29,6 @@ import {
   teamIdFromScopeKey,
   useScopedSyncChangeFeed,
 } from "./use-scope-subscriptions";
-import { clientScopeSubscriptionsEnabled } from "../store/scope-subscriptions";
 import {
   batchGet,
   queryReplay,
@@ -266,22 +260,13 @@ async function applyLogPage(
   const store = useInboxStore.getState();
   const entityActions: LogAction[] = [];
   const disowned = new Set<string>();
-  const scopedEnabled = clientScopeSubscriptionsEnabled();
   for (const a of actions) {
     if (a.entity_type === "scope") {
       applyScopeLifecycleEvent(store, a.op, a.entity_id, purgedTeams);
       continue;
     }
     if (a.entity_type === "member") {
-      // A teammate left this team (the row rides the TEAM's scope, entity_id
-      // is the departed user): their rows leave the team feed cache, which
-      // only grows and hears of removals from nowhere else. Conversations
-      // never fan out to a team scope, so no per row delete will follow.
-      const memberTeamId = scopedEnabled
-        ? teamIdFromScopeKey(scopeKey)
-        : scopeKey.startsWith("team:")
-          ? scopeKey.slice(5)
-          : null;
+      const memberTeamId = teamIdFromScopeKey(scopeKey);
       if (a.op === "scope_removed" && memberTeamId) {
         store.purgeMemberTeamRows(memberTeamId, a.entity_id);
       }
@@ -605,37 +590,14 @@ export async function catchUp(
 ): Promise<void> {
   const runStart = Date.now();
   const store = useInboxStore.getState();
-  const scopedEnabled = clientScopeSubscriptionsEnabled();
-  const scopeList = scopedEnabled
-    ? scopedCatchUpScopes(store, opts?.scopes)
-    : null;
-  if (scopeList && scopeList.length === 0) return;
+  const scopeList = scopedCatchUpScopes(store, opts?.scopes);
+  if (scopeList.length === 0) return;
   const res = await withReplayTimeout(account, (signal) =>
-    queryReplay(
-      convex,
-      api.syncLog.getHeads,
-      scopeList ? { scopes: scopeList } : {},
-      signal,
-    ),
+    queryReplay(convex, api.syncLog.getHeads, { scopes: scopeList }, signal),
   );
   checkReplaySignal(account);
   if (!res) return;
   const heads: ScopeHead[] = res.heads ?? [];
-  const serverConfirmed = await confirmCatchUpInterestScopes(
-    store,
-    scopeList,
-    heads,
-    res.interest_scopes,
-    (probeScopes) =>
-      withReplayTimeout(account, (signal) =>
-        queryReplay(
-          convex,
-          api.syncLog.getHeads,
-          { scopes: probeScopes },
-          signal,
-        ),
-      ).then((r) => (checkReplaySignal(account), r?.heads ?? [])),
-  );
   const legacyCursor = store.syncMeta[LEGACY_META_KEY]?.cursor;
   const hadLegacy = !!legacyCursor;
   // Too old to drain in a run: every scope resyncs instead, including one an
@@ -687,7 +649,7 @@ export async function catchUp(
     if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
       stampCatchUpScope(s, head.scope_key);
   }
-  sweepAfterHeads(useInboxStore.getState(), heads, scopeList, serverConfirmed);
+  sweepAfterHeads(useInboxStore.getState(), heads, scopeList);
   // The legacy cursor may be dropped only once BOTH are true: the drain
   // reached the end, and every scope cursor for this run is stamped (the loop
   // above). Until then the checkpointed legacy cursor is the recovery path.
@@ -789,8 +751,6 @@ async function shadowCompare(
   }
 }
 
-const SCOPE_SUBSCRIPTIONS_ENABLED = clientScopeSubscriptionsEnabled();
-
 export function createCatchUpRunner(
   convex: any,
   opts: { onError?: (e: unknown) => void; onSettled?: () => void } = {},
@@ -807,74 +767,9 @@ export function createCatchUpRunner(
   );
 }
 
-function useLegacySyncChangeFeed(): void {
-  const convex = useConvex();
-  const hydrated = useInboxStore((s) => s.clientStateInitialized);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const run = useMemo(() => createCatchUpRunner(convex), [convex]);
-
-  const scheduleRun = useCallback(() => {
-    if (debounceRef.current) return;
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      run();
-    }, HEADS_DEBOUNCE_MS);
-  }, [run]);
-
-  const { data: headsData } = useQueryNoThrow(
-    api.syncLog.getHeads,
-    hydrated ? {} : "skip",
-  );
-
-  // eslint-disable-next-line no-restricted-syntax -- self-managed wake/interval catch-up
-  useEffect(() => {
-    if (!hydrated || headsData === undefined) return;
-    scheduleRun();
-  }, [hydrated, headsData, scheduleRun]);
-
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    if (!hydrated) return;
-    const onWake = () => run();
-    onWake();
-    const id = setInterval(onWake, TICK_MS);
-    const doc = typeof document !== "undefined" ? document : undefined;
-    const win = typeof window !== "undefined" ? window : undefined;
-    const onVisible = () => {
-      if (doc?.visibilityState === "visible") onWake();
-    };
-    doc?.addEventListener?.("visibilitychange", onVisible);
-    win?.addEventListener?.("focus", onWake);
-    win?.addEventListener?.("online", onWake);
-    const offWake = onSyncWake(onWake);
-    const offAccount = useInboxStore.subscribe((next, previous) => {
-      if (next.currentUser?._id === previous.currentUser?._id) return;
-      resetInboxReplayLanes(convex);
-      if (next.currentUser?._id) onWake();
-    });
-    return () => {
-      offAccount();
-      run.cancel();
-      clearInterval(id);
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
-      offWake();
-      doc?.removeEventListener?.("visibilitychange", onVisible);
-      win?.removeEventListener?.("focus", onWake);
-      win?.removeEventListener?.("online", onWake);
-    };
-  }, [convex, hydrated, run]);
-}
-
-function useScopedFeedBridge(): void {
+export function useSyncChangeFeed(): void {
   useScopedSyncChangeFeed(createCatchUpRunner, resetInboxReplayLanes, {
     debounceMs: HEADS_DEBOUNCE_MS,
     tickMs: TICK_MS,
   });
 }
-
-export const useSyncChangeFeed: () => void = SCOPE_SUBSCRIPTIONS_ENABLED
-  ? useScopedFeedBridge
-  : useLegacySyncChangeFeed;

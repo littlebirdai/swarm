@@ -52,14 +52,6 @@ export const SCOPE_HEADS_CHUNK_COUNT = Math.ceil(
 export const SCOPE_VIEW_GRACE_MS = 60 * 1000;
 export const SCOPE_DENY_TTL_MS = 5 * 60 * 1000;
 
-export function clientScopeSubscriptionsEnabled(): boolean {
-  try {
-    return process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS === "1";
-  } catch {
-    return false;
-  }
-}
-
 export type ScopeSource = "pinned" | "membership" | "follows" | "view";
 
 export type ScopeSubscriptionEntry = {
@@ -83,7 +75,6 @@ export type ScopeSubscriptionState = {
   graceDeadlines: Record<string, number>;
   denied: Record<string, ScopeDenyEntry>;
   peerViews: Record<string, string[]>;
-  serverConfirmed: boolean;
   lastReconciledAt: number | null;
 };
 
@@ -103,7 +94,6 @@ export function initialScopeSubscriptionState(): ScopeSubscriptionState {
     graceDeadlines: {},
     denied: {},
     peerViews: {},
-    serverConfirmed: false,
     lastReconciledAt: null,
   };
 }
@@ -265,8 +255,7 @@ export function reconcileScopeSubscriptions(
       Object.keys(prevState.graceDeadlines).length === 0 &&
       Object.keys(prevState.denied).length === 0 &&
       Object.keys(prevState.peerViews).length === 0 &&
-      prevState.viewScopes.length === 0 &&
-      !prevState.serverConfirmed;
+      prevState.viewScopes.length === 0;
     return {
       state: alreadyEmpty ? prevState : initialScopeSubscriptionState(),
       activeScopes: [],
@@ -504,7 +493,6 @@ export function reconcileScopeSubscriptions(
         graceDeadlines: finalGraceDeadlines,
         denied: finalDenied,
         peerViews: prev.peerViews,
-        serverConfirmed: prev.serverConfirmed,
         lastReconciledAt: now,
       };
 
@@ -522,11 +510,4 @@ export function reconcileScopeSubscriptions(
 export function clearScopeMetaPair(draft: any, scope: string): void {
   delete draft.syncMeta[`synclog:v1:${scope}`];
   delete draft.syncLogScopeStamps[scope];
-  if (scope.startsWith("dir:")) {
-    const teamId = scope.slice(4);
-    delete draft.syncLogScopeStamps[`team:${teamId}`];
-  } else if (scope.startsWith("team:")) {
-    const teamId = scope.slice(5);
-    delete draft.syncLogScopeStamps[`dir:${teamId}`];
-  }
 }

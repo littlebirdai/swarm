@@ -233,6 +233,16 @@ export class SimWindow implements RealmWindow {
         userRow ? structuredClone(userRow) : { _id: this.user.userId },
       );
       const team = typeof this.scope === "object" ? this.scope.team : undefined;
+      const memberTeamIds = (
+        this.world.backend.db._tables.team_memberships ?? []
+      )
+        .filter((m: any) => String(m.user_id) === String(this.user.userId))
+        .map((m: any) => String(m.team_id));
+      if (team && !memberTeamIds.includes(team)) memberTeamIds.push(team);
+      s.syncTable(
+        "teams",
+        memberTeamIds.map((id: string) => ({ _id: id })),
+      );
       s.syncTable("clientState", {
         ui: {
           inbox_scope: team ? "team" : "mine",
@@ -248,6 +258,7 @@ export class SimWindow implements RealmWindow {
         clientStateInitialized: true,
         syncRole: this.role,
       } as any);
+      (this.store.getState() as any).reconcileScopeSubscriptions?.(Date.now());
       s._setDispatchError(applyDispatchFailure);
       s._setOutbox(
         (entry: OutboxEntry) =>
@@ -349,7 +360,14 @@ export class SimWindow implements RealmWindow {
     this.mount(
       "heads",
       api.syncLog.getHeads,
-      () => ({}),
+      () => {
+        const st = this.store.getState() as any;
+        st.reconcileScopeSubscriptions?.(Date.now());
+        const scopes = Object.keys(
+          this.store.getState().scopeSubscriptions?.active ?? {},
+        );
+        return scopes.length ? { scopes } : "skip";
+      },
       (data) => {
         const sig = JSON.stringify(data ?? null);
         if (sig === this.lastHeads) return;

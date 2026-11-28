@@ -271,9 +271,16 @@ export const INVARIANTS: readonly Invariant[] = [
       const key = activeWorkspaceKeyOf(state);
       // Mid drain, a revocation still in its outbox slot has not reached any
       // log the window reads; the row stays as production would hold it.
+      const outboxScopes = [
+        ...held,
+        ...[...held]
+          .filter((k) => k.startsWith("team:"))
+          .map((k) => `dir:${k.slice(5)}`),
+        ...Object.keys(state.scopeSubscriptions?.active ?? {}),
+      ];
       const inFlight =
         mode === "always"
-          ? undeliveredEntities(world, held)
+          ? undeliveredEntities(world, outboxScopes)
           : new Set<string>();
       const out: Violation[] = [];
       for (const table of WORKSPACE_TABLES) {

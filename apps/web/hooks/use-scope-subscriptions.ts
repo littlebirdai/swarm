@@ -6,10 +6,7 @@ import {
   activeTabPaths,
   findEntityRow,
 } from "../store/scope-subscription-candidates";
-import {
-  SCOPE_HEADS_CHUNK_COUNT,
-  clientScopeSubscriptionsEnabled,
-} from "../store/scope-subscriptions";
+import { SCOPE_HEADS_CHUNK_COUNT } from "../store/scope-subscriptions";
 import { syncLogScopeMetaKey, useInboxStore } from "../store/inboxStore";
 import { makeCollectionSig } from "../store/wakeSig";
 import { onSyncWake } from "./syncWake";
@@ -206,16 +203,13 @@ export function makeScopeRunQueue() {
 export function scopedCatchUpScopes(
   store: any,
   scopes?: readonly string[],
-): string[] | null {
-  if (!clientScopeSubscriptionsEnabled()) return null;
+): string[] {
   if (scopes) return [...scopes];
   return Object.keys(store.scopeSubscriptions?.active ?? {});
 }
 
 export function teamIdFromScopeKey(scopeKey: string): string | null {
-  if (scopeKey.startsWith("team:")) return scopeKey.slice(5);
-  if (scopeKey.startsWith("dir:")) return scopeKey.slice(4);
-  return null;
+  return scopeKey.startsWith("dir:") ? scopeKey.slice(4) : null;
 }
 
 export function applyScopeLifecycleEvent(
@@ -224,126 +218,38 @@ export function applyScopeLifecycleEvent(
   entityId: string,
   purgedTeams: Set<string>,
 ): void {
-  const scopedEnabled = clientScopeSubscriptionsEnabled();
   if (op === "scope_removed") {
     store.purgeTeamScopeRows(entityId);
-    store.clearSyncMeta(syncLogScopeMetaKey(`team:${entityId}`));
-    if (scopedEnabled) {
-      store.clearSyncMeta(syncLogScopeMetaKey(`dir:${entityId}`));
-      store.denyScopeSubscriptions?.([`dir:${entityId}`]);
-    }
+    store.clearSyncMeta(syncLogScopeMetaKey(`dir:${entityId}`));
+    store.denyScopeSubscriptions?.([`dir:${entityId}`]);
     purgedTeams.add(entityId);
   } else if (op === "scope_added") {
-    store.clearCrawlMetaForScope(`team:${entityId}`);
     store.liftScopeExcludes(`team:${entityId}`);
-    if (scopedEnabled) {
-      store.clearCrawlMetaForScope(`dir:${entityId}`);
-      store.liftScopeExcludes(`dir:${entityId}`);
-      store.clearDeniedScopeSubscriptions?.([`dir:${entityId}`]);
-    }
+    store.clearCrawlMetaForScope(`dir:${entityId}`);
+    store.liftScopeExcludes(`dir:${entityId}`);
+    store.clearDeniedScopeSubscriptions?.([`dir:${entityId}`]);
     store.bumpSyncLogFloorEpoch();
     purgedTeams.delete(entityId);
   }
 }
 
 export function resetTeamResyncCaches(store: any, scopeKey: string): void {
-  const scopedEnabled = clientScopeSubscriptionsEnabled();
-  const teamId = scopedEnabled
-    ? teamIdFromScopeKey(scopeKey)
-    : scopeKey.startsWith("team:")
-      ? scopeKey.slice(5)
-      : null;
+  const teamId = teamIdFromScopeKey(scopeKey);
   if (!teamId) return;
   store.dropTeamFeedCache(teamId);
-  if (scopedEnabled) {
-    store.clearCrawlMetaForScope(`team:${teamId}`);
-    store.clearCrawlMetaForScope(`dir:${teamId}`);
-  }
+  store.clearCrawlMetaForScope(`dir:${teamId}`);
 }
 
 export function isPurgedTeamHead(
   scopeKey: string,
   purgedTeams: ReadonlySet<string>,
 ): boolean {
-  const teamId = clientScopeSubscriptionsEnabled()
-    ? teamIdFromScopeKey(scopeKey)
-    : scopeKey.startsWith("team:")
-      ? scopeKey.slice(5)
-      : null;
+  const teamId = teamIdFromScopeKey(scopeKey);
   return !!teamId && purgedTeams.has(teamId);
 }
 
 export function stampCatchUpScope(store: any, scopeKey: string): void {
   store.stampSyncLogScope(scopeKey);
-  if (!clientScopeSubscriptionsEnabled()) return;
-  if (scopeKey.startsWith("dir:")) {
-    store.stampSyncLogScope(`team:${scopeKey.slice(4)}`);
-  } else if (scopeKey.startsWith("team:")) {
-    store.stampSyncLogScope(`dir:${scopeKey.slice(5)}`);
-  }
-}
-
-export async function confirmCatchUpInterestScopes(
-  store: any,
-  scopeList: readonly string[] | null,
-  heads: readonly ScopeHead[],
-  interestScopesCapability: boolean | undefined,
-  probeUserAndDirHeads: (scopes: readonly string[]) => Promise<ScopeHead[]>,
-): Promise<boolean> {
-  if (!clientScopeSubscriptionsEnabled() || !scopeList) return false;
-  if (
-    serverConfirmedInterestScopes(scopeList, heads, interestScopesCapability)
-  ) {
-    store.setScopeServerConfirmed?.(true);
-    return true;
-  }
-  if (heads.some((h) => h.scope_key.startsWith("team:"))) {
-    store.setScopeServerConfirmed?.(false);
-    return false;
-  }
-  if (heads.length === 0 && store.currentUser?._id) {
-    const userScope = `user:${String(store.currentUser._id)}`;
-    if (!scopeList.includes(userScope)) {
-      const dirScopes = Object.keys(
-        store.scopeSubscriptions?.active ?? {},
-      ).filter((s) => s.startsWith("dir:"));
-      const probeHeads = await probeUserAndDirHeads([
-        userScope,
-        ...dirScopes.slice(0, 15),
-      ]);
-      if (
-        probeHeads.length > 0 &&
-        !probeHeads.some((h) => h.scope_key.startsWith("team:")) &&
-        (store.scopeSubscriptions?.serverConfirmed ||
-          probeHeads.some((h) => h.scope_key.startsWith("dir:")))
-      ) {
-        store.setScopeServerConfirmed?.(true);
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-export function serverConfirmedInterestScopes(
-  requestedScopes: readonly string[] | null,
-  heads: readonly ScopeHead[],
-  capability?: boolean,
-): boolean {
-  if (capability === true) return true;
-  if (capability === false) return false;
-  if (!requestedScopes || requestedScopes.length === 0 || heads.length === 0) {
-    return false;
-  }
-  if (heads.some((h) => h.scope_key.startsWith("team:"))) return false;
-  const reqSet = new Set(requestedScopes);
-  if (!heads.every((h) => reqSet.has(h.scope_key))) return false;
-  return heads.some(
-    (h) =>
-      h.scope_key.startsWith("dir:") ||
-      h.scope_key.startsWith("project:") ||
-      h.scope_key.startsWith("channel:"),
-  );
 }
 
 export function handleUnauthorizedScope(
@@ -352,19 +258,9 @@ export function handleUnauthorizedScope(
   metaKey: string,
   purgedTeams: Set<string>,
 ): void {
-  if (!clientScopeSubscriptionsEnabled()) {
-    if (scopeKey.startsWith("team:")) {
-      const teamId = scopeKey.slice(5);
-      store.purgeTeamScopeRows(teamId);
-      store.clearSyncMeta(metaKey);
-      purgedTeams.add(teamId);
-    }
-    return;
-  }
   const teamId = teamIdFromScopeKey(scopeKey);
   if (teamId) {
     store.purgeTeamScopeRows(teamId);
-    store.clearSyncMeta(syncLogScopeMetaKey(`team:${teamId}`));
     store.clearSyncMeta(syncLogScopeMetaKey(`dir:${teamId}`));
     store.denyScopeSubscriptions?.([`dir:${teamId}`]);
     purgedTeams.add(teamId);
@@ -384,37 +280,22 @@ export function handleUnauthorizedScope(
 export function sweepAfterHeads(
   store: any,
   heads: readonly ScopeHead[],
-  requestedScopes: readonly string[] | null,
-  serverConfirmed = false,
+  requestedScopes: readonly string[],
 ): void {
-  if (requestedScopes && serverConfirmed) {
-    sweepMissingInterestScopes(store, requestedScopes, heads, true);
-    return;
-  }
-  if (heads.length === 0) return;
-  const present = new Set(heads.map((h) => h.scope_key));
-  for (const key of Object.keys(store.syncMeta)) {
-    if (!key.startsWith("synclog:v1:team:")) continue;
-    const scopeKey = key.slice("synclog:v1:".length);
-    if (present.has(scopeKey)) continue;
-    const teamId = scopeKey.slice(5);
-    store.purgeTeamScopeRows(teamId);
-    store.clearSyncMeta(key);
-    store.clearCrawlMetaForScope(scopeKey);
-    if (clientScopeSubscriptionsEnabled()) {
-      store.clearSyncMeta(syncLogScopeMetaKey(`dir:${teamId}`));
-      store.clearCrawlMetaForScope(`dir:${teamId}`);
-    }
-  }
+  sweepMissingInterestScopes(store, requestedScopes, heads);
 }
 
 export function sweepMissingInterestScopes(
   store: any,
   requestedScopes: readonly string[],
   heads: readonly ScopeHead[],
-  allowEmptyHeads = false,
 ): void {
-  if (!allowEmptyHeads && heads.length === 0) return;
+  if (
+    heads.length === 0 &&
+    requestedScopes.some((scope) => scope.startsWith("user:"))
+  ) {
+    return;
+  }
   const present = new Set(heads.map((h) => h.scope_key));
   const deniedToDrop: string[] = [];
   for (const scope of requestedScopes) {
@@ -423,8 +304,6 @@ export function sweepMissingInterestScopes(
       const teamId = scope.slice(4);
       store.purgeTeamScopeRows(teamId);
       store.clearSyncMeta(syncLogScopeMetaKey(scope));
-      store.clearSyncMeta(syncLogScopeMetaKey(`team:${teamId}`));
-      store.clearCrawlMetaForScope(`team:${teamId}`);
       store.clearCrawlMetaForScope(scope);
       deniedToDrop.push(scope);
       continue;
@@ -500,7 +379,7 @@ export function useScopeSubscriptions(opts?: {
   chunks: string[][];
   chunkHeads: Array<{ heads: ScopeHead[] } | undefined>;
 } {
-  const enabled = opts?.enabled ?? clientScopeSubscriptionsEnabled();
+  const enabled = opts?.enabled ?? true;
   const isSyncHost = useIsSyncHost();
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
   const hasUser = useInboxStore((s) => !!s.currentUser?._id);
@@ -542,32 +421,13 @@ export function useScopeSubscriptions(opts?: {
       prevChunkDataRef.current = [undefined, undefined, undefined, undefined];
       return;
     }
-    const store = useInboxStore.getState();
     for (let i = 0; i < SCOPE_HEADS_CHUNK_COUNT; i++) {
-      const nextData = chunkHeads[i] as
-        | { heads?: ScopeHead[]; interest_scopes?: boolean }
-        | undefined;
+      const nextData = chunkHeads[i] as { heads?: ScopeHead[] } | undefined;
       if (nextData !== undefined && nextData !== prevChunkDataRef.current[i]) {
         prevChunkDataRef.current[i] = nextData;
         const chunkScopes = chunks[i];
         const heads = nextData.heads ?? [];
         if (chunkScopes?.length) {
-          const wasConfirmed = store.scopeSubscriptions.serverConfirmed;
-          if (
-            serverConfirmedInterestScopes(
-              chunkScopes,
-              heads,
-              nextData.interest_scopes,
-            )
-          ) {
-            store.setScopeServerConfirmed?.(true);
-            if (!wasConfirmed) store.purgeUnheldScopeRows?.();
-          } else if (
-            nextData.interest_scopes === false ||
-            heads.some((h) => h.scope_key.startsWith("team:"))
-          ) {
-            store.setScopeServerConfirmed?.(false);
-          }
           onChunkWake?.(chunkScopes, heads);
         }
       } else if (nextData === undefined) {
@@ -608,17 +468,16 @@ export function buildCatchUpRunner(
   let rerun = false;
   const queue = makeScopeRunQueue();
   const run = (scopes?: readonly string[]) => {
-    const scoped = clientScopeSubscriptionsEnabled();
     if (running) {
       rerun = true;
-      queue.add(scoped ? scopes : undefined);
+      queue.add(scopes);
       return;
     }
     running = true;
     const release = deps.beginInflight();
     const account = deps.replaySignal(convex);
     deps
-      .runCatchUp(convex, account, scoped && scopes ? { scopes } : undefined)
+      .runCatchUp(convex, account, scopes ? { scopes } : undefined)
       .catch((error) => {
         if (account.aborted) return;
         if (opts.onError) opts.onError(error);

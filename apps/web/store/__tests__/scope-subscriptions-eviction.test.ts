@@ -16,7 +16,6 @@ import { createScopeViewTransport } from "../scope-view-transport";
 import { applyUpdatesToStore } from "../sync-replication";
 import { extractReplicationUpdates } from "@platform/engine";
 
-const PREV_FLAG = process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
 const cid = (label: string) =>
   label
     .replace(/[^a-z0-9]/gi, "")
@@ -24,7 +23,6 @@ const cid = (label: string) =>
     .padEnd(32, "0");
 
 beforeEach(() => {
-  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
   useInboxStore.getState()._setOutbox(null, null, null);
   useInboxStore.getState()._setDispatch(null);
   useInboxStore.setState({
@@ -55,11 +53,6 @@ afterEach(() => {
   useInboxStore.getState()._setOutbox(null, null, null);
   useInboxStore.getState()._setDispatch(null);
   useInboxStore.getState()._setIDBWrite(null);
-  if (PREV_FLAG === undefined) {
-    delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
-  } else {
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = PREV_FLAG;
-  }
 });
 
 describe("scope subscription review regressions", () => {
@@ -89,7 +82,7 @@ describe("scope subscription review regressions", () => {
     expect(useInboxStore.getState().docDetails[dId]).toBeUndefined();
   });
 
-  test("High 2: unconfirmed store never purges on unpin, leave, cap, or purgeUnheldScopeRows until confirmed", () => {
+  test("unpin, leave, cap, and purgeUnheldScopeRows evict immediately without server confirmation fallback", () => {
     const tUnpinned = cid("tunpin");
     const dLeft = cid("dleft");
     const plCap = cid("plcap");
@@ -127,26 +120,15 @@ describe("scope subscription review regressions", () => {
       clientState: { ui: { sidebar_pins: pins.slice(1) } } as any,
       tabs: [{ id: "t1", path: "/inbox" }] as any,
     });
-    const unconfirmedLeave = useInboxStore
+    const afterLeave = useInboxStore
       .getState()
       .reconcileScopeSubscriptions(120_000);
-    expect(unconfirmedLeave.removedScopes.length).toBeGreaterThan(0);
-    const unconfirmed = useInboxStore
+    expect(afterLeave.removedScopes.length).toBeGreaterThan(0);
+    const evicted = useInboxStore
       .getState()
       .reconcileScopeSubscriptions(190_000);
-    expect(unconfirmed.removedScopes).toContain("project:p-left");
-    expect(unconfirmed.purged).toEqual([]);
-    expect(useInboxStore.getState().tasks[tUnpinned]).toBeDefined();
-    expect(useInboxStore.getState().docs[dLeft]).toBeDefined();
-    expect(useInboxStore.getState().tasks[plCap]).toBeDefined();
-    expect(
-      useInboxStore.getState().purgeUnheldScopeRows(new Set(["user:u1"])),
-    ).toEqual([]);
-    expect(useInboxStore.getState().tasks[tUnpinned]).toBeDefined();
-
-    useInboxStore.getState().setScopeServerConfirmed(true);
-    const evicted = useInboxStore.getState().purgeUnheldScopeRows();
-    expect(evicted.some((e) => e.id === tUnpinned)).toBe(true);
+    expect(evicted.removedScopes).toContain("project:p-left");
+    expect(evicted.purged.some((e) => e.id === dLeft)).toBe(true);
     expect(useInboxStore.getState().tasks[tUnpinned]).toBeUndefined();
     expect(useInboxStore.getState().docs[dLeft]).toBeUndefined();
     expect(useInboxStore.getState().tasks[plCap]).toBeUndefined();
@@ -420,7 +402,6 @@ describe("scope subscription review regressions", () => {
         },
       } as any,
     });
-    useInboxStore.getState().setScopeServerConfirmed(true);
     useInboxStore.getState().updateTask("ct-42", { title: "new" });
     expect(
       useInboxStore.getState().purgeUnheldScopeRows(new Set(["user:u1"])),
