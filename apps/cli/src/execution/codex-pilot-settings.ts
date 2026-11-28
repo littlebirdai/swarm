@@ -113,18 +113,6 @@ export async function codexPilotSettings(
   });
 }
 
-export type OwnedCodexRelayFlags = {
-  liveness: boolean;
-};
-
-export function readOwnedCodexRelayFlags(
-  env: Record<string, string | undefined> = process.env,
-): OwnedCodexRelayFlags {
-  return {
-    liveness: env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
-  };
-}
-
 export function startOwnedCodexRelayContact(
   options: Pick<PilotOptions, "bearer" | "siteUrl" | "log">,
   provider: { readonly agent: string; readonly version: string },
@@ -133,7 +121,6 @@ export function startOwnedCodexRelayContact(
   signal: AbortSignal,
   deadline: () => number,
   onRelay: (relay: ReturnType<typeof startRelayLiveness>) => void,
-  flags: OwnedCodexRelayFlags = { liveness: true },
 ): void {
   const { bearer, siteUrl, log } = options;
   if (!bearer) return;
@@ -149,7 +136,6 @@ export function startOwnedCodexRelayContact(
             transport: createHttpEdgeTransport(new URL("/edge/v1/", siteUrl), {
               Authorization: `Bearer ${bearer}`,
             }),
-            sessionLiveness: flags.liveness,
             hello: {
               machine: binding.ownerDeviceId,
               boot: binding.daemonBootId,

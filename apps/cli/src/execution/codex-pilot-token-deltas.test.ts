@@ -9,7 +9,6 @@ import type { CodexPilotDelivery } from "./codex-pilot-delivery.js";
 import { CodexPilotDisplay } from "./codex-pilot-display.js";
 import type { CodexPilotEvents } from "./codex-pilot-events.js";
 import type { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
-import { readOwnedCodexRelayFlags } from "./codex-pilot-settings.js";
 import {
   createCodexPilotDeltaPublisher,
   splitTokenDeltaText,
@@ -65,17 +64,6 @@ function deltaEvent(
     body: { message_id, offset, text },
   };
 }
-
-test("readOwnedCodexRelayFlags reads only CODECAST_RELAY_LIVENESS_PUBLISH", () => {
-  expect(readOwnedCodexRelayFlags({})).toEqual({
-    liveness: false,
-  });
-  expect(
-    readOwnedCodexRelayFlags({ CODECAST_RELAY_LIVENESS_PUBLISH: "1" }),
-  ).toEqual({
-    liveness: true,
-  });
-});
 
 test("splitTokenDeltaText bounds chunks by JSON-encoded size for control characters", () => {
   const emoji = "\u{1F680}";

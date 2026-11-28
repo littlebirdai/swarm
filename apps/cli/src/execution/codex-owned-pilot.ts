@@ -25,7 +25,6 @@ import { CodexPilotDisplay } from "./codex-pilot-display.js";
 import {
   checkpointOf,
   codexPilotSettings,
-  readOwnedCodexRelayFlags,
   startOwnedCodexRelayContact,
   type PilotOptions,
 } from "./codex-pilot-settings.js";
@@ -85,12 +84,7 @@ export function createCodexOwnedPilot(
     options.log("[owned-codex] pilot requires daemon auth");
     return;
   }
-  return new CodexOwnedPilot(
-    conversationId,
-    options,
-    acceptsNewSessions,
-    readOwnedCodexRelayFlags(env),
-  );
+  return new CodexOwnedPilot(conversationId, options, acceptsNewSessions);
 }
 
 export class CodexOwnedPilot {
@@ -134,7 +128,6 @@ export class CodexOwnedPilot {
     readonly conversationId: string | undefined,
     private readonly options: PilotOptions,
     readonly acceptsNewSessions = false,
-    private readonly relayFlags = readOwnedCodexRelayFlags({}),
     private readonly epoch = 1,
     private readonly onClose?: (pilot: CodexOwnedPilot) => void,
     private readonly registry = new ParkedPilotRegistry(),
@@ -223,7 +216,6 @@ export class CodexOwnedPilot {
         conversationId,
         this.options,
         false,
-        this.relayFlags,
         epoch,
         (closed) => {
           this.children.delete(key);
@@ -605,7 +597,6 @@ export class CodexOwnedPilot {
       this.controller.signal,
       () => this.leaseDeadline,
       (relay) => (this.relay = relay),
-      this.relayFlags,
     );
   }
 

@@ -36,7 +36,7 @@ The viewer can exclude `session_liveness` from the relay handshake. The relay cl
 
 The relay keeps no signal store or replay buffer, so a new subscriber needs a fresh signal. The default lifetime is 15 seconds, and grant deadlines can shorten it. The publisher sends at most once per five seconds per session. The relay assigns sequence numbers per connection. A change to the run or fence starts a new connection. `HEARTBEAT_FLUSH_INTERVAL_MS` is 30 seconds, so the Convex heartbeat cannot provide that cadence. [Relay defaults](../../apps/relay/src/config.ts) · [Heartbeat constants](../../packages/sessions/src/agentStatus.ts).
 
-The daemon publisher is off by default. Set `CODECAST_RELAY_LIVENESS_PUBLISH=1` to enable it for the fenced run of the owned Codex pilot. The publisher requests grants only when the Edge handshake offers the relay capability. The daemon keeps its Convex lease renewal and heartbeat calls.
+The daemon publishes liveness for each fenced run of an owned Codex session. The publisher requests grants only when the Edge handshake offers the relay capability. The daemon keeps its Convex lease renewal and heartbeat calls.
 
 The web presence provider mounts in every window. Run inbox-wide subscriptions on the sync host only. Start with up to 64 visible, eligible session hubs and leave room for ordinary presence.
 
