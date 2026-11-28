@@ -384,7 +384,7 @@ describe("sim backend", () => {
     const second = strict.query(api.syncLog.getHeads, {});
     await first;
     await expect(second).rejects.toThrow(
-      /sim server: syncLog:getHeads started while conversations:listInboxSessions was running/,
+      /sim server: syncLog:getHeads started while inboxLists:listInboxSessions was running/,
     );
   });
 });
