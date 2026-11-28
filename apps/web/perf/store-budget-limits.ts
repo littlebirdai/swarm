@@ -16,13 +16,13 @@ const limits = {
   "Deploy detail bytes": { measured: 30_401, margin: 305 },
   "Settings data bytes": { measured: 915, margin: 10 },
   "Cached conversation message JSON bytes": {
-    measured: 13_488_375,
-    margin: 3_288_841,
+    measured: 14_451_612,
+    margin: 2_325_604,
   },
-  "Cached conversation message rows": { measured: 22_750, margin: 0 },
+  "Cached conversation message rows": { measured: 31_000, margin: 0 },
   "Cached conversation message bytes": {
-    measured: 27_910_610,
-    margin: 5_643_822,
+    measured: 30_175_400,
+    margin: 3_379_032,
   },
   "Retained sessions": { measured: 1200, margin: 0 },
   "Retained conversations": { measured: 1200, margin: 0 },

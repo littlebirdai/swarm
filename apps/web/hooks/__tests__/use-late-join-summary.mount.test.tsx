@@ -1,5 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
 import { act, Profiler, StrictMode } from "react";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { getFunctionName } from "convex/server";
@@ -245,4 +246,32 @@ test("survives StrictMode double mount, enabled flicker, aborts cleanly on disab
     failUi.container.querySelector("[data-cc-hook-probe]")?.textContent,
   ).toBe("wait");
   await failUi.close();
+
+  function UnconfirmedAuth() {
+    const client = useConvex();
+    return (
+      <ConvexProviderWithAuth
+        client={client}
+        useAuth={() => ({
+          isLoading: true,
+          isAuthenticated: false,
+          fetchAccessToken: async () => null,
+        })}
+      >
+        <HookProbe convId={conversationId} enabled />
+      </ConvexProviderWithAuth>
+    );
+  }
+  const unauthUi = await mountWeb(<UnconfirmedAuth />, {
+    dispatch: true,
+    setup(backend) {
+      backend.set(api.lateJoinSummary.get, populatedSummary);
+    },
+  });
+  expect(
+    unauthUi.backend.queryRequests.filter(
+      (q) => q.name === "lateJoinSummary:get",
+    ),
+  ).toEqual([]);
+  await unauthUi.close();
 });

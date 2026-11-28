@@ -6756,6 +6756,7 @@ const ConversationViewInner = function ConversationView(
     visitKey: conversation?._id ? String(conversation._id) : null,
     guest,
     newSessionPage,
+    latestMessage: messages.at(-1) ?? null,
     pendingPermissions,
     loadedMessageIds,
     scrollToMessageById,

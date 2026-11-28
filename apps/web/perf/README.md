@@ -16,7 +16,7 @@ Both drive `harness.tsx`: the real components mounted in jsdom over a synthetic 
 | the same two, Modern style (`inbox-load-modern`, `inbox-heartbeat-modern`; budgets only) | The panel under the Modern theme context, drawing `ModernSessionCardView` and its section header                                                                                                                                                          | the same counts: 51 cards, 2 subscriptions; 0 commits, 0 DOM mutations, 0 layout reads       |
 | open a long diff                                                                         | A 1,560-line TypeScript file with 52 changed lines, shown whole and highlighted, in a warm app, mounted at the top of a scroller a viewport (800px) tall                                                                                                  | 2 commits, 18 DOM mutation records, 32 layout reads, 0 store writes, 150 of 1,612 rows drawn |
 
-The warm-switch fixture leaves server authentication unconfirmed. The collaboration request feeder waits for confirmation, so the switch opens one fewer subscription than the former direct query.
+The warm-switch fixture leaves server authentication unconfirmed. The collaboration request feeder, saved reading anchors, and late-join summary wait for confirmation, so the switch opens the same 14 subscriptions with zero one-shot queries.
 
 The budgets also check that a rename arriving through the feed reaches its card.
 
@@ -45,9 +45,9 @@ checks with `bun perf/budgets.ts store`, the first paint checks with
 | Run graph bytes                        |     20,921 |     21,131 | 60 calibrated `runGraphs` rows synced via `syncTable` (evicted to `DETAIL_ROW_CAPS.runGraphs`, 40)                                | Skip detail cap eviction                       |
 | Deploy detail bytes                    |     30,401 |     30,706 | 70 calibrated `deploys.get` answers fed through `deployDetailRows` (stripped and evicted to 50)                                   | Keep `commits` or skip cap eviction            |
 | Settings data bytes                    |        915 |        925 | Calibrated `settingsData` payloads synced via `syncTable`                                                                         | Keep oversized payload or heavy field          |
-| Cached conversation message rows       |     22,750 |     22,750 | Load 400 conversations with 250 messages each                                                                                     | Skip eviction → 100,000                        |
-| Cached conversation message bytes      | 27,910,610 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                             | Skip eviction → more than 33,554,432           |
-| Cached conversation message JSON bytes | 13,488,375 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                                          | Undercount strings and admit all rows          |
+| Cached conversation message rows       |     31,000 |     31,000 | Load 400 conversations with 250 messages each                                                                                     | Skip eviction → 100,000                        |
+| Cached conversation message bytes      | 30,175,400 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                             | Skip eviction → more than 33,554,432           |
+| Cached conversation message JSON bytes | 14,451,612 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                                          | Undercount strings and admit all rows          |
 | Retained sessions                      |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip session retention → 1,300                 |
 | Retained conversations                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                                 | Skip conversation retention → 1,300            |
 | Retained docDetails                    |        200 |        200 | 220 recent rows                                                                                                                   | Raise the cap by one → 201                     |
@@ -85,8 +85,10 @@ background warming stops loading older history and only cold-loads the top 10
 inbox rows that it has never cold-loaded for the current account.
 Open transcripts, active streams, and conversations with unsent messages can
 exceed the limit. The fixture has no protected conversations. Three quarters
-of its images also have a storage ID. The store keeps inline-only images for
-offline use and includes their bytes in the estimate.
+of its images also have a storage ID. Once released, the store evicts inactive
+inline-only image conversations to free memory, leaving 124 non-inline
+conversations (31,000 rows, 30,175,400 estimated bytes, 14,451,612 JSON bytes)
+within the 32 MiB budget.
 
 Byte counts for task and pull request rows measure UTF-8 JSON. IndexedDB counts
 come from fake IndexedDB through Dexie. Boot counts row values that reach

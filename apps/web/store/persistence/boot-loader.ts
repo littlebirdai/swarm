@@ -1,6 +1,7 @@
 import { isDetailPinned } from "../../lib/detail-rows";
 import {
   deferredSharedCacheSource,
+  HYDRATION_EAGER_DEFERRED_KEYS,
   HYDRATION_ON_READ_KEYS,
 } from "../deferred-cache-policy";
 import { authPrincipal } from "../../lib/authPrincipal";
@@ -98,7 +99,8 @@ export async function loadCache(
     const phase =
       keys === HYDRATION_CRITICAL_READ_KEYS
         ? "critical"
-        : keys === HYDRATION_DEFERRED_KEYS
+        : keys === HYDRATION_DEFERRED_KEYS ||
+            keys === HYDRATION_EAGER_DEFERRED_KEYS
           ? "deferred"
           : undefined;
     if (phase === "deferred") setHydrationReadPhase(phase);

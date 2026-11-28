@@ -3,6 +3,8 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { useInboxStore } from "../store/inboxStore";
+import { useServerAuthenticated } from "./useServerAuthSettled";
 import { useWatchEffect } from "./useWatchEffect";
 
 export type LateJoinSummary = NonNullable<
@@ -28,6 +30,8 @@ export function useLateJoinSummary(
   enabled: boolean,
 ): LateJoinSummary | null | undefined {
   const convex = useConvex();
+  const serverAuthenticated = useServerAuthenticated();
+  const active = serverAuthenticated && enabled;
   const [result, setResult] = useState<{
     conversationId: string;
     summary: LateJoinSummary | null;
@@ -64,7 +68,7 @@ export function useLateJoinSummary(
   }, [conversationId]);
 
   useWatchEffect(() => {
-    if (!enabled || !conversationId) return;
+    if (!active || !conversationId) return;
     const target = String(conversationId);
     if (settledForRef.current === target) return;
 
@@ -121,9 +125,9 @@ export function useLateJoinSummary(
     return () => {
       ac.abort();
     };
-  }, [enabled, conversationId, convex, retryTick]);
+  }, [active, conversationId, convex, retryTick]);
 
-  if (!enabled || !conversationId) return undefined;
+  if (!active || !conversationId) return undefined;
   if (!result || result.conversationId !== String(conversationId)) {
     return undefined;
   }
@@ -135,6 +139,7 @@ export function useLateJoinSummaryController({
   visitKey,
   guest,
   newSessionPage,
+  latestMessage,
   pendingPermissions,
   loadedMessageIds,
   scrollToMessageById,
@@ -153,6 +158,7 @@ export function useLateJoinSummaryController({
   visitKey: string | null;
   guest: boolean;
   newSessionPage: boolean;
+  latestMessage?: { _id: string; timestamp: number } | null;
   pendingPermissions: readonly unknown[] | undefined;
   loadedMessageIds: ReadonlySet<string>;
   scrollToMessageById: (id: string) => void;
@@ -169,10 +175,20 @@ export function useLateJoinSummaryController({
 }) {
   const [reachedBottom, setReachedBottom] = useState(false);
   const sawAwayFromBottomRef = useRef(false);
+  const savedAnchor = useInboxStore((s) =>
+    conversationId ? s.sessionReadAnchors[conversationId] : undefined,
+  );
+  const anchorBehindLatest =
+    !!savedAnchor &&
+    (Boolean(hasMoreBelow) ||
+      (!!latestMessage &&
+        (savedAnchor.timestamp < latestMessage.timestamp ||
+          (savedAnchor.timestamp === latestMessage.timestamp &&
+            savedAnchor.message_id !== latestMessage._id))));
 
   const summaryRaw = useLateJoinSummary(
     conversationId,
-    !guest && !newSessionPage && !reachedBottom,
+    !guest && !newSessionPage && !reachedBottom && anchorBehindLatest,
   );
 
   const summary = useMemo(() => {

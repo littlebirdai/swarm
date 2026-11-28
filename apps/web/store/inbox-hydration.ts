@@ -29,7 +29,6 @@ import {
   HYDRATION_CRITICAL_READ_KEYS,
   HYDRATION_CRITICAL_KEYS,
   HYDRATION_PAINT_KEYS,
-  HYDRATION_DEFERRED_KEYS,
   hydrationMergeStrategy,
 } from "./clientSyncRegistry";
 

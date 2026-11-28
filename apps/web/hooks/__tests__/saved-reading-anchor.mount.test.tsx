@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
 import { act, useLayoutEffect } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -532,4 +533,42 @@ test("a visit opened before dispatch wiring claims and saves after wiring", asyn
   ]);
   await ui.close();
   expect(ui.writes()).toHaveLength(1);
+});
+
+test("waits for server auth confirmation before subscribing to saved reading anchors", async () => {
+  function UnauthAnchor() {
+    useSavedReadingAnchor({
+      conversationId: conversation,
+      userId: user,
+      restore: () => "fallback",
+    });
+    return null;
+  }
+  function UnauthView() {
+    const client = useConvex();
+    return (
+      <ConvexProviderWithAuth
+        client={client}
+        useAuth={() => ({
+          isLoading: true,
+          isAuthenticated: false,
+          fetchAccessToken: async () => null,
+        })}
+      >
+        <UnauthAnchor />
+      </ConvexProviderWithAuth>
+    );
+  }
+  const ui = await mountWeb(<UnauthView />, {
+    setup(backend) {
+      backend.set(anchors.get, checkpoint);
+    },
+  });
+  expect(
+    ui.backend.queryRequests.filter(
+      (q) => q.name === "conversationReadAnchors:get",
+    ),
+  ).toEqual([]);
+  expect(ui.backend.mutations).toEqual([]);
+  await ui.close();
 });
