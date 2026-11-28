@@ -188,6 +188,36 @@ export async function startFencedExecutionRuntime(
   host.log(
     `[fenced-execution] enabled protocol=1 boot=${fencedRuntime.daemonBootId}`,
   );
-  await fencedRuntime.start();
+  void keepStartingFencedRuntime(fencedRuntime, host.log);
   return { codexOwnedPilot, fencedRuntime };
+}
+
+export type StartRetry = {
+  readonly initialDelayMs: number;
+  readonly maxDelayMs: number;
+};
+
+const defaultStartRetry: StartRetry = {
+  initialDelayMs: 1_000,
+  maxDelayMs: 60_000,
+};
+
+export async function keepStartingFencedRuntime(
+  runtime: Pick<DaemonExecutionRuntime, "start">,
+  log: (message: string) => void,
+  retry: StartRetry = defaultStartRetry,
+): Promise<void> {
+  let delay = retry.initialDelayMs;
+  for (;;) {
+    try {
+      await runtime.start();
+      return;
+    } catch (error) {
+      log(
+        `[fenced-execution] start failed: ${error instanceof Error ? error.message : String(error)} -- retrying in ${delay}ms`,
+      );
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, delay).unref());
+    delay = Math.min(delay * 2, retry.maxDelayMs);
+  }
 }
