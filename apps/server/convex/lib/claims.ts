@@ -5,7 +5,10 @@ import type {
   MutationCtx,
 } from "../_generated/server";
 
-type ClaimKey = { kind: "steer" | "terminal"; id: Id<"conversations"> };
+type TaskResource = { kind: "task"; id: Id<"tasks"> };
+type ClaimKey =
+  | { kind: "steer" | "terminal"; id: Id<"conversations"> }
+  | TaskResource;
 type SteerResource = { kind: "steer"; id: Id<"conversations"> };
 type TerminalResource = {
   kind: "terminal";
@@ -13,13 +16,17 @@ type TerminalResource = {
   paneInstance: number;
 };
 
-export type ClaimResource = SteerResource | TerminalResource;
+export type ClaimResource = SteerResource | TerminalResource | TaskResource;
 export type TerminalAccess = Pick<
   NonNullable<Doc<"claims">["terminal"]>,
   "viewer" | "grant"
 >;
 
 type ClaimRequest = { requestId: string; expectedToken: number };
+type TaskRequest = {
+  purpose?: string;
+  conversationId?: Id<"conversations">;
+};
 type SteerRequest =
   | { steering: { mode: "lone" } }
   | (ClaimRequest & {
@@ -31,12 +38,14 @@ type SteerRequest =
 export type CallerAuthorizedClaim = { holder: Id<"users"> } & (
   | (SteerResource & SteerRequest)
   | (TerminalResource & ClaimRequest & TerminalAccess)
+  | (TaskResource & ClaimRequest & TaskRequest)
 );
 
 export type CallerAuthorizedClaimUse = {
   resource: ClaimResource;
   holder: Id<"users">;
   token: number;
+  conversationId?: Id<"conversations">;
 };
 
 export type CallerAuthorizedRevocation = {
@@ -44,6 +53,8 @@ export type CallerAuthorizedRevocation = {
   targetHolder: Id<"users">;
   token: number;
 };
+
+export const taskClaimsEnabled = () => process.env.SWARM_TASK_CLAIMS === "1";
 
 export const terminalTypingEnabled = () =>
   process.env.CODECAST_TERMINAL_TYPING === "1";
@@ -74,7 +85,12 @@ export async function usesFencedTerminal(
   );
 }
 
-const LEASE_MS = { steer: 30_000, terminal: 20_000 } as const;
+export const TASK_LEASE_MS = 5 * 60_000;
+const LEASE_MS = {
+  steer: 30_000,
+  terminal: 20_000,
+  task: TASK_LEASE_MS,
+} as const;
 
 type Lease = { status: "held"; token: number; remainingMs: number };
 type Refusal = {
@@ -95,6 +111,14 @@ type ClaimResult =
   | { status: "busy"; remainingMs: number };
 
 export function findClaim(db: DatabaseReader, resource: ClaimKey) {
+  if (resource.kind === "task") {
+    return db
+      .query("claims")
+      .withIndex("by_task_kind", (q) =>
+        q.eq("task_id", resource.id).eq("kind", "task"),
+      )
+      .unique();
+  }
   return db
     .query("claims")
     .withIndex("by_conversation_kind", (q) =>
@@ -150,18 +174,19 @@ export function terminalPaneIsLive(terminal: TerminalState, now = Date.now()) {
   return terminal.open && (terminal.live_until ?? 0) > now;
 }
 
-export function clearTerminalClaim(
-  ctx: Pick<MutationCtx, "db">,
-  row: Doc<"claims">,
-) {
+export function clearClaim(ctx: Pick<MutationCtx, "db">, row: Doc<"claims">) {
   return ctx.db.patch(row._id, {
     holder: undefined,
     lease_until: 0,
+    ...(row.purpose !== undefined ? { purpose: undefined } : {}),
+    ...(row.task !== undefined ? { task: undefined } : {}),
     ...(row.terminal && {
       terminal: { ...nextTerminalControl(row.terminal), ended_at: Date.now() },
     }),
   });
 }
+
+export const clearTerminalClaim = clearClaim;
 
 export async function closeTerminalPane(
   db: DatabaseWriter,
@@ -235,7 +260,13 @@ export async function claim(
   const newPane = row !== null && pane > currentPane;
   const stale = { status: "stale_request", currentToken } as const;
   if (row?.request_id === input.requestId) {
-    if (row.request_holder !== input.holder) return stale;
+    if (
+      row.request_holder !== input.holder ||
+      (input.kind === "task" &&
+        (row.task?.conversation_id ?? undefined) !==
+          (input.conversationId ?? undefined))
+    )
+      return stale;
     return remainingMs > 0 && !newPane ? held : { status: "inactive_request" };
   }
   if (
@@ -279,6 +310,12 @@ export async function claim(
   if (row) {
     await ctx.db.patch(row._id, {
       ...lease,
+      ...(input.kind === "task" && {
+        purpose: input.purpose,
+        task: input.conversationId
+          ? { conversation_id: input.conversationId }
+          : undefined,
+      }),
       ...(row.terminal && {
         terminal: {
           ...nextTerminalControl(row.terminal),
@@ -288,6 +325,16 @@ export async function claim(
           ended_at: undefined,
         },
       }),
+    });
+  } else if (input.kind === "task") {
+    await ctx.db.insert("claims", {
+      ...lease,
+      task_id: input.id,
+      kind: input.kind,
+      ...(input.purpose !== undefined ? { purpose: input.purpose } : {}),
+      ...(input.conversationId !== undefined
+        ? { task: { conversation_id: input.conversationId } }
+        : {}),
     });
   } else {
     await ctx.db.insert("claims", {
@@ -302,7 +349,7 @@ export async function claim(
 
 function checkHeldClaim(
   row: Doc<"claims"> | null,
-  { resource, holder, token }: CallerAuthorizedClaimUse,
+  { resource, holder, token, conversationId }: CallerAuthorizedClaimUse,
   now: number,
 ): Lease | Refusal {
   if (
@@ -315,14 +362,21 @@ function checkHeldClaim(
   if (!row || row.holder === undefined) return { status: "free" };
   if (row.token !== token) return { status: "stale_token" };
   if (row.holder !== holder) return { status: "wrong_holder" };
+  if (
+    resource.kind === "task" &&
+    conversationId !== undefined &&
+    row.task?.conversation_id !== conversationId
+  ) {
+    return { status: "wrong_holder" };
+  }
   if (row.lease_until <= now) return { status: "expired" };
   return { status: "held", token, remainingMs: row.lease_until - now };
 }
 
-export async function withHeldClaim<T>(
-  ctx: MutationCtx,
+export async function withHeldClaim<T, Ctx extends Pick<MutationCtx, "db">>(
+  ctx: Ctx,
   input: CallerAuthorizedClaimUse,
-  write: (ctx: MutationCtx) => T | Promise<T>,
+  write: (ctx: Ctx) => T | Promise<T>,
 ): Promise<(Lease & { value: T }) | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
   const result = checkHeldClaim(row, input, Date.now());
@@ -331,7 +385,7 @@ export async function withHeldClaim<T>(
 }
 
 export async function renew(
-  ctx: MutationCtx,
+  ctx: Pick<MutationCtx, "db">,
   input: CallerAuthorizedClaimUse,
 ): Promise<Lease | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
@@ -348,7 +402,7 @@ export async function renew(
 }
 
 async function clearHeldClaim(
-  ctx: MutationCtx,
+  ctx: Pick<MutationCtx, "db">,
   input: CallerAuthorizedClaimUse,
 ): Promise<{ status: "cleared"; token: number } | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
@@ -356,15 +410,21 @@ async function clearHeldClaim(
   if (result.status !== "held") return result;
   if (!row) return { status: "free" };
 
-  await clearTerminalClaim(ctx, row);
+  await clearClaim(ctx, row);
   return { status: "cleared", token: row.token };
 }
 
-export function release(ctx: MutationCtx, input: CallerAuthorizedClaimUse) {
+export function release(
+  ctx: Pick<MutationCtx, "db">,
+  input: CallerAuthorizedClaimUse,
+) {
   return clearHeldClaim(ctx, input);
 }
 
-export function revoke(ctx: MutationCtx, input: CallerAuthorizedRevocation) {
+export function revoke(
+  ctx: Pick<MutationCtx, "db">,
+  input: CallerAuthorizedRevocation,
+) {
   return clearHeldClaim(ctx, {
     resource: input.resource,
     holder: input.targetHolder,

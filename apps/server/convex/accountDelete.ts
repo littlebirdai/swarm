@@ -92,6 +92,8 @@ export async function purgeAccountPass(
       ...(claim.request_holder === userId
         ? { request_id: undefined, request_holder: undefined }
         : {}),
+      ...(claim.purpose !== undefined ? { purpose: undefined } : {}),
+      ...(claim.task !== undefined ? { task: undefined } : {}),
       ...(claim.terminal && {
         terminal: {
           ...nextTerminalControl(claim.terminal),

@@ -15,6 +15,8 @@ import {
 } from "./lib/terminalWatchRows";
 import { purgeChildren, type PurgeCounts } from "./lib/purgeTree";
 import { mayDeleteRegulated, startDeletion } from "./regulatedDeletion";
+import { taskClaimsEnabled } from "./lib/claims";
+import { releaseSessionTaskClaim } from "./lib/taskClaims";
 
 // Deleting a session removes it for everyone: the agent is torn down like a
 // kill, the conversation row goes at once (the change-tracked db emits the
@@ -122,6 +124,9 @@ export async function deleteSessionAsOwner(
         conversation_id: String(row._id),
         deleted_at: Date.now(),
       });
+    }
+    if (taskClaimsEnabled() && row.active_task_id) {
+      await releaseSessionTaskClaim(ctx, row);
     }
     await ctx.db.delete(row._id);
     purged.push(String(row._id));
