@@ -56,11 +56,9 @@ function createBrowserLocks(): LockAdapter | null {
     return null;
   return {
     request(name, signal, onAcquired) {
-      return (navigator as unknown as { locks: LockManager }).locks.request(
-        name,
-        { mode: "exclusive", signal },
-        onAcquired,
-      );
+      return (navigator as unknown as { locks: LockManager }).locks
+        .request(name, { mode: "exclusive", signal }, onAcquired)
+        .then(() => undefined);
     },
   };
 }
