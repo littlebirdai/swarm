@@ -50,6 +50,8 @@ import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { isStaleTask } from "@codecast/tasks/frontier";
 import {
   assertDependencyEdges,
+  buildDependencyChain,
+  effectiveTasksForReadiness,
   offFrontierReason,
   openBlockersOf,
   orderFrontier,
@@ -61,6 +63,13 @@ import {
   taskByRef,
   writeEdges,
 } from "./lib/taskGraph";
+import { taskClaimsEnabled } from "./lib/claims";
+import {
+  handleTaskUpdateClaim,
+  releaseTaskClaimIfHeld,
+  releaseTaskWithClaim,
+  renewTaskHeartbeat,
+} from "./lib/taskClaims";
 import {
   addWaitsAtCreate,
   cliCaller,
@@ -750,6 +759,12 @@ export async function moveTaskStatus(
   // The fake test db patches the row in place: afterStatusMove reads the old status.
   const before = { ...task };
   await patchTask(ctx, task, updates);
+  if (
+    taskClaimsEnabled() &&
+    (next === "done" || next === "dropped" || next === "open")
+  ) {
+    await releaseTaskClaimIfHeld(ctx, task._id);
+  }
   await afterStatusMove(ctx, before, next, o.actorUserId, o.conversationId);
   return moved;
 }
@@ -1425,6 +1440,7 @@ export async function releaseBoundSessions(
   task: any,
   conversationId?: Id<"conversations">,
 ): Promise<void> {
+  if (taskClaimsEnabled()) await releaseTaskClaimIfHeld(ctx, task._id);
   const ids = new Set(
     [
       ...(task.conversation_ids ?? []),
@@ -1981,15 +1997,11 @@ export const promote = mutation({
     project_path: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     await ctx.db.patch(task._id, {
       promoted: true,
@@ -2766,7 +2778,12 @@ async function listTasksCore(
   );
   // Every row carries its verdict and open blockers, so the CLI's "blocked"
   // tag and counts render from the rule, never from a raw blocked_by.
-  const lookupsOf = lookupsFor ?? (await readinessLookups(ctx, result));
+  const [lookupsOf, effectiveResult] = await Promise.all([
+    lookupsFor ? Promise.resolve(lookupsFor) : readinessLookups(ctx, result),
+    args.ready
+      ? Promise.resolve(result)
+      : effectiveTasksForReadiness(ctx, result, now),
+  ]);
   const rows = result.map((t: any, i: number) => {
     const { statusOf, parentStatusOf } = lookupsOf(t);
     return {
@@ -2784,7 +2801,11 @@ async function listTasksCore(
       // A ready page holds only rows readyTasks already judged ready.
       ready: args.ready
         ? true
-        : readinessOf(t, { statusOf, parentStatusOf, ...readiness }).ready,
+        : readinessOf(effectiveResult[i], {
+            statusOf,
+            parentStatusOf,
+            ...readiness,
+          }).ready,
       // Structured (TG1): the reader labels them, a time wait in its own zone.
       // A closed task waits on nothing, so no reader marks it blocked.
       open_blockers: isTerminalTaskStatus(t.status)
@@ -3042,17 +3063,16 @@ export const update = mutation({
     predict: v.optional(v.string()),
     // model, effort and ephemeral (TG8, TG9); ephemeral:false is `cast task keep`.
     ...executionHintArgs,
+    claim_token: v.optional(v.number()),
+    claim_request_id: v.optional(v.string()),
+    claim_purpose: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
     // Edges are stored canonical; a wait goes through cast task dep.
     args = { ...args, ...storedGraphRefs(ctx, args) };
 
@@ -3277,6 +3297,7 @@ export const update = mutation({
     let linkedConvId: Id<"conversations"> | undefined;
     let startedForRole: any | null = null;
     let releasedOwners: TaskOwnerRef[] = [];
+    let claimResult: { claimToken: number; leaseUntil: number } | null = null;
     if (args.review_verdict) {
       updates.review_verdict = {
         verdict: args.review_verdict,
@@ -3342,12 +3363,21 @@ export const update = mutation({
       // session the task's one owner and moves its own focus here, so a
       // session bound to another task rebinds rather than silently staying.
       if (explicitStart) {
-        releasedOwners = (
-          await claimTaskOwnership(ctx, conv, task, {
-            take: args.take === true,
-            now,
-          })
-        ).released;
+        const owned = await claimTaskOwnership(ctx, conv, task, {
+          take: args.take === true,
+          now,
+          holder: auth.userId,
+          expectedToken: args.claim_token,
+          requestId: args.claim_request_id,
+          purpose: args.claim_purpose,
+        });
+        releasedOwners = owned.released;
+        if (owned.claimToken !== undefined && owned.leaseUntil !== undefined) {
+          claimResult = {
+            claimToken: owned.claimToken,
+            leaseUntil: owned.leaseUntil,
+          };
+        }
         // The binding may file the session under the lead that owns the work (S35).
         await ctx.scheduler.runAfter(
           0,
@@ -3390,6 +3420,22 @@ export const update = mutation({
         );
       }
     }
+
+    const handledClaim = await handleTaskUpdateClaim(ctx, {
+      task,
+      holder: auth.userId,
+      conv,
+      nextStatus,
+      reviewVerdict: args.review_verdict,
+      claimToken: args.claim_token,
+      requestId: args.claim_request_id,
+      purpose: args.claim_purpose,
+      take: args.take,
+      now,
+      claimStarted: claimResult !== null,
+      releaseBound: () => releaseBoundSessions(ctx, task, conv?._id),
+    });
+    if (handledClaim) claimResult = handledClaim;
 
     if (nextStatus === "in_progress") {
       updates.attempt_count = (task.attempt_count || 0) + 1;
@@ -3642,6 +3688,12 @@ export const update = mutation({
             station: heldHandoff.station,
           }
         : undefined,
+      ...(claimResult
+        ? {
+            claim_token: claimResult.claimToken,
+            lease_until: claimResult.leaseUntil,
+          }
+        : {}),
     };
   },
 });
@@ -3862,15 +3914,11 @@ export const addComment = mutation({
     to_owner: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     const conv = args.conversation_id
       ? await resolveSessionConversation(ctx, auth.userId, args.conversation_id)
@@ -5512,6 +5560,12 @@ export async function updateTaskAs(
   await recordTaskChange(ctx, task._id, byUser(userId), trackFields, now);
 
   await patchTask(ctx, task, updates);
+  if (
+    taskClaimsEnabled() &&
+    (nextStatus === "done" || nextStatus === "dropped" || nextStatus === "open")
+  ) {
+    await releaseTaskClaimIfHeld(ctx, task._id);
+  }
   await schedulePushKeptTask(ctx, task, updates);
   if (args.duplicate_of === "")
     await afterDuplicateCleared(ctx, userId, task, nextStatus ?? task.status);
@@ -6245,15 +6299,11 @@ export const incrementRetryCount = mutation({
     short_id: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     const now = Date.now();
     const newRetryCount = ((task as any).retry_count || 0) + 1;
@@ -6282,6 +6332,22 @@ export const incrementRetryCount = mutation({
   },
 });
 
+async function requireAccessibleTaskByToken(
+  ctx: MutationCtx,
+  apiToken: string,
+  shortId: string,
+) {
+  const auth = await verifyApiToken(ctx, apiToken);
+  if (!auth) throw new Error("Unauthorized");
+  const task = await ctx.db
+    .query("tasks")
+    .withIndex("by_short_id", (q) => q.eq("short_id", shortId))
+    .first();
+  if (!task || !(await canAccessTask(ctx, auth.userId, task)))
+    throw new Error("Task not found");
+  return { auth, task };
+}
+
 export const updateExecutionStatus = mutation({
   args: {
     api_token: v.string(),
@@ -6295,15 +6361,11 @@ export const updateExecutionStatus = mutation({
     execution_comment: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     const now = Date.now();
     await ctx.db.patch(task._id, {
@@ -6456,15 +6518,11 @@ export const scheduleRetry = mutation({
     short_id: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
 
     const now = Date.now();
     const newAttemptCount = (task.attempt_count || 0) + 1;
@@ -6491,83 +6549,95 @@ export const scheduleRetry = mutation({
   },
 });
 
+async function renewHeartbeatMutation(
+  ctx: MutationCtx,
+  args: {
+    api_token: string;
+    short_id: string;
+    progress_pct?: number;
+    claim_token?: number;
+    conversation_id?: string;
+  },
+) {
+  const { auth, task } = await requireAccessibleTaskByToken(
+    ctx,
+    args.api_token,
+    args.short_id,
+  );
+  return await renewTaskHeartbeat(ctx, {
+    task,
+    holder: auth.userId,
+    claimToken: args.claim_token,
+    conversationRef: args.conversation_id,
+    writeHeartbeat: async () => {
+      const updates: any = { last_heartbeat: Date.now() };
+      if (args.progress_pct !== undefined) {
+        updates.progress_pct = args.progress_pct;
+      }
+      await patchTask(ctx, task, updates);
+    },
+  });
+}
+
 export const heartbeat = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
     progress_pct: v.optional(v.number()),
+    claim_token: v.optional(v.number()),
+    conversation_id: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new Error("Unauthorized");
-
-    const task = await ctx.db
-      .query("tasks")
-      .withIndex("by_short_id", (q: any) => q.eq("short_id", args.short_id))
-      .first();
-    if (!task || !(await canAccessTask(ctx, auth.userId, task)))
-      throw new Error("Task not found");
-
-    const updates: any = { last_heartbeat: Date.now() };
-    if (args.progress_pct !== undefined)
-      updates.progress_pct = args.progress_pct;
-
-    await ctx.db.patch(task._id, updates);
-    return { success: true };
+    return await renewHeartbeatMutation(ctx, args);
   },
 });
 
-// --- Dependency graph helpers ---
+export const renew = mutation({
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    claim_token: v.number(),
+    conversation_id: v.optional(v.string()),
+    progress_pct: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    if (!taskClaimsEnabled())
+      return { success: false as const, status: "disabled" as const };
+    return await renewHeartbeatMutation(ctx, args);
+  },
+});
 
-type TaskNode = { short_id: string; blocked_by?: string[]; status?: string };
-
-function getCriticalPath(tasks: TaskNode[]): string[] {
-  const taskMap = new Map<string, TaskNode>();
-  for (const t of tasks) taskMap.set(t.short_id, t);
-
-  const { sorted, cycles } = topologicalOrder(tasks);
-  if (cycles.length > 0) return [];
-
-  const dist = new Map<string, number>();
-  const prev = new Map<string, string | null>();
-  for (const id of sorted) {
-    dist.set(id, 0);
-    prev.set(id, null);
-  }
-
-  for (const id of sorted) {
-    const node = taskMap.get(id);
-    if (node?.blocked_by) {
-      for (const dep of node.blocked_by) {
-        if (taskMap.has(dep)) {
-          const newDist = (dist.get(dep) || 0) + 1;
-          if (newDist > (dist.get(id) || 0)) {
-            dist.set(id, newDist);
-            prev.set(id, dep);
-          }
-        }
-      }
-    }
-  }
-
-  let maxId = sorted[0];
-  let maxDist = 0;
-  for (const [id, d] of dist) {
-    if (d > maxDist) {
-      maxDist = d;
-      maxId = id;
-    }
-  }
-
-  const path: string[] = [];
-  let cur: string | null | undefined = maxId;
-  while (cur) {
-    path.unshift(cur);
-    cur = prev.get(cur);
-  }
-
-  return path;
-}
+export const release = mutation({
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    claim_token: v.number(),
+    conversation_id: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!taskClaimsEnabled())
+      return { success: false as const, status: "disabled" as const };
+    const { auth, task } = await requireAccessibleTaskByToken(
+      ctx,
+      args.api_token,
+      args.short_id,
+    );
+    return await releaseTaskWithClaim(ctx, {
+      task,
+      holder: auth.userId,
+      claimToken: args.claim_token,
+      conversationRef: args.conversation_id,
+      releaseBound: (conversationId) =>
+        releaseBoundSessions(ctx, task, conversationId),
+      reopen: (conversationId) =>
+        moveTaskStatus(ctx, task, "open", {
+          actorUserId: auth.userId,
+          actorType: conversationId ? "agent" : "user",
+          conversationId,
+        }),
+    });
+  },
+});
 
 export const getReadyTasks = query({
   args: {
@@ -6636,56 +6706,9 @@ export const getDependencyChain = query({
       throw new Error("Task not found");
 
     const allTasks = await db.query("tasks").collect();
-    const taskByShortId = new Map<string, any>();
-    for (const t of allTasks) taskByShortId.set(t.short_id, t);
-
-    const ancestors = new Set<string>();
-    const descendants = new Set<string>();
-
-    function collectAncestors(shortId: string) {
-      const task = taskByShortId.get(shortId);
-      if (!task?.blocked_by) return;
-      for (const dep of task.blocked_by) {
-        if (!ancestors.has(dep) && taskByShortId.has(dep)) {
-          ancestors.add(dep);
-          collectAncestors(dep);
-        }
-      }
-    }
-
-    function collectDescendants(shortId: string) {
-      const task = taskByShortId.get(shortId);
-      if (!task?.blocks) return;
-      for (const dep of task.blocks) {
-        if (!descendants.has(dep) && taskByShortId.has(dep)) {
-          descendants.add(dep);
-          collectDescendants(dep);
-        }
-      }
-      for (const t of allTasks) {
-        if (t.blocked_by?.includes(shortId) && !descendants.has(t.short_id)) {
-          descendants.add(t.short_id);
-          collectDescendants(t.short_id);
-        }
-      }
-    }
-
-    collectAncestors(args.short_id);
-    collectDescendants(args.short_id);
-
-    const chainIds = new Set([...ancestors, args.short_id, ...descendants]);
-    const chainTasks = allTasks.filter((t: any) => chainIds.has(t.short_id));
-
-    const { sorted, cycles } = topologicalOrder(chainTasks);
-    const criticalPath = getCriticalPath(chainTasks);
-
     return {
       task: root,
-      ancestors: allTasks.filter((t: any) => ancestors.has(t.short_id)),
-      descendants: allTasks.filter((t: any) => descendants.has(t.short_id)),
-      topological_order: sorted,
-      critical_path: criticalPath,
-      cycles,
+      ...buildDependencyChain(allTasks, args.short_id),
     };
   },
 });
@@ -6708,6 +6731,11 @@ export const adminDeleteTask = internalMutation({
         .collect();
       for (const row of rows) await ctx.db.delete(row._id);
     }
+    const taskClaims = await ctx.db
+      .query("claims")
+      .withIndex("by_task_kind", (q) => q.eq("task_id", task._id))
+      .collect();
+    for (const row of taskClaims) await ctx.db.delete(row._id);
     await ctx.db.delete(task._id);
     return {
       found: true,

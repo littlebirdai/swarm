@@ -10,7 +10,9 @@ import { heartbeatOf } from "./sessionHeartbeat";
 
 import type { Id } from "../_generated/dataModel";
 import { HEARTBEAT_ALIVE_MS } from "../inboxFilters";
+import { taskClaimsEnabled } from "./claims";
 import { HANDOFF_COMMENT } from "./runAgentSessions";
+import { claimTaskWithLease } from "./taskClaims";
 
 // A session that touched the conversation this recently is treated as working
 // even without a daemon heartbeat (a cloud agent, a session between turns).
@@ -151,9 +153,71 @@ export async function claimTaskOwnership(
   ctx: { db: any },
   conv: any,
   task: any,
-  opts: { take: boolean; now?: number },
-): Promise<{ released: TaskOwnerRef[] }> {
+  opts: {
+    take: boolean;
+    now?: number;
+    holder?: Id<"users">;
+    expectedToken?: number;
+    requestId?: string;
+    purpose?: string;
+  },
+): Promise<{
+  released: TaskOwnerRef[];
+  claimToken?: number;
+  leaseUntil?: number;
+}> {
   const now = opts.now ?? Date.now();
+  if (taskClaimsEnabled()) {
+    const res = await claimTaskWithLease<TaskOwnerRef>(ctx, {
+      task,
+      holder: opts.holder ?? conv.user_id,
+      conv,
+      take: opts.take,
+      now,
+      expectedToken: opts.expectedToken,
+      requestId: opts.requestId,
+      purpose: opts.purpose,
+      ownerRefOf: (c, live) => ({
+        conversation_id: c._id,
+        short_id: c.short_id ?? String(c._id).slice(0, 7),
+        title: c.title ?? null,
+        live,
+        updated_at: c.updated_at ?? 0,
+      }),
+      formatBusy: (c) =>
+        ownedElsewhereMessage(
+          task,
+          {
+            conversation_id: c._id,
+            short_id: c.short_id ?? String(c._id).slice(0, 7),
+            title: c.title ?? null,
+            live: true,
+            updated_at: c.updated_at ?? 0,
+          },
+          now,
+        ),
+      checkLegacyBound: async () => {
+        const others = (await boundSessionsOf(ctx, task)).filter(
+          (c) => String(c._id) !== String(conv._id),
+        );
+        const refs = await Promise.all(
+          others.map((c) => ownerRef(ctx, c, now)),
+        );
+        const liveOwner = refs.find((r) => r.live);
+        if (liveOwner && !opts.take)
+          throw new Error(ownedElsewhereMessage(task, liveOwner, now));
+        for (const other of others)
+          await ctx.db.patch(other._id, { active_task_id: undefined });
+        return refs;
+      },
+    });
+    const others = (await boundSessionsOf(ctx, task)).filter(
+      (c) => String(c._id) !== String(conv._id),
+    );
+    for (const other of others)
+      await ctx.db.patch(other._id, { active_task_id: undefined });
+    return res;
+  }
   const others = (await boundSessionsOf(ctx, task)).filter(
     (c) => String(c._id) !== String(conv._id),
   );

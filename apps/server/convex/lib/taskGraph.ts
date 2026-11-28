@@ -15,6 +15,7 @@ import {
   parseBlockerRef,
   readinessOf,
   statusLookup,
+  topologicalOrder,
   type DepNode,
   type GraphRefStatus,
   type NotReadyReason,
@@ -31,6 +32,7 @@ import {
   type AuthorizedWorkspace,
 } from "./access";
 import { notFound } from "./auth";
+import { findClaim, taskClaimsEnabled } from "./claims";
 import { recordTaskChange, type TaskChangeBy } from "./taskHistory";
 
 type ReadCtx = Pick<QueryCtx, "db">;
@@ -263,14 +265,134 @@ export async function stampGraphStatus(
  * for an ephemeral task depends on who asks, so it is judged as if it were
  * not one; the reader says whose it is.
  */
+type CriticalPathNode = {
+  short_id: string;
+  blocked_by?: string[];
+  status?: string;
+};
+
+export function getCriticalPath(tasks: CriticalPathNode[]): string[] {
+  const taskMap = new Map<string, CriticalPathNode>();
+  for (const t of tasks) taskMap.set(t.short_id, t);
+  const { sorted, cycles } = topologicalOrder(tasks);
+  if (cycles.length > 0) return [];
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  for (const id of sorted) {
+    dist.set(id, 0);
+    prev.set(id, null);
+  }
+  for (const id of sorted) {
+    const node = taskMap.get(id);
+    for (const dep of node?.blocked_by ?? []) {
+      if (!taskMap.has(dep)) continue;
+      const newDist = (dist.get(dep) || 0) + 1;
+      if (newDist > (dist.get(id) || 0)) {
+        dist.set(id, newDist);
+        prev.set(id, dep);
+      }
+    }
+  }
+  let maxId = sorted[0];
+  let maxDist = 0;
+  for (const [id, d] of dist) {
+    if (d > maxDist) {
+      maxDist = d;
+      maxId = id;
+    }
+  }
+  const path: string[] = [];
+  let cur: string | null | undefined = maxId;
+  while (cur) {
+    path.unshift(cur);
+    cur = prev.get(cur);
+  }
+  return path;
+}
+
+export function buildDependencyChain<T extends CriticalPathNode>(
+  allTasks: T[],
+  shortId: string,
+) {
+  const taskByShortId = new Map<string, T>();
+  for (const t of allTasks) taskByShortId.set(t.short_id, t);
+  const ancestors = new Set<string>();
+  const descendants = new Set<string>();
+  const collectAncestors = (id: string) => {
+    for (const dep of taskByShortId.get(id)?.blocked_by ?? []) {
+      if (!ancestors.has(dep) && taskByShortId.has(dep)) {
+        ancestors.add(dep);
+        collectAncestors(dep);
+      }
+    }
+  };
+  const collectDescendants = (id: string) => {
+    for (const dep of (taskByShortId.get(id) as { blocks?: string[] })
+      ?.blocks ?? []) {
+      if (!descendants.has(dep) && taskByShortId.has(dep)) {
+        descendants.add(dep);
+        collectDescendants(dep);
+      }
+    }
+    for (const t of allTasks) {
+      if (t.blocked_by?.includes(id) && !descendants.has(t.short_id)) {
+        descendants.add(t.short_id);
+        collectDescendants(t.short_id);
+      }
+    }
+  };
+  collectAncestors(shortId);
+  collectDescendants(shortId);
+  const chainIds = new Set([...ancestors, shortId, ...descendants]);
+  const chainTasks = allTasks.filter((t) => chainIds.has(t.short_id));
+  const { sorted, cycles } = topologicalOrder(chainTasks);
+  return {
+    ancestors: allTasks.filter((t) => ancestors.has(t.short_id)),
+    descendants: allTasks.filter((t) => descendants.has(t.short_id)),
+    topological_order: sorted,
+    critical_path: getCriticalPath(chainTasks),
+    cycles,
+  };
+}
+
+export async function effectiveTasksForReadiness<T extends Doc<"tasks">>(
+  ctx: ReadCtx,
+  page: T[],
+  now = Date.now(),
+): Promise<T[]> {
+  if (!taskClaimsEnabled() || page.length === 0) return page;
+  const candidates = page.filter(
+    (t) => t.status === "in_progress" || t.status === "open",
+  );
+  if (candidates.length === 0) return page;
+  const claims = await Promise.all(
+    candidates.map((t) => findClaim(ctx.db, { kind: "task", id: t._id })),
+  );
+  const byId = new Map<string, Doc<"claims"> | null>();
+  candidates.forEach((t, i) => byId.set(String(t._id), claims[i]));
+  return page.map((t) => {
+    const claim = byId.get(String(t._id));
+    if (!claim) return t;
+    const live = claim.holder !== undefined && claim.lease_until > now;
+    if (t.status === "in_progress" && !live) {
+      return { ...t, status: "open" as const };
+    }
+    if (t.status === "open" && live) {
+      return { ...t, status: "in_progress" as const };
+    }
+    return t;
+  });
+}
+
 export async function offFrontierReason(
   ctx: ReadCtx,
   task: Doc<"tasks">,
 ): Promise<NotReadyReason | null> {
-  if (task.status !== "open") return null;
+  const [effective] = await effectiveTasksForReadiness(ctx, [task]);
+  if (effective.status !== "open") return null;
   const r = readinessOf(
-    { ...task, ephemeral: false },
-    { ...(await taskLookups(ctx, task)), viewer: null },
+    { ...effective, ephemeral: false },
+    { ...(await taskLookups(ctx, effective)), viewer: null },
   );
   return r.ready || r.reason === "blocked" || r.reason === "superseded"
     ? null
@@ -283,10 +405,13 @@ export async function readyTasks<T extends Doc<"tasks">>(
   page: T[],
   opts: Pick<ReadinessOptions, "viewer" | "viewerSession" | "includeSubtasks">,
 ) {
-  const lookupsFor = await readinessLookups(ctx, page);
+  const [lookupsFor, effective] = await Promise.all([
+    readinessLookups(ctx, page),
+    effectiveTasksForReadiness(ctx, page),
+  ]);
   return {
     ready: page.filter(
-      (t) => readinessOf(t, { ...lookupsFor(t), ...opts }).ready,
+      (t, i) => readinessOf(effective[i], { ...lookupsFor(t), ...opts }).ready,
     ),
     lookupsFor,
   };

@@ -19,7 +19,7 @@ import { api, internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessTask, resolveSessionConversation } from "./lib/access";
-import { readinessLookups } from "./lib/taskGraph";
+import { effectiveTasksForReadiness, readinessLookups } from "./lib/taskGraph";
 import {
   assigneeNamesFor,
   heldError,
@@ -212,10 +212,14 @@ export const claimNextReady = internalMutation({
     for (const row of rows)
       if (row && (await canAccessTask(ctx, auth.userId, row)))
         visible.push(row);
-    const lookupsFor = await readinessLookups(ctx, visible);
+    const [lookupsFor, effective] = await Promise.all([
+      readinessLookups(ctx, visible),
+      effectiveTasksForReadiness(ctx, visible),
+    ]);
     const skipped: ClaimResult["skipped"] = [];
-    for (const task of visible) {
-      const verdict = readinessOf(task, {
+    for (let i = 0; i < visible.length; i++) {
+      const task = visible[i];
+      const verdict = readinessOf(effective[i], {
         ...lookupsFor(task),
         viewer: claimant.userId,
         viewerSession: claimant.session,

@@ -5188,6 +5188,12 @@ cliRoute("/cli/work/snippet", async (ctx, body) => {
 cliRoute("/cli/work/heartbeat", async (ctx, body) => {
   return await ctx.runMutation(api.tasks.heartbeat, body);
 });
+cliRoute("/cli/work/renew", async (ctx, body) => {
+  return await ctx.runMutation(api.tasks.renew, body);
+});
+cliRoute("/cli/work/release", async (ctx, body) => {
+  return await ctx.runMutation(api.tasks.release, body);
+});
 cliRoute("/cli/work/spawn", async (ctx, body) => {
   return await ctx.runMutation(api.tasks.spawnForTask, body);
 });
