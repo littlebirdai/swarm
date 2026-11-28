@@ -26,7 +26,7 @@ export function makeHandlerPool(limits: HandlerLimits = {}): HandlerPool {
       Effect.gen(function* () {
         const acquired = yield* Semaphore.takeIfAvailable(semaphore, 1);
         if (!acquired) {
-          yield* Effect.forkChild(refuse, { startImmediately: true });
+          yield* Effect.forkChild(refuse);
           return;
         }
         yield* Effect.forkChild(

@@ -278,7 +278,24 @@ export class BusTimeoutError extends TaggedError("BusTimeoutError")<{
   readonly timeoutMs: number;
 }> {}
 
+export class BusUnavailableError extends TaggedError("BusUnavailableError")<{
+  readonly kind: string;
+  readonly reason: "closed" | "overloaded";
+}> {}
+
+export type BusRequestKind = {
+  [K in BusMessageKind]: BusMessageOf<K> extends { readonly request_id: string }
+    ? K
+    : never;
+}[BusMessageKind];
+
+export type BusRequestError =
+  | BusValidationError
+  | BusTimeoutError
+  | BusUnavailableError;
+
 const BUS_CAPACITY = 1024;
+const MAX_WAITING_REQUESTS = BUS_CAPACITY * 4;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export class SupervisorBus extends Context.Service<
@@ -291,12 +308,12 @@ export class SupervisorBus extends Context.Service<
       Scope.Scope
     >;
     stream<K extends BusMessageKind>(kind: K): Stream.Stream<BusMessageOf<K>>;
-    request<K extends BusMessageKind, R extends BusMessageKind>(
+    request<K extends BusRequestKind, R extends BusRequestKind>(
       message: BusMessageOf<K>,
       responseKind: R,
       match: (response: BusMessageOf<R>) => boolean,
       timeoutMs?: number,
-    ): Effect.Effect<BusMessageOf<R>, BusValidationError | BusTimeoutError>;
+    ): Effect.Effect<BusMessageOf<R>, BusRequestError>;
   }
 >()("@codecast/edge-supervisor/SupervisorBus") {
   static readonly layer = Layer.effect(
@@ -349,9 +366,29 @@ export class SupervisorBus extends Context.Service<
       type Waiter = {
         readonly responseKind: BusMessageKind;
         readonly match: (response: BusMessage) => boolean;
-        readonly answer: Deferred.Deferred<BusMessage>;
+        readonly answer: Deferred.Deferred<BusMessage, BusUnavailableError>;
       };
       const waiters = new Map<string, Waiter>();
+      let closed = false;
+      yield* Effect.addFinalizer(() =>
+        Effect.suspend(() => {
+          closed = true;
+          const waiting = [...waiters.values()];
+          waiters.clear();
+          return Effect.forEach(
+            waiting,
+            (waiter) =>
+              Deferred.fail(
+                waiter.answer,
+                new BusUnavailableError({
+                  kind: waiter.responseKind,
+                  reason: "closed",
+                }),
+              ),
+            { discard: true },
+          );
+        }),
+      );
       const responses = yield* PubSub.subscribe(pubsub);
       yield* Effect.forkScoped(
         Effect.forever(
@@ -366,49 +403,89 @@ export class SupervisorBus extends Context.Service<
             )
               return;
             waiters.delete(next.request_id);
-            yield* Effect.yieldNow;
             yield* Deferred.succeed(waiter.answer, next);
           }),
+          { disableYield: true },
         ),
         { startImmediately: true },
       );
 
+      const unavailable = (
+        kind: string,
+        reason: BusUnavailableError["reason"],
+      ) => Effect.fail(new BusUnavailableError({ kind, reason }));
+
+      const register = (requestId: string, waiter: Waiter) =>
+        Effect.suspend((): Effect.Effect<Waiter, BusRequestError> => {
+          if (closed) return unavailable(waiter.responseKind, "closed");
+          if (waiters.has(requestId)) {
+            return Effect.fail(
+              new BusValidationError({
+                kind: waiter.responseKind,
+                cause: new Error("Duplicate bus request id"),
+              }),
+            );
+          }
+          if (waiters.size >= MAX_WAITING_REQUESTS) {
+            return unavailable(waiter.responseKind, "overloaded");
+          }
+          waiters.set(requestId, waiter);
+          return Effect.succeed(waiter);
+        });
+
+      const unregister = (requestId: string, waiter: Waiter) =>
+        Effect.sync(() => {
+          if (waiters.get(requestId) === waiter) waiters.delete(requestId);
+        });
+
       const request = Effect.fn("SupervisorBus.request")(function* <
-        K extends BusMessageKind,
-        R extends BusMessageKind,
+        K extends BusRequestKind,
+        R extends BusRequestKind,
       >(
         message: BusMessageOf<K>,
         responseKind: R,
         match: (response: BusMessageOf<R>) => boolean,
         timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
       ) {
-        const requestId = "request_id" in message ? message.request_id : "";
-        const answer = yield* Deferred.make<BusMessage>();
+        const sent: BusMessage = message;
+        const { kind } = sent;
+        if (!("request_id" in sent)) {
+          return yield* new BusValidationError({
+            kind,
+            cause: new Error("Bus request without a request id"),
+          });
+        }
+        const requestId = sent.request_id;
+        const answer = yield* Deferred.make<BusMessage, BusUnavailableError>();
         const waiter: Waiter = {
           responseKind,
           match: (response) => match(response as BusMessageOf<R>),
           answer,
         };
-        waiters.set(requestId, waiter);
-        return yield* publish(message).pipe(
-          Effect.flatMap(() => Deferred.await(answer)),
-          Effect.map((response) => response as BusMessageOf<R>),
-          Effect.timeoutOrElse({
-            duration: timeoutMs,
-            orElse: () =>
-              Effect.fail(
-                new BusTimeoutError({
-                  kind: message.kind,
-                  responseKind,
-                  timeoutMs,
-                }),
+        return yield* Effect.acquireUseRelease(
+          register(requestId, waiter),
+          () =>
+            decode(sent).pipe(
+              Effect.flatMap((validated) => PubSub.publish(pubsub, validated)),
+              Effect.flatMap((published) =>
+                published
+                  ? Deferred.await(answer)
+                  : unavailable(kind, "closed"),
               ),
-          }),
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (waiters.get(requestId) === waiter) waiters.delete(requestId);
-            }),
-          ),
+              Effect.map((response) => response as BusMessageOf<R>),
+              Effect.timeoutOrElse({
+                duration: timeoutMs,
+                orElse: () =>
+                  Effect.fail(
+                    new BusTimeoutError({
+                      kind,
+                      responseKind,
+                      timeoutMs,
+                    }),
+                  ),
+              }),
+            ),
+          () => unregister(requestId, waiter),
         );
       });
 

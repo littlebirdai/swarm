@@ -187,6 +187,7 @@ export const attachEdgeLinkToBus = Effect.fn(
             break;
         }
       }),
+      { disableYield: true },
     ),
     { startImmediately: true },
   );

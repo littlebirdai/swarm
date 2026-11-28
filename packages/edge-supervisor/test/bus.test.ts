@@ -1,9 +1,13 @@
 import { expect } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
+import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
+import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import { adjust, withLive } from "effect/testing/TestClock";
 import {
@@ -266,6 +270,124 @@ it.effect(
       expect(
         results.filter((result) => result._tag === "Success"),
       ).toHaveLength(count);
+    }).pipe(Effect.provide(SupervisorBus.layer)),
+  20_000,
+);
+
+const permitsRequest = (requestId: string) =>
+  ({
+    kind: "edge.permits.next",
+    request_id: requestId,
+    request: { v: 1, session: "session-1", run: 1, fencing_token: "lease-1" },
+  }) as const;
+
+const askPermits = (bus: SupervisorBus["Service"], requestId: string) =>
+  bus.request(
+    permitsRequest(requestId),
+    "edge.permits.next.result",
+    (reply) => reply.request_id === requestId,
+  );
+
+const live = <A, E>(effect: Effect.Effect<A, E>, what: string) =>
+  withLive(
+    effect.pipe(
+      Effect.timeoutOrElse({
+        duration: 2_000,
+        orElse: () => Effect.die(new Error(`timed out waiting for ${what}`)),
+      }),
+    ),
+  );
+
+it.effect("closing the bus fails waiting and later requests at once", () =>
+  Effect.gen(function* () {
+    const scope = yield* Scope.make();
+    const context = yield* Layer.buildWithScope(SupervisorBus.layer, scope);
+    const bus = Context.get(context, SupervisorBus);
+    const waiting = yield* Effect.forkChild(
+      Effect.result(askPermits(bus, "waiting")),
+      { startImmediately: true },
+    );
+    yield* Effect.yieldNow;
+    yield* Scope.close(scope, Exit.void);
+    const result = yield* live(Fiber.join(waiting), "the waiting request");
+    expect(result).toMatchObject({
+      _tag: "Failure",
+      failure: { _tag: "BusUnavailableError", reason: "closed" },
+    });
+    const later = yield* live(
+      Effect.result(askPermits(bus, "later")),
+      "the later request",
+    );
+    expect(later).toMatchObject({
+      _tag: "Failure",
+      failure: { _tag: "BusUnavailableError", reason: "closed" },
+    });
+  }),
+);
+
+it.effect("a second request with a waiting request id fails at once", () =>
+  Effect.gen(function* () {
+    const bus = yield* SupervisorBus;
+    yield* Effect.forkChild(askPermits(bus, "same"), {
+      startImmediately: true,
+    });
+    yield* Effect.yieldNow;
+    const second = yield* live(
+      Effect.result(askPermits(bus, "same")),
+      "the duplicate request",
+    );
+    expect(second).toMatchObject({
+      _tag: "Failure",
+      failure: { _tag: "BusValidationError" },
+    });
+  }).pipe(Effect.provide(SupervisorBus.layer)),
+);
+
+it.effect("an interrupted request leaves no waiting entry behind", () =>
+  Effect.gen(function* () {
+    const bus = yield* SupervisorBus;
+    const first = yield* Effect.forkChild(askPermits(bus, "reused"), {
+      startImmediately: true,
+    });
+    yield* Effect.yieldNow;
+    yield* Fiber.interrupt(first);
+    const sub = yield* bus.subscribe();
+    yield* Effect.forkChild(
+      PubSub.take(sub).pipe(
+        Effect.andThen(
+          bus.publish({
+            kind: "edge.permits.next.result",
+            request_id: "reused",
+            ok: true,
+            response: { v: 1, status: "empty" },
+          }),
+        ),
+      ),
+      { startImmediately: true },
+    );
+    const reply = yield* live(askPermits(bus, "reused"), "the reused id");
+    expect(reply).toMatchObject({ ok: true });
+  }).pipe(Effect.provide(SupervisorBus.layer)),
+);
+
+it.effect(
+  "requests past the waiting limit are refused as overloaded",
+  () =>
+    Effect.gen(function* () {
+      const bus = yield* SupervisorBus;
+      for (let index = 0; index < 4_096; index++) {
+        yield* Effect.forkChild(askPermits(bus, `held-${index}`), {
+          startImmediately: true,
+        });
+      }
+      const refused = yield* live(
+        Effect.result(askPermits(bus, "one-too-many")),
+        "the refused request",
+      );
+      expect(refused).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "BusUnavailableError", reason: "overloaded" },
+      });
     }).pipe(Effect.provide(SupervisorBus.layer)),
   20_000,
 );

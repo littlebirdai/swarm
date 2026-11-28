@@ -1,9 +1,11 @@
 export {
   BusMessageSchemas,
   BusTimeoutError,
+  BusUnavailableError,
   BusValidationError,
   SupervisorBus,
 } from "./bus";
+export type { BusRequestError, BusRequestKind } from "./bus";
 export type {
   BusMessage,
   BusMessageKind,
