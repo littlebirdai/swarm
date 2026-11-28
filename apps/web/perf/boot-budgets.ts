@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { replaceGlobals } from "../test-helpers/globals";
 import { createTestDom } from "../test-helpers/testDom";
 import { measureIndexedDB } from "./measure-indexeddb";
@@ -6,6 +9,10 @@ import { checkStoreBudget } from "./store-budget-limits";
 
 const { dom } = createTestDom("https://codecast.test/inbox");
 replaceGlobals({ dispatchEvent: dom.window.dispatchEvent.bind(dom.window) });
+const { installBrowserSqliteWorker } =
+  await import("../store/persistence/sqlite/__tests__/browser-worker-globals");
+const sqliteDir = mkdtempSync(join(tmpdir(), "boot-budget-sqlite-"));
+const sqlite = installBrowserSqliteWorker(sqliteDir);
 const { installSignedInPrincipal, TEST_PRINCIPAL } =
   await import("../store/__tests__/fixtures/signedInPrincipal");
 installSignedInPrincipal(TEST_PRINCIPAL);
@@ -27,11 +34,7 @@ const alternate = rest[0];
 const liveInboxIdList = [focus._id, alternate._id];
 
 await db.open();
-await db.meta.bulkPut([
-  { key: "currentUser", value: { _id: TEST_PRINCIPAL } },
-  { key: "liveInboxIdList", value: liveInboxIdList },
-  { key: "lastFocusedConversationId", value: focus._id },
-]);
+await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
 await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
 const seedState: Record<string, any> = {
   currentUser: { _id: TEST_PRINCIPAL },
@@ -95,12 +98,15 @@ for (const { _id: convId } of [focus, alternate]) {
   );
 }
 await cacheStorage.flushPersistence();
+assert(sqlite.databases.length > 0, "Boot budget must read from SQLite");
 
 reads.clear();
+const sqliteRowsBeforeBoot = sqlite.rowsRead();
 const bootStarted = performance.now();
 const { useInboxStore } = await import("../store/inboxStore");
 const firstPaint = Promise.withResolvers<{
   reads: Map<string, number>;
+  sqliteRows: number;
   paintMs: number;
 }>();
 const timeout = setTimeout(
@@ -115,20 +121,26 @@ const ready = (
 ): boolean =>
   state.clientStateInitialized &&
   state.currentSessionId === focus._id &&
+  Boolean(state.conversations[focus._id]) &&
   (state.messages[focus._id]?.length ?? 0) === 200;
-const unsubscribe = useInboxStore.subscribe((state) => {
-  if (!ready(state)) return;
+const release = (state: ReturnType<(typeof useInboxStore)["getState"]>) => {
+  if (!state.clientStateInitialized) return;
+  if (!ready(state)) {
+    firstPaint.reject(
+      new Error(
+        `Boot released the paint before the cache loaded: session ${String(state.currentSessionId)}, ${state.messages[focus._id]?.length ?? 0} focused messages, ${Object.keys(state.conversations).length} conversations`,
+      ),
+    );
+    return;
+  }
   firstPaint.resolve({
     reads: new Map(reads),
+    sqliteRows: sqlite.rowsRead() - sqliteRowsBeforeBoot,
     paintMs: performance.now() - bootStarted,
   });
-});
-if (ready(useInboxStore.getState())) {
-  firstPaint.resolve({
-    reads: new Map(reads),
-    paintMs: performance.now() - bootStarted,
-  });
-}
+};
+const unsubscribe = useInboxStore.subscribe(release);
+release(useInboxStore.getState());
 try {
   const sample = await firstPaint.promise;
   clearTimeout(timeout);
@@ -143,6 +155,7 @@ try {
         firstPaintMs: sample.paintMs,
         bootMs: performance.now() - bootStarted,
         readRows: [...reads.values()].reduce((sum, rows) => sum + rows, 0),
+        sqliteRows: sample.sqliteRows,
       }),
     );
   }
@@ -151,7 +164,10 @@ try {
     "First paint IndexedDB rows",
     [...sample.reads.values()].reduce((sum, rows) => sum + rows, 0),
   );
+  checkStoreBudget("First paint SQLite rows", sample.sqliteRows);
 } finally {
   clearTimeout(timeout);
   unsubscribe();
+  sqlite.restore();
+  rmSync(sqliteDir, { recursive: true, force: true });
 }

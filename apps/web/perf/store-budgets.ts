@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { Database } from "bun:sqlite";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ReplicationChannel } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import {
@@ -13,9 +16,18 @@ import { applyCollectionFeed } from "../hooks/useSyncCollection";
 import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
 import { resetDetailPins } from "../lib/detail-rows";
 import { authPrincipal } from "../lib/authPrincipal";
-import { cacheStorage, loadCache, writePatchesToIDB } from "../store/idb-cache";
+import { cacheStorage } from "../store/idb-cache";
 import { _reopenForTests, db } from "../store/persistence/db";
+import { CACHE_SCHEMA_VERSION } from "../store/persistence/schema";
 import { createSqliteCache } from "../store/persistence/sqlite/cache-storage";
+import { createIdbJournalBridge } from "../store/persistence/sqlite/journal-bridge";
+import { createSqliteWorkerClient } from "../store/persistence/sqlite/worker-client";
+import {
+  createDiskWorkerSpawner,
+  createFakeChannelTransport,
+  createFakeEpochStore,
+  createFakeLockAdapter,
+} from "../store/persistence/sqlite/__tests__/worker-testkit";
 import {
   enqueueDispatch,
   loadOutbox,
@@ -220,61 +232,96 @@ async function measureWrites({
     sqliteDb.close();
   }
 
-  const cachedSessions = Array.from({ length: 500 }, (_, index) =>
-    session(index),
-  );
-  const sessionMap = Object.fromEntries(cachedSessions.map((s) => [s._id, s]));
-  cacheStorage.writePatches(
-    [
-      { op: "replace", path: ["sessions"], value: sessionMap },
-      { op: "replace", path: ["conversations"], value: sessionMap },
-    ],
-    {
-      currentUser: { _id: TEST_PRINCIPAL },
-      sessions: sessionMap,
-      conversations: sessionMap,
-    },
-  );
-  await cacheStorage.flushPersistence();
-  const cached = await loadCache(["sessions", "conversations"]);
-  assert(cached);
-  state().syncTable("sessions", Object.values(cached.sessions), {
-    isDelta: false,
+  const renameDir = mkdtempSync(join(tmpdir(), "store-budget-sqlite-"));
+  const workerTransport = createFakeChannelTransport();
+  const workerDisk = createDiskWorkerSpawner(renameDir, workerTransport);
+  const client = createSqliteWorkerClient({
+    auth: authPrincipal,
+    schemaVersion: CACHE_SCHEMA_VERSION,
+    epochStore: createFakeEpochStore(),
+    locks: createFakeLockAdapter(),
+    channelTransport: workerTransport,
+    spawnWorker: workerDisk.spawner,
+    opfsSupported: () => true,
+    journal: createIdbJournalBridge(),
+    workerTimeoutMs: 5000,
   });
-  state().syncTable("conversations", Object.values(cached.conversations), {
-    isDelta: false,
-  });
-  const pending = Object.fromEntries(
-    Array.from({ length: 400 }, (_, index) => [
-      `sessions:${id(index + 1)}:title`,
-      { type: "field" as const, value: `Queued rename ${index + 1}`, ts: now },
-    ]),
-  );
-  useInboxStore.setState({ pending });
-  await writePatchesToIDB(
-    [{ op: "replace", path: ["pending"], value: pending }],
-    state(),
-  );
-  const cachedPending = await loadCache(["pending"]);
-  assert.deepEqual(cachedPending?.pending, pending);
-  state()._setIDBWrite(writePatchesToIDB);
-  state()._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
-  writes.clear();
-  writtenBytes.clear();
+  try {
+    assert.equal(await client.loadCache(["sessions", "conversations"]), null);
+    const cachedSessions = Array.from({ length: 500 }, (_, index) =>
+      session(index),
+    );
+    const sessionMap = Object.fromEntries(
+      cachedSessions.map((s) => [s._id, s]),
+    );
+    client.writePatches(
+      [
+        { op: "replace", path: ["sessions"], value: sessionMap },
+        { op: "replace", path: ["conversations"], value: sessionMap },
+      ],
+      {
+        currentUser: { _id: TEST_PRINCIPAL },
+        sessions: sessionMap,
+        conversations: sessionMap,
+      },
+    );
+    await client.flushPersistence();
+    const cached = await client.loadCache(["sessions", "conversations"]);
+    assert(cached);
+    state().syncTable("sessions", Object.values(cached.sessions), {
+      isDelta: false,
+    });
+    state().syncTable("conversations", Object.values(cached.conversations), {
+      isDelta: false,
+    });
+    const pending = Object.fromEntries(
+      Array.from({ length: 400 }, (_, index) => [
+        `sessions:${id(index + 1)}:title`,
+        {
+          type: "field" as const,
+          value: `Queued rename ${index + 1}`,
+          ts: now,
+        },
+      ]),
+    );
+    useInboxStore.setState({ pending });
+    await client.writePatches(
+      [{ op: "replace", path: ["pending"], value: pending }],
+      state(),
+    );
+    const cachedPending = await client.loadCache(["pending"]);
+    assert.deepEqual(cachedPending?.pending, pending);
+    state()._setIDBWrite((patches, next) => client.writePatches(patches, next));
+    state()._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
+    await client.flushPersistence();
+    const sqliteDb = workerDisk.openDbs.at(-1);
+    assert(sqliteDb, "Rename budget must write through the SQLite worker");
+    const totalChanges = sqliteDb.prepare<{ n: number }, []>(
+      "SELECT total_changes() AS n",
+    );
+    const changesBefore = totalChanges.get()!.n;
+    writes.clear();
+    writtenBytes.clear();
 
-  state().renameSession(convId, "Renamed");
-  await cacheStorage.flushPersistence();
-  const savedCache = await loadCache(["sessions", "conversations"]);
-  const savedOutbox = await db.dispatchOutbox.toArray();
-  assert.equal(savedCache?.sessions?.[convId]?.title, "Renamed");
-  assert.equal(savedCache?.conversations?.[convId]?.title, "Renamed");
-  assert.equal(savedOutbox[0]?.action, "renameSession");
-  checkStoreBudget("Rename action row writes", sum(writes));
-  checkStoreBudget(
-    "Rename action write bytes with pending entries",
-    sum(writtenBytes),
-  );
-  state()._setIDBWrite(null);
+    state().renameSession(convId, "Renamed");
+    await client.flushPersistence();
+    const sqliteRowWrites = totalChanges.get()!.n - changesBefore;
+    const savedCache = await client.loadCache(["sessions", "conversations"]);
+    const savedOutbox = await db.dispatchOutbox.toArray();
+    assert.equal(savedCache?.sessions?.[convId]?.title, "Renamed");
+    assert.equal(savedCache?.conversations?.[convId]?.title, "Renamed");
+    assert.equal(savedOutbox[0]?.action, "renameSession");
+    checkStoreBudget("Rename action IndexedDB row writes", sum(writes));
+    checkStoreBudget("Rename action SQLite row writes", sqliteRowWrites);
+    checkStoreBudget(
+      "Rename action write bytes with pending entries",
+      sum(writtenBytes),
+    );
+  } finally {
+    state()._setIDBWrite(null);
+    client.close();
+    rmSync(renameDir, { recursive: true, force: true });
+  }
 }
 
 function sum(counts: Map<string, number>) {

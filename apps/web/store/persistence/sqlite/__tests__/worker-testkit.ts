@@ -178,6 +178,7 @@ export function createFakeJournal(): JournalBridge & {
 function wrapBunSqliteDriver(
   db: Database,
   onWriteError?: (error: unknown) => void,
+  onRead?: (rows: number) => void,
 ): SqliteDriver {
   return {
     exec(sql: string) {
@@ -191,8 +192,16 @@ function wrapBunSqliteDriver(
     prepare<Row>(sql: string) {
       const query = db.query<Row, SqlValue[]>(sql);
       return {
-        get: (...params: SqlValue[]) => query.get(...params) ?? null,
-        all: (...params: SqlValue[]) => query.all(...params),
+        get: (...params: SqlValue[]) => {
+          const row = query.get(...params) ?? null;
+          onRead?.(row === null ? 0 : 1);
+          return row;
+        },
+        all: (...params: SqlValue[]) => {
+          const rows = query.all(...params);
+          onRead?.(rows.length);
+          return rows;
+        },
         run: (...params: SqlValue[]) => {
           try {
             return query.run(...params);
@@ -232,6 +241,7 @@ export function createDiskWorkerSpawner(
     hangRpc?: () => boolean;
     failOpfs?: () => boolean;
     failOpenError?: () => unknown;
+    onRead?: (rows: number) => void;
   },
 ): { spawner: WorkerSpawner; openDbs: Database[] } {
   let seq = 0;
@@ -292,7 +302,7 @@ export function createDiskWorkerSpawner(
               openDbs.push(db);
               opts?.beforeOpen?.(db, epoch);
               return {
-                driver: wrapBunSqliteDriver(db, onWriteError),
+                driver: wrapBunSqliteDriver(db, onWriteError, opts?.onRead),
                 close: () => {
                   try {
                     db.close();
