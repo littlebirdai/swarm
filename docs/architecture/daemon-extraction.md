@@ -24,9 +24,15 @@ Status: active extraction on `packages/edge-supervisor` and `packages/delivery`;
 
 - Delivery control and telemetry: `delivery.wake`, `delivery.stop`, `delivery.settled`
 - Edge link RPC requests and replies: `edge.permits.next` / `edge.permits.next.result`, `edge.delivery.start` / `edge.delivery.start.result`, `edge.delivery.settle` / `edge.delivery.settle.result`, `edge.takeover.ack` / `edge.takeover.ack.result`, `edge.blob.get` / `edge.blob.get.result`
-- Provider handoff and receipts: `provider.deliver` / `provider.deliver.result`, `provider.recover` / `provider.recover.result`, `provider.receipt`
+- Provider handoff and receipts: `provider.deliver` / `provider.deliver.result`, `provider.deliver.cancel`, `provider.recover` / `provider.recover.result`, `provider.receipt`
 
-Every delivery cycle runs `start`, input preparation (`edge.blob.get`), `provider.deliver`, and `settle` inside one uninterruptible Effect step. Retryable edge responses honor `retry_after_ms` before re-polling `edge.permits.next`. Unconfirmed outcomes settle `in_doubt`, hold the local slot and artifacts, and resolve on `provider.receipt` or restart recovery.
+Every delivery cycle runs `start`, input preparation (`edge.blob.get`), `provider.deliver`, and `settle` inside one uninterruptible Effect step. Only one step runs at a time for each session. The lock for a session stays in memory while a step uses it or waits for it. Retryable edge responses honor `retry_after_ms` before re-polling `edge.permits.next`. A bus timeout on an edge call is also a retryable step. Unconfirmed outcomes settle `in_doubt`, hold the local slot and artifacts, and resolve on `provider.receipt`, on a late `provider.deliver.result`, or on restart recovery. A receipt wake settles the held delivery and does not send new messages.
+
+A permit that reports `state: "started"` settles from the receipt journal or from `provider.recover`, and never calls `edge.delivery.start` again. A permit that reports `state: "new"` always calls `edge.delivery.start` first, because the server accepts an `applied` settlement only from a started or ambiguous attempt. A steer permit records its handover in the steer journal before recovery. A replayed new steer permit whose attempt is already a recorded handover goes to recovery and is never sent again.
+
+The bus loops of the delivery service, the delivery bridge, and the edge link never wait for a slow handler. They start each handler in its own fiber, and a pool limits the number of handlers that run at the same time and how long each one runs. A request over the limit gets a retryable `busy` reply at once. When a `provider.deliver` request times out, the service sends `provider.deliver.cancel`, and the bridge aborts the provider call.
+
+The service layer builds the bus first, then the bridge, then the delivery service. Disposal runs in the opposite order, so the bridge answers the settlement of a step that is still running.
 
 ## Left for the provider adapter extraction
 
