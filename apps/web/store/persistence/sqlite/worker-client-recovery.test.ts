@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { _resetSnapshotLedger } from "../../idb-collection-diff";
 import type {
   CacheEpoch,
+  ChannelTransport,
   EpochStore,
   LockAdapter,
   WorkerSpawner,
@@ -241,7 +242,21 @@ describe("SQLite worker client recovery", () => {
 
   test("an idle owner that closes lets a peer write finish on the same file", async () => {
     const dir = tempDir("sqlite-owner-close-");
-    const channelTransport = createFakeChannelTransport();
+    const transport = createFakeChannelTransport();
+    const onPeerWrite = { run: null as (() => void) | null };
+    const channelTransport: ChannelTransport = {
+      open(name, onMessage) {
+        return transport.open(name, (data) => {
+          onMessage(data);
+          const request = data as { type?: string; op?: string };
+          if (request?.type !== "request" || request.op !== "flushBatch")
+            return;
+          const run = onPeerWrite.run;
+          onPeerWrite.run = null;
+          run?.();
+        });
+      },
+    };
     const epochStore = createFakeEpochStore();
     const locks = createFakeLockAdapter();
     const auth = createTestAuth("userA");
@@ -270,10 +285,9 @@ describe("SQLite worker client recovery", () => {
         sessions: { [sid]: row },
         syncMeta: { cursor: 7 },
       });
-      const writing = peer.flushPersistence();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      owner.close();
-      await writing;
+      onPeerWrite.run = () => owner.close();
+      await peer.flushPersistence();
+      expect(onPeerWrite.run).toBeNull();
       await waitUntil(() => peer.holdsLock(), 1000, "peer takes the lock");
 
       expect(epochStore.read()?.generation).toBe(1);

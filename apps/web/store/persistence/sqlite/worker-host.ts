@@ -333,7 +333,7 @@ export function createSqliteWorkerHost(
       respondErr("write-failed", failedReason ?? "write-failed");
       return;
     }
-    if (!ready || closing || closed || !cache || !openedDb) {
+    if (!ready || closed || !cache || !openedDb) {
       respondErr("epoch-mismatch", "Worker is not ready");
       return;
     }
