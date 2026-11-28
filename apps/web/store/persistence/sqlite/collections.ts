@@ -41,9 +41,6 @@ export function collectionStorage(db: SqliteDriver) {
   const readRows = db.prepare<StoredRow>(
     "SELECT id, value FROM collection_rows WHERE collection = ? ORDER BY id",
   );
-  const readRow = db.prepare<StoredRow>(
-    "SELECT id, value FROM collection_rows WHERE collection = ? AND id = ?",
-  );
   const readIds = db.prepare<{ id: string }>(
     "SELECT id FROM collection_rows WHERE collection = ?",
   );
@@ -187,6 +184,35 @@ export function collectionStorage(db: SqliteDriver) {
       if (Object.hasOwn(WEB_COLLECTION_INDEXES, key)) {
         const data = state[key];
         if (!data || typeof data !== "object") continue;
+        if (key === "conversations" && conversationDrops.size) {
+          const candidateIds = new Set(
+            [...conversationDrops].filter((id) => data[id] == null),
+          );
+          if (candidateIds.size) {
+            const byId = new Map<string, any>();
+            for (const { id, value } of readRows.all(key)) {
+              try {
+                byId.set(id, JSON.parse(value));
+              } catch {}
+            }
+            for (const [id, row] of Object.entries(data)) {
+              if (!row || typeof row !== "object") continue;
+              const prev = byId.get(id);
+              byId.set(id, prev ? { ...prev, ...row } : row);
+            }
+            const { drop } = partitionSessionRetention(
+              [...byId.values()],
+              state.liveInboxIdList ?? getMeta("liveInboxIdList"),
+              state.lastFocusedConversationId ??
+                getMeta("lastFocusedConversationId"),
+              Date.now(),
+            );
+            for (const id of drop) {
+              if (candidateIds.has(id)) deleteRow.run(key, id);
+            }
+          }
+          afterCommit(() => conversationDrops.clear());
+        }
         const pending = state.pending ?? {};
         const snapshot = hasSnapshotDrops(key);
         const ids = snapshot ? null : patchedIds(patches, key);
@@ -208,28 +234,6 @@ export function collectionStorage(db: SqliteDriver) {
           }
         }
         if (snapshot) afterCommit(() => clearSnapshotDrops(key));
-        if (key === "conversations" && conversationDrops.size) {
-          const candidates = [...conversationDrops].flatMap((id) => {
-            if (data[id] != null) return [];
-            const stored = readRow.get(key, id);
-            return stored ? [JSON.parse(stored.value)] : [];
-          });
-          const { drop } = partitionSessionRetention(
-            [
-              ...Object.values(data).filter((row) => row != null),
-              ...candidates,
-            ],
-            state.liveInboxIdList ?? getMeta("liveInboxIdList"),
-            state.lastFocusedConversationId ??
-              getMeta("lastFocusedConversationId"),
-            Date.now(),
-          );
-          const expired = new Set(drop);
-          for (const row of candidates) {
-            if (expired.has(row._id)) deleteRow.run(key, row._id);
-          }
-          afterCommit(() => conversationDrops.clear());
-        }
       } else if (metaKeys.has(key) && key !== "syncMeta") {
         if (!setMeta(key, state[key])) complete = false;
       }

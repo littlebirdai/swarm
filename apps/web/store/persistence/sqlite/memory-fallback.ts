@@ -41,6 +41,18 @@ export type MemoryCacheStorage = Omit<
   | "loadPaintCacheSync"
 >;
 
+function paginationRecord(
+  pagination: unknown,
+): Record<string, unknown> | undefined {
+  if (
+    typeof pagination !== "object" ||
+    pagination === null ||
+    Array.isArray(pagination)
+  )
+    return undefined;
+  return Object.fromEntries(Object.entries(pagination));
+}
+
 export function createMemoryCacheFallback(
   auth: Pick<AuthPrincipalTracker, "current" | "resolve" | "epoch">,
 ): MemoryCacheStorage {
@@ -215,7 +227,10 @@ export function createMemoryCacheFallback(
         return;
       boundOwner = principal;
       const prev = conversations.get(conversationId);
-      const tail = persistedMessageTail(messages as any[], pagination);
+      const tail = persistedMessageTail(
+        messages as any[],
+        paginationRecord(pagination),
+      );
       const latestTimestamp = (
         tail.messages as Array<{ timestamp?: number }>
       ).reduce(

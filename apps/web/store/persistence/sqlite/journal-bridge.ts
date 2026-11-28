@@ -56,14 +56,22 @@ export function createIdbJournalBridge(): JournalBridge {
       if (DOCS_SHOTS) return {};
       const claimed = (context.currentUser as { _id?: string } | undefined)
         ?._id;
-      if (principal !== null && claimed !== undefined && claimed !== principal)
-        return {};
+      const wanted = keys ? new Set(keys) : null;
+      if (
+        principal !== null &&
+        claimed !== undefined &&
+        claimed !== principal
+      ) {
+        const refused: Record<string, any> = {};
+        if (wanted?.has("pendingMessages")) refused.pendingMessages = {};
+        if (wanted?.has("queuedMessages")) refused.queuedMessages = {};
+        return refused;
+      }
       const resolved = await authPrincipal.resolve();
       if (resolved !== principal) return {};
 
       const owner = await ensureCacheOwnership(purgeLocalCache);
       if (!principal) return {};
-      const wanted = keys ? new Set(keys) : null;
       const out: Record<string, any> = {};
 
       if (owner === principal && (!wanted || wanted.has("pending"))) {
