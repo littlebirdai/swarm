@@ -57,6 +57,7 @@ export type WorkerConnection = {
   rotateForPurge(keepPrincipal: string | null): void;
   close(): void;
   currentEpoch(): CacheEpoch | null;
+  activeEpoch(): CacheEpoch | null;
   holdsLock(): boolean;
 };
 
@@ -226,7 +227,9 @@ export function createWorkerConnection(
       if (!writeEpochOrDisable(next)) return null;
       return next;
     }
-    return stored ?? next;
+    if (stored) return stored;
+    if (!writeEpochOrDisable(next)) return null;
+    return next;
   };
 
   function rotateToNextGeneration(expected: CacheEpoch, reason: string) {
@@ -575,6 +578,10 @@ export function createWorkerConnection(
 
     currentEpoch() {
       return activeEpoch ?? epochStore.read();
+    },
+
+    activeEpoch() {
+      return activeEpoch;
     },
 
     holdsLock() {

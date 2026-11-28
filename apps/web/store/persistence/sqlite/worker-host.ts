@@ -113,7 +113,6 @@ function isValidFlushConversations(value: unknown): boolean {
 const VALID_OPS = new Set<string>([
   "ping",
   "loadCache",
-  "loadPaintCache",
   "writePatches",
   "flushBatch",
   "loadConversationMessages",
@@ -141,8 +140,7 @@ function hasValidPatchEnvelope(payload: Record<string, unknown>): boolean {
 
 function hasValidPayload(op: SqliteWorkerOp, payload: unknown): boolean {
   if (!isPlainObject(payload)) return false;
-  if (op === "ping" || op === "loadPaintCache" || op === "readDocDetailRefs")
-    return true;
+  if (op === "ping" || op === "readDocDetailRefs") return true;
   if (op === "loadCache") {
     if (
       payload.keys !== undefined &&
@@ -358,7 +356,6 @@ export function createSqliteWorkerHost(
 
     const isRead =
       req.op === "loadCache" ||
-      req.op === "loadPaintCache" ||
       req.op === "loadConversationMessages" ||
       req.op === "readDocDetailRefs";
     if (isRead) {
@@ -381,11 +378,6 @@ export function createSqliteWorkerHost(
           context?: Record<string, unknown>;
         };
         const result = await cache.loadCache(payload.keys, payload.context);
-        respondOk(result);
-        return;
-      }
-      if (req.op === "loadPaintCache") {
-        const result = await cache.loadPaintCache();
         respondOk(result);
         return;
       }

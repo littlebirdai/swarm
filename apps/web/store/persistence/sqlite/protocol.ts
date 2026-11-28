@@ -306,7 +306,6 @@ export type SqliteWorkerPayloads = {
     keys?: readonly string[];
     context?: Record<string, unknown>;
   };
-  loadPaintCache: Record<string, never>;
   writePatches: SqliteWritePatchPayload;
   flushBatch: SqliteFlushBatchPayload;
   loadConversationMessages: { conversationId: string };
@@ -328,7 +327,6 @@ export type SqliteWorkerPayloads = {
 export type SqliteWorkerResults = {
   ping: { ok: true; workerId: string; epochId: string };
   loadCache: Record<string, any> | null;
-  loadPaintCache: Record<string, any> | null;
   writePatches: void;
   flushBatch: void;
   loadConversationMessages: CachedConversation | null;

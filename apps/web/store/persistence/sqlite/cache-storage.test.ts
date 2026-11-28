@@ -372,7 +372,7 @@ test("SQLite rolls back transcript rows on a pagination failure and keeps other 
   });
 });
 
-test("SQLite read-only scope projects paint keys and leaves disk unchanged", async () => {
+test("SQLite read-only scope reads sessions and leaves disk unchanged", async () => {
   using db = new Database(":memory:");
   const writer = createSqliteCache(db, authPrincipal);
   writeSessions(writer, {
@@ -388,7 +388,6 @@ test("SQLite read-only scope projects paint keys and leaves disk unchanged", asy
   writer.writePatches([patch("currentUser")], { currentUser: { _id: owner } });
   db.exec("DELETE FROM meta WHERE key = 'cacheOwner'");
   const reader = createSqliteCache(db, authPrincipal, "read-only");
-  expect(await reader.loadPaintCache()).toEqual(sessionState);
   expect(await reader.loadCache(["sessions"])).toEqual(sessionState);
   writeSessions(reader, { sessions: { [id]: { ...row, message_count: 2 } } });
   await reader.purgeLocalCache();
@@ -535,7 +534,6 @@ test("SQLite boots only the requested keys and leaves pending locks in IndexedDB
   expect(await store.loadCache(HYDRATION_DEFERRED_KEYS)).toEqual({
     mySends: { [id]: meta },
   });
-  expect(await store.loadPaintCache()).toEqual(sessionState);
   expect(
     db
       .query(

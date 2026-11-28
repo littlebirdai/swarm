@@ -25,7 +25,6 @@ export class WorkerRpcError extends Error {
 export const RETRIABLE_OPS = new Set<SqliteWorkerOp>([
   "ping",
   "loadCache",
-  "loadPaintCache",
   "loadConversationMessages",
   "readDocDetailRefs",
 ]);

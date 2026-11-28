@@ -1,6 +1,5 @@
 import type { AuthPrincipalTracker } from "@platform/auth/web";
 import { recordCacheEvent } from "../../cache-events";
-import { HYDRATION_PAINT_KEYS } from "../../clientSyncRegistry";
 import type { CacheStorage } from "../storage";
 import { collectionStorage } from "./collections";
 import { messageStorage } from "./messages";
@@ -14,6 +13,7 @@ export type SqliteCacheStorage = Omit<
   | "loadOutbox"
   | "outboxAccountId"
   | "persistPendingMessageChanges"
+  | "loadPaintCache"
   | "loadPaintCacheSync"
 > & {
   flushBatch(batch: SqliteFlushBatchPayload): void;
@@ -199,8 +199,6 @@ export function createSqliteCache(
         collections.load(keys, context, readOnly ? undefined : afterCommit),
       );
     },
-    loadPaintCache: () =>
-      read(() => collections.load(HYDRATION_PAINT_KEYS, {})),
     setHydrating(value) {
       hydrating = value;
     },

@@ -205,7 +205,7 @@ describe("SQLite cache worker coordinator", () => {
 
     try {
       hangHost = true;
-      const hungRead = clientA.loadPaintCache().catch(() => null);
+      const hungRead = clientA.loadCache(["sessions"]).catch(() => null);
       await waitUntil(() => clientA.holdsLock(), 1000, "clientA acquires lock");
       const firstEpoch = epochStore.read()!;
       expect(firstEpoch.generation).toBe(1);

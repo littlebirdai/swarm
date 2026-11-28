@@ -65,6 +65,7 @@ export function recordKnownState(
 export function buildFlushPayload(params: {
   batch: PendingWriteBatch;
   knownIds: Map<string, Set<string>>;
+  writeSyncMeta: boolean;
 }): {
   payload: SqliteFlushBatchPayload;
   dropKeys: string[];
@@ -74,9 +75,12 @@ export function buildFlushPayload(params: {
     lastPersistedMeta: Map<string, unknown>,
   ) => void;
 } | null {
-  const { batch, knownIds } = params;
+  const { batch, knownIds, writeSyncMeta } = params;
   const filteredPatches = batch.patches.filter(
-    ({ path }) => path.length > 0 && !journalKeys.has(String(path[0])),
+    ({ path }) =>
+      path.length > 0 &&
+      !journalKeys.has(String(path[0])) &&
+      (writeSyncMeta || path[0] !== "syncMeta"),
   );
 
   const slice: Record<string, unknown> = {};

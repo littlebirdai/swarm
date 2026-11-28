@@ -12,7 +12,6 @@ import { isDetailPinned } from "../../../lib/detail-rows";
 import {
   collectionRowHydrator,
   collectionRowValidator,
-  HYDRATION_PAINT_KEYS,
   WEB_COLLECTION_INDEXES,
 } from "../../clientSyncRegistry";
 import {
@@ -38,6 +37,7 @@ export type MemoryCacheStorage = Omit<
   | "loadOutbox"
   | "outboxAccountId"
   | "persistPendingMessageChanges"
+  | "loadPaintCache"
   | "loadPaintCacheSync"
 >;
 
@@ -159,14 +159,6 @@ export function createMemoryCacheFallback(
         return null;
       if (!ensureOwner(principal)) return null;
       return loadKeys(keys, context);
-    },
-    async loadPaintCache() {
-      const authEpoch = auth.epoch();
-      const principal = await auth.resolve();
-      if (authEpoch !== auth.epoch() || auth.current() !== principal)
-        return null;
-      if (!ensureOwner(principal)) return null;
-      return loadKeys(HYDRATION_PAINT_KEYS, {});
     },
     setHydrating(value) {
       hydrating = value;

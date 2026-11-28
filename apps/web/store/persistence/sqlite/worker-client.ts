@@ -96,6 +96,7 @@ export function createSqliteWorkerClient(
 
   let pendingBatch: PendingWriteBatch | null = null;
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let hydratedEpochId: string | null = null;
 
   let closed = false;
   let hydrating = false;
@@ -144,6 +145,42 @@ export function createSqliteWorkerClient(
     }
   };
 
+  const rotateAfterLostWrite = (
+    epoch: CacheEpoch,
+    principal: string,
+    code: string,
+  ) => {
+    const active = connection.activeEpoch();
+    if (
+      closed ||
+      auth.current() !== principal ||
+      !active ||
+      epochId(active) !== epochId(epoch)
+    )
+      return;
+    connection.handleEpochFailure(epoch, `flush-${code}`);
+  };
+
+  const dropBufferedDocDetails = (ids: readonly string[]) => {
+    const batch = pendingBatch;
+    if (!batch || !ids.length) return;
+    const dropped = new Set(ids);
+    batch.patches = batch.patches.filter(
+      ({ path }) =>
+        path[0] !== "docDetails" ||
+        path.length < 2 ||
+        !dropped.has(String(path[1])),
+    );
+    const rows = batch.state.docDetails as Record<string, unknown> | undefined;
+    if (rows && typeof rows === "object") {
+      const kept: Record<string, unknown> = {};
+      for (const [id, row] of Object.entries(rows)) {
+        if (!dropped.has(id)) kept[id] = row;
+      }
+      batch.state.docDetails = kept;
+    }
+  };
+
   const ensurePendingBatch = (principal: string): PendingWriteBatch => {
     if (pendingBatch && pendingBatch.principal !== principal) {
       clearPendingBatch();
@@ -177,15 +214,19 @@ export function createSqliteWorkerClient(
     if (principal === null || batch.principal !== principal) {
       return { dispatched: false, promise: Promise.resolve() };
     }
-    const built = buildFlushPayload({ batch, knownIds });
-    if (!built) {
-      return { dispatched: false, promise: Promise.resolve() };
-    }
     const epoch = connection.ensureActiveEpoch(principal, true);
     if (!epoch) {
       return { dispatched: false, promise: Promise.resolve() };
     }
     const sentEpochId = epochId(epoch);
+    const built = buildFlushPayload({
+      batch,
+      knownIds,
+      writeSyncMeta: hydratedEpochId === sentEpochId,
+    });
+    if (!built) {
+      return { dispatched: false, promise: Promise.resolve() };
+    }
     const promise = connection
       .send(epoch, principal, "flushBatch", built.payload)
       .then(() => {
@@ -206,6 +247,7 @@ export function createSqliteWorkerClient(
       .catch((error) => {
         resetShadowState();
         if (opfsMissing) {
+          if (closed || auth.current() !== principal) return;
           if (batch.patches.length) {
             memory.writePatches(batch.patches, batch.state);
           }
@@ -224,6 +266,13 @@ export function createSqliteWorkerClient(
               );
             }
           }
+          return;
+        }
+        if (
+          error instanceof WorkerRpcError &&
+          (error.code === "closed" || error.code === "timeout")
+        ) {
+          rotateAfterLostWrite(epoch, principal, error.code);
           return;
         }
         handleWorkerError(epoch, error);
@@ -402,6 +451,9 @@ export function createSqliteWorkerClient(
           keys,
           context: sqliteContext,
         });
+        const active = connection.activeEpoch();
+        if (active && epochId(active) === epochId(epoch))
+          hydratedEpochId = epochId(epoch);
         recordKnownState(
           knownIds,
           lastPersistedRows,
@@ -431,44 +483,7 @@ export function createSqliteWorkerClient(
     },
 
     async loadPaintCache() {
-      if (closed) return null;
-      const authEpoch = auth.epoch();
-      const principal = await auth.resolve();
-      if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
-        return null;
-      if (opfsMissing) return memory.loadPaintCache();
-      if (principal === null) {
-        connection.ensureActiveEpoch(null, false);
-        return null;
-      }
-      const epoch = connection.ensureActiveEpoch(principal, true);
-      if (!epoch) return null;
-      try {
-        const result = await connection.send(
-          epoch,
-          principal,
-          "loadPaintCache",
-          {},
-        );
-        if (
-          closed ||
-          authEpoch !== auth.epoch() ||
-          auth.current() !== principal
-        )
-          return null;
-        recordKnownState(
-          knownIds,
-          lastPersistedRows,
-          lastPersistedMeta,
-          result,
-        );
-        syncDocDetailWorkspacesFromShadow();
-        return result;
-      } catch (error) {
-        if (opfsMissing) return memory.loadPaintCache();
-        handleWorkerError(epoch, error);
-        return null;
-      }
+      return null;
     },
 
     writePatches(patches, state: Record<string, any>) {
@@ -629,6 +644,7 @@ export function createSqliteWorkerClient(
       if (closed || auth.current() !== owner) return [];
       const confirmed = ids.filter((id) => !restores.has(id) && current(id));
       if (!confirmed.length) return [];
+      if (pendingBatch?.principal === owner) dropBufferedDocDetails(confirmed);
       if (opfsMissing) {
         return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
       }
