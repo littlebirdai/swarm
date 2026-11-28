@@ -110,13 +110,25 @@ const timeout = setTimeout(
     ),
   15_000,
 );
-const unsubscribe = useInboxStore.subscribe((state, before) => {
-  if (!state.clientStateInitialized || before.clientStateInitialized) return;
+const ready = (
+  state: ReturnType<(typeof useInboxStore)["getState"]>,
+): boolean =>
+  state.clientStateInitialized &&
+  state.currentSessionId === focus._id &&
+  (state.messages[focus._id]?.length ?? 0) === 200;
+const unsubscribe = useInboxStore.subscribe((state) => {
+  if (!ready(state)) return;
   firstPaint.resolve({
     reads: new Map(reads),
     paintMs: performance.now() - bootStarted,
   });
 });
+if (ready(useInboxStore.getState())) {
+  firstPaint.resolve({
+    reads: new Map(reads),
+    paintMs: performance.now() - bootStarted,
+  });
+}
 try {
   const sample = await firstPaint.promise;
   clearTimeout(timeout);

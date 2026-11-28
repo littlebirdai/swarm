@@ -277,7 +277,9 @@ async function snapshotPersistedCounts(
     .prepare<{ count: number }>("SELECT COUNT(*) AS count FROM message_rows")
     .get()!.count;
   const userMessageCount = sqliteDb
-    .prepare<{ count: number }>("SELECT COUNT(*) AS count FROM user_messages")
+    .prepare<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM conversation_meta WHERE user_messages IS NOT NULL",
+    )
     .get()!.count;
   const counts: Record<string, number> = {
     conversationMessageMeta: messageMetaCount,
