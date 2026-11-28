@@ -16,8 +16,8 @@ import {
   workspaceForResource,
 } from "./lib/access";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
+import { findClaim } from "./lib/claims";
 import { orderFrontier, readyTasks, taskLookups } from "./lib/taskGraph";
-import { boundSessionsOf } from "./lib/taskOwner";
 import { blockersHoldingBack } from "@codecast/tasks/graph";
 import { isActiveTask } from "@codecast/tasks";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
@@ -70,9 +70,20 @@ export const context = query({
     // The binding on the conversation is the truth; the pulse only names the
     // task the session touched last, which may be one it merely filed. A
     // session the server spawned for a task has no pulse at all.
-    const heldTask = session?.active_task_id
+    const rawHeldTask = session?.active_task_id
       ? await readable(await ctx.db.get(session.active_task_id))
       : null;
+    const heldClaim =
+      rawHeldTask && session
+        ? await findClaim(ctx.db, { kind: "task", id: rawHeldTask._id })
+        : null;
+    const heldTask =
+      heldClaim &&
+      heldClaim.holder !== undefined &&
+      heldClaim.lease_until > Date.now() &&
+      heldClaim.task?.conversation_id === session!._id
+        ? rawHeldTask
+        : null;
     const task = heldTask ?? pulsed;
     if (!task) return null;
     // A task the session only filed and that has since closed leaves it nothing to pick up.
@@ -161,10 +172,13 @@ async function lostOf(
   task: Doc<"tasks">,
 ): Promise<Pick<TaskResumeContext, "held" | "lost">> {
   if (isTerminalTaskStatus(task.status)) return { held: false, lost: "closed" };
-  const owners = await boundSessionsOf(ctx, task);
-  return owners.some((c) => c._id !== session._id)
-    ? { held: false, lost: "claimed" }
-    : { held: false };
+  const row = await findClaim(ctx.db, { kind: "task", id: task._id });
+  const claimed =
+    row !== null &&
+    row.holder !== undefined &&
+    row.lease_until > Date.now() &&
+    row.task?.conversation_id !== session._id;
+  return claimed ? { held: false, lost: "claimed" } : { held: false };
 }
 
 /** The first open subtasks the caller may read, in the order they were filed,

@@ -866,6 +866,7 @@ import type * as weeklyCards from "../weeklyCards.js";
 import type * as whisk from "../whisk.js";
 import type * as workTimeline from "../workTimeline.js";
 import type * as workerSettle from "../workerSettle.js";
+import type * as workflowRunTaskTransition from "../workflowRunTaskTransition.js";
 import type * as workflow_runs from "../workflow_runs.js";
 import type * as workflows from "../workflows.js";
 
@@ -1731,6 +1732,7 @@ declare const fullApi: ApiFromModules<{
   whisk: typeof whisk;
   workTimeline: typeof workTimeline;
   workerSettle: typeof workerSettle;
+  workflowRunTaskTransition: typeof workflowRunTaskTransition;
   workflow_runs: typeof workflow_runs;
   workflows: typeof workflows;
 }>;

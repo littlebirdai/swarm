@@ -5719,6 +5719,9 @@ cliRoute("/cli/workflow-runs/list", async (ctx, body) =>
 cliRoute("/cli/workflow-runs/cancel", async (ctx, body) =>
   ctx.runMutation(api.workflow_runs.cancelFromCli, body),
 );
+cliRoute("/cli/workflow-runs/task-transition", async (ctx, body) =>
+  ctx.runMutation(api.workflowRunTaskTransition.transitionTaskFromCli, body),
+);
 
 // Session-to-session messaging
 cliRoute("/cli/messages/send", async (ctx, body) =>

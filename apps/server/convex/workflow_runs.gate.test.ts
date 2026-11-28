@@ -168,7 +168,19 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
   });
 
   test("a run with no spawner asks from the session bound to its task", async () => {
-    const { ctx, tables } = await seed();
+    const { ctx, tables } = await seed({
+      claims: [
+        {
+          _id: "claims_maker",
+          kind: "task",
+          task_id: TASK,
+          holder: MATE,
+          token: 1,
+          lease_until: Date.now() + 60_000,
+          task: { conversation_id: "conversations_maker" },
+        },
+      ],
+    });
     tables.workflow_runs[0].spawner_conversation_id = undefined;
     tables.conversations.push(maker({ active_task_id: TASK }));
     tables.tasks[0].conversation_ids = ["conversations_maker"];

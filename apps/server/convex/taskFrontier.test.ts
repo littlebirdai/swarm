@@ -11,6 +11,7 @@ import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { claimFrontier } from "./lib/claimFrontier";
+import { TASK_LEASE_MS } from "./lib/claims";
 
 const TOKEN = "task-frontier-test-token";
 const NOW = Date.now();
@@ -82,10 +83,21 @@ async function setup(
         await db.patch(taskIds[options.ephemeralFrom], {
           created_from_conversation: otherSession,
         });
-      if (options.linkedToOther)
+      if (options.linkedToOther) {
         await db.patch(taskIds[options.linkedToOther], {
           conversation_ids: [otherSession],
         });
+        await db.insert("claims", {
+          kind: "task",
+          task_id: taskIds[options.linkedToOther],
+          holder: owner,
+          token: 1,
+          lease_until: NOW + TASK_LEASE_MS,
+          request_id: "linked-to-other",
+          request_holder: owner,
+          task: { conversation_id: otherSession },
+        });
+      }
     }
     if (options.held) {
       const conversation = await rows.conversation(owner, {

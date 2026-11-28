@@ -25,6 +25,7 @@ import { scopedFetch } from "./data";
 import { workspaceForResource, workspaceKey } from "./lib/access";
 import { userCanAdminRole } from "./lib/orgAccess";
 import { isScopeless, scopeIds } from "./lib/orgScope";
+import { releaseBoundSessions } from "./lib/taskOwner";
 import {
   collectOrgSessions,
   requireWorkspaceCaller,
@@ -3051,13 +3052,7 @@ export async function setTaskStatus(
   const before = { ...task };
   await ctx.db.patch(task._id, patch);
   await afterStatusEdges(ctx as any, before, next, release);
-  if (closing) {
-    for (const convId of task.conversation_ids ?? []) {
-      const conv = await ctx.db.get(convId);
-      if (conv && String(conv.active_task_id ?? "") === String(task._id))
-        await ctx.db.patch(convId, { active_task_id: undefined });
-    }
-  }
+  await releaseBoundSessions(ctx, task);
   if (task.plan_id) await recalcPlanProgress(ctx, task.plan_id, task._id, next);
 }
 

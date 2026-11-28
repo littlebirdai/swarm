@@ -4,6 +4,7 @@ import { asUser, scheduledJobs, serverTest } from "./database.testkit";
 import { fixtureRows, type NewRow } from "./rows.testkit";
 import { api, internal } from "../convex/_generated/api";
 import type { Id, TableNames } from "../convex/_generated/dataModel";
+import { TASK_LEASE_MS } from "../convex/lib/claims";
 import { patchPullRequest } from "../convex/prShepherd";
 import {
   settleClientResolution,
@@ -163,10 +164,24 @@ export async function setup(seeds: Seeds) {
       });
     }
     for (const seed of seeds.conversations ?? []) {
-      if (seed.active_task_id)
-        await db.patch(conversations[seed._id], {
-          active_task_id: tasks[seed.active_task_id],
-        });
+      if (seed.active_task_id) {
+        const taskId = tasks[seed.active_task_id];
+        const convId = conversations[seed._id];
+        const holder = users[seed.user_id] ?? user;
+        await db.patch(convId, { active_task_id: taskId });
+        if (taskId) {
+          await db.insert("claims", {
+            kind: "task",
+            task_id: taskId,
+            holder,
+            token: 1,
+            lease_until: Date.now() + TASK_LEASE_MS,
+            request_id: `seed-${seed._id}`,
+            request_holder: holder,
+            task: { conversation_id: convId },
+          });
+        }
+      }
     }
     if (plan)
       await db.patch(plan, {

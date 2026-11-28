@@ -5658,7 +5658,7 @@
     "swarm/no-comments": 8
   },
   "apps/cli/src/workflow/templates.offline.test.ts": {
-    "swarm/no-comments": 37
+    "swarm/no-comments": 29
   },
   "apps/cli/src/workflow/templates.test.ts": {
     "swarm/no-comments": 58
@@ -8501,7 +8501,7 @@
     "swarm/no-comments": 12
   },
   "apps/server/convex/authorizationContainment.test.ts": {
-    "swarm/no-comments": 6
+    "swarm/no-comments": 4
   },
   "apps/server/convex/billing.test.ts": {
     "swarm/no-comments": 52
@@ -10721,7 +10721,7 @@
     "swarm/no-comments": 25
   },
   "apps/server/convex/lib/taskOwner.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 2
   },
   "apps/server/convex/lib/taskVerdicts.ts": {
     "swarm/no-comments": 15
@@ -12482,7 +12482,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/taskMining.ts": {
-    "swarm/no-comments": 53
+    "swarm/no-comments": 51
   },
   "apps/server/convex/taskOwner.test.ts": {
     "swarm/no-comments": 4
@@ -12557,7 +12557,7 @@
     "swarm/no-comments": 6
   },
   "apps/server/convex/tasks.roleAssignee.test.ts": {
-    "swarm/no-comments": 41
+    "swarm/no-comments": 37
   },
   "apps/server/convex/tasks.search.test.ts": {
     "swarm/no-comments": 3
@@ -12578,7 +12578,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/tasks.ts": {
-    "swarm/no-comments": 870
+    "swarm/no-comments": 865
   },
   "apps/server/convex/teamBilling.test.ts": {
     "swarm/no-comments": 20
@@ -12920,7 +12920,7 @@
     "swarm/no-comments": 5
   },
   "apps/server/convex/workflow_runs.ts": {
-    "swarm/no-comments": 376
+    "swarm/no-comments": 373
   },
   "apps/server/convex/workflows.label.test.ts": {
     "swarm/no-comments": 5

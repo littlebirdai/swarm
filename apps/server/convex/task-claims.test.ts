@@ -7,22 +7,18 @@ import { claim, findClaim, readClaimToken, TASK_LEASE_MS } from "./lib/claims";
 import { claimFrontier } from "./lib/claimFrontier";
 
 const START = 1_800_000_000_000;
-const PREVIOUS_FLAG = process.env.SWARM_TASK_CLAIMS;
 
 function advance(ms: number) {
   jest.advanceTimersByTime(ms);
 }
 
 beforeEach(() => {
-  process.env.SWARM_TASK_CLAIMS = "1";
   jest.useFakeTimers();
   jest.setSystemTime(START);
 });
 
 afterEach(() => {
   jest.useRealTimers();
-  if (PREVIOUS_FLAG === undefined) delete process.env.SWARM_TASK_CLAIMS;
-  else process.env.SWARM_TASK_CLAIMS = PREVIOUS_FLAG;
 });
 
 async function setup(seed = "task-claims") {
@@ -247,14 +243,11 @@ test("first claim mints token 1, renew extends lease, and stale tokens are refus
     reason: "busy",
   });
 
-  expect(
-    await catchClaimError(() =>
-      f.start(f.tokA, { conversation_id: String(f.convA1) }),
-    ),
-  ).toMatchObject({
-    code: "CONFLICT",
-    reason: "busy",
+  const sameConvRestart: any = await f.start(f.tokA, {
+    conversation_id: String(f.convA1),
   });
+  expect(sameConvRestart.claim_token).toBe(1);
+  expect(sameConvRestart.released_owners).toBeUndefined();
 
   const reStarted: any = await f.start(f.tokA, {
     conversation_id: String(f.convA1),
@@ -487,40 +480,6 @@ test("--take revokes active claim, mints token+1, and fences the displaced holde
   });
 });
 
-test("flag off keeps legacy task ownership unchanged and creates no claim rows", async () => {
-  delete process.env.SWARM_TASK_CLAIMS;
-  const f = await setup("flag-off");
-  const started: any = await f.start(f.tokA, {
-    conversation_id: String(f.convA1),
-  });
-  expect(started.claim_token).toBeUndefined();
-  expect(await f.claimRow()).toBeNull();
-  expect(await f.renew(f.tokA, 1, String(f.convA1))).toEqual({
-    success: false,
-    status: "disabled",
-  });
-  expect(await f.release(f.tokA, 1, String(f.convA1))).toEqual({
-    success: false,
-    status: "disabled",
-  });
-
-  advance(TASK_LEASE_MS);
-  await expect(
-    f.start(f.tokB, { conversation_id: String(f.convB) }),
-  ).rejects.toThrow(/owned by session jx7aaaa/);
-
-  const ready = await f.t.query(api.tasks.list, {
-    api_token: f.tokB,
-    workspace: "team",
-    team_id: f.team,
-    ready: true,
-  });
-  expect(ready.map((t: any) => t.short_id)).toEqual(["ct-102"]);
-
-  await f.done(f.tokA, { conversation_id: String(f.convA1) });
-  expect((await f.getTask())?.status).toBe("done");
-});
-
 test("steer and terminal claims remain unaffected while task claims are active", async () => {
   const f = await setup("coexist");
   await f.start(f.tokA, { conversation_id: String(f.convA1) });
@@ -617,4 +576,20 @@ test("account deletion and user merge clear task claim holders and preserve toke
   expect(afterMerge).not.toHaveProperty("task");
   expect(afterMerge).not.toHaveProperty("request_id");
   expect(afterMerge).not.toHaveProperty("request_holder");
+});
+
+test("spawnForTask allows the spawned session to run cast task start idempotently", async () => {
+  const f = await setup("spawn-then-start");
+  const spawned: any = await f.t.mutation(api.tasks.spawnForTask, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+  });
+  const firstToken = (await f.claimRow())?.token;
+  expect(typeof firstToken).toBe("number");
+
+  const started: any = await f.start(f.tokA, {
+    conversation_id: String(spawned.conversationId),
+  });
+  expect(started.claim_token).toBe(firstToken);
+  expect(started.released_owners).toBeUndefined();
 });

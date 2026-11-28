@@ -60,6 +60,7 @@ function tables(src = source()) {
       },
     ],
     managed_sessions: [],
+    claims: [],
     entity_conversations: [],
     live_activity_refresh: [],
   } as Record<string, any[]>;
@@ -70,10 +71,9 @@ function ctx(db: any) {
 }
 
 describe("handoffChildFields — what the child row is born with", () => {
-  test("the back pointer plus the source's task and plan binding", () => {
+  test("the back pointer plus the source's plan binding", () => {
     expect(handoffChildFields(source())).toEqual({
       handed_off_from_conversation_id: "conv-source",
-      active_task_id: "task-1",
       active_plan_id: "plan-1",
       plan_ids: ["plan-1"],
     });
@@ -113,9 +113,24 @@ describe("applyHandoffLink — the source side, same mutation", () => {
 
     const task = await db.get("task-1");
     expect(task.conversation_ids).toEqual(["conv-source", "conv-child"]);
+    expect(src.active_task_id).toBeUndefined();
+    expect((await db.get("conv-child")).active_task_id).toBe("task-1");
     const plan = await db.get("plan-1");
     expect(plan.session_ids).toEqual(["conv-source", "conv-child"]);
     expect(plan.current_session_id).toBe("conv-child");
+  });
+
+  test("clears source active_task_id even when the task is missing", async () => {
+    const t = tables();
+    t.tasks = [];
+    const db = makeFakeDb(t);
+    await applyHandoffLink(ctx(db), USER, t.conversations[0], {
+      _id: "conv-child" as any,
+      short_id: "chl5678",
+      agent_type: "codex",
+      model: null,
+    });
+    expect((await db.get("conv-source")).active_task_id).toBeUndefined();
   });
 
   test("a second handoff of the same source repoints without duplicating list entries", async () => {

@@ -72,6 +72,28 @@ describe("cast spawn review_for_task", () => {
     expect(tables.org_roles[0].counters.hands).toBe(1);
   });
 
+  test("resolves the role from a live cross-workspace claim holder not in conversation_ids", async () => {
+    const { ctx, tables } = fixture();
+    tables.tasks[0].conversation_ids = [];
+    tables.claims = [
+      {
+        _id: "claims_1",
+        kind: "task",
+        task_id: "tasks_1",
+        holder: OWNER,
+        token: 1,
+        lease_until: Date.now() + 60_000,
+        task: { conversation_id: "conversations_hand" },
+      },
+    ];
+    await (createSessionFromCli as any)._handler(ctx, {
+      agent_type: "codex",
+      review_for_task: "ct-1",
+      prompt: "review it",
+    });
+    expect(tables.org_roles[0].counters.hands).toBe(1);
+  });
+
   test("the role's cap gates the review hand too", async () => {
     const { ctx } = fixture({
       caps: { hands_per_day: 1, wakes_per_day: 10, tokens_per_day: 1000000 },
@@ -121,5 +143,54 @@ describe("cast spawn review_for_task", () => {
     const row = await db.get(result.conversation_id);
     expect(row.org_role_id).toBe(ROLE);
     expect(row.review_of_task_id).toBeUndefined();
+  });
+
+  test("teammate cannot inspect or consume a private cross-workspace claim holder role", async () => {
+    const { tables, db } = fixture({
+      caps: { hands_per_day: 1, wakes_per_day: 10, tokens_per_day: 1000000 },
+      counters: {
+        day: new Date().toISOString().slice(0, 10),
+        hands: 1,
+        wakes: 0,
+        tokens: 0,
+      },
+    });
+    const TEAMMATE = "users_teammate";
+    const TEAM = "teams_t1";
+    tables.users.push({ _id: TEAMMATE, name: "Teammate" });
+    tables.team_memberships = [
+      { _id: "tm_1", user_id: OWNER, team_id: TEAM },
+      { _id: "tm_2", user_id: TEAMMATE, team_id: TEAM },
+    ];
+    tables.tasks[0].team_id = TEAM;
+    tables.tasks[0].workspace = `team:${TEAM}`;
+    tables.tasks[0].conversation_ids = [];
+    tables.conversations[0].is_private = true;
+    delete tables.conversations[0].team_id;
+    tables.claims = [
+      {
+        _id: "claims_1",
+        kind: "task",
+        task_id: "tasks_1",
+        holder: OWNER,
+        token: 1,
+        lease_until: Date.now() + 60_000,
+        task: { conversation_id: "conversations_hand" },
+      },
+    ];
+    const teammateCtx = {
+      db,
+      auth: {
+        getUserIdentity: async () => ({ subject: `${TEAMMATE}|session` }),
+      },
+    } as any;
+    const result = await (createSessionFromCli as any)._handler(teammateCtx, {
+      agent_type: "codex",
+      review_for_task: "ct-1",
+      prompt: "review it",
+    });
+    const row = await db.get(result.conversation_id);
+    expect(row.review_of_task_id).toBe("tasks_1");
+    expect(tables.org_roles[0].counters.hands).toBe(1);
   });
 });

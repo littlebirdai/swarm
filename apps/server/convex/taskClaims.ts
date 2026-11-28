@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./functions";
-import { clearClaim, findClaim, taskClaimsEnabled } from "./lib/claims";
+import { clearClaim, findClaim } from "./lib/claims";
 import { releaseBoundSessions } from "./lib/taskOwner";
 import { moveTaskStatus } from "./tasks";
 
@@ -11,7 +11,6 @@ export const expire = internalMutation({
     token: v.number(),
   },
   handler: async (ctx, args): Promise<void> => {
-    if (!taskClaimsEnabled()) return;
     const row = await findClaim(ctx.db, { kind: "task", id: args.task_id });
     if (!row || row.holder === undefined || row.token !== args.token) return;
     const now = Date.now();

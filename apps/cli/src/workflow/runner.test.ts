@@ -1636,8 +1636,11 @@ describe("workflow/runner (stations nest under the run, gates complete)", () => 
     } as RunOptions);
     expect(outcome).toBe("failed");
     expect(spawns).toBe(2);
-    const park = calls.find((c) => c.route === "/cli/work/update")!;
+    const park = calls.find(
+      (c) => c.route === "/cli/workflow-runs/task-transition",
+    )!;
     expect(park.body).toMatchObject({
+      run_id: "run-1",
       short_id: "ct-9",
       status: "in_review",
       execution_status: "blocked",

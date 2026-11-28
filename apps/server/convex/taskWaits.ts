@@ -39,7 +39,7 @@ import {
 import { patchTask } from "./lib/taskWrite";
 import { dependentRefs, taskByRef, taskLookups } from "./lib/taskGraph";
 import { prByNumber } from "./lib/gitRefs";
-import { boundSessionsOf } from "./lib/taskOwner";
+import { liveTaskOwnerSession } from "./lib/taskOwner";
 import { waitTargetValidator } from "./lib/taskWaitValidator";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { ExecutionAuthorityError } from "./executionBindings";
@@ -1261,9 +1261,8 @@ async function wakeOwner(
   content: string,
   skip: readonly (Id<"conversations"> | undefined)[] = [],
 ): Promise<boolean> {
-  const owner = (await boundSessionsOf(ctx, task)).find(
-    (c) => !c.inbox_killed_at,
-  );
+  const candidate = await liveTaskOwnerSession(ctx, task._id);
+  const owner = candidate && !candidate.inbox_killed_at ? candidate : null;
   if (!owner) return false;
   if (skip.some((s) => s && String(owner._id) === String(s))) return true;
   try {

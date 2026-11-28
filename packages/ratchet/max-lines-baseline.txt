@@ -182,7 +182,7 @@ apps/cli/src/workflow/run-resume.e2e.test.ts 1350
 apps/cli/src/workflow/runner.test.ts 2350
 apps/cli/src/workflow/runner.ts 4300
 apps/cli/src/workflow/subjectStation.e2e.test.ts 1100
-apps/cli/src/workflow/templates.offline.test.ts 1050
+apps/cli/src/workflow/templates.offline.test.ts 950
 apps/cli/src/workflow/templates.test.ts 1550
 apps/cli/src/workspace/cli.ts 850
 apps/cli/src/workspace/lifecycle.test.ts 1350
@@ -422,7 +422,7 @@ apps/server/convex/spawn.ts 950
 apps/server/convex/syncLog.ts 900
 apps/server/convex/taskLinks.ts 1050
 apps/server/convex/taskWaits.ts 1400
-apps/server/convex/tasks.ts 6750
+apps/server/convex/tasks.ts 6700
 apps/server/convex/teamBilling.test.ts 950
 apps/server/convex/teamKit.ts 950
 apps/server/convex/teamSuggestions.test.ts 1350

@@ -10,56 +10,11 @@ import { spawnSync } from "child_process";
 import { parseWorkflowSource } from "./parser";
 import { PRESENTER_BASE, lineRunDir, runWorkflow } from "./runner";
 import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates";
+import { offlineLine, STATION_OF, type Station } from "./offline-line-fixture";
 import { unattendedOpening } from "../unattended";
 import { isolateCodecastDirEachTest } from "../test-helpers/codecastDir.js";
 import { UNION_PROFILE } from "../test-helpers/unionLineProfile";
 isolateCodecastDirEachTest("cast-wf-state-");
-
-// ── Offline runs through the session path ────────────────────────────────────
-// Every hand settles at once and writes what the real hand would through the
-// CLI; command nodes that reach git, evals or the server are stubbed with the
-// output their scripts print (their own behavior is tested above).
-const offlineLine = (dir: string) => {
-  const graph = parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.line);
-  const stub = (id: string, script: string) => {
-    graph.nodes.get(id)!.script = script;
-  };
-  stub("red", `echo '{"red": true, "dir": "${dir}"}'`);
-  stub("green", "true");
-  stub("eval", "true");
-  stub("card_draft", `echo '{"card": {"wrong": ""}}'`);
-  for (const id of [
-    "card",
-    "ship",
-    "watch",
-    "park",
-    "dissolve",
-    "unproven",
-    "reopen",
-    "drop",
-  ])
-    stub(id, "true");
-  graph.nodes.get("verify")!.script = "true";
-  return graph;
-};
-
-type Station =
-  | "ground"
-  | "plan"
-  | "analyze"
-  | "prove"
-  | "implement"
-  | "review"
-  | "card_write";
-const STATION_OF: Array<[RegExp, Station]> = [
-  [/^You ground one cause/m, "ground"],
-  [/^You write the plan/m, "plan"],
-  [/acceptance criteria an independent reviewer/, "analyze"],
-  [/^You show the miss/m, "prove"],
-  [/Implement task/, "implement"],
-  [/You are the independent reviewer/, "review"],
-  [/^# Presenting a decision/m, "card_write"],
-];
 
 describe("line.cast offline run through the session path", () => {
   let tmpDir: string;
@@ -165,10 +120,15 @@ describe("line.cast offline run through the session path", () => {
         out = { status: "paused", gate_response: gateAnswers.shift() ?? null };
       } else if (
         route === "/cli/work/update" ||
+        route === "/cli/workflow-runs/task-transition" ||
         route === "/cli/work/comment" ||
         route === "/cli/decide"
       ) {
-        if (route === "/cli/work/update" && body.status)
+        if (
+          (route === "/cli/work/update" ||
+            route === "/cli/workflow-runs/task-transition") &&
+          body.status
+        )
           task = { ...task, status: body.status };
         out = { success: true, id: "sd-1" };
       }
@@ -750,44 +710,6 @@ describe("line.cast offline run through the session path", () => {
     ).toBe(false);
   });
 
-  // A hand that keeps working runs to its cap (handWatch.ts); one that goes quiet without settling is given up on at
-  // its quiet window, here the run's 30 ms.
-  test("a hand that goes quiet without settling fails its node, which ends the hand, and the task returns to open", async () => {
-    const settle = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      if (String(url).endsWith("/cli/inbox")) {
-        calls.push({ route: "/cli/inbox", body: JSON.parse(init.body) });
-        return new Response(
-          JSON.stringify({
-            sessions: [{ id: "conv_1", work_state: "idle", is_live: true }],
-          }),
-          { status: 200 },
-        );
-      }
-      return settle(url, init);
-    }) as typeof fetch;
-    const outcome = await runWorkflow(
-      offlineLine(tmpDir),
-      opts({ agentTimeout: 30, runId: "run_1" }),
-    );
-    expect(outcome).toBe("failed");
-    expect(
-      calls.some(
-        (c) =>
-          c.route === "/cli/workflow-runs/progress" &&
-          c.body.node_status === "failed" &&
-          c.body.session_id === "s1",
-      ),
-    ).toBe(true);
-    expect(
-      calls.find((c) => c.route === "/cli/work/update")?.body,
-    ).toMatchObject({ short_id: "ct-7", status: "open" });
-    expect(
-      calls.find((c) => c.route === "/cli/work/comment")?.body.text,
-    ).toContain("showed no work");
-    expect(calls.filter((c) => c.route === "/cli/spawn")).toHaveLength(1);
-  }, 30000);
-
   // The blocker comment reaches the session that owns the task, often the
   // station's own hand; posted before the run-over report (which stops the
   // hands), it resumed ct-59998's dead Implement hand after its run ended.
@@ -888,52 +810,6 @@ describe("line.cast offline run through the session path", () => {
     expect(review).not.toContain("boom");
     expect(review).not.toContain("session_id");
   }, 30000);
-
-  // A builder that cannot go on ends the run on purpose with its own words:
-  // the problem goes back to open with them, and nobody is asked anything.
-  for (const status of ["needs_context", "blocked"] as const) {
-    test(`a ${status} handoff stops the run with the builder's words and asks nobody`, async () => {
-      effects.implement = () => {
-        task = {
-          ...task,
-          status: "in_review",
-          execution_status: status,
-          verification_evidence:
-            "The fix needs the release branch, which this checkout does not have.",
-        };
-      };
-      const outcome = await runWorkflow(
-        offlineLine(tmpDir),
-        opts({ runId: "run_1", spawnerSession: "owner-sess" }),
-      );
-      expect(outcome).toBe("failed");
-      expect(stations()).toEqual(["ground", "analyze", "prove", "implement"]);
-      expect(calls.some((c) => c.route === "/cli/workflow-runs/gate")).toBe(
-        false,
-      );
-      expect(calls.some((c) => c.route === "/cli/decide")).toBe(false);
-      expect(
-        calls.filter((c) => c.route === "/cli/work/update").at(-1)?.body,
-      ).toMatchObject({ short_id: "ct-7", status: "open" });
-      const blocker = calls.find(
-        (c) =>
-          c.route === "/cli/work/comment" && c.body.comment_type === "blocker",
-      )?.body.text;
-      expect(blocker).toBe(
-        "Stopped: The fix needs the release branch, which this checkout does not have.\n\nFull output: https://codecast.sh/workflows/runs/run_1",
-      );
-      const ended = calls
-        .filter(
-          (c) =>
-            c.route === "/cli/workflow-runs/progress" &&
-            c.body.run_status === "failed",
-        )
-        .at(-1)?.body;
-      expect(
-        `${ended?.fail_reason}\n\nFull output: https://codecast.sh/workflows/runs/run_1`,
-      ).toBe(blocker!);
-    }, 30000);
-  }
 
   test("a planner that pins blocked stops the run with what is missing", async () => {
     effects.ground = () => {

@@ -56,8 +56,6 @@ export type CallerAuthorizedRevocation = {
   now?: number;
 };
 
-export const taskClaimsEnabled = () => process.env.SWARM_TASK_CLAIMS === "1";
-
 export const terminalTypingEnabled = () =>
   process.env.CODECAST_TERMINAL_TYPING === "1";
 
@@ -388,11 +386,11 @@ export async function withHeldClaim<T, Ctx extends Pick<MutationCtx, "db">>(
   return { ...result, value: await write(ctx) };
 }
 
-export async function renew(
+export async function renewRow(
   ctx: Pick<MutationCtx, "db">,
+  row: Doc<"claims"> | null,
   input: CallerAuthorizedClaimUse,
 ): Promise<Lease | Refusal> {
-  const row = await findClaim(ctx.db, input.resource);
   const now = input.now ?? Date.now();
   const result = checkHeldClaim(row, input, now);
   if (!row || result.status !== "held") return result;
@@ -403,6 +401,14 @@ export async function renew(
   );
   await ctx.db.patch(row._id, { lease_until: leaseUntil });
   return { status: "held", token: row.token, remainingMs: leaseUntil - now };
+}
+
+export async function renew(
+  ctx: Pick<MutationCtx, "db">,
+  input: CallerAuthorizedClaimUse,
+): Promise<Lease | Refusal> {
+  const row = await findClaim(ctx.db, input.resource);
+  return await renewRow(ctx, row, input);
 }
 
 async function clearHeldClaim(

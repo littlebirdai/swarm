@@ -16,6 +16,7 @@ import {
   canAccessTask,
 } from "./lib/access";
 import { inboxVisibilityFields } from "./inboxProjection";
+import { findClaim } from "./lib/claims";
 import { liveConversationIdSet } from "./lib/liveSessions";
 import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { graphNeighbors } from "./lib/taskGraph";
@@ -309,6 +310,11 @@ export const webGetTaskDetail = query({
     const now = Date.now();
     const fiveMinutesAgo = now - 5 * 60 * 1000;
     const liveConvIds = await liveConversationIdSet(ctx, task.user_id, { now });
+    const claimRow = await findClaim(ctx.db, { kind: "task", id: task._id });
+    const liveClaimConvId =
+      claimRow && claimRow.holder !== undefined && claimRow.lease_until > now
+        ? claimRow.task?.conversation_id
+        : undefined;
 
     const linkedConversations: any[] = [];
     const seenConvIds = new Set<string>();
@@ -338,10 +344,11 @@ export const webGetTaskDetail = query({
         ...inboxVisibilityFields(conv),
       };
       if (
-        String(conv.active_task_id ?? "") === String(task._id) &&
+        liveClaimConvId &&
+        String(conv._id) === String(liveClaimConvId) &&
         String(conv.review_of_task_id ?? "") !== String(task._id)
       ) {
-        entry.bound = true;
+        entry.is_owner = true;
       }
       if (isActive) {
         const recentMsgs = await ctx.db
@@ -366,29 +373,12 @@ export const webGetTaskDetail = query({
       if (conv && (await canAccessConversation(ctx, userId, conv)))
         await pushLinked(conv);
     }
-    const allConvs = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_updated", (q: any) => q.eq("user_id", task.user_id))
-      .order("desc")
-      .take(100)
-      .then((convs: any[]) =>
-        convs.filter((c: any) => c.active_task_id === task._id),
-      );
-    for (const conv of allConvs) {
-      if (
-        seenConvIds.has(conv._id.toString()) ||
-        !(await canAccessConversation(ctx, userId, conv))
-      )
-        continue;
-      await pushLinked(conv);
+    if (liveClaimConvId && !seenConvIds.has(String(liveClaimConvId))) {
+      const conv = await ctx.db.get(liveClaimConvId);
+      if (conv && (await canAccessConversation(ctx, userId, conv))) {
+        await pushLinked(conv);
+      }
     }
-    // The task's one owning session (lib/taskOwner.ts): the newest bound one,
-    // which is the only one once every binding goes through claimTaskOwnership.
-    const owner = linkedConversations
-      .filter((lc) => lc.bound)
-      .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0];
-    for (const lc of linkedConversations) delete lc.bound;
-    if (owner) owner.is_owner = true;
 
     for (const lc of linkedConversations) {
       const insight = await ctx.db

@@ -375,7 +375,12 @@ describe("a session that takes a task assigns it to its role", () => {
     expect((await c.read("tasks"))[0].assignee).toBeUndefined();
     expect(result.assigned_role).toBeUndefined();
     // Another hand of the same role taking that task over does assign it.
-    await start(c, "ct-1", "standing-growth");
+    await c.update({
+      short_id: "ct-1",
+      status: "in_progress",
+      conversation_id: "standing-growth",
+      take: true,
+    });
     expect((await c.read("tasks"))[0].assignee).toBe(c.growth);
   });
 
@@ -409,10 +414,6 @@ describe("a session that takes a task assigns it to its role", () => {
     expect(await c.read("pending_messages")).toEqual([]);
   });
 
-  // The role assignment is decided apart from the session binding. A handoff
-  // moves the first task to in_review and leaves active_task_id set (only
-  // done and dropped clear it), so the next start binds nothing; the task
-  // still goes to the role, and the CLI still says so.
   test("start, hand off, start the next: the next task goes to the role too", async () => {
     const c = await setup([task(1), task(2)]);
     await start(c, "ct-1", "hand-growth");

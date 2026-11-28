@@ -1,10 +1,68 @@
 import { execSync } from "./proc.js";
+import { withTaskClaimToken } from "./taskClaim.js";
 import {
   clearTaskPulseIfBound,
   readTaskClaimToken,
   storeTaskClaim,
   updateTaskPulseLease,
 } from "./taskPulse.js";
+
+const WORKFLOW_RUN_TRANSITION_STATUSES = new Set([
+  "open",
+  "in_progress",
+  "in_review",
+  "done",
+  "dropped",
+]);
+
+export async function postWorkflowAwareTaskUpdate(
+  cliPost: TaskClaimCliDeps["cliPost"],
+  shortId: string,
+  sessionId: string | null,
+  body: Record<string, any>,
+  opts?: { throwOnError?: boolean },
+): Promise<any> {
+  const workflowRunId = process.env.run_id?.trim();
+  const canUseRunTransition =
+    Boolean(workflowRunId) &&
+    !body.subtask_resolution &&
+    typeof body.status === "string" &&
+    WORKFLOW_RUN_TRANSITION_STATUSES.has(body.status) &&
+    Object.keys(body).every(
+      (k) =>
+        k === "short_id" ||
+        k === "status" ||
+        k === "conversation_id" ||
+        k === "execution_status" ||
+        k === "execution_concerns" ||
+        k === "verification_evidence",
+    );
+  if (canUseRunTransition) {
+    return await cliPost(
+      "/cli/workflow-runs/task-transition",
+      {
+        run_id: workflowRunId,
+        short_id: shortId,
+        status: body.status,
+        ...(body.execution_status !== undefined
+          ? { execution_status: body.execution_status }
+          : {}),
+        ...(body.execution_concerns !== undefined
+          ? { execution_concerns: body.execution_concerns }
+          : {}),
+        ...(body.verification_evidence !== undefined
+          ? { verification_evidence: body.verification_evidence }
+          : {}),
+      },
+      opts,
+    );
+  }
+  return await cliPost(
+    "/cli/work/update",
+    withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
+    opts,
+  );
+}
 
 export interface TaskClaimCliDeps {
   cliPost: (
@@ -203,10 +261,6 @@ export async function runTaskRenew(
   }
   const res = await deps.cliPost("/cli/work/renew", body);
   const { c } = { c: deps.colors };
-  if (res?.status === "disabled") {
-    console.log(`${c.dim}Task claims disabled on server${c.reset}`);
-    return;
-  }
   if (typeof res?.claim_token === "number") {
     updateTaskPulseLease(sessionId, shortId, res.claim_token, res.lease_until);
   }
@@ -239,12 +293,8 @@ export async function runTaskRelease(
     claim_token: claimToken,
   };
   if (sessionId) body.conversation_id = sessionId;
-  const res = await deps.cliPost("/cli/work/release", body);
+  await deps.cliPost("/cli/work/release", body);
   clearTaskPulseIfBound(sessionId, shortId);
   const { c } = { c: deps.colors };
-  if (res?.status === "disabled") {
-    console.log(`${c.dim}Task claims disabled on server${c.reset}`);
-    return;
-  }
   console.log(`${c.green}ok${c.reset} Released ${c.cyan}${shortId}${c.reset}`);
 }

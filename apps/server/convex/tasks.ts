@@ -58,16 +58,17 @@ import {
   taskByRef,
   writeEdges,
 } from "./lib/taskGraph";
-import { taskClaimsEnabled } from "./lib/claims";
 import {
   claimRefArgs,
   handleTaskUpdateClaim,
   releaseTaskClaimIfHeld,
-  releaseTaskWithClaim,
-  renewTaskHeartbeat,
-  resolveTaskUpdateConv,
+  resolveTaskUpdateConversation,
   revokeWebTaskClaim,
 } from "./lib/taskClaims";
+import {
+  releaseTaskWithClaim,
+  renewTaskHeartbeat,
+} from "./lib/taskClaimHeartbeat";
 import {
   requireAccessibleTaskByToken,
   requireClaimedTaskMutation,
@@ -204,11 +205,9 @@ import {
 } from "./lib/access";
 import { forbidden, notFound } from "./lib/auth";
 import {
-  boundSessionsOf,
   changeSessionOf,
   claimTaskOwnership,
-  isSessionWorking,
-  legacyBoundReleaser,
+  liveTaskOwnerSession,
   releaseBoundSessions,
   type TaskOwnerRef,
 } from "./lib/taskOwner";
@@ -761,15 +760,12 @@ export async function moveTaskStatus(
       now,
     );
   }
-  const revokedConvId = taskClaimsEnabled()
-    ? await releaseTaskClaimIfHeld(ctx, task._id)
-    : undefined;
+  const revokedConvId = await releaseTaskClaimIfHeld(ctx, task._id);
   if (
-    taskClaimsEnabled() &&
-    (next === "open" ||
-      next === "done" ||
-      next === "dropped" ||
-      next === "backlog")
+    next === "open" ||
+    next === "done" ||
+    next === "dropped" ||
+    next === "backlog"
   ) {
     await releaseBoundSessions(ctx, task, o.conversationId, revokedConvId);
   } else if (revokedConvId) {
@@ -3066,14 +3062,12 @@ export const update = mutation({
       task.status,
       args,
     );
-    // Link conversation if provided. Unresolvable session ref = apply the
-    // update without the link, never reject the update itself (see
-    // resolveSessionConversation).
-    const conv = await resolveTaskUpdateConv(
-      ctx,
-      auth.userId,
-      args.conversation_id,
-    );
+    const { conv, unresolved: unresolvedConv } =
+      await resolveTaskUpdateConversation(
+        ctx,
+        auth.userId,
+        args.conversation_id,
+      );
     // A session handing off a task held by a decision (L5): the evidence is
     // recorded and the task stays at its station, where the person's answer
     // moves it. Any other session move of a held task is refused below.
@@ -3327,16 +3321,18 @@ export const update = mutation({
       // An explicit start (cast task start). A `changes` verdict also moves
       // to in_progress but must not bind the reviewer to the work it judges.
       const explicitStart =
-        convMatchesWorkspace &&
-        nextStatus === "in_progress" &&
-        !args.review_verdict;
+        nextStatus === "in_progress" && !args.review_verdict;
       // A session that takes a task assigns it to the role it works for
       // (org-roles-run-work.md R5), so the board shows who owns the work. A
       // task that already names a person stays theirs: the session is
       // helping them, not taking it from them. Decided apart from the binding
       // below: a hand whose first task sits in review still holds it as
       // active_task_id, and its next start must reach the role all the same.
-      if (explicitStart && args.assignee === undefined) {
+      if (
+        convMatchesWorkspace &&
+        explicitStart &&
+        args.assignee === undefined
+      ) {
         const taker = await roleTakingTask(ctx, task, conv, assigneeBoundary);
         if (taker) {
           updates.assignee = String(taker._id);
@@ -3356,19 +3352,17 @@ export const update = mutation({
           purpose: args.claim_purpose,
         });
         releasedOwners = owned.released;
-        if (owned.claimToken !== undefined && owned.leaseUntil !== undefined) {
-          claimResult = {
-            claimToken: owned.claimToken,
-            leaseUntil: owned.leaseUntil,
-          };
-        }
+        claimResult = {
+          claimToken: owned.claimToken,
+          leaseUntil: owned.leaseUntil,
+        };
         // The binding may file the session under the lead that owns the work (S35).
         await ctx.scheduler.runAfter(
           0,
           internal.sessionOwnership.reconcileHold,
           { conversation_id: conv._id },
         );
-        if (task.plan_id && !conv.active_plan_id) {
+        if (convMatchesWorkspace && task.plan_id && !conv.active_plan_id) {
           const relatedPlan = await ctx.db.get(task.plan_id);
           if (
             relatedPlan &&
@@ -3390,25 +3384,13 @@ export const update = mutation({
         );
         if (outcome) await subagentEnded(ctx, conv, outcome);
       }
-      // Clear active_task_id when task is closed
-      if (
-        (nextStatus === "done" || nextStatus === "dropped") &&
-        conv.active_task_id === task._id
-      ) {
-        await ctx.db.patch(conv._id, { active_task_id: undefined });
-        // The binding ended: a session held only for it returns to its starter (S35).
-        await ctx.scheduler.runAfter(
-          0,
-          internal.sessionOwnership.reconcileHold,
-          { conversation_id: conv._id },
-        );
-      }
     }
 
     const handledClaim = await handleTaskUpdateClaim(ctx, {
       task,
       holder: auth.userId,
       conv,
+      unresolvedConversation: unresolvedConv,
       nextStatus,
       reviewVerdict: args.review_verdict,
       claimToken: args.claim_token,
@@ -3417,13 +3399,6 @@ export const update = mutation({
       take: args.take,
       now,
       claimStarted: claimResult !== null,
-      checkLegacyBound: legacyBoundReleaser(
-        ctx,
-        task,
-        conv,
-        args.take === true,
-        now,
-      ),
       releaseBound: (claimConvId) =>
         releaseBoundSessions(ctx, task, conv?._id, claimConvId),
     });
@@ -3528,17 +3503,21 @@ export const update = mutation({
         auth.userId,
       );
     if (conv && releasedOwners.length) {
-      const from = releasedOwners.map((o) => o.short_id).join(", ");
+      const who = linkedConvId
+        ? `Session ${conv.short_id ?? conv._id}`
+        : actor.name || "A session";
       await insertTaskComment(
         ctx,
         task._id,
         {
           author: actor.name || "unknown",
-          text: `Session ${conv.short_id ?? conv._id} took over as owner from ${from}.`,
+          text: `${who} took over as owner from ${releasedOwners.map((o) => o.short_id).join(", ")}.`,
           comment_type: "note",
-          conversation_id: conv._id,
+          conversation_id: linkedConvId,
         },
         auth.userId,
+        undefined,
+        true,
       );
     }
     // blocked_by/blocks are raw overwrites; reflect the delta onto each
@@ -3727,9 +3706,10 @@ async function deliverCommentToOwner(
   },
 ): Promise<Id<"conversations"> | null> {
   if (!task.short_id || !c.text.trim()) return null;
-  const [owner] = await boundSessionsOf(ctx, task);
-  if (!owner) return null;
-  if (!(await isSessionWorking(ctx, owner, Date.now()))) return null;
+  const owner = await liveTaskOwnerSession(ctx, task._id);
+  if (!owner || owner.inbox_killed_at || owner.status === "completed") {
+    return null;
+  }
   if (!(await canSendProductMessage(ctx, c.actorId, owner))) return null;
   await enqueuePendingMessage(ctx, owner, c.actorId, {
     content: formatTaskCommentMessage({
@@ -3765,6 +3745,7 @@ export async function insertTaskComment(
     conversationId?: Id<"conversations">;
     run?: { name: string; owner: Id<"users">; ownerOnly: boolean };
   },
+  suppressRelay = false,
 ) {
   const now = Date.now();
   const id = await ctx.db.insert("task_comments", {
@@ -3842,7 +3823,12 @@ export async function insertTaskComment(
     // A person's words, not posted from a session: they reach the session
     // doing the task while it works, so commenting on the task talks to the
     // work. A bot account's comment is an agent's and never relays.
-    if (actorId && !fields.conversation_id && !actor?.is_bot) {
+    if (
+      actorId &&
+      !fields.conversation_id &&
+      !actor?.is_bot &&
+      !suppressRelay
+    ) {
       const deliveredTo = await deliverCommentToOwner(ctx, task, {
         commentId: id,
         actorId,
@@ -5758,7 +5744,6 @@ export async function spawnSessionForTask(
     team_id: teamId,
     is_private: isPrivate,
     auto_shared: autoShared || undefined,
-    active_task_id: task._id,
     title: task.title.slice(0, 80),
     // Stamp the plan so the inbox can group plan workers even when there's no
     // viable parent session to nest under (the grouping fallback).
@@ -6569,16 +6554,12 @@ export const renew = mutation({
     conversation_id: v.optional(v.string()),
     progress_pct: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const resolved = await requireAccessibleTaskByToken(
+  handler: async (ctx, args) =>
+    await runHeartbeat(
       ctx,
-      args.api_token,
-      args.short_id,
-    );
-    if (!taskClaimsEnabled())
-      return { success: false as const, status: "disabled" as const };
-    return await runHeartbeat(ctx, resolved, args);
-  },
+      await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id),
+      args,
+    ),
 });
 
 export const release = mutation({
@@ -6594,8 +6575,6 @@ export const release = mutation({
       args.api_token,
       args.short_id,
     );
-    if (!taskClaimsEnabled())
-      return { success: false as const, status: "disabled" as const };
     return await releaseTaskWithClaim(ctx, {
       task,
       holder: auth.userId,
