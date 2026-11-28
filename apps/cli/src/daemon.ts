@@ -31290,11 +31290,7 @@ const LIVENESS_RECONCILE_INTERVAL_MS = 120_000; // 2 min — conservative; daemo
 export async function reconcileSessionLiveness(
   platform = process.platform,
 ): Promise<void> {
-  if (
-    platform !== "darwin" &&
-    platform !== "linux"
-  )
-    return;
+  if (platform !== "darwin" && platform !== "linux") return;
   if (!syncServiceRef) return;
   if (isInWakeGrace()) return;
 

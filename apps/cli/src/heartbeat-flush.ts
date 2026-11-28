@@ -23,12 +23,14 @@ export function createEdgeMachineCoordinator(deps: {
   function send(op: (m: MachineSupervisor) => Promise<void>): void {
     const current = machine;
     if (!current || stopped) return;
-    lastOp = lastOp.then(() => (stopped ? undefined : op(current))).catch((err) => {
-      if (!stopped)
-        deps.log(
-          `[EDGE] Supervisor heartbeat op failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-    });
+    lastOp = lastOp
+      .then(() => (stopped ? undefined : op(current)))
+      .catch((err) => {
+        if (!stopped)
+          deps.log(
+            `[EDGE] Supervisor heartbeat op failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+      });
   }
 
   function record(sessionId: string, membership: Membership): void {
@@ -90,7 +92,6 @@ export function createEdgeMachineCoordinator(deps: {
 
   return {
     start,
-    isStarted: () => machine !== undefined,
     connect: (connection: MachineConnection): void => {
       if (stopped || !machine) return;
       void machine

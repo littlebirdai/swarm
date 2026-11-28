@@ -56,7 +56,8 @@ type Row = {
 };
 
 const D = "daemon.ts";
-const SUPERVISOR_FLUSH = "../../../packages/edge-supervisor/src/heartbeat-flush.ts";
+const SUPERVISOR_FLUSH =
+  "../../../packages/edge-supervisor/src/heartbeat-flush.ts";
 const MAIN = "async function main(";
 const ROWS: Row[] = [
   {

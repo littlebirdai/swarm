@@ -143,7 +143,11 @@ describe("heartbeat carries agent_status", () => {
   });
 
   test("the status log helper is defined and called in the flush", () => {
-    expect(supervisorFlushSource).toContain('Effect.fn("HeartbeatFlush.logStatus")');
-    expect(supervisorFlushSource).toContain("yield* logStatus(sessionId, status)");
+    expect(supervisorFlushSource).toContain(
+      'Effect.fn("HeartbeatFlush.logStatus")',
+    );
+    expect(supervisorFlushSource).toContain(
+      "yield* logStatus(sessionId, status)",
+    );
   });
 });

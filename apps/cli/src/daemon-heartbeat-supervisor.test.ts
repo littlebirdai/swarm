@@ -91,23 +91,21 @@ describe("daemon heartbeat flush supervisor", () => {
       log: () => {},
       heartbeatFlush: heartbeatFlushHostForTests(),
     });
-    setEdgeMachineForTests(
-      ({
-        ...supervisor,
-        ensureSessionHeartbeat: (id, source) => {
-          supervisorEnsureCalls++;
-          return supervisor.ensureSessionHeartbeat(id, source);
-        },
-        flushHeartbeats: () => {
-          supervisorFlushCalls++;
-          return supervisor.flushHeartbeats();
-        },
-        stopSessionHeartbeat: (id) => {
-          supervisorStopCalls++;
-          return supervisor.stopSessionHeartbeat(id);
-        },
-      }),
-    );
+    setEdgeMachineForTests({
+      ...supervisor,
+      ensureSessionHeartbeat: (id, source) => {
+        supervisorEnsureCalls++;
+        return supervisor.ensureSessionHeartbeat(id, source);
+      },
+      flushHeartbeats: () => {
+        supervisorFlushCalls++;
+        return supervisor.flushHeartbeats();
+      },
+      stopSessionHeartbeat: (id) => {
+        supervisorStopCalls++;
+        return supervisor.stopSessionHeartbeat(id);
+      },
+    });
 
     try {
       trackSessionPaneForTests(sessionId, "tmux-on", { status: "working" });
@@ -196,33 +194,31 @@ describe("daemon heartbeat flush supervisor", () => {
       log: () => {},
       heartbeatFlush: heartbeatFlushHostForTests(),
     });
-    setEdgeMachineForTests(
-      ({
-        ...supervisor,
-        ensureSessionHeartbeat: async (id, source) => {
-          order.push("ensure:start");
-          if (delayEnsure) {
-            delayEnsure = false;
-            await new Promise<void>((resolve) => {
-              releaseDelayedEnsure = resolve;
-            });
-          }
-          await supervisor.ensureSessionHeartbeat(id, source);
-          order.push("ensure:end");
-        },
-        stopSessionHeartbeat: async (id) => {
-          order.push("stop:start");
-          if (delayStop) {
-            delayStop = false;
-            await new Promise<void>((resolve) => {
-              releaseDelayedStop = resolve;
-            });
-          }
-          await supervisor.stopSessionHeartbeat(id);
-          order.push("stop:end");
-        },
-      }),
-    );
+    setEdgeMachineForTests({
+      ...supervisor,
+      ensureSessionHeartbeat: async (id, source) => {
+        order.push("ensure:start");
+        if (delayEnsure) {
+          delayEnsure = false;
+          await new Promise<void>((resolve) => {
+            releaseDelayedEnsure = resolve;
+          });
+        }
+        await supervisor.ensureSessionHeartbeat(id, source);
+        order.push("ensure:end");
+      },
+      stopSessionHeartbeat: async (id) => {
+        order.push("stop:start");
+        if (delayStop) {
+          delayStop = false;
+          await new Promise<void>((resolve) => {
+            releaseDelayedStop = resolve;
+          });
+        }
+        await supervisor.stopSessionHeartbeat(id);
+        order.push("stop:end");
+      },
+    });
 
     try {
       ensureManagedSessionHeartbeat(sessionId);
@@ -284,20 +280,18 @@ describe("daemon heartbeat flush supervisor", () => {
       log: () => {},
       heartbeatFlush: heartbeatFlushHostForTests(),
     });
-    setEdgeMachineForTests(
-      ({
-        ...supervisor,
-        stopSessionHeartbeat: async (id) => {
-          if (delayStop && id === raceSession) {
-            delayStop = false;
-            await new Promise<void>((resolve) => {
-              releaseDelayedStop = resolve;
-            });
-          }
-          await supervisor.stopSessionHeartbeat(id);
-        },
-      }),
-    );
+    setEdgeMachineForTests({
+      ...supervisor,
+      stopSessionHeartbeat: async (id) => {
+        if (delayStop && id === raceSession) {
+          delayStop = false;
+          await new Promise<void>((resolve) => {
+            releaseDelayedStop = resolve;
+          });
+        }
+        await supervisor.stopSessionHeartbeat(id);
+      },
+    });
 
     try {
       ensureManagedSessionHeartbeat(transcriptSession, "transcript");
@@ -380,21 +374,19 @@ describe("daemon heartbeat flush supervisor", () => {
       log: () => {},
       heartbeatFlush: heartbeatFlushHostForTests(),
     });
-    setEdgeMachineForTests(
-      ({
-        ...supervisor,
-        ensureSessionHeartbeat: async (id, source) => {
-          if (id === failingSession) {
-            throw new Error("membership op rejected");
-          }
-          await supervisor.ensureSessionHeartbeat(id, source);
-        },
-        flushHeartbeats: () => {
-          flushCalls++;
-          return supervisor.flushHeartbeats();
-        },
-      }),
-    );
+    setEdgeMachineForTests({
+      ...supervisor,
+      ensureSessionHeartbeat: async (id, source) => {
+        if (id === failingSession) {
+          throw new Error("membership op rejected");
+        }
+        await supervisor.ensureSessionHeartbeat(id, source);
+      },
+      flushHeartbeats: () => {
+        flushCalls++;
+        return supervisor.flushHeartbeats();
+      },
+    });
 
     try {
       ensureManagedSessionHeartbeat(failingSession);

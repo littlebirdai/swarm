@@ -7,6 +7,14 @@ test("the supervisor is absent from the CLI startup graph and loads once after t
   const daemon = await Bun.file(daemonPath).text();
   const load = 'import("@codecast/edge-supervisor").then(';
   expect(daemon.split(load)).toHaveLength(2);
+  const beat = daemon.slice(
+    daemon.indexOf("async function sendHeartbeat("),
+    daemon.indexOf(
+      "resetAuthFailureCount();",
+      daemon.indexOf("async function sendHeartbeat("),
+    ),
+  );
+  expect(beat).toContain("heartbeatSupervisor.connect({");
   expect(daemon.indexOf(load)).toBeGreaterThan(
     daemon.indexOf("hookServer = startHookServer("),
   );
