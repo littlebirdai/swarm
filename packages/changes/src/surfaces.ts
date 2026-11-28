@@ -25,6 +25,7 @@ const PACKAGE_AREAS = [
   "convex-errors",
   "daemon",
   "decisions",
+  "delivery",
   "deploys",
   "diff",
   "edge-client",
