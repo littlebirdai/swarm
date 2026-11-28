@@ -40,6 +40,7 @@ import {
   REPLICATION_CLASSIFICATION,
 } from "./clientSyncRegistry";
 import { REPLICATED_EPHEMERAL_KEYS } from "./replicated-ephemeral-keys";
+import { gateRevokedCommit } from "./scope-revocation-gate";
 import {
   consumeViewNav,
   declareViewNav,
@@ -628,6 +629,7 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
   mustDeliverExtra: isForkCreateEntry,
   legacyReceiptActions: LEGACY_RECEIPT_ACTIONS,
   outboxAccountId,
+  commitGate: (commit) => gateRevokedCommit(commit),
   outboxProtectedRows(entry) {
     const out: string[] = [];
     const args = entry.args;

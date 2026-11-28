@@ -983,8 +983,13 @@ async function loadNativeOutbox(): Promise<OutboxEntry[]> {
   }
 }
 
-// Web-only surface, stubbed for Metro: the retired browser v2 databases never
-// existed on native.
+export const nativeCachedRows = {
+  keys: storageKeys,
+  read: async (key: string) => (Storage ? await Storage.getItem(key) : null),
+  remove: scheduleRemove,
+  persisted: lastPersisted,
+};
+
 export async function salvageLocalFirstV2Data(): Promise<number> {
   return 0;
 }

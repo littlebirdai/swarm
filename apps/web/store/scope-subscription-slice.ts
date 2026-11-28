@@ -1,3 +1,4 @@
+import { forgetUndoRows } from "@platform/engine";
 import { withCacheEvictions } from "./cache-eviction";
 import {
   computeEvictionsForPurge,
@@ -249,6 +250,32 @@ function sameViewTargets(
   return a.every((t, i) => t.kind === b[i].kind && t.id === b[i].id);
 }
 
+const DETAIL_STORE_OF: Record<string, string> = {
+  docs: "docDetails",
+  tasks: "taskComments",
+};
+
+function forgetRevokedUndo(targets: readonly PurgeTarget[]): void {
+  if (targets.length === 0) return;
+  const rows = new Set<string>();
+  for (const { collection, id } of targets) {
+    rows.add(`${collection}:${id}`);
+    const detail = DETAIL_STORE_OF[collection];
+    if (detail) rows.add(`${detail}:${id}`);
+  }
+  forgetUndoRows(rows);
+}
+
+function commitDeny(
+  state: any,
+  scopes: readonly string[],
+  now: number,
+): PurgeTarget[] {
+  const targets: PurgeTarget[] = state._commitScopeDeny(scopes, now);
+  forgetRevokedUndo(targets);
+  return targets;
+}
+
 export type ScopeSubscriptionSlice = {
   scopeSubscriptions: ScopeSubscriptionState;
   scopeViewTargets: Record<string, ScopeViewTarget[]>;
@@ -272,7 +299,10 @@ export type ScopeSubscriptionSlice = {
   scopeRevocations: Record<string, number>;
   applyReplicatedScopeRevocations: (value: unknown) => void;
   adoptScopeRevocations: (now?: number) => void;
-  _commitReplicatedScopeRevocations: (value: unknown) => string[];
+  _commitReplicatedScopeRevocations: (value: unknown) => {
+    entered: string[];
+    targets: PurgeTarget[];
+  };
   setPeerViewScopes: (peerId: string, scopes: readonly string[]) => void;
   clearPeerViewScopes: () => void;
   _commitScopeReconcile: (
@@ -445,13 +475,13 @@ export function createScopeSubscriptionSlice(
       const userScope = userId ? `user:${userId}` : null;
       const denySet = new Set(scopes.filter((s) => s && s !== userScope));
       if (denySet.size === 0) return [];
-      return state._commitScopeDeny([...denySet], now);
+      return commitDeny(state, [...denySet], now);
     },
 
     revokeTeamScope(this: any, teamId: string, now = Date.now()) {
       if (!teamId) return [];
       const state = readState(this);
-      const out = state._commitScopeDeny([`dir:${teamId}`], now);
+      const out = commitDeny(state, [`dir:${teamId}`], now);
       state.dropTeamFeedCache(teamId);
       return out;
     },
@@ -459,7 +489,7 @@ export function createScopeSubscriptionSlice(
     _commitReplicatedScopeRevocations: syncFn(function (
       this: any,
       value: unknown,
-    ): string[] {
+    ): { entered: string[]; targets: PurgeTarget[] } {
       const prev: Record<string, number> = this.scopeRevocations ?? {};
       const incoming: Array<[string, number]> = [];
       if (value && typeof value === "object") {
@@ -482,11 +512,12 @@ export function createScopeSubscriptionSlice(
       for (const scope of Object.keys(prev))
         if (!offered.has(scope)) left.add(scope);
       liftDeniedExcludes(this, left);
+      let targets: PurgeTarget[] = [];
       if (entered.size > 0) {
         const userId = this.currentUser?._id
           ? String(this.currentUser._id)
           : null;
-        revokeScopeRowsInDraft(
+        targets = revokeScopeRowsInDraft(
           this,
           entered,
           Date.now(),
@@ -494,12 +525,14 @@ export function createScopeSubscriptionSlice(
         );
       }
       if (!sameRevocations(prev, next)) this.scopeRevocations = next;
-      return [...entered];
+      return { entered: [...entered], targets };
     }),
 
     applyReplicatedScopeRevocations(this: any, value: unknown) {
       const state = readState(this);
-      const entered: string[] = state._commitReplicatedScopeRevocations(value);
+      const { entered, targets } =
+        state._commitReplicatedScopeRevocations(value);
+      forgetRevokedUndo(targets);
       for (const scope of entered) {
         const teamId = scope.startsWith("dir:") ? scope.slice(4) : null;
         if (teamId) state.dropTeamFeedCache(teamId);
@@ -508,43 +541,35 @@ export function createScopeSubscriptionSlice(
 
     adoptScopeRevocations(this: any, now = Date.now()) {
       const state = readState(this);
-      const scopes = Object.keys(state.scopeRevocations ?? {});
-      if (scopes.length > 0) state._commitScopeDeny(scopes, now);
+      const denied = state.scopeSubscriptions?.denied ?? {};
+      const scopes = Object.keys(state.scopeRevocations ?? {}).filter(
+        (scope) => !(scope in denied),
+      );
+      if (scopes.length > 0) commitDeny(state, scopes, now);
     },
 
     clearDeniedScopeSubscriptions: syncFn(function (
       this: any,
       scopes?: readonly string[],
     ) {
-      const denied = this.scopeSubscriptions?.denied;
-      if (!denied || Object.keys(denied).length === 0) {
-        publishScopeRevocationsInDraft(this);
-        return;
-      }
-      if (!scopes) {
-        liftDeniedExcludes(this, new Set(Object.keys(denied)));
-        this.scopeSubscriptions = {
-          ...this.scopeSubscriptions,
-          denied: {},
-        };
-        publishScopeRevocationsInDraft(this);
-        return;
-      }
-      const cleared = new Set<string>();
+      const denied = this.scopeSubscriptions?.denied ?? {};
+      const requested = new Set(
+        (scopes ?? Object.keys(denied)).filter((s) => isKnownHomeScope(s)),
+      );
+      liftDeniedExcludes(this, requested);
       const next = { ...denied };
-      for (const s of scopes) {
-        if (s in next) {
-          delete next[s];
-          cleared.add(s);
+      let cleared = false;
+      for (const scope of requested) {
+        if (scope in next) {
+          delete next[scope];
+          cleared = true;
         }
       }
-      if (cleared.size > 0) {
-        liftDeniedExcludes(this, cleared);
+      if (cleared)
         this.scopeSubscriptions = {
           ...this.scopeSubscriptions,
           denied: next,
         };
-      }
       publishScopeRevocationsInDraft(this);
     }),
 

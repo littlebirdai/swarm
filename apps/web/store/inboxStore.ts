@@ -743,6 +743,7 @@ import {
   resetDetailPins,
   pullRequestDetailRow,
   taskCommentsRow,
+  taskThreadScope,
   thinPullRequestRow,
   thinTaskRow,
   type PullRequestDetailRow,
@@ -755,8 +756,6 @@ import {
 import {
   createScopeSubscriptionSlice,
   dropDetailsOfRemovedParents,
-  dropRevokedRows,
-  rowInRevokedScope,
   type ScopeSubscriptionSlice,
 } from "./scope-subscriptions";
 export type { ThreadsCursor } from "./threadTypes";
@@ -17336,7 +17335,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // commits synchronously; only the notification is folded. A plain function,
   // not an action: the fold has to wrap the inner action's own commit.
   syncTable(field: string, incoming: any, opts?: SyncOpts) {
-    incoming = dropRevokedRows(get(), field, incoming);
     syncTransaction(() => {
       const split = DETAIL_SPLITS[field];
       if (split && Array.isArray(incoming)) {
@@ -17684,7 +17682,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // function wrapping the sync() action, because the fold has to enclose the
   // action's own write.
   syncRecord(field: string, id: string, record: any) {
-    if (rowInRevokedScope(get(), field, record)) return;
     syncTransaction(() => {
       const split = DETAIL_SPLITS[field];
       if (split && record && typeof record === "object") {
@@ -20628,6 +20625,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (!threads[id])
         threads[id] = {
           _id: id,
+          ...taskThreadScope(task),
           comments: [],
           as_of: 0,
           _cachedAt: Date.now(),

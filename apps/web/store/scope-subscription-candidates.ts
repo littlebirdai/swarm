@@ -3,6 +3,12 @@ import { isDetailPinned } from "../lib/detail-rows";
 import { isConvexId } from "../lib/entityLinks";
 import { holdsUnsentComment } from "./store-eviction";
 import { leavesOf } from "./stageSplit";
+import {
+  isKnownHomeScope,
+  revokedScopeOfRow,
+  rowHomeScope,
+  type ScopeScopedCollection,
+} from "./scope-row-home";
 
 export const SCOPE_FOLLOW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -19,7 +25,8 @@ export type ScopeCandidates = {
   view: string[];
 };
 
-export type ScopeScopedCollection = "tasks" | "docs" | "plans" | "chatMessages";
+export { isKnownHomeScope, revokedScopeOfRow, rowHomeScope };
+export type { ScopeScopedCollection };
 
 export type ScopeViewTargetKind =
   | "project"
@@ -84,19 +91,6 @@ const SCOPE_SCOPED_COLLECTIONS: readonly ScopeScopedCollection[] = [
   "plans",
   "chatMessages",
 ];
-
-const KNOWN_HOME_SCOPE_PREFIXES = [
-  "user:",
-  "dir:",
-  "project:",
-  "channel:",
-] as const;
-
-export function isKnownHomeScope(scope: string): boolean {
-  return KNOWN_HOME_SCOPE_PREFIXES.some(
-    (prefix) => scope.startsWith(prefix) && scope.length > prefix.length,
-  );
-}
 
 const ENTITY_ROW_KEY_CACHE = new WeakMap<object, Map<string, string | null>>();
 
@@ -247,32 +241,6 @@ export function findEntityRow(
   return (
     lookupEntityInMap(secondary, ref) ?? lookupEntityInMap(primary, ref) ?? null
   );
-}
-
-export function rowHomeScope(
-  collection: ScopeScopedCollection,
-  row: any,
-): string | null {
-  if (!row) return null;
-  if (typeof row.home_scope === "string" && row.home_scope.length > 0) {
-    return isKnownHomeScope(row.home_scope) ? row.home_scope : null;
-  }
-  if (collection === "chatMessages") {
-    return row.channel_id ? `channel:${String(row.channel_id)}` : null;
-  }
-  if (typeof row.workspace === "string" && row.workspace.length > 0) {
-    if (row.workspace.startsWith("user:")) return row.workspace;
-    if (row.workspace.startsWith("team:")) {
-      return row.project_id
-        ? `project:${String(row.project_id)}`
-        : `dir:${row.workspace.slice(5)}`;
-    }
-    return null;
-  }
-  if (row.user_id && !row.team_id) {
-    return `user:${String(row.user_id)}`;
-  }
-  return null;
 }
 
 export function extractViewScopes(
@@ -641,6 +609,9 @@ export function purgeUnheldScopeRowsInDraft(
   for (const { collection, id } of targets) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (rows && id in rows) delete rows[id];
+    const detailKey = DETAIL_OF_PARENT[collection];
+    if (detailKey && draft[detailKey]?.[id] && !isDetailPinned(detailKey, id))
+      delete draft[detailKey][id];
   }
   return targets;
 }
@@ -649,26 +620,6 @@ const DETAIL_OF_PARENT: Record<string, string> = {
   docs: "docDetails",
   tasks: "taskComments",
 };
-
-function rowTeamId(row: any): string | null {
-  const ws = row?.workspace;
-  if (typeof ws === "string")
-    return ws.startsWith("team:") ? ws.slice(5) : null;
-  return row?.team_id ? String(row.team_id) : null;
-}
-
-export function revokedScopeOfRow(
-  collection: string,
-  row: any,
-  revokedScopes: ReadonlySet<string>,
-): string | null {
-  const team = rowTeamId(row);
-  if (team && revokedScopes.has(`dir:${team}`)) return `dir:${team}`;
-  const homeCollection = collection === "docDetails" ? "docs" : collection;
-  if (homeCollection === "projects") return null;
-  const home = rowHomeScope(homeCollection as ScopeScopedCollection, row);
-  return home && revokedScopes.has(home) ? home : null;
-}
 
 export function revokeScopeRowsInDraft(
   draft: any,
@@ -682,11 +633,11 @@ export function revokeScopeRowsInDraft(
     ...SCOPE_SCOPED_COLLECTIONS,
     "projects",
     "docDetails",
+    "taskComments",
   ] as const) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (!rows) continue;
     for (const id of Object.keys(rows)) {
-      if (!isConvexId(id) || isStubId(id)) continue;
       const row = rows[id];
       if (!row || typeof row !== "object") continue;
       const scope = revokedScopeOfRow(collection, row, revokedScopes);
@@ -697,11 +648,13 @@ export function revokeScopeRowsInDraft(
       if (draft.pending) {
         const keys = new Set([collection as string]);
         if (collection === "docDetails") keys.add("docs");
+        if (collection === "taskComments") keys.add("tasks");
         if (detailKey) keys.add(detailKey);
         for (const key of keys)
           draft.pending[`${key}:${id}`] = { type: "exclude", ts: now, scope };
       }
-      if (collection !== "docDetails") targets.push({ collection, id, scope });
+      if (collection !== "docDetails" && collection !== "taskComments")
+        targets.push({ collection, id, scope });
     }
   }
   return targets;
@@ -718,82 +671,4 @@ export function dropDetailsOfRemovedParents(
   for (const id of removedIds) {
     if (details[id] !== undefined) delete details[id];
   }
-}
-
-const REVOCATION_GATED: Readonly<Record<string, true>> = {
-  tasks: true,
-  docs: true,
-  plans: true,
-  chatMessages: true,
-  projects: true,
-  docDetails: true,
-};
-
-export function isRevocationGated(collection: string): boolean {
-  return REVOCATION_GATED[collection] === true;
-}
-
-export function activeRevokedScopes(state: {
-  scopeRevocations?: Record<string, number>;
-  scopeSubscriptions?: { denied?: Record<string, unknown> };
-}): ReadonlySet<string> | null {
-  const published = state.scopeRevocations;
-  const denied = state.scopeSubscriptions?.denied;
-  let out: Set<string> | null = null;
-  for (const map of [published, denied]) {
-    if (!map) continue;
-    for (const scope in map) {
-      if (scope.startsWith("user:") || !isKnownHomeScope(scope)) continue;
-      (out ??= new Set()).add(scope);
-    }
-  }
-  return out;
-}
-
-export function rowInRevokedScope(
-  state: Parameters<typeof activeRevokedScopes>[0],
-  collection: string,
-  row: any,
-): boolean {
-  if (!isRevocationGated(collection) || !row || typeof row !== "object")
-    return false;
-  const revoked = activeRevokedScopes(state);
-  return !!revoked && revokedScopeOfRow(collection, row, revoked) !== null;
-}
-
-export function dropRevokedRows<T>(
-  state: Parameters<typeof activeRevokedScopes>[0],
-  collection: string,
-  incoming: T,
-): T {
-  if (!isRevocationGated(collection) || !Array.isArray(incoming))
-    return incoming;
-  const revoked = activeRevokedScopes(state);
-  if (!revoked) return incoming;
-  const kept = incoming.filter(
-    (row) =>
-      !row ||
-      typeof row !== "object" ||
-      revokedScopeOfRow(collection, row, revoked) === null,
-  );
-  return (kept.length === incoming.length ? incoming : kept) as T;
-}
-
-export function dropRevokedRowMap<T>(
-  state: Parameters<typeof activeRevokedScopes>[0],
-  collection: string,
-  rows: T,
-): T {
-  if (!isRevocationGated(collection) || !rows || typeof rows !== "object")
-    return rows;
-  if (Array.isArray(rows)) return dropRevokedRows(state, collection, rows);
-  const revoked = activeRevokedScopes(state);
-  if (!revoked) return rows;
-  let out: Record<string, unknown> | null = null;
-  for (const [id, row] of Object.entries(rows as Record<string, unknown>)) {
-    if (revokedScopeOfRow(collection, row, revoked) === null) continue;
-    out ??= { ...(rows as Record<string, unknown>) };
-    delete out[id];
-  }
-  return (out ?? rows) as T;
 }

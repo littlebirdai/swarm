@@ -147,6 +147,10 @@ export function detailRowsToEvict(
 export type TaskCommentsRow = {
   _id: string;
   comments: any[];
+  workspace?: string;
+  team_id?: string;
+  project_id?: string;
+  home_scope?: string;
   /** The task's `last_comment_at` when this set was read: a task row with a
    *  newer one says the thread has moved since. */
   as_of: number;
@@ -162,6 +166,26 @@ export function thinTaskRow<T extends Row>(row: T): T {
   return rest as T;
 }
 
+export function taskThreadScope(
+  row: Row,
+): Pick<
+  TaskCommentsRow,
+  "workspace" | "team_id" | "project_id" | "home_scope"
+> {
+  const out: Pick<
+    TaskCommentsRow,
+    "workspace" | "team_id" | "project_id" | "home_scope"
+  > = {};
+  for (const key of [
+    "workspace",
+    "team_id",
+    "project_id",
+    "home_scope",
+  ] as const)
+    if (typeof row?.[key] === "string" && row[key]) out[key] = String(row[key]);
+  return out;
+}
+
 /** The thread a task row carries, or null when it carries none. */
 export function taskCommentsRow(
   row: Row,
@@ -171,6 +195,7 @@ export function taskCommentsRow(
   if (!row || !Array.isArray(row.comments)) return null;
   return {
     _id: String(row._id),
+    ...taskThreadScope(row),
     comments: row.comments,
     as_of:
       typeof row.last_comment_at === "number"

@@ -28059,7 +28059,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/idb-cache.native.ts": {
-    "swarm/no-comments": 132
+    "swarm/no-comments": 130
   },
   "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
@@ -28231,7 +28231,7 @@
     "swarm/no-comments": 57
   },
   "apps/web/store/sync-replication.ts": {
-    "swarm/no-comments": 97
+    "swarm/no-comments": 95
   },
   "apps/web/store/syncActivity.ts": {
     "swarm/no-comments": 26

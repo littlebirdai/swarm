@@ -47,7 +47,8 @@ const { rebootPersistence, useInboxStore } = await import("../inboxStore");
 const { replicationLockName } = await import("../storage-transport");
 const { startSyncReplication, stopSyncReplication } =
   await import("../sync-replication");
-const { sweepRevokedRowsFromDisk } = await import("../scope-revocation-disk");
+const { sweepRevokedRowsFromDisk, watchRevokedDiskRows } =
+  await import("../scope-revocation-disk");
 await waitFor(() => !hydration._hydrating);
 
 const T = "teamalpha";
@@ -175,4 +176,98 @@ test("a revocation sweeps doc details that only exist on disk", async () => {
   expect(removed).toEqual({ docDetails: [revoked._id] });
   expect(await COLLECTION_TABLES.docDetails.get(revoked._id)).toBeUndefined();
   expect(await COLLECTION_TABLES.docDetails.get(kept._id)).toBeDefined();
+});
+
+test("disk hydration leaves out rows of a revoked scope", async () => {
+  const release = holdHostLock();
+  const now = Date.now();
+  const revokedDoc = {
+    _id: "v".repeat(32),
+    workspace: `team:${T}`,
+    title: "Revoked doc",
+    updated_at: now,
+  };
+  const keptDoc = {
+    _id: "w".repeat(32),
+    workspace: `user:${TEST_PRINCIPAL}`,
+    title: "Mine",
+    updated_at: now,
+  };
+  await COLLECTION_TABLES.docs.bulkPut([revokedDoc, keptDoc]);
+  useInboxStore.setState({
+    scopeSubscriptions: {
+      ...useInboxStore.getState().scopeSubscriptions,
+      denied: { [`dir:${T}`]: { digest: "boot", at: now } },
+    },
+  } as any);
+  rebootPersistence();
+  startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
+  release();
+  await waitFor(() => status().elected);
+  await waitFor(() => !!useInboxStore.getState().docs[keptDoc._id]);
+  expect(useInboxStore.getState().docs[revokedDoc._id]).toBeUndefined();
+});
+
+test("a live host sweeps the disk when a new revocation lands", async () => {
+  const release = holdHostLock();
+  rebootPersistence();
+  await waitFor(() => !hydration._hydrating);
+  startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
+  release();
+  await waitFor(() => status().elected);
+  const stop = watchRevokedDiskRows(useInboxStore);
+  cleanups.push(stop);
+  await COLLECTION_TABLES.docDetails.bulkPut([revokedDetail, keptDetail]);
+  useInboxStore.setState({
+    currentUser: { _id: TEST_PRINCIPAL },
+    teams: [{ _id: T }],
+  } as any);
+  useInboxStore.getState().revokeTeamScope(T);
+  await waitFor(
+    async () =>
+      (await COLLECTION_TABLES.docDetails.get(revokedDetail._id)) === undefined,
+  );
+  expect(await COLLECTION_TABLES.docDetails.get(keptDetail._id)).toBeDefined();
+});
+
+test("a channel sweep reads only the chat table through its channel index", async () => {
+  const message = { _id: "c".repeat(32), channel_id: "c1", content: "x" };
+  const other = { _id: "o".repeat(32), channel_id: "c2", content: "y" };
+  const task = {
+    _id: "q".repeat(32),
+    workspace: `team:${T}`,
+    channel_id: "c1",
+    title: "x",
+  };
+  await COLLECTION_TABLES.chatMessages.bulkPut([message, other]);
+  await COLLECTION_TABLES.tasks.put(task);
+  useInboxStore.setState({ scopeRevocations: { "channel:c1": 5 } } as any);
+  const removed = await sweepRevokedRowsFromDisk(new Set(["channel:c1"]));
+  expect(removed).toEqual({ chatMessages: [message._id] });
+  expect(await COLLECTION_TABLES.chatMessages.get(other._id)).toBeDefined();
+  expect(await COLLECTION_TABLES.tasks.get(task._id)).toBeDefined();
+});
+
+test("a follower that stops outside an account change takes the host role through the shared sequence", async () => {
+  holdHostLock();
+  rebootPersistence();
+  await waitFor(() => !hydration._hydrating);
+  useInboxStore.setState({ scopeRevocations: { [`dir:${T}`]: 5 } } as any);
+  startSyncReplication({ eligible: false, principalId: TEST_PRINCIPAL });
+  stopSyncReplication();
+  expect(
+    (useInboxStore.getState() as any).scopeSubscriptions.denied[`dir:${T}`],
+  ).toBeDefined();
+});
+
+test("an account change stop does not adopt the old account's revocations", async () => {
+  holdHostLock();
+  rebootPersistence();
+  await waitFor(() => !hydration._hydrating);
+  useInboxStore.setState({ scopeRevocations: { [`dir:${T}`]: 5 } } as any);
+  startSyncReplication({ eligible: false, principalId: TEST_PRINCIPAL });
+  stopSyncReplication({ accountReset: true });
+  expect(
+    (useInboxStore.getState() as any).scopeSubscriptions.denied[`dir:${T}`],
+  ).toBeUndefined();
 });

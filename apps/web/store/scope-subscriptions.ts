@@ -4,15 +4,12 @@ import {
   computeEvictionsForPurge,
   computePurgeSet,
   dropDetailsOfRemovedParents,
-  dropRevokedRows,
   extractScopeCandidates,
   extractViewScopes,
   findEntityRow,
   isKnownHomeScope,
   purgeUnheldScopeRowsInDraft,
   rowHomeScope,
-  rowInRevokedScope,
-  activeRevokedScopes,
   type PurgeTarget,
   type ScopeCandidates,
   type ScopeFollowCandidate,
@@ -22,6 +19,11 @@ import {
   type ScopeViewTarget,
   type ScopeViewTargetKind,
 } from "./scope-subscription-candidates";
+import {
+  activeRevokedScopes,
+  dropRevokedRows,
+  rowInRevokedScope,
+} from "./scope-revocation-gate";
 import {
   createScopeSubscriptionSlice,
   reconcileScopeSubscriptionsInDraft,

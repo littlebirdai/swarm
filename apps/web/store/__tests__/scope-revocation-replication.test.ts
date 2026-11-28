@@ -23,7 +23,10 @@ import {
   extractScopeCandidates,
   reconcileScopeSubscriptions,
 } from "../scope-subscriptions";
-import { dropRevokedRowMap } from "../scope-subscription-candidates";
+import {
+  activeRevokedScopes,
+  dropRevokedRowMap,
+} from "../scope-revocation-gate";
 import { takeHostRole } from "../host-role";
 
 const cid = (label: string) =>
@@ -688,5 +691,57 @@ describe("scope revocations as replicated state", () => {
       "start:true",
       "disk:true",
     ]);
+  });
+
+  test("a re-grant lifts the excludes of a scope the cap already evicted", () => {
+    useInboxStore
+      .getState()
+      .applyReplicatedScopeRevocations({ [`dir:${T}`]: 5 });
+    expect(
+      (useInboxStore.getState().pending as any)[`tasks:${tTeam}`],
+    ).toBeDefined();
+    useInboxStore.setState({
+      syncRole: "host",
+      scopeRevocations: {},
+    } as any);
+    useInboxStore.getState().clearDeniedScopeSubscriptions([`dir:${T}`]);
+    expect(
+      (useInboxStore.getState().pending as any)[`tasks:${tTeam}`],
+    ).toBeUndefined();
+  });
+
+  test("adoption keeps the time of a scope that is already denied", () => {
+    useInboxStore.setState({
+      currentUser: { _id: "u1" },
+      syncRole: "host",
+      scopeRevocations: { [`dir:${T}`]: 100 },
+      scopeSubscriptions: {
+        ...initialScopeSubscriptionState(),
+        principalId: "u1",
+        denied: { [`dir:${T}`]: { digest: "d", at: 100 } },
+      },
+    } as any);
+    useInboxStore.getState().adoptScopeRevocations(5000);
+    const s = useInboxStore.getState() as any;
+    expect(s.scopeSubscriptions.denied[`dir:${T}`].at).toBe(100);
+    expect(s.scopeRevocations[`dir:${T}`]).toBe(100);
+  });
+
+  test("the active revoked set is cached by the two maps", () => {
+    const published = { [`dir:${T}`]: 1 };
+    const denied = { "project:p1": { digest: "d", at: 1 } };
+    const a = activeRevokedScopes({
+      scopeRevocations: published,
+      scopeSubscriptions: { denied },
+    });
+    const b = activeRevokedScopes({
+      scopeRevocations: published,
+      scopeSubscriptions: { denied },
+    });
+    expect(a).toBe(b);
+    expect([...(a ?? [])].sort()).toEqual([`dir:${T}`, "project:p1"]);
+    expect(
+      activeRevokedScopes({ scopeRevocations: {}, scopeSubscriptions: {} }),
+    ).toBeNull();
   });
 });

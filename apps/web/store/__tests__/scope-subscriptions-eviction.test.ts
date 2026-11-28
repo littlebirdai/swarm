@@ -184,7 +184,7 @@ describe("scope subscription review regressions", () => {
       .getState()
       .denyScopeSubscriptions(["project:p-rev"], 2000);
     expect(purged.map((x) => x.id).sort()).toEqual(
-      [tRevoked, dRevoked, pRevoked].sort(),
+      [tRevoked, dRevoked, pRevoked, "taskstub-local"].sort(),
     );
     expect(__cacheEvictionsIdleForTests()).toBe(true);
     expect(capturedEvictionCount).toBe(0);
@@ -195,7 +195,7 @@ describe("scope subscription review regressions", () => {
       dRevoked,
     );
     expect(useInboxStore.getState().tasks[tRevoked]).toBeUndefined();
-    expect(useInboxStore.getState().tasks["taskstub-local"]).toBeDefined();
+    expect(useInboxStore.getState().tasks["taskstub-local"]).toBeUndefined();
     expect(useInboxStore.getState().docDetails[dRevoked]).toBeUndefined();
     expect(useInboxStore.getState().taskComments[tRevoked]).toBeUndefined();
     expect(useInboxStore.getState().pending[`tasks:${tRevoked}`]).toEqual({

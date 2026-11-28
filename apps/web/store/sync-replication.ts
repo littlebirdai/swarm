@@ -97,14 +97,16 @@ export type SyncReplicationStatus = {
   selfId: string;
 };
 
-let running: { stop: () => void; status: () => SyncReplicationStatus } | null =
-  null;
+let running: {
+  stop: (opts?: { accountReset?: boolean }) => void;
+  status: () => SyncReplicationStatus;
+} | null = null;
 
 /** Stop this window's replication now, whatever role it held: channel closed,
  *  lock released, write-through restored. The account boundary calls this
  *  synchronously so no further message is sent or accepted for the old account. */
-export function stopSyncReplication(): void {
-  running?.stop();
+export function stopSyncReplication(opts?: { accountReset?: boolean }): void {
+  running?.stop(opts);
 }
 
 export function canWriteSharedDocDetails(principalId: string): boolean {
@@ -650,11 +652,11 @@ export function startSyncReplication(opts: {
             (useInboxStore.getState() as any)._setIDBWrite(
               keys ? persistence.followerWrite : persistence.hostWrite,
             );
-            if (keys) persistence.discardSkipped();
-            else persistence.persistSkipped();
           },
           setRole: () => setRole("host"),
           start: () => {
+            if (keys) persistence.discardSkipped();
+            else persistence.persistSkipped();
             details?.enterSolo();
             scopeView?.stopFollowing(false);
           },
@@ -745,7 +747,7 @@ export function startSyncReplication(opts: {
 
   if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);
 
-  const stop = () => {
+  const stop = (opts?: { accountReset?: boolean }) => {
     if (stopped) return;
     stopped = true;
     retention.stop();
@@ -757,15 +759,22 @@ export function startSyncReplication(opts: {
     if (details) setDetailInvalidationReporter();
     lock.release();
     transport.close();
-    const internals = useInboxStore.getState() as any;
-    setActionTee(null);
-    setDeferredSharedCacheSource("disk");
-    // Whatever role we were in, leave the window as a self-sufficient host
-    // (today's behavior): write-through restored, feeders gate open.
-    internals._setIDBWrite(
-      keys ? persistence.followerWrite : persistence.hostWrite,
-    );
-    setRole("host");
+    const leave = {
+      installWriter: () => {
+        setActionTee(null);
+        (useInboxStore.getState() as any)._setIDBWrite(
+          keys ? persistence.followerWrite : persistence.hostWrite,
+        );
+      },
+      setRole: () => setRole("host"),
+      start: () => {},
+      useDiskCache: () => setDeferredSharedCacheSource("disk"),
+    };
+    if (opts?.accountReset) {
+      leave.installWriter();
+      leave.setRole();
+      leave.useDiskCache();
+    } else takeHostRole(leave);
     running = null;
   };
 
