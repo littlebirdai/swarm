@@ -198,11 +198,7 @@ export async function resolveOwnedClaimConversation(
   if (!conv) {
     throw taskClaimError("wrong_holder", 0, "Conversation not found");
   }
-  const matchesHost = String(conv.user_id) === String(holder);
-  const matchesOwner =
-    conv.owner_user_id !== undefined &&
-    String(conv.owner_user_id) === String(holder);
-  if (!matchesHost && !matchesOwner) {
+  if (String(conv.user_id) !== String(holder)) {
     throw taskClaimError(
       "wrong_holder",
       0,
@@ -294,7 +290,7 @@ export async function assertTaskMutationClaim(
   holder: Id<"users">,
   args: { claim_token?: number; conversation_id?: string },
   now: number,
-  releaseOnPass?: () => Promise<void>,
+  releaseOnPass?: (claimConvId?: Id<"conversations">) => Promise<void>,
 ): Promise<Id<"conversations"> | undefined> {
   if (!taskClaimsEnabled()) return undefined;
   const conv = await resolveOwnedClaimConversation(
@@ -310,8 +306,8 @@ export async function assertTaskMutationClaim(
     now,
   });
   if (releaseOnPass) {
-    await releaseTaskClaimIfHeld(ctx, task._id);
-    await releaseOnPass();
+    const claimConvId = await releaseTaskClaimIfHeld(ctx, task._id);
+    await releaseOnPass(claimConvId);
   }
   return conv?._id;
 }
@@ -341,10 +337,12 @@ export async function revokeWebTaskClaim(
   }
   if (
     releaseBound &&
-    (nextStatus === "done" ||
+    (claimConvId !== undefined ||
+      nextStatus === "done" ||
       nextStatus === "dropped" ||
       nextStatus === "open" ||
       nextStatus === "backlog" ||
+      nextStatus === "in_progress" ||
       reviewVerdict === "approve" ||
       reviewVerdict === "reject")
   ) {
@@ -591,9 +589,11 @@ export async function handleTaskUpdateClaim(
     if (
       nextStatus === "open" ||
       nextStatus === "backlog" ||
+      nextStatus === "in_review" ||
       nextStatus === "done" ||
       nextStatus === "dropped" ||
       reviewVerdict === "approve" ||
+      reviewVerdict === "changes" ||
       reviewVerdict === "reject"
     ) {
       await input.releaseBound(claimConvId);

@@ -657,3 +657,97 @@ test("re-review fixes: heartbeat no-token, backlog, batch in_progress, cross-ws 
   await f.t.mutation(internal.accountDelete.purgeAccount, { user_id: f.ana });
   expect(await f.t.run(({ db }) => db.get(f.ana))).toBeNull();
 });
+
+test("host-only claim holder, accountDelete claim cleanup, in_review/scheduleRetry/in_progress unbinding, and generated api refs", async () => {
+  const f = await setup("recheck-7");
+
+  const hostedRoleConv = await f.t.run(({ db }) =>
+    fixtureRows(db, "recheck-hosted").conversation(f.ana, {
+      short_id: "jx7host",
+      title: "Hosted role",
+      team_id: f.team,
+      is_private: false,
+      owner_user_id: f.ben,
+      updated_at: START,
+    }),
+  );
+
+  expect(
+    await catchClaimError(() =>
+      f.start(f.tokB, { conversation_id: String(hostedRoleConv) }),
+    ),
+  ).toMatchObject({ code: "CONFLICT", reason: "wrong_holder" });
+
+  await f.start(f.tokA, { conversation_id: String(hostedRoleConv) });
+  expect((await f.claimRow())?.holder).toBe(f.ana);
+
+  const personalConv = await f.t.run(({ db }) =>
+    fixtureRows(db, "recheck-xws").conversation(f.ana, {
+      short_id: "jx7pxws",
+      title: "Cross-workspace session",
+      updated_at: START,
+    }),
+  );
+
+  const inReviewClaim: any = await f.start(f.tokA, {
+    conversation_id: String(personalConv),
+    take: true,
+  });
+  await f.t.mutation(api.tasks.update, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+    status: "in_review",
+    execution_status: "done",
+    verification_evidence: "checked",
+    claim_token: inReviewClaim.claim_token,
+    conversation_id: String(personalConv),
+  });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
+
+  const retryClaim: any = await f.start(f.tokA, {
+    conversation_id: String(personalConv),
+    take: true,
+  });
+  await f.t.mutation(api.tasks.scheduleRetry, {
+    api_token: f.tokA,
+    short_id: "ct-101",
+    claim_token: retryClaim.claim_token,
+    conversation_id: String(personalConv),
+  });
+  expect((await f.getTask())?.status).toBe("open");
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
+
+  await f.start(f.tokA, { conversation_id: String(personalConv), take: true });
+  await f.t.mutation(api.tasks.batchUpdateStatus, {
+    api_token: f.tokA,
+    short_ids: ["ct-101"],
+    status: "in_progress",
+  });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
+
+  await f.start(f.tokA, { conversation_id: String(personalConv), take: true });
+  await asUser(f.t, f.ben).mutation(api.tasks.webUpdate, {
+    short_id: "ct-101",
+    status: "in_progress",
+  });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getConv(personalConv))?.active_task_id).toBeUndefined();
+
+  expect(api["lib/taskClaims"]).toBeDefined();
+  expect(api["lib/taskClaimLifecycle"]).toBeDefined();
+
+  await f.start(f.tokA, {
+    conversation_id: String(hostedRoleConv),
+    take: true,
+  });
+  await f.t.run(async ({ db }) => {
+    const row = await findClaim(db, { kind: "task", id: f.taskId });
+    await db.patch(row!._id, { holder: f.ben });
+  });
+  await f.t.mutation(internal.accountDelete.purgeAccount, { user_id: f.ana });
+  expect((await f.claimRow())?.holder).toBeUndefined();
+  expect((await f.getTask())?.status).toBe("open");
+});

@@ -772,6 +772,8 @@ export async function moveTaskStatus(
       next === "backlog")
   ) {
     await releaseBoundSessions(ctx, task, o.conversationId, revokedConvId);
+  } else if (revokedConvId) {
+    await releaseBoundSessions(ctx, task, revokedConvId);
   }
   const before = { ...task };
   await patchTask(ctx, task, updates);
@@ -6495,7 +6497,7 @@ export const scheduleRetry = mutation({
     const { auth, task, now } = await requireClaimedTaskMutation(
       ctx,
       args,
-      (t) => releaseBoundSessions(ctx, t),
+      (t, claimConvId) => releaseBoundSessions(ctx, t, claimConvId),
     );
     const newAttemptCount = (task.attempt_count || 0) + 1;
 

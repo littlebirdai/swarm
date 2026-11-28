@@ -534,6 +534,8 @@ import type * as lib_suggestionInputRanking from "../lib/suggestionInputRanking.
 import type * as lib_suggestionOutcomeWrite from "../lib/suggestionOutcomeWrite.js";
 import type * as lib_superseded from "../lib/superseded.js";
 import type * as lib_switchCommands from "../lib/switchCommands.js";
+import type * as lib_taskClaimLifecycle from "../lib/taskClaimLifecycle.js";
+import type * as lib_taskClaims from "../lib/taskClaims.js";
 import type * as lib_taskExecution from "../lib/taskExecution.js";
 import type * as lib_taskGraph from "../lib/taskGraph.js";
 import type * as lib_taskHistory from "../lib/taskHistory.js";
@@ -1397,6 +1399,8 @@ declare const fullApi: ApiFromModules<{
   "lib/suggestionOutcomeWrite": typeof lib_suggestionOutcomeWrite;
   "lib/superseded": typeof lib_superseded;
   "lib/switchCommands": typeof lib_switchCommands;
+  "lib/taskClaimLifecycle": typeof lib_taskClaimLifecycle;
+  "lib/taskClaims": typeof lib_taskClaims;
   "lib/taskExecution": typeof lib_taskExecution;
   "lib/taskGraph": typeof lib_taskGraph;
   "lib/taskHistory": typeof lib_taskHistory;

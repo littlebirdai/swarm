@@ -177,7 +177,7 @@ export async function purgeAccountPass(
     .take(CONVERSATIONS_PER_PASS);
   for (const conv of conversations) {
     if (conv.active_task_id) {
-      await releaseSessionTaskClaim(ctx, conv, userId, {
+      await releaseSessionTaskClaim(ctx, conv, undefined, {
         skipUnbindConv: true,
       });
     }

@@ -34,7 +34,10 @@ export async function requireClaimedTaskMutation(
     claim_token?: number;
     conversation_id?: string;
   },
-  releaseOnPass?: (task: Doc<"tasks">) => Promise<void>,
+  releaseOnPass?: (
+    task: Doc<"tasks">,
+    claimConvId?: Id<"conversations">,
+  ) => Promise<void>,
 ) {
   const { auth, task } = await requireAccessibleTaskByToken(
     ctx,
@@ -48,7 +51,9 @@ export async function requireClaimedTaskMutation(
     auth.userId,
     args,
     now,
-    releaseOnPass ? () => releaseOnPass(task) : undefined,
+    releaseOnPass
+      ? (claimConvId) => releaseOnPass(task, claimConvId)
+      : undefined,
   );
   return { auth, task, now };
 }
@@ -155,10 +160,7 @@ export async function releaseClearedTaskClaim(
 export async function releaseSessionTaskClaim(
   ctx: DbCtx,
   conv:
-    | Pick<
-        Doc<"conversations">,
-        "_id" | "active_task_id" | "user_id" | "owner_user_id"
-      >
+    | Pick<Doc<"conversations">, "_id" | "active_task_id" | "user_id">
     | null
     | undefined,
   expectedHolder?: Id<"users">,
@@ -169,10 +171,8 @@ export async function releaseSessionTaskClaim(
     kind: "task",
     id: conv.active_task_id,
   });
-  const matchesHolder = expectedHolder
-    ? String(row?.holder ?? "") === String(expectedHolder)
-    : String(row?.holder ?? "") === String(conv.user_id) ||
-      String(row?.holder ?? "") === String(conv.owner_user_id ?? "");
+  const matchesHolder =
+    !expectedHolder || String(row?.holder ?? "") === String(expectedHolder);
   if (
     row &&
     row.holder !== undefined &&

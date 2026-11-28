@@ -200,7 +200,7 @@ export async function claimTaskOwnership(
   if (taskClaimsEnabled()) {
     const res = await claimTaskWithLease<TaskOwnerRef>(ctx, {
       task,
-      holder: opts.holder ?? conv.owner_user_id ?? conv.user_id,
+      holder: opts.holder ?? conv.user_id,
       conv,
       take: opts.take,
       now,
