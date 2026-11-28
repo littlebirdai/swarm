@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
 import type {
   DeliveryReceiptJournal,
@@ -10,8 +11,8 @@ import { bindingFor, fixture } from "./codex-owned-pilot-fixture.js";
 import {
   CodexPilotDelivery,
   CodexPilotLeaseLost,
-  type CodexPilotDeliveryOptions,
 } from "./codex-pilot-delivery.js";
+import { makeOwnedProviderBridge } from "./codex-pilot-provider-bridge.js";
 import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 
 const claim: ClaimGrant = {
@@ -41,7 +42,7 @@ function abortAwareJournal(): DeliveryReceiptJournal {
   };
 }
 
-function setup(options?: CodexPilotDeliveryOptions) {
+function setup() {
   const f = fixture("pilot", "receipt");
   const binding = bindingFor(f.pilotRequest, true);
   const journal = abortAwareJournal();
@@ -53,7 +54,6 @@ function setup(options?: CodexPilotDeliveryOptions) {
         signal: abort,
       }),
     (message) => f.logs.push(message),
-    options,
   );
   delivery.receiptJournal = journal;
   const record = () =>
@@ -129,28 +129,70 @@ test("closing during a delivery step keeps the session until the step settles", 
   }
 });
 
-test("a provider call that outlives its time limit reads its receipt and settles late", async () => {
-  const { f, delivery, record, drain } = setup({ providerTimeoutMs: 50 });
-  const session = strictStub<OwnedSession>("owned provider", {
-    getCheckpoint: () => f.deliveryThread,
-    async steer() {
-      await Bun.sleep(150);
-      await record();
-      return { status: "duplicate", receipt: { delivery_id: "delivery-1" } };
+test("a provider call cancelled while it runs still reads its receipt", async () => {
+  const journal = abortAwareJournal();
+  const controller = new AbortController();
+  const checkpoint = "thread-1";
+  const bridge = makeOwnedProviderBridge({
+    context: () => ({
+      binding: strictStub<ReadyBinding>("ready binding", { capabilities: [] }),
+      session: strictStub<OwnedSession>("owned provider", {
+        async steer() {
+          controller.abort();
+          await journal.record(
+            "pilot",
+            checkpoint,
+            receipt,
+            new AbortController().signal,
+          );
+          return {
+            status: "duplicate",
+            receipt: { delivery_id: "delivery-1" },
+          };
+        },
+      }),
+    }),
+    receipts: {
+      find: (session, deliveryId, signal) =>
+        journal.find(session, checkpoint, deliveryId, signal),
+      record: async () => {},
+      forget: async () => {},
     },
+    hasAppendedReceipt: () => false,
+    setPendingStarter: () => {},
   });
+  const outcome = await bridge.deliver(
+    {
+      kind: "provider.deliver",
+      request_id: "request-1",
+      session: "pilot",
+      run: 1,
+      fencing_token: "edge-lease",
+      delivery_id: "delivery-1",
+      attempt_id: "attempt-1",
+      seq: 1,
+      intent: "queue",
+      sender: { kind: "person", id: "owner" },
+      input: [{ type: "text", text: "hello" }],
+    },
+    controller.signal,
+  );
+  expect(outcome).toEqual({ status: "duplicate", receipt });
+});
+
+test("closing while the delivery service starts leaves no disposed service behind", async () => {
+  const { f, delivery, drain } = setup();
+  const session = idleSession(f.deliveryThread);
   try {
-    f.enqueue(1);
-    expect(await drain(session, new AbortController().signal)).toBe(false);
-    expect(f.settlements.map(({ outcome }) => outcome)).toEqual(["in_doubt"]);
-    await until(
-      () => f.settlements.some(({ outcome }) => outcome === "applied"),
-      "the late provider result settles the delivery",
-    );
-    await until(
-      () => f.runtime.coordinator.getActiveDelivery("pilot") === undefined,
-      "the coordinator releases the settled delivery",
-    );
+    const first = drain(session, new AbortController().signal);
+    const closing = delivery.clearImages();
+    await closing;
+    await first.catch(() => {});
+    const second = await Promise.race([
+      drain(session, new AbortController().signal),
+      Bun.sleep(2_000).then(() => "timed out" as const),
+    ]);
+    expect(second).toBe(true);
   } finally {
     await delivery.clearImages();
     await f.dispose();

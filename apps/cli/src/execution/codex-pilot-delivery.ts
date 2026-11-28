@@ -7,7 +7,6 @@ import type { DeliveryFacade, ReceiptJournal } from "@codecast/delivery";
 import type { EdgeBlobResult } from "@codecast/edge-supervisor";
 import {
   EDGE_PROTOCOL_VERSION as v,
-  STEER_BATON_CAPABILITY,
   parseDeliverySettleResponse,
   parseDeliveryStartResponse,
   parsePermitsNextResponse,
@@ -17,10 +16,10 @@ import {
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
 import type {
-  DeliveryOutcome,
   DeliveryReceiptJournal,
   OwnedSession,
 } from "@codecast/provider-contract";
+import { makeOwnedProviderBridge } from "./codex-pilot-provider-bridge.js";
 import type { ExecutionCoordinator } from "./coordinator.js";
 
 type FetchEdge = (
@@ -55,14 +54,9 @@ type PilotPermit = Extract<PermitsNextResponse, { status: "permit" }>;
 export class CodexPilotLeaseLost extends Error {}
 
 const HELD_WITHOUT_RECEIPT = "owned_codex_receipt_pending";
-const RECEIPT_READ_MS = 5_000;
 const STALE_SETTLE_LIMIT = 5;
 const STALE_SETTLE_BASE_MS = 2_000;
 const STALE_SETTLE_MAX_MS = 60_000;
-
-export type CodexPilotDeliveryOptions = {
-  readonly providerTimeoutMs?: number;
-};
 
 type ActiveContext = {
   readonly binding: ReadyBinding;
@@ -87,7 +81,6 @@ export class CodexPilotDelivery {
   constructor(
     private readonly fetch: FetchEdge,
     private readonly log: (message: string) => void,
-    private readonly options: CodexPilotDeliveryOptions = {},
   ) {}
 
   retryDelayMs(): number | undefined {
@@ -148,6 +141,7 @@ export class CodexPilotDelivery {
       this.serviceInit = undefined;
       const current = await init?.catch(() => undefined);
       await current?.dispose().catch(() => {});
+      if (this.service === current) this.service = undefined;
       this.context = undefined;
       this.staleSettle = undefined;
       await Promise.all(
@@ -245,7 +239,8 @@ export class CodexPilotDelivery {
 
   private async ensureService(): Promise<DeliveryFacade> {
     if (this.service) return this.service;
-    this.serviceInit ??= (async () => {
+    if (this.serviceInit) return this.serviceInit;
+    const init: Promise<DeliveryFacade> = (async () => {
       const { createDeliveryService } = await import("@codecast/delivery");
       const checkpoint = () => this.context?.session.getCheckpoint();
       const receipts: ReceiptJournal = {
@@ -294,7 +289,6 @@ export class CodexPilotDelivery {
 
       const facade = createDeliveryService({
         log: this.log,
-        providerTimeoutMs: this.options.providerTimeoutMs,
         receiptJournal: receipts,
         allowTakeover: false,
         runningTurn: () => this.activeTurn,
@@ -473,108 +467,22 @@ export class CodexPilotDelivery {
             const bytes = new Uint8Array(await response.arrayBuffer());
             return { ok: true, content_type: contentType, bytes };
           },
-          deliver: async (request, signal) => {
-            const ctx = this.activeContext();
-            signal.throwIfAborted();
-            const turn =
-              request.intent === "queue"
-                ? null
-                : (request.expected?.turn ?? null);
-            const recordsStarter =
-              ctx.binding.capabilities.includes(STEER_BATON_CAPABILITY) &&
-              turn === null;
-            if (recordsStarter) this.pendingStarter = request.sender;
-            let result: DeliveryOutcome | undefined;
-            try {
-              result = await ctx.session.steer({
-                expected: {
-                  run: request.run,
-                  fencing_token: request.fencing_token,
-                  turn,
-                },
-                delivery_id: request.delivery_id,
-                authors: [request.sender],
-                input: [...request.input],
-              });
-            } finally {
-              if (recordsStarter && result?.status !== "accepted")
-                this.pendingStarter = undefined;
-            }
-            if (
-              result.status === "duplicate" &&
-              result.receipt.delivery_id === request.delivery_id
-            ) {
-              const recorded = await receipts.find(
-                request.session,
-                request.delivery_id,
-                AbortSignal.timeout(RECEIPT_READ_MS),
-              );
-              if (recorded) return { status: "duplicate", receipt: recorded };
-              return {
-                status: "in_doubt",
-                reason: "unknown",
-                code: "OWNED_CODEX_RECEIPT_MISSING",
-                message: "Owned Codex receipt is absent from the journal",
-              };
-            }
-            if (this.appendedReceipts.has(request.delivery_id)) {
-              const recorded = await receipts.find(
-                request.session,
-                request.delivery_id,
-                AbortSignal.timeout(RECEIPT_READ_MS),
-              );
-              if (recorded) return { status: "delivered", receipt: recorded };
-            }
-            if (
-              result.status === "stale" ||
-              result.status === "refused" ||
-              result.status === "unsupported"
-            ) {
-              return {
-                status: "failed",
-                retryable: result.status === "stale",
-                code:
-                  result.status === "refused"
-                    ? result.code
-                    : `OWNED_CODEX_DELIVERY_${result.status.toUpperCase()}`,
-                message:
-                  result.status === "refused"
-                    ? result.message
-                    : `Codex delivery was ${result.status}`,
-              };
-            }
-            return {
-              status: "in_doubt",
-              reason: result.status === "in-doubt" ? "unknown" : "best-effort",
-              code:
-                result.status === "in-doubt"
-                  ? result.code
-                  : "OWNED_CODEX_RECEIPT_PENDING",
-              message:
-                result.status === "in-doubt"
-                  ? result.message
-                  : "Delivery awaits a Codex receipt",
-            };
-          },
-          recover: async (request, signal) => {
-            const recorded = await receipts.find(
-              request.session,
-              request.delivery_id,
-              signal,
-            );
-            if (recorded) return { status: "delivered", receipt: recorded };
-            return {
-              status: "in_doubt",
-              code: "OWNED_CODEX_RECEIPT_PENDING",
-              message: "Delivery awaits a Codex receipt",
-            };
-          },
+          ...makeOwnedProviderBridge({
+            context: () => this.activeContext(),
+            receipts,
+            hasAppendedReceipt: (deliveryId) =>
+              this.appendedReceipts.has(deliveryId),
+            setPendingStarter: (sender) => {
+              this.pendingStarter = sender;
+            },
+          }),
         },
       });
-      this.service = facade;
+      if (this.serviceInit === init) this.service = facade;
       return facade;
     })();
-    return this.serviceInit;
+    this.serviceInit = init;
+    return init;
   }
 
   private async markAmbiguous(
