@@ -16,17 +16,12 @@ const env = {
   RELAY_HMAC_KEY: process.env.RELAY_HMAC_KEY,
   RELAY_AUDIENCE: process.env.RELAY_AUDIENCE,
   RELAY_HMAC_PREVIOUS_KEY: process.env.RELAY_HMAC_PREVIOUS_KEY,
-  CODECAST_RELAY_VIEWER_PRESENCE: process.env.CODECAST_RELAY_VIEWER_PRESENCE,
-  CODECAST_RELAY_VIEWER_PRESENCE_SHARED:
-    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED,
 };
 
 beforeEach(() => {
   process.env.RELAY_HMAC_KEY = key;
   process.env.RELAY_AUDIENCE = audience;
   delete process.env.RELAY_HMAC_PREVIOUS_KEY;
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
 });
 
 afterEach(() => {
@@ -490,7 +485,7 @@ const viewerSession = (id: string) => ({
   id: `viewer:${id}`,
 });
 
-test("viewer hub grants require CODECAST_RELAY_VIEWER_PRESENCE and enforce access tiers, TTL caps, and identity scope", async () => {
+test("viewer hub grants enforce access tiers, TTL caps, and identity scope", async () => {
   const t = serverTest();
   const {
     owner,
@@ -548,27 +543,6 @@ test("viewer hub grants require CODECAST_RELAY_VIEWER_PRESENCE and enforce acces
     share_token: "viewer-share-token",
   });
 
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
-  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
-  expect(
-    await asUser(t, owner).mutation(mint, { hubs: [viewerSession(full)] }),
-  ).toEqual({
-    status: "denied",
-    omitted: [refused(`viewer:${full}`)],
-  });
-  expect(
-    await asUser(t, owner).query(api.relayGrants.viewerTarget, {
-      conversation_id: full,
-    }),
-  ).toBeNull();
-  expect(
-    await asUser(t, owner).query(api.relayGrants.viewerIdentities, {
-      conversation_id: full,
-      user_ids: [teammate],
-    }),
-  ).toEqual([]);
-
-  process.env.CODECAST_RELAY_VIEWER_PRESENCE = "1";
   const ownerViewer = await asUser(t, owner).mutation(mint, {
     hubs: [viewerSession(full)],
   });
@@ -608,21 +582,6 @@ test("viewer hub grants require CODECAST_RELAY_VIEWER_PRESENCE and enforce acces
     omitted: [refused(`viewer:${summary}`)],
   });
 
-  expect(
-    await asUser(t, guest).mutation(mint, {
-      hubs: [viewerSession(privateShared)],
-    }),
-  ).toEqual({
-    status: "denied",
-    omitted: [refused(`viewer:${privateShared}`)],
-  });
-  expect(
-    await asUser(t, guest).query(api.relayGrants.viewerTarget, {
-      conversation_id: privateShared,
-    }),
-  ).toBeNull();
-
-  process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED = "1";
   const guestGrant = await asUser(t, guest).mutation(mint, {
     hubs: [viewerSession(privateShared)],
   });
