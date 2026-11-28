@@ -291,10 +291,11 @@ test("shared viewer subscription remembers terminal unavailable for late-mountin
   });
 
   expect(ui.store.getState().relayViewerPresence[conversationId]?.status).toBe(
-    "disabled",
+    "unknown",
   );
   expect(
-    ui.container.querySelector('[data-sv-presence-status="unknown"]') === null,
-  ).toBe(true);
+    ui.container.querySelector('[data-sv-presence-status="unknown"]'),
+  ).not.toBeNull();
+  expect(ui.container.textContent).toContain("Presence unknown");
   await ui.close();
 });

@@ -617,4 +617,10 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   pruneGhostSessions: INTERNAL,
   markServerDeleted: INTERNAL,
   dropOrgIntent: INTERNAL,
+  applyRelayTokenDeltaStatus: never(
+    "relay token delta stream status clears on disconnect or unmount",
+  ),
+  pruneRelayTokenStreams: never(
+    "relay token delta streams retire on durable arrival or turn close",
+  ),
 };

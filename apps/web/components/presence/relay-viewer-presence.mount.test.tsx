@@ -140,8 +140,6 @@ async function mountSessionSurface(opts: {
     cursor_pos?: number | null;
     in_draft?: boolean;
     can_send?: boolean;
-    anchor?: { message_id: string; offset: number };
-    anchor_at?: number;
     claims?: Array<{
       user_id: Id<"users">;
       text: string;
@@ -393,7 +391,7 @@ test("missing VITE_RELAY_URL, RelayPresenceContext, or WebSocket opens no relay 
   await withoutSocket.close();
 });
 
-test("mint unavailable or rate_limited cancels automatic retries without falling back to Convex", async () => {
+test("mint unavailable or rate_limited cancels automatic retries and renders Presence unknown without falling back to Convex", async () => {
   for (const terminalStatus of ["rate_limited", "unavailable"] as const) {
     let mints = 0;
     const ui = await mountSessionSurface({
@@ -419,12 +417,34 @@ test("mint unavailable or rate_limited cancels automatic retries without falling
     expect(mints).toBe(mintsAfterFirst);
     expect(
       ui.store.getState().relayViewerPresence[conversationId]?.status,
-    ).toBe("disabled");
+    ).toBe("unknown");
     expect(ui.container.querySelector("[data-sv-viewers]")).toBeNull();
     expect(ui.container.querySelector("[data-sv-reader-faces]")).toBeNull();
+    expect(
+      ui.container.querySelectorAll('[data-sv-presence-status="unknown"]')
+        .length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(ui.container.textContent).toContain("Presence unknown");
 
     await ui.close();
   }
+
+  const nullTarget = await mountSessionSurface({
+    relayOn: true,
+    viewerTarget: null,
+    rosterPeerViewing: conversationId,
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(
+    nullTarget.store.getState().relayViewerPresence[conversationId]?.status,
+  ).toBe("unknown");
+  expect(
+    nullTarget.container.querySelectorAll('[data-sv-presence-status="unknown"]')
+      .length,
+  ).toBeGreaterThanOrEqual(2);
+  await nullTarget.close();
 });
 
 test("denied subscription hides viewer faces instead of falling back to roster", async () => {
@@ -439,7 +459,6 @@ test("denied subscription hides viewer faces instead of falling back to roster",
         user_id: rosterPeerId,
         user_name: "Bob Teammate",
         user_color: "#00bcd4",
-        anchor: { message_id: firstMessageId, offset: 0.4 },
         updated_at: Date.now(),
       },
     ],

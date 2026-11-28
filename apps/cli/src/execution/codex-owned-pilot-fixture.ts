@@ -28,6 +28,7 @@ import type { RuntimeDriver } from "./driver.js";
 import { FileExecutionOperationJournal } from "./local-journal.js";
 import {
   parseDeliverySettleRequest,
+  RELAY_TOKEN_DELTAS_CAPABILITY,
   STEER_BATON_CAPABILITY,
   parseDeliveryStartRequest,
   parseHelloRequest,
@@ -42,7 +43,6 @@ import type { RuntimeStartRequest } from "./types.js";
 export { bindingFor, item, pending, started };
 
 type RelayFixture = {
-  flag?: string;
   grant: (signal: AbortSignal) => Promise<Response>;
 };
 
@@ -269,7 +269,6 @@ export function fixture(
         CODECAST_FENCED_EXECUTION_V1: flag ? "1" : "0",
         CODECAST_CODEX_OWNED_PILOT_SESSION: selected ?? undefined,
         CODECAST_CODEX_OWNED_NEW_SESSIONS: many ? "1" : undefined,
-        CODECAST_RELAY_LIVENESS_PUBLISH: relay?.flag,
       },
     );
   }
@@ -423,9 +422,11 @@ export function fixture(
         const operation = new URL(String(input)).pathname.split("/").at(-1);
         const body = JSON.parse(String(init?.body));
         actions.push(`edge:${operation}`);
-        if (operation === "hello" && relay) {
+        if (operation === "hello") {
           expect(parseHelloRequest(body).ok).toBe(true);
-          expect(body.capabilities).toEqual(["relay_session_liveness"]);
+          if (relay) {
+            expect(body.capabilities).toEqual([RELAY_TOKEN_DELTAS_CAPABILITY]);
+          }
           return Response.json({
             status: "ok",
             version: 1,
@@ -438,7 +439,7 @@ export function fixture(
                 max_batch_bytes: 100_000,
                 max_blob_bytes: 100_000,
               },
-              capabilities: ["relay_session_liveness"],
+              capabilities: relay ? [RELAY_TOKEN_DELTAS_CAPABILITY] : [],
             },
           });
         }

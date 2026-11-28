@@ -17,7 +17,6 @@ import { useWatchEffect } from "./useWatchEffect";
 type SharedViewerSubscription = {
   presenceCount: number;
   tokenDeltasCount: number;
-  terminalUnavailable: boolean;
   unsubscribe: () => void;
 };
 
@@ -139,7 +138,7 @@ export function useSubscribeRelayViewer(
     if (targetError || targetNull) {
       const store = useInboxStore.getState();
       if (isPresence) {
-        store.setRelayViewerStatus(validId, account, "", "disabled");
+        store.setRelayViewerStatus(validId, account, "", "unknown");
       } else {
         store.applyRelayTokenDeltaStatus(validId, "disabled");
       }
@@ -157,7 +156,6 @@ export function useSubscribeRelayViewer(
       const sharedEntry: SharedViewerSubscription = {
         presenceCount: isPresence ? 1 : 0,
         tokenDeltasCount: isPresence ? 0 : 1,
-        terminalUnavailable: false,
         unsubscribe: () => {},
       };
       shared = sharedEntry;
@@ -191,22 +189,14 @@ export function useSubscribeRelayViewer(
               );
             }
           },
-          (status, meta) => {
-            sharedEntry.terminalUnavailable =
-              status === "unavailable" && Boolean(meta?.terminal);
+          (status) => {
             const store = useInboxStore.getState();
             if (sharedEntry.presenceCount > 0) {
-              const mapped =
-                status === "unavailable"
-                  ? sharedEntry.terminalUnavailable
-                    ? "disabled"
-                    : "unknown"
-                  : status;
               store.setRelayViewerStatus(
                 validId,
                 targetViewer,
                 targetHub,
-                mapped,
+                status === "unavailable" ? "unknown" : status,
               );
             }
             if (sharedEntry.tokenDeltasCount > 0) {
@@ -239,11 +229,7 @@ export function useSubscribeRelayViewer(
             validId,
             targetViewer,
             targetHub,
-            currentStatus === "unavailable"
-              ? shared.terminalUnavailable
-                ? "disabled"
-                : "unknown"
-              : currentStatus,
+            currentStatus === "unavailable" ? "unknown" : currentStatus,
           );
       }
     } else {

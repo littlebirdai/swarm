@@ -115,7 +115,6 @@ export async function codexPilotSettings(
 
 export type OwnedCodexRelayFlags = {
   liveness: boolean;
-  tokenDeltas: boolean;
 };
 
 export function readOwnedCodexRelayFlags(
@@ -123,7 +122,6 @@ export function readOwnedCodexRelayFlags(
 ): OwnedCodexRelayFlags {
   return {
     liveness: env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
-    tokenDeltas: true,
   };
 }
 
@@ -135,10 +133,10 @@ export function startOwnedCodexRelayContact(
   signal: AbortSignal,
   deadline: () => number,
   onRelay: (relay: ReturnType<typeof startRelayLiveness>) => void,
-  flags: OwnedCodexRelayFlags = { liveness: true, tokenDeltas: true },
+  flags: OwnedCodexRelayFlags = { liveness: true },
 ): void {
   const { bearer, siteUrl, log } = options;
-  if (!bearer || (!flags.liveness && !flags.tokenDeltas)) return;
+  if (!bearer) return;
   const launchRelayPublisher = () => {
     void Promise.all([
       import("@codecast/edge-client"),
@@ -152,7 +150,7 @@ export function startOwnedCodexRelayContact(
               Authorization: `Bearer ${bearer}`,
             }),
             sessionLiveness: flags.liveness,
-            tokenDeltas: flags.tokenDeltas,
+            tokenDeltas: true,
             hello: {
               machine: binding.ownerDeviceId,
               boot: binding.daemonBootId,

@@ -103,7 +103,9 @@ export function ConversationViewers({
       const entry = s.relayViewerPresence[conversationId];
       if (entry && viewerAccount && entry.viewer === viewerAccount) {
         if (entry.status === "denied") return "relay:denied";
-        if (entry.status === "disabled") return "relay:disabled";
+        if (entry.status === "unknown" || entry.status === "disabled") {
+          return "relay:unknown";
+        }
         if (isRelayViewerEntryActive(entry, viewerAccount)) {
           return `relay:${relayViewerPresenceSig(entry, teamMembersOf(s))}`;
         }
@@ -120,12 +122,11 @@ export function ConversationViewers({
     !viewerAccount ||
     relayEntry.viewer !== viewerAccount ||
     relayEntry.status === "denied" ||
-    relayEntry.status === "disabled" ||
     relayEntry.status === "connecting"
   ) {
     return null;
   }
-  if (relayEntry.status === "unknown") {
+  if (relayEntry.status === "unknown" || relayEntry.status === "disabled") {
     return (
       <span
         data-sv-presence-status="unknown"

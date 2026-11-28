@@ -156,8 +156,11 @@ export function makeRelayLiveness(
             hasDeltas =
               wantDeltas &&
               hello.policy.capabilities.includes(RELAY_TOKEN_DELTAS_CAPABILITY);
-            negotiated = hasLiveness || hasDeltas;
-            if (!negotiated) return { status: "unavailable" } as const;
+            negotiated = true;
+            if (!hasLiveness && !hasDeltas) {
+              close();
+              return { status: "unavailable" } as const;
+            }
           }
           const activeHubs = hubs.filter(({ id }) =>
             id.startsWith(viewerHubPrefix) ? hasDeltas : hasLiveness,
@@ -317,6 +320,7 @@ export function makeRelayLiveness(
         Effect.gen(function* () {
           for (;;) {
             const delay = yield* tick();
+            if (negotiated && !hasLiveness && !hasDeltas) return;
             yield* Effect.sleep(delay);
           }
         }),

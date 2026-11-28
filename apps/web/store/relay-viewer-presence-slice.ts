@@ -325,7 +325,10 @@ export function isRelayViewerPresenceUnknown(
   viewer: string | undefined,
 ): boolean {
   return Boolean(
-    entry && viewer && entry.viewer === viewer && entry.status === "unknown",
+    entry &&
+    viewer &&
+    entry.viewer === viewer &&
+    (entry.status === "unknown" || entry.status === "disabled"),
   );
 }
 

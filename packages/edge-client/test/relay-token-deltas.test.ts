@@ -9,6 +9,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import { adjust } from "effect/testing/TestClock";
 import { it } from "@codecast/effect-kit/effect/testing";
 import { makeRelayLiveness, type RunLease } from "../src/relay-liveness-layer";
 import type { EdgeTransport } from "../src/types";
@@ -387,6 +388,59 @@ it.effect(
       yield* Deferred.await(granted);
       yield* Effect.yieldNow;
 
+      expect(
+        liveness.publishDelta({
+          session: "conv-1",
+          run: 4,
+          turn: "turn-1",
+          message_id: "msg-1",
+          delta_seq: 1,
+          text: "Hello",
+        }),
+      ).toBe(false);
+
+      yield* Fiber.interrupt(fiber);
+    }),
+);
+
+it.effect(
+  "stops after one hello without calling relay-grant when server has no relay capabilities",
+  () =>
+    Effect.gen(function* () {
+      FakeRelaySocket.instances = [];
+      const { transport, helloCapabilities, grantRequests } = makeTransport([]);
+      const liveness = makeRelayLiveness(
+        {
+          transport,
+          hello: {
+            machine: "machine-1",
+            boot: "boot-1",
+            providers: [{ name: "codex", version: "1.0.0" }],
+            runtimes: [{ host: "daemon", isolation: "app-server" }],
+            capacity: {
+              memory_total_bytes: 0,
+              memory_available_bytes: 0,
+              live_agents: 1,
+            },
+          },
+          sessionLiveness: false,
+          tokenDeltas: true,
+          WebSocket:
+            FakeRelaySocket as unknown as RelayClientOptions["WebSocket"],
+        },
+        [makeLease()],
+      );
+
+      const fiber = yield* Layer.build(liveness.layer).pipe(
+        Effect.andThen(Effect.never),
+        Effect.forkScoped,
+      );
+      yield* adjust(60_000);
+      yield* Effect.yieldNow;
+
+      expect(helloCapabilities).toEqual([["relay_token_deltas"]]);
+      expect(grantRequests).toEqual([]);
+      expect(FakeRelaySocket.instances).toHaveLength(0);
       expect(
         liveness.publishDelta({
           session: "conv-1",
