@@ -88,9 +88,8 @@ Two accounts on one device share the relay's default limit of eight
 connections per machine subject.
 
 Deploy the relay that understands run grants before enabling Edge issuance.
-The kernel advertises machine session liveness only when
-`CODECAST_EDGE_RELAY_LIVENESS_V1=1` and its signing and public relay URL
-configuration are valid. The flag is off by default.
+The kernel advertises machine session liveness only when its signing and
+public relay URL configuration are valid.
 
 ## Versions and parsers
 

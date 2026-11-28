@@ -51,8 +51,7 @@ The multiplayer simulator covers the proposed turn baton, takeover fence, relay 
 
 ### Terminal lifecycle events
 
-When `CODECAST_EDGE_TERMINAL_EVENTS=1` on the server, a run grant
-advertises terminal lifecycle support. The machine appends a start and an
+A run grant advertises terminal lifecycle support. The machine appends a start and an
 end for a watched pane through the run's ordered event writer. Convex
 retains the latest 128 pane instances per run for up to seven days from
 each pane's last recorded transition. Screen content and input are outside
