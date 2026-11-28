@@ -694,13 +694,12 @@ export function revokeScopeRowsInDraft(
       delete rows[id];
       const detailKey = DETAIL_OF_PARENT[collection];
       if (detailKey && draft[detailKey]?.[id]) delete draft[detailKey][id];
-      const entity = collection === "docDetails" ? "docs" : collection;
       if (draft.pending) {
-        draft.pending[`${entity}:${id}`] = {
-          type: "exclude",
-          ts: now,
-          scope,
-        };
+        const keys = new Set([collection as string]);
+        if (collection === "docDetails") keys.add("docs");
+        if (detailKey) keys.add(detailKey);
+        for (const key of keys)
+          draft.pending[`${key}:${id}`] = { type: "exclude", ts: now, scope };
       }
       if (collection !== "docDetails") targets.push({ collection, id, scope });
     }

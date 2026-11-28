@@ -57,6 +57,7 @@ export const SCOPE_HEADS_CHUNK_COUNT = Math.ceil(
 );
 export const SCOPE_VIEW_GRACE_MS = 60 * 1000;
 export const SCOPE_DENY_TTL_MS = 5 * 60 * 1000;
+export const SCOPE_DENY_MAX = 256;
 
 export type ScopeSource = "pinned" | "membership" | "follows" | "view";
 
