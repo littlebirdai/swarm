@@ -1,0 +1,47 @@
+{
+  "request": {
+    "v": 1,
+    "batch_id": "batch-1",
+    "writes": [
+      {
+        "conversation_id": "session-1",
+        "messages": [
+          {
+            "role": "user",
+            "content": "hello",
+            "message_uuid": "message-1",
+            "source_device_id": "machine-laptop",
+            "source_revision": 1,
+            "timestamp": 1795453200000
+          }
+        ],
+        "echo_ids": true
+      },
+      {
+        "conversation_id": "session-2",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "hi",
+            "message_uuid": "message-2",
+            "timestamp": 1795453200001
+          }
+        ]
+      }
+    ]
+  },
+  "response": {
+    "v": 1,
+    "batch_id": "batch-1",
+    "results": [
+      {
+        "status": "applied",
+        "inserted": 1,
+        "ids": ["message-id-1"]
+      },
+      {
+        "status": "refused"
+      }
+    ]
+  }
+}

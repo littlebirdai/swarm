@@ -1,0 +1,18 @@
+{
+  "request": {
+    "v": 1,
+    "session": "session-1",
+    "machine": "machine-laptop",
+    "boot": "boot-1",
+    "claim_id": "attempt-1"
+  },
+  "response": {
+    "v": 1,
+    "status": "granted",
+    "session": "session-1",
+    "run": 3,
+    "fencing_token": "claim-token-1",
+    "lease_ms": 30000,
+    "last_pane_instance": 4
+  }
+}
