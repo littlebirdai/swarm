@@ -318,7 +318,7 @@ test.each([
       expect(
         f.events
           .filter(({ seq }) => seq <= 5)
-          .map(({ seq, kind }) => [seq, kind]),
+          .map(({ seq, kind }): [number, string] => [seq, kind]),
       ).toEqual(expected);
       if (failure === "once") {
         expect(f.events.at(-1)).toMatchObject({
