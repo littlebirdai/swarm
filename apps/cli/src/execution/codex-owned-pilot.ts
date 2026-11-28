@@ -80,11 +80,7 @@ export function createCodexOwnedPilot(
   const conversationId =
     env.CODECAST_CODEX_OWNED_PILOT_SESSION?.trim() || undefined;
   const acceptsNewSessions = env.CODECAST_CODEX_OWNED_NEW_SESSIONS === "1";
-  if (
-    env.CODECAST_FENCED_EXECUTION_V1 !== "1" ||
-    (!conversationId && !acceptsNewSessions)
-  )
-    return;
+  if (!conversationId && !acceptsNewSessions) return;
   if (!options.bearer) {
     options.log("[owned-codex] pilot requires daemon auth");
     return;
@@ -611,6 +607,10 @@ export class CodexOwnedPilot {
       (relay) => (this.relay = relay),
       this.relayFlags,
     );
+  }
+
+  deliveryRetryDelayMs(): number | undefined {
+    return this.delivery.retryDelayMs();
   }
 
   async drain(

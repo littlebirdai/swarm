@@ -229,7 +229,11 @@ test("runtime shutdown retains the edge lease when provider cleanup is unconfirm
         kill(-child.pid, "SIGKILL");
       } catch (error) {
         if (
-          !(error instanceof Error && "code" in error && error.code === "ESRCH")
+          !(
+            error instanceof Error &&
+            "code" in error &&
+            (error.code === "ESRCH" || error.code === "EPERM")
+          )
         )
           throw error;
       }
@@ -292,18 +296,30 @@ test.each([
       expect(f.actions).not.toContain("edge:release");
 
       await f.runtime.stop();
-      expect(f.terminalStartAttempts).toEqual(Array(attempts).fill(2));
+      const [terminalSeq] = f.terminalStartAttempts;
+      expect(terminalSeq).toBeGreaterThan(1);
+      expect(f.terminalStartAttempts).toEqual(
+        Array(attempts).fill(terminalSeq),
+      );
+      const providerKinds = [
+        "session.started",
+        "turn.started",
+        "prompt.opened",
+        "context",
+      ];
+      const expected: [number, string][] = [];
+      for (let seq = 1; seq <= 5; seq++) {
+        if (seq === terminalSeq) {
+          if (failure === "once") expected.push([seq, "terminal.started"]);
+        } else {
+          expected.push([seq, providerKinds.shift()!]);
+        }
+      }
       expect(
         f.events
           .filter(({ seq }) => seq <= 5)
-          .map(({ seq, kind }) => [seq, kind]),
-      ).toEqual([
-        [1, "session.started"],
-        ...(failure === "once" ? [[2, "terminal.started" as const]] : []),
-        [3, "turn.started"],
-        [4, "prompt.opened"],
-        [5, "context"],
-      ]);
+          .map(({ seq, kind }): [number, string] => [seq, kind]),
+      ).toEqual(expected);
       if (failure === "once") {
         expect(f.events.at(-1)).toMatchObject({
           seq: 6,

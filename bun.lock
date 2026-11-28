@@ -41,6 +41,7 @@
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
         "@codecast/decisions": "workspace:*",
+        "@codecast/delivery": "workspace:*",
         "@codecast/deploys": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
@@ -767,6 +768,16 @@
       },
       "devDependencies": {
         "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/delivery": {
+      "name": "@codecast/delivery",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/edge-contract": "workspace:*",
+        "@codecast/edge-supervisor": "workspace:*",
+        "@codecast/effect-kit": "workspace:*",
+        "effect": "catalog:",
       },
     },
     "packages/deploys": {
@@ -1720,6 +1731,8 @@
     "@codecast/daemon": ["@codecast/daemon@workspace:packages/daemon"],
 
     "@codecast/decisions": ["@codecast/decisions@workspace:packages/decisions"],
+
+    "@codecast/delivery": ["@codecast/delivery@workspace:packages/delivery"],
 
     "@codecast/deploys": ["@codecast/deploys@workspace:packages/deploys"],
 

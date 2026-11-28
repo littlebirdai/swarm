@@ -1194,17 +1194,11 @@ import {
   writeEffectivePolicyFile,
 } from "./config/managedPolicy.js";
 import {
-  FENCED_TMUX_TAG_NAMES,
-  ManagedTmuxRuntimeDriver,
-  RuntimeDriverRegistry,
   assertLegacyDeliveryEnvelope,
-  createCodexOwnedPilot,
-  fencedExecutionEnabled,
+  type createCodexOwnedPilot,
   forgetProcessExecutionConversation,
-  getProcessExecutionRuntime,
-  registerCodexExecutionDriver,
-  type FencedTmuxTags,
 } from "./execution/index.js";
+import { startFencedExecutionRuntime } from "./execution/drivers/start-fenced-runtime.js";
 import { providerKeySourcePrefix } from "./providerKeyLaunch.js";
 import {
   providerKeyStorePath,
@@ -43569,185 +43563,78 @@ async function main(): Promise<void> {
       `[codex-app-server] failed to start: ${err?.message ?? err} -- codex features disabled`,
     );
   }
-  codexOwnedPilot = fencedExecutionEnabled()
-    ? createCodexOwnedPilot({
-        siteUrl: convexUrl.replace(".cloud", ".site"),
-        bearer: config.auth_token,
-        command: () => [launchBinary("codex"), "app-server"],
-        permissions: () => resolveCodexPermissionDefaults(activeConfig),
-        instructions: buildCodexStableContext.bind(null, activeConfig),
-        display: {
-          syncService,
-          retryQueue,
-          conversationCache,
-          mapCodexAppServerThreadStatusToAgentStatus,
-          sendAgentStatus,
-          trackTmuxSpawns,
-          syncMessagesBatch,
-        },
-        log,
-      })
-    : undefined;
-  const fencedRuntime = fencedExecutionEnabled()
-    ? getProcessExecutionRuntime({
-        transport: syncService,
-        ownerDeviceId: deviceId(),
-        codexOwnedPilot,
-        journalDirectory: path.join(CONFIG_DIR, "execution-journal"),
-        drivers: (() => {
-          const registry = new RuntimeDriverRegistry();
-          registry.register(
-            new ManagedTmuxRuntimeDriver({
-              io: {
-                async createSession({ tmuxSession, cwd }) {
-                  await tmuxExec([
-                    "new-session",
-                    "-d",
-                    ...TMUX_SIZE_ARGS,
-                    "-s",
-                    tmuxSession,
-                    "-c",
-                    cwd,
-                  ]);
-                },
-                async setSessionOption({ tmuxSession, name, value }) {
-                  await setTmuxSessionOption(tmuxSession, name, value);
-                },
-                async launchLiteral({ tmuxSession, command }) {
-                  await typeIntoPane(`${tmuxSession}:0.0`, command);
-                },
-                async listCandidates({ expectedTmuxSession }) {
-                  let names: string[];
-                  try {
-                    const { stdout } = await tmuxExec([
-                      "list-sessions",
-                      "-F",
-                      "#{session_name}",
-                    ]);
-                    names = stdout
-                      .split("\n")
-                      .map((name) => name.trim())
-                      .filter(Boolean);
-                  } catch (error) {
-                    const message =
-                      error instanceof Error ? error.message : String(error);
-                    if (
-                      /no server running|failed to connect to server/i.test(
-                        message,
-                      )
-                    )
-                      return [];
-                    throw error;
-                  }
-                  const candidates = [];
-                  for (const tmuxSession of names) {
-                    if (
-                      tmuxSession !== expectedTmuxSession &&
-                      !tmuxSession.startsWith("cc-f1-")
-                    )
-                      continue;
-                    const tags: Partial<FencedTmuxTags> = {};
-                    for (const [key, name] of Object.entries(
-                      FENCED_TMUX_TAG_NAMES,
-                    ) as Array<[keyof FencedTmuxTags, string]>) {
-                      const value = await getTmuxSessionOption(
-                        tmuxSession,
-                        name,
-                      );
-                      if (value !== null) tags[key] = value;
-                    }
-                    candidates.push({
-                      tmuxSession,
-                      tmuxTarget: `${tmuxSession}:0.0`,
-                      alive: true,
-                      tags,
-                    });
-                  }
-                  return candidates;
-                },
-                async injectDelivery({ tmuxTarget, agent, delivery }) {
-                  const text = delivery.input
-                    .map((item) =>
-                      item.type === "text" ? item.text : `[Image ${item.path}]`,
-                    )
-                    .filter(Boolean)
-                    .join("\n");
-                  await injectViaTmux(tmuxTarget, text, agent);
-                  return { state: "delivered" as const };
-                },
-                async stopSession(tmuxSession) {
-                  await killTmuxSessionAndTree(tmuxSession);
-                },
-                async quarantineSession(tmuxSession) {
-                  await killTmuxSessionAndTree(tmuxSession);
-                },
-              },
-              buildLaunch(target, configuration) {
-                const { binaryArgs } = buildLaunchArgs({
-                  agentType: target.requestedAgent,
-                  configuredArgs: getConfiguredAgentArgs(
-                    target.requestedAgent,
-                    config,
-                  ),
-                  permFlags: getPermissionFlags(target.requestedAgent, config),
-                  defaultFlags: getDefaultParamFlags(
-                    target.requestedAgent,
-                    config,
-                  ),
-                  modelAlias: configuration.model,
-                  requestedEffort: configuration.effort,
-                  hasCodexPermissionMode:
-                    !!config.agent_permission_modes?.codex,
-                });
-                const tokens = [
-                  "env",
-                  "-u",
-                  "CLAUDECODE",
-                  "-u",
-                  "CLAUDE_CODE_ENTRYPOINT",
-                  launchBinary(target.requestedAgent, { warn: log }),
-                  ...sanitizeBinaryArgs(binaryArgs),
-                ];
-                return { command: tokens.map(shellEscapeForSh).join(" ") };
-              },
+  const startedFenced = await startFencedExecutionRuntime({
+    transport: syncService,
+    ownerDeviceId: deviceId(),
+    configDir: CONFIG_DIR,
+    siteUrl: convexUrl.replace(".cloud", ".site"),
+    bearer: config.auth_token,
+    codexCommand: () => [launchBinary("codex"), "app-server"],
+    codexPermissions: () => resolveCodexPermissionDefaults(activeConfig),
+    codexInstructions: buildCodexStableContext.bind(null, activeConfig),
+    display: {
+      syncService,
+      retryQueue,
+      conversationCache,
+      mapCodexAppServerThreadStatusToAgentStatus,
+      sendAgentStatus,
+      trackTmuxSpawns,
+      syncMessagesBatch,
+    },
+    tmux: {
+      sizeArgs: TMUX_SIZE_ARGS,
+      exec: tmuxExec,
+      setSessionOption: setTmuxSessionOption,
+      getSessionOption: getTmuxSessionOption,
+      typeIntoPane: typeIntoPane,
+      injectDelivery: ({ tmuxTarget, agent, text }) =>
+        injectViaTmux(tmuxTarget, text, agent),
+      killSessionAndTree: killTmuxSessionAndTree,
+    },
+    buildTmuxLaunchCommand(target, configuration) {
+      const { binaryArgs } = buildLaunchArgs({
+        agentType: target.requestedAgent,
+        configuredArgs: getConfiguredAgentArgs(target.requestedAgent, config),
+        permFlags: getPermissionFlags(target.requestedAgent, config),
+        defaultFlags: getDefaultParamFlags(target.requestedAgent, config),
+        modelAlias: configuration.model,
+        requestedEffort: configuration.effort,
+        hasCodexPermissionMode: !!config.agent_permission_modes?.codex,
+      });
+      const tokens = [
+        "env",
+        "-u",
+        "CLAUDECODE",
+        "-u",
+        "CLAUDE_CODE_ENTRYPOINT",
+        launchBinary(target.requestedAgent, { warn: log }),
+        ...sanitizeBinaryArgs(binaryArgs),
+      ];
+      return tokens.map(shellEscapeForSh).join(" ");
+    },
+    codexAppServer: codexAppServerInstance
+      ? {
+          client: codexAppServerInstance,
+          defaultPermissions: () =>
+            resolveCodexPermissionDefaults(activeConfig),
+          threads: appServerThreads,
+          isRunning: () => Boolean(codexAppServerInstance?.running),
+          registerThread: ({ conversationId, threadId, ...p }) =>
+            registerAppServerConversation(conversationId, threadId, {
+              ...p,
+              persist: true,
             }),
-          );
-          if (codexAppServerInstance) {
-            registerCodexExecutionDriver(registry, codexOwnedPilot, {
-              client: codexAppServerInstance,
-              defaultPermissions: () =>
-                resolveCodexPermissionDefaults(activeConfig),
-              threads: appServerThreads,
-              isRunning: () => Boolean(codexAppServerInstance?.running),
-              registerThread: ({ conversationId, threadId, ...p }) =>
-                registerAppServerConversation(conversationId, threadId, {
-                  ...p,
-                  persist: true,
-                }),
-              teardownConversation: (id) =>
-                teardownConversationBackendsLive(id, {
-                  interruptActiveTurn: true,
-                }),
-            });
-          }
-          return registry;
-        })(),
-        resolveImage: (storageId) => downloadImage(storageId, syncService),
-        resolveFile: (ref) =>
-          downloadAttachedFile(ref, (id) => syncService.getImageUrl(id), log),
-        onLog: log,
-      })
-    : null;
-  if (fencedRuntime) {
-    log(
-      `[fenced-execution] enabled protocol=1 boot=${fencedRuntime.daemonBootId}`,
-    );
-    await fencedRuntime.start();
-  } else {
-    log(
-      "[fenced-execution] disabled (set CODECAST_FENCED_EXECUTION_V1=1 for local rollout)",
-    );
-  }
+          teardownConversation: (id) =>
+            teardownConversationBackendsLive(id, { interruptActiveTurn: true }),
+        }
+      : undefined,
+    resolveImage: (storageId) => downloadImage(storageId, syncService),
+    resolveFile: (ref) =>
+      downloadAttachedFile(ref, (id) => syncService.getImageUrl(id), log),
+    log,
+  });
+  codexOwnedPilot = startedFenced.codexOwnedPilot;
+  const fencedRuntime = startedFenced.fencedRuntime;
   // The JSONL-dir CLI watchers (codex, gemini, pi, grok, muse) and OpenCode's
   // store register through registerTranscriptDirWatcher. Claude's sessionWatcher
   // and Cursor's SQLite watcher are different kinds and register on their own

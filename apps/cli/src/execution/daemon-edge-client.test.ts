@@ -20,7 +20,6 @@ import hello from "../../../../packages/edge-contract/test/fixtures/hello.json";
 import { createDaemonEdgeClient } from "./daemon-edge-client.js";
 import { daemonSteerJournal } from "./daemon-steer-journal.js";
 
-const enabled = { SWARM_TURN_BATON: "1", CODECAST_EDGE_DELIVERY_V1: "1" };
 const run = {
   v: 1,
   session: "session",
@@ -148,12 +147,12 @@ afterEach(async () => {
 async function connect(
   edge: ReturnType<typeof fakeEdge>,
   agent: Agent | undefined,
-  env: Parameters<typeof createDaemonEdgeClient>[1] = enabled,
 ) {
-  const client = createDaemonEdgeClient(
-    { transport: edge.transport, journalDirectory, agent },
-    env,
-  );
+  const client = createDaemonEdgeClient({
+    transport: edge.transport,
+    journalDirectory,
+    agent,
+  });
   clients.push(client);
   expect(
     await client.hello({
@@ -164,40 +163,26 @@ async function connect(
   return client;
 }
 
-test.each([
-  { env: {}, hasAgent: true },
-  { env: { CODECAST_EDGE_DELIVERY_V1: "1" }, hasAgent: true },
-  { env: { SWARM_TURN_BATON: "1" }, hasAgent: true },
-  { env: enabled, hasAgent: false },
-])(
-  "offers the queue capability alone unless both flags are on (%j)",
-  async ({ env, hasAgent }) => {
-    const queue = {
-      ...attempt,
-      status: "permit",
-      state: "new",
-      intent: "queue",
-      input: steer.input,
-    } as const;
-    const edge = fakeEdge({ ...queue, input: [...queue.input] });
-    const machine = fakeAgent();
-    const client = await connect(
-      edge,
-      hasAgent ? machine.agent : undefined,
-      env,
-    );
-    expect(edge.calls[0]?.request).toMatchObject({
-      capabilities: ["delivery-permit-v1"],
-    });
-    expect(await client.deliverNext(run)).toEqual({ ok: true, value: queue });
-    expect(edge.calls.map(({ operation }) => operation)).toEqual([
-      "hello",
-      "permits.next",
-    ]);
-    expect(machine.steers).toEqual([]);
-    expect(await readdir(journalDirectory)).toEqual([]);
-  },
-);
+test("offers the queue capability alone when agent is omitted", async () => {
+  const queue = {
+    ...attempt,
+    status: "permit",
+    state: "new",
+    intent: "queue",
+    input: steer.input,
+  } as const;
+  const edge = fakeEdge({ ...queue, input: [...queue.input] });
+  const client = await connect(edge, undefined);
+  expect(edge.calls[0]?.request).toMatchObject({
+    capabilities: ["delivery-permit-v1"],
+  });
+  expect(await client.deliverNext(run)).toEqual({ ok: true, value: queue });
+  expect(edge.calls.map(({ operation }) => operation)).toEqual([
+    "hello",
+    "permits.next",
+  ]);
+  expect(await readdir(journalDirectory)).toEqual([]);
+});
 
 test("hands the confirmed input to the agent with the named open turn and lease", async () => {
   const edge = fakeEdge(steer);

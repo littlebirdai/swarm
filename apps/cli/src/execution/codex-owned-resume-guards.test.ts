@@ -54,7 +54,7 @@ function interceptRetries(delays: ReadonlySet<number> = expectedRetryDelays) {
 }
 
 test("three messages after exhaustion bound claims and keep one exhaustion error and log", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptRetries> | undefined;
   const realNow = Date.now;
   let offsetMs = 0;
@@ -142,7 +142,7 @@ test("three messages after exhaustion bound claims and keep one exhaustion error
 });
 
 test("an unchanged update after a failed wake claim makes zero claims", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const realNow = Date.now;
   let offsetMs = 0;
   const nowSpy = spyOn(Date, "now").mockImplementation(
@@ -202,7 +202,7 @@ test("an unchanged update after a failed wake claim makes zero claims", async ()
 });
 
 test("a queued generation advance invalidates an already-fired retry timer and leaves one live timer", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptRetries> | undefined;
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
@@ -243,7 +243,7 @@ test("a queued generation advance invalidates an already-fired retry timer and l
 });
 
 test("a fresh start and clean resume do not clear an unrelated session error", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
     const binding = f.ready(f.newRequest);
@@ -260,7 +260,7 @@ test("a fresh start and clean resume do not clear an unrelated session error", a
 });
 
 test("a provider error emitted during resume survives after the pilot clears its own failure", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   let clock: ReturnType<typeof interceptRetries> | undefined;
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
@@ -342,7 +342,7 @@ test("a provider error emitted during resume survives after the pilot clears its
 });
 
 test("stop during claimStart persists retryable failure and a restarted runtime starts cleanly", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     const paused = f.pauseNextClaimStart();
     const first = f.runtime.processWorkUpdate([item(f.newRequest)]);
@@ -456,7 +456,7 @@ test("the legacy single-session pilot stays resumable after single-claim busy an
 });
 
 test("a lease renewal failure during activation parks with a failure", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     await f.runtime.processWorkUpdate([
       { ...item(f.newRequest), nextDeliverySequence: 1 },

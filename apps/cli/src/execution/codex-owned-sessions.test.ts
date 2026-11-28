@@ -9,7 +9,7 @@ import {
 } from "./codex-owned-pilot.js";
 
 test("a registered boot owns two Codex sessions and leaves an unmarked session on the legacy driver", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     f.pilotRequest.requiredCapabilities = f.newRequest.requiredCapabilities;
     f.initial([
@@ -56,7 +56,7 @@ test("a registered boot owns two Codex sessions and leaves an unmarked session o
 });
 
 test("a lease loss on the original pilot leaves the second Codex session able to read permits", async () => {
-  const f = fixture("pilot", true, "receipt", true);
+  const f = fixture("pilot", "receipt", true);
   const renewal = Promise.withResolvers<void>();
   f.rejectRenewalAfter(renewal.promise);
   try {
@@ -83,7 +83,7 @@ test("a lease loss on the original pilot leaves the second Codex session able to
 });
 
 test("without the many-session flag the configured pilot leaves other Codex sessions on legacy", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   try {
     f.initial([item(f.pilotRequest), item(f.legacyRequest)]);
     await f.runtime.start();
@@ -101,7 +101,7 @@ test("without the many-session flag the configured pilot leaves other Codex sess
 });
 
 test("memory parking counts every live owned Codex child process without marking them parkable", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     f.pilotRequest.requiredCapabilities = f.newRequest.requiredCapabilities;
     f.initial([item(f.pilotRequest), item(f.newRequest)]);
@@ -143,7 +143,7 @@ test("memory parking counts every live owned Codex child process without marking
 test.each(["online", "offline"])(
   "an explicit resume reattaches the ready checkpoint once without restarting a sibling after an %s release",
   async (network) => {
-    const f = fixture("pilot", true, "receipt", true);
+    const f = fixture("pilot", "receipt", true);
     const retryAfterMs = 1_337;
     const schedule = globalThis.setTimeout;
     const retries: (() => void)[] = [];
@@ -221,7 +221,7 @@ function cleanupHandles(pilot: CodexOwnedPilot) {
 }
 
 test("an unconfirmed child stays quarantined until its provider process is gone", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   try {
     await f.runtime.processWorkUpdate([item(f.newRequest)]);
     const binding = f.ready(f.newRequest);
@@ -236,7 +236,14 @@ test("an unconfirmed child stays quarantined until its provider process is gone"
     );
     const images = spyOn(delivery, "clearImages");
     try {
-      await expect(f.driver.stop(binding)).rejects.toThrow(
+      let failure: unknown;
+      try {
+        await f.driver.stop(binding);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain(
         "cleanup could not be confirmed",
       );
       expect(attemptedDisposal).toHaveBeenCalledTimes(1);
@@ -273,7 +280,7 @@ test("an unconfirmed child stays quarantined until its provider process is gone"
 test.each(["adapter", "images"])(
   "confirmed provider stop releases its lease even if %s cleanup throws",
   async (failingStep) => {
-    const f = fixture(null, true, "receipt", true);
+    const f = fixture(null, "receipt", true);
     try {
       await f.runtime.processWorkUpdate([item(f.newRequest)]);
       const child = f.pilot.pilotFor(f.newRequest)!;
@@ -308,7 +315,7 @@ test.each(["adapter", "images"])(
 );
 
 test("an explicit resume backs off after two busy lease responses", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const schedule = globalThis.setTimeout;
   const retryAfterMs = 1_337;
   const retries: { delay: number; run(): void }[] = [];
@@ -359,7 +366,7 @@ test("an explicit resume backs off after two busy lease responses", async () => 
 });
 
 test("exhausting busy lease retries publishes a session error, closes the child, and waits for a change before retrying", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const schedule = globalThis.setTimeout;
   const retryAfterMs = 1_337;
   const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);
@@ -459,7 +466,7 @@ test("exhausting busy lease retries publishes a session error, closes the child,
 });
 
 test("a new pending delivery wakes a child parked by a crash or exhausted retries while unchanged updates stay parked", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const schedule = globalThis.setTimeout;
   const retryAfterMs = 1_337;
   const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);
@@ -639,7 +646,7 @@ test("a new pending delivery wakes a child parked by a crash or exhausted retrie
 });
 
 test("advancing resumeGeneration during a busy-lease backoff resets the retry budget", async () => {
-  const f = fixture(null, true, "receipt", true);
+  const f = fixture(null, "receipt", true);
   const schedule = globalThis.setTimeout;
   const retryAfterMs = 1_337;
   const expectedDelays = new Set([1_337, 2_674, 5_348, 10_696, 21_392, 30_000]);

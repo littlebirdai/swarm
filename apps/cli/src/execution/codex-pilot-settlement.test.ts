@@ -18,7 +18,7 @@ test.each([
 ] as const)(
   "a steer without a new start uses only matching durable evidence and clears the starter (%s)",
   async (mode) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const binding = bindingFor(f.pilotRequest, true);
     binding.capabilities = [...binding.capabilities, STEER_BATON_CAPABILITY];
     const journal = new InMemoryExecutionOperationJournal().deliveryReceipts;
@@ -107,6 +107,7 @@ test.each([
       } satisfies CanonicalEvent;
       expect(delivery.attributeTurnStart(nextTurn)).toEqual(nextTurn);
     } finally {
+      await delivery.clearImages();
       await f.dispose();
     }
   },

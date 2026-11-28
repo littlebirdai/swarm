@@ -99,9 +99,8 @@ the order above. Pilot owned Codex in parallel with the terminal read work.
 ## Own one session behind a flag
 
 Start with one fresh managed Codex app-server session at the pinned version.
-Its fenced driver and journal already exist. Add a default-off pilot flag
-under `CODECAST_FENCED_EXECUTION_V1`. Persist the driver choice in the pilot
-binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
+Its fenced driver and journal already exist. Persist the driver choice in the
+pilot binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
 Set `CODECAST_CODEX_OWNED_PILOT_SESSION` to the ID of one fresh managed
 conversation to select it for this pilot. The ready binding keeps the provider
 checkpoint and the launch policy. The event writer claims the run after the

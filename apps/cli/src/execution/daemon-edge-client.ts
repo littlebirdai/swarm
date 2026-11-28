@@ -39,21 +39,13 @@ interface DaemonSteerAgent {
   ): Promise<EdgeSteerRecovery>;
 }
 
-export function createDaemonEdgeClient(
-  options: {
-    transport: EdgeTransport;
-    agent?: DaemonSteerAgent;
-    journalDirectory?: string;
-  },
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): EdgeClient {
+export function createDaemonEdgeClient(options: {
+  transport: EdgeTransport;
+  agent?: DaemonSteerAgent;
+  journalDirectory?: string;
+}): EdgeClient {
   const { transport, agent } = options;
-  if (
-    !agent ||
-    env.SWARM_TURN_BATON !== "1" ||
-    env.CODECAST_EDGE_DELIVERY_V1 !== "1"
-  )
-    return createEdgeClient({ transport });
+  if (!agent) return createEdgeClient({ transport });
 
   return createEdgeClient({
     transport,

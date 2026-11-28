@@ -1,11 +1,13 @@
 import { expect } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import { adjust } from "effect/testing/TestClock";
 import {
   Machine,
   MachineLive,
+  SupervisorBus,
   Watchdog,
   type LinkSettings,
 } from "../src/effect";
@@ -305,5 +307,108 @@ it.effect(
       } finally {
         await supervisor.close();
       }
+    }),
+);
+
+it.effect(
+  "MachineLive bridges edge.permits.next and retry_after_ms over SupervisorBus",
+  () =>
+    Effect.gen(function* () {
+      let markHello!: () => void;
+      const helloCalled = new Promise<void>((resolve) => {
+        markHello = resolve;
+      });
+      yield* Effect.gen(function* () {
+        const machine = yield* Machine;
+        const bus = yield* SupervisorBus;
+        yield* machine.connect(link);
+        yield* adjust(0);
+        yield* Effect.promise(() => helloCalled);
+        yield* adjust(0);
+        const rateLimitedFiber = yield* Effect.forkChild(
+          bus.request(
+            {
+              kind: "edge.permits.next",
+              request_id: "req-1",
+              request: {
+                v: 1,
+                session: "s-rate-limited",
+                run: 1,
+                fencing_token: "fence-1",
+              },
+            },
+            "edge.permits.next.result",
+            (reply) => reply.request_id === "req-1",
+          ),
+          { startImmediately: true },
+        );
+        for (let i = 0; i < 6; i++) {
+          yield* Effect.promise(() => Promise.resolve());
+          yield* adjust(1_000);
+        }
+        const rateLimited = yield* Fiber.join(rateLimitedFiber);
+        expect(rateLimited).toEqual({
+          kind: "edge.permits.next.result",
+          request_id: "req-1",
+          ok: false,
+          retryable: true,
+          code: "http_429",
+          retry_after_ms: 1_000,
+        });
+
+        const empty = yield* bus.request(
+          {
+            kind: "edge.permits.next",
+            request_id: "req-2",
+            request: {
+              v: 1,
+              session: "s-empty",
+              run: 1,
+              fencing_token: "fence-1",
+            },
+          },
+          "edge.permits.next.result",
+          (reply) => reply.request_id === "req-2",
+        );
+        expect(empty).toEqual({
+          kind: "edge.permits.next.result",
+          request_id: "req-2",
+          ok: true,
+          response: { v: 1, status: "empty" },
+        });
+      }).pipe(
+        Effect.provide(
+          MachineLive(
+            { log: () => {} },
+            {
+              transport: () => async (operation, body) => {
+                if (operation === "hello") {
+                  markHello();
+                  return welcome();
+                }
+                if (operation === "heartbeat") {
+                  return heartbeat();
+                }
+                if (operation === "permits.next") {
+                  if (
+                    typeof body === "object" &&
+                    body !== null &&
+                    "session" in body &&
+                    body.session === "s-rate-limited"
+                  ) {
+                    return {
+                      status: 429,
+                      retryAfterHeader: "1",
+                      body: { error: "rate_limited" },
+                    };
+                  }
+                  return { status: 200, body: { v: 1, status: "empty" } };
+                }
+                return { status: 200, body: { v: 1 } };
+              },
+            },
+          ),
+        ),
+      );
     }),
 );

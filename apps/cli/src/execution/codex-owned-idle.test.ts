@@ -107,7 +107,7 @@ function fakeTimers(...delays: number[]) {
 test.each(["empty inbox", "reconciled inbox"])(
   "an idle owned Codex thread uses no recurring probes or polls with %s",
   async (inbox) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const timers = fakeTimers(2_000, 30_000);
     const tick = async () => {
       timers.tick(2_000);
@@ -172,7 +172,7 @@ test.each(["empty inbox", "reconciled inbox"])(
 );
 
 test("a live delivery wake restarts polling until the server settles the delivery", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const timers = fakeTimers(2_000);
   try {
     f.initial([item(f.pilotRequest)]);
@@ -208,7 +208,7 @@ test("a live delivery wake restarts polling until the server settles the deliver
 test.each(["stale lease at wake", "stale lease at poll", "closed session"])(
   "the delivery poll stops on %s",
   async (event) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const timers = fakeTimers(2_000);
     try {
       f.initial([item(f.pilotRequest)]);
@@ -247,7 +247,7 @@ test.each(["stale lease at wake", "stale lease at poll", "closed session"])(
 );
 
 test("stream activity skips the probe and one slow reply leaves the active session running", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const timers = fakeTimers(2_000, 5_000, 30_000);
   const probes = () =>
     f.providerRequests().filter(({ method }) => method === "thread/read");
@@ -333,7 +333,7 @@ async function openTurn(f: ReturnType<typeof fixture>) {
 }
 
 test("three consecutive missed checks stop renewal, publish stopped, and close the session", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   const timers = fakeTimers(2_000, 5_000, 30_000);
   const renewals = () =>
     f.actions.filter((action) => action === "edge:renew").length;
@@ -381,7 +381,7 @@ test("three consecutive missed checks stop renewal, publish stopped, and close t
 test.each(["on wake", "on poll"])(
   "an unexpected delivery failure stops polling %s",
   async (timing) => {
-    const f = fixture("pilot", true, "receipt");
+    const f = fixture("pilot", "receipt");
     const timers = fakeTimers(2_000);
     const reads = () =>
       f.actions.filter((action) => action === "edge:permits.next").length;
@@ -432,7 +432,7 @@ test.each(["on wake", "on poll"])(
 );
 
 test("the app-server exit sends stopped status and releases ownership", async () => {
-  const f = fixture("pilot", true, "receipt");
+  const f = fixture("pilot", "receipt");
   try {
     f.initial([item(f.pilotRequest)]);
     await f.runtime.start();
@@ -458,7 +458,7 @@ test("relay contact preserves the owned lease and legacy heartbeat during an out
     });
     return outage.promise;
   });
-  const f = fixture("pilot", true, "receipt", { grant });
+  const f = fixture("pilot", "receipt", { grant });
   const immediate = spyOn(globalThis, "setImmediate");
   const timers = fakeTimers(30_000);
   const write = mock(

@@ -19,7 +19,6 @@ import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 import { DaemonExecutionRuntime } from "./runtime-rail.js";
 
 const flag = {
-  CODECAST_FENCED_EXECUTION_V1: "1",
   CODECAST_CODEX_OWNED_PILOT_SESSION: "pilot-conversation",
 };
 const options = {
@@ -58,12 +57,8 @@ const legacy = new CodexAppServerRuntimeDriver({
   },
 });
 
-test("the owned pilot requires both rollout flags and leaves the legacy driver selected otherwise", () => {
-  for (const env of [
-    {},
-    { CODECAST_FENCED_EXECUTION_V1: "1" },
-    { ...flag, CODECAST_FENCED_EXECUTION_V1: "0" },
-  ]) {
+test("the owned pilot requires a session or new-sessions opt-in and leaves the legacy driver selected otherwise", () => {
+  for (const env of [{}, { CODECAST_CODEX_OWNED_NEW_SESSIONS: "0" }]) {
     const pilot = createCodexOwnedPilot(
       { ...options, command: () => ["unused"] },
       env,
