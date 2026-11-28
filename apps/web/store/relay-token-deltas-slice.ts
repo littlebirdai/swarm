@@ -91,6 +91,12 @@ export function reduceRelayTokenDeltaSignal(
   signal: RelayTokenDeltaSignal,
 ): RelayTokenStreamState | undefined {
   if (prev && signal.run < prev.run) return prev;
+  if (
+    prev &&
+    signal.run === prev.run &&
+    prev.retiredTurns.includes(signal.turn)
+  )
+    return prev;
   let base: RelayTokenStreamState;
   if (!prev || signal.run > prev.run) {
     base = {
@@ -101,7 +107,6 @@ export function reduceRelayTokenDeltaSignal(
       entries: {},
     };
   } else if (signal.turn !== prev.activeTurn) {
-    if (prev.retiredTurns.includes(signal.turn)) return prev;
     base = {
       run: prev.run,
       activeTurn: signal.turn,
@@ -234,7 +239,16 @@ export function createRelayTokenDeltasSlice(): RelayTokenDeltasSlice {
       const current = this.relayTokenDeltas[conversationId];
       if (!current) return;
       if (clearAll) {
-        delete this.relayTokenDeltas[conversationId];
+        this.relayTokenDeltas[conversationId] = {
+          run: current.run,
+          activeTurn: current.activeTurn,
+          retiredTurns: appendRetiredTurn(
+            current.retiredTurns,
+            current.activeTurn,
+          ),
+          order: [],
+          entries: {},
+        };
         return;
       }
       if (

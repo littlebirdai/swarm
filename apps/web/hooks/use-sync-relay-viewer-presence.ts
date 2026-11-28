@@ -17,6 +17,7 @@ import { useWatchEffect } from "./useWatchEffect";
 type SharedViewerSubscription = {
   presenceCount: number;
   tokenDeltasCount: number;
+  terminalUnavailable: boolean;
   unsubscribe: () => void;
 };
 
@@ -156,6 +157,7 @@ export function useSubscribeRelayViewer(
       const sharedEntry: SharedViewerSubscription = {
         presenceCount: isPresence ? 1 : 0,
         tokenDeltasCount: isPresence ? 0 : 1,
+        terminalUnavailable: false,
         unsubscribe: () => {},
       };
       shared = sharedEntry;
@@ -190,11 +192,13 @@ export function useSubscribeRelayViewer(
             }
           },
           (status, meta) => {
+            sharedEntry.terminalUnavailable =
+              status === "unavailable" && Boolean(meta?.terminal);
             const store = useInboxStore.getState();
             if (sharedEntry.presenceCount > 0) {
               const mapped =
                 status === "unavailable"
-                  ? meta?.terminal
+                  ? sharedEntry.terminalUnavailable
                     ? "disabled"
                     : "unknown"
                   : status;
@@ -235,7 +239,11 @@ export function useSubscribeRelayViewer(
             validId,
             targetViewer,
             targetHub,
-            currentStatus === "unavailable" ? "unknown" : currentStatus,
+            currentStatus === "unavailable"
+              ? shared.terminalUnavailable
+                ? "disabled"
+                : "unknown"
+              : currentStatus,
           );
       }
     } else {

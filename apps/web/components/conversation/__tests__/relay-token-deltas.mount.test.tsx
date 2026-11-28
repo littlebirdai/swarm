@@ -61,27 +61,19 @@ async function flushRender(
 }
 
 afterEach(() => {
-  delete process.env.VITE_RELAY_TOKEN_DELTAS;
-  delete process.env.VITE_RELAY_PRESENCE;
   delete process.env.VITE_RELAY_URL;
   useInboxStore.setState({ relayTokenDeltas: {}, relayViewerPresence: {} });
 });
 
 async function mountStreamingSurface(opts: {
-  tokenDeltas: boolean;
-  presence?: boolean;
+  relayUrl?: boolean;
+  showViewers?: boolean;
   conversation?: string;
   showReplies?: boolean;
   messages?: Array<{ message_uuid?: string; role?: string }>;
   agentStatus?: string | null;
 }) {
-  if (opts.tokenDeltas) process.env.VITE_RELAY_TOKEN_DELTAS = "1";
-  else delete process.env.VITE_RELAY_TOKEN_DELTAS;
-
-  if (opts.presence) process.env.VITE_RELAY_PRESENCE = "1";
-  else delete process.env.VITE_RELAY_PRESENCE;
-
-  if (opts.tokenDeltas || opts.presence)
+  if (opts.relayUrl ?? true)
     process.env.VITE_RELAY_URL = "wss://relay.test/relay";
   else delete process.env.VITE_RELAY_URL;
 
@@ -98,7 +90,9 @@ async function mountStreamingSurface(opts: {
   }) {
     return (
       <RelayPresenceProvider>
-        {opts.presence ? <ConversationViewers conversationId={convId} /> : null}
+        {opts.showViewers ? (
+          <ConversationViewers conversationId={convId} />
+        ) : null}
         {showReplies ? (
           <RelayStreamingReplies
             conversationId={convId}
@@ -154,8 +148,8 @@ async function mountStreamingSurface(opts: {
   return { ...ui, Surface };
 }
 
-test("flag off opens nothing and renders no relay streaming UI", async () => {
-  const ui = await mountStreamingSurface({ tokenDeltas: false });
+test("missing VITE_RELAY_URL opens nothing and renders no relay streaming UI", async () => {
+  const ui = await mountStreamingSurface({ relayUrl: false });
   try {
     await flushRender(ui);
 
@@ -171,76 +165,8 @@ test("flag off opens nothing and renders no relay streaming UI", async () => {
   }
 });
 
-test("only delta flag on offers only token_delta and avoids presence state or viewerIdentities queries", async () => {
-  const ui = await mountStreamingSurface({
-    tokenDeltas: true,
-    presence: false,
-    messages: [],
-    agentStatus: "working",
-  });
-  try {
-    await flushRender(ui);
-
-    const socket = sockets[0]!;
-    await act(async () => {
-      socket.join(["token_delta"], viewerHub);
-    });
-    const connect = socket.frames.find((frame) => frame.type === "connect");
-    expect(connect?.capabilities).toEqual(["token_delta"]);
-
-    await act(async () => {
-      socket.message({
-        v: 1,
-        type: "presence",
-        hub: viewerHub,
-        connection_id: "peer:1",
-        seq: 1,
-        ttl_ms: 15_000,
-        user_id: "u-peer",
-        state: "active",
-        in_draft: false,
-      });
-    });
-    expect(
-      ui.store.getState().relayViewerPresence[conversationId],
-    ).toBeUndefined();
-    expect(
-      ui.backend.queryRequests.some(
-        (q) => q.name === "relayGrants:viewerIdentities",
-      ),
-    ).toBe(false);
-  } finally {
-    await ui.close();
-  }
-});
-
-test("only presence flag on omits token_delta capability and never writes delta store status", async () => {
-  const spy = spyOn(useInboxStore.getState(), "applyRelayTokenDeltaStatus");
-  const ui = await mountStreamingSurface({
-    tokenDeltas: false,
-    presence: true,
-    messages: [],
-    agentStatus: "working",
-  });
-  try {
-    await flushRender(ui);
-
-    const socket = sockets[0]!;
-    await act(async () => {
-      socket.join(["presence"], viewerHub);
-    });
-    const connect = socket.frames.find((frame) => frame.type === "connect");
-    expect(connect?.capabilities).not.toContain("token_delta");
-    expect(spy).not.toHaveBeenCalled();
-  } finally {
-    spy.mockRestore();
-    await ui.close();
-  }
-});
-
 test("clears all streams of a turn when durable merged message arrives and clears old streams on new turn", async () => {
   const ui = await mountStreamingSurface({
-    tokenDeltas: true,
     messages: [],
     agentStatus: "working",
   });
@@ -326,7 +252,6 @@ test("clears all streams of a turn when durable merged message arrives and clear
 
 test("sequence gap or exceeding 64 KiB stream limit drops relay text and waits for durable message", async () => {
   const ui = await mountStreamingSurface({
-    tokenDeltas: true,
     messages: [],
     agentStatus: "working",
   });
@@ -392,8 +317,7 @@ test("sequence gap or exceeding 64 KiB stream limit drops relay text and waits f
 
 test("conversation switch resets turn tracking and unmount clears relayTokenDeltas while presence remains mounted", async () => {
   const ui = await mountStreamingSurface({
-    tokenDeltas: true,
-    presence: true,
+    showViewers: true,
     messages: [],
     agentStatus: "working",
   });
@@ -456,6 +380,111 @@ test("conversation switch resets turn tracking and unmount clears relayTokenDelt
     expect(
       ui.container.querySelector('[data-testid="relay-streaming-reply"]'),
     ).toBeNull();
+  } finally {
+    await ui.close();
+  }
+});
+
+test("late token_delta after turn close does not reappear on the next turn", async () => {
+  const ui = await mountStreamingSurface({
+    messages: [],
+    agentStatus: "working",
+  });
+  try {
+    await flushRender(ui);
+
+    const socket = sockets[0]!;
+    await act(async () => {
+      socket.join(["token_delta"], viewerHub);
+      socket.message(
+        deltaFrame({
+          seq: 1,
+          run: 5,
+          turn: "turn-1",
+          message_id: "msg-1",
+          delta_seq: 1,
+          text: "Turn one stream",
+        }),
+      );
+    });
+    await flushRender(ui);
+    expect(
+      ui.container.querySelector('[data-testid="relay-streaming-reply"]')
+        ?.textContent,
+    ).toContain("Turn one stream");
+
+    await ui.rerender(<ui.Surface messages={[]} agentStatus="idle" />);
+    await flushRender(ui);
+
+    await act(async () => {
+      socket.message(
+        deltaFrame({
+          seq: 2,
+          run: 5,
+          turn: "turn-1",
+          message_id: "msg-1-late",
+          delta_seq: 1,
+          text: "Late turn one delta",
+        }),
+      );
+    });
+    await flushRender(ui);
+
+    await ui.rerender(<ui.Surface messages={[]} agentStatus="working" />);
+    await flushRender(ui);
+    expect(
+      ui.container.querySelector('[data-testid="relay-streaming-reply"]'),
+    ).toBeNull();
+
+    await act(async () => {
+      socket.message(
+        deltaFrame({
+          seq: 3,
+          run: 5,
+          turn: "turn-2",
+          message_id: "msg-2",
+          delta_seq: 1,
+          text: "Fresh turn two stream",
+        }),
+      );
+    });
+    await flushRender(ui);
+    const rendered = ui.container.querySelectorAll(
+      '[data-testid="relay-streaming-reply"]',
+    );
+    expect(rendered).toHaveLength(1);
+    expect(rendered[0]?.textContent).toContain("Fresh turn two stream");
+    expect(rendered[0]?.textContent).not.toContain("Late turn one delta");
+
+    await ui.rerender(
+      <ui.Surface
+        messages={[{ role: "assistant", message_uuid: "msg-2" }]}
+        agentStatus="working"
+      />,
+    );
+    await flushRender(ui);
+    expect(
+      ui.container.querySelector('[data-testid="relay-streaming-reply"]') ===
+        null,
+    ).toBe(true);
+
+    await act(async () => {
+      socket.message(
+        deltaFrame({
+          seq: 4,
+          run: 5,
+          turn: "turn-2",
+          message_id: "msg-2",
+          delta_seq: 2,
+          text: "Late same activeTurn delta",
+        }),
+      );
+    });
+    await flushRender(ui);
+    expect(
+      ui.container.querySelector('[data-testid="relay-streaming-reply"]') ===
+        null,
+    ).toBe(true);
   } finally {
     await ui.close();
   }

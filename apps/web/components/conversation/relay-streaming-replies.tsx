@@ -113,6 +113,7 @@ function ActiveRelayStreamingReplies({
 
   useWatchEffect(() => {
     if (
+      !turnOpen ||
       !currentTurnKey ||
       turnBaseline?.key === currentTurnKey ||
       !streamState ||
@@ -128,7 +129,13 @@ function ActiveRelayStreamingReplies({
       }
     }
     setTurnBaseline({ key: currentTurnKey, uuids: seeded });
-  }, [currentTurnKey, turnBaseline, streamState, durableAssistantUuids]);
+  }, [
+    turnOpen,
+    currentTurnKey,
+    turnBaseline,
+    streamState,
+    durableAssistantUuids,
+  ]);
 
   useWatchEffect(() => {
     return () => {
