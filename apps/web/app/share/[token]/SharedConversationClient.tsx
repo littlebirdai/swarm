@@ -14,9 +14,12 @@ export default function SharedConversationClient() {
   // this page, because the web server answers it with the same redirect
   // (server/share.ts). The meta query is the light lookup: the token to its
   // conversation id, without loading the transcript.
-  const conversation = useQuery(api.conversations.getSharedConversationMeta, {
-    share_token: token,
-  });
+  const conversation = useQuery(
+    api.conversationSharing.getSharedConversationMeta,
+    {
+      share_token: token,
+    },
+  );
   const conversationId = conversation?.conversation_id;
 
   useWatchEffect(() => {

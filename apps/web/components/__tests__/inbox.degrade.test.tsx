@@ -55,13 +55,13 @@ test("the inbox paints its cached session with every query missing", async () =>
     // The shell's own enrichment ran and was refused, so the page above was
     // rendered through those failures and not around them.
     for (const fn of [
-      "conversations:listInboxSessions",
+      "inboxLists:listInboxSessions",
       "teams:getUserTeams",
       "notifications:list",
-      "conversations:listFavorites",
+      "conversationFavorites:listFavorites",
       "tasks:webActiveSessions",
       "docs:webMentionList",
-      "conversations:listConversations",
+      "conversationList:listConversations",
     ]) {
       expect(backend.refused).toContain(fn);
     }

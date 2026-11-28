@@ -51,7 +51,7 @@ export async function cachedQuery(
 
 const SHARE_QUERIES: Record<ShareKind, (token: string) => Promise<unknown>> = {
   conversation: (t) =>
-    convex.query(api.conversations.getSharedConversationMeta, {
+    convex.query(api.conversationSharing.getSharedConversationMeta, {
       share_token: t,
     }),
   message: (t) =>

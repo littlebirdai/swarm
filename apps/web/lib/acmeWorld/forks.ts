@@ -193,7 +193,7 @@ const tree = () => {
 
 export const FORKS_PART: AcmePart = {
   name: "forks",
-  answers: { "conversations:getConversationTree": tree },
+  answers: { "conversationTrees:getConversationTree": tree },
   // Branches open from the branch map, never as inbox cards of their own.
   seed: (s, now) => {
     openableOnly(s, sessions(now));

@@ -314,7 +314,7 @@ export function useEntityResolution(
         : queryArgs
       : null;
   const session = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     sessionArgs ?? "skip",
   ).data;
   // No-throw: agentTasks.webGet is newer than some deployed clients, and a

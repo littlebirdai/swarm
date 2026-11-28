@@ -44,7 +44,7 @@ async function batchGetChunk(
         (
           await queryReplay(
             convex,
-            api.conversations.getInboxSessionsByIds,
+            api.inboxShelves.getInboxSessionsByIds,
             { ids },
             signal,
           )

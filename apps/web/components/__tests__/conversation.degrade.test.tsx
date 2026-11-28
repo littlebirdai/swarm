@@ -79,10 +79,10 @@ test("a cached conversation opens with its header and messages while every query
     expect(text).toContain("Rename the store slice");
     expect(text).toContain("Renamed it in four files and the tests pass.");
     for (const fn of [
-      "conversations:resolveConversation",
-      "conversations:listMessagesTail",
-      "conversations:getTranscriptWatermark",
-      "conversations:getUserMessages",
+      "conversationLookup:resolveConversation",
+      "conversationReads:listMessagesTail",
+      "conversationReads:getTranscriptWatermark",
+      "conversationNav:getUserMessages",
       "commentTwins:conversationComments",
       "collab:collabRequests",
     ]) {

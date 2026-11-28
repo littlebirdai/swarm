@@ -596,7 +596,7 @@ describe("idbCache.native", () => {
 
   it("keeps the split feeder's rows with their hashes, and drops the ones that left", async () => {
     persistSplitRows(
-      "conversations:listInboxSessions",
+      "inboxLists:listInboxSessions",
       [
         { id: "a", hash: "h1", row: { _id: "a", title: "one\ntwo" } },
         { id: "b", hash: "h2", row: { _id: "b" } },
@@ -604,15 +604,15 @@ describe("idbCache.native", () => {
       [],
     );
     await flushPersistence();
-    expect(await loadSplitRows("conversations:listInboxSessions")).toEqual([
+    expect(await loadSplitRows("inboxLists:listInboxSessions")).toEqual([
       { id: "a", hash: "h1", row: { _id: "a", title: "one\ntwo" } },
       { id: "b", hash: "h2", row: { _id: "b" } },
     ]);
-    expect(await loadSplitRows("conversations:sessionsLiveness")).toEqual([]);
-    persistSplitRows("conversations:listInboxSessions", [], ["a"]);
+    expect(await loadSplitRows("inboxLiveness:sessionsLiveness")).toEqual([]);
+    persistSplitRows("inboxLists:listInboxSessions", [], ["a"]);
     await flushPersistence();
     expect(
-      (await loadSplitRows("conversations:listInboxSessions")).map((r) => r.id),
+      (await loadSplitRows("inboxLists:listInboxSessions")).map((r) => r.id),
     ).toEqual(["b"]);
   });
 });

@@ -68,7 +68,7 @@ export function useMessageFeed(filter: "my" | "team"): {
   );
   const { ready } = useSyncCollection(
     "messageFeed",
-    api.conversations.getMessageFeed,
+    api.conversationFeeds.getMessageFeed,
     { filter, limit: PAGE, activeTeamId: teamArg },
     { select },
   );
@@ -91,7 +91,7 @@ export function useMessageFeed(filter: "my" | "team"): {
     if (!from) return;
     setLoadingMore(true);
     void convex
-      .query(api.conversations.getMessageFeed, {
+      .query(api.conversationFeeds.getMessageFeed, {
         filter,
         limit: PAGE,
         cursor: from,

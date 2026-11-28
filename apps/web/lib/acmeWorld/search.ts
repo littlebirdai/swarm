@@ -173,7 +173,7 @@ function search(args: any, titlesOnly = false) {
 export const SEARCH_PART: AcmePart = {
   name: "search",
   answers: {
-    "conversations:searchConversations": (a) => search(a),
-    "conversations:searchConversationTitles": (a) => search(a, true),
+    "sessionSearch:searchConversations": (a) => search(a),
+    "sessionSearch:searchConversationTitles": (a) => search(a, true),
   },
 };

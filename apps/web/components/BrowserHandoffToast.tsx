@@ -99,7 +99,7 @@ function BrowserHandoffToast({
 }) {
   const convId = conversationIdFromPath(path);
   const { data: fetched, error } = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     convId
       ? isConvexId(convId)
         ? { id: convId }

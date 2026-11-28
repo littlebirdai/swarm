@@ -769,7 +769,7 @@ function FixSessionItem({
   now: number;
 }) {
   const { data, error } = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     s.known ? "skip" : entityQueryArgs("session", s.id),
   );
   const remote =

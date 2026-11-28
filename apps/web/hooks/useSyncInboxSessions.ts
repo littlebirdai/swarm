@@ -308,7 +308,7 @@ export function runInboxFloorStep(
     since: floorSince,
     fetchPage: async (cursor, since) => {
       const page: any = await convex.query(
-        api.conversations.listInboxSessionsPaginated,
+        api.inboxShelves.listInboxSessionsPaginated,
         {
           since,
           paginationOpts: { numItems: SESSIONS_FLOOR_PAGE_SIZE, cursor },
@@ -369,17 +369,17 @@ export function useSyncInboxSessions(logSnapshot = false) {
   // desktop's largest stream (34 MB in 90s per window, 2026-10-08).
   const isSyncHost = useIsSyncHost();
   const favorites = useQueryNoThrow(
-    api.conversations.listFavoriteSessions,
+    api.conversationFavorites.listFavoriteSessions,
     isSyncHost ? { include_liveness: false } : "skip",
   );
-  useFeederError("conversations.listFavoriteSessions", favorites.error);
+  useFeederError("conversationFavorites.listFavoriteSessions", favorites.error);
   const favoriteSessions = favorites.data;
   const liveness = useSplitQueryNoThrow(
-    api.conversations.sessionsLiveness,
+    api.inboxLiveness.sessionsLiveness,
     isSyncHost ? PERSONAL_LIVENESS_ARGS : "skip",
     "liveness",
   );
-  useFeederError("conversations.sessionsLiveness", liveness.error);
+  useFeederError("inboxLiveness.sessionsLiveness", liveness.error);
   const sessionLiveness = liveness.data;
   const clientStateQ = useQueryNoThrow(api.client_state.get, {});
   useFeederError("client_state.get", clientStateQ.error);
@@ -421,7 +421,7 @@ export function useSyncInboxSessions(logSnapshot = false) {
   } = useLiveInboxSessions(logSnapshot);
 
   useInboxRecovery(
-    api.conversations.listInboxSessions,
+    api.inboxLists.listInboxSessions,
     isSyncHost && !logSnapshot ? LIST_INBOX_SESSIONS_ARGS : "skip",
     "list",
     inboxError,
@@ -435,7 +435,7 @@ export function useSyncInboxSessions(logSnapshot = false) {
     acceptLive,
     isHealthy,
   } = useInboxRecovery(
-    api.conversations.sessionsLiveness,
+    api.inboxLiveness.sessionsLiveness,
     isSyncHost ? PERSONAL_LIVENESS_ARGS : "skip",
     "liveness",
     liveness.error,

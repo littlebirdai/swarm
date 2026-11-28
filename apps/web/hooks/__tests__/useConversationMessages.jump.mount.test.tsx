@@ -77,7 +77,7 @@ let aroundAnswer: any = undefined;
 mock.module("../useQueryNoThrow", () => ({
   useQueryNoThrow: (fn: any, args: unknown) => {
     const name = getFunctionName(fn);
-    if (name === "conversations:getMessagesAroundTimestamp") {
+    if (name === "conversationMessages:getMessagesAroundTimestamp") {
       if (args !== "skip") aroundArgs.push(args);
       return { data: args === "skip" ? undefined : aroundAnswer };
     }

@@ -160,12 +160,12 @@ const mount = async (qs = "", rows: Record<string, InboxSession> = {}) => {
       backend.set(api.docs.webListPaginated, pending);
       backend.set(api.devices.listDevices, pending);
 
-      backend.set(api.conversations.getConversation, pending);
-      backend.set(api.conversations.getConversationWithMeta, pending);
-      backend.set(api.conversations.getTranscriptWatermark, pending);
-      backend.set(api.conversations.getUserMessages, pending);
-      backend.set(api.conversations.listMessagesTail, pending);
-      backend.set(api.conversations.getAllMessages, pending);
+      backend.set(api.conversationReads.getConversation, pending);
+      backend.set(api.conversationReads.getConversationWithMeta, pending);
+      backend.set(api.conversationReads.getTranscriptWatermark, pending);
+      backend.set(api.conversationNav.getUserMessages, pending);
+      backend.set(api.conversationReads.listMessagesTail, pending);
+      backend.set(api.conversationMessages.getAllMessages, pending);
     },
   });
 };

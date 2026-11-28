@@ -35,7 +35,7 @@ import {
 import { hashToken } from "@codecast/convex/convex/apiTokens";
 import { internalMutation } from "@codecast/convex/convex/functions";
 import { patchConversationVisibility } from "@codecast/convex/convex/lib/conversationVisibility";
-import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
+import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/inboxLiveness";
 import {
   makeSimBackend,
   type Principal,

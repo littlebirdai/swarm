@@ -52,7 +52,7 @@ export function startInboxDigestCompare(
     },
     probeOverlay: async () => {
       applyMineLivenessPayload(
-        await convex.query(api.conversations.sessionsLiveness, {
+        await convex.query(api.inboxLiveness.sessionsLiveness, {
           _probe: Date.now(),
         }),
       );
@@ -76,7 +76,7 @@ export function startInboxDigestCompare(
       ...dev,
       /** One raw overlay execution, as the server ships it (nothing applied). */
       overlay: () =>
-        convex.query(api.conversations.sessionsLiveness, {
+        convex.query(api.inboxLiveness.sessionsLiveness, {
           _probe: Date.now(),
         }),
       /** The server's current rows for ids (read only; nothing applied). */

@@ -77,11 +77,11 @@ describe("runInboxFloorStep probe", () => {
     const convex = {
       query: async (fn: any, args: any) => {
         const name = getFunctionName(fn);
-        if (name === "conversations:listInboxSessionsPaginated") {
+        if (name === "inboxShelves:listInboxSessionsPaginated") {
           // A floor that returns nothing: every cached row is a candidate.
           return { page: [], isDone: true, continueCursor: "" };
         }
-        if (name === "conversations:getInboxSessionsByIds") {
+        if (name === "inboxShelves:getInboxSessionsByIds") {
           asked.push([...args.ids].sort());
           if (asked.length === 2) done();
           // byIds' truth: it serves the rows the caller runs or still owns.

@@ -69,11 +69,11 @@ function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
           initialized: true,
           hasMoreAbove: false,
         });
-        backend.set(api.conversations.listMessages, pending);
-        backend.set(api.conversations.listMessagesTail, pending);
-        backend.set(api.conversations.getConversationWithMeta, pending);
-        backend.set(api.conversations.getTranscriptWatermark, pending);
-        backend.set(api.conversations.getUserMessages, pending);
+        backend.set(api.conversationMessages.listMessages, pending);
+        backend.set(api.conversationReads.listMessagesTail, pending);
+        backend.set(api.conversationReads.getConversationWithMeta, pending);
+        backend.set(api.conversationReads.getTranscriptWatermark, pending);
+        backend.set(api.conversationNav.getUserMessages, pending);
         backend.set(api.accountSwitch.listAccountProfiles, pending);
         backend.set(api.collab.mySendAccess, pending);
         backend.set(api.commentTwins.conversationComments, pending);

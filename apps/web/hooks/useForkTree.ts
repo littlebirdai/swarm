@@ -565,7 +565,7 @@ export function useForkTree(conversation: ForkConversationLike, open: boolean) {
         ? conversation.forked_from
         : conversation?.forked_from?.toString();
   const serverRes = useQueryNoThrow(
-    api.conversations.getConversationTree,
+    api.conversationTrees.getConversationTree,
     open && queryId && isConvexId(queryId)
       ? { conversation_id: queryId as any }
       : "skip",

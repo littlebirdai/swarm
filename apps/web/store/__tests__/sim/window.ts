@@ -312,13 +312,13 @@ export class SimWindow implements RealmWindow {
     });
     this.mount(
       "inbox",
-      api.conversations.listInboxSessions,
+      api.inboxLists.listInboxSessions,
       () => LIST_INBOX_SESSIONS_ARGS,
       (data) => void applyInboxListPayload(data, this.client),
     );
     this.mount(
       "liveness",
-      api.conversations.sessionsLiveness,
+      api.inboxLiveness.sessionsLiveness,
       () => ({}),
       (data) => void applyMineLivenessPayload(data),
     );
@@ -333,13 +333,13 @@ export class SimWindow implements RealmWindow {
       const team = this.scope.team;
       this.mount(
         "team",
-        api.conversations.listTeamInboxSessions,
+        api.inboxLists.listTeamInboxSessions,
         () => teamInboxArgs(team),
         (data) => void applyTeamListPayload(data, team),
       );
       this.mount(
         "teamLiveness",
-        api.conversations.teamSessionsLiveness,
+        api.inboxLiveness.teamSessionsLiveness,
         () => ({ activeTeamId: team }),
         (data) => void applyTeamLivenessPayload(team, data),
       );
@@ -437,7 +437,7 @@ export class SimWindow implements RealmWindow {
     await this.run(() =>
       this.mount(
         feed,
-        api.conversations.listMessagesTail,
+        api.conversationReads.listMessagesTail,
         () => ({ conversation_id: conversationId, after_timestamp: anchor }),
         (res) => {
           const sig = JSON.stringify(res ?? null);

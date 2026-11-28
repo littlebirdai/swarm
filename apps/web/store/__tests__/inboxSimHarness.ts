@@ -306,12 +306,12 @@ export class SimServer implements SimWindowWorld {
   // The live window, exactly as a host subscribes to it.
   base(): Promise<{ sessions: Array<Record<string, any>> }> {
     return this.clientAs("me").query(
-      "conversations:listInboxSessions",
+      "inboxLists:listInboxSessions",
       LIST_INBOX_SESSIONS_ARGS,
     );
   }
   overlay(): Promise<{ liveness: Record<string, any>; projection: any }> {
-    return this.clientAs("me").query("conversations:sessionsLiveness", {});
+    return this.clientAs("me").query("inboxLiveness:sessionsLiveness", {});
   }
 
   // -- Writing the server (outside any window: another device, the daemon, a cron) --

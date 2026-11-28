@@ -57,7 +57,7 @@ export const TEAM_ACTIVITY_PART: AcmePart = {
   name: "teamActivity",
   answers: {
     // The team feed only; a personal feed asks with another filter.
-    "conversations:listConversations": (args) =>
+    "conversationList:listConversations": (args) =>
       args?.filter === "team"
         ? { conversations: FEED(Date.now()), nextCursor: null, isDone: true }
         : undefined,

@@ -179,11 +179,11 @@ function snapshot(...page: (typeof first)[]) {
 function configureTranscript(
   backend: Awaited<ReturnType<typeof mountWeb>>["backend"],
 ) {
-  backend.set(api.conversations.getConversationWithMeta, pending);
-  backend.set(api.conversations.getTranscriptWatermark, pending);
-  backend.set(api.conversations.getUserMessages, pending);
-  backend.set(api.conversations.listMessagesTail, pending);
-  backend.set(api.conversations.getNewMessages, {
+  backend.set(api.conversationReads.getConversationWithMeta, pending);
+  backend.set(api.conversationReads.getTranscriptWatermark, pending);
+  backend.set(api.conversationNav.getUserMessages, pending);
+  backend.set(api.conversationReads.listMessagesTail, pending);
+  backend.set(api.conversationMessages.getNewMessages, {
     messages: [live],
     has_more: false,
     last_timestamp: live.timestamp,
@@ -199,7 +199,7 @@ test("a visible cold open retries a failed snapshot and then anchors its live ta
       store.seedSession(liveSession);
       configureTranscript(backend);
       backend.set(
-        api.conversations.listMessages,
+        api.conversationMessages.listMessages,
         new Error("first snapshot failed"),
       );
     },
@@ -208,24 +208,24 @@ test("a visible cold open retries a failed snapshot and then anchors its live ta
     await mounted.clock!.advance(0);
     expect(
       mounted.backend.queryRequests.filter(
-        (call) => call.name === "conversations:listMessages",
+        (call) => call.name === "conversationMessages:listMessages",
       ),
     ).toHaveLength(1);
     expect(mounted.container.textContent).not.toContain(first.content);
     mounted.backend.set(
-      api.conversations.listMessages,
+      api.conversationMessages.listMessages,
       snapshot(second, first),
     );
     await mounted.clock!.advance(1000);
     expect(mounted.container.textContent).toContain(first.content);
     expect(mounted.container.textContent).toContain(second.content);
     expect(mounted.backend.queryRequests).toContainEqual({
-      name: "conversations:listMessagesTail",
+      name: "conversationReads:listMessagesTail",
       args: { conversation_id: liveSession._id, after_timestamp: 199 },
     });
     expect(
       mounted.backend.queryRequests.some(
-        (call) => call.name === "conversations:getNewMessages",
+        (call) => call.name === "conversationMessages:getNewMessages",
       ),
     ).toBe(false);
   } finally {
@@ -242,7 +242,10 @@ test("an evicted prewarm ignores its anchored tail push and stays evicted", asyn
         store.seedSession(liveSession);
         store.setMessages(liveSession._id, [first, second], {}, "cache");
         configureTranscript(backend);
-        backend.set(api.conversations.listMessages, snapshot(second, first));
+        backend.set(
+          api.conversationMessages.listMessages,
+          snapshot(second, first),
+        );
       },
     },
   );
@@ -253,7 +256,7 @@ test("an evicted prewarm ignores its anchored tail push and stays evicted", asyn
   try {
     await mounted.clock!.advance(0);
     expect(mounted.backend.queryRequests).toContainEqual({
-      name: "conversations:listMessagesTail",
+      name: "conversationReads:listMessagesTail",
       args: { conversation_id: liveSession._id, after_timestamp: 199 },
     });
     await act(async () => {
@@ -269,7 +272,7 @@ test("an evicted prewarm ignores its anchored tail push and stays evicted", asyn
     });
     expect(mounted.store.getState().messages[liveSession._id]).toBeUndefined();
     await act(async () => {
-      mounted.backend.set(api.conversations.listMessagesTail, {
+      mounted.backend.set(api.conversationReads.listMessagesTail, {
         messages: [live],
         has_more: false,
         last_timestamp: live.timestamp,
@@ -283,7 +286,7 @@ test("an evicted prewarm ignores its anchored tail push and stays evicted", asyn
     expect(write).not.toHaveBeenCalled();
     expect(
       mounted.backend.queryRequests.some(
-        (call) => call.name === "conversations:listMessages",
+        (call) => call.name === "conversationMessages:listMessages",
       ),
     ).toBe(false);
   } finally {
@@ -298,17 +301,17 @@ test("a tail anchored at zero can populate an empty conversation", async () => {
     setup(backend, store) {
       store.seedSession({ ...liveSession, message_count: 0 });
       configureTranscript(backend);
-      backend.set(api.conversations.listMessages, snapshot());
+      backend.set(api.conversationMessages.listMessages, snapshot());
     },
   });
   try {
     await mounted.clock!.advance(0);
     expect(mounted.backend.queryRequests).toContainEqual({
-      name: "conversations:listMessagesTail",
+      name: "conversationReads:listMessagesTail",
       args: { conversation_id: liveSession._id, after_timestamp: 0 },
     });
     await act(async () => {
-      mounted.backend.set(api.conversations.listMessagesTail, {
+      mounted.backend.set(api.conversationReads.listMessagesTail, {
         messages: [first],
         has_more: false,
         last_timestamp: first.timestamp,
@@ -326,7 +329,7 @@ test("an empty snapshot with a stale message count stays quiet until its tail de
     setup(backend, store) {
       store.seedSession({ ...liveSession, message_count: 5 });
       configureTranscript(backend);
-      backend.set(api.conversations.listMessages, snapshot());
+      backend.set(api.conversationMessages.listMessages, snapshot());
     },
   });
   const write = spyOn(cacheStorage, "writeConversationMessages");
@@ -336,12 +339,12 @@ test("an empty snapshot with a stale message count stays quiet until its tail de
     for (let tick = 0; tick < 5; tick++) await mounted.clock!.advance(1000);
     expect(
       mounted.backend.queryRequests.filter(
-        (call) => call.name === "conversations:listMessages",
+        (call) => call.name === "conversationMessages:listMessages",
       ),
     ).toHaveLength(1);
     expect(write).not.toHaveBeenCalled();
     await act(async () => {
-      mounted.backend.set(api.conversations.listMessagesTail, {
+      mounted.backend.set(api.conversationReads.listMessagesTail, {
         messages: [first],
         has_more: false,
         last_timestamp: first.timestamp,
@@ -372,7 +375,7 @@ test.each(["disk read", "snapshot"] as const)(
           store.seedSession(liveSession);
           store._setDispatch(async () => null);
           configureTranscript(backend);
-          backend.set(api.conversations.listMessages, pending);
+          backend.set(api.conversationMessages.listMessages, pending);
         },
       },
     );
@@ -382,7 +385,7 @@ test.each(["disk read", "snapshot"] as const)(
     ).mockImplementation(() => {});
     const snapshots = () =>
       mounted.backend.queryRequests.filter(
-        (call) => call.name === "conversations:listMessages",
+        (call) => call.name === "conversationMessages:listMessages",
       );
     try {
       await mounted.clock!.advance(0);
@@ -393,7 +396,7 @@ test.each(["disk read", "snapshot"] as const)(
       );
       await act(async () => {
         mounted.backend.set(
-          api.conversations.listMessages,
+          api.conversationMessages.listMessages,
           snapshot(second, first),
         );
         disk.resolve(null);

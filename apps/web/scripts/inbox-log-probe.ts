@@ -18,7 +18,7 @@ assert(mode === "subscription" || mode === "snapshot");
 const samples = 30;
 const size = 24;
 const encoder = new TextEncoder();
-const list = api.conversations.listInboxSessions;
+const list = api.inboxLists.listInboxSessions;
 const backend = serverTest();
 const { viewer, id } = await backend.run(async ({ db }) => {
   const rows = fixtureRows(db, "inbox-log-probe");
@@ -114,7 +114,7 @@ for (let i = 0; i <= samples; i++) {
     assert.equal(split.hot.length, size);
     applyInboxListPayload(split.hot);
   }
-  await query(api.conversations.sessionsLiveness, { split: true }, true);
+  await query(api.inboxLiveness.sessionsLiveness, { split: true }, true);
   const heads = await query(api.syncLog.getHeads, {}, true);
   await catchUp({
     query: (

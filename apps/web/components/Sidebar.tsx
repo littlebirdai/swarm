@@ -277,7 +277,7 @@ export const Sidebar = memo(function Sidebar({
     nativeApp !== null && !(nativeApp === "mac" && hasUsedDesktop);
 
   const favoritesQuery = useQueryNoThrow(
-    api.conversations.listFavorites,
+    api.conversationFavorites.listFavorites,
     {},
   ).data;
   // Read bookmarks straight from the store (synced globally in useSyncInboxSessions)
@@ -296,7 +296,7 @@ export const Sidebar = memo(function Sidebar({
         return;
       prefetchedBookmarksRef.current.add(bm._id);
       convex
-        .query(api.conversations.getMessagesAroundTimestamp, {
+        .query(api.conversationMessages.getMessagesAroundTimestamp, {
           conversation_id: bm.conversation_id,
           center_timestamp: bm.message_timestamp,
           limit_before: 50,
@@ -304,7 +304,7 @@ export const Sidebar = memo(function Sidebar({
         })
         .catch(() => prefetchedBookmarksRef.current.delete(bm._id));
       convex
-        .query(api.conversations.getConversationWithMeta, {
+        .query(api.conversationReads.getConversationWithMeta, {
           conversation_id: bm.conversation_id,
         })
         .catch(() => {});

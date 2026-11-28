@@ -289,7 +289,7 @@ export default function ConversationPage() {
     error: resolveError,
     retry: retryResolve,
   } = useQueryNoThrow(
-    api.conversations.resolveConversation,
+    api.conversationLookup.resolveConversation,
     id ? { id, ...(shareToken ? { share_token: shareToken } : {}) } : "skip",
   );
   const effective = resolved;
@@ -407,7 +407,7 @@ function RedeemThenRedirect({
   highlightQuery?: string;
   prefill?: string;
 }) {
-  const redeem = useMutation(api.conversations.redeemShareToken);
+  const redeem = useMutation(api.conversationSharing.redeemShareToken);
   const [redeemed, setRedeemed] = useState(false);
   useMountEffect(() => {
     // Best-effort: an invalid/rotated token redeems nothing and the inbox

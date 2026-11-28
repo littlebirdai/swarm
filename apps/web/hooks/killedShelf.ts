@@ -40,8 +40,8 @@ export async function loadMoreKilledSessions(
   const rows: InboxSession[] = [];
   const page = (
     fn:
-      | typeof api.conversations.listKilledSessions
-      | typeof api.conversations.listClosedSessions,
+      | typeof api.inboxShelves.listKilledSessions
+      | typeof api.inboxShelves.listClosedSessions,
     at: string | null,
   ) =>
     convex.query(fn, {
@@ -57,10 +57,10 @@ export async function loadMoreKilledSessions(
     const [killed, closed] = await Promise.allSettled([
       killedDone || killedFailed
         ? null
-        : page(api.conversations.listKilledSessions, cursor),
+        : page(api.inboxShelves.listKilledSessions, cursor),
       closedDone || closedFailed
         ? null
-        : page(api.conversations.listClosedSessions, closedCursor),
+        : page(api.inboxShelves.listClosedSessions, closedCursor),
     ]);
     if (killed.status === "rejected") {
       killedFailed = true;

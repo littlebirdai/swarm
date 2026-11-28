@@ -87,7 +87,7 @@ export function useRemoteSearch(
     }
     if (
       rememberedResult(
-        api.conversations.searchConversations,
+        api.sessionSearch.searchConversations,
         contentArgs(query),
       )
     ) {
@@ -108,14 +108,14 @@ export function useRemoteSearch(
   );
   const on = enabled && sessionSearchOn;
   const { data: contentResults, error: searchError } = useQueryNoThrow(
-    api.conversations.searchConversations,
+    api.sessionSearch.searchConversations,
     on ? contentArgs(debouncedQuery) : "skip",
     { breakAfterMs: 15_000, remember: true },
   );
   // Cheap always-fast companion: title/subtitle/summary matches land while (or
   // even if never) the message content search resolves.
   const { data: titleResults } = useQueryNoThrow(
-    api.conversations.searchConversationTitles,
+    api.sessionSearch.searchConversationTitles,
     on && !userOnly ? titleArgs(debouncedQuery) : "skip",
     { remember: true },
   );

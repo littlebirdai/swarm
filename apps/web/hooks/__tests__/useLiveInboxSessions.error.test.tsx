@@ -24,7 +24,7 @@ test("the 1s user-code timeout renders as a value and leaves the cached rows alo
     setup: (backend, state) => {
       state.syncTable("sessions", [cached]);
       useInboxStore.setState({ syncRole: "host" });
-      backend.set(api.conversations.listInboxSessions, timeout);
+      backend.set(api.inboxLists.listInboxSessions, timeout);
     },
   });
   expect(container.querySelector("span")?.outerHTML).toBe(

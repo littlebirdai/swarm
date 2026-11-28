@@ -505,7 +505,7 @@ export const DECISIONS_PART: AcmePart = {
   sessions,
   answers: {
     "sessionDecisions:listForUser": () => DECISIONS(Date.now()),
-    "conversations:getConversation": (a) => {
+    "conversationReads:getConversation": (a) => {
       const row = OPENABLE.get(String(a?.conversation_id));
       return row ? { ...row, user: { name: row.author_name } } : undefined;
     },

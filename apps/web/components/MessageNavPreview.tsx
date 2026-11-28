@@ -34,7 +34,7 @@ export function MachineSourceLabel({
 }) {
   const needsLookup = kind === "session" && SHORT_ID_RE.test(source);
   const resolved = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     needsLookup ? { short_id: source } : "skip",
   ).data;
   return <>{(needsLookup && resolved?.title) || source}</>;

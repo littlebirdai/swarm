@@ -3154,7 +3154,7 @@ function SessionListPanelImpl({
   const [staleListOpen, setStaleListOpen] = useState(false);
   const [dismissingStale, setDismissingStale] = useState(false);
   const dismissStaleMutation = useMutation(
-    api.conversations.dismissStaleInboxSessions,
+    api.inboxShelves.dismissStaleInboxSessions,
   );
   const showStalePrompt =
     staleSessions.length > STALE_PROMPT_THRESHOLD && !stalePromptSnoozed;

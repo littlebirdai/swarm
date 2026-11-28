@@ -34,7 +34,9 @@ export default function TeamActivityPage() {
   // (getTeamUnreadCount counts teammate activity past this mark). Stamp it on
   // entry and again on exit so activity that landed while the feed was open is
   // not re-counted.
-  const markTeamSeen = useMutation(api.conversations.markTeamConversationsSeen);
+  const markTeamSeen = useMutation(
+    api.conversationFeeds.markTeamConversationsSeen,
+  );
   useWatchEffect(() => {
     if (mode !== "team") return;
     void markTeamSeen({});

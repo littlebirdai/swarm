@@ -72,7 +72,7 @@ function messageWindow(messages: Message[], hasMoreBelow = false) {
   };
 }
 
-const around = api.conversations.getMessagesAroundTimestamp;
+const around = api.conversationMessages.getMessagesAroundTimestamp;
 
 const view = (jump: Props["jump"]) => (
   <AnchorConversation conversationId={session._id} hideHeader jump={jump} />
@@ -85,7 +85,7 @@ const mount = (jump?: Props["jump"], finding = false) =>
         initialized: true,
         hasMoreAbove: false,
       });
-      backend.set(api.conversations.listMessages, {
+      backend.set(api.conversationMessages.listMessages, {
         page: [
           {
             ...live,
@@ -97,10 +97,10 @@ const mount = (jump?: Props["jump"], finding = false) =>
         isDone: true,
         continueCursor: "",
       });
-      backend.set(api.conversations.listMessagesTail, pending);
-      backend.set(api.conversations.getConversationWithMeta, pending);
-      backend.set(api.conversations.getTranscriptWatermark, pending);
-      backend.set(api.conversations.getUserMessages, pending);
+      backend.set(api.conversationReads.listMessagesTail, pending);
+      backend.set(api.conversationReads.getConversationWithMeta, pending);
+      backend.set(api.conversationReads.getTranscriptWatermark, pending);
+      backend.set(api.conversationNav.getUserMessages, pending);
       backend.set(
         api.messages.getMessageTimestamp,
         ({ conversation_id, message_id }) =>
@@ -131,7 +131,7 @@ const calls = (web: Mount, name: string) =>
     .filter((call) => call.name === name)
     .map((call) => call.args);
 const windows = (web: Mount) =>
-  calls(web, "conversations:getMessagesAroundTimestamp");
+  calls(web, "conversationMessages:getMessagesAroundTimestamp");
 function checkTarget(web: Mount, id?: string, nonce?: number) {
   const node = web.container.querySelector("[data-target]");
   expectPresent(node);

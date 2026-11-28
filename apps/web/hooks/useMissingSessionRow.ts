@@ -33,7 +33,7 @@ export function useMissingSessionLookup(id: string | null): {
 } {
   const valid = !!id && isConvexId(id);
   const { data, error } = useQueryNoThrow(
-    api.conversations.getConversation,
+    api.conversationReads.getConversation,
     valid ? { conversation_id: id, limit: 1 } : "skip",
   );
   const row = useMemo(() => {

@@ -7,7 +7,7 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 
 type ConversationResult = ReturnType<
-  typeof useQuery<typeof api.conversations.listConversations>
+  typeof useQuery<typeof api.conversationList.listConversations>
 >;
 
 export function useConversationsWithError(
@@ -30,7 +30,7 @@ export function useConversationsWithError(
   const stubTeam =
     filter === "team" && !!activeTeamId && !isConvexId(String(activeTeamId));
   const result = useQuery(
-    api.conversations.listConversations,
+    api.conversationList.listConversations,
     stubTeam
       ? "skip"
       : {

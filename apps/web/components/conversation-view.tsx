@@ -809,7 +809,7 @@ const ConversationViewInner = function ConversationView(
   // message list paints before the cascade fires.
   const deferredQueriesEnabled = useDeferUntilSettled(conversation?._id);
   const gitDiffData = useQueryNoThrow(
-    api.conversations.getConversationGitDiff,
+    api.conversationReads.getConversationGitDiff,
     deferredQueriesEnabled && diffExpanded && convexConvId
       ? { conversation_id: convexConvId, ...shareTokenArg(convexConvId) }
       : "skip",
@@ -1132,8 +1132,10 @@ const ConversationViewInner = function ConversationView(
   }, []);
 
   const generateShareLink = useMutation(api.messages.generateMessageShareLink);
-  const pinToProfile = useMutation(api.conversations.pinToProfile);
-  const unpinFromProfile = useMutation(api.conversations.unpinFromProfile);
+  const pinToProfile = useMutation(api.conversationSharing.pinToProfile);
+  const unpinFromProfile = useMutation(
+    api.conversationSharing.unpinFromProfile,
+  );
   // Session-control commands (fork/restart/repair/rewind/sendKeys/sendEscape)
   // route through the local-first convCommand action — optimistic + dispatch
   // outbox — instead of direct useMutation. The command strings map to Convex
@@ -2439,7 +2441,7 @@ const ConversationViewInner = function ConversationView(
       // Safety cap: stop after ~100k messages so a corrupt cursor can't infinite-loop.
       for (let i = 0; i < 500; i++) {
         const result: any = await convex.query(
-          api.conversations.copyAllMessages,
+          api.conversationMessages.copyAllMessages,
           {
             conversation_id: convexConvId,
             paginationOpts: { numItems: 200, cursor },

@@ -25,10 +25,10 @@ function Feeders() {
 }
 
 const inbox = [
-  api.conversations.listInboxSessions,
-  api.conversations.sessionsLiveness,
-  api.conversations.listTeamInboxSessions,
-  api.conversations.teamSessionsLiveness,
+  api.inboxLists.listInboxSessions,
+  api.inboxLiveness.sessionsLiveness,
+  api.inboxLists.listTeamInboxSessions,
+  api.inboxLiveness.teamSessionsLiveness,
 ] as const;
 const names = inbox.map(getFunctionName).sort();
 const list = { sessions: [], hidden_count: 0, truncated: [] };
@@ -53,13 +53,13 @@ function setInboxQueries(
     <T,>(data: T) =>
     ({ _probe }: { _probe?: number }) =>
       _probe === undefined && error ? error : data;
-  backend.set(api.conversations.listInboxSessions, reply(list));
+  backend.set(api.inboxLists.listInboxSessions, reply(list));
   backend.set(
-    api.conversations.listTeamInboxSessions,
+    api.inboxLists.listTeamInboxSessions,
     reply({ ...list, team_id: null }),
   );
-  backend.set(api.conversations.sessionsLiveness, reply(liveness));
-  backend.set(api.conversations.teamSessionsLiveness, reply(liveness));
+  backend.set(api.inboxLiveness.sessionsLiveness, reply(liveness));
+  backend.set(api.inboxLiveness.teamSessionsLiveness, reply(liveness));
 }
 
 async function mountInbox(node: ReactNode = <Feeders />) {
@@ -78,7 +78,7 @@ async function mountInbox(node: ReactNode = <Feeders />) {
       backend.set(api.users.getCurrentUser, undefined);
       backend.set(api.users.getCurrentUserProbe, undefined);
       backend.set(api.bookmarks.listBookmarks, undefined);
-      backend.set(api.conversations.listFavoriteSessions, undefined);
+      backend.set(api.conversationFavorites.listFavoriteSessions, undefined);
       setInboxQueries(backend);
     },
   });
@@ -215,7 +215,7 @@ test("successive subscription errors allow one read per query every 15 seconds",
 
 test("a persistent subscription error retries until a recovery applies", async () => {
   const { backend, clock, probes, store } = await mountInbox();
-  const query = api.conversations.sessionsLiveness;
+  const query = api.inboxLiveness.sessionsLiveness;
   let attempts = 0;
   await act(async () => {
     backend.set(query, ({ _probe }) => {
@@ -316,8 +316,8 @@ test("identity loss cancels in-flight inbox reads and recovery resumes after sig
   await act(async () => {
     store.getState().setLiveInboxIds(["personal"]);
     store.getState().setTeamInboxIds(["team"], null);
-    backend.set(api.conversations.listInboxSessions, pending);
-    backend.set(api.conversations.listTeamInboxSessions, pending);
+    backend.set(api.inboxLists.listInboxSessions, pending);
+    backend.set(api.inboxLists.listTeamInboxSessions, pending);
     emitSyncWake();
   });
   await clock.advance(7_500);
@@ -331,10 +331,10 @@ test("identity loss cancels in-flight inbox reads and recovery resumes after sig
 
   await rerender(<InboxIdentity authenticated={false} />);
   await act(async () => {
-    backend.set(api.conversations.listInboxSessions, ({ _probe }) =>
+    backend.set(api.inboxLists.listInboxSessions, ({ _probe }) =>
       _probe === undefined ? pending : list,
     );
-    backend.set(api.conversations.listTeamInboxSessions, ({ _probe }) =>
+    backend.set(api.inboxLists.listTeamInboxSessions, ({ _probe }) =>
       _probe === undefined ? pending : { ...list, team_id: null },
     );
     emitSyncWake();
