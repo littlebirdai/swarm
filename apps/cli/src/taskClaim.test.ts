@@ -297,9 +297,16 @@ describe("the task verbs never guess the session", () => {
   // handed, so a person at a plain terminal would hand a task to a hand's role
   // (start) or be refused as a hand (verdict, done). These verbs read the
   // caller's own id or nothing.
-  test("start, done, handoff, verdict and drop read ownSessionId, not detectCurrentSessionId", () => {
+  test("start, update, done, handoff, verdict and drop read ownSessionId, not detectCurrentSessionId", () => {
     const src = readFileSync(join(import.meta.dir, "index.ts"), "utf8");
-    for (const verb of ["start", "done", "handoff", "verdict", "drop"]) {
+    for (const verb of [
+      "start",
+      "update",
+      "done",
+      "handoff",
+      "verdict",
+      "drop",
+    ]) {
       const at = src.indexOf(`work\n  .command("${verb}")`);
       expect(at, `work.command("${verb}") is defined`).toBeGreaterThan(-1);
       const action = src.slice(at, src.indexOf("\nwork\n", at + 1));
@@ -317,6 +324,7 @@ describe("the task verbs never guess the session", () => {
     const cliPostSrc = src.slice(cliPostAt, cliPostEnd);
     expect(cliPostSrc).not.toContain("detectCurrentSessionId(");
     expect(cliPostSrc).toContain("isTaskClaimWriteRoute(");
+    expect(cliPostSrc).toContain("isTaskClaimConflictRoute(");
     expect(cliPostSrc).toContain("ownSessionId(getRealCwd())");
   });
 });

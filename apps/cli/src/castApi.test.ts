@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isOlderBackendRefusal } from "./castApi.js";
+import { apiPost, isOlderBackendRefusal } from "./castApi.js";
 
 describe("isOlderBackendRefusal", () => {
   test("reads the validator's refusal of a field this backend does not know", () => {
@@ -26,5 +26,60 @@ describe("isOlderBackendRefusal", () => {
         "conversation_id",
       ),
     ).toBe(false);
+  });
+});
+
+describe("apiPost 409 handling", () => {
+  test("rewrites 409 only on task claim routes", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      const deps = {
+        getCliEndpoint: () => ({
+          siteUrl: "https://example.invalid",
+          apiToken: "tok",
+        }),
+        detectCurrentSessionId: () => null,
+      };
+      globalThis.fetch = (async () =>
+        new Response(
+          JSON.stringify({
+            code: "CONFLICT",
+            reason: "busy",
+            error: "Revision changed elsewhere",
+          }),
+          { status: 409 },
+        )) as unknown as typeof fetch;
+
+      await expect(
+        apiPost(
+          deps,
+          "/cli/docs/save",
+          { id: "doc:1" },
+          { exitOnError: false },
+        ),
+      ).rejects.toThrow("Revision changed elsewhere");
+
+      try {
+        await apiPost(
+          deps,
+          "/cli/docs/save",
+          { id: "doc:1" },
+          { exitOnError: false },
+        );
+      } catch (err) {
+        expect((err as Error).message).not.toContain("409 CONFLICT");
+      }
+
+      await expect(
+        apiPost(
+          deps,
+          "/cli/work/update",
+          { short_id: "ct-1" },
+          { exitOnError: false },
+        ),
+      ).rejects.toThrow("409 CONFLICT (busy): Revision changed elsewhere");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

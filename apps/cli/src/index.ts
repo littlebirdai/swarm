@@ -585,6 +585,7 @@ import {
   clearStaleClaimOnConflict,
   clearTaskPulse,
   clearTaskPulseIfBound,
+  isTaskClaimConflictRoute,
   isTaskClaimWriteRoute,
   prepareTaskClaimBody,
   readTaskClaimToken,
@@ -24365,11 +24366,13 @@ async function cliPost(
     const { nonJsonError } = await import("./castApi.js");
     fail(nonJsonError(urlPath, response.status, text), "");
   }
-  const conflict = formatTaskConflict(
-    response.status,
-    result,
-    result?.error ? cliErrorMessage(result.error) : undefined,
-  );
+  const conflict = isTaskClaimConflictRoute(urlPath)
+    ? formatTaskConflict(
+        response.status,
+        result,
+        result?.error ? cliErrorMessage(result.error) : undefined,
+      )
+    : null;
   if (conflict) {
     if (isClaimWrite) {
       clearStaleClaimOnConflict(
@@ -25987,7 +25990,7 @@ work
     "Reasoning effort a session spawned for this task launches with: low, medium, high, xhigh, max; '' clears",
   )
   .action(async (shortId: string, options: any) => {
-    const sessionId = detectCurrentSessionId();
+    const sessionId = ownSessionId(getRealCwd());
     const body: Record<string, any> = { short_id: shortId };
     if (options.watchDays !== undefined) {
       const days = Number(options.watchDays);
@@ -26039,10 +26042,7 @@ work
     try {
       await cliPost(
         "/cli/work/update",
-        withTaskClaimToken(
-          body,
-          readTaskClaimToken(ownSessionId(getRealCwd()), shortId),
-        ),
+        withTaskClaimToken(body, readTaskClaimToken(sessionId, shortId)),
         { throwOnError: true },
       );
     } catch (err) {
@@ -26065,7 +26065,7 @@ work
         "/cli/work/update",
         withTaskClaimToken(
           { ...body, status: alias },
-          readTaskClaimToken(ownSessionId(getRealCwd()), shortId),
+          readTaskClaimToken(sessionId, shortId),
         ),
       );
     }

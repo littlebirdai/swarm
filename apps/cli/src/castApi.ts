@@ -11,6 +11,15 @@
 import { serverErrorLine } from "./serverError.js";
 import { cliFetch, cliFetchRead } from "./cliHttp.js";
 
+const TASK_CLAIM_CONFLICT_ROUTES = new Set([
+  "/cli/work/update",
+  "/cli/work/claim",
+  "/cli/work/heartbeat",
+  "/cli/work/renew",
+  "/cli/work/release",
+  "/cli/work/spawn",
+]);
+
 /** Where to POST and who as. index.ts owns both and hands them in, so every
  *  command module stays importable by a test that supplies its own. */
 export interface PublishDeps {
@@ -167,7 +176,8 @@ async function readApiResult(
       : String(raw);
     const error = opts.describeError ? opts.describeError(said) : said;
     const message =
-      response.status === 409 || result?.code === "CONFLICT"
+      TASK_CLAIM_CONFLICT_ROUTES.has(urlPath) &&
+      (response.status === 409 || result?.code === "CONFLICT")
         ? `409 CONFLICT${result?.reason ? ` (${result.reason})` : ""}: ${error}`
         : error;
     if (opts.exitOnError === false) throw new Error(message);

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   clearTaskClaimFor,
   clearTaskPulseIfBound,
+  isTaskClaimConflictRoute,
   isTaskClaimWriteRoute,
   prepareTaskClaimBody,
   readTaskClaimToken,
@@ -149,6 +150,27 @@ describe("task claim tokens in taskPulse", () => {
         );
         expect(readTaskClaimToken(null, "ct-11")).toBeUndefined();
         expect(readTaskClaimToken("spawn-1", "ct-11")).toBe(6);
+
+        expect(isTaskClaimConflictRoute("/cli/work/update")).toBe(true);
+        expect(isTaskClaimConflictRoute("/cli/work/claim")).toBe(true);
+        expect(isTaskClaimConflictRoute("/cli/work/spawn")).toBe(true);
+        expect(isTaskClaimConflictRoute("/cli/docs/save")).toBe(false);
+
+        for (const verdict of ["approve", "changes", "reject"]) {
+          storeTaskClaim("s1", "ct-12", 8, 5000);
+          settleTaskClaimResult(
+            "/cli/work/update",
+            {
+              short_id: "ct-12",
+              conversation_id: "s1",
+              review_verdict: verdict,
+              ...(verdict === "changes" ? { status: "in_progress" } : {}),
+            },
+            "s1",
+            { success: true },
+          );
+          expect(readTaskClaimToken("s1", "ct-12")).toBeUndefined();
+        }
       } finally {
         if (prev === undefined) delete process.env.CODECAST_DIR;
         else process.env.CODECAST_DIR = prev;

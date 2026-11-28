@@ -261,8 +261,18 @@ const TASK_CLAIM_WRITE_ROUTES = new Set([
   "/cli/work/release",
 ]);
 
+const TASK_CLAIM_CONFLICT_ROUTES = new Set([
+  ...TASK_CLAIM_WRITE_ROUTES,
+  "/cli/work/claim",
+  "/cli/work/spawn",
+]);
+
 export function isTaskClaimWriteRoute(route: string): boolean {
   return TASK_CLAIM_WRITE_ROUTES.has(route);
+}
+
+export function isTaskClaimConflictRoute(route: string): boolean {
+  return TASK_CLAIM_CONFLICT_ROUTES.has(route);
 }
 
 const TASK_CLAIM_RELEASE_STATUSES = new Set([
@@ -272,6 +282,8 @@ const TASK_CLAIM_RELEASE_STATUSES = new Set([
   "backlog",
   "in_review",
 ]);
+
+const TASK_CLAIM_RELEASE_VERDICTS = new Set(["approve", "changes", "reject"]);
 
 const TASK_CLAIM_INVALID_REASONS = new Set([
   "stale_token",
@@ -376,7 +388,8 @@ export function settleTaskClaimResult(
   if (
     route === "/cli/work/release" ||
     (route === "/cli/work/update" &&
-      TASK_CLAIM_RELEASE_STATUSES.has(String(payload.status ?? "")))
+      (TASK_CLAIM_RELEASE_STATUSES.has(String(payload.status ?? "")) ||
+        TASK_CLAIM_RELEASE_VERDICTS.has(String(payload.review_verdict ?? ""))))
   ) {
     clearTaskClaimFor(requestSessionId, payload.short_id);
   }
