@@ -2236,7 +2236,7 @@
     "swarm/no-comments": 6
   },
   "apps/cli/src/daemon.heartbeat-status.test.ts": {
-    "swarm/no-comments": 31
+    "swarm/no-comments": 24
   },
   "apps/cli/src/daemon.herd-take.test.ts": {
     "swarm/no-comments": 2
@@ -12677,7 +12677,7 @@
     "swarm/no-comments": 36
   },
   "apps/server/convex/taskWrite.guard.test.ts": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 25
   },
   "apps/server/convex/tasks.assignHandoff.test.ts": {
     "swarm/no-comments": 6
