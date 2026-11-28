@@ -2,8 +2,8 @@
 
 Plan: pl-497. Implementation and acceptance are separate: probe isolation and
 the repaired scan path have local acceptance. Transcript isolation is being
-implemented; the final load test remains open. Do not enable workers by default
-or call the 200-session target met on this evidence.
+implemented; the final load test remains open. Workers start by default. Do
+not call the 200-session target met on this evidence.
 
 The worker and parking design below describes the shared development tree, not
 the release candidate or a running daemon. The release boundary is recorded
@@ -42,9 +42,10 @@ separate scrutiny when interpreting measured stalls.
 
 ![The daemon main process keeps every write and decision and sends bounded read requests over NDJSON to three read-only children: probe, scan and ingest](../diagrams/daemon-workers.svg)
 
-`workers/bridge.ts` configures worker hosts only when
-`config.daemon_workers === true`. An omitted setting leaves them off. Windows
+`workers/bridge.ts` starts the worker hosts when the daemon starts. Windows
 does not enter this worker path, matching the daemon's existing platform limit.
+On Windows, and when a worker is unavailable, callers use their own
+asynchronous path.
 The ingest implementation is still under development review. Its presence in
 source does not establish correctness or fleet performance.
 

@@ -232,16 +232,22 @@ const options = {
   invocation: { command: process.execPath, args: [worker] },
   backoffMs: [0, 0, 0],
 };
-await configureDaemonWorkers(
-  enabled,
-  {
-    invocation: { command: process.execPath, args: [main, "_worker", "probe"] },
-  },
-  {
-    invocation: { command: process.execPath, args: [main, "_worker", "scan"] },
-  },
-  options,
-);
+if (enabled)
+  await configureDaemonWorkers(
+    {
+      invocation: {
+        command: process.execPath,
+        args: [main, "_worker", "probe"],
+      },
+    },
+    {
+      invocation: {
+        command: process.execPath,
+        args: [main, "_worker", "scan"],
+      },
+    },
+    options,
+  );
 const rows = new Map<string, any>(),
   sends: any[] = [],
   queued: any[] = [],
@@ -1177,8 +1183,7 @@ try {
       home,
       parseClaude,
       parseCodex,
-      reconfigure: () =>
-        configureDaemonWorkers(true, undefined, undefined, options),
+      reconfigure: () => configureDaemonWorkers(undefined, undefined, options),
       allowFallback: (v: boolean) => {
         fallbackAllowed = v;
       },

@@ -48,16 +48,21 @@ const write = (home: string, rel: string, text = "{}\n") => {
   return p;
 };
 const start = (enabled: boolean) =>
-  configureDaemonWorkers(
-    enabled,
-    {},
-    {
-      invocation: {
-        command: process.execPath,
-        args: [path.resolve(import.meta.dir, "../main.ts"), "_worker", "scan"],
-      },
-    },
-  );
+  enabled
+    ? configureDaemonWorkers(
+        {},
+        {
+          invocation: {
+            command: process.execPath,
+            args: [
+              path.resolve(import.meta.dir, "../main.ts"),
+              "_worker",
+              "scan",
+            ],
+          },
+        },
+      )
+    : Promise.resolve(closeDaemonWorkers());
 afterEach(() => {
   resetSessionFileIndexForTests();
   resetSkillsScanMemoForTests();

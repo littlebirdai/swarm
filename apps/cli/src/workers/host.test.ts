@@ -137,20 +137,20 @@ test("malformed result, excessive diagnostics and wrong worker identity fail clo
     expect(h.kills()).toBe(1);
   }
 });
-test("off switch runs existing async fallback with no child; crash fallback is only for validated reads", async () => {
+test("with no worker the async fallback runs with no child; crash fallback is only for validated reads", async () => {
   const h = harness();
   let fallbacks = 0;
   const fallback = async () => {
     fallbacks++;
     return { stdout: "fallback", stderr: "" };
   };
-  await configureDaemonWorkers(false, h.options);
+  closeDaemonWorkers();
   expect(await routeProbe("ps", ["aux"], {}, fallback)).toEqual({
     stdout: "fallback",
     stderr: "",
   });
   expect(h.children).toHaveLength(0);
-  await configureDaemonWorkers(true, h.options);
+  await configureDaemonWorkers(h.options);
   const p = routeProbe("ps", ["aux"], { timeout: 1000 }, fallback);
   h.children[0].emit("exit", 1);
   expect(await p).toEqual({ stdout: "fallback", stderr: "" });
@@ -160,7 +160,7 @@ test("off switch runs existing async fallback with no child; crash fallback is o
 });
 test("shutdown does not launch fallback work after the worker is closed", async () => {
   const h = harness();
-  await configureDaemonWorkers(true, h.options);
+  await configureDaemonWorkers(h.options);
   let called = false;
   const p = routeProbe("ps", ["aux"], { timeout: 1000 }, async () => {
     called = true;

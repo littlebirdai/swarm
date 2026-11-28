@@ -317,12 +317,14 @@ async function trial(root: string, mode: Mode, profile: Profile) {
   };
 
   try {
-    const probeHost = await configureDaemonWorkers(
-      enabled,
-      { invocation: workerInvocation("probe", process.execPath, entry) },
-      { invocation: workerInvocation("scan", process.execPath, entry) },
-      { invocation: workerInvocation("ingest", process.execPath, entry) },
-    );
+    if (!enabled) closeDaemonWorkers();
+    const probeHost = !enabled
+      ? null
+      : await configureDaemonWorkers(
+          { invocation: workerInvocation("probe", process.execPath, entry) },
+          { invocation: workerInvocation("scan", process.execPath, entry) },
+          { invocation: workerInvocation("ingest", process.execPath, entry) },
+        );
     hosts = {
       probe: probeHost,
       scan: scanWorkerHost(),

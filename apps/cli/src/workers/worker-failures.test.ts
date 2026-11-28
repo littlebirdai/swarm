@@ -45,7 +45,7 @@ function childFixture() {
 
 test("out-of-order worker replies reach the caller that owns each request", async () => {
   const child = childFixture();
-  await configureDaemonWorkers(true, child.options);
+  await configureDaemonWorkers(child.options);
   const noFallback = async (): Promise<{ stdout: string; stderr: string }> => {
     throw new Error("unexpected fallback");
   };
@@ -69,7 +69,7 @@ test("a slow-start worker result cannot be accepted past its request deadline", 
   const child = childFixture();
   let wall = Date.now();
   let mono = 0;
-  const host = await configureDaemonWorkers(true, {
+  const host = await configureDaemonWorkers({
     ...child.options,
     clock: { wall: () => wall, mono: () => mono },
   });
@@ -97,7 +97,7 @@ test("a slow-start worker result cannot be accepted past its request deadline", 
 test("a worker spawn refused with EMFILE settles the read through the local path", async () => {
   let starts = 0;
   let localReads = 0;
-  const host = await configureDaemonWorkers(true, {
+  const host = await configureDaemonWorkers({
     invocation: { command: "owned-fixture", args: [] },
     spawnChild() {
       starts++;

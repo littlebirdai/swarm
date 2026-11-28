@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" role="img" aria-labelledby="t d">
   <title id="t">Daemon workers: children read, the main process decides</title>
-  <desc id="d">The daemon main process keeps the loopback server, Convex writes, delivery, sync positions, identity checks and the watchdog tick. Through workers/bridge.ts and host.ts it supervises three read-only children started as _worker probe, _worker scan and _worker ingest. It sends each a request over NDJSON on stdin and stdout and gets bounded result pages back. The children never write, deliver or kill. The hosts start only when config.daemon_workers is true and never on Windows; otherwise callers use their own asynchronous path.</desc>
+  <desc id="d">The daemon main process keeps the loopback server, Convex writes, delivery, sync positions, identity checks and the watchdog tick. Through workers/bridge.ts and host.ts it supervises three read-only children started as _worker probe, _worker scan and _worker ingest. It sends each a request over NDJSON on stdin and stdout and gets bounded result pages back. The children never write, deliver or kill. The hosts start with the daemon and never on Windows; on Windows, or when a worker is unavailable, callers use their own asynchronous path.</desc>
   <style>
     .page { fill: #FBF5E2 }
     .card { fill: #ffffff; stroke: #93a1a1; stroke-width: 1.25 }
@@ -94,6 +94,6 @@
 
   <!-- Footer -->
   <rect class="zone" x="24" y="412" width="912" height="64" rx="10"/>
-  <text class="n" x="40" y="438">on only when config.daemon_workers is true, never on win32; off or unavailable, callers use their own async path</text>
+  <text class="n" x="40" y="438">on at daemon start, never on win32; on win32 or unavailable, callers use their own async path</text>
   <text class="n" x="40" y="460">frames: NDJSON v1 on each child's stdin/stdout (workers/protocol.ts), 16 MiB max, checked against the pending request</text>
 </svg>

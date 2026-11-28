@@ -87,7 +87,7 @@ test("actual source entry roundtrip works for all worker kinds without config/CL
   expect(fs.readdirSync(dir)).toEqual([]);
 });
 test("production async wrapper routes probes on, keeps exact process IDs, and switches off with no child", async () => {
-  const h = (await configureDaemonWorkers(true, { invocation: invocation() }))!;
+  const h = (await configureDaemonWorkers({ invocation: invocation() }))!;
   const result = await execFileAsync(
     "ps",
     ["-p", String(process.pid), "-o", "command="],
@@ -96,7 +96,7 @@ test("production async wrapper routes probes on, keeps exact process IDs, and sw
   expect(result.stdout).toContain("bun");
   expect(h.state.pid).toBeGreaterThan(1);
   const pid = h.state.pid!;
-  await configureDaemonWorkers(false);
+  closeDaemonWorkers();
   await until(() => !alive(pid));
   expect(
     (
@@ -185,7 +185,7 @@ test("deadline kills slow child descendants; no late result survives", async () 
 test("killing worker mid-request allows async fallback and replacement after backoff", async () => {
   const dir = temp();
   slowPs(dir);
-  const h = (await configureDaemonWorkers(true, {
+  const h = (await configureDaemonWorkers({
     invocation: invocation(),
     backoffMs: [20, 30, 40],
   }))!;
@@ -242,7 +242,7 @@ test("read-only tmux listing/capture matches direct async path on an isolated so
     }
     const args = ["-L", socket, "list-sessions", "-F", PANE_LIST_FORMAT];
     const direct = await tmuxRunAsync(args);
-    const h = (await configureDaemonWorkers(true, {
+    const h = (await configureDaemonWorkers({
       invocation: invocation(),
     }))!;
     const routed = await tmuxRunAsync(args);
@@ -258,10 +258,10 @@ test("read-only tmux listing/capture matches direct async path on an isolated so
     const capture = ["-L", socket, "capture-pane", "-p", "-t", names[0]];
     await delay(100);
     const workerCapture = await tmuxRunAsync(capture);
-    await configureDaemonWorkers(false);
+    closeDaemonWorkers();
     expect(workerCapture).toEqual(await tmuxRunAsync(capture));
     expect(workerCapture.stdout).toContain("probe fixture");
-    await configureDaemonWorkers(true, { invocation: invocation() });
+    await configureDaemonWorkers({ invocation: invocation() });
     const missing = await tmuxRunAsync([
       "-L",
       socket,

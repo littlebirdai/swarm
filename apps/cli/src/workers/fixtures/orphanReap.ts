@@ -24,15 +24,21 @@ const enabled = mode === "true",
   root = process.env.HOME!,
   conv = "orphan-fixture-conversation";
 const main = path.resolve(import.meta.dir, "../../main.ts");
-await configureDaemonWorkers(
-  enabled,
-  {
-    invocation: { command: process.execPath, args: [main, "_worker", "probe"] },
-  },
-  {
-    invocation: { command: process.execPath, args: [main, "_worker", "scan"] },
-  },
-);
+if (enabled)
+  await configureDaemonWorkers(
+    {
+      invocation: {
+        command: process.execPath,
+        args: [main, "_worker", "probe"],
+      },
+    },
+    {
+      invocation: {
+        command: process.execPath,
+        args: [main, "_worker", "scan"],
+      },
+    },
+  );
 const { io, reapOrphanedAgent: reap } = orphanReaperForTests;
 const originalIo = { ...io };
 const owned: Array<{ pid: number; ids: string[] }> = [];

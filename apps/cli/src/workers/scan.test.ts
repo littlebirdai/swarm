@@ -40,7 +40,6 @@ const write = (root: string, rel: string, text = "{}\n") => {
 };
 const start = () =>
   configureDaemonWorkers(
-    true,
     {},
     {
       invocation: {

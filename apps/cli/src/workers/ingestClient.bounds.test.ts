@@ -48,7 +48,7 @@ test("actual ingest client applies one budget to pages, local reads, fallback an
     requests: number[] = [],
     pages = 0;
   const setup = async () => {
-    await configureDaemonWorkers(true);
+    await configureDaemonWorkers();
     const host = ingestWorkerHost()!;
     Object.defineProperty(host, "state", {
       get: () => ({ closed: false, generation: 1, pid: 123, pending: 0 }),

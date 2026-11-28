@@ -35,7 +35,6 @@ function fixture() {
     port: 43210,
     termAuth: "private-fake-api private-fake",
     source: { commit: "fixture-head", dirty: [], error: null },
-    diskWorkerSetting: true,
   };
   const io: Partial<DaemonBenchIO> = {
     identity: () => ({ port: 43210, token: "private-fake", reason: null }),

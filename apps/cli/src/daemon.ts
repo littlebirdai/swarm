@@ -39879,7 +39879,7 @@ async function main(): Promise<void> {
   const { config, convexUrl } = await waitForConfig();
   activeConfig = config;
   // Not awaited (nothing may delay the listener below); caught because a host that cannot start leaves the in-process paths working.
-  void configureDaemonWorkers(config.daemon_workers === true).catch((err) =>
+  void configureDaemonWorkers().catch((err) =>
     logError(
       "daemon workers failed to start; continuing without them",
       err as Error,

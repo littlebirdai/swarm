@@ -44,7 +44,6 @@ export type AgentDefaultParams = Partial<
 type CloudSessionSyncSettings = Partial<Record<CloudSessionSyncField, boolean>>;
 
 export interface Config extends CloudSessionSyncSettings {
-  daemon_workers?: boolean;
   // --- Identity / auth (all three writers) ---
   // On disk: the secret, encrypted for this machine. In memory: the wire
   // credential, which for a device bound token carries this machine's device

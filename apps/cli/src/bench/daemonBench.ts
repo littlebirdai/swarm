@@ -69,10 +69,9 @@ export interface BenchContext {
     dirty: { path: string; status: string; sha256: string | null }[];
     error: string | null;
   };
-  diskWorkerSetting: boolean;
 }
 export interface BenchReport {
-  schema: 2;
+  schema: 3;
   startedAt: string;
   finishedAt: string;
   context: BenchContext | null;
@@ -196,7 +195,6 @@ export async function benchContext(
       ? "available (private credential omitted)"
       : `unavailable: ${identity.reason}`,
     source,
-    diskWorkerSetting: deps.config.daemon_workers === true,
   };
 }
 
@@ -227,7 +225,7 @@ export async function runDaemonBench(
     `${startedAt.replaceAll(":", "-")}-${process.pid}`,
   );
   const r: BenchReport = {
-    schema: 2,
+    schema: 3,
     startedAt,
     finishedAt: startedAt,
     context: null,

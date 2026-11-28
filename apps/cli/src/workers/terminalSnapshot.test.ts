@@ -14,7 +14,7 @@ import {
 } from "../terminal/terminalServer.js";
 test("actual terminal HTTP handler never awaits a probe and never turns a probe timeout into an empty fleet", async () => {
   let reply!: (failed?: boolean) => void;
-  const host = (await configureDaemonWorkers(true, {
+  const host = (await configureDaemonWorkers({
     invocation: { command: "synthetic-private-worker", args: [] },
     spawnChild() {
       const child = Object.assign(new EventEmitter(), {

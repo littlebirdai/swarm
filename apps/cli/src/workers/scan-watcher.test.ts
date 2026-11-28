@@ -31,17 +31,22 @@ const workerClock = {
   mono: performance.now.bind(performance),
 };
 const start = (enabled: boolean) =>
-  configureDaemonWorkers(
-    enabled,
-    {},
-    {
-      clock: workerClock,
-      invocation: {
-        command: process.execPath,
-        args: [path.resolve(import.meta.dir, "../main.ts"), "_worker", "scan"],
-      },
-    },
-  );
+  enabled
+    ? configureDaemonWorkers(
+        {},
+        {
+          clock: workerClock,
+          invocation: {
+            command: process.execPath,
+            args: [
+              path.resolve(import.meta.dir, "../main.ts"),
+              "_worker",
+              "scan",
+            ],
+          },
+        },
+      )
+    : Promise.resolve(closeDaemonWorkers());
 async function until(f: () => boolean) {
   const until = Date.now() + 5000;
   while (!f()) {

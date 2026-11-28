@@ -24,13 +24,16 @@ mock.module("bun:sqlite", () => ({
 const d = await import("../../daemon.js");
 const { CursorWatcher } = await import("../../cursorWatcher.js");
 const main = path.resolve(import.meta.dir, "../../main.ts");
-await configureDaemonWorkers(
-  enabled,
-  {},
-  {
-    invocation: { command: process.execPath, args: [main, "_worker", "scan"] },
-  },
-);
+if (enabled)
+  await configureDaemonWorkers(
+    {},
+    {
+      invocation: {
+        command: process.execPath,
+        args: [main, "_worker", "scan"],
+      },
+    },
+  );
 const storage = (h: string) =>
   path.join(
     h,

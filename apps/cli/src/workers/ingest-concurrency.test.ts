@@ -16,7 +16,6 @@ test(
     const root = await mkdtemp(path.join(tmpdir(), "worker-cursors-"));
     try {
       await configureDaemonWorkers(
-        true,
         {},
         {},
         {

@@ -129,7 +129,6 @@ const digest = createHash("sha256");
 const prefix = Buffer.alloc(16384);
 let prefixLength = 0;
 await configureDaemonWorkers(
-  true,
   {},
   {},
   {

@@ -29,17 +29,12 @@ let runtime: {
 } | null = null;
 
 export async function configureDaemonWorkers(
-  enabled: boolean,
   options: WorkerHostOptions = {},
   scanOptions: WorkerHostOptions = {},
   ingestOptions: WorkerHostOptions = {},
 ): Promise<WorkerHost | null> {
   closeDaemonWorkers();
-  if (
-    enabled &&
-    process.env.CODECAST_WORKER !== "1" &&
-    process.platform !== "win32"
-  ) {
+  if (process.env.CODECAST_WORKER !== "1" && process.platform !== "win32") {
     const [host, operations] = await Promise.all([
       import("./host.js"),
       import("./operations.js"),

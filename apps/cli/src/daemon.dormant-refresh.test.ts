@@ -154,7 +154,6 @@ describe("dormant background task refresh", () => {
       writeThreadStatePulse(id, "dormant");
       resetSessionFileIndexForTests();
       await configureDaemonWorkers(
-        true,
         {},
         {
           invocation: {

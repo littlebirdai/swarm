@@ -145,7 +145,6 @@ async function controlledWorker(hold: (id: string) => boolean = () => false) {
     }
   });
   await configureDaemonWorkers(
-    true,
     {},
     {},
     {
