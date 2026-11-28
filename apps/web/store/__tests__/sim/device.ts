@@ -12,8 +12,8 @@
 // realm turns into a timer delivery, so a live write can land between chunks.
 // A synced follower offers its own action writes through the production
 // follower tee (syncReplication.followerActionTee), as startSyncReplication
-// wires it. Promotion runs syncReplication.promoteToHost, the elected path's
-// own order.
+// wires it. Promotion runs takeHostRole (store/host-role.ts), the sequence
+// election and solo fallback share.
 //
 // GESTURE BRIDGE. The sim installs one channel factory (setGestureChannelFactory)
 // that routes by the window running now: a post becomes one
@@ -31,9 +31,9 @@ import type {
   ReplicationMessage,
 } from "@platform/engine";
 import { setGestureChannelFactory } from "../../gestureBridge";
+import { takeHostRole } from "../../host-role";
 import {
   followerActionTee,
-  promoteToHost,
   replicationFollowerFor,
   replicationHostFor,
   setFollowerTee,
@@ -171,15 +171,24 @@ export class SimDevice {
     this.retire(old);
     const next = this.followers[0];
     if (next) {
-      await next.run(() => {
-        next.role = "host";
-        this.hostRuntime = promoteToHost(
-          this.followerRuntimes.get(next) ?? null,
-          () => this.hostRuntimeFor(next),
-        );
-        this.followerRuntimes.delete(next);
-        next.startHost();
-      });
+      await next.run(() =>
+        takeHostRole({
+          installWriter: () => {
+            next.role = "host";
+          },
+          setRole: () => {
+            this.followerRuntimes.get(next)?.stop();
+            this.followerRuntimes.delete(next);
+            next.store.setState({ syncRole: "host" } as any);
+            setFollowerTee(next.store.getState(), null);
+          },
+          start: () => {
+            this.hostRuntime = this.hostRuntimeFor(next);
+            next.startHost();
+          },
+          useDiskCache: () => {},
+        }),
+      );
     }
     await this.world.net.drain();
     return next ?? null;
