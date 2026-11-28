@@ -39,8 +39,9 @@ release its own lease. The server requires an assigned device.
 
 The cursor row holds the last accepted sequence. The server sets the base
 when the epoch becomes active. The first epoch starts at zero. A successor
-starts at the last cursor from an earlier epoch. When the flag is off,
-epoch activation skips both rows. The first claim after enablement seeds them.
+starts at the last cursor from an earlier epoch. Epoch activation writes
+both rows. If an epoch has no cursor row, its first claim creates the rows
+and starts after the last cursor from an earlier epoch.
 
 A granted claim can return the cursor
 as `last_event_seq`. A daemon that restarts continues after that value
@@ -64,8 +65,7 @@ The turn row stores no authors. Use the server delivery record to identify
 the sender who started the turn. If there is no such record, the sender
 is unknown. A new boot or a replacement lease for a dead process clears
 the open turn, its prompts, and the recent turn IDs. Adapters can reuse
-turn IDs after a restart. A boot change clears the turn row
-even while the upload flag is off.
+turn IDs after a restart. A boot change clears the turn row.
 
 The device's registered replacement boot can claim the current ready binding
 again to recover a delivery slot that still names an older boot. The server

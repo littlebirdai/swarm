@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { STEER_BATON_CAPABILITY } from "@codecast/edge-contract";
 import { presentToken } from "@platform/auth/tokenFormat";
@@ -11,17 +11,6 @@ import {
 } from "../test-helpers/run-lease.testkit";
 import { api, internal } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
-
-const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
-const original = process.env[edgeFlag];
-
-beforeEach(() => {
-  process.env[edgeFlag] = "1";
-});
-afterEach(() => {
-  if (original === undefined) delete process.env[edgeFlag];
-  else process.env[edgeFlag] = original;
-});
 
 test("a device-bound boot negotiates and publishes the owned Codex steer capability", async () => {
   const f = await setupRunLease();

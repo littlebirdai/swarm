@@ -16,25 +16,16 @@ import type { Id } from "./_generated/dataModel";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 import { subagentEnded } from "./subagentFleet";
 
-const enrollment = "CODECAST_FENCED_NEW_SESSIONS_V1";
-const flags = [
-  enrollment,
-  "CODECAST_FENCED_EXECUTION_V1",
-  "CODECAST_EDGE_DELIVERY_V1",
-  "SWARM_TURN_BATON",
-];
-const previous = flags.map((flag) => process.env[flag]);
+const previousBaton = process.env.SWARM_TURN_BATON;
 beforeEach(() => {
   jest.useFakeTimers();
-  for (const flag of flags) process.env[flag] = "1";
+  process.env.SWARM_TURN_BATON = "1";
 });
 afterEach(() => {
   jest.clearAllTimers();
   jest.useRealTimers();
-  flags.forEach((flag, index) => {
-    if (previous[index] === undefined) delete process.env[flag];
-    else process.env[flag] = previous[index];
-  });
+  if (previousBaton === undefined) delete process.env.SWARM_TURN_BATON;
+  else process.env.SWARM_TURN_BATON = previousBaton;
 });
 
 const project_path = "/fixture";
@@ -47,7 +38,7 @@ const paths = [
   "start with prompt",
 ] as const;
 
-async function fixture(path: (typeof paths)[number]) {
+async function fixture(path: (typeof paths)[number], optedIn = true) {
   const f = await setupRunLease();
   const role_id = await f.t.run(async ({ db }) => {
     const rows = fixtureRows(db, "local launch routes");
@@ -68,7 +59,7 @@ async function fixture(path: (typeof paths)[number]) {
     f.t.mutation(api.executionBindings.registerExecutionDaemonBoot, {
       owner_device_id: machine,
       daemon_boot_id,
-      owned_codex_new_sessions: true,
+      owned_codex_new_sessions: optedIn,
       api_token: f.bearer,
     });
   await register(boot);
@@ -371,21 +362,24 @@ test.each(paths)(
   },
 );
 
-test.each(paths)(
-  "%s retains its legacy start with enrollment off",
-  async (path) => {
-    delete process.env[enrollment];
-    const f = await fixture(path);
-    const { conversation, commands } = await f.t.run(async ({ db }) => ({
-      conversation: await db.get(f.conversation),
-      commands: await db.query("daemon_commands").collect(),
-    }));
-    expect(conversation?.execution_protocol_state).toBeUndefined();
-    expect(
-      commands.filter((cmd) => cmd.command === "start_session"),
-    ).toHaveLength(1);
-  },
-);
+test.each(
+  paths.flatMap((path) =>
+    (["boot not opted in", "turn baton off"] as const).map(
+      (reason) => [path, reason] as const,
+    ),
+  ),
+)("%s keeps its legacy start when the %s", async (path, reason) => {
+  if (reason === "turn baton off") delete process.env.SWARM_TURN_BATON;
+  const f = await fixture(path, reason !== "boot not opted in");
+  const { conversation, commands } = await f.t.run(async ({ db }) => ({
+    conversation: await db.get(f.conversation),
+    commands: await db.query("daemon_commands").collect(),
+  }));
+  expect(conversation?.execution_protocol_state).toBeUndefined();
+  expect(
+    commands.filter((cmd) => cmd.command === "start_session"),
+  ).toHaveLength(1);
+});
 
 async function fencedMergeWorker(ownerDeviceId = machine) {
   const f = await fixture("quick");

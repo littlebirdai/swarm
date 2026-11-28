@@ -13,21 +13,16 @@ import {
 } from "./executionBindings";
 
 const flag = "SWARM_TURN_BATON";
-const edge = "CODECAST_EDGE_DELIVERY_V1";
 const savedBaton = process.env[flag];
-const savedEdge = process.env[edge];
 
 beforeEach(() => {
   process.env[flag] = "1";
-  process.env[edge] = "1";
   setSystemTime(new Date(start));
 });
 
 afterEach(() => {
   if (savedBaton === undefined) delete process.env[flag];
   else process.env[flag] = savedBaton;
-  if (savedEdge === undefined) delete process.env[edge];
-  else process.env[edge] = savedEdge;
   setSystemTime();
 });
 

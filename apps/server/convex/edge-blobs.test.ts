@@ -13,21 +13,16 @@ import { api } from "./_generated/api";
 import { asUser } from "../test-helpers/database.testkit";
 import http from "./http";
 
-const flag = "CODECAST_EDGE_DELIVERY_V1";
-const previous = process.env[flag];
 const maxBytes = 8 * 1024 * 1024;
 const path = "/edge/v1/blobs.get";
 const missing = { v: 1, status: "error", code: "not_found", retryable: false };
 const tooLarge = { v: 1, status: "error", code: "too_large", retryable: false };
 
 beforeEach(() => {
-  process.env[flag] = "1";
   setSystemTime(new Date(start));
 });
 
 afterEach(() => {
-  if (previous === undefined) delete process.env[flag];
-  else process.env[flag] = previous;
   setSystemTime();
 });
 
@@ -584,7 +579,7 @@ test("blob reads keep their own admission budget", async () => {
   });
 });
 
-test("blob reads apply flag, bearer, byte and strict parser checks before admission", async () => {
+test("blob reads apply bearer, byte and strict parser checks before admission", async () => {
   const f = await fixture();
   const body = {
     v: 1,
@@ -594,11 +589,6 @@ test("blob reads apply flag, bearer, byte and strict parser checks before admiss
     attempt_id: "permit",
     blob_id: "blob",
   };
-  delete process.env[flag];
-  const disabled = await f.post("blobs.get", body, "");
-  expect(disabled.status).toBe(404);
-  expect(await disabled.text()).toBe(`No HttpAction routed for ${path}`);
-  process.env[flag] = "1";
   const big = { ...body, blob_id: "x".repeat(65_536) };
   expect((await f.post("blobs.get", big, "")).status).toBe(401);
   expect((await f.post("blobs.get", big)).status).toBe(413);

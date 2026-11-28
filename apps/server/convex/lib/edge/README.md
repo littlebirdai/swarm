@@ -1,8 +1,4 @@
-# Edge delivery rollout
-
-Keep `CODECAST_EDGE_DELIVERY_V1` off until the daemon can read blob parts,
-enforce the advertised byte limit, and establish blob-read support before
-claiming runs that need images.
+# Edge delivery
 
 The routes accept JPEG, PNG, WebP, GIF, HEIC, and HEIF images up to 8 MiB per
 blob. They omit deleted images if text or another image remains. Start returns
@@ -19,13 +15,10 @@ The attachment checks then apply to its new claim.
 Blob reads verify the permit and lease before and after the storage read.
 
 A binding that receives an edge run lease requires an active lease for fenced
-delivery writes. Turning the flag off disables the routes. The legacy daemon
-still cannot deliver on that binding, even after release or expiry.
+delivery writes. The legacy daemon cannot deliver on that binding, even after
+release or expiry.
 
 ## Fenced prompt answers
-
-The route requires both `CODECAST_FENCED_EXECUTION_V1` and
-`CODECAST_EDGE_DELIVERY_V1`.
 
 The owner can answer an open prompt through `permissions.answerPrompt`. Cards
 use the run, turn, prompt ID, and lease ID from `permissions.getPromptAddress`.

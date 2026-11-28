@@ -2,8 +2,6 @@ import { expect, setSystemTime, test } from "bun:test";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import { asUser } from "../test-helpers/database.testkit";
 import {
-  edge,
-  flag,
   edgePromptFixture,
   installEdgePromptTestClock,
 } from "../test-helpers/edge-prompt.testkit";
@@ -63,6 +61,15 @@ test("question answers deliver with the authenticated actor only to the run devi
   });
   expect(await bad.json()).toEqual({ v: 1, status: "stale" });
   expect(await f.next()).toEqual(expected);
+  const unclaimed = await f.post("commands.result", {
+    ...result,
+    claim: undefined,
+  });
+  expect(unclaimed.status).toBe(200);
+  expect(await unclaimed.json()).toEqual({ v: 1, status: "stale" });
+  expect(await f.next()).toEqual(expected);
+  expect(await f.rows()).toMatchObject([{ _id: id }]);
+  expect((await f.rows())[0]?.finished_at).toBeUndefined();
   const ack = await f.post("commands.result", result);
   expect(await ack.json()).toEqual({ v: 1, status: "recorded" });
   const retry = await f.post("commands.result", result);
@@ -202,41 +209,27 @@ test("an unsigned caller and another signed-in person cannot retrieve or answer 
   expect(await f.rows()).toEqual([]);
 });
 
-test.each([flag, edge])(
-  "the legacy permission mutation keeps its path with %s off",
-  async (disabled) => {
-    const f = await edgePromptFixture();
-    const permission_id = await f.browser.mutation(
-      api.permissions.createPermissionRequest,
-      {
-        conversation_id: f.conversation,
-        session_id: "runtime",
-        tool_name: "read",
-        arguments_preview: "read notes",
-        fenced_prompt_id: f.target.prompt_id,
-        fenced_prompt_turn_id: f.target.turn_id,
-      },
-    );
-    await expect(
-      f.browser.mutation(api.permissions.updatePermissionStatus, {
-        permission_id,
-        status: "approved",
-      }),
-    ).rejects.toThrow("exact prompt address");
-    delete process.env[disabled];
-    await expect(f.answer()).rejects.toThrow("FENCED_PROMPT_ANSWERS_DISABLED");
-    expect(
-      (await f.post("commands.next", { v: 1, machine, boot })).status,
-    ).toBe(404);
-    expect(
-      await f.browser.mutation(api.permissions.updatePermissionStatus, {
-        permission_id,
-        status: "approved",
-      }),
-    ).toBe(permission_id);
-    expect(await f.rows()).toEqual([]);
-  },
-);
+test("the legacy permission mutation refuses a fenced prompt without its exact address", async () => {
+  const f = await edgePromptFixture();
+  const permission_id = await f.browser.mutation(
+    api.permissions.createPermissionRequest,
+    {
+      conversation_id: f.conversation,
+      session_id: "runtime",
+      tool_name: "read",
+      arguments_preview: "read notes",
+      fenced_prompt_id: f.target.prompt_id,
+      fenced_prompt_turn_id: f.target.turn_id,
+    },
+  );
+  await expect(
+    f.browser.mutation(api.permissions.updatePermissionStatus, {
+      permission_id,
+      status: "approved",
+    }),
+  ).rejects.toThrow("exact prompt address");
+  expect(await f.rows()).toEqual([]);
+});
 
 test("conversation deletion removes queued prompt answers and stops command delivery immediately", async () => {
   const f = await edgePromptFixture();
@@ -386,10 +379,6 @@ test("the answerable feed publishes only the owner's exact prompt addresses and 
       ({ prompt_id }) => prompt_id,
     ),
   ).toEqual(["approval"]);
-  process.env[flag] = "0";
-  expect(
-    await f.browser.query(feed, { conversation_id: f.conversation }),
-  ).toEqual([]);
 });
 
 test("settlement, turn end, and lease release remove durable prompt details", async () => {

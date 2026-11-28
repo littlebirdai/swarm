@@ -12,19 +12,15 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 
-const rollout = "CODECAST_FENCED_NEW_SESSIONS_V1";
-const flags = [rollout, "CODECAST_EDGE_DELIVERY_V1", "SWARM_TURN_BATON"];
-const previous = flags.map((flag) => process.env[flag]);
+const previousBaton = process.env.SWARM_TURN_BATON;
 
 beforeEach(() => {
-  for (const flag of flags) process.env[flag] = "1";
+  process.env.SWARM_TURN_BATON = "1";
 });
 
 afterEach(() => {
-  flags.forEach((flag, index) => {
-    if (previous[index] === undefined) delete process.env[flag];
-    else process.env[flag] = previous[index];
-  });
+  if (previousBaton === undefined) delete process.env.SWARM_TURN_BATON;
+  else process.env.SWARM_TURN_BATON = previousBaton;
 });
 
 const createArgs = {
@@ -400,64 +396,22 @@ test("an explicit agent send without a client ID is refused and writes nothing",
   expect(await turn.next()).toMatchObject({ status: "empty" });
 });
 
-test("turning enrollment off keeps existing delivery fenced and starts new sessions on legacy", async () => {
-  const f = await launch();
-  delete process.env[rollout];
-
-  const turn = await openTurn(f);
-  await f.send("agent-after-flag-off");
-  await turn.end();
-  const permit = await turn.next();
-  expect(permit).toMatchObject({
-    status: "permit",
-    run: 1,
-    delivery_id: "agent-after-flag-off",
+test("a boot that does not opt in preserves legacy start and delivery", async () => {
+  const f = await launch(false);
+  const state = await f.inspect();
+  expect(state.conversation?.execution_protocol_state).toBeUndefined();
+  expect(state.head).toBeNull();
+  expect(state.commands).toMatchObject([
+    { command: "start_session", target_device_id: machine },
+  ]);
+  const sent = await f.send("legacy-agent");
+  expect(await f.t.run(({ db }) => db.get(sent.message_id!))).toMatchObject({
+    status: "pending",
   });
-  expect(await turn.start(permit)).toMatchObject({ status: "started" });
-  expect(await turn.settle(permit)).toMatchObject({ status: "recorded" });
-
-  const legacy = (await f.signedIn.mutation(api.dispatch.dispatch, {
-    ...createArgs,
-    args: [{ ...createArgs.args[0], session_id: "created-after-flag-off" }],
-  })) as Id<"conversations">;
-  const sent = await f.t.mutation(api.pendingMessages.sendSessionMessage, {
-    to: legacy,
-    from: "sending-session",
-    body: "Check the legacy route",
-    client_id: "legacy-after-flag-off",
-    api_token: f.bearer,
-  });
-  expect(await f.t.run(({ db }) => db.get(legacy))).not.toHaveProperty(
-    "execution_protocol_state",
-  );
   expect(
     await f.t.run(({ db }) => db.get(sent.message_id!)),
   ).not.toHaveProperty("delivery_protocol_version");
-  expect((await f.inspect()).commands).toMatchObject([
-    { command: "start_session", target_device_id: machine },
-  ]);
 });
-
-test.each(["flag off", "boot not opted in"])(
-  "%s preserves legacy start and delivery",
-  async (reason) => {
-    if (reason === "flag off") delete process.env[rollout];
-    const f = await launch(reason === "flag off");
-    const state = await f.inspect();
-    expect(state.conversation?.execution_protocol_state).toBeUndefined();
-    expect(state.head).toBeNull();
-    expect(state.commands).toMatchObject([
-      { command: "start_session", target_device_id: machine },
-    ]);
-    const sent = await f.send("legacy-agent");
-    expect(await f.t.run(({ db }) => db.get(sent.message_id!))).toMatchObject({
-      status: "pending",
-    });
-    expect(
-      await f.t.run(({ db }) => db.get(sent.message_id!)),
-    ).not.toHaveProperty("delivery_protocol_version");
-  },
-);
 
 test("a pending takeover refuses agent steers on admission and claim even after the previous lease expires", async () => {
   const f = await launch();

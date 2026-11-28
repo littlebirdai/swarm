@@ -582,12 +582,8 @@ test("skips non-permission tools in pending_permissions and suppresses expired o
 
 test("excludes bot-owned conversations from proposer view and honors sharedFenced gate", async () => {
   const f = await setup();
-  const prevFenced = process.env.CODECAST_FENCED_EXECUTION_V1;
-  const prevEdge = process.env.CODECAST_EDGE_DELIVERY_V1;
   const prevBaton = process.env.SWARM_TURN_BATON;
   try {
-    process.env.CODECAST_FENCED_EXECUTION_V1 = "1";
-    process.env.CODECAST_EDGE_DELIVERY_V1 = "1";
     process.env.SWARM_TURN_BATON = "1";
     const { conv, bindingId } = await f.t.run(async ({ db }) => {
       await db.patch(f.owner, { is_bot: true });
@@ -702,11 +698,6 @@ test("excludes bot-owned conversations from proposer view and honors sharedFence
     });
     expect(withoutCap?.open_prompt).toBeNull();
   } finally {
-    if (prevFenced === undefined)
-      delete process.env.CODECAST_FENCED_EXECUTION_V1;
-    else process.env.CODECAST_FENCED_EXECUTION_V1 = prevFenced;
-    if (prevEdge === undefined) delete process.env.CODECAST_EDGE_DELIVERY_V1;
-    else process.env.CODECAST_EDGE_DELIVERY_V1 = prevEdge;
     if (prevBaton === undefined) delete process.env.SWARM_TURN_BATON;
     else process.env.SWARM_TURN_BATON = prevBaton;
   }

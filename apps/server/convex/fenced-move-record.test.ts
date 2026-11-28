@@ -16,20 +16,15 @@ import {
   DEVICE_MOVE_FENCE,
 } from "./lib/edge/device-move.state";
 
-const flag = "CODECAST_EDGE_DELIVERY_V1";
-const previousFlag = process.env[flag];
 const stale = { v: 1, status: "stale" };
 const staleStart = { v: 1, status: "rejected", reason: "stale" };
 const windowMs = 10_000;
 
 beforeEach(() => {
-  process.env[flag] = "1";
   jest.useFakeTimers({ now: start });
 });
 
 afterEach(() => {
-  if (previousFlag === undefined) delete process.env[flag];
-  else process.env[flag] = previousFlag;
   jest.useRealTimers();
 });
 

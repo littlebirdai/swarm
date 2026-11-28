@@ -18,21 +18,14 @@ import {
 } from "../test-helpers/steer-delivery.testkit";
 import { api, internal } from "./_generated/api";
 
-const flags = [
-  "SWARM_TURN_BATON",
-  "CODECAST_EDGE_DELIVERY_V1",
-  "CODECAST_EDGE_V1",
-];
-const previous = flags.map((flag) => process.env[flag]);
+const previousBaton = process.env.SWARM_TURN_BATON;
 beforeEach(() => {
-  for (const flag of flags) process.env[flag] = "1";
+  process.env.SWARM_TURN_BATON = "1";
   setSystemTime(new Date(start));
 });
 afterEach(() => {
-  for (const [index, flag] of flags.entries()) {
-    if (previous[index] === undefined) delete process.env[flag];
-    else process.env[flag] = previous[index];
-  }
+  if (previousBaton === undefined) delete process.env.SWARM_TURN_BATON;
+  else process.env.SWARM_TURN_BATON = previousBaton;
   setSystemTime();
 });
 

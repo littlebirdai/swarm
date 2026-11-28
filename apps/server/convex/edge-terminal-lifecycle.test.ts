@@ -14,21 +14,11 @@ import { scheduledJobs } from "../test-helpers/database.testkit";
 import { internal } from "./_generated/api";
 import { purgeAccountPass } from "./accountDelete";
 
-const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
-const terminalFlag = "CODECAST_EDGE_TERMINAL_EVENTS";
-const previous = Object.fromEntries(
-  [edgeFlag, terminalFlag].map((key) => [key, process.env[key]]),
-);
 beforeEach(() => {
-  process.env[edgeFlag] = "1";
-  process.env[terminalFlag] = "1";
   jest.useFakeTimers();
   jest.setSystemTime(start);
 });
 afterEach(() => {
-  for (const [key, value] of Object.entries(previous))
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
   jest.useRealTimers();
 });
 
@@ -180,7 +170,7 @@ test.each(["stored", "same batch"] as const)(
   },
 );
 
-test.each(["uncommitted", "committed", "flag disabled after claim"] as const)(
+test.each(["uncommitted", "committed"] as const)(
   "an isolated provider fallback preserves its turn with the abandoned slot %s",
   async (state) => {
     const f = await setup();
@@ -201,7 +191,6 @@ test.each(["uncommitted", "committed", "flag disabled after claim"] as const)(
         status: "gap",
         expected_seq: 1,
       });
-    if (state === "flag disabled after claim") delete process.env[terminalFlag];
     expect(await providerOnly()).toMatchObject({
       status: "appended",
       through_seq: 2,
@@ -222,28 +211,6 @@ test.each(["uncommitted", "committed", "flag disabled after claim"] as const)(
     });
   },
 );
-
-test("the default-off grant leaves an old daemon's cursor and turn events working", async () => {
-  delete process.env[terminalFlag];
-  const f = await setup();
-  expect(f.lease.terminal_lifecycle).toBeUndefined();
-  expect(
-    await f.append([
-      {
-        ...f.stamp,
-        seq: 1,
-        turn: "turn",
-        kind: "turn.started",
-        body: {},
-      },
-    ]),
-  ).toMatchObject({ status: "appended", through_seq: 1 });
-  expect(await f.rows()).toEqual([]);
-  expect(await f.grant()).toMatchObject({
-    last_pane_instance: 0,
-    last_event_seq: 1,
-  });
-});
 
 test("retention caps each run without stopping the event cursor", async () => {
   const f = await setup();

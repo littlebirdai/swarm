@@ -532,58 +532,49 @@ for (const outcome of ["rejected", "failed"] as const) {
         run: grant.run,
         fencing_token: grant.fencing_token,
       };
-      const flag = "CODECAST_EDGE_DELIVERY_V1";
-      const previous = process.env[flag];
-      process.env[flag] = "1";
       const post = (verb: string, body: unknown) =>
         f.t.fetch(`/edge/v1/${verb}`, {
           method: "POST",
           headers: { authorization: `Bearer ${f.bearer}` },
           body: JSON.stringify(body),
         });
-      let attemptId: string;
-      try {
-        const next = await post("permits.next", request);
-        const permit = parsePermitsNextResponse(await next.json());
-        if (!permit.ok || permit.value.status !== "permit")
-          throw new Error("Expected a permit");
-        const { attempt_id, delivery_id, seq, intent, sender } = permit.value;
-        attemptId = attempt_id;
-        const fields = {
-          ...request,
-          attempt_id,
-          delivery_id,
-          seq,
-          intent,
-          sender,
-        };
-        if (outcome === "failed")
-          expect(
-            await (await post("delivery.start", fields)).json(),
-          ).toMatchObject({ status: "started" });
+      const next = await post("permits.next", request);
+      const permit = parsePermitsNextResponse(await next.json());
+      if (!permit.ok || permit.value.status !== "permit")
+        throw new Error("Expected a permit");
+      const { attempt_id, delivery_id, seq, intent, sender } = permit.value;
+      const attemptId = attempt_id;
+      const fields = {
+        ...request,
+        attempt_id,
+        delivery_id,
+        seq,
+        intent,
+        sender,
+      };
+      if (outcome === "failed")
         expect(
-          await (
-            await post("delivery.settle", {
-              ...fields,
-              ...(outcome === "failed"
-                ? { outcome, retryable: false }
-                : { outcome }),
-            })
-          ).json(),
-        ).toEqual({ v: 1, status: "recorded" });
-        expect(
-          await (
-            await post("delivery.settle", {
-              ...fields,
-              outcome: "failed",
-              retryable: true,
-            })
-          ).json(),
-        ).toEqual({ v: 1, status: "duplicate" });
-      } finally {
-        if (previous === undefined) delete process.env[flag];
-        else process.env[flag] = previous;
-      }
+          await (await post("delivery.start", fields)).json(),
+        ).toMatchObject({ status: "started" });
+      expect(
+        await (
+          await post("delivery.settle", {
+            ...fields,
+            ...(outcome === "failed"
+              ? { outcome, retryable: false }
+              : { outcome }),
+          })
+        ).json(),
+      ).toEqual({ v: 1, status: "recorded" });
+      expect(
+        await (
+          await post("delivery.settle", {
+            ...fields,
+            outcome: "failed",
+            retryable: true,
+          })
+        ).json(),
+      ).toEqual({ v: 1, status: "duplicate" });
       const snapshot = () =>
         f.t.run(async ({ db }) => ({
           attempt: await db.query("delivery_attempts").unique(),

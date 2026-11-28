@@ -37,13 +37,6 @@ type Result = Extract<
   { status: "recorded" | "duplicate" | "stale" }
 >;
 
-export function fencedPromptAnswersEnabled() {
-  return (
-    process.env.CODECAST_FENCED_EXECUTION_V1 === "1" &&
-    process.env.CODECAST_EDGE_DELIVERY_V1 === "1"
-  );
-}
-
 type PromptTarget = Omit<PromptPosition, "lease_id">;
 
 async function readBoundPromptTurn(
@@ -153,7 +146,6 @@ export async function promptAddress(
   target: PromptTarget,
   actor: Id<"users">,
 ) {
-  if (!fencedPromptAnswersEnabled()) return null;
   const opened = await openPrompt(
     ctx,
     target,
@@ -190,16 +182,11 @@ export async function answerablePromptAddresses(
   const conversation = await ctx.db.get(conversationId);
   if (conversation?.execution_protocol_state !== "fenced")
     return { prompts: [], turn: null };
-  const mayAnswer = fencedPromptAnswersEnabled();
-  if (
-    (!mayAnswer && !maySteer) ||
-    (conversation.user_id !== actor &&
-      (!mayAnswer || !collaborativePromptAnswersEnabled()))
-  )
+  if (conversation.user_id !== actor && !collaborativePromptAnswersEnabled())
     return { prompts: [], turn: null };
   const opened = await openPromptTurn(ctx, conversation);
   if (!opened) return { prompts: [], turn: null };
-  const authority = mayAnswer ? await promptAuthority(ctx, opened) : null;
+  const authority = await promptAuthority(ctx, opened);
   if (
     conversation.user_id !== actor &&
     (!authority ||
@@ -215,7 +202,7 @@ export async function answerablePromptAddresses(
     lease_remaining_ms,
   } = opened;
   const conversation_id = conversation._id;
-  const candidates = (mayAnswer ? (turn.prompt_details ?? []) : []).filter(
+  const candidates = (turn.prompt_details ?? []).filter(
     ({ kind, prompt_id, questions }) =>
       turn.prompt_ids.includes(prompt_id) &&
       (kind === "permission" || questions !== undefined),
@@ -306,8 +293,6 @@ export async function queuePromptAnswer(
   actor: Id<"users">,
   answer: Doc<"edge_prompt_answers">["answer"],
 ): Promise<Id<"edge_prompt_answers">> {
-  if (!fencedPromptAnswersEnabled())
-    throw new ConvexError("FENCED_PROMPT_ANSWERS_DISABLED");
   const opened = await openPrompt(
     ctx,
     position,
@@ -338,7 +323,6 @@ export async function nextPromptAnswer(
   args: Device,
 ): Promise<Next> {
   const empty = { v: v1, status: "empty" } as const;
-  if (!fencedPromptAnswersEnabled()) return empty;
   const auth = await verifyDeviceApiToken(ctx, args.bearer);
   if (!auth || auth.deviceId !== args.machine) return empty;
   const rows = await ctx.db
@@ -379,7 +363,7 @@ export async function finishPromptAnswer(
   },
 ): Promise<Result> {
   const stale = { v: v1, status: "stale" } as const;
-  if (!fencedPromptAnswersEnabled() || !args.claim) return stale;
+  if (!args.claim) return stale;
   const id = ctx.db.normalizeId("edge_prompt_answers", args.command_id);
   const row = id && (await ctx.db.get(id));
   if (

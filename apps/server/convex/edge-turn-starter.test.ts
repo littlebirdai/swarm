@@ -14,20 +14,15 @@ import { api, internal } from "./_generated/api";
 import { EXECUTION_PROTOCOL_CAPABILITIES } from "./executionBindings";
 import { isFreshTurnProjection } from "./lib/edge/runLease";
 
-const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
 const batonFlag = "SWARM_TURN_BATON";
-const originalEdge = process.env[edgeFlag];
 const originalBaton = process.env[batonFlag];
 
 beforeEach(() => {
-  process.env[edgeFlag] = "1";
   process.env[batonFlag] = "1";
   setSystemTime(new Date(start));
 });
 
 afterEach(() => {
-  if (originalEdge === undefined) delete process.env[edgeFlag];
-  else process.env[edgeFlag] = originalEdge;
   if (originalBaton === undefined) delete process.env[batonFlag];
   else process.env[batonFlag] = originalBaton;
   setSystemTime();

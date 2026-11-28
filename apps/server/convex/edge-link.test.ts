@@ -24,17 +24,11 @@ const hello = {
 };
 const heartbeat = { v: 1, machine, boot: hello.boot, capacity };
 const start = 1_790_000_000_000;
-const flag = "CODECAST_EDGE_V1";
-const initialFlag = process.env[flag];
-
 beforeEach(() => {
-  process.env[flag] = "1";
   setSystemTime(new Date(start));
 });
 
 afterEach(() => {
-  if (initialFlag === undefined) delete process.env[flag];
-  else process.env[flag] = initialFlag;
   setSystemTime();
 });
 
@@ -70,35 +64,6 @@ async function provision(
     });
   return { t, post, user, token };
 }
-
-test("the edge flag defaults off and the legacy heartbeat has the same result", async () => {
-  const off = await provision();
-  const on = await provision();
-  const legacy = {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      api_token: bearer,
-      version: "1.0.0",
-      platform: "darwin",
-      pid: 1,
-      device_id: machine,
-    }),
-  };
-
-  delete process.env[flag];
-  expect((await off.post("hello", hello)).status).toBe(404);
-  expect((await off.post("heartbeat", heartbeat)).status).toBe(404);
-  expect(
-    await off.t.run(({ db }) => db.query("ip_rate_limits").collect()),
-  ).toEqual([]);
-  const before = await off.t.fetch("/cli/heartbeat", legacy);
-  process.env[flag] = "1";
-  const after = await on.t.fetch("/cli/heartbeat", legacy);
-  expect(before.status).toBe(200);
-  expect(after.status).toBe(200);
-  expect(await after.json()).toEqual(await before.json());
-});
 
 test("link requires a real credential bound to the requested machine", async () => {
   const { post, t } = await provision();

@@ -139,8 +139,7 @@ to 128 recent receipts in memory and checks the journal for older retries.
 [Journal](../../apps/cli/src/execution/local-journal.ts),
 [adapter receipts](../../packages/provider-adapter/src/app-server-receipts.ts)
 
-The pilot also requires `CODECAST_EDGE_DELIVERY_V1` on the server. Without a
-completed Codex user item that echoes the client delivery ID, the server keeps
+Without a completed Codex user item that echoes the client delivery ID, the server keeps
 the attempt in doubt until it receives settlement evidence.
 
 Keep steer permits disabled for the pilot until the server can settle a permit

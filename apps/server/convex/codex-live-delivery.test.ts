@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { OWNED_CODEX_CHECKPOINT_PREFIX } from "@codecast/agent-clients/executionBinding";
 import { parsePermitsNextResponse } from "@codecast/edge-contract";
 import { asUser } from "../test-helpers/database.testkit";
@@ -15,18 +15,6 @@ import {
   sessionStartOf,
   syncSessionStart,
 } from "./lib/sessionStarts";
-
-const flag = "CODECAST_EDGE_DELIVERY_V1";
-const originalFlag = process.env[flag];
-
-beforeEach(() => {
-  process.env[flag] = "1";
-});
-
-afterEach(() => {
-  if (originalFlag === undefined) delete process.env[flag];
-  else process.env[flag] = originalFlag;
-});
 
 const ownedHandle =
   OWNED_CODEX_CHECKPOINT_PREFIX +
@@ -127,8 +115,6 @@ test("a composer send changes the selected Codex work result and becomes an edge
     sender: { kind: "person", id: f.owner },
     input: [{ type: "text", text: "from the composer" }],
   });
-  delete process.env[flag];
-  expect(await listWork(f, f.conversation)).toEqual(legacyWork);
 });
 
 test("the projected execution work feed ignores transcript writes and still tracks safety", async () => {

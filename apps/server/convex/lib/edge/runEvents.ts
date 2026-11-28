@@ -1,8 +1,5 @@
 import { bindingHasBatonCapability } from "./baton-capabilities.rules";
-import {
-  retainTerminalEvents,
-  terminalEventsEnabled,
-} from "./terminal-events.state";
+import { retainTerminalEvents } from "./terminal-events.state";
 import type {
   CanonicalEvent,
   EdgeJson,
@@ -78,17 +75,16 @@ export async function seedEventRun(
   epoch: number,
   now: number,
 ) {
-  if (process.env.CODECAST_EDGE_DELIVERY_V1 === "1")
-    await activateEventRun(
-      ctx,
-      {
-        _id: binding,
-        conversation_id: conversation._id,
-        owner_user_id: conversation.user_id,
-        epoch,
-      },
-      now,
-    );
+  await activateEventRun(
+    ctx,
+    {
+      _id: binding,
+      conversation_id: conversation._id,
+      owner_user_id: conversation.user_id,
+      epoch,
+    },
+    now,
+  );
 }
 
 export async function activateEventRun(ctx: Db, binding: Epoch, now: number) {
@@ -337,11 +333,9 @@ export async function appendRunEvents(
     });
   }
 
-  if (terminalEventsEnabled()) {
-    const conflict = await retainTerminalEvents(ctx, binding, suffix, now);
-    if (conflict !== undefined)
-      return { session, status: "conflict", seq: conflict };
-  }
+  const conflict = await retainTerminalEvents(ctx, binding, suffix, now);
+  if (conflict !== undefined)
+    return { session, status: "conflict", seq: conflict };
 
   const row = await turnProjection(ctx, binding);
   if (

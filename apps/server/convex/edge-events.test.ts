@@ -18,27 +18,20 @@ import { api, internal } from "./_generated/api";
 import {
   claimExecutionStartInDb,
   completeDeliveryInDb,
-  initializeFencedExecutionInDb,
   EXECUTION_PROTOCOL_CAPABILITIES,
   registerExecutionDaemonBootInDb,
   startDeliveryInDb,
 } from "./executionBindings";
 import { teamDeletionSteps } from "./lib/deletionPlans";
 import { purgeRow } from "./lib/purgeTree";
-import { seedEventRun } from "./lib/edge/runEvents";
 import { isFreshTurnProjection } from "./lib/edge/runLease";
 
-const flag = "CODECAST_EDGE_DELIVERY_V1";
 const fencedMoveRefused = "cannot move to another device or account";
-const previous = process.env[flag];
 
 beforeEach(() => {
-  process.env[flag] = "1";
   setSystemTime(new Date(start));
 });
 afterEach(() => {
-  if (previous === undefined) delete process.env[flag];
-  else process.env[flag] = previous;
   setSystemTime();
 });
 
@@ -279,9 +272,6 @@ test("HTTP uses its own body, event, UTF-16 and per-batch limits", async () => {
   const { fencing_token } = await f.grant();
   const startTurn = f.event(1, { kind: "turn.started", body: {} });
   const request = { v: 1, batches: [f.batch(fencing_token, [startTurn])] };
-  delete process.env[flag];
-  expect((await f.post("events.append", request)).status).toBe(404);
-  process.env[flag] = "1";
   expect((await f.post("events.append", { ...request, boot })).status).toBe(
     400,
   );
@@ -400,54 +390,47 @@ test("session deletion fences HTTP retries before the cursor and turn rows are p
   ]);
 });
 
-test.each(["on", "off"] as const)(
-  "a boot transfer clears the HTTP turn with the flag %s",
-  async (flagState) => {
-    const f = await fixture();
-    const { fencing_token } = await f.grant();
-    const first = f.batch(fencing_token, [
-      f.event(1, { kind: "turn.started", body: {} }),
-    ]);
-    await f.append(first);
-    if (flagState === "off") delete process.env[flag];
-    await f.t.run(async (ctx) => {
-      await registerExecutionDaemonBootInDb(ctx, f.owner, {
-        ownerDeviceId: machine,
-        daemonBootId: "next-boot",
-        now: start + 1,
-      });
-      const claimed = await claimExecutionStartInDb(ctx, f.owner, {
-        conversationId: f.conversation,
-        epoch: 1,
-        configurationRevision: 1,
-        ownerDeviceId: machine,
-        daemonBootId: "next-boot",
-        protocolVersion: 1,
-        requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-        proposedOperationId: "operation",
-        now: start + 1,
-      });
-      expect(claimed.state).toBe("ready");
+test("a boot transfer clears the HTTP turn", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  const first = f.batch(fencing_token, [
+    f.event(1, { kind: "turn.started", body: {} }),
+  ]);
+  await f.append(first);
+  await f.t.run(async (ctx) => {
+    await registerExecutionDaemonBootInDb(ctx, f.owner, {
+      ownerDeviceId: machine,
+      daemonBootId: "next-boot",
+      now: start + 1,
     });
-    expect((await f.rows()).turn?.open_turn).toBeNull();
-    process.env[flag] = "1";
-    expect(await f.append(first)).toEqual([
-      { session: f.conversation, status: "stale" },
-    ]);
-    const next = await f.grant("next-lease", "next-boot");
-    expect(next.last_event_seq).toBe(1);
-    expect(
-      await f.append(
-        f.batch(next.fencing_token, [
-          f.event(2, { kind: "turn.started", body: {} }),
-        ]),
-      ),
-    ).toEqual([
-      { session: f.conversation, status: "appended", through_seq: 2 },
-    ]);
-    expect((await f.rows()).turn?.open_turn?.id).toBe("turn");
-  },
-);
+    const claimed = await claimExecutionStartInDb(ctx, f.owner, {
+      conversationId: f.conversation,
+      epoch: 1,
+      configurationRevision: 1,
+      ownerDeviceId: machine,
+      daemonBootId: "next-boot",
+      protocolVersion: 1,
+      requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+      proposedOperationId: "operation",
+      now: start + 1,
+    });
+    expect(claimed.state).toBe("ready");
+  });
+  expect((await f.rows()).turn?.open_turn).toBeNull();
+  expect(await f.append(first)).toEqual([
+    { session: f.conversation, status: "stale" },
+  ]);
+  const next = await f.grant("next-lease", "next-boot");
+  expect(next.last_event_seq).toBe(1);
+  expect(
+    await f.append(
+      f.batch(next.fencing_token, [
+        f.event(2, { kind: "turn.started", body: {} }),
+      ]),
+    ),
+  ).toEqual([{ session: f.conversation, status: "appended", through_seq: 2 }]);
+  expect((await f.rows()).turn?.open_turn?.id).toBe("turn");
+});
 
 test("the first team purge page fences HTTP uploads while the conversation remains", async () => {
   const f = await fixture();
@@ -677,53 +660,6 @@ test("account deletion purges orphan cursor and turn rows", async () => {
   expect(rows.turn).toBeNull();
 });
 
-test("the first claim after flag enablement seeds an existing run", async () => {
-  const f = await fixture();
-  delete process.env[flag];
-  await f.t.run(async (ctx) => {
-    const old = await ctx.db.get(f.binding);
-    if (!old) throw Error("Expected the binding fixture");
-    await ctx.db.delete(f.message);
-    await ctx.db.delete(f.head);
-    await ctx.db.delete(f.binding);
-    await ctx.db.patch(f.conversation, { execution_protocol_state: undefined });
-    await initializeFencedExecutionInDb(ctx, f.owner, {
-      conversationId: f.conversation,
-      target: {
-        requestedAgent: "codex",
-        transport: "app-server",
-        projectPath: "/fixture",
-        configurationRevision: 1,
-        ownerDeviceId: machine,
-        daemonBootId: boot,
-        requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-        protocolVersion: 1,
-      },
-      now: start - 10,
-    });
-    const binding = await ctx.db.query("execution_bindings").unique();
-    if (!binding) throw Error("Expected the activation binding");
-    await ctx.db.patch(binding._id, {
-      state: "ready",
-      runtime_id: "runtime",
-      actual_agent: "codex",
-      applied_configuration_revision: 1,
-    });
-  });
-  expect((await f.rows()).cursor).toBeNull();
-  expect((await f.rows()).turn).toBeNull();
-  process.env[flag] = "1";
-  const granted = await f.grant();
-  expect(granted.last_event_seq).toBe(0);
-  expect(
-    await f.append(
-      f.batch(granted.fencing_token, [
-        f.event(1, { kind: "turn.started", body: {} }),
-      ]),
-    ),
-  ).toMatchObject([{ status: "appended", through_seq: 1 }]);
-});
-
 test("Convex records a started outcome after the conversation leaves the device", async () => {
   const f = await fixture();
   const { fencing_token } = await f.grant();
@@ -745,31 +681,22 @@ test("Convex records a started outcome after the conversation leaves the device"
   });
 });
 
-test("flag-off epochs preserve the last cursor when a later run first claims", async () => {
+test("a later run without its own cursor resumes after the last event of an earlier run", async () => {
   const f = await fixture();
   const { fencing_token } = await f.grant();
   await f.append(
     f.batch(fencing_token, [f.event(1, { kind: "turn.started", body: {} })]),
   );
-  delete process.env[flag];
-  await f.t.run(async (ctx) => {
-    const { db } = ctx;
+  await f.t.run(async ({ db }) => {
     const old = await db.get(f.binding);
-    const conversation = await db.get(f.conversation);
-    if (!old || !conversation) throw Error("Expected an active run");
+    if (!old) throw Error("Expected an active run");
     const { _id, _creationTime, claim_id, ...fields } = old;
-    for (const epoch of [2, 3]) {
-      const binding = await db.insert("execution_bindings", {
-        ...fields,
-        epoch,
-      });
-      await seedEventRun(ctx, binding, conversation, epoch, start);
-      await db.patch(f.head, { current_epoch: epoch });
-    }
+    for (const epoch of [2, 3])
+      await db.insert("execution_bindings", { ...fields, epoch });
+    await db.patch(f.head, { current_epoch: 3 });
     expect(await db.query("run_event_cursors").collect()).toHaveLength(1);
     expect(await db.query("run_turn_projections").collect()).toHaveLength(1);
   });
-  process.env[flag] = "1";
   const claimed = await f.grant("resumed");
   expect(claimed).toMatchObject({ run: 3, last_event_seq: 1 });
   expect(
