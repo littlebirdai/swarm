@@ -212,11 +212,17 @@ export function collectionStorage(db: SqliteDriver) {
     return complete;
   }
 
+  function deleteDocDetails(ids: readonly string[]): string[] {
+    for (const id of ids) deleteRow.run("docDetails", id);
+    return [...ids];
+  }
+
   return {
     getMeta,
     setMeta,
     load,
     write,
+    deleteDocDetails,
     resetRetention: () => conversationDrops.clear(),
   };
 }

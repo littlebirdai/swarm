@@ -202,6 +202,23 @@ export function createMemoryCacheFallback(
         userMessages: userMessages as any[],
       });
     },
+    async deleteInvalidatedDocDetails(ids, current) {
+      const principal = auth.current();
+      if (
+        principal === null ||
+        (boundOwner !== null && boundOwner !== principal)
+      )
+        return [];
+      boundOwner = principal;
+      const map = collections.get("docDetails");
+      const deleted: string[] = [];
+      for (const id of ids) {
+        if (!current(id)) continue;
+        map?.delete(id);
+        deleted.push(id);
+      }
+      return deleted;
+    },
     async purgeLocalCache(options) {
       clear(options?.keepPendingInputFor ?? null);
     },

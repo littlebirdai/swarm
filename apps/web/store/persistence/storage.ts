@@ -46,4 +46,9 @@ export type CacheStorage = {
     reason?: string;
     detail?: Record<string, unknown>;
   }): Promise<void>;
+  deleteInvalidatedDocDetails?(
+    ids: readonly string[],
+    current: (id: string) => boolean,
+    archive?: { accountId: string; dispatchedAt: number },
+  ): Promise<string[]>;
 };

@@ -1,5 +1,6 @@
 export { persistPendingMessageChanges } from "./pendingInputJournal";
 export {
+  deleteInvalidatedDocDetails,
   flushPersistence,
   writePatchesToIDB as writePatches,
 } from "./collection-writer";

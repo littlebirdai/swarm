@@ -1,8 +1,18 @@
+import { cacheStorage } from "./idb-cache";
 import { COLLECTION_TABLES, db } from "./persistence/db";
 import { persistenceOwned } from "./persistence/ownership";
 import { lastPersisted } from "./persistence/collection-writer";
 
-export { deleteInvalidatedDocDetails } from "./persistence/collection-writer";
+export function deleteInvalidatedDocDetails(
+  ids: readonly string[],
+  current: (id: string) => boolean,
+  archive?: { accountId: string; dispatchedAt: number },
+): Promise<string[]> {
+  return (
+    cacheStorage.deleteInvalidatedDocDetails?.(ids, current, archive) ??
+    Promise.resolve([])
+  );
+}
 
 export const MAX_DOC_DETAILS_ON_DISK = 1000;
 

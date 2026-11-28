@@ -1,6 +1,6 @@
 import * as dexieStorage from "./persistence/dexie-storage";
-import { getSqliteCacheStorage } from "./persistence/sqlite/storage";
 import {
+  createLazySqliteStorage,
   forwardCacheStorage,
   selectCacheStorage,
 } from "./persistence/storage-bindings";
@@ -42,11 +42,20 @@ export {
 } from "./persistence/outbox";
 export type { CachedConversation } from "./persistence/storage";
 
+const lazySqliteStorage = createLazySqliteStorage(
+  () =>
+    process.env.VITE_SQLITE_CACHE === "1"
+      ? import("./persistence/sqlite/storage")
+      : Promise.reject(new Error("SQLite cache disabled")),
+  dexieStorage,
+);
+
 export const cacheStorage: CacheStorage = forwardCacheStorage(
-  selectCacheStorage(dexieStorage, getSqliteCacheStorage),
+  selectCacheStorage(dexieStorage, lazySqliteStorage),
 );
 
 export const {
+  deleteInvalidatedDocDetails,
   enqueueDispatch,
   flushPersistence,
   loadCache,

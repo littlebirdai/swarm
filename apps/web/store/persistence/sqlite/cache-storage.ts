@@ -219,6 +219,15 @@ export function createSqliteCache(
     writeConversationUserMessages(id, rows) {
       write("navigator", () => messages.writeUserMessages(id, rows));
     },
+    deleteInvalidatedDocDetails(ids, current) {
+      if (readOnly) return Promise.resolve([]);
+      let deleted: string[] = [];
+      write("collections", () => {
+        const confirmed = ids.filter(current);
+        deleted = collections.deleteDocDetails(confirmed);
+      });
+      return Promise.resolve(deleted);
+    },
     async purgeLocalCache(options) {
       if (readOnly) return;
       const owner = options?.keepPendingInputFor ?? null;

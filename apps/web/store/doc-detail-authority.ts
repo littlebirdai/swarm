@@ -11,8 +11,8 @@ import {
   setDetailInvalidationReporter,
   type DetailInvalidation,
 } from "./doc-detail-cache";
+import { cacheStorage } from "./idb-cache";
 import {
-  deleteInvalidatedDocDetails,
   persistedDocDetailWorkspace,
   readCachedDocDetails,
   readCachedDocDetailIds,
@@ -54,16 +54,18 @@ export async function persistDetailInvalidation(
   if (!targets.length) return [];
   const docs = useInboxStore.getState().docs;
   const revision = hideInvalidatedDetails(targets);
-  return deleteInvalidatedDocDetails(targets, (id) => {
-    const state = useInboxStore.getState();
-    return (
-      current() &&
-      !pendingCreate(id) &&
-      detailInvalidationRevision(id) === revision &&
-      (state.docs[id] === undefined || state.docs[id] === docs[id]) &&
-      state.docDetails[id] === undefined
-    );
-  });
+  return (
+    cacheStorage.deleteInvalidatedDocDetails?.(targets, (id) => {
+      const state = useInboxStore.getState();
+      return (
+        current() &&
+        !pendingCreate(id) &&
+        detailInvalidationRevision(id) === revision &&
+        (state.docs[id] === undefined || state.docs[id] === docs[id]) &&
+        state.docDetails[id] === undefined
+      );
+    }) ?? Promise.resolve([])
+  );
 }
 
 export async function collectCompleteDocCrawlAbsences(

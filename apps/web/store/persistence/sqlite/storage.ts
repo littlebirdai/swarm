@@ -16,81 +16,92 @@ import {
   type SqliteWorkerCacheClient,
 } from "./worker-client";
 
-const browserEpochStore: EpochStore = {
-  read() {
-    try {
-      if (typeof localStorage === "undefined") return null;
-      return parseCacheEpoch(localStorage.getItem(SQLITE_EPOCH_STORAGE_KEY));
-    } catch {
-      return null;
-    }
-  },
-  write(epoch) {
-    try {
-      if (typeof localStorage === "undefined") return;
-      localStorage.setItem(SQLITE_EPOCH_STORAGE_KEY, JSON.stringify(epoch));
-    } catch {}
-  },
-  subscribe(listener) {
-    if (typeof window === "undefined") return () => {};
-    const handler = (event: StorageEvent) => {
-      if (event.key !== SQLITE_EPOCH_STORAGE_KEY) return;
-      listener(parseCacheEpoch(event.newValue));
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  },
-};
-
-const browserLocks: LockAdapter | null =
-  typeof navigator !== "undefined" &&
-  typeof (navigator as any).locks?.request === "function"
-    ? {
-        request(name, signal, onAcquired) {
-          return (navigator as any).locks.request(
-            name,
-            { mode: "exclusive", signal },
-            onAcquired,
-          );
-        },
-      }
-    : null;
-
-const browserChannelTransport: ChannelTransport | null =
-  typeof BroadcastChannel !== "undefined"
-    ? {
-        open(channelName, onMessage) {
-          const channel = new BroadcastChannel(channelName);
-          const handler = (event: MessageEvent) => onMessage(event.data);
-          channel.addEventListener("message", handler);
-          return {
-            post(data) {
-              channel.postMessage(data);
-            },
-            close() {
-              channel.removeEventListener("message", handler);
-              channel.close();
-            },
-          };
-        },
-      }
-    : null;
-
-const browserSpawnWorker: WorkerSpawner = (_epoch, onMessage, onError) => {
-  const worker = new Worker(new URL("./worker.ts", import.meta.url), {
-    type: "module",
-  });
-  worker.onmessage = (event) => onMessage(event.data);
-  worker.onerror = (event) => onError(event.message || "Worker error");
+function createBrowserEpochStore(): EpochStore {
   return {
-    postMessage(message) {
-      worker.postMessage(message);
+    read() {
+      try {
+        if (typeof localStorage === "undefined") return null;
+        return parseCacheEpoch(localStorage.getItem(SQLITE_EPOCH_STORAGE_KEY));
+      } catch {
+        return null;
+      }
     },
-    terminate() {
-      worker.terminate();
+    write(epoch) {
+      try {
+        if (typeof localStorage === "undefined") return true;
+        localStorage.setItem(SQLITE_EPOCH_STORAGE_KEY, JSON.stringify(epoch));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    subscribe(listener) {
+      if (typeof window === "undefined") return () => {};
+      const handler = (event: StorageEvent) => {
+        if (event.key !== SQLITE_EPOCH_STORAGE_KEY) return;
+        listener(parseCacheEpoch(event.newValue));
+      };
+      window.addEventListener("storage", handler);
+      return () => window.removeEventListener("storage", handler);
     },
   };
-};
+}
+
+function createBrowserLocks(): LockAdapter | null {
+  if (
+    typeof navigator === "undefined" ||
+    typeof (navigator as { locks?: { request?: unknown } }).locks?.request !==
+      "function"
+  )
+    return null;
+  return {
+    request(name, signal, onAcquired) {
+      return (navigator as unknown as { locks: LockManager }).locks.request(
+        name,
+        { mode: "exclusive", signal },
+        onAcquired,
+      );
+    },
+  };
+}
+
+function createBrowserChannelTransport(): ChannelTransport | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  return {
+    open(channelName, onMessage) {
+      const channel = new BroadcastChannel(channelName);
+      const handler = (event: MessageEvent) => onMessage(event.data);
+      channel.addEventListener("message", handler);
+      return {
+        post(data) {
+          channel.postMessage(data);
+        },
+        close() {
+          channel.removeEventListener("message", handler);
+          channel.close();
+        },
+      };
+    },
+  };
+}
+
+function createBrowserWorkerSpawner(): WorkerSpawner {
+  return (_epoch, onMessage, onError) => {
+    const worker = new Worker(new URL("./worker.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.onmessage = (event) => onMessage(event.data);
+    worker.onerror = (event) => onError(event.message || "Worker error");
+    return {
+      postMessage(message) {
+        worker.postMessage(message);
+      },
+      terminate() {
+        worker.terminate();
+      },
+    };
+  };
+}
 
 function browserOpfsSupported(): boolean {
   return (
@@ -99,7 +110,8 @@ function browserOpfsSupported(): boolean {
     typeof Worker !== "undefined" &&
     typeof BroadcastChannel !== "undefined" &&
     typeof navigator !== "undefined" &&
-    typeof (navigator as any).locks?.request === "function" &&
+    typeof (navigator as { locks?: { request?: unknown } }).locks?.request ===
+      "function" &&
     typeof navigator.storage?.getDirectory === "function"
   );
 }
@@ -111,10 +123,10 @@ export function getSqliteCacheStorage(): CacheStorage {
     sqliteStorage = createSqliteWorkerClient({
       auth: authPrincipal,
       schemaVersion: CACHE_SCHEMA_VERSION,
-      epochStore: browserEpochStore,
-      locks: browserLocks,
-      channelTransport: browserChannelTransport,
-      spawnWorker: browserSpawnWorker,
+      epochStore: createBrowserEpochStore(),
+      locks: createBrowserLocks(),
+      channelTransport: createBrowserChannelTransport(),
+      spawnWorker: createBrowserWorkerSpawner(),
       opfsSupported: browserOpfsSupported,
       journal: createIdbJournalBridge(),
     });

@@ -45,7 +45,7 @@ function scheduleLivenessFlush(state: any) {
 }
 
 /** Whether `next` differs from the row on disk only in `live` fields. */
-function onlyLiveFieldsChanged(
+export function onlyLiveFieldsChanged(
   onDisk: any,
   next: any,
   live: ReadonlySet<string>,
@@ -283,6 +283,16 @@ export function holdLiveMeta(key: string, state: any): boolean {
   lastPersistedMeta.set(key, state[key]);
   livenessMeta.delete(key);
   return false;
+}
+
+export function classifyMetaLiveChange(
+  key: string,
+  onDisk: unknown,
+  next: unknown,
+): "same" | "live" | "durable" {
+  const live = META_LIVE[key];
+  if (!live) return "durable";
+  return liveChange(onDisk, next, live.tree, live.rowKeyAt);
 }
 
 export function hasPendingLivenessWrites(): boolean {
