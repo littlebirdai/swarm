@@ -81,7 +81,42 @@ const KNOWN_HOME_SCOPE_PREFIXES = [
 ] as const;
 
 export function isKnownHomeScope(scope: string): boolean {
-  return KNOWN_HOME_SCOPE_PREFIXES.some((prefix) => scope.startsWith(prefix));
+  return KNOWN_HOME_SCOPE_PREFIXES.some(
+    (prefix) => scope.startsWith(prefix) && scope.length > prefix.length,
+  );
+}
+
+const ENTITY_ROW_KEY_CACHE = new WeakMap<object, Map<string, string | null>>();
+
+function lookupEntityInMap(
+  map: Record<string, any> | undefined,
+  ref: string,
+): any | null {
+  if (!map || !ref) return null;
+  if (map[ref]) return map[ref];
+  let cache = ENTITY_ROW_KEY_CACHE.get(map);
+  if (!cache) {
+    cache = new Map<string, string | null>();
+    ENTITY_ROW_KEY_CACHE.set(map, cache);
+  }
+  const cachedKey = cache.get(ref);
+  if (cachedKey !== undefined) {
+    if (cachedKey === null) return null;
+    const cachedRow = map[cachedKey];
+    if (cachedRow && (cachedRow._id === ref || cachedRow.short_id === ref)) {
+      return cachedRow;
+    }
+  }
+  for (const id in map) {
+    const row = map[id];
+    if (!row) continue;
+    if (row._id === ref || row.short_id === ref) {
+      cache.set(ref, id);
+      return row;
+    }
+  }
+  cache.set(ref, null);
+  return null;
 }
 
 function isStubId(id: string): boolean {
@@ -107,19 +142,9 @@ function resolveProjectId(
   ref: string,
 ): string | null {
   if (!ref || isStubId(ref) || !projects) return null;
-  if (projects[ref]) {
-    if (isPersonalProject(projects[ref])) return null;
-    return String(projects[ref]._id ?? ref);
-  }
-  for (const id in projects) {
-    const row = projects[id];
-    if (!row) continue;
-    if (row._id === ref || row.short_id === ref) {
-      if (isPersonalProject(row)) return null;
-      return String(row._id ?? id);
-    }
-  }
-  return null;
+  const row = lookupEntityInMap(projects, ref);
+  if (!row || isPersonalProject(row)) return null;
+  return String(row._id ?? ref);
 }
 
 function matchRouteParam(path: string, segment: string): string | null {
@@ -170,30 +195,14 @@ export function activeTabPaths(state: ScopeStoreInput): string[] {
   return tabPathsForTab(tab);
 }
 
-function allTabPaths(state: ScopeStoreInput): string[] {
-  const tabs = state.tabs;
-  if (!Array.isArray(tabs)) return [];
-  const paths: string[] = [];
-  for (const tab of tabs) {
-    for (const path of tabPathsForTab(tab)) paths.push(path);
-  }
-  return paths;
-}
-
 export function findEntityRow(
   primary: Record<string, any> | undefined,
   ref: string,
   secondary?: Record<string, any>,
 ): any | null {
-  for (const map of [secondary, primary]) {
-    if (!map) continue;
-    if (map[ref]) return map[ref];
-    for (const id in map) {
-      const row = map[id];
-      if (row && (row._id === ref || row.short_id === ref)) return row;
-    }
-  }
-  return null;
+  return (
+    lookupEntityInMap(secondary, ref) ?? lookupEntityInMap(primary, ref) ?? null
+  );
 }
 
 export function rowHomeScope(
@@ -533,9 +542,15 @@ export function computePurgeSet(
     for (const id in rows) {
       if (!isConvexId(id) || isStubId(id)) continue;
       if (hasProtectedPendingLock(pending, collection, id)) continue;
-      if (protectedOutboxRows?.has(`${collection}:${id}`)) continue;
       const row = rows[id];
       if (!row || typeof row !== "object") continue;
+      if (
+        protectedOutboxRows?.has(`${collection}:${id}`) ||
+        (typeof row.short_id === "string" &&
+          protectedOutboxRows?.has(`${collection}:${row.short_id}`))
+      ) {
+        continue;
+      }
       if (isProtectedChatState(collection, row)) continue;
       if (isRowDetailProtected(collections, collection, id, row)) continue;
       if (isHeldByViewerUserScope(row, viewerId, heldScopes)) continue;
@@ -579,53 +594,39 @@ export function purgeUnheldScopeRowsInDraft(
   return targets;
 }
 
-export function filterFollowerRemovals(
-  state: ScopeStoreInput,
-  key: string,
-  removes: readonly string[],
-): string[] {
-  const paths = allTabPaths(state);
-  if (paths.length === 0) return [...removes];
-  const openViewScopes = new Set(extractViewScopes(state, paths));
-  const openTasks = new Set<string>();
-  const openDocs = new Set<string>();
-  const openPlans = new Set<string>();
-  for (const path of paths) {
-    const tRef = matchRouteParam(path, "tasks");
-    if (tRef) openTasks.add(tRef);
-    const dRef = matchRouteParam(path, "docs");
-    if (dRef) openDocs.add(dRef);
-    const pRef = matchRouteParam(path, "plans");
-    if (pRef) openPlans.add(pRef);
+export function revokeScopeRowsInDraft(
+  draft: any,
+  revokedScopes: ReadonlySet<string>,
+  now: number,
+  userScope?: string | null,
+): PurgeTarget[] {
+  const targets: PurgeTarget[] = [];
+  if (revokedScopes.size === 0) return targets;
+  for (const collection of SCOPE_SCOPED_COLLECTIONS) {
+    const rows = draft[collection] as Record<string, any> | undefined;
+    if (!rows) continue;
+    for (const id of Object.keys(rows)) {
+      if (!isConvexId(id) || isStubId(id)) continue;
+      const row = rows[id];
+      if (!row || typeof row !== "object") continue;
+      const scope = rowHomeScope(collection, row);
+      if (!scope || !revokedScopes.has(scope) || scope === userScope) continue;
+      delete rows[id];
+      if (collection === "docs" && draft.docDetails?.[id]) {
+        delete draft.docDetails[id];
+      }
+      if (collection === "tasks" && draft.taskComments?.[id]) {
+        delete draft.taskComments[id];
+      }
+      if (draft.pending) {
+        draft.pending[`${collection}:${id}`] = {
+          type: "exclude",
+          ts: now,
+          scope,
+        };
+      }
+      targets.push({ collection, id, scope });
+    }
   }
-  const matchesRef = (refs: ReadonlySet<string>, id: string, row: any) =>
-    refs.has(id) ||
-    (typeof row?.short_id === "string" && refs.has(row.short_id));
-
-  const table = (state as any)[key] as Record<string, any> | undefined;
-  return removes.filter((id) => {
-    if (key === "docDetails") {
-      const docRow = state.docs?.[id] ?? table?.[id];
-      return !matchesRef(openDocs, id, docRow);
-    }
-    if (key === "taskComments") {
-      const taskRow = state.tasks?.[id];
-      return !matchesRef(openTasks, id, taskRow);
-    }
-    if (
-      key !== "tasks" &&
-      key !== "docs" &&
-      key !== "plans" &&
-      key !== "chatMessages"
-    ) {
-      return true;
-    }
-    const row = table?.[id];
-    if (key === "tasks" && matchesRef(openTasks, id, row)) return false;
-    if (key === "docs" && matchesRef(openDocs, id, row)) return false;
-    if (key === "plans" && matchesRef(openPlans, id, row)) return false;
-    const scope = rowHomeScope(key, row);
-    if (scope && openViewScopes.has(scope)) return false;
-    return true;
-  });
+  return targets;
 }

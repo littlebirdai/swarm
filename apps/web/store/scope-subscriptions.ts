@@ -5,7 +5,6 @@ import {
   computePurgeSet,
   extractScopeCandidates,
   extractViewScopes,
-  filterFollowerRemovals,
   findEntityRow,
   isKnownHomeScope,
   purgeUnheldScopeRowsInDraft,
@@ -31,7 +30,6 @@ export {
   createScopeSubscriptionSlice,
   extractScopeCandidates,
   extractViewScopes,
-  filterFollowerRemovals,
   findEntityRow,
   isKnownHomeScope,
   purgeUnheldScopeRowsInDraft,
@@ -74,6 +72,7 @@ export type ScopeSubscriptionEntry = {
 export type ScopeDenyEntry = {
   digest: string;
   at: number;
+  waitLeaveView?: boolean;
 };
 
 export type ScopeSubscriptionState = {
@@ -151,7 +150,14 @@ function denyRecordsEqual(
   for (const key of keysA) {
     const ea = a[key];
     const eb = b[key];
-    if (!eb || ea.digest !== eb.digest || ea.at !== eb.at) return false;
+    if (
+      !eb ||
+      ea.digest !== eb.digest ||
+      ea.at !== eb.at ||
+      Boolean(ea.waitLeaveView) !== Boolean(eb.waitLeaveView)
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -173,7 +179,6 @@ export function candidatesDigest(candidates: ScopeCandidates): string {
       .map((f) => `${f.scope}:${f.at ?? ""}`)
       .sort()
       .join(",")}`,
-    `v:${[...candidates.view].sort().join(",")}`,
   ];
   let h1 = 2166136261;
   let h2 = 33554467;
@@ -275,13 +280,21 @@ export function reconcileScopeSubscriptions(
 
   const userScope = `user:${candidates.principalId}`;
   const digest = candidatesDigest(candidates);
+  const rawViewSet = new Set(candidates.view);
 
   const nextDeniedRaw: Record<string, ScopeDenyEntry> = {};
   for (const [scope, entry] of Object.entries(prev.denied ?? {})) {
     if (scope === userScope) continue;
-    if (entry.digest === digest && now - entry.at < SCOPE_DENY_TTL_MS) {
-      nextDeniedRaw[scope] = entry;
+    if (entry.digest !== digest || now - entry.at >= SCOPE_DENY_TTL_MS) {
+      continue;
     }
+    if (rawViewSet.has(scope)) {
+      if (entry.waitLeaveView) nextDeniedRaw[scope] = entry;
+      continue;
+    }
+    nextDeniedRaw[scope] = entry.waitLeaveView
+      ? { digest: entry.digest, at: entry.at }
+      : entry;
   }
   const finalDenied = denyRecordsEqual(prev.denied ?? {}, nextDeniedRaw)
     ? prev.denied

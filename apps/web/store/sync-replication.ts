@@ -1,6 +1,4 @@
 import { desktopWindowKeys } from "./desktop-panel-keys";
-import { filterFollowerRemovals } from "./scope-subscription-candidates";
-import { clientScopeSubscriptionsEnabled } from "./scope-subscriptions";
 import { scopeViewTransportFor } from "./scope-view-transport";
 import {
   panelReplicationTransport,
@@ -566,11 +564,7 @@ function applyUpdatesToStoreInner(
       }
     }
     if (u.removes?.length) {
-      const removes =
-        !opts?.optimistic && clientScopeSubscriptionsEnabled()
-          ? filterFollowerRemovals(state, u.key, u.removes)
-          : u.removes;
-      if (removes.length) state._applyReplicatedRemovals(u.key, removes);
+      state._applyReplicatedRemovals(u.key, u.removes);
     }
   }
 }

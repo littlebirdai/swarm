@@ -1,13 +1,33 @@
 import type { ReplicationChannel, ReplicationMessage } from "@platform/engine";
 import {
+  activeTabPaths,
   extractViewScopes,
+  isKnownHomeScope,
   type ScopeStoreInput,
 } from "./scope-subscription-candidates";
-import { clientScopeSubscriptionsEnabled } from "./scope-subscriptions";
+import {
+  SCOPE_SUBSCRIPTION_BUDGET,
+  clientScopeSubscriptionsEnabled,
+} from "./scope-subscriptions";
 
 type ScopeViewMsg = Extract<ReplicationMessage, { type: "mut" }> & {
   scopeView?: string[];
 };
+
+export const SCOPE_PEER_VIEW_REFRESH_MS = 5_000;
+export const SCOPE_PEER_VIEW_LEASE_MS = 15_000;
+
+function sanitizePeerViewScopes(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const set = new Set<string>();
+  for (const item of raw) {
+    if (typeof item === "string" && isKnownHomeScope(item)) {
+      set.add(item);
+      if (set.size >= SCOPE_SUBSCRIPTION_BUDGET) break;
+    }
+  }
+  return [...set].sort();
+}
 
 export function createScopeViewTransport(opts: {
   selfId: string;
@@ -16,17 +36,60 @@ export function createScopeViewTransport(opts: {
   subscribe: (listener: (state: any, prev: any) => void) => () => void;
   onPeerView: (peerId: string, scopes: readonly string[]) => void;
   onClearPeerViews: () => void;
+  heartbeatMs?: number;
+  leaseMs?: number;
 }) {
+  const heartbeatMs = opts.heartbeatMs ?? SCOPE_PEER_VIEW_REFRESH_MS;
+  const leaseMs = opts.leaseMs ?? SCOPE_PEER_VIEW_LEASE_MS;
   let lastSentKey: string | null = null;
   let unsubscribeStore: (() => void) | null = null;
+  let refreshTimer: ReturnType<typeof setInterval> | null = null;
+  let pagehideOff: (() => void) | null = null;
+  const peerTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let isFollowing = false;
   let isHost = false;
 
-  const sendCurrentView = () => {
+  const clearPeerTimer = (peerId: string) => {
+    const existing = peerTimers.get(peerId);
+    if (existing !== undefined) {
+      clearTimeout(existing);
+      peerTimers.delete(peerId);
+    }
+  };
+
+  const clearAllPeerTimers = () => {
+    for (const timer of peerTimers.values()) clearTimeout(timer);
+    peerTimers.clear();
+  };
+
+  const applyPeerView = (peerId: string, scopes: readonly string[]) => {
+    clearPeerTimer(peerId);
+    if (scopes.length > 0 && leaseMs > 0) {
+      peerTimers.set(
+        peerId,
+        setTimeout(() => {
+          peerTimers.delete(peerId);
+          opts.onPeerView(peerId, []);
+        }, leaseMs),
+      );
+    }
+    opts.onPeerView(peerId, scopes);
+  };
+
+  const postLeave = () => {
+    opts.channel.post({ type: "leave", from: opts.selfId } as any);
+  };
+
+  const sendCurrentView = (force = false) => {
     if (!clientScopeSubscriptionsEnabled() || !isFollowing) return;
-    const scopes = extractViewScopes(opts.getState()).sort();
+    const state = opts.getState();
+    const scopes = extractViewScopes(state, activeTabPaths(state))
+      .filter((s) => isKnownHomeScope(s))
+      .sort()
+      .slice(0, SCOPE_SUBSCRIPTION_BUDGET);
+    if (force && scopes.length === 0) return;
     const key = scopes.join("\x1f");
-    if (key === lastSentKey) return;
+    if (!force && key === lastSentKey) return;
     lastSentKey = key;
     const msg: ScopeViewMsg = {
       type: "mut",
@@ -43,24 +106,37 @@ export function createScopeViewTransport(opts: {
     },
     onMessage(callback) {
       return opts.channel.onMessage((msg) => {
-        const raw = msg as ScopeViewMsg & { from?: string };
-        if (
-          isHost &&
-          clientScopeSubscriptionsEnabled() &&
-          raw.type === "mut" &&
-          Array.isArray(raw.scopeView)
-        ) {
-          opts.onPeerView(raw.from, raw.scopeView);
-          if (raw.updates.length === 0) return;
-        }
-        if (
-          isHost &&
-          clientScopeSubscriptionsEnabled() &&
-          (raw as any).type === "leave" &&
-          typeof raw.from === "string"
-        ) {
-          opts.onPeerView(raw.from, []);
-          return;
+        if (!msg || typeof msg !== "object") return;
+        const raw = msg as unknown as {
+          type?: unknown;
+          from?: unknown;
+          updates?: unknown;
+          scopeView?: unknown;
+        };
+        if (isHost && clientScopeSubscriptionsEnabled()) {
+          const fromId =
+            typeof raw.from === "string" &&
+            raw.from.length > 0 &&
+            raw.from !== opts.selfId
+              ? raw.from
+              : null;
+          if (raw.type === "leave") {
+            if (fromId) applyPeerView(fromId, []);
+            return;
+          }
+          if (raw.type === "mut" && "scopeView" in raw) {
+            if (
+              !fromId ||
+              !Array.isArray(raw.updates) ||
+              raw.scopeView === undefined
+            ) {
+              return;
+            }
+            const sanitized = sanitizePeerViewScopes(raw.scopeView);
+            if (!sanitized) return;
+            applyPeerView(fromId, sanitized);
+            if (raw.updates.length === 0) return;
+          }
         }
         callback(msg);
       });
@@ -72,6 +148,14 @@ export function createScopeViewTransport(opts: {
       unsubscribeStore();
       unsubscribeStore = null;
     }
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+    if (pagehideOff) {
+      pagehideOff();
+      pagehideOff = null;
+    }
     if (isFollowing && sendClear && clientScopeSubscriptionsEnabled()) {
       const msg: ScopeViewMsg = {
         type: "mut",
@@ -80,6 +164,7 @@ export function createScopeViewTransport(opts: {
         scopeView: [],
       };
       opts.channel.post(msg);
+      postLeave();
     }
     isFollowing = false;
     lastSentKey = null;
@@ -87,10 +172,11 @@ export function createScopeViewTransport(opts: {
 
   const startFollowing = () => {
     if (!clientScopeSubscriptionsEnabled()) return;
+    clearAllPeerTimers();
     isHost = false;
     isFollowing = true;
     lastSentKey = null;
-    sendCurrentView();
+    sendCurrentView(false);
     if (!unsubscribeStore) {
       unsubscribeStore = opts.subscribe((state, prev) => {
         if (!isFollowing) return;
@@ -105,19 +191,31 @@ export function createScopeViewTransport(opts: {
         ) {
           return;
         }
-        sendCurrentView();
+        sendCurrentView(false);
       });
+    }
+    if (!refreshTimer && heartbeatMs > 0) {
+      refreshTimer = setInterval(() => sendCurrentView(true), heartbeatMs);
+    }
+    if (!pagehideOff && typeof window !== "undefined") {
+      const onPageHide = () => {
+        if (isFollowing && clientScopeSubscriptionsEnabled()) postLeave();
+      };
+      window.addEventListener("pagehide", onPageHide);
+      pagehideOff = () => window.removeEventListener("pagehide", onPageHide);
     }
   };
 
   const startHost = () => {
     stopFollowing(false);
+    clearAllPeerTimers();
     isHost = true;
     opts.onClearPeerViews();
   };
 
   const stop = () => {
     stopFollowing(true);
+    clearAllPeerTimers();
     if (isHost) {
       isHost = false;
       opts.onClearPeerViews();

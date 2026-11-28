@@ -647,19 +647,21 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
       out.push(`docs:${args[0].client_key}`);
     } else if (
       (entry.action === "archiveDoc" ||
-        entry.action === "unarchiveDoc" ||
-        entry.action === "updateDoc" ||
-        entry.action === "deleteDoc") &&
+        entry.action === "restoreArchivedDoc" ||
+        entry.action === "pinDoc" ||
+        entry.action === "moveDoc" ||
+        entry.action === "updateDoc") &&
       typeof args[0] === "string"
     ) {
       out.push(`docs:${args[0]}`);
+      if (entry.action === "updateDoc") out.push(`docDetails:${args[0]}`);
     } else if (
       entry.action === "createTask" &&
       typeof args[0]?.client_key === "string"
     ) {
       out.push(`tasks:${args[0].client_key}`);
     } else if (
-      (entry.action === "updateTask" || entry.action === "deleteTask") &&
+      (entry.action === "updateTask" || entry.action === "updateTaskStatus") &&
       typeof args[0] === "string"
     ) {
       out.push(`tasks:${args[0]}`);
@@ -668,10 +670,7 @@ const CODECAST_PLATFORM_CONFIG: PlatformConfig = {
       typeof args[0]?.client_key === "string"
     ) {
       out.push(`plans:${args[0].client_key}`);
-    } else if (
-      (entry.action === "updatePlan" || entry.action === "deletePlan") &&
-      typeof args[0] === "string"
-    ) {
+    } else if (entry.action === "updatePlan" && typeof args[0] === "string") {
       out.push(`plans:${args[0]}`);
     }
     return out;
