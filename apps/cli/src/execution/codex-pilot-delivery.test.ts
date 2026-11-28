@@ -701,24 +701,3 @@ test("an in-doubt image stays readable until the server releases its delivery", 
     await f.dispose();
   }
 });
-
-test("with the flag off a queued message still drains through the legacy rail", async () => {
-  const f = fixture("pilot", false, "receipt");
-  try {
-    f.initial([item(f.pilotRequest)]);
-    await f.runtime.start();
-    expect(f.workSubscription().args).not.toHaveProperty(
-      "owned_codex_conversation_id",
-    );
-    expect(f.actions).toEqual([
-      "legacy-start:pilot:1",
-      "claim-delivery:pilot:1",
-      "legacy-deliver:pilot:1:2",
-      "claim-delivery:pilot:1",
-      "subscribed",
-    ]);
-    expect(f.appServer.wire()).toEqual([]);
-  } finally {
-    await f.dispose();
-  }
-});

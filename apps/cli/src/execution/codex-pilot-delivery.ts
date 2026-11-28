@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ReadyBinding } from "@codecast/agent-clients/executionBinding";
 import type { ClaimGrant } from "@codecast/edge-client";
+import type { DeliveryFacade, ReceiptJournal } from "@codecast/delivery";
+import type { EdgeBlobResult, EdgeBusResult } from "@codecast/edge-supervisor";
 import {
   EDGE_PROTOCOL_VERSION as v,
   STEER_BATON_CAPABILITY,
@@ -10,9 +12,6 @@ import {
   parseDeliveryStartResponse,
   parsePermitsNextResponse,
   type CanonicalEvent,
-  type DeliverySettleRequest,
-  type DeliveryStartRequest,
-  type DeliveryResolutionRequest,
   type EdgeParseResult,
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
@@ -20,10 +19,8 @@ import type {
   DeliveryOutcome,
   DeliveryReceiptJournal,
   OwnedSession,
-  SteerRequest,
 } from "@codecast/provider-contract";
 import type { ExecutionCoordinator } from "./coordinator.js";
-import { structuredFailure, type DriverDeliveryResult } from "./types.js";
 
 type FetchEdge = (
   operation: string,
@@ -54,30 +51,19 @@ export function deliveryFence({
 
 type PilotPermit = Extract<PermitsNextResponse, { status: "permit" }>;
 
-function permitIdentity(permit: Omit<DeliveryStartRequest, "v">) {
-  const {
-    session,
-    run,
-    fencing_token,
-    attempt_id,
-    delivery_id,
-    seq,
-    intent,
-    sender,
-  } = permit;
-  return {
-    session,
-    run,
-    fencing_token,
-    attempt_id,
-    delivery_id,
-    seq,
-    intent,
-    sender,
-  };
-}
-
 export class CodexPilotLeaseLost extends Error {}
+
+type ActiveContext = {
+  binding: ReadyBinding;
+  coordinator: ExecutionCoordinator;
+  session: OwnedSession;
+  claim: ClaimGrant;
+  prepareText: (text: string) => Promise<string>;
+  permitsStale: boolean;
+  settleStale: boolean;
+  heldWithoutReceipt: boolean;
+  lastAttempt?: { attemptId: string; deliveryId: string };
+};
 
 export class CodexPilotDelivery {
   receiptJournal?: DeliveryReceiptJournal;
@@ -86,6 +72,9 @@ export class CodexPilotDelivery {
   private activeTurn: string | null = null;
   private pendingStarter?: PilotPermit["sender"];
   private headDeliveryId: string | null = null;
+  private service?: DeliveryFacade;
+  private serviceInit?: Promise<DeliveryFacade>;
+  private context?: ActiveContext;
 
   constructor(
     private readonly fetch: FetchEdge,
@@ -134,6 +123,12 @@ export class CodexPilotDelivery {
       await Promise.all(
         [...this.images.keys()].map((id) => this.clearImages(id)),
       );
+      if (this.service) {
+        const current = this.service;
+        this.service = undefined;
+        this.serviceInit = undefined;
+        await current.dispose().catch(() => {});
+      }
       return;
     }
     const directory = this.images.get(attemptId);
@@ -149,15 +144,37 @@ export class CodexPilotDelivery {
   ): Promise<void> {
     if (event.kind === "receipt") {
       const { delivery_id } = event.body;
-      if (delivery_id === this.headDeliveryId)
+      if (delivery_id === this.headDeliveryId) {
         this.appendedReceipts.add(delivery_id);
-      else
+        const receipt = await this.receiptJournal?.find(
+          event.session,
+          session.getCheckpoint(),
+          delivery_id,
+          signal,
+        );
+        if (receipt && this.service) {
+          await this.service
+            .publish(
+              {
+                kind: "provider.receipt",
+                session: event.session,
+                run: event.run,
+                delivery_id: receipt.delivery_id,
+                provider_item_id: receipt.provider_item_id,
+                turn: receipt.turn,
+              },
+              signal,
+            )
+            .catch(() => {});
+        }
+      } else {
         await this.forgetReceipt(
           event.session,
           session.getCheckpoint(),
           delivery_id,
           signal,
         );
+      }
     }
     if (event.kind === "turn.started") this.activeTurn = event.turn;
     if (event.kind === "turn.ended" && this.activeTurn === event.turn)
@@ -202,6 +219,349 @@ export class CodexPilotDelivery {
     return next;
   }
 
+  private async ensureService(): Promise<DeliveryFacade> {
+    if (this.service) return this.service;
+    this.serviceInit ??= (async () => {
+      const { createDeliveryService } = await import("@codecast/delivery");
+      const checkpoint = () => this.context?.session.getCheckpoint();
+      const receipts: ReceiptJournal = {
+        find: async (sessionId, deliveryId, signal) => {
+          const cp = checkpoint();
+          if (!cp) return undefined;
+          const record = await this.receiptJournal?.find(
+            sessionId,
+            cp,
+            deliveryId,
+            signal,
+          );
+          if (record) {
+            if (record.delivery_id !== deliveryId) {
+              throw new Error(
+                "Owned Codex receipt does not match the delivery",
+              );
+            }
+            return {
+              delivery_id: record.delivery_id,
+              provider_item_id: record.provider_item_id,
+              turn: record.turn,
+            };
+          }
+          return undefined;
+        },
+        record: async (sessionId, receipt, signal) => {
+          const cp = checkpoint();
+          if (!cp || !this.receiptJournal) return;
+          const existing = await this.receiptJournal.find(
+            sessionId,
+            cp,
+            receipt.delivery_id,
+            signal,
+          );
+          if (existing) return;
+          await this.receiptJournal.record(sessionId, cp, receipt, signal);
+        },
+        forget: async (sessionId, deliveryId, signal) => {
+          const cp = checkpoint();
+          if (!cp) return;
+          this.appendedReceipts.delete(deliveryId);
+          await this.forgetReceipt(sessionId, cp, deliveryId, signal);
+        },
+      };
+
+      const callEdge = async <T>(
+        operation: string,
+        request: object,
+        parse: (input: unknown) => EdgeParseResult<T>,
+        signal: AbortSignal,
+      ): Promise<EdgeBusResult<T>> => {
+        const value = await readEdge(
+          this.fetch,
+          signal,
+          operation,
+          request,
+          parse,
+        );
+        return { ok: true, response: value };
+      };
+
+      const facade = createDeliveryService({
+        receiptJournal: receipts,
+        allowTakeover: false,
+        runningTurn: () => this.activeTurn,
+        canSendNew: (permit) => {
+          const turn = permit.intent === "queue" ? null : permit.expected?.turn;
+          return turn !== undefined && turn === this.activeTurn;
+        },
+        prepareText: async (text) =>
+          this.context ? this.context.prepareText(text) : text,
+        saveBlob: async (permit, index, contentType, bytes) => {
+          const extension = contentType.match(
+            /^image\/(jpeg|png|webp|gif|heic|heif)$/,
+          )?.[1];
+          if (!extension)
+            throw new Error("Unsupported delivery image content type");
+          let directory = this.images.get(permit.attempt_id);
+          if (!directory) {
+            directory = await mkdtemp(join(tmpdir(), "owned-codex-image-"));
+            this.images.set(permit.attempt_id, directory);
+          }
+          const filePath = join(directory, `${index}.${extension}`);
+          const buffer = Buffer.from(bytes);
+          await writeFile(filePath, buffer, { mode: 0o600 });
+          const { isHeicImage, heicToJpeg } = await import("../heicImage.js");
+          const jpg = join(directory, `${index}.jpg`);
+          return isHeicImage(buffer) && (await heicToJpeg(filePath, jpg))
+            ? jpg
+            : filePath;
+        },
+        clearArtifacts: async (attemptId) => this.clearImages(attemptId),
+        bridge: {
+          permitsNext: async (request, signal) => {
+            const ctx = this.context!;
+            const next = await readEdge(
+              this.fetch,
+              signal,
+              "permits.next",
+              request,
+              parsePermitsNextResponse,
+            );
+            if (next.status === "error") {
+              throw new Error(
+                `Owned Codex delivery lookup failed: ${next.code}`,
+              );
+            }
+            if (next.status === "stale") {
+              ctx.permitsStale = true;
+              this.headDeliveryId = null;
+              return { ok: true, response: next };
+            }
+            if (next.status === "takeover_fence") {
+              return { ok: true, response: next };
+            }
+            const held = ctx.coordinator.getActiveDelivery(
+              ctx.binding.conversationId,
+            );
+            if (held) {
+              if (
+                next.status === "permit" &&
+                next.attempt_id === held.attemptId &&
+                next.state === "started"
+              ) {
+                if (!this.appendedReceipts.has(next.delivery_id)) {
+                  ctx.heldWithoutReceipt = true;
+                  return { ok: true, response: { v, status: "empty" } };
+                }
+              } else {
+                await ctx.coordinator.reconcileOwnedDelivery(
+                  ctx.binding.conversationId,
+                  held.attemptId,
+                  async () => {
+                    if (
+                      next.status === "empty" ||
+                      next.delivery_id !== held.deliveryId
+                    ) {
+                      this.appendedReceipts.delete(held.deliveryId);
+                      await this.forgetReceipt(
+                        ctx.claim.session,
+                        ctx.session.getCheckpoint(),
+                        held.deliveryId,
+                        signal,
+                      );
+                    }
+                    await this.clearImages(held.attemptId);
+                    return "released";
+                  },
+                );
+              }
+            }
+            if (next.status === "empty") {
+              this.headDeliveryId = null;
+              return { ok: true, response: next };
+            }
+            this.headDeliveryId = next.delivery_id;
+            return { ok: true, response: next };
+          },
+          deliveryStart: (request, signal) =>
+            callEdge(
+              "delivery.start",
+              request,
+              parseDeliveryStartResponse,
+              signal,
+            ),
+          deliverySettle: async (request, signal) => {
+            const ctx = this.context!;
+            const value = await readEdge(
+              this.fetch,
+              signal,
+              "delivery.settle",
+              request,
+              parseDeliverySettleResponse,
+            );
+            if (value.status === "stale") {
+              ctx.settleStale = true;
+              return { ok: true, response: value };
+            }
+            if (value.status !== "recorded" && value.status !== "duplicate") {
+              throw new Error(
+                `Owned Codex settlement was not confirmed: ${value.status}`,
+              );
+            }
+            if (request.outcome === "applied") {
+              const held = ctx.coordinator.getActiveDelivery(
+                ctx.binding.conversationId,
+              );
+              if (held && held.attemptId === request.attempt_id) {
+                await ctx.coordinator.reconcileOwnedDelivery(
+                  ctx.binding.conversationId,
+                  held.attemptId,
+                  async () => "applied",
+                );
+              }
+            }
+            return { ok: true, response: value };
+          },
+          blobGet: async (request, signal): Promise<EdgeBlobResult> => {
+            const response = await this.fetch("blobs.get", request, signal);
+            if (!response.ok) {
+              return {
+                ok: false,
+                retryable: response.status === 429 || response.status >= 500,
+                code: `http_${response.status}`,
+              };
+            }
+            const contentType = response.headers.get("Content-Type") ?? "";
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            return { ok: true, content_type: contentType, bytes };
+          },
+          deliver: async (request, signal) => {
+            const ctx = this.context!;
+            ctx.lastAttempt = {
+              attemptId: request.attempt_id,
+              deliveryId: request.delivery_id,
+            };
+            signal.throwIfAborted();
+            const turn =
+              request.intent === "queue"
+                ? null
+                : (request.expected?.turn ?? null);
+            const recordsStarter =
+              ctx.binding.capabilities.includes(STEER_BATON_CAPABILITY) &&
+              turn === null;
+            if (recordsStarter) this.pendingStarter = request.sender;
+            let result: DeliveryOutcome | undefined;
+            try {
+              result = await ctx.session.steer({
+                expected: {
+                  run: request.run,
+                  fencing_token: request.fencing_token,
+                  turn,
+                },
+                delivery_id: request.delivery_id,
+                authors: [request.sender],
+                input: [...request.input],
+              });
+            } finally {
+              if (recordsStarter && result?.status !== "accepted")
+                this.pendingStarter = undefined;
+            }
+            if (
+              result.status === "duplicate" &&
+              result.receipt.delivery_id === request.delivery_id
+            ) {
+              const recorded = await receipts.find(
+                request.session,
+                request.delivery_id,
+                signal,
+              );
+              if (recorded) return { status: "duplicate", receipt: recorded };
+              return {
+                status: "in_doubt",
+                reason: "unknown",
+                code: "OWNED_CODEX_RECEIPT_MISSING",
+                message: "Owned Codex receipt is absent from the journal",
+              };
+            }
+            if (this.appendedReceipts.has(request.delivery_id)) {
+              const recorded = await receipts.find(
+                request.session,
+                request.delivery_id,
+                signal,
+              );
+              if (recorded) return { status: "delivered", receipt: recorded };
+            }
+            if (
+              result.status === "stale" ||
+              result.status === "refused" ||
+              result.status === "unsupported"
+            ) {
+              return {
+                status: "failed",
+                retryable: result.status === "stale",
+                code:
+                  result.status === "refused"
+                    ? result.code
+                    : `OWNED_CODEX_DELIVERY_${result.status.toUpperCase()}`,
+                message:
+                  result.status === "refused"
+                    ? result.message
+                    : `Codex delivery was ${result.status}`,
+              };
+            }
+            return {
+              status: "in_doubt",
+              reason: result.status === "in-doubt" ? "unknown" : "best-effort",
+              code:
+                result.status === "in-doubt"
+                  ? result.code
+                  : "OWNED_CODEX_RECEIPT_PENDING",
+              message:
+                result.status === "in-doubt"
+                  ? result.message
+                  : "Delivery awaits a Codex receipt",
+            };
+          },
+          recover: async (request, signal) => {
+            const ctx = this.context!;
+            ctx.lastAttempt = {
+              attemptId: request.attempt_id,
+              deliveryId: request.delivery_id,
+            };
+            const recorded = await receipts.find(
+              request.session,
+              request.delivery_id,
+              signal,
+            );
+            if (recorded) return { status: "delivered", receipt: recorded };
+            return {
+              status: "in_doubt",
+              code: "OWNED_CODEX_RECEIPT_PENDING",
+              message: "Delivery awaits a Codex receipt",
+            };
+          },
+        },
+      });
+      this.service = facade;
+      return facade;
+    })();
+    return this.serviceInit;
+  }
+
+  private async markAmbiguous(
+    ctx: ActiveContext,
+    attemptId: string,
+    deliveryId: string,
+    failure: { code: string; message: string },
+  ): Promise<void> {
+    const { conversationId, runtimeId } = ctx.binding;
+    if (ctx.coordinator.getActiveDelivery(conversationId)) return;
+    await ctx.coordinator.runDeliveryOperation({
+      identity: { conversationId, runtimeId, attemptId, deliveryId },
+      signature: JSON.stringify({ ...ctx.claim, attemptId, deliveryId }),
+      effect: async () => ({ state: "ambiguous", failure }),
+      settle: async () => {},
+    });
+  }
+
   async drain(
     binding: ReadyBinding,
     coordinator: ExecutionCoordinator,
@@ -211,298 +571,73 @@ export class CodexPilotDelivery {
     signal: AbortSignal,
     sendNew: boolean,
   ): Promise<boolean> {
-    const { conversationId, runtimeId } = binding;
+    const service = await this.ensureService();
+    const fence = { v, ...deliveryFence(claim) };
     for (let count = 0; count < 1024 && !signal.aborted; count++) {
-      const permit = await this.nextPermit(claim, signal);
-      const held = coordinator.getActiveDelivery(conversationId);
-      if (held) {
-        const released = await coordinator.reconcileOwnedDelivery(
-          conversationId,
-          held.attemptId,
-          async () => {
-            if (
-              !permit ||
-              permit.attempt_id !== held.attemptId ||
-              permit.state === "new"
-            ) {
-              if (permit?.delivery_id !== held.deliveryId) {
-                this.appendedReceipts.delete(held.deliveryId);
-                await this.forgetReceipt(
-                  claim.session,
-                  session.getCheckpoint(),
-                  held.deliveryId,
-                  signal,
-                );
-              }
-              await this.clearImages(held.attemptId);
-              return "released";
-            }
-            if (!this.appendedReceipts.has(permit.delivery_id)) return "held";
-            await this.settleDelivery(session, permit, signal, {
-              state: "delivered",
-              externalDeliveryId: permit.delivery_id,
-            });
-            return "applied";
-          },
-        );
-        if (!released) return false;
+      const ctx: ActiveContext = {
+        binding,
+        coordinator,
+        session,
+        claim,
+        prepareText,
+        permitsStale: false,
+        settleStale: false,
+        heldWithoutReceipt: false,
+      };
+      this.context = ctx;
+      let outcome;
+      try {
+        outcome = await service.deliverNext(fence, { sendNew }, signal);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes("takeover_unsupported") ||
+            (error as { code?: string }).code === "takeover_unsupported")
+        ) {
+          throw new Error(
+            "Owned Codex pilot cannot acknowledge a takeover fence",
+          );
+        }
+        throw error;
+      } finally {
+        if (this.context === ctx) this.context = undefined;
       }
-      if (!permit) return true;
-      const turn = permit.intent === "queue" ? null : permit.expected?.turn;
-      if (
-        permit.state === "new" &&
-        (!sendNew || turn === undefined || turn !== this.activeTurn) &&
-        !(await this.hasReceipt(session, permit, signal))
-      )
-        return !sendNew;
-      const identity = permitIdentity(permit);
-      const outcome = await coordinator.runDeliveryOperation({
-        identity: {
-          conversationId,
-          runtimeId,
-          attemptId: permit.attempt_id,
-          deliveryId: permit.delivery_id,
-        },
-        signature: JSON.stringify(identity),
-        effect: async () => {
-          if (permit.state === "new")
-            return this.sendDelivery(
-              session,
-              permit,
-              turn ?? null,
-              prepareText,
-              signal,
-              binding.capabilities.includes(STEER_BATON_CAPABILITY),
-            );
-          return this.appendedReceipts.has(permit.delivery_id)
-            ? { state: "delivered", externalDeliveryId: permit.delivery_id }
-            : {
-                state: "ambiguous",
-                failure: {
-                  code: "OWNED_CODEX_RECEIPT_PENDING",
-                  message: "Delivery awaits a Codex receipt",
-                },
-              };
-        },
-        settle: (result) =>
-          this.settleDelivery(session, permit, signal, result),
-      });
-      if (outcome.state !== "delivered") return false;
+
+      if (ctx.heldWithoutReceipt) return false;
+      if (outcome.status === "empty") return true;
+      if (outcome.status === "held") return !sendNew;
+      if (outcome.status === "lease_stale") {
+        if (ctx.permitsStale) {
+          throw new CodexPilotLeaseLost("Owned Codex delivery lease is stale");
+        }
+        if (ctx.settleStale && ctx.lastAttempt) {
+          await this.markAmbiguous(
+            ctx,
+            ctx.lastAttempt.attemptId,
+            ctx.lastAttempt.deliveryId,
+            {
+              code: "DELIVERY_TERMINAL_WRITE_AMBIGUOUS",
+              message: "Owned Codex settlement was not confirmed: stale",
+            },
+          );
+          return false;
+        }
+        throw new CodexPilotLeaseLost("Owned Codex delivery lease is stale");
+      }
+      if (outcome.status === "in_doubt") {
+        await this.markAmbiguous(ctx, outcome.attempt_id, outcome.delivery_id, {
+          code: outcome.code,
+          message: outcome.message,
+        });
+        return false;
+      }
+      if (outcome.status === "failed" && outcome.retryable === false) {
+        return false;
+      }
+      if (outcome.status !== "delivered" && outcome.status !== "duplicate") {
+        return false;
+      }
     }
     return false;
-  }
-
-  private async hasReceipt(
-    session: OwnedSession,
-    permit: PilotPermit,
-    signal: AbortSignal,
-  ): Promise<boolean> {
-    if (this.appendedReceipts.has(permit.delivery_id)) return true;
-    const record = await this.receiptJournal?.find(
-      permit.session,
-      session.getCheckpoint(),
-      permit.delivery_id,
-      signal,
-    );
-    if (record && record.delivery_id !== permit.delivery_id)
-      throw new Error("Owned Codex receipt does not match the delivery");
-    return record !== undefined;
-  }
-
-  private async sendDelivery(
-    session: OwnedSession,
-    permit: PilotPermit,
-    turn: string | null,
-    prepareText: (text: string) => Promise<string>,
-    signal: AbortSignal,
-    recordsTurnStarter: boolean,
-  ): Promise<DriverDeliveryResult> {
-    const identity = permitIdentity(permit);
-    const started = await readEdge(
-      this.fetch,
-      signal,
-      "delivery.start",
-      { v, ...identity },
-      parseDeliveryStartResponse,
-    );
-    if (
-      started.status !== "started" ||
-      JSON.stringify(permitIdentity(started)) !== JSON.stringify(identity)
-    )
-      return {
-        state: "ambiguous",
-        failure: {
-          code: "OWNED_CODEX_START_UNCONFIRMED",
-          message: "The server did not grant a new delivery start",
-        },
-      };
-
-    if (await this.hasReceipt(session, permit, signal))
-      return { state: "delivered", externalDeliveryId: permit.delivery_id };
-
-    const input: Array<SteerRequest["input"][number]> = [];
-    let images: string | undefined;
-    try {
-      for (const part of started.input ?? permit.input) {
-        if (part.type === "text") {
-          input.push({ type: "text", text: await prepareText(part.text) });
-          continue;
-        }
-        const response = await this.fetch(
-          "blobs.get",
-          {
-            v,
-            session: permit.session,
-            run: permit.run,
-            fencing_token: permit.fencing_token,
-            attempt_id: permit.attempt_id,
-            blob_id: part.blob_id,
-          },
-          signal,
-        );
-        if (response.headers.get("Content-Type") !== part.content_type)
-          throw new Error("Delivery image content type changed");
-        images ??= await mkdtemp(join(tmpdir(), "owned-codex-image-"));
-        this.images.set(permit.attempt_id, images);
-        const extension = part.content_type.match(
-          /^image\/(jpeg|png|webp|gif|heic|heif)$/,
-        )?.[1];
-        if (!extension)
-          throw new Error("Unsupported delivery image content type");
-        const bytes = Buffer.from(await response.arrayBuffer());
-        const path = join(images, `${input.length}.${extension}`);
-        await writeFile(path, bytes, { mode: 0o600 });
-        const { isHeicImage, heicToJpeg } = await import("../heicImage.js");
-        const jpg = join(images, `${input.length}.jpg`);
-        const localPath =
-          isHeicImage(bytes) && (await heicToJpeg(path, jpg)) ? jpg : path;
-        input.push({ type: "local-image", path: localPath });
-      }
-    } catch (error) {
-      await this.clearImages(permit.attempt_id);
-      return {
-        state: "failed-before-effect",
-        failure: {
-          ...structuredFailure("OWNED_CODEX_INPUT_PREPARATION", error),
-          retryable: true,
-        },
-      };
-    }
-
-    signal.throwIfAborted();
-    const recordsStarter = recordsTurnStarter && turn === null;
-    if (recordsStarter) this.pendingStarter = permit.sender;
-    let result: DeliveryOutcome | undefined;
-    try {
-      result = await session.steer({
-        expected: {
-          run: permit.run,
-          fencing_token: permit.fencing_token,
-          turn,
-        },
-        delivery_id: permit.delivery_id,
-        authors: [permit.sender],
-        input,
-      });
-    } finally {
-      if (recordsStarter && result?.status !== "accepted")
-        this.pendingStarter = undefined;
-    }
-    if (
-      this.appendedReceipts.has(permit.delivery_id) ||
-      (result.status === "duplicate" &&
-        result.receipt.delivery_id === permit.delivery_id)
-    )
-      return { state: "delivered", externalDeliveryId: permit.delivery_id };
-    if (
-      result.status === "stale" ||
-      result.status === "refused" ||
-      result.status === "unsupported"
-    ) {
-      return {
-        state: "failed-before-effect",
-        failure: {
-          code:
-            result.status === "refused"
-              ? result.code
-              : "OWNED_CODEX_DELIVERY_" + result.status.toUpperCase(),
-          message:
-            result.status === "refused"
-              ? result.message
-              : `Codex delivery was ${result.status}`,
-          retryable: result.status === "stale",
-        },
-      };
-    }
-    return {
-      state: "ambiguous",
-      failure:
-        result.status === "in-doubt"
-          ? { code: result.code, message: result.message }
-          : {
-              code: "OWNED_CODEX_RECEIPT_PENDING",
-              message: "Delivery awaits a Codex receipt",
-            },
-    };
-  }
-
-  private async settleDelivery(
-    session: OwnedSession,
-    permit: PilotPermit,
-    signal: AbortSignal,
-    result: DriverDeliveryResult,
-  ): Promise<void> {
-    const base = { v, ...permitIdentity(permit) } as const;
-    let request: DeliverySettleRequest | DeliveryResolutionRequest;
-    if (result.state === "delivered") {
-      const record = await this.receiptJournal?.find(
-        permit.session,
-        session.getCheckpoint(),
-        permit.delivery_id,
-        signal,
-      );
-      if (!record)
-        throw new Error("Owned Codex receipt is absent from the journal");
-      if (record.delivery_id !== permit.delivery_id)
-        throw new Error("Owned Codex receipt does not match the delivery");
-      request = {
-        ...base,
-        outcome: "applied",
-        resolution_evidence: JSON.stringify(record),
-      } satisfies DeliveryResolutionRequest;
-    } else {
-      const detail = result.failure.message;
-      request =
-        result.state === "ambiguous"
-          ? { ...base, outcome: "in_doubt", detail }
-          : {
-              ...base,
-              outcome: "failed",
-              retryable: result.failure.retryable === true,
-              detail,
-            };
-    }
-    const reply = await readEdge(
-      this.fetch,
-      signal,
-      "delivery.settle",
-      request,
-      parseDeliverySettleResponse,
-    );
-    if (reply.status !== "recorded" && reply.status !== "duplicate")
-      throw new Error(
-        `Owned Codex settlement was not confirmed: ${reply.status}`,
-      );
-    if (result.state !== "ambiguous") {
-      this.appendedReceipts.delete(permit.delivery_id);
-      if (result.state === "delivered")
-        await this.forgetReceipt(
-          permit.session,
-          session.getCheckpoint(),
-          permit.delivery_id,
-          signal,
-        );
-      await this.clearImages(permit.attempt_id);
-    }
   }
 }

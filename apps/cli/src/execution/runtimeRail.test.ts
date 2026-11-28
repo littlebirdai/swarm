@@ -11,7 +11,6 @@ import { InMemoryExecutionOperationJournal } from "./local-journal.js";
 import {
   DaemonExecutionRuntime,
   assertLegacyDeliveryEnvelope,
-  fencedExecutionEnabled,
   getProcessExecutionRuntime,
 } from "./runtime-rail.js";
 
@@ -158,16 +157,6 @@ function recoveringTransport(
 }
 
 describe("fenced daemon runtime rail", () => {
-  test("is explicitly off by default", () => {
-    expect(fencedExecutionEnabled({})).toBe(false);
-    expect(
-      fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "true" }),
-    ).toBe(false);
-    expect(fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "1" })).toBe(
-      true,
-    );
-  });
-
   test("legacy choke rejects every fenced envelope marker", () => {
     expect(() => assertLegacyDeliveryEnvelope({ _id: "legacy" })).not.toThrow();
     for (const field of [

@@ -29,16 +29,6 @@ import { PILOT_RESUME_BUSY_ERROR } from "./codex-pilot-cleanup.js";
 import { defaultConfigDir } from "../config/configDir.js";
 import { parseWork, type ExecutionWorkItem } from "./work-feed-parser.js";
 
-export const FENCED_EXECUTION_FEATURE_FLAG =
-  "CODECAST_FENCED_EXECUTION_V1" as const;
-
-/** Explicitly off unless the single rollout bit is exactly `1`. */
-export function fencedExecutionEnabled(
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): boolean {
-  return env[FENCED_EXECUTION_FEATURE_FLAG] === "1";
-}
-
 /**
  * Legacy delivery's fail-closed choke. A fenced envelope reaching this point is
  * a programming error; it must never be handed to claimPendingMessageForDelivery,

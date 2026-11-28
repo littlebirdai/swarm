@@ -48,7 +48,7 @@ type RelayFixture = {
 
 export function fixture(
   selected: string | null = "pilot",
-  enabled = true,
+  _legacyUnused = true,
   useReceiptPeer: false | "receipt" | "receipt-before-reply" = false,
   manyOrRelay: boolean | RelayFixture = false,
   relayArg?: RelayFixture,
@@ -122,7 +122,7 @@ export function fixture(
     error?: string;
     force?: boolean;
   }> = [];
-  function createPilot(flag = enabled) {
+  function createPilot() {
     return createCodexOwnedPilot(
       {
         siteUrl: "https://pilot.invalid",
@@ -266,7 +266,6 @@ export function fixture(
         log: (message) => logs.push(message),
       },
       {
-        CODECAST_FENCED_EXECUTION_V1: flag ? "1" : "0",
         CODECAST_CODEX_OWNED_PILOT_SESSION: selected ?? undefined,
         CODECAST_CODEX_OWNED_NEW_SESSIONS: many ? "1" : undefined,
       },
@@ -281,7 +280,6 @@ export function fixture(
   const remaining = new Map([
     ["legacy:1", 2],
     ["pilot:2", 1],
-    ...(!enabled ? [["pilot:1", 1] as const] : []),
   ]);
   const emptyAfterDelivery = new Set<string>();
   const bootRegistrations: Record<string, unknown>[] = [];
