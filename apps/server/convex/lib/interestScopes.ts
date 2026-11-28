@@ -5,6 +5,48 @@ import { teamHasFeature } from "./teamFeatureGuard";
 
 export const MAX_HEADS_SCOPES = 64;
 
+export function derivedClientHomeScope(
+  entityType: string,
+  patch: Record<string, any>,
+  accessKey?: string,
+): string | null {
+  if (entityType === "chat_messages") {
+    return patch.channel_id ? `channel:${String(patch.channel_id)}` : null;
+  }
+  const ws =
+    typeof patch.workspace === "string" && patch.workspace.length > 0
+      ? patch.workspace
+      : accessKey;
+  if (typeof ws === "string" && ws.length > 0) {
+    if (ws.startsWith("user:")) return ws;
+    if (ws.startsWith("team:")) {
+      return patch.project_id
+        ? `project:${String(patch.project_id)}`
+        : `dir:${ws.slice(5)}`;
+    }
+    return null;
+  }
+  if (patch.user_id && !patch.team_id) {
+    return `user:${String(patch.user_id)}`;
+  }
+  return null;
+}
+
+export function stripRedundantHomeScope(
+  entityType: string,
+  patch: Record<string, any>,
+  accessKey?: string,
+): Record<string, any> {
+  if (typeof patch.home_scope !== "string") return patch;
+  if (
+    patch.home_scope !== derivedClientHomeScope(entityType, patch, accessKey)
+  ) {
+    return patch;
+  }
+  const { home_scope: _homeScope, ...rest } = patch;
+  return rest;
+}
+
 export function addHomeScope(
   scopes: string[],
   scope: ChangeScope,

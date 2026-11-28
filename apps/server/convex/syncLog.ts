@@ -26,6 +26,7 @@ import {
   addHomeScope,
   canReadSyncScope,
   resolveHeadsScopes,
+  stripRedundantHomeScope,
 } from "./lib/interestScopes";
 export { accessStampFromDoc, authorizedFor, type AccessStamp };
 
@@ -806,7 +807,15 @@ export function projectAction(
   return {
     ...base,
     op: "upsert",
-    ...(row.patch !== undefined ? { patch: row.patch } : {}),
+    ...(row.patch !== undefined
+      ? {
+          patch: stripRedundantHomeScope(
+            row.entity_type,
+            row.patch,
+            row.access_key,
+          ),
+        }
+      : {}),
     ...(row.unset ? { unset: row.unset } : {}),
     ...(row.full ? { full: true } : {}),
     ...(row.partial ? { partial: true } : {}),

@@ -94,6 +94,19 @@ describe("planCargoApply — tasks/docs/plans/projects", () => {
     );
     expect(personal.fields.team_id).toBeUndefined();
     expect(personal.unset).toContain("team_id");
+    const moved = planCargoApply(
+      "tasks",
+      { patch: { project_id: "p1" } },
+      { workspace: "team:T", home_scope: "dir:T" },
+    );
+    expect(moved.unset).toContain("home_scope");
+    const explicit = planCargoApply(
+      "tasks",
+      { patch: { project_id: "p1", home_scope: "channel:c1" } },
+      { workspace: "team:T", home_scope: "dir:T" },
+    );
+    expect(explicit.fields.home_scope).toBe("channel:c1");
+    expect(explicit.unset).not.toContain("home_scope");
   });
 });
 

@@ -122,6 +122,18 @@ export function planCargoApply(
         : 0;
   }
   if (
+    !("home_scope" in raw) &&
+    existing?.home_scope !== undefined &&
+    ("workspace" in raw ||
+      "project_id" in raw ||
+      "channel_id" in raw ||
+      unsetIn.some(
+        (k) => k === "workspace" || k === "project_id" || k === "channel_id",
+      ))
+  ) {
+    unset.push("home_scope");
+  }
+  if (
     coll === "docs" &&
     cargo.omitted?.includes("content") &&
     existing?.source === "plan_mode"
