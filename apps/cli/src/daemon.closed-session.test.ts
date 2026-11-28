@@ -67,7 +67,7 @@ describe("a closed conversation and the daemon's retired gate", () => {
     });
     (svc as any).client = {
       query: async (name: string) => {
-        if (name === "conversations:getConversationLifecycle")
+        if (name === "conversationStatus:getConversationLifecycle")
           throw new Error("connect ECONNREFUSED 127.0.0.1:443");
         return { status: "active", closed: true };
       },

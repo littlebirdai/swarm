@@ -728,7 +728,7 @@ export class SyncService {
     >;
   }): Promise<{ updated: boolean } | undefined> {
     try {
-      return await this.mutate("conversations:updateGitState", {
+      return await this.mutate("conversationStatus:updateGitState", {
         api_token: this.apiToken,
         ...args,
       });
@@ -1459,7 +1459,7 @@ export class SyncService {
     const gitInfo = params.gitInfo;
     return this.guarded(async () => {
       const result = await this.mutate(
-        "conversations:createConversation" as any,
+        "conversationLifecycle:createConversation" as any,
         {
           user_id: params.userId,
           team_id: params.teamId,
@@ -1518,7 +1518,7 @@ export class SyncService {
   async markInteractive(conversationId: string): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:markInteractive" as any, {
+      await this.mutate("conversationMetadata:markInteractive" as any, {
         conversation_id: conversationId,
         api_token: this.apiToken,
       });
@@ -1532,7 +1532,7 @@ export class SyncService {
   ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:linkSessions" as any, {
+      await this.mutate("sessionHierarchy:linkSessions" as any, {
         parent_conversation_id: parentConversationId,
         child_conversation_id: childConversationId,
         subagent_description: subagentDescription,
@@ -1544,7 +1544,7 @@ export class SyncService {
   async killFinishedConversation(conversationId: string): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:cliSetSessionVisibility" as any, {
+      await this.mutate("cliSessionActions:cliSetSessionVisibility" as any, {
         session: conversationId,
         action: "kill",
         api_token: this.apiToken,
@@ -1563,7 +1563,7 @@ export class SyncService {
   ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:linkSpawnedBy" as any, {
+      await this.mutate("sessionHierarchy:linkSpawnedBy" as any, {
         parent_conversation_id: parentConversationId,
         child_conversation_id: childConversationId,
         agent_team_name: agentTeamName,
@@ -1579,7 +1579,7 @@ export class SyncService {
   ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:linkPlanHandoff" as any, {
+      await this.mutate("sessionHierarchy:linkPlanHandoff" as any, {
         parent_conversation_id: parentConversationId,
         child_conversation_id: childConversationId,
         api_token: this.apiToken,
@@ -2181,7 +2181,7 @@ export class SyncService {
     provider?: { replaces: string[] },
   ): Promise<void> {
     return this.guarded(async () => {
-      await this.mutate("conversations:updateTitle" as any, {
+      await this.mutate("conversationMetadata:updateTitle" as any, {
         conversation_id: conversationId,
         title,
         api_token: this.apiToken,
@@ -2195,7 +2195,7 @@ export class SyncService {
   /** The local agent's own name for the session, kept only until a title pass names it (conversations.updateTitle's agent_guess). */
   async updateAgentTitle(conversationId: string, title: string): Promise<void> {
     return this.guarded(async () => {
-      await this.mutate("conversations:updateTitle" as any, {
+      await this.mutate("conversationMetadata:updateTitle" as any, {
         conversation_id: conversationId,
         title,
         api_token: this.apiToken,
@@ -2210,7 +2210,7 @@ export class SyncService {
     archived: boolean,
   ): Promise<void> {
     return this.guarded(async () => {
-      await this.mutate("conversations:setCloudAgentArchived" as any, {
+      await this.mutate("conversationMetadata:setCloudAgentArchived" as any, {
         conversation_id: conversationId,
         archived,
         api_token: this.apiToken,
@@ -2224,7 +2224,7 @@ export class SyncService {
     projectPath?: string,
   ): Promise<void> {
     try {
-      await this.mutate("conversations:setAvailableSkills" as any, {
+      await this.mutate("conversationMetadata:setAvailableSkills" as any, {
         ...(conversationId ? { conversation_id: conversationId } : {}),
         ...(projectPath ? { project_path: projectPath } : {}),
         skills,
@@ -2241,7 +2241,7 @@ export class SyncService {
   ): Promise<{ updated: boolean } | null> {
     try {
       const result = await this.mutate(
-        "conversations:updateProjectPath" as any,
+        "conversationMetadata:updateProjectPath" as any,
         {
           session_id: sessionId,
           project_path: projectPath,
@@ -2279,7 +2279,7 @@ export class SyncService {
       api_token: this.apiToken,
     };
     const bind = (args: Record<string, unknown>) =>
-      this.mutate("conversations:updateSessionId" as any, args);
+      this.mutate("conversationMetadata:updateSessionId" as any, args);
     if (!notARepo) return void (await bind(base));
     try {
       await bind({ ...base, not_a_repo: true });
@@ -2315,7 +2315,7 @@ export class SyncService {
   ): Promise<"stashed" | "killed" | null> {
     try {
       const res: any = await this.client.query(
-        "conversations:getThreadState" as any,
+        "sessionThreadState:getThreadState" as any,
         {
           session: conversationId,
           if_exists: true,
@@ -2458,7 +2458,7 @@ export class SyncService {
         // Route A — the conversation id, an exact ctx.db.get. Always tried first:
         // when the row exists this is unambiguous, with no twin reduction at all.
         let res: any = await this.client.query(
-          "conversations:getConversationLifecycle" as any,
+          "conversationStatus:getConversationLifecycle" as any,
           {
             api_token: this.apiToken,
             conversation_id: conversationId,
@@ -2472,7 +2472,7 @@ export class SyncService {
         // full hide state instead of status only.
         if (!res && sessionId) {
           res = await this.client.query(
-            "conversations:getConversationLifecycle" as any,
+            "conversationStatus:getConversationLifecycle" as any,
             {
               api_token: this.apiToken,
               session_id: sessionId,
@@ -2658,7 +2658,7 @@ export class SyncService {
     try {
       return await this.guarded(async () => {
         const result = await this.client.query(
-          "conversations:findUserLocalCheckouts" as any,
+          "conversationProjects:findUserLocalCheckouts" as any,
           {
             git_remote_url: gitRemoteUrl,
             api_token: this.apiToken,
@@ -2713,7 +2713,7 @@ export class SyncService {
     try {
       return await this.guarded(async () => {
         const result = await this.client.query(
-          "conversations:getProjectInfo" as any,
+          "conversationProjects:getProjectInfo" as any,
           {
             conversation_id: conversationId,
             api_token: this.apiToken,
@@ -2959,7 +2959,7 @@ export class SyncService {
     opts: SessionErrorOptions = {},
   ): Promise<void> {
     if (!this.apiToken) return;
-    await this.mutate("conversations:setSessionError" as any, {
+    await this.mutate("conversationStatus:setSessionError" as any, {
       conversation_id: conversationId,
       error,
       only_if_equals: opts.onlyIfEquals,
@@ -3136,7 +3136,7 @@ export class SyncService {
   async markSessionCompleted(conversationId: string): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate("conversations:markSessionCompleted" as any, {
+      await this.mutate("conversationStatus:markSessionCompleted" as any, {
         conversation_id: conversationId,
         api_token: this.apiToken,
       });
@@ -3146,7 +3146,7 @@ export class SyncService {
   async markSessionActive(conversationId: string): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate("conversations:markSessionActive" as any, {
+      await this.mutate("conversationStatus:markSessionActive" as any, {
         conversation_id: conversationId,
         api_token: this.apiToken,
       });
@@ -3454,7 +3454,7 @@ export class SyncService {
     }
     return this.guarded(async () => {
       const result = await this.client.query(
-        "conversations:getMessageCountsForReconciliation" as any,
+        "conversationProjects:getMessageCountsForReconciliation" as any,
         {
           session_ids: sessionIds,
           conversation_id_hints:

@@ -56,7 +56,7 @@ export default function ShareLinkScreen() {
   const token = parsed?.token;
 
   const conv = useQueryNoThrow(
-    api.conversations.getSharedConversationMeta,
+    api.conversationSharing.getSharedConversationMeta,
     kind === "conversation" && token ? { share_token: token } : "skip",
   ).data as any;
   const msg = useQueryNoThrow(

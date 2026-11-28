@@ -6883,7 +6883,7 @@ program
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            path: "conversations:updateProjectPath",
+            path: "conversationMetadata:updateProjectPath",
             args: {
               session_id: fix.sessionId,
               project_path: fix.actualPath,
@@ -6989,7 +6989,7 @@ program
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: "conversations:healHistoricalUpdatedAt",
+          path: "conversationPrivacy:healHistoricalUpdatedAt",
           args: {
             api_token: config.auth_token,
             cursor,
@@ -9885,7 +9885,7 @@ program
         titles.set(s.id, s.title);
         seen.set(s.id, new Set());
         client.onUpdate(
-          "conversations:conversationMessagesForCLI" as any,
+          "conversationExport:conversationMessagesForCLI" as any,
           {
             api_token: config.auth_token,
             conversation_id: s.id,
@@ -10465,7 +10465,7 @@ program
     } else {
       const projectPath = options.global ? undefined : getRealCwd();
       stateClient.onUpdate(
-        "conversations:feedForCLI" as any,
+        "cliFeed:feedForCLI" as any,
         {
           api_token: config.auth_token,
           project_path: projectPath,
@@ -12727,7 +12727,7 @@ program
         const client = new ConvexHttpClient(convexUrl);
 
         const conversations = await client.query(
-          "conversations:listPrivateConversations" as any,
+          "conversationFeeds:listPrivateConversations" as any,
           {
             api_token: config.auth_token,
           },
@@ -12772,19 +12772,20 @@ program
       const { ConvexHttpClient } = await import("convex/browser");
       const client = new ConvexHttpClient(convexUrl);
 
-      await client.mutation("conversations:setPrivacyBySessionId" as any, {
-        session_id: sessionId,
-        is_private: options.remove ? false : true,
-        api_token: config.auth_token,
-      });
+      await client.mutation(
+        "conversationPrivacy:setPrivacyBySessionId" as any,
+        {
+          session_id: sessionId,
+          is_private: options.remove ? false : true,
+          api_token: config.auth_token,
+        },
+      );
 
-      if (options.remove) {
-        console.log(`Removed private flag from conversation: ${sessionId}`);
-        console.log("This conversation will now appear in team view");
-      } else {
-        console.log(`Marked conversation as private: ${sessionId}`);
-        console.log("This conversation will no longer appear in team view");
-      }
+      console.log(
+        options.remove
+          ? `Removed private flag from conversation: ${sessionId}\nThis conversation will now appear in team view`
+          : `Marked conversation as private: ${sessionId}\nThis conversation will no longer appear in team view`,
+      );
     } catch (err) {
       console.error("Failed to update conversation:", (err as Error).message);
       process.exit(1);
@@ -17627,7 +17628,7 @@ program
         const interrupted = guard.reason();
         const text = interrupted ? `${interrupted}: ${message}` : message;
         try {
-          await cc.client.mutation(cc.api.conversations.setSessionError, {
+          await cc.client.mutation(cc.api.conversationStatus.setSessionError, {
             api_token: cc.token,
             conversation_id: row.conversation_id,
             error: text,

@@ -262,7 +262,7 @@ export function EntityPill({
     type === "plan" && queryArgs ? queryArgs : "skip",
   ).data;
   const session = useQueryNoThrow(
-    api.conversations.webGet,
+    api.conversationLookup.webGet,
     isSession && queryArgs ? queryArgs : "skip",
   ).data;
   const trigger = useQueryNoThrow(

@@ -5259,7 +5259,7 @@ export function SessionScreen({
   // moment the actions menu opens, which is ahead of the "View Diff" tap.
   const [diffWanted, setDiffWanted] = useState(false);
   const gitDiffData = useQuery(
-    api.conversations.getConversationGitDiff,
+    api.conversationReads.getConversationGitDiff,
     (diffWanted || diffExpanded) && isReal
       ? { conversation_id: id as Id<"conversations"> }
       : "skip",
@@ -5716,7 +5716,9 @@ export function SessionScreen({
     showToast,
   ]);
 
-  const generateShareLink = useMutation(api.conversations.generateShareLink);
+  const generateShareLink = useMutation(
+    api.conversationSharing.generateShareLink,
+  );
   const setShareLink = useInboxStore((s) => s.setShareLink);
   const chatOn = useActiveTeamFeature("chat") === true;
   const publicRefusal = usePolicyRefusal(
