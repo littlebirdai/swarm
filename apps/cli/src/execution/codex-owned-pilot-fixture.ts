@@ -28,7 +28,7 @@ import type { RuntimeDriver } from "./driver.js";
 import { FileExecutionOperationJournal } from "./local-journal.js";
 import {
   parseDeliverySettleRequest,
-  RELAY_TOKEN_DELTAS_CAPABILITY,
+  RELAY_SESSION_LIVENESS_CAPABILITY,
   STEER_BATON_CAPABILITY,
   parseDeliveryStartRequest,
   parseHelloRequest,
@@ -425,7 +425,9 @@ export function fixture(
         if (operation === "hello") {
           expect(parseHelloRequest(body).ok).toBe(true);
           if (relay) {
-            expect(body.capabilities).toEqual([RELAY_TOKEN_DELTAS_CAPABILITY]);
+            expect(body.capabilities).toEqual([
+              RELAY_SESSION_LIVENESS_CAPABILITY,
+            ]);
           }
           return Response.json({
             status: "ok",
@@ -439,7 +441,7 @@ export function fixture(
                 max_batch_bytes: 100_000,
                 max_blob_bytes: 100_000,
               },
-              capabilities: relay ? [RELAY_TOKEN_DELTAS_CAPABILITY] : [],
+              capabilities: relay ? [RELAY_SESSION_LIVENESS_CAPABILITY] : [],
             },
           });
         }

@@ -150,7 +150,6 @@ export function startOwnedCodexRelayContact(
               Authorization: `Bearer ${bearer}`,
             }),
             sessionLiveness: flags.liveness,
-            tokenDeltas: true,
             hello: {
               machine: binding.ownerDeviceId,
               boot: binding.daemonBootId,

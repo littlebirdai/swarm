@@ -4,7 +4,6 @@ import {
   TRANSCRIPT_APPEND_MAX_BYTES,
   TRANSCRIPT_APPEND_OPERATION,
   RELAY_SESSION_LIVENESS_CAPABILITY,
-  RELAY_TOKEN_DELTAS_CAPABILITY,
   STEER_BATON_CAPABILITY,
   TAKEOVER_FENCE_CAPABILITY,
   parseTakeoverAckRequest,
@@ -34,10 +33,7 @@ import type { FunctionArgs, HttpRouter } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
-import {
-  machineRelayGrantConfig,
-  machineTokenDeltaGrantConfig,
-} from "../../relayGrants";
+import { machineRelayGrantConfig } from "../../relayGrants";
 import { readBodyCapped } from "../tokenHttp";
 import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 import { fencedPromptAnswersEnabled } from "./prompt-answers.route";
@@ -331,9 +327,6 @@ export function registerEdgeRoutes(http: HttpRouter) {
             ...(machineRelayGrantConfig()
               ? [RELAY_SESSION_LIVENESS_CAPABILITY]
               : []),
-            ...(machineTokenDeltaGrantConfig()
-              ? [RELAY_TOKEN_DELTAS_CAPABILITY]
-              : []),
           ].filter((capability) => body.capabilities.includes(capability)),
         },
       };
@@ -382,11 +375,10 @@ export function registerEdgeRoutes(http: HttpRouter) {
     method: "POST",
     handler: workAction(
       parseRelayGrantRequest,
-      (ctx, bearer, { sessions, token_deltas }) =>
+      (ctx, bearer, { sessions }) =>
         ctx.runMutation(internal.relayGrants.mintMachineLiveness, {
           bearer,
           sessions,
-          ...(token_deltas !== undefined ? { token_deltas } : {}),
         }),
       { operation: "relay_grant" },
     ),

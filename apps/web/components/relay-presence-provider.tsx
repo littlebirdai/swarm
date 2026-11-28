@@ -58,7 +58,6 @@ function ActiveRelayPresence({
             .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
-        tokenDeltas: true,
         capabilities: [
           "presence",
           "draft_cursor",

@@ -1,7 +1,6 @@
 import {
   EDGE_PROTOCOL_VERSION,
   RELAY_SESSION_LIVENESS_CAPABILITY,
-  RELAY_TOKEN_DELTAS_CAPABILITY,
   parseRelayGrantResponse,
   type HelloRequest,
   type RelayGrantRequest,
@@ -44,7 +43,6 @@ export type RelayLivenessOptions = {
   hello: Omit<HelloRequest, "versions" | "capabilities">;
   WebSocket?: RelayClientOptions["WebSocket"];
   sessionLiveness?: boolean;
-  tokenDeltas?: boolean;
 };
 
 function stripViewerPrefix(id: string) {
@@ -55,12 +53,10 @@ export function makeRelayLiveness(
   options: RelayLivenessOptions,
   initial: readonly RunLease[],
 ) {
-  const wantLiveness = options.sessionLiveness !== false;
-  const wantDeltas = options.tokenDeltas === true;
-  const grantKinds = (wantLiveness ? 1 : 0) + (wantDeltas ? 1 : 0);
+  const publishLiveness = options.sessionLiveness !== false;
   const maxSessions = Math.max(
     1,
-    Math.floor(RELAY_MAX_HUBS_PER_CONNECTION / Math.max(1, grantKinds)),
+    Math.floor(RELAY_MAX_HUBS_PER_CONNECTION / 2),
   );
   const bySession = (leases: readonly RunLease[]) =>
     new Map(
@@ -92,8 +88,7 @@ export function makeRelayLiveness(
       >();
       let relay: ReturnType<typeof createRelayClient> | undefined;
       let negotiated = false;
-      let hasLiveness = false;
-      let hasDeltas = false;
+      let hasRelay = false;
       const origin = clock.monotonicTimeNanosUnsafe();
       const started = Math.ceil(performance.now());
       const now = () =>
@@ -104,7 +99,7 @@ export function makeRelayLiveness(
         watched.clear();
       };
       emitDelta = (delta) => {
-        if (!hasDeltas || !relay) return false;
+        if (!hasRelay || !relay) return false;
         const lease = leases.get(delta.session);
         if (!lease || lease.run !== delta.run || lease.deadline <= now())
           return false;
@@ -138,42 +133,22 @@ export function makeRelayLiveness(
       const mint: RelayClientOptions["getToken"] = (hubs, signal) => {
         const getGrant = Effect.gen(function* () {
           if (!negotiated) {
-            const requested = [
-              ...(wantLiveness ? [RELAY_SESSION_LIVENESS_CAPABILITY] : []),
-              ...(wantDeltas ? [RELAY_TOKEN_DELTAS_CAPABILITY] : []),
-            ];
-            if (!requested.length) return { status: "unavailable" } as const;
             const hello = yield* edge.hello({
               ...options.hello,
               versions: [EDGE_PROTOCOL_VERSION],
-              capabilities: requested,
+              capabilities: [RELAY_SESSION_LIVENESS_CAPABILITY],
             });
-            hasLiveness =
-              wantLiveness &&
-              hello.policy.capabilities.includes(
-                RELAY_SESSION_LIVENESS_CAPABILITY,
-              );
-            hasDeltas =
-              wantDeltas &&
-              hello.policy.capabilities.includes(RELAY_TOKEN_DELTAS_CAPABILITY);
+            hasRelay = hello.policy.capabilities.includes(
+              RELAY_SESSION_LIVENESS_CAPABILITY,
+            );
             negotiated = true;
-            if (!hasLiveness && !hasDeltas) {
+            if (!hasRelay) {
               close();
               return { status: "unavailable" } as const;
             }
           }
-          const activeHubs = hubs.filter(({ id }) =>
-            id.startsWith(viewerHubPrefix) ? hasDeltas : hasLiveness,
-          );
-          const omitted = hubs
-            .filter((entry) => !activeHubs.includes(entry))
-            .map(({ kind, id }) => ({
-              kind,
-              id,
-              reason: "unavailable" as const,
-            }));
           const sessionIds = [
-            ...new Set(activeHubs.map(({ id }) => stripViewerPrefix(id))),
+            ...new Set(hubs.map(({ id }) => stripViewerPrefix(id))),
           ];
           if (!sessionIds.length) return { status: "unavailable" } as const;
           const sessions = sessionIds.flatMap((id) => {
@@ -184,19 +159,15 @@ export function makeRelayLiveness(
           });
           if (sessions.length !== sessionIds.length)
             return { status: "unavailable" } as const;
-          const reqDeltas = activeHubs.some(({ id }) =>
-            id.startsWith(viewerHubPrefix),
-          );
           const { value } = yield* send(
             "relay-grant",
             {
               v: EDGE_PROTOCOL_VERSION,
               sessions,
-              ...(reqDeltas ? { token_deltas: true } : {}),
             },
             parseRelayGrantResponse,
           );
-          if (value.status === "ok") return { ...value, omitted };
+          if (value.status === "ok") return { ...value, omitted: [] };
           if (value.status === "rate_limited") return value;
           return { status: "unavailable" } as const;
         }).pipe(
@@ -208,6 +179,7 @@ export function makeRelayLiveness(
       };
 
       function publish(id: string) {
+        if (!publishLiveness) return;
         const at = now();
         const subscription = watched.get(id);
         if (!subscription || subscription.kind !== "liveness") return;
@@ -235,14 +207,11 @@ export function makeRelayLiveness(
         createRelayClient({
           WebSocket: options.WebSocket ?? WebSocket,
           getToken: mint,
-          capabilities: [
-            ...(wantLiveness ? (["session_liveness"] as const) : []),
-            ...(wantDeltas ? (["token_delta"] as const) : []),
-          ],
-          maxGrantGroups:
-            wantLiveness && wantDeltas
-              ? Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2))
-              : undefined,
+          capabilities: ["session_liveness", "token_delta"],
+          maxGrantGroups: Math.max(
+            1,
+            Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2),
+          ),
           grantGroup: ({ id }) => stripViewerPrefix(id),
           onReady: ({ id }) => publish(id),
           now,
@@ -258,21 +227,20 @@ export function makeRelayLiveness(
           const live = new Map(
             [...leases].filter(([, lease]) => lease.deadline > now()),
           );
-          const livenessActive = wantLiveness && (!negotiated || hasLiveness);
-          const deltasActive = wantDeltas && (!negotiated || hasDeltas);
+          const relayActive = !negotiated || hasRelay;
           const desired = new Map<
             string,
             { session: string; kind: "liveness" | "delta"; lease: RunLease }
           >();
-          for (const [session, lease] of live) {
-            if (livenessActive)
+          if (relayActive) {
+            for (const [session, lease] of live) {
               desired.set(session, { session, kind: "liveness", lease });
-            if (deltasActive)
               desired.set(`${viewerHubPrefix}${session}`, {
                 session,
                 kind: "delta",
                 lease,
               });
+            }
           }
           if (
             !desired.size ||
@@ -320,7 +288,7 @@ export function makeRelayLiveness(
         Effect.gen(function* () {
           for (;;) {
             const delay = yield* tick();
-            if (negotiated && !hasLiveness && !hasDeltas) return;
+            if (negotiated && !hasRelay) return;
             yield* Effect.sleep(delay);
           }
         }),

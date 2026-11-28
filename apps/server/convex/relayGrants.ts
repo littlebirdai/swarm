@@ -358,17 +358,6 @@ export function machineRelayGrantConfig() {
   return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
 }
 
-export function machineTokenDeltaGrantConfig() {
-  if (
-    process.env.CODECAST_EDGE_V1 !== "1" ||
-    process.env.CODECAST_EDGE_DELIVERY_V1 !== "1"
-  )
-    return null;
-  const config = relayGrantConfig();
-  const url = process.env.RELAY_PUBLIC_URL;
-  return config && url && isRelayGrantUrl(url) ? { ...config, url } : null;
-}
-
 async function signRelayGrant(
   { audience, key }: NonNullable<ReturnType<typeof relayGrantConfig>>,
   claims: Omit<RelayGrantClaims, "v" | "audience">,
@@ -402,18 +391,15 @@ export const mintMachineLiveness = internalMutation({
         fencing_token: v.string(),
       }),
     ),
-    token_deltas: v.optional(v.boolean()),
   },
-  handler: async (ctx, { bearer, sessions, token_deltas }) => {
+  handler: async (ctx, { bearer, sessions }) => {
     const v = EDGE_PROTOCOL_VERSION;
-    const livenessConfig = machineRelayGrantConfig();
-    const deltaConfig =
-      token_deltas === true ? machineTokenDeltaGrantConfig() : null;
-    const config = livenessConfig ?? deltaConfig;
+    const config = machineRelayGrantConfig();
     if (!config) return { v, status: "unavailable" } as const;
+    const maxSessions = Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2));
     if (
       !sessions.length ||
-      sessions.length > RELAY_MAX_GRANTS_PER_TOKEN ||
+      sessions.length > maxSessions ||
       new Set(sessions.map(({ session }) => session)).size !== sessions.length
     )
       return { v, status: "stale" } as const;
@@ -431,25 +417,22 @@ export const mintMachineLiveness = internalMutation({
       if (!claim) return { v, status: "stale" } as const;
       owner ??= claim;
       expires = Math.min(expires, claim.lease.expires_at);
-      if (livenessConfig) {
-        grants.push({
+      grants.push(
+        {
           kind: "session",
           id: claim.binding.conversation_id,
           run,
           publish: ["session_liveness"],
-        });
-      }
-      if (deltaConfig) {
-        grants.push({
+        },
+        {
           kind: "session",
           id: `${VIEWER_HUB_PREFIX}${claim.binding.conversation_id}`,
           run,
           publish: ["token_delta"],
-        });
-      }
+        },
+      );
     }
-    if (!owner || grants.length > RELAY_MAX_GRANTS_PER_TOKEN)
-      return { v, status: "stale" } as const;
+    if (!owner) return { v, status: "stale" } as const;
     const { binding } = owner;
     try {
       const issuance = await checkRateLimit(

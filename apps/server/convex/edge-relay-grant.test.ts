@@ -6,9 +6,11 @@ import {
 import {
   parseRelayGrantResponse,
   RELAY_SESSION_LIVENESS_CAPABILITY,
-  RELAY_TOKEN_DELTAS_CAPABILITY,
 } from "@codecast/edge-contract";
-import { parseRelayGrantClaims } from "@codecast/relay-contract";
+import {
+  parseRelayGrantClaims,
+  RELAY_MAX_GRANTS_PER_TOKEN,
+} from "@codecast/relay-contract";
 import { api, internal } from "./_generated/api";
 import { asUser } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
@@ -127,6 +129,12 @@ test("only the current run owner can obtain a signed run-scoped grant", async ()
           id: f.conversation,
           run: claim.run,
           publish: ["session_liveness"],
+        },
+        {
+          kind: "session",
+          id: `viewer:${f.conversation}`,
+          run: claim.run,
+          publish: ["token_delta"],
         },
       ],
     },
@@ -263,12 +271,20 @@ test("one grant covers the batch and expires at the earliest lease deadline", as
     ok: true,
     value: {
       expires_at_ms: start + leaseMs,
-      grants: [second, first].map(({ session, run }) => ({
-        kind: "session",
-        id: session,
-        run,
-        publish: ["session_liveness"],
-      })),
+      grants: [second, first].flatMap(({ session, run }) => [
+        {
+          kind: "session",
+          id: session,
+          run,
+          publish: ["session_liveness"],
+        },
+        {
+          kind: "session",
+          id: `viewer:${session}`,
+          run,
+          publish: ["token_delta"],
+        },
+      ]),
     },
   });
   expect(
@@ -443,70 +459,12 @@ test("inbox relay targets follow conversation access and the current fenced bind
   expect(await owner.query(query, args)).toBeNull();
 });
 
-test("hello and relay-grant always support token_delta when requested alongside edge delivery", async () => {
+test("relay-grant mints both liveness and token_delta up to half of RELAY_MAX_GRANTS_PER_TOKEN and rejects token_deltas", async () => {
   const f = await fixture();
-  const hello = {
-    machine,
-    boot,
-    versions: [1],
-    capabilities: [
-      "heartbeat",
-      RELAY_SESSION_LIVENESS_CAPABILITY,
-      RELAY_TOKEN_DELTAS_CAPABILITY,
-    ],
-    providers: [],
-    runtimes: [],
-    capacity: {
-      memory_total_bytes: 1024,
-      memory_available_bytes: 512,
-      live_agents: 1,
-    },
-  };
-  const onCaps = (await (await f.post("hello", hello)).json()).policy
-    .capabilities;
-  expect(onCaps).toEqual([
-    "heartbeat",
-    RELAY_SESSION_LIVENESS_CAPABILITY,
-    RELAY_TOKEN_DELTAS_CAPABILITY,
-  ]);
-
   const claim = await f.claim("token delta claim");
   if (claim.status !== "granted") throw new Error("Expected active claim");
 
-  const livenessOnlyResponse = await f.post("relay-grant", {
-    v: 1,
-    sessions: [
-      {
-        session: f.conversation,
-        run: claim.run,
-        fencing_token: claim.fencing_token,
-      },
-    ],
-  });
-  const livenessOnlyResult = await livenessOnlyResponse.json();
-  expect(livenessOnlyResult.status).toBe("ok");
-  const [, livenessOnlyPayload] = (livenessOnlyResult.token as string).split(
-    ".",
-  );
-  expect(
-    parseRelayGrantClaims(
-      new TextDecoder().decode(base64urlDecode(livenessOnlyPayload)!),
-    ),
-  ).toMatchObject({
-    ok: true,
-    value: {
-      grants: [
-        {
-          kind: "session",
-          id: f.conversation,
-          run: claim.run,
-          publish: ["session_liveness"],
-        },
-      ],
-    },
-  });
-
-  const response = await f.post("relay-grant", {
+  const rejectedField = await f.post("relay-grant", {
     v: 1,
     sessions: [
       {
@@ -517,59 +475,47 @@ test("hello and relay-grant always support token_delta when requested alongside 
     ],
     token_deltas: true,
   });
-  const result = await response.json();
-  expect(result.status).toBe("ok");
-  const [, payload] = (result.token as string).split(".");
-  const parsed = parseRelayGrantClaims(
-    new TextDecoder().decode(base64urlDecode(payload)!),
-  );
-  expect(parsed).toMatchObject({
-    ok: true,
-    value: {
-      grants: [
-        {
-          kind: "session",
-          id: f.conversation,
-          run: claim.run,
-          publish: ["session_liveness"],
-        },
-        {
-          kind: "session",
-          id: `viewer:${f.conversation}`,
-          run: claim.run,
-          publish: ["token_delta"],
-        },
-      ],
-    },
-  });
+  expect(rejectedField.status).toBe(400);
 
-  const sixteenSessions = [
+  const maxBatch = Math.max(1, Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2));
+  const maxSessions = [
     {
       session: f.conversation,
       run: claim.run,
       fencing_token: claim.fencing_token,
     },
   ];
-  for (let index = 1; index < 16; index += 1) {
+  for (let index = 1; index < maxBatch; index += 1) {
     const nextSession = await addSession(f, `batch-session-${index}`);
-    sixteenSessions.push(await grantFence(f, `batch-${index}`, nextSession));
+    maxSessions.push(await grantFence(f, `batch-${index}`, nextSession));
   }
-  const maxLiveness = await f.post("relay-grant", {
+  const accepted = await f.post("relay-grant", {
     v: 1,
-    sessions: sixteenSessions,
+    sessions: maxSessions,
   });
-  const maxLivenessJson = await maxLiveness.json();
-  expect(maxLivenessJson.status).toBe("ok");
-  const [, maxPayload] = (maxLivenessJson.token as string).split(".");
-  const maxClaims = parseRelayGrantClaims(
-    new TextDecoder().decode(base64urlDecode(maxPayload)!),
+  expect(accepted.status).toBe(200);
+  const acceptedJson = await accepted.json();
+  expect(acceptedJson.status).toBe("ok");
+  const [, payload] = (acceptedJson.token as string).split(".");
+  const claims = parseRelayGrantClaims(
+    new TextDecoder().decode(base64urlDecode(payload)!),
   );
-  expect(maxClaims.ok && maxClaims.value.grants).toHaveLength(16);
+  expect(claims.ok && claims.value.grants).toHaveLength(maxBatch * 2);
 
-  const overflowed = await f.post("relay-grant", {
+  const ninthSession = await addSession(f, "batch-session-overflow");
+  const overflowSessions = [
+    ...maxSessions,
+    await grantFence(f, "batch-overflow", ninthSession),
+  ];
+  const overflowHttp = await f.post("relay-grant", {
     v: 1,
-    sessions: sixteenSessions,
-    token_deltas: true,
+    sessions: overflowSessions,
   });
-  expect(await overflowed.json()).toEqual({ v: 1, status: "stale" });
+  expect(overflowHttp.status).toBe(400);
+  expect(
+    await f.t.mutation(internal.relayGrants.mintMachineLiveness, {
+      bearer: f.bearer,
+      sessions: overflowSessions,
+    }),
+  ).toEqual({ v: 1, status: "stale" });
 });

@@ -64,13 +64,11 @@ function makeTransport(
   helloCapabilities: string[][];
   grantRequests: Array<{
     sessions: Array<{ session: string; run: number; fencing_token: string }>;
-    token_deltas?: boolean;
   }>;
 } {
   const helloCapabilities: string[][] = [];
   const grantRequests: Array<{
     sessions: Array<{ session: string; run: number; fencing_token: string }>;
-    token_deltas?: boolean;
   }> = [];
   const transport: EdgeTransport = async (operation, request) => {
     if (operation === "hello") {
@@ -102,13 +100,9 @@ function makeTransport(
           run: number;
           fencing_token: string;
         }>;
-        token_deltas?: boolean;
       };
       grantRequests.push({
         sessions: [...grantReq.sessions],
-        ...(grantReq.token_deltas !== undefined
-          ? { token_deltas: grantReq.token_deltas }
-          : {}),
       });
       onGrantRequest?.();
       return {
@@ -127,12 +121,12 @@ function makeTransport(
   return { transport, helloCapabilities, grantRequests };
 }
 
-it.effect("negotiates token_delta capability and publishes frames", () =>
+it.effect("negotiates relay capability and publishes token_delta frames", () =>
   Effect.gen(function* () {
     FakeRelaySocket.instances = [];
     const granted = yield* Deferred.make<void>();
     const { transport, helloCapabilities, grantRequests } = makeTransport(
-      ["relay_session_liveness", "relay_token_deltas"],
+      ["relay_session_liveness"],
       () => Effect.runSync(Deferred.succeed(granted, undefined)),
     );
     const liveness = makeRelayLiveness(
@@ -149,7 +143,6 @@ it.effect("negotiates token_delta capability and publishes frames", () =>
             live_agents: 1,
           },
         },
-        tokenDeltas: true,
         WebSocket:
           FakeRelaySocket as unknown as RelayClientOptions["WebSocket"],
       },
@@ -163,15 +156,12 @@ it.effect("negotiates token_delta capability and publishes frames", () =>
     yield* Deferred.await(granted);
     yield* Effect.yieldNow;
 
-    expect(helloCapabilities).toEqual([
-      ["relay_session_liveness", "relay_token_deltas"],
-    ]);
+    expect(helloCapabilities).toEqual([["relay_session_liveness"]]);
     expect(grantRequests).toEqual([
       {
         sessions: [
           { session: "conv-1", run: 4, fencing_token: "fence-conv-1-4" },
         ],
-        token_deltas: true,
       },
     ]);
 
@@ -257,62 +247,22 @@ it.effect("negotiates token_delta capability and publishes frames", () =>
 );
 
 it.effect(
-  "preserves 256 session cap without deltas and batches both-grant requests at half max grants",
+  "caps connections at half of RELAY_MAX_HUBS_PER_CONNECTION and batches grants at half of RELAY_MAX_GRANTS_PER_TOKEN",
   () =>
     Effect.gen(function* () {
       FakeRelaySocket.instances = [];
-      const livenessOnlyDone = yield* Deferred.make<void>();
-      const livenessLeases = Array.from({ length: 20 }, (_, i) =>
-        makeLease(`s-${i}`, 1),
-      );
-      const livenessOnly = makeTransport(
-        ["relay_session_liveness", "relay_token_deltas"],
-        () => Effect.runSync(Deferred.succeed(livenessOnlyDone, undefined)),
-      );
-      const onlyLiveness = makeRelayLiveness(
-        {
-          transport: livenessOnly.transport,
-          hello: {
-            machine: "machine-1",
-            boot: "boot-1",
-            providers: [{ name: "codex", version: "1.0.0" }],
-            runtimes: [{ host: "daemon", isolation: "app-server" }],
-            capacity: {
-              memory_total_bytes: 0,
-              memory_available_bytes: 0,
-              live_agents: 20,
-            },
-          },
-          WebSocket:
-            FakeRelaySocket as unknown as RelayClientOptions["WebSocket"],
-        },
-        livenessLeases,
-      );
-
-      const fiber1 = yield* Layer.build(onlyLiveness.layer).pipe(
-        Effect.andThen(Effect.never),
-        Effect.forkScoped,
-      );
-      yield* Deferred.await(livenessOnlyDone);
-      yield* Effect.yieldNow;
-      expect(livenessOnly.grantRequests[0]?.token_deltas).toBeUndefined();
-      expect(livenessOnly.grantRequests[0]?.sessions).toHaveLength(
-        RELAY_MAX_GRANTS_PER_TOKEN,
-      );
-      yield* Fiber.interrupt(fiber1);
-
-      const bothDone = yield* Deferred.make<void>();
+      const done = yield* Deferred.make<void>();
       const manyLeases = Array.from(
         { length: RELAY_MAX_HUBS_PER_CONNECTION },
-        (_, i) => makeLease(`both-${i}`, 1),
+        (_, i) => makeLease(`session-${i}`, 1),
       );
-      const bothTransport = makeTransport(
-        ["relay_session_liveness", "relay_token_deltas"],
-        () => Effect.runSync(Deferred.succeed(bothDone, undefined)),
+      const { transport, grantRequests } = makeTransport(
+        ["relay_session_liveness"],
+        () => Effect.runSync(Deferred.succeed(done, undefined)),
       );
-      const bothLiveness = makeRelayLiveness(
+      const liveness = makeRelayLiveness(
         {
-          transport: bothTransport.transport,
+          transport,
           hello: {
             machine: "machine-1",
             boot: "boot-1",
@@ -324,25 +274,71 @@ it.effect(
               live_agents: 20,
             },
           },
-          tokenDeltas: true,
           WebSocket:
             FakeRelaySocket as unknown as RelayClientOptions["WebSocket"],
         },
         manyLeases,
       );
 
-      const fiber2 = yield* Layer.build(bothLiveness.layer).pipe(
+      const fiber = yield* Layer.build(liveness.layer).pipe(
         Effect.andThen(Effect.never),
         Effect.forkScoped,
       );
-      yield* Deferred.await(bothDone);
+      yield* Deferred.await(done);
       yield* Effect.yieldNow;
 
-      expect(bothTransport.grantRequests[0]?.token_deltas).toBe(true);
-      expect(bothTransport.grantRequests[0]?.sessions).toHaveLength(
+      expect(grantRequests[0]?.sessions).toHaveLength(
         Math.floor(RELAY_MAX_GRANTS_PER_TOKEN / 2),
       );
-      yield* Fiber.interrupt(fiber2);
+      const socket = FakeRelaySocket.instances[0]!;
+      socket.emit("open");
+      yield* Effect.yieldNow;
+      socket.emit("message", {
+        data: JSON.stringify({
+          type: "hello",
+          status: "ok",
+          version: RELAY_PROTOCOL_VERSION,
+          capabilities: ["session_liveness", "token_delta"],
+          connection_id: "conn-1",
+          ttl_ms: 60_000,
+        }),
+      });
+      yield* Effect.yieldNow;
+      for (const session of manyLeases.slice(
+        0,
+        Math.floor(RELAY_MAX_HUBS_PER_CONNECTION / 2),
+      )) {
+        socket.emit("message", {
+          data: JSON.stringify({
+            v: RELAY_PROTOCOL_VERSION,
+            type: "subscription",
+            status: "subscribed",
+            hub: { kind: "session", id: session.session },
+          }),
+        });
+        socket.emit("message", {
+          data: JSON.stringify({
+            v: RELAY_PROTOCOL_VERSION,
+            type: "subscription",
+            status: "subscribed",
+            hub: { kind: "session", id: `viewer:${session.session}` },
+          }),
+        });
+      }
+      yield* Effect.yieldNow;
+
+      const overflowIdx = Math.floor(RELAY_MAX_HUBS_PER_CONNECTION / 2);
+      expect(
+        liveness.publishDelta({
+          session: `session-${overflowIdx}`,
+          run: 1,
+          turn: "turn-1",
+          message_id: "msg-1",
+          delta_seq: 1,
+          text: "over-cap",
+        }),
+      ).toBe(false);
+      yield* Fiber.interrupt(fiber);
     }),
 );
 
@@ -352,7 +348,7 @@ it.effect(
     Effect.gen(function* () {
       FakeRelaySocket.instances = [];
       const granted = yield* Deferred.make<void>();
-      const { transport } = makeTransport(["relay_token_deltas"], () =>
+      const { transport } = makeTransport(["relay_session_liveness"], () =>
         Effect.runSync(Deferred.succeed(granted, undefined)),
       );
       const BrokenSocket = class extends FakeRelaySocket {
@@ -375,7 +371,6 @@ it.effect(
             },
           },
           sessionLiveness: false,
-          tokenDeltas: true,
           WebSocket: BrokenSocket as unknown as RelayClientOptions["WebSocket"],
         },
         [makeLease()],
@@ -424,7 +419,6 @@ it.effect(
             },
           },
           sessionLiveness: false,
-          tokenDeltas: true,
           WebSocket:
             FakeRelaySocket as unknown as RelayClientOptions["WebSocket"],
         },
@@ -438,7 +432,7 @@ it.effect(
       yield* adjust(60_000);
       yield* Effect.yieldNow;
 
-      expect(helloCapabilities).toEqual([["relay_token_deltas"]]);
+      expect(helloCapabilities).toEqual([["relay_session_liveness"]]);
       expect(grantRequests).toEqual([]);
       expect(FakeRelaySocket.instances).toHaveLength(0);
       expect(

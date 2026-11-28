@@ -656,7 +656,7 @@ test("a server subscription.denied on the only granted hub closes the socket", a
   client.close();
 });
 
-test("delivers ordered token deltas when enabled and omits capability when disabled", async () => {
+test("offers token_delta capability and delivers ordered token deltas", async () => {
   const { client, open } = harness();
   const received: Array<{ delta_seq: number; text: string }> = [];
   client.subscribe(session, (event) => {
@@ -706,15 +706,4 @@ test("delivers ordered token deltas when enabled and omits capability when disab
     { delta_seq: 2, text: "lo" },
   ]);
   client.close();
-
-  const off = harness(undefined, 0, undefined, { tokenDeltas: false });
-  off.client.subscribe(session, () => {});
-  const offSocket = await off.open(60_000, []);
-  expect(offSocket.frames[0]).toMatchObject({
-    type: "connect",
-  });
-  expect(
-    (offSocket.frames[0] as { capabilities: string[] }).capabilities,
-  ).not.toContain("token_delta");
-  off.client.close();
 });
