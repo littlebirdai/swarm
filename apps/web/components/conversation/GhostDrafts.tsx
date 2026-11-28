@@ -30,7 +30,9 @@ export const GhostDrafts = memo(function GhostDrafts({
 }) {
   const { isAuthenticated } = useConvexAuth();
   const ghosts = typingRows(
-    usePresenceRows(composeDocId(conversationId), isAuthenticated),
+    usePresenceRows(composeDocId(conversationId), isAuthenticated, {
+      scope: "draft",
+    }),
   );
   const accept = useAcceptSuggestion(conversationId, populate ?? (() => {}));
   if (ghosts.length === 0) return null;

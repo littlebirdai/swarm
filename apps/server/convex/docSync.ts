@@ -14,6 +14,7 @@ import { checkConversationAccess } from "./privacy";
 import { notFound } from "./lib/auth";
 import { afterRoleDocWrite } from "./orgRoles";
 import { canSendProductMessage } from "./pendingMessages";
+import { presenceIdentity } from "./lib/presenceIdentity";
 import {
   readAnchorsEnabled,
   saveLegacyReadAnchor,
@@ -645,17 +646,6 @@ export const submitSteps = mutation({
 
 // --- Presence ---
 
-const PRESENCE_COLORS = [
-  "#e06c75",
-  "#61afef",
-  "#c678dd",
-  "#98c379",
-  "#e5c07b",
-  "#56b6c2",
-  "#be5046",
-  "#d19a66",
-];
-
 const vAnchor = v.object({ message_id: v.string(), offset: v.number() });
 const CLAIM_TTL_MS = 15_000;
 
@@ -676,15 +666,6 @@ async function myPresenceRow(ctx: any, userId: Id<"users">, docId: string) {
       q.eq("user_id", userId).eq("doc_id", docId),
     )
     .first();
-}
-
-function presenceIdentity(user: any) {
-  const name = user.name || user.email || "Anonymous";
-  return {
-    user_name: name,
-    user_color: PRESENCE_COLORS[name.charCodeAt(0) % PRESENCE_COLORS.length],
-    user_image: user.image || user.github_avatar_url || undefined,
-  };
 }
 
 export const updatePresence = mutation({

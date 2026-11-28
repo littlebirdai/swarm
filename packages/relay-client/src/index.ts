@@ -11,6 +11,12 @@ import {
 import { hubKey, observations, type RelayHandler } from "./observations";
 
 export type { RelayEvent, RelayHandler, RelaySignal } from "./observations";
+export type RelayHubStatus = "connecting" | "ready" | "unavailable" | "denied";
+export type RelayHubStatusMeta = { terminal?: boolean };
+export type RelaySubscribeOptions = {
+  batchKey?: string;
+  terminalUnavailable?: boolean;
+};
 export type RelayPublication = Exclude<
   Extract<RelayClientFrame, { hub: RelayHub }>,
   { type: "subscribe" | "unsubscribe" }
@@ -56,6 +62,11 @@ export type RelayClientOptions = {
   sessionLiveness?: boolean;
   capabilities?: readonly string[];
   onReady?(hub: RelayHub): void;
+  onStatus?(
+    hub: RelayHub,
+    status: RelayHubStatus,
+    meta?: RelayHubStatusMeta,
+  ): void;
   now(): number;
   setTimer(callback: () => void, delayMs: number): () => void;
   random(): number;
@@ -78,6 +89,10 @@ type Subscription = {
   retryAt: number;
   failures: number;
   status?: "pending" | "ready";
+  statusState: RelayHubStatus;
+  terminal: boolean;
+  batchKey: string;
+  terminalUnavailable: boolean;
 };
 type Grant = { hub: RelayHub; expires: number; renew: number };
 type Request = {
@@ -141,13 +156,31 @@ export function createRelayClient(options: RelayClientOptions) {
     }
   }
 
-  function disconnect() {
+  function setStatus(
+    sub: Subscription,
+    next: RelayHubStatus,
+    terminal = false,
+  ) {
+    if (sub.statusState === next && sub.terminal === terminal) return;
+    sub.statusState = next;
+    sub.terminal = terminal;
+    options.onStatus?.(
+      sub.hub,
+      next,
+      terminal ? { terminal: true } : undefined,
+    );
+  }
+
+  function disconnect(terminal = false) {
     const previous = socket;
     const request = pending;
     socket = capabilities = pending = undefined;
     healthyAt = Infinity;
     grants.clear();
-    for (const sub of subscriptions.values()) sub.status = undefined;
+    for (const sub of subscriptions.values()) {
+      sub.status = undefined;
+      if (sub.retryAt !== Infinity) setStatus(sub, "unavailable", terminal);
+    }
     cancelTimer?.();
     cancelTimer = undefined;
     wakeAt = Infinity;
@@ -177,7 +210,8 @@ export function createRelayClient(options: RelayClientOptions) {
   function stop() {
     stopped = true;
     queued.clear();
-    disconnect();
+    disconnect(true);
+    for (const sub of subscriptions.values()) sub.retryAt = Infinity;
   }
 
   function write(wire: string) {
@@ -227,7 +261,7 @@ export function createRelayClient(options: RelayClientOptions) {
       const sub = subscriptions.get(key);
       return !sub || sub.retryAt === Infinity;
     });
-    if (unused.length === grants.size && unused.length) {
+    if (unused.length === grants.size) {
       if (!keepLast) disconnect();
       return;
     }
@@ -258,7 +292,10 @@ export function createRelayClient(options: RelayClientOptions) {
 
   function failBatch(request: Request) {
     pending = undefined;
-    for (const sub of request.hubs) defer(sub);
+    for (const sub of request.hubs) {
+      defer(sub);
+      setStatus(sub, "unavailable");
+    }
     request.controller.abort();
     drive();
   }
@@ -327,15 +364,20 @@ export function createRelayClient(options: RelayClientOptions) {
       sub.status = "ready";
       sub.failures = 0;
       sub.retryAt = -Infinity;
+      setStatus(sub, "ready");
       flush(key);
       if (sub.status === "ready") options.onReady?.(sub.hub);
-    } else if (
-      frame.status === "denied" ||
-      (frame.status === "unsubscribed" && frame.reason === "expired")
-    ) {
-      if (frame.status === "denied") defer(sub);
-      else grants.delete(key);
+    } else if (frame.status === "denied") {
+      grants.delete(key);
+      clearQueued(key);
+      sub.retryAt = Infinity;
       sub.status = undefined;
+      setStatus(sub, "denied", true);
+      received.clear(key);
+    } else if (frame.status === "unsubscribed" && frame.reason === "expired") {
+      grants.delete(key);
+      sub.status = undefined;
+      setStatus(sub, "unavailable");
       received.clear(key);
     }
     drive();
@@ -357,6 +399,32 @@ export function createRelayClient(options: RelayClientOptions) {
       return;
     }
     if (pending !== request) return;
+    if (result.status === "unavailable" || result.status === "rate_limited") {
+      const terminalHubs = request.hubs.filter(
+        (sub) => sub.terminalUnavailable,
+      );
+      if (terminalHubs.length === 0) {
+        return failBatch(request);
+      }
+      const retryHubs = request.hubs.filter((sub) => !sub.terminalUnavailable);
+      for (const sub of terminalHubs) {
+        const key = hubKey(sub.hub);
+        if (subscriptions.get(key) === sub) {
+          sub.retryAt = Infinity;
+          sub.status = undefined;
+          clearQueued(key);
+          setStatus(sub, "unavailable", true);
+        }
+      }
+      if (retryHubs.length > 0) {
+        failBatch({ ...request, hubs: retryHubs });
+        return;
+      }
+      pending = undefined;
+      request.controller.abort();
+      drive();
+      return;
+    }
     if (result.status !== "ok" && result.status !== "denied")
       return failBatch(request);
     const granted: Subscription[] = [];
@@ -371,10 +439,13 @@ export function createRelayClient(options: RelayClientOptions) {
         if (subscriptions.get(key) !== sub) continue;
         sub.retryAt = Infinity;
         sub.status = undefined;
+        setStatus(sub, "denied", true);
         clearQueued(key);
         revoked.push(key);
-      } else if (omission || result.status === "denied") defer(sub);
-      else granted.push(sub);
+      } else if (omission || result.status === "denied") {
+        defer(sub);
+        setStatus(sub, "unavailable");
+      } else granted.push(sub);
     }
     for (const key of revoked) received.clear(key);
     if (pending !== request) return;
@@ -460,13 +531,21 @@ export function createRelayClient(options: RelayClientOptions) {
     }
     if (capabilities) releaseUnused(Boolean(pending || due.length));
     if (retryAt > timestamp) return;
-    if (!pending && due.length)
-      void requestToken(due.slice(0, RELAY_MAX_GRANTS_PER_TOKEN), next);
-    else schedule(next);
+    if (!pending && due.length) {
+      const batchKey = due[0].batchKey;
+      const batch = due
+        .filter((sub) => sub.batchKey === batchKey)
+        .slice(0, RELAY_MAX_GRANTS_PER_TOKEN);
+      void requestToken(batch, next);
+    } else schedule(next);
   }
 
   return {
-    subscribe(hub: RelayHub, handler: RelayHandler): () => void {
+    subscribe(
+      hub: RelayHub,
+      handler: RelayHandler,
+      subscribeOptions?: RelaySubscribeOptions,
+    ): () => void {
       if (closed) throw new Error("Relay client is closed");
       const key = hubKey(hub);
       if (
@@ -485,8 +564,24 @@ export function createRelayClient(options: RelayClientOptions) {
           handlers: new Set(),
           retryAt: -Infinity,
           failures: 0,
+          statusState: paused || stopped ? "unavailable" : "connecting",
+          terminal: stopped,
+          batchKey: subscribeOptions?.batchKey ?? "default",
+          terminalUnavailable: Boolean(subscribeOptions?.terminalUnavailable),
         };
         subscriptions.set(key, sub);
+        options.onStatus?.(
+          sub.hub,
+          sub.statusState,
+          sub.terminal ? { terminal: true } : undefined,
+        );
+      } else {
+        if (subscribeOptions?.batchKey && !grants.has(key)) {
+          sub.batchKey = subscribeOptions.batchKey;
+        }
+        if (subscribeOptions?.terminalUnavailable) {
+          sub.terminalUnavailable = true;
+        }
       }
       const own: RelayHandler = (event) => handler(event);
       sub.handlers.add(own);
@@ -501,11 +596,10 @@ export function createRelayClient(options: RelayClientOptions) {
         received.clear(key);
         if (sub.status && !send({ v, type: "unsubscribe", hub: sub.hub }))
           retry();
-        if (subscriptions.size) drive();
-        else
-          queueMicrotask(() => {
-            if (!subscriptions.size) disconnect();
-          });
+        queueMicrotask(() => {
+          if (subscriptions.size) drive();
+          else disconnect();
+        });
       };
     },
     publish(signal: RelayPublication, ttlMs = 0) {
@@ -543,6 +637,9 @@ export function createRelayClient(options: RelayClientOptions) {
       }
       if (canSend) retry();
     },
+    status(hub: RelayHub): RelayHubStatus | undefined {
+      return subscriptions.get(hubKey(hub))?.statusState;
+    },
     pause() {
       paused = true;
       disconnect();
@@ -550,6 +647,10 @@ export function createRelayClient(options: RelayClientOptions) {
     resume() {
       if (!paused) return;
       paused = false;
+      for (const sub of subscriptions.values()) {
+        if (sub.statusState === "unavailable" && sub.retryAt !== Infinity)
+          setStatus(sub, "connecting");
+      }
       drive();
     },
     close() {

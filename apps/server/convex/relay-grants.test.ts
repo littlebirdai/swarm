@@ -16,11 +16,17 @@ const env = {
   RELAY_HMAC_KEY: process.env.RELAY_HMAC_KEY,
   RELAY_AUDIENCE: process.env.RELAY_AUDIENCE,
   RELAY_HMAC_PREVIOUS_KEY: process.env.RELAY_HMAC_PREVIOUS_KEY,
+  CODECAST_RELAY_VIEWER_PRESENCE: process.env.CODECAST_RELAY_VIEWER_PRESENCE,
+  CODECAST_RELAY_VIEWER_PRESENCE_SHARED:
+    process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED,
 };
 
 beforeEach(() => {
   process.env.RELAY_HMAC_KEY = key;
   process.env.RELAY_AUDIENCE = audience;
+  delete process.env.RELAY_HMAC_PREVIOUS_KEY;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
 });
 
 afterEach(() => {
@@ -477,4 +483,214 @@ test("repeated hub IDs resolve once and produce one grant", async () => {
   });
   const result = await asUser(t, owner).mutation(mint, { hubs: [hub, hub] });
   expect(claims(result).grants).toEqual([{ ...hub, publish: ["presence"] }]);
+});
+
+const viewerSession = (id: string) => ({
+  kind: "session" as const,
+  id: `viewer:${id}`,
+});
+
+test("viewer hub grants require CODECAST_RELAY_VIEWER_PRESENCE and enforce access tiers, TTL caps, and identity scope", async () => {
+  const t = serverTest();
+  const {
+    owner,
+    teammate,
+    summaryMember,
+    guest,
+    stranger,
+    full,
+    summary,
+    privateShared,
+    foreign,
+    teammateMembership,
+  } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "viewer-presence-grants");
+    const owner = await rows.user({ name: "Owner" });
+    const teammate = await rows.user({ name: "Teammate" });
+    const summaryMember = await rows.user({ name: "Summary Member" });
+    const guest = await rows.user({ name: "Guest" });
+    const stranger = await rows.user({ name: "Stranger" });
+    const team = await rows.team();
+    await rows.membership(owner, team, { visibility: "full" });
+    const teammateMembership = await rows.membership(teammate, team, {
+      visibility: "full",
+    });
+    await rows.membership(summaryMember, team, { visibility: "summary" });
+    const full = await rows.conversation(owner, {
+      team_id: team,
+      team_visibility: "full",
+    });
+    const summary = await rows.conversation(owner, {
+      team_id: team,
+      team_visibility: "summary",
+    });
+    const privateShared = await rows.conversation(owner, {
+      team_id: team,
+      team_visibility: "private",
+      share_token: "viewer-share-token",
+    });
+    const foreign = await rows.conversation(stranger);
+    return {
+      owner,
+      teammate,
+      summaryMember,
+      guest,
+      stranger,
+      full,
+      summary,
+      privateShared,
+      foreign,
+      teammateMembership,
+    };
+  });
+
+  await asUser(t, guest).mutation(api.conversations.redeemShareToken, {
+    share_token: "viewer-share-token",
+  });
+
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE;
+  delete process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED;
+  expect(
+    await asUser(t, owner).mutation(mint, { hubs: [viewerSession(full)] }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(`viewer:${full}`)],
+  });
+  expect(
+    await asUser(t, owner).query(api.relayGrants.viewerTarget, {
+      conversation_id: full,
+    }),
+  ).toBeNull();
+  expect(
+    await asUser(t, owner).query(api.relayGrants.viewerIdentities, {
+      conversation_id: full,
+      user_ids: [teammate],
+    }),
+  ).toEqual([]);
+
+  process.env.CODECAST_RELAY_VIEWER_PRESENCE = "1";
+  const ownerViewer = await asUser(t, owner).mutation(mint, {
+    hubs: [viewerSession(full)],
+  });
+  expect(ownerViewer).toMatchObject({ status: "ok", ttl_ms: 60_000 });
+  expect(claims(ownerViewer).grants).toEqual([
+    {
+      ...viewerSession(full),
+      publish: ["presence", "draft_cursor", "reading_cursor"],
+    },
+  ]);
+
+  expect(
+    await asUser(t, owner).query(api.relayGrants.viewerTarget, {
+      conversation_id: full,
+    }),
+  ).toEqual({
+    viewer: owner,
+    hub: `viewer:${full}`,
+    tier: "member",
+  });
+
+  expect(
+    await asUser(t, teammate).mutation(mint, {
+      hubs: [viewerSession(full), viewerSession(summary)],
+    }),
+  ).toMatchObject({
+    status: "ok",
+    ttl_ms: 60_000,
+    omitted: [refused(`viewer:${summary}`)],
+  });
+  expect(
+    await asUser(t, summaryMember).mutation(mint, {
+      hubs: [viewerSession(summary)],
+    }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(`viewer:${summary}`)],
+  });
+
+  expect(
+    await asUser(t, guest).mutation(mint, {
+      hubs: [viewerSession(privateShared)],
+    }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(`viewer:${privateShared}`)],
+  });
+  expect(
+    await asUser(t, guest).query(api.relayGrants.viewerTarget, {
+      conversation_id: privateShared,
+    }),
+  ).toBeNull();
+
+  process.env.CODECAST_RELAY_VIEWER_PRESENCE_SHARED = "1";
+  const guestGrant = await asUser(t, guest).mutation(mint, {
+    hubs: [viewerSession(privateShared)],
+  });
+  expect(guestGrant).toMatchObject({ status: "ok", ttl_ms: 15_000 });
+  expect(claims(guestGrant).grants).toEqual([
+    {
+      ...viewerSession(privateShared),
+      publish: ["presence", "draft_cursor", "reading_cursor"],
+    },
+  ]);
+  expect(
+    await asUser(t, guest).query(api.relayGrants.viewerTarget, {
+      conversation_id: privateShared,
+    }),
+  ).toEqual({
+    viewer: guest,
+    hub: `viewer:${privateShared}`,
+    tier: "shared",
+  });
+
+  const ids = await asUser(t, owner).query(api.relayGrants.viewerIdentities, {
+    conversation_id: full,
+    user_ids: [teammate, stranger, foreign],
+  });
+  expect(ids).toEqual([
+    {
+      user_id: teammate,
+      user_name: "Teammate",
+      user_color: expect.any(String),
+    },
+  ]);
+  expect(
+    await asUser(t, stranger).query(api.relayGrants.viewerIdentities, {
+      conversation_id: full,
+      user_ids: [owner, teammate],
+    }),
+  ).toEqual([]);
+
+  await t.run(({ db }) => db.delete(teammateMembership));
+  expect(
+    await asUser(t, teammate).mutation(mint, { hubs: [viewerSession(full)] }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(`viewer:${full}`)],
+  });
+  expect(
+    await asUser(t, owner).query(api.relayGrants.viewerIdentities, {
+      conversation_id: full,
+      user_ids: [teammate],
+    }),
+  ).toEqual([]);
+});
+
+test("mint uses one timestamp after hub checks so advancing Date.now does not drift ttl_ms", async () => {
+  const t = serverTest();
+  const { owner, hub } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "grant-single-instant");
+    const owner = await rows.user();
+    return { owner, hub: session(await rows.conversation(owner)) };
+  });
+  let current = 1_800_000_000_000;
+  const clock = spyOn(Date, "now").mockImplementation(() => current++);
+  try {
+    const result = await asUser(t, owner).mutation(mint, { hubs: [hub] });
+    expect(result).toMatchObject({ status: "ok", ttl_ms: 60_000 });
+    const parsed = claims(result);
+    expect(parsed.expires_at_ms - parsed.issued_at_ms).toBe(60_000);
+  } finally {
+    clock.mockRestore();
+  }
 });

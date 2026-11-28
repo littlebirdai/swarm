@@ -455,3 +455,162 @@ test("clears an expired subscription and reattaches it after the outstanding ren
   expect(socket.frames.at(-1)?.type).toBe("subscribe");
   client.close();
 });
+
+test("reports hub status transitions across connect, ready, disconnect, denied, pause/resume, and terminal unavailability", async () => {
+  let mode: "ok" | "unavailable" | "denied" = "ok";
+  const statuses: string[] = [];
+  const { client, open, advance, requests } = harness(
+    async (hubs) => {
+      if (mode === "unavailable") return { status: "unavailable" };
+      if (mode === "denied") {
+        return {
+          status: "denied",
+          omitted: hubs.map(({ id }) => ({
+            id,
+            reason: "inaccessible" as const,
+          })),
+        };
+      }
+      return fakeGrant;
+    },
+    0,
+    (hub, status, meta) => {
+      statuses.push(`${hub.id}:${status}${meta?.terminal ? ":terminal" : ""}`);
+    },
+  );
+
+  const leave = client.subscribe(session, () => {}, {
+    terminalUnavailable: true,
+  });
+  expect(client.status(session)).toBe("connecting");
+  const first = await open();
+  subscribed(first);
+  expect(client.status(session)).toBe("ready");
+
+  first.ended(1006);
+  expect(client.status(session)).toBe("unavailable");
+
+  mode = "denied";
+  await advance(250);
+  expect(client.status(session)).toBe("denied");
+  client.pause();
+  expect(client.status(session)).toBe("denied");
+  client.resume();
+  expect(client.status(session)).toBe("denied");
+  await advance(60_000);
+  expect(requests).toHaveLength(2);
+  leave();
+
+  mode = "unavailable";
+  client.subscribe(session, () => {}, { terminalUnavailable: true });
+  await advance(0);
+  expect(client.status(session)).toBe("unavailable");
+  expect(statuses).toEqual([
+    `${session.id}:connecting`,
+    `${session.id}:ready`,
+    `${session.id}:unavailable`,
+    `${session.id}:denied:terminal`,
+    `${session.id}:connecting`,
+    `${session.id}:unavailable:terminal`,
+  ]);
+  client.close();
+});
+
+test("rate_limited cancels automatic retries for that view with bounded mint calls", async () => {
+  const statuses: Array<{ status: string; terminal?: boolean }> = [];
+  const { client, advance, requests, open } = harness(
+    async (hubs) => {
+      if (hubs.some((hub) => hub.id === session.id)) {
+        return { status: "rate_limited" };
+      }
+      return fakeGrant;
+    },
+    0,
+    (_hub, status, meta) => {
+      statuses.push({ status, ...(meta?.terminal ? { terminal: true } : {}) });
+    },
+  );
+
+  const leave = client.subscribe(session, () => {}, {
+    terminalUnavailable: true,
+  });
+  await advance(0);
+  expect(client.status(session)).toBe("unavailable");
+  expect(statuses.at(-1)).toEqual({ status: "unavailable", terminal: true });
+  await advance(60_000);
+  client.pause();
+  client.resume();
+  await advance(60_000);
+  expect(requests).toHaveLength(1);
+  leave();
+
+  client.subscribe(second, () => {});
+  const socket = await open();
+  subscribed(socket, second);
+  expect(client.status(second)).toBe("ready");
+  expect(requests).toHaveLength(2);
+  client.close();
+});
+
+test("mints hubs in separate batches by batchKey", async () => {
+  const { client, open, advance, requests } = harness();
+  client.pause();
+  client.subscribe(session, () => {}, { batchKey: "member" });
+  client.subscribe(second, () => {}, { batchKey: "shared" });
+  client.resume();
+  const socket = await open();
+  subscribed(socket, session);
+  await advance(0);
+  apply(socket);
+  expect(requests.map(([hubs]) => hubs)).toEqual([[session], [second]]);
+  client.close();
+});
+
+test("a 1002 close moves the status to unavailable with terminal set", async () => {
+  const statuses: Array<{ status: string; terminal?: boolean }> = [];
+  const { client, open, advance, requests } = harness(
+    async () => fakeGrant,
+    0,
+    (_hub, status, meta) => {
+      statuses.push({ status, ...(meta?.terminal ? { terminal: true } : {}) });
+    },
+  );
+  client.subscribe(session, () => {});
+  const socket = await open();
+  subscribed(socket);
+  expect(client.status(session)).toBe("ready");
+
+  socket.ended(1002);
+  expect(client.status(session)).toBe("unavailable");
+  expect(statuses.at(-1)).toEqual({ status: "unavailable", terminal: true });
+
+  await advance(60_000);
+  expect(requests).toHaveLength(1);
+  client.close();
+});
+
+test("a server subscription.denied on the only granted hub closes the socket", async () => {
+  const statuses: Array<{ status: string; terminal?: boolean }> = [];
+  const { client, open, advance, sockets } = harness(
+    async () => fakeGrant,
+    0,
+    (_hub, status, meta) => {
+      statuses.push({ status, ...(meta?.terminal ? { terminal: true } : {}) });
+    },
+  );
+  client.subscribe(session, () => {});
+  const socket = await open();
+  subscribed(socket);
+  socket.message({
+    v: 1,
+    type: "subscription",
+    hub: session,
+    status: "denied",
+  });
+  expect(client.status(session)).toBe("denied");
+  expect(statuses.at(-1)).toEqual({ status: "denied", terminal: true });
+  expect(socket.closed).toBe(true);
+  await advance(60_000);
+  expect(sockets).toHaveLength(1);
+  client.close();
+});

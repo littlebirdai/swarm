@@ -56,7 +56,11 @@ class FakeSocket {
   }
 }
 
-export function harness(getToken?: RelayClientOptions["getToken"], random = 0) {
+export function harness(
+  getToken?: RelayClientOptions["getToken"],
+  random = 0,
+  onStatus?: RelayClientOptions["onStatus"],
+) {
   const clock = fakeClock();
   let offset = 0;
   const sockets: FakeSocket[] = [];
@@ -65,6 +69,7 @@ export function harness(getToken?: RelayClientOptions["getToken"], random = 0) {
     ...clock,
     now: () => clock.now() + offset,
     random: () => random,
+    onStatus,
     WebSocket: class extends FakeSocket {
       constructor(url: string) {
         super();

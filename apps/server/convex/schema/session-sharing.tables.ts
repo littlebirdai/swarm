@@ -95,6 +95,15 @@ export const sessionSharingTables = {
     created_at: v.number(),
   }).index("by_conversation_user", ["conversation_id", "user_id"]),
 
+  relay_viewer_grants: defineTable({
+    conversation_id: v.id("conversations"),
+    user_id: v.id("users"),
+    expires_at: v.number(),
+  })
+    .index("by_conversation_user", ["conversation_id", "user_id"])
+    .index("by_user", ["user_id"])
+    .index("by_expiry", ["expires_at"]),
+
   collab_grants: defineTable({
     conversation_id: v.id("conversations"),
     grantee_user_id: v.id("users"),

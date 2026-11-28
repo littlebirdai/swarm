@@ -1,8 +1,14 @@
+import type {
+  RelayHubStatus,
+  RelayHubStatusMeta,
+  RelaySubscribeOptions,
+} from "@codecast/relay-client";
 import { useConvex, useConvexAuth } from "convex/react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useIsSyncHost } from "../hooks/use-sync-role";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import {
+  RelayPresenceAvailableContext,
   RelayPresenceContext,
   type RelayPresenceClient,
 } from "../lib/relay-presence-context";
@@ -30,6 +36,7 @@ function ActiveRelayPresence({
     scope: NonNullable<typeof scope>;
     client: RelayPresenceClient;
   } | null>(null);
+  const [failedScope, setFailedScope] = useState<typeof scope | null>(null);
 
   useWatchEffect(() => {
     if (!scope || typeof window.WebSocket !== "function") return;
@@ -38,6 +45,10 @@ function ActiveRelayPresence({
     const load = async () => {
       const { createRelayClient } = await import("@codecast/relay-client");
       if (lifetime.signal.aborted) return;
+      const statusListeners = new Map<
+        string,
+        Set<(status: RelayHubStatus, meta?: RelayHubStatusMeta) => void>
+      >();
       const client = createRelayClient({
         getToken: (hubs, signal) =>
           useInboxStore
@@ -45,6 +56,14 @@ function ActiveRelayPresence({
             .mintRelayGrant(convex, account, url, hubs, signal),
         WebSocket: window.WebSocket,
         sessionLiveness: inboxLiveness,
+        onStatus(hub, status, meta) {
+          if (hub.kind !== "session") return;
+          const listeners = statusListeners.get(hub.id);
+          if (!listeners) return;
+          for (const listener of [...listeners]) {
+            listener(status, meta);
+          }
+        },
         now: () => performance.now(),
         setTimer(callback, delayMs) {
           const timer = setTimeout(callback, delayMs);
@@ -74,30 +93,70 @@ function ActiveRelayPresence({
         scope,
         client: {
           ...(inboxLiveness && { inboxViewer: account }),
-          subscribe(sessionId, handler) {
+          viewerAccount: account,
+          subscribe(
+            sessionId,
+            handler,
+            onStatus,
+            options?: RelaySubscribeOptions,
+          ) {
+            let unlisten: (() => void) | undefined;
+            if (onStatus) {
+              let set = statusListeners.get(sessionId);
+              if (!set) {
+                set = new Set();
+                statusListeners.set(sessionId, set);
+              }
+              set.add(onStatus);
+              unlisten = () => {
+                set.delete(onStatus);
+                if (set.size === 0) statusListeners.delete(sessionId);
+              };
+            }
             try {
-              return client.subscribe(
+              const unsubscribe = client.subscribe(
                 { kind: "session", id: sessionId },
                 handler,
+                options,
               );
+              const current = client.status({ kind: "session", id: sessionId });
+              if (onStatus && current !== undefined) onStatus(current);
+              return () => {
+                unlisten?.();
+                unsubscribe();
+              };
             } catch {
+              onStatus?.("unavailable");
+              unlisten?.();
               return () => {};
             }
+          },
+          status(sessionId) {
+            return client.status({ kind: "session", id: sessionId });
           },
           publish: client.publish,
         },
       });
     };
-    void load().catch(() => {});
+    void load().catch(() => {
+      if (!lifetime.signal.aborted) setFailedScope(scope);
+    });
     return () => {
       lifetime.abort();
       setConnection(null);
     };
   }, [scope]);
 
+  const available = Boolean(
+    scope && typeof window.WebSocket === "function" && failedScope !== scope,
+  );
   const client =
     scope && connection?.scope === scope ? connection.client : null;
-  return <RelayPresenceContext value={client}>{children}</RelayPresenceContext>;
+  return (
+    <RelayPresenceAvailableContext value={available}>
+      <RelayPresenceContext value={client}>{children}</RelayPresenceContext>
+    </RelayPresenceAvailableContext>
+  );
 }
 
 export function RelayPresenceProvider({ children }: { children: ReactNode }) {

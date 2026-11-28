@@ -3,6 +3,7 @@ import {
   CLIENT_SYNC_REGISTRY,
   DATA_SCOPE,
   REPLICATED_STORE_KEYS,
+  REPLICATION_CLASSIFICATION,
   COLLECTION_INDEXES,
   COLLECTION_STORE_KEYS,
   DISPATCH_FIELD_TABLE_MAP,
@@ -89,6 +90,61 @@ describe("client sync registry", () => {
       setInboxRelayContact(id);
     }
     expect(useInboxStore.getState().relayInboxContacts[id]).toBeUndefined();
+  });
+
+  it("keeps relayViewerPresence entity-scoped, local, non-persisted, and idempotent", () => {
+    expect(CLIENT_SYNC_REGISTRY).toHaveProperty("relayViewerPresence");
+    expect(DATA_SCOPE.relayViewerPresence).toBe("entity");
+    expect(isPersistedClientStoreKey("relayViewerPresence")).toBe(false);
+    expect(REPLICATION_CLASSIFICATION.relayViewerPresence).toBe("local");
+    expect(REPLICATED_STORE_KEYS).not.toContain("relayViewerPresence");
+    expect(CLIENT_SYNC_REGISTRY.relayViewerPresence.feeds).toEqual([
+      "relayGrants.viewerTarget",
+      "relayGrants.viewerIdentities",
+    ]);
+
+    const convId = "conv-relay-viewer";
+    const hub = `viewer:${convId}`;
+    const store = useInboxStore.getState();
+    store.setRelayViewerStatus(convId, "viewer-1", hub, "ready");
+    const afterReady = useInboxStore.getState().relayViewerPresence;
+    store.setRelayViewerStatus(convId, "viewer-1", hub, "ready");
+    expect(useInboxStore.getState().relayViewerPresence).toBe(afterReady);
+
+    store.applyRelayViewerEvent(
+      convId,
+      "viewer-1",
+      hub,
+      {
+        type: "signal",
+        signal: {
+          v: 1,
+          type: "presence",
+          hub: { kind: "session", id: hub },
+          user_id: "peer-1",
+          connection_id: "c-1",
+          seq: 1,
+          state: "active",
+          in_draft: true,
+          ttl_ms: 15_000,
+        },
+      },
+      100,
+    );
+    expect(
+      useInboxStore.getState().relayViewerPresence[convId]?.connections[
+        "peer-1"
+      ]?.["c-1"],
+    ).toMatchObject({ active: true, inDraft: true, presenceSeq: 1 });
+
+    store.setRelayViewerStatus(convId, "viewer-1", hub, "unknown");
+    expect(
+      useInboxStore.getState().relayViewerPresence[convId]?.connections,
+    ).toEqual({});
+    store.clearRelayViewerPresence(convId);
+    expect(
+      useInboxStore.getState().relayViewerPresence[convId],
+    ).toBeUndefined();
   });
 
   it("drives local-first protection metadata", () => {

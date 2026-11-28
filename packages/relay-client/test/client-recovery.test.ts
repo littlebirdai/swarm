@@ -162,8 +162,15 @@ test.each(["subject_mismatch", "unsupported_grant_version"])(
   },
 );
 
-test("backs off a denied subscription without repeated requests on the same hub", async () => {
-  const { client, open, advance, requests } = harness();
+test("stops resubscribing and drops grant after a server subscription denial", async () => {
+  const statuses: Array<{ status: string; terminal?: boolean }> = [];
+  const { client, open, advance, requests } = harness(
+    undefined,
+    0,
+    (_hub, status, meta) => {
+      statuses.push({ status, ...(meta?.terminal ? { terminal: true } : {}) });
+    },
+  );
   client.subscribe(session, () => {});
   const socket = await open();
   socket.message({
@@ -172,15 +179,17 @@ test("backs off a denied subscription without repeated requests on the same hub"
     status: "denied",
     hub: session,
   });
+  expect(client.status(session)).toBe("denied");
+  expect(statuses.at(-1)).toEqual({ status: "denied", terminal: true });
   client.subscribe(session, () => {});
-  await advance(249);
+  await advance(60_000);
+  client.pause();
+  client.resume();
+  await advance(60_000);
   expect(socket.frames.filter(({ type }) => type === "subscribe")).toHaveLength(
     1,
   );
-  await advance(1);
-  expect(socket.frames.filter(({ type }) => type === "subscribe")).toHaveLength(
-    2,
-  );
+  expect(client.status(session)).toBe("denied");
   expect(requests).toHaveLength(1);
   client.close();
 });

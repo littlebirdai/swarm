@@ -22,6 +22,7 @@ export type DataScope = "workspace" | "team" | "viewer" | "entity";
 export const DATA_SCOPE = {
   relayInboxCards: "viewer",
   relayInboxContacts: "viewer",
+  relayViewerPresence: "entity",
   repoBrowse: "entity",
   repoBrowseAccess: "entity",
   settingsData: "viewer",

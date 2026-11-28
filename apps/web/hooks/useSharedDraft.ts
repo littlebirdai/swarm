@@ -31,11 +31,17 @@ export type SharedDraftStatus = {
   active: boolean;
   /** My caret, as an offset into the shared text. */
   caret: number | null;
+  revision?: number | null;
   /** user id -> when their last keystroke landed here. */
   editors: Record<string, number>;
 };
 
-const IDLE: SharedDraftStatus = { active: false, caret: null, editors: {} };
+const IDLE: SharedDraftStatus = {
+  active: false,
+  caret: null,
+  revision: null,
+  editors: {},
+};
 
 // The status by conversation, for the surfaces beside the box (the presence
 // strip that broadcasts my caret, the faces) without threading props through
@@ -149,7 +155,15 @@ export function useSharedDraft(opts: {
   );
   const docId = composeDocId(conversationId);
   const can = enabled && !!myId && isConvexId(conversationId);
-  const others = usePresenceRows(docId, can);
+  const [version, setVersion] = useState<number | null>(null);
+  const [joined, setJoined] = useState(false);
+  const [editors, setEditors] = useState<Record<string, number>>({});
+  // Read after every keystroke: set only on a change.
+  const [caret, setCaret] = useChangedState<number | null>(null);
+  const others = usePresenceRows(docId, can, {
+    scope: "draft",
+    sharedRevision: version,
+  });
   // Boxes holding words join one at a time (waitsToJoin). Once this box may
   // join it stays in until everyone leaves: a later typist never pulls it out.
   const clearedRef = useRef(false);
@@ -165,11 +179,6 @@ export function useSharedDraft(opts: {
   const othersRef = useRef(others);
   othersRef.current = others;
   const sessionRef = useRef<SharedDraftSession | null>(null);
-  const [version, setVersion] = useState<number | null>(null);
-  const [joined, setJoined] = useState(false);
-  const [editors, setEditors] = useState<Record<string, number>>({});
-  // Read after every keystroke: set only on a change.
-  const [caret, setCaret] = useChangedState<number | null>(null);
 
   // Show the draft in the box, keeping my caret where it was among the words.
   const show = (next: string, map?: (pos: number) => number) => {
@@ -298,8 +307,11 @@ export function useSharedDraft(opts: {
   }, [joined, inputRef]);
 
   useWatchEffect(() => {
-    publish(conversationId, joined ? { active: true, caret, editors } : null);
-  }, [conversationId, joined, caret, editors]);
+    publish(
+      conversationId,
+      joined ? { active: true, caret, revision: version, editors } : null,
+    );
+  }, [conversationId, joined, caret, version, editors]);
   useWatchEffect(() => () => publish(conversationId, null), [conversationId]);
 
   return { active: joined, others, editors };
