@@ -1,5 +1,9 @@
 import * as dexieStorage from "./persistence/dexie-storage";
-import { forwardCacheStorage } from "./persistence/storage-bindings";
+import { getSqliteCacheStorage } from "./persistence/sqlite/storage";
+import {
+  forwardCacheStorage,
+  selectCacheStorage,
+} from "./persistence/storage-bindings";
 import type { CacheStorage } from "./persistence/storage";
 
 // Web persistence entry. Metro resolves ./idbCache.native.ts on mobile.
@@ -39,7 +43,7 @@ export {
 export type { CachedConversation } from "./persistence/storage";
 
 export const cacheStorage: CacheStorage = forwardCacheStorage(
-  () => dexieStorage,
+  selectCacheStorage(dexieStorage, getSqliteCacheStorage),
 );
 
 export const {

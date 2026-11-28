@@ -1,5 +1,16 @@
 import type { CacheStorage } from "./storage";
 
+export function sqliteCacheEnabled(): boolean {
+  return process.env.VITE_SQLITE_CACHE === "1";
+}
+
+export function selectCacheStorage(
+  dexie: CacheStorage,
+  sqlite: () => CacheStorage,
+): () => CacheStorage {
+  return () => (sqliteCacheEnabled() ? sqlite() : dexie);
+}
+
 export function forwardCacheStorage(
   getStorage: () => CacheStorage,
 ): Omit<CacheStorage, "loadPaintCacheSync"> {
