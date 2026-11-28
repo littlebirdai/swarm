@@ -1,10 +1,11 @@
 import { expect } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as PubSub from "effect/PubSub";
 import * as Stream from "effect/Stream";
-import { adjust } from "effect/testing/TestClock";
+import { adjust, withLive } from "effect/testing/TestClock";
 import {
   BusTimeoutError,
   BusValidationError,
@@ -196,4 +197,75 @@ it.effect(
         expect(outcome.failure).toBeInstanceOf(BusTimeoutError);
       }
     }).pipe(Effect.provide(SupervisorBus.layer)),
+);
+
+it.effect(
+  "requests far past the bus capacity all get their replies after a stalled responder resumes",
+  () =>
+    Effect.gen(function* () {
+      const bus = yield* SupervisorBus;
+      const count = 2_100;
+      const resume = yield* Deferred.make<void>();
+      const sub = yield* bus.subscribe();
+      yield* Effect.forkChild(
+        Deferred.await(resume).pipe(
+          Effect.andThen(
+            Effect.forever(
+              Effect.gen(function* () {
+                const message = yield* PubSub.take(sub);
+                if (message.kind !== "edge.permits.next") return;
+                yield* Effect.forkChild(
+                  bus.publish({
+                    kind: "edge.permits.next.result",
+                    request_id: message.request_id,
+                    ok: true,
+                    response: { v: 1, status: "empty" },
+                  }),
+                  { startImmediately: true },
+                );
+              }),
+            ),
+          ),
+        ),
+        { startImmediately: true },
+      );
+      const requests = yield* Effect.forEach(
+        Array.from({ length: count }, (_, index) => `request-${index}`),
+        (requestId) =>
+          Effect.forkChild(
+            Effect.result(
+              bus.request(
+                {
+                  kind: "edge.permits.next",
+                  request_id: requestId,
+                  request: {
+                    v: 1,
+                    session: "session-1",
+                    run: 1,
+                    fencing_token: "lease-1",
+                  },
+                },
+                "edge.permits.next.result",
+                (reply) => reply.request_id === requestId,
+              ),
+            ),
+            { startImmediately: true },
+          ),
+      );
+      yield* Effect.yieldNow;
+      yield* Deferred.succeed(resume, undefined);
+      const results = yield* withLive(
+        Effect.forEach(requests, (request) => Fiber.join(request)).pipe(
+          Effect.timeoutOrElse({
+            duration: 5_000,
+            orElse: () =>
+              Effect.die(new Error("timed out waiting for the replies")),
+          }),
+        ),
+      );
+      expect(
+        results.filter((result) => result._tag === "Success"),
+      ).toHaveLength(count);
+    }).pipe(Effect.provide(SupervisorBus.layer)),
+  20_000,
 );

@@ -11,6 +11,7 @@ import {
   type EdgeParseResult,
 } from "@codecast/edge-contract";
 import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
 import { TaggedError } from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -345,6 +346,33 @@ export class SupervisorBus extends Context.Service<
           ),
         );
 
+      type Waiter = {
+        readonly responseKind: BusMessageKind;
+        readonly match: (response: BusMessage) => boolean;
+        readonly answer: Deferred.Deferred<BusMessage>;
+      };
+      const waiters = new Map<string, Waiter>();
+      const responses = yield* PubSub.subscribe(pubsub);
+      yield* Effect.forkScoped(
+        Effect.forever(
+          Effect.gen(function* () {
+            const next = yield* PubSub.take(responses);
+            if (!("request_id" in next)) return;
+            const waiter = waiters.get(next.request_id);
+            if (
+              !waiter ||
+              next.kind !== waiter.responseKind ||
+              !waiter.match(next)
+            )
+              return;
+            waiters.delete(next.request_id);
+            yield* Effect.yieldNow;
+            yield* Deferred.succeed(waiter.answer, next);
+          }),
+        ),
+        { startImmediately: true },
+      );
+
       const request = Effect.fn("SupervisorBus.request")(function* <
         K extends BusMessageKind,
         R extends BusMessageKind,
@@ -354,21 +382,17 @@ export class SupervisorBus extends Context.Service<
         match: (response: BusMessageOf<R>) => boolean,
         timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
       ) {
-        return yield* Effect.scoped(
-          Effect.gen(function* () {
-            const sub = yield* PubSub.subscribe(pubsub);
-            yield* publish(message);
-            for (;;) {
-              const next = yield* PubSub.take(sub);
-              if (
-                next.kind === responseKind &&
-                match(next as BusMessageOf<R>)
-              ) {
-                return next as BusMessageOf<R>;
-              }
-            }
-          }),
-        ).pipe(
+        const requestId = "request_id" in message ? message.request_id : "";
+        const answer = yield* Deferred.make<BusMessage>();
+        const waiter: Waiter = {
+          responseKind,
+          match: (response) => match(response as BusMessageOf<R>),
+          answer,
+        };
+        waiters.set(requestId, waiter);
+        return yield* publish(message).pipe(
+          Effect.flatMap(() => Deferred.await(answer)),
+          Effect.map((response) => response as BusMessageOf<R>),
           Effect.timeoutOrElse({
             duration: timeoutMs,
             orElse: () =>
@@ -380,6 +404,11 @@ export class SupervisorBus extends Context.Service<
                 }),
               ),
           }),
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (waiters.get(requestId) === waiter) waiters.delete(requestId);
+            }),
+          ),
         );
       });
 
