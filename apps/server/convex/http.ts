@@ -1,11 +1,9 @@
 import { httpRouter } from "convex/server";
 import { ConvexError } from "convex/values";
-import { unsubscribeResponse } from "@platform/email";
 import { httpAction } from "./_generated/server";
 import { CAST_MODEL_PROXY_PATH, castModelProxy } from "./castMachineProxy";
 import { CAST_ENV_PATH, envMachineRoute } from "./castCloudEnv";
 import { sha256Hex } from "./lib/awsSigV4";
-import { BRAND } from "./emails/render";
 import { auth } from "./auth";
 import { internal, api } from "./_generated/api";
 import {
@@ -75,6 +73,10 @@ import {
   PUBLIC_REPO_PREFIXES as repoPublicPrefixes,
 } from "./repoPublicHttp";
 import { registerEdgeRoutes } from "./lib/edge/routes";
+import {
+  EMAIL_UNSUBSCRIBE_PATH,
+  emailUnsubscribe,
+} from "./lib/emailUnsubscribeHttp";
 
 const http = httpRouter();
 registerEdgeRoutes(http);
@@ -6624,33 +6626,13 @@ http.route({
   handler: replayFrameAdmit,
 });
 
-// One-click unsubscribe for the notification digest (emails/digest.ts). Lives
-// under /cli/ because Caddy forwards only that prefix to HTTP actions. GET
-// serves the human clicking the footer link; POST serves RFC 8058 one-click
-// (Gmail/Yahoo fire it without opening a page). Token-bearing and idempotent.
-const emailUnsubscribe = httpAction(async (ctx, request) => {
-  const token = new URL(request.url).searchParams.get("token") ?? "";
-  const result: { ok: boolean } = await ctx.runMutation(
-    internal.emails.digest.unsubscribeByToken,
-    { token },
-  );
-  return unsubscribeResponse({
-    ok: result.ok,
-    method: request.method,
-    brand: BRAND,
-    settingsUrl: `${BRAND.url}/settings/notifications`,
+for (const method of ["GET", "POST"] as const) {
+  http.route({
+    path: EMAIL_UNSUBSCRIBE_PATH,
+    method,
+    handler: emailUnsubscribe,
   });
-});
-http.route({
-  path: "/cli/email/unsubscribe",
-  method: "GET",
-  handler: emailUnsubscribe,
-});
-http.route({
-  path: "/cli/email/unsubscribe",
-  method: "POST",
-  handler: emailUnsubscribe,
-});
+}
 
 // The caller's own suggestion profile, read by the suggest eval (apps/evals).
 // Only api_token is forwarded: the token decides whose profile it is, and any
