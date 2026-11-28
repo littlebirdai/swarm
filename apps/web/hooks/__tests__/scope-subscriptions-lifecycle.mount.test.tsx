@@ -285,7 +285,7 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
         projects: {
           "p-hid": { _id: "p-hid", workspace: "team:team1" },
           "p-auth": { _id: "p-auth", workspace: "team:team1" },
-        },
+        } as any,
         activeTabId: "tab1",
         tabs: [
           { id: "tab1", path: "/projects/p-hid", title: "Hidden Proj" },
@@ -400,4 +400,141 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
     store.getState().scopeSubscriptions.denied["project:p-auth"],
   ).toBeDefined();
   expect(store.getState().tasks[tTeam]).toBeUndefined();
+});
+
+test("live getHeads confirms server before evicting, and hidden host reconciles follower peerViews", async () => {
+  process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
+  const tOff = cid("tserverunconfirmed");
+  let hidden = false;
+  let headsMode: "legacy" | "interest" = "legacy";
+  const { backend, clock, store } = await mountWeb(<ScopeHookProbe />, {
+    clock: true,
+    setup(backend, state) {
+      useInboxStore.setState({
+        syncRole: "host",
+        clientStateInitialized: true,
+        scopeSubscriptions: initialScopeSubscriptionState(),
+        projects: {
+          "p-off": {
+            _id: "p-off",
+            title: "Off Proj",
+            status: "active",
+            created_at: 1,
+            updated_at: 1,
+            workspace: "team:team1",
+            starred: true,
+          },
+          "p-peer-hid": {
+            _id: "p-peer-hid",
+            title: "Peer Hid",
+            status: "active",
+            created_at: 1,
+            updated_at: 1,
+            workspace: "team:team1",
+          },
+        } as any,
+        tasks: {
+          [tOff]: { _id: tOff, home_scope: "project:p-off" },
+        } as any,
+      });
+      state.syncTable("currentUser", { _id: "viewer" });
+      state.syncTable("teams", [{ _id: "team1" }]);
+      backend.set(api.syncLog.getHeads, ({ scopes }: { scopes?: string[] }) =>
+        headsMode === "legacy"
+          ? {
+              heads: [
+                { scope_key: "user:viewer", position: 1, floor: 0 },
+                { scope_key: "team:team1", position: 1, floor: 0 },
+              ],
+            }
+          : {
+              interest_scopes: true,
+              heads: (scopes ?? []).map((scope_key) => ({
+                scope_key,
+                position: 1,
+                floor: 0,
+              })),
+            },
+      );
+    },
+  });
+
+  const prevHiddenDesc = Object.getOwnPropertyDescriptor(document, "hidden");
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    get: () => hidden,
+  });
+  try {
+    await flushMicrotasks();
+    await clock!.advance(1);
+    await flushMicrotasks();
+    expect(store.getState().scopeSubscriptions.serverConfirmed).toBe(false);
+
+    await act(async () => {
+      useInboxStore.setState({
+        projects: {
+          "p-off": {
+            _id: "p-off",
+            title: "Off Proj",
+            status: "active",
+            created_at: 1,
+            updated_at: 1,
+            workspace: "team:team1",
+          },
+          "p-peer-hid": {
+            _id: "p-peer-hid",
+            title: "Peer Hid",
+            status: "active",
+            created_at: 1,
+            updated_at: 1,
+            workspace: "team:team1",
+          },
+        },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      store.getState().scopeSubscriptions.active["project:p-off"],
+    ).toBeUndefined();
+    expect(store.getState().tasks[tOff]).toBeDefined();
+
+    hidden = true;
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      store.getState().setPeerViewScopes("peer-hid", ["project:p-peer-hid"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await clock!.advance(1);
+    await flushMicrotasks();
+    expect(
+      store.getState().scopeSubscriptions.active["project:p-peer-hid"],
+    ).toBeDefined();
+
+    await act(async () => {
+      headsMode = "interest";
+      backend.set(
+        api.syncLog.getHeads,
+        ({ scopes }: { scopes?: string[] }) => ({
+          interest_scopes: true,
+          heads: (scopes ?? []).map((scope_key) => ({
+            scope_key,
+            position: 1,
+            floor: 0,
+          })),
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(store.getState().scopeSubscriptions.serverConfirmed).toBe(true);
+    expect(store.getState().tasks[tOff]).toBeUndefined();
+  } finally {
+    if (prevHiddenDesc) {
+      Object.defineProperty(document, "hidden", prevHiddenDesc);
+    } else {
+      delete (document as any).hidden;
+    }
+  }
 });

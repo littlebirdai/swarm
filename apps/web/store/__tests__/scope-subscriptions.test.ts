@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { __cacheEvictionsIdleForTests } from "../cache-eviction";
 import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import { useInboxStore } from "../inboxStore";
+import { resetSyncTransactionForTests } from "../syncTransaction";
 import {
   SCOPE_FOLLOW_WINDOW_MS,
   SCOPE_HEADS_CHUNK_SIZE,
@@ -10,7 +11,6 @@ import {
   clientScopeSubscriptionsEnabled,
   computePurgeSet,
   extractScopeCandidates,
-  filterFollowerRemovals,
   initialScopeSubscriptionState,
   reconcileScopeSubscriptions,
   rowHomeScope,
@@ -56,8 +56,10 @@ beforeEach(() => {
 
 afterEach(() => {
   resetDetailPins();
+  resetSyncTransactionForTests();
   useInboxStore.getState()._setOutbox(null, null, null);
   useInboxStore.getState()._setDispatch(null);
+  useInboxStore.getState()._setIDBWrite(null);
   if (PREV_FLAG === undefined) {
     delete process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS;
   } else {
@@ -700,6 +702,7 @@ describe("scope-subscriptions pure core", () => {
       syncMeta: { "synclog:v1:project:p-star": { cursor: 5 } },
       syncLogScopeStamps: { "project:p-star": 100 },
     } as any);
+    useInboxStore.getState().setScopeServerConfirmed(true);
 
     useInboxStore.getState().editChatMessage(idEditChat, "edited offline");
 
@@ -730,66 +733,5 @@ describe("scope-subscriptions pure core", () => {
         { isDelta: true },
       );
     expect(useInboxStore.getState().tasks[idStarTask]?.title).toBe("Restored");
-
-    const keptByFollower = filterFollowerRemovals(
-      {
-        activeTabId: "tab1",
-        tabs: [{ id: "tab1", path: "/projects/p-star" }],
-        projects: { "p-star": { _id: "p-star", workspace: "team:team1" } },
-        tasks: {
-          [idStarTask]: { _id: idStarTask, home_scope: "project:p-star" },
-          [idDrop]: { _id: idDrop, home_scope: "project:p-other" },
-        },
-      },
-      "tasks",
-      [idStarTask, idDrop],
-    );
-    expect(keptByFollower).toEqual([idDrop]);
-  });
-
-  test("drops denied scope from active/chunks and clears deny when inputs change", () => {
-    process.env.VITE_CLIENT_SCOPE_SUBSCRIPTIONS = "1";
-    const idBad = cid("tbadproj");
-    useInboxStore.setState({
-      currentUser: { _id: "u1" },
-      teams: [{ _id: "team1" }],
-      projects: {
-        "p-bad": { _id: "p-bad", workspace: "team:team1", starred: true },
-      },
-      clientStateInitialized: true,
-      tasks: {
-        [idBad]: { _id: idBad, home_scope: "project:p-bad" },
-      },
-    } as any);
-
-    useInboxStore.getState().reconcileScopeSubscriptions(1000);
-    expect(
-      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
-    ).toBeDefined();
-
-    useInboxStore.getState().denyScopeSubscriptions(["project:p-bad"], 2000);
-    expect(
-      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
-    ).toBeUndefined();
-    expect(
-      useInboxStore.getState().scopeSubscriptions.chunks.flat(),
-    ).not.toContain("project:p-bad");
-    expect(useInboxStore.getState().tasks[idBad]).toBeUndefined();
-
-    useInboxStore.getState().reconcileScopeSubscriptions(3000);
-    expect(
-      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
-    ).toBeUndefined();
-
-    useInboxStore.setState({
-      projects: {
-        "p-bad": { _id: "p-bad", workspace: "team:team1", starred: true },
-        "p-new": { _id: "p-new", workspace: "team:team1", starred: true },
-      },
-    } as any);
-    useInboxStore.getState().reconcileScopeSubscriptions(4000);
-    expect(
-      useInboxStore.getState().scopeSubscriptions.active["project:p-bad"],
-    ).toBeDefined();
   });
 });

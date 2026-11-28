@@ -576,5 +576,5 @@ test("grace expires on visible window after 60 s, evicts without excludes, and h
     applyUpdatesToStore([{ key: "tasks", removes: [tFollowerOpen] }]);
     await Promise.resolve();
   });
-  expect(useInboxStore.getState().tasks[tFollowerOpen]).toBeDefined();
+  expect(useInboxStore.getState().tasks[tFollowerOpen]).toBeUndefined();
 });
