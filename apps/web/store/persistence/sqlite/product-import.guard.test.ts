@@ -78,3 +78,21 @@ test("idb-cache loads SQLite storage dynamically", async () => {
   expect(source).not.toContain("VITE_SQLITE_CACHE");
   expect(source).toContain('import("./persistence/sqlite/storage")');
 });
+
+test("no SQLite cache flag or Dexie collection stores remain", async () => {
+  const root = resolve(import.meta.dir, "../../../../..");
+  for (const rel of [
+    "apps/web/vite.config.ts",
+    "apps/web/plugins/precacheScope.ts",
+    "apps/web/store/idb-cache.ts",
+  ]) {
+    const content = await Bun.file(resolve(root, rel)).text();
+    expect(content).not.toContain("VITE_SQLITE_CACHE");
+  }
+  const { db } = await import("../db");
+  expect(db.tables.map((table) => table.name).sort()).toEqual([
+    "dispatchOutbox",
+    "meta",
+    "pendingEntries",
+  ]);
+});

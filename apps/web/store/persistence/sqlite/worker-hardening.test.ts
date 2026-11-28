@@ -409,6 +409,15 @@ describe("SQLite cache worker hardening", () => {
 
     workerInbox.post({
       type: "request",
+      id: "r0",
+      replyTo: "attacker",
+      epochId: "v115-a0-g0",
+      principal: "userA",
+      op: "ping",
+      payload: {},
+    });
+    workerInbox.post({
+      type: "request",
       id: "r1",
       replyTo: "attacker",
       epochId: eId,
@@ -435,9 +444,10 @@ describe("SQLite cache worker hardening", () => {
       payload: { bad: 123 },
     });
 
-    await waitUntil(() => replies.length === 3, 1000, "three error replies");
-    expect(replies.map((r) => r.ok)).toEqual([false, false, false]);
+    await waitUntil(() => replies.length === 4, 1000, "four error replies");
+    expect(replies.map((r) => r.ok)).toEqual([false, false, false, false]);
     expect(replies.map((r) => r.code)).toEqual([
+      "epoch-mismatch",
       "internal",
       "internal",
       "internal",
