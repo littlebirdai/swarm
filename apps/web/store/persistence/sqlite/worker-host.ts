@@ -11,6 +11,7 @@ import {
   type ChannelTransport,
   type SqliteErrorCode,
   type SqliteWorkerAnnouncement,
+  type SqliteWorkerOp,
   type SqliteWorkerRequest,
   type SqliteWorkerResponse,
 } from "./protocol";
@@ -36,21 +37,23 @@ export type SqliteWorkerHostDeps = {
 };
 
 export type SqliteWorkerHost = {
-  start(): Promise<void>;
+  start(): Promise<boolean>;
   handleOwnerMessage(message: unknown): Promise<void>;
   close(): Promise<void>;
 };
 
-function readFileOwnerState(driver: SqliteDriver): {
+const MAX_PEER_OUTBOXES = 16;
+
+type ReadMetaStmt = ReturnType<SqliteDriver["prepare"]>;
+
+function readFileOwnerState(readMeta: ReadMetaStmt | null): {
   named: string[];
   blocked: boolean;
 } {
+  if (!readMeta) return { named: [], blocked: false };
   try {
-    const readMeta = driver.prepare<{ value: string }>(
-      "SELECT value FROM meta WHERE key = ?",
-    );
-    const ownerRaw = readMeta.get("cacheOwner");
-    const userRaw = readMeta.get("currentUser");
+    const ownerRaw = readMeta.get("cacheOwner") as { value: string } | null;
+    const userRaw = readMeta.get("currentUser") as { value: string } | null;
     const owner = ownerRaw ? JSON.parse(ownerRaw.value) : null;
     const user = userRaw ? JSON.parse(userRaw.value) : null;
     const named = [owner?.principal, user?._id].filter(
@@ -63,6 +66,59 @@ function readFileOwnerState(driver: SqliteDriver): {
   } catch {
     return { named: [], blocked: false };
   }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+const VALID_OPS = new Set<string>([
+  "ping",
+  "loadCache",
+  "loadPaintCache",
+  "writePatches",
+  "loadConversationMessages",
+  "writeConversationMessages",
+  "writeConversationUserMessages",
+  "deleteDocDetails",
+]);
+
+function hasValidPayload(op: SqliteWorkerOp, payload: unknown): boolean {
+  if (!isPlainObject(payload)) return false;
+  if (op === "ping" || op === "loadPaintCache") return true;
+  if (op === "loadCache") {
+    if (
+      payload.keys !== undefined &&
+      (!Array.isArray(payload.keys) ||
+        payload.keys.some((k) => typeof k !== "string"))
+    )
+      return false;
+    if (payload.context !== undefined && !isPlainObject(payload.context))
+      return false;
+    return true;
+  }
+  if (op === "writePatches") {
+    return Array.isArray(payload.patches) && isPlainObject(payload.state);
+  }
+  if (op === "loadConversationMessages") {
+    return typeof payload.conversationId === "string";
+  }
+  if (
+    op === "writeConversationMessages" ||
+    op === "writeConversationUserMessages"
+  ) {
+    return (
+      typeof payload.conversationId === "string" &&
+      Array.isArray(payload.messages)
+    );
+  }
+  if (op === "deleteDocDetails") {
+    return (
+      Array.isArray(payload.ids) &&
+      payload.ids.every((id) => typeof id === "string")
+    );
+  }
+  return false;
 }
 
 export function createSqliteWorkerHost(
@@ -78,23 +134,39 @@ export function createSqliteWorkerHost(
   const peerOutboxes = new Map<string, ChannelEndpoint>();
 
   let openedDb: OpenedWorkerDatabase | null = null;
+  let readMetaStmt: ReadMetaStmt | null = null;
   let cache: ReturnType<typeof createSqliteCache> | null = null;
   let ready = false;
+  let closing = false;
   let closed = false;
   let failed = false;
   let failedReason: string | null = null;
   let pendingWriteError: unknown = null;
+  let opQueue: Promise<void> = Promise.resolve();
 
   const outboxFor = (replyTo: string): ChannelEndpoint | null => {
     if (!channelTransport || closed) return null;
-    let endpoint = peerOutboxes.get(replyTo);
-    if (!endpoint) {
-      endpoint = channelTransport.open(
-        addressedChannelName(baseChannel, replyTo),
-        () => {},
-      );
-      peerOutboxes.set(replyTo, endpoint);
+    const existing = peerOutboxes.get(replyTo);
+    if (existing) {
+      peerOutboxes.delete(replyTo);
+      peerOutboxes.set(replyTo, existing);
+      return existing;
     }
+    if (peerOutboxes.size >= MAX_PEER_OUTBOXES) {
+      const oldest = peerOutboxes.keys().next().value;
+      if (oldest !== undefined) {
+        const oldEndpoint = peerOutboxes.get(oldest);
+        peerOutboxes.delete(oldest);
+        try {
+          oldEndpoint?.close();
+        } catch {}
+      }
+    }
+    const endpoint = channelTransport.open(
+      addressedChannelName(baseChannel, replyTo),
+      () => {},
+    );
+    peerOutboxes.set(replyTo, endpoint);
     return endpoint;
   };
 
@@ -112,11 +184,21 @@ export function createSqliteWorkerHost(
     replyTo: string,
     message: SqliteWorkerResponse,
   ) => {
-    if (source === "owner") {
-      postToOwner(message);
-      return;
+    try {
+      if (source === "owner") {
+        postToOwner(message);
+        return;
+      }
+      outboxFor(replyTo)?.post(message);
+    } catch {
+      if (source === "peer") {
+        const endpoint = peerOutboxes.get(replyTo);
+        peerOutboxes.delete(replyTo);
+        try {
+          endpoint?.close();
+        } catch {}
+      }
     }
-    outboxFor(replyTo)?.post(message);
   };
 
   const failEpoch = (reason: string, code: SqliteErrorCode) => {
@@ -133,14 +215,25 @@ export function createSqliteWorkerHost(
     });
   };
 
+  const enqueue = (task: () => Promise<void>): Promise<void> => {
+    const next = opQueue.then(task, task);
+    opQueue = next.catch(() => {});
+    return next;
+  };
+
   const processRequest = async (
-    req: SqliteWorkerRequest,
+    raw: unknown,
     source: "owner" | "peer",
-  ) => {
+  ): Promise<void> => {
+    if (!isPlainObject(raw) || raw.type !== "request") return;
+    if (typeof raw.id !== "string" || typeof raw.replyTo !== "string") return;
+
+    const id = raw.id;
+    const replyTo = raw.replyTo;
     const respondOk = (result: unknown) =>
-      reply(source, req.replyTo, {
+      reply(source, replyTo, {
         type: "response",
-        id: req.id,
+        id,
         workerId,
         epochId: currentEpochId,
         ok: true,
@@ -148,15 +241,25 @@ export function createSqliteWorkerHost(
       });
 
     const respondErr = (code: SqliteErrorCode, error: string) =>
-      reply(source, req.replyTo, {
+      reply(source, replyTo, {
         type: "response",
-        id: req.id,
+        id,
         workerId,
         epochId: currentEpochId,
         ok: false,
         error,
         code,
       });
+
+    if (typeof raw.epochId !== "string" || typeof raw.op !== "string") {
+      respondErr("internal", "Malformed request");
+      return;
+    }
+    if (raw.principal !== null && typeof raw.principal !== "string") {
+      respondErr("internal", "Malformed principal");
+      return;
+    }
+    const req = raw as unknown as SqliteWorkerRequest;
 
     if (req.epochId !== currentEpochId) {
       respondErr("epoch-mismatch", "Epoch mismatch");
@@ -166,20 +269,20 @@ export function createSqliteWorkerHost(
       respondErr("write-failed", failedReason ?? "write-failed");
       return;
     }
-    if (!ready || closed || !cache || !openedDb) {
+    if (!ready || closing || closed || !cache || !openedDb) {
       respondErr("epoch-mismatch", "Worker is not ready");
+      return;
+    }
+    if (!VALID_OPS.has(req.op)) {
+      respondErr("internal", `Unknown op: ${String(req.op)}`);
+      return;
+    }
+    if (!hasValidPayload(req.op, req.payload)) {
+      respondErr("internal", "Invalid request payload");
       return;
     }
     if (req.op === "ping") {
       respondOk({ ok: true, workerId, epochId: currentEpochId });
-      return;
-    }
-    if (req.op === "purgeLocalCache") {
-      const payload = req.payload as { keepPendingInputFor?: string | null };
-      await cache.purgeLocalCache({
-        keepPendingInputFor: payload.keepPendingInputFor ?? null,
-      });
-      respondOk(undefined);
       return;
     }
     if (req.principal === null || req.principal !== epoch.principal) {
@@ -192,13 +295,13 @@ export function createSqliteWorkerHost(
       req.op === "loadPaintCache" ||
       req.op === "loadConversationMessages";
     if (isRead) {
-      const ownerState = readFileOwnerState(openedDb.driver);
+      const ownerState = readFileOwnerState(readMetaStmt);
       if (ownerState.blocked) {
         failEpoch("write-failed", "write-failed");
         respondErr("write-failed", "Database marked write-failed");
         return;
       }
-      if (ownerState.named.some((id) => id !== req.principal)) {
+      if (ownerState.named.some((namedId) => namedId !== req.principal)) {
         respondErr("owner-mismatch", "Stored file owner mismatch");
         return;
       }
@@ -229,6 +332,7 @@ export function createSqliteWorkerHost(
       }
 
       pendingWriteError = null;
+      let writeResult: unknown = undefined;
       if (req.op === "writePatches") {
         const payload = req.payload as {
           patches: Patch[];
@@ -261,9 +365,16 @@ export function createSqliteWorkerHost(
           payload.conversationId,
           payload.messages,
         );
+      } else if (req.op === "deleteDocDetails") {
+        const payload = req.payload as { ids: string[] };
+        writeResult =
+          (await cache.deleteInvalidatedDocDetails?.(
+            payload.ids,
+            () => true,
+          )) ?? [];
       }
 
-      const ownerAfter = readFileOwnerState(openedDb.driver);
+      const ownerAfter = readFileOwnerState(readMetaStmt);
       if (pendingWriteError || ownerAfter.blocked) {
         const reason = pendingWriteError
           ? String(pendingWriteError)
@@ -272,7 +383,7 @@ export function createSqliteWorkerHost(
         respondErr("write-failed", reason);
         return;
       }
-      respondOk(undefined);
+      respondOk(writeResult);
     } catch (error) {
       if (!isRead) {
         const reason = String(error);
@@ -285,7 +396,7 @@ export function createSqliteWorkerHost(
   };
 
   const handleChannelMessage = (data: unknown) => {
-    if (closed || !data || typeof data !== "object") return;
+    if (closed || closing || !data || typeof data !== "object") return;
     const msg = data as { type?: string; replyTo?: string; epochId?: string };
     if (msg.type === "discover") {
       if (
@@ -295,22 +406,54 @@ export function createSqliteWorkerHost(
         typeof msg.replyTo !== "string"
       )
         return;
-      outboxFor(msg.replyTo)?.post({
-        type: "worker-ready",
-        workerId,
-        epochId: currentEpochId,
-        epoch,
-      } satisfies SqliteWorkerAnnouncement);
+      try {
+        outboxFor(msg.replyTo)?.post({
+          type: "worker-ready",
+          workerId,
+          epochId: currentEpochId,
+          epoch,
+        } satisfies SqliteWorkerAnnouncement);
+      } catch {}
       return;
     }
     if (msg.type === "request") {
-      void processRequest(data as SqliteWorkerRequest, "peer");
+      void enqueue(() => processRequest(data, "peer"));
+    }
+  };
+
+  const closeResources = async () => {
+    if (closed) return;
+    closed = true;
+    ready = false;
+    announce({
+      type: "worker-closing",
+      workerId,
+      epochId: currentEpochId,
+    });
+    sharedChannel?.close();
+    sharedChannel = null;
+    ownChannel?.close();
+    ownChannel = null;
+    for (const endpoint of peerOutboxes.values()) {
+      try {
+        endpoint.close();
+      } catch {}
+    }
+    peerOutboxes.clear();
+    if (readMetaStmt) {
+      readMetaStmt.finalize?.();
+      readMetaStmt = null;
+    }
+    if (openedDb) {
+      const dbToClose = openedDb;
+      openedDb = null;
+      await dbToClose.close();
     }
   };
 
   return {
     async start() {
-      if (closed) return;
+      if (closed || closing) return false;
       sharedChannel = channelTransport.open(baseChannel, handleChannelMessage);
       ownChannel = channelTransport.open(ownChannelName, handleChannelMessage);
       try {
@@ -318,7 +461,7 @@ export function createSqliteWorkerHost(
           pendingWriteError = error;
         });
       } catch (error) {
-        if (closed) return;
+        if (closed || closing) return false;
         if (isOpfsMissingError(error)) {
           announce({
             type: "worker-opfs-missing",
@@ -329,15 +472,16 @@ export function createSqliteWorkerHost(
         } else {
           const code: SqliteErrorCode = isVersionMismatchError(error)
             ? "version-mismatch"
-            : "internal";
+            : "write-failed";
           failEpoch(String(error), code);
         }
         await this.close();
-        return;
+        return false;
       }
-      if (closed) {
+      if (closed || closing) {
         await openedDb.close();
-        return;
+        openedDb = null;
+        return false;
       }
       try {
         cache = createSqliteCache(
@@ -350,19 +494,22 @@ export function createSqliteWorkerHost(
           },
           "read-write",
         );
+        readMetaStmt = openedDb.driver.prepare<{ value: string }>(
+          "SELECT value FROM meta WHERE key = ?",
+        );
       } catch (error) {
         const code: SqliteErrorCode = isVersionMismatchError(error)
           ? "version-mismatch"
           : "internal";
         failEpoch(String(error), code);
         await this.close();
-        return;
+        return false;
       }
-      const ownerState = readFileOwnerState(openedDb.driver);
+      const ownerState = readFileOwnerState(readMetaStmt);
       if (ownerState.blocked) {
         failEpoch("write-failed", "write-failed");
         await this.close();
-        return;
+        return false;
       }
       ready = true;
       announce({
@@ -371,34 +518,18 @@ export function createSqliteWorkerHost(
         epochId: currentEpochId,
         epoch,
       });
+      return true;
     },
     async handleOwnerMessage(message: unknown) {
       if (!message || typeof message !== "object") return;
       const msg = message as { type?: string };
       if (msg.type === "request") {
-        await processRequest(message as SqliteWorkerRequest, "owner");
+        await enqueue(() => processRequest(message, "owner"));
       }
     },
     async close() {
-      if (closed) return;
-      closed = true;
-      ready = false;
-      announce({
-        type: "worker-closing",
-        workerId,
-        epochId: currentEpochId,
-      });
-      sharedChannel?.close();
-      sharedChannel = null;
-      ownChannel?.close();
-      ownChannel = null;
-      for (const endpoint of peerOutboxes.values()) endpoint.close();
-      peerOutboxes.clear();
-      if (openedDb) {
-        const dbToClose = openedDb;
-        openedDb = null;
-        await dbToClose.close();
-      }
+      closing = true;
+      await enqueue(closeResources);
     },
   };
 }

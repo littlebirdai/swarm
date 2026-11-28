@@ -5,22 +5,38 @@ import type {
   SqlValue as WasmSqlValue,
 } from "@sqlite.org/sqlite-wasm";
 import {
+  compareEpochOrder,
   epochDirectory,
+  epochLockName,
   epochVfsName,
+  parseEpochDirectoryName,
   SQLITE_DB_FILENAME,
   SQLITE_OPFS_DIR_PREFIX,
   type CacheEpoch,
 } from "./protocol";
 import type { SqliteDriver, SqlValue } from "./schema";
 
+const SAH_CONTENTION_RETRY_MS = [40, 120];
+
+export function isOpfsContentionOrQuotaError(error: unknown): boolean {
+  const message = String(error);
+  return (
+    /NoModificationAllowedError/i.test(message) ||
+    /QuotaExceededError/i.test(message) ||
+    /GetSyncAccessHandle/i.test(message) ||
+    /already open/i.test(message) ||
+    /busy/i.test(message)
+  );
+}
+
 export function isOpfsMissingError(error: unknown): boolean {
+  if (isOpfsContentionOrQuotaError(error)) return false;
   const message = String(error);
   return (
     /Missing required OPFS APIs/i.test(message) ||
     /SecurityError/i.test(message) ||
     /NotAllowedError/i.test(message) ||
-    /OPFS/i.test(message) ||
-    /createSyncAccessHandle/i.test(message)
+    /createSyncAccessHandle is not a function/i.test(message)
   );
 }
 
@@ -73,6 +89,11 @@ export function createWasmSqliteDriver(
             throw error;
           }
         },
+        finalize() {
+          try {
+            stmt.finalize();
+          } catch {}
+        },
       };
     },
     transaction<Result>(body: () => Result): () => Result {
@@ -94,7 +115,7 @@ export type OpenedWasmDatabase = {
   removeStorage(): Promise<void>;
 };
 
-export async function openOpfsSahPoolDatabase(
+async function openPoolOnce(
   sqlite3: Sqlite3Static,
   epoch: CacheEpoch,
   onWriteError?: (error: unknown) => void,
@@ -107,7 +128,7 @@ export async function openOpfsSahPoolDatabase(
   let db: Database;
   try {
     db = new pool.OpfsSAHPoolDb(SQLITE_DB_FILENAME);
-    db.exec("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;");
+    db.exec("PRAGMA journal_mode=TRUNCATE; PRAGMA synchronous=NORMAL;");
   } catch (error) {
     try {
       pool.pauseVfs();
@@ -142,20 +163,88 @@ export async function openOpfsSahPoolDatabase(
   };
 }
 
-export async function cleanupStaleEpochDirectories(
-  keepDirectory: string,
-): Promise<void> {
-  if (typeof navigator === "undefined" || !navigator.storage?.getDirectory)
-    return;
-  const keepName = keepDirectory.replace(/^\/+/, "");
+export async function openOpfsSahPoolDatabase(
+  sqlite3: Sqlite3Static,
+  epoch: CacheEpoch,
+  onWriteError?: (error: unknown) => void,
+): Promise<OpenedWasmDatabase> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await openPoolOnce(sqlite3, epoch, onWriteError);
+    } catch (error) {
+      const retryDelay = SAH_CONTENTION_RETRY_MS[attempt];
+      const retryable =
+        retryDelay !== undefined &&
+        isOpfsContentionOrQuotaError(error) &&
+        !/QuotaExceededError/i.test(String(error));
+      if (!retryable) throw error;
+      attempt++;
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
+  }
+}
+
+async function queryHeldLocks(): Promise<ReadonlySet<string> | null> {
+  if (typeof navigator === "undefined") return null;
+  const locks = (
+    navigator as {
+      locks?: {
+        query?: () => Promise<{ held?: Array<{ name?: string }> }>;
+      };
+    }
+  ).locks;
+  if (typeof locks?.query !== "function") return null;
   try {
-    const root = (await navigator.storage.getDirectory()) as unknown as {
+    const state = await locks.query();
+    const names = new Set<string>();
+    for (const entry of state.held ?? []) {
+      if (typeof entry.name === "string") names.add(entry.name);
+    }
+    return names;
+  } catch {
+    return null;
+  }
+}
+
+export async function cleanupStaleEpochDirectories(
+  currentEpoch: Pick<
+    CacheEpoch,
+    "schemaVersion" | "accountEpoch" | "generation"
+  >,
+  options?: {
+    getRoot?: () => Promise<{
       entries?: () => AsyncIterable<[string, unknown]>;
       removeEntry?: (
         name: string,
         opts?: { recursive?: boolean },
       ) => Promise<void>;
-    };
+    }>;
+    getHeldLocks?: () => Promise<ReadonlySet<string> | null>;
+  },
+): Promise<void> {
+  const getRoot =
+    options?.getRoot ??
+    (typeof navigator !== "undefined" && navigator.storage?.getDirectory
+      ? () =>
+          navigator.storage.getDirectory() as Promise<{
+            entries?: () => AsyncIterable<[string, unknown]>;
+            removeEntry?: (
+              name: string,
+              opts?: { recursive?: boolean },
+            ) => Promise<void>;
+          }>
+      : null);
+  if (!getRoot) return;
+  const heldLocks = await (options?.getHeldLocks ?? queryHeldLocks)();
+  if (!heldLocks) return;
+  const keepName = epochDirectory({
+    ...currentEpoch,
+    principal: null,
+    updatedAt: 0,
+  }).replace(/^\/+/, "");
+  try {
+    const root = await getRoot();
     if (
       typeof root.entries !== "function" ||
       typeof root.removeEntry !== "function"
@@ -164,6 +253,15 @@ export async function cleanupStaleEpochDirectories(
     for await (const [name] of root.entries()) {
       if (!name.startsWith(SQLITE_OPFS_DIR_PREFIX) || name === keepName)
         continue;
+      const parsed = parseEpochDirectoryName(name);
+      if (!parsed) continue;
+      if (compareEpochOrder(parsed, currentEpoch) >= 0) continue;
+      const lockName = epochLockName({
+        ...parsed,
+        principal: null,
+        updatedAt: 0,
+      });
+      if (heldLocks.has(lockName)) continue;
       try {
         await root.removeEntry(name, { recursive: true });
       } catch {}

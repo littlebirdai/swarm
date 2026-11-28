@@ -3,11 +3,7 @@ import {
   cleanupStaleEpochDirectories,
   openOpfsSahPoolDatabase,
 } from "./driver";
-import {
-  epochDirectory,
-  type ChannelTransport,
-  type SqliteOwnerCommand,
-} from "./protocol";
+import type { ChannelTransport, SqliteOwnerCommand } from "./protocol";
 import { createSqliteWorkerHost, type SqliteWorkerHost } from "./worker-host";
 
 const broadcastTransport: ChannelTransport = {
@@ -40,6 +36,13 @@ let queue: Promise<void> = Promise.resolve();
 self.onmessage = (event: MessageEvent<SqliteOwnerCommand>) => {
   const message = event.data;
   queue = queue.then(async () => {
+    if (message.type === "close") {
+      if (host) {
+        await host.close();
+        host = null;
+      }
+      return;
+    }
     if (message.type === "init") {
       if (host) {
         await host.close();
@@ -58,8 +61,12 @@ self.onmessage = (event: MessageEvent<SqliteOwnerCommand>) => {
         },
       });
       host = nextHost;
-      await nextHost.start();
-      void cleanupStaleEpochDirectories(epochDirectory(message.epoch));
+      const started = await nextHost.start();
+      if (started && host === nextHost) {
+        void cleanupStaleEpochDirectories(message.epoch);
+      } else if (host === nextHost) {
+        host = null;
+      }
       return;
     }
     if (host) await host.handleOwnerMessage(message);

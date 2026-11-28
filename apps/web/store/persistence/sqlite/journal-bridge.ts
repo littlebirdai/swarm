@@ -1,25 +1,21 @@
 import type { Patch } from "mutative";
+import { authPrincipal } from "../../../lib/authPrincipal";
+import { expireExcludeTombstones } from "../../cacheRetention";
 import { queuedMessagesFromPending } from "../../pendingMessageJournal";
-import {
-  db,
-  deleteCacheDatabase,
-  PERSISTENCE_AVAILABLE,
-  reopenAfterPurge,
-  setPurgeInProgress,
-} from "../db";
+import { db, PERSISTENCE_AVAILABLE } from "../db";
 import {
   enqueueDispatch,
   loadOutbox,
   outboxAccountId,
   removeDispatch,
 } from "../outbox";
+import { ensureCacheOwnership, persistenceOwned } from "../ownership";
 import { writePendingEntries } from "../pending-entries";
 import {
-  clearPendingInputJournal,
   loadPendingInput,
   persistPendingMessageChanges,
 } from "../pendingInputJournal";
-import { COMPOSER_RETRY_PREFIX, PENDING_INPUT_PREFIX } from "../schema";
+import { purgeLocalCache } from "../purge";
 import type { CacheStorage } from "../storage";
 
 export type JournalBridge = Pick<
@@ -39,6 +35,15 @@ export type JournalBridge = Pick<
   purgeJournal(keepPendingInputFor: string | null): Promise<void>;
 };
 
+async function ownerStampMatches(principal: string): Promise<boolean> {
+  try {
+    const row = await db.meta.get("cacheOwner");
+    return row?.value?.principal === principal;
+  } catch {
+    return false;
+  }
+}
+
 export function createIdbJournalBridge(): JournalBridge {
   return {
     enqueueDispatch,
@@ -48,25 +53,38 @@ export function createIdbJournalBridge(): JournalBridge {
     persistPendingMessageChanges,
     async loadJournalKeys(keys, context, principal) {
       if (!PERSISTENCE_AVAILABLE || !principal) return {};
-      const wanted = keys ? new Set(keys) : null;
       const claimed = (context.currentUser as { _id?: string } | undefined)
         ?._id;
       if (claimed !== undefined && claimed !== principal) return {};
+      const resolved = await authPrincipal.resolve();
+      if (resolved !== principal) return {};
+
+      const owner = await ensureCacheOwnership(purgeLocalCache);
+      const tokenState = authPrincipal.tokenState();
+      if (tokenState === "unparsable" || tokenState === "unreadable") {
+        return {};
+      }
+      const wanted = keys ? new Set(keys) : null;
       const out: Record<string, any> = {};
-      if (!wanted || wanted.has("pending")) {
+
+      if (owner === principal && (!wanted || wanted.has("pending"))) {
         try {
           const rows = await db.pendingEntries.toArray();
           if (rows.length > 0) {
-            out.pending = Object.fromEntries(
+            const raw = Object.fromEntries(
               rows.map(({ key, value }) => [key, value]),
             );
+            const pending = expireExcludeTombstones(raw, Date.now());
+            if (Object.keys(pending).length > 0) out.pending = pending;
           }
         } catch {}
       }
+
       if (
-        !wanted ||
-        wanted.has("pendingMessages") ||
-        wanted.has("queuedMessages")
+        (!wanted ||
+          wanted.has("pendingMessages") ||
+          wanted.has("queuedMessages")) &&
+        (owner === principal || (await ownerStampMatches(principal)))
       ) {
         try {
           const pendingMessages = await loadPendingInput(principal);
@@ -78,38 +96,21 @@ export function createIdbJournalBridge(): JournalBridge {
       }
       return out;
     },
-    writePendingEntries(patches, pending) {
-      if (!PERSISTENCE_AVAILABLE) return Promise.resolve();
-      return writePendingEntries(patches, pending ?? {});
+    async writePendingEntries(patches, pending) {
+      if (!PERSISTENCE_AVAILABLE || !persistenceOwned()) return;
+      const principal = authPrincipal.current();
+      if (!principal) return;
+      await ensureCacheOwnership(purgeLocalCache);
+      if (!persistenceOwned() || authPrincipal.current() !== principal) return;
+      if (!(await ownerStampMatches(principal))) return;
+      await writePendingEntries(patches, pending ?? {});
     },
     async purgeJournal(keepPendingInputFor) {
       if (!PERSISTENCE_AVAILABLE) return;
-      setPurgeInProgress(true);
-      try {
-        await clearPendingInputJournal();
-        let kept: Array<{ key: string; value: any }> = [];
-        if (keepPendingInputFor) {
-          try {
-            kept = await db.meta
-              .where("key")
-              .startsWithAnyOf(
-                `${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`,
-                `${COMPOSER_RETRY_PREFIX}${keepPendingInputFor}:`,
-              )
-              .toArray();
-          } catch {
-            kept = [];
-          }
-        }
-        try {
-          await deleteCacheDatabase();
-        } finally {
-          await reopenAfterPurge();
-        }
-        if (kept.length) await db.meta.bulkPut(kept);
-      } finally {
-        setPurgeInProgress(false);
-      }
+      await purgeLocalCache({
+        keepPendingInputFor,
+        reason: "sqlite-journal-purge",
+      });
     },
   };
 }

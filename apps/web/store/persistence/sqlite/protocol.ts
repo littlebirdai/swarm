@@ -33,6 +33,36 @@ export function epochDirectory(epoch: CacheEpoch): string {
   return `/${SQLITE_OPFS_DIR_PREFIX}${epochId(epoch)}`;
 }
 
+const EPOCH_DIR_PATTERN = /^codecast-sqlite-v(\d+)-a(\d+)-g(\d+)$/;
+
+export function parseEpochDirectoryName(
+  name: string,
+): Pick<CacheEpoch, "schemaVersion" | "accountEpoch" | "generation"> | null {
+  const clean = name.replace(/^\/+/, "");
+  const match = EPOCH_DIR_PATTERN.exec(clean);
+  if (!match) return null;
+  const schemaVersion = Number(match[1]);
+  const accountEpoch = Number(match[2]);
+  const generation = Number(match[3]);
+  if (
+    !Number.isSafeInteger(schemaVersion) ||
+    !Number.isSafeInteger(accountEpoch) ||
+    !Number.isSafeInteger(generation)
+  )
+    return null;
+  return { schemaVersion, accountEpoch, generation };
+}
+
+export function compareEpochOrder(
+  a: Pick<CacheEpoch, "schemaVersion" | "accountEpoch" | "generation">,
+  b: Pick<CacheEpoch, "schemaVersion" | "accountEpoch" | "generation">,
+): number {
+  if (a.schemaVersion !== b.schemaVersion)
+    return a.schemaVersion - b.schemaVersion;
+  if (a.accountEpoch !== b.accountEpoch) return a.accountEpoch - b.accountEpoch;
+  return a.generation - b.generation;
+}
+
 export function epochVfsName(epoch: CacheEpoch): string {
   return `opfs-sahpool-${epochId(epoch)}`;
 }
@@ -207,7 +237,7 @@ export function markEpochFailed(
 
 export type EpochStore = {
   read(): CacheEpoch | null;
-  write(epoch: CacheEpoch): void;
+  write(epoch: CacheEpoch): boolean | void;
   subscribe?(listener: (epoch: CacheEpoch | null) => void): () => void;
 };
 
@@ -274,8 +304,8 @@ export type SqliteWorkerPayloads = {
     conversationId: string;
     messages: unknown[];
   };
-  purgeLocalCache: {
-    keepPendingInputFor?: string | null;
+  deleteDocDetails: {
+    ids: string[];
   };
 };
 
@@ -287,7 +317,7 @@ export type SqliteWorkerResults = {
   loadConversationMessages: CachedConversation | null;
   writeConversationMessages: void;
   writeConversationUserMessages: void;
-  purgeLocalCache: void;
+  deleteDocDetails: string[];
 };
 
 export type SqliteWorkerOp = keyof SqliteWorkerPayloads;
@@ -363,4 +393,11 @@ export type SqliteOwnerInitMessage = {
   epoch: CacheEpoch;
 };
 
-export type SqliteOwnerCommand = SqliteOwnerInitMessage | SqliteWorkerRequest;
+export type SqliteOwnerCloseMessage = {
+  type: "close";
+};
+
+export type SqliteOwnerCommand =
+  | SqliteOwnerInitMessage
+  | SqliteOwnerCloseMessage
+  | SqliteWorkerRequest;
