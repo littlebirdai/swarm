@@ -439,14 +439,16 @@ export async function pauseAtGateCore(
   // The station the task waits at is the one the gate parks it in: the
   // decision is bound there so a blocking gate holds the task (L5). A dropped
   // task stays dropped: the line decided it (LE16).
-  if (run.task_id) {
-    const held = await ctx.db.get(run.task_id);
-    if (held && held.status !== "dropped")
-      await moveTaskStatus(ctx, held, "in_review", {
-        actorUserId: run.user_id,
-        now,
-      });
-  }
+  const held = run.task_id ? await ctx.db.get(run.task_id) : null;
+  const made =
+    !run.spawner_conversation_id && held
+      ? await changeSessionOf(ctx, held, await taskCommentsOf(ctx, held._id))
+      : null;
+  if (held && held.status !== "dropped")
+    await moveTaskStatus(ctx, held, "in_review", {
+      actorUserId: run.user_id,
+      now,
+    });
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
 
   let decision: { id: Id<"session_decisions">; short_id?: string } | null =
@@ -515,13 +517,6 @@ export async function pauseAtGateCore(
     });
     decision = { id: own._id, short_id: own.short_id };
   }
-  // A run no session started (a plain shell, say over ssh on another machine) asks from the session its task's change
-  // came from (changeSessionOf, what /cli/work/get names to the CLI), so the card opens where the work is, not on the
-  // run's own log. The caller must be able to read it.
-  const made =
-    !run.spawner_conversation_id && task
-      ? await changeSessionOf(ctx, task, await taskCommentsOf(ctx, task._id))
-      : null;
   const subject =
     made && (await canAccessConversation(ctx, auth.userId, made))
       ? made._id

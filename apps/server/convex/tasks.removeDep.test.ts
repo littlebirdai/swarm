@@ -7,6 +7,7 @@ import { serverTest, type ServerTest } from "../test-helpers/database.testkit";
 import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { TASK_LEASE_MS } from "./lib/claims";
 import { addDepCore, removeDepCore, type DepEdge } from "./tasks";
 
 const TOKEN = "dep-test-token";
@@ -31,8 +32,19 @@ async function setup(
     });
     if (options.legacy)
       await db.patch(taskIds["ct-2"], { blocked_by: [taskIds["ct-1"]] });
-    if (options.owned)
+    if (options.owned) {
       await db.patch(taskIds["ct-2"], { conversation_ids: [session] });
+      await db.insert("claims", {
+        kind: "task",
+        task_id: taskIds["ct-2"],
+        holder: owner,
+        token: 1,
+        lease_until: Date.now() + TASK_LEASE_MS,
+        request_id: "seed-dep-owner",
+        request_holder: owner,
+        task: { conversation_id: session },
+      });
+    }
     return { owner, taskIds, session };
   });
   return {

@@ -39,6 +39,19 @@ function context(owner = "viewer", activeTask = false) {
           ...(activeTask ? { active_task_id: "task1" } : {}),
         },
       ],
+      claims: activeTask
+        ? [
+            {
+              _id: "claim1",
+              kind: "task",
+              task_id: "task1",
+              holder: owner,
+              token: 1,
+              lease_until: Date.now() + 60_000,
+              task: { conversation_id: "conv1" },
+            },
+          ]
+        : [],
     }),
   } as any;
 }
