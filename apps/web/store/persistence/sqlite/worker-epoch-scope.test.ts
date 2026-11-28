@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _resetSnapshotLedger } from "../../idb-collection-diff";
-import type { CacheEpoch, EpochStore, WorkerSpawner } from "./protocol";
+import type {
+  CacheEpoch,
+  ChannelTransport,
+  EpochStore,
+  WorkerSpawner,
+} from "./protocol";
 import { createSqliteWorkerClient } from "./worker-client";
 import {
   createDiskWorkerSpawner,
@@ -219,23 +224,30 @@ describe("SQLite epoch scope", () => {
 
   test("an owner file that can never be read falls back to memory after a few rotations", async () => {
     const dir = tempDir("sqlite-owner-loop-");
-    const channelTransport = createFakeChannelTransport();
+    const transport = createFakeChannelTransport();
+    const channelTransport: ChannelTransport = {
+      open: (name, onMessage) =>
+        transport.open(name, (data) => setTimeout(() => onMessage(data), 0)),
+    };
     const epochStore = createFakeEpochStore();
     let spawns = 0;
+    const disk = createDiskWorkerSpawner(dir, channelTransport, {
+      onSpawn: () => {
+        spawns++;
+      },
+      beforeOpen: (db) => {
+        db.exec(SCHEMA);
+        db.exec("INSERT OR REPLACE INTO meta VALUES ('cacheOwner', '{')");
+      },
+    });
+    const spawnWorker: WorkerSpawner = (epoch, onMessage, onError) =>
+      disk.spawner(
+        epoch,
+        (data) => setTimeout(() => onMessage(data), 0),
+        onError,
+      );
     const client = createSqliteWorkerClient(
-      options(dir, {
-        epochStore,
-        channelTransport,
-        spawnWorker: createDiskWorkerSpawner(dir, channelTransport, {
-          onSpawn: () => {
-            spawns++;
-          },
-          beforeOpen: (db) => {
-            db.exec(SCHEMA);
-            db.exec("INSERT OR REPLACE INTO meta VALUES ('cacheOwner', '{')");
-          },
-        }).spawner,
-      }),
+      options(dir, { epochStore, channelTransport, spawnWorker }),
     );
     try {
       await client.loadCache(["sessions", "syncMeta"]);
