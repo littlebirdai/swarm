@@ -8,11 +8,16 @@ import { heartbeatOf } from "./sessionHeartbeat";
 // from the sessions the task links, so a task never stores a second copy that
 // could disagree with the binding.
 
+import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { HEARTBEAT_ALIVE_MS } from "../inboxFilters";
 import { taskClaimsEnabled } from "./claims";
 import { HANDOFF_COMMENT } from "./runAgentSessions";
-import { claimTaskWithLease } from "./taskClaims";
+import {
+  claimTaskWithLease,
+  releaseTaskClaimIfHeld,
+  taskClaimError,
+} from "./taskClaims";
 
 // A session that touched the conversation this recently is treated as working
 // even without a daemon heartbeat (a cloud agent, a session between turns).
@@ -149,8 +154,33 @@ export function ownedElsewhereMessage(
  * deciding to. Callers acting for a person (the board, a spawn, a handoff)
  * pass take: the person chose the new session.
  */
-export async function claimTaskOwnership(
+export function legacyBoundReleaser(
   ctx: { db: any },
+  task: any,
+  conv: any | null,
+  take: boolean,
+  now: number,
+): () => Promise<TaskOwnerRef[]> {
+  return async () => {
+    const others = (await boundSessionsOf(ctx, task)).filter(
+      (c) => !conv || String(c._id) !== String(conv._id),
+    );
+    const refs = await Promise.all(others.map((c) => ownerRef(ctx, c, now)));
+    const liveOwner = refs.find((r) => r.live);
+    if (liveOwner && !take)
+      throw taskClaimError(
+        "busy",
+        0,
+        ownedElsewhereMessage(task, liveOwner, now),
+      );
+    for (const other of others)
+      await ctx.db.patch(other._id, { active_task_id: undefined });
+    return refs;
+  };
+}
+
+export async function claimTaskOwnership(
+  ctx: { db: any; scheduler?: any },
   conv: any,
   task: any,
   opts: {
@@ -170,7 +200,7 @@ export async function claimTaskOwnership(
   if (taskClaimsEnabled()) {
     const res = await claimTaskWithLease<TaskOwnerRef>(ctx, {
       task,
-      holder: opts.holder ?? conv.user_id,
+      holder: opts.holder ?? (conv as any).owner_user_id ?? conv.user_id,
       conv,
       take: opts.take,
       now,
@@ -196,20 +226,7 @@ export async function claimTaskOwnership(
           },
           now,
         ),
-      checkLegacyBound: async () => {
-        const others = (await boundSessionsOf(ctx, task)).filter(
-          (c) => String(c._id) !== String(conv._id),
-        );
-        const refs = await Promise.all(
-          others.map((c) => ownerRef(ctx, c, now)),
-        );
-        const liveOwner = refs.find((r) => r.live);
-        if (liveOwner && !opts.take)
-          throw new Error(ownedElsewhereMessage(task, liveOwner, now));
-        for (const other of others)
-          await ctx.db.patch(other._id, { active_task_id: undefined });
-        return refs;
-      },
+      checkLegacyBound: legacyBoundReleaser(ctx, task, conv, opts.take, now),
     });
     const others = (await boundSessionsOf(ctx, task)).filter(
       (c) => String(c._id) !== String(conv._id),
@@ -231,4 +248,27 @@ export async function claimTaskOwnership(
     await ctx.db.patch(conv._id, { active_task_id: task._id });
   }
   return { released: refs };
+}
+
+export async function releaseBoundSessions(
+  ctx: any,
+  task: any,
+  conversationId?: Id<"conversations">,
+): Promise<void> {
+  if (taskClaimsEnabled()) await releaseTaskClaimIfHeld(ctx, task._id);
+  const ids = new Set(
+    [
+      ...(task.conversation_ids ?? []),
+      ...(conversationId ? [conversationId] : []),
+    ].map(String),
+  );
+  for (const convId of ids) {
+    const conv: any = await ctx.db.get(convId as Id<"conversations">);
+    if (!conv || String(conv.active_task_id ?? "") !== String(task._id))
+      continue;
+    await ctx.db.patch(conv._id, { active_task_id: undefined });
+    await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
+      conversation_id: conv._id,
+    });
+  }
 }

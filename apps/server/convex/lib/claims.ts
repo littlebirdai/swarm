@@ -35,7 +35,7 @@ type SteerRequest =
         | { mode: "contested" };
     });
 
-export type CallerAuthorizedClaim = { holder: Id<"users"> } & (
+export type CallerAuthorizedClaim = { holder: Id<"users">; now?: number } & (
   | (SteerResource & SteerRequest)
   | (TerminalResource & ClaimRequest & TerminalAccess)
   | (TaskResource & ClaimRequest & TaskRequest)
@@ -46,12 +46,14 @@ export type CallerAuthorizedClaimUse = {
   holder: Id<"users">;
   token: number;
   conversationId?: Id<"conversations">;
+  now?: number;
 };
 
 export type CallerAuthorizedRevocation = {
   resource: ClaimResource;
   targetHolder: Id<"users">;
   token: number;
+  now?: number;
 };
 
 export const taskClaimsEnabled = () => process.env.SWARM_TASK_CLAIMS === "1";
@@ -237,7 +239,7 @@ export async function claim(
   input: CallerAuthorizedClaim,
 ): Promise<ClaimResult> {
   const row = await findClaim(ctx.db, input);
-  const now = Date.now();
+  const now = input.now ?? Date.now();
   const currentToken = row?.token ?? 0;
   const remainingMs = row?.holder === undefined ? 0 : row.lease_until - now;
   const held = { status: "held", token: currentToken, remainingMs } as const;
@@ -351,6 +353,7 @@ function checkHeldClaim(
   row: Doc<"claims"> | null,
   { resource, holder, token, conversationId }: CallerAuthorizedClaimUse,
   now: number,
+  ignoreTaskConversation = false,
 ): Lease | Refusal {
   if (
     resource.kind === "terminal" &&
@@ -363,8 +366,9 @@ function checkHeldClaim(
   if (row.token !== token) return { status: "stale_token" };
   if (row.holder !== holder) return { status: "wrong_holder" };
   if (
+    !ignoreTaskConversation &&
     resource.kind === "task" &&
-    conversationId !== undefined &&
+    (conversationId !== undefined || row.task?.conversation_id !== undefined) &&
     row.task?.conversation_id !== conversationId
   ) {
     return { status: "wrong_holder" };
@@ -379,7 +383,7 @@ export async function withHeldClaim<T, Ctx extends Pick<MutationCtx, "db">>(
   write: (ctx: Ctx) => T | Promise<T>,
 ): Promise<(Lease & { value: T }) | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
-  const result = checkHeldClaim(row, input, Date.now());
+  const result = checkHeldClaim(row, input, input.now ?? Date.now());
   if (result.status !== "held") return result;
   return { ...result, value: await write(ctx) };
 }
@@ -389,7 +393,7 @@ export async function renew(
   input: CallerAuthorizedClaimUse,
 ): Promise<Lease | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
-  const now = Date.now();
+  const now = input.now ?? Date.now();
   const result = checkHeldClaim(row, input, now);
   if (!row || result.status !== "held") return result;
 
@@ -404,9 +408,15 @@ export async function renew(
 async function clearHeldClaim(
   ctx: Pick<MutationCtx, "db">,
   input: CallerAuthorizedClaimUse,
+  ignoreTaskConversation = false,
 ): Promise<{ status: "cleared"; token: number } | Refusal> {
   const row = await findClaim(ctx.db, input.resource);
-  const result = checkHeldClaim(row, input, Date.now());
+  const result = checkHeldClaim(
+    row,
+    input,
+    input.now ?? Date.now(),
+    ignoreTaskConversation,
+  );
   if (result.status !== "held") return result;
   if (!row) return { status: "free" };
 
@@ -425,9 +435,14 @@ export function revoke(
   ctx: Pick<MutationCtx, "db">,
   input: CallerAuthorizedRevocation,
 ) {
-  return clearHeldClaim(ctx, {
-    resource: input.resource,
-    holder: input.targetHolder,
-    token: input.token,
-  });
+  return clearHeldClaim(
+    ctx,
+    {
+      resource: input.resource,
+      holder: input.targetHolder,
+      token: input.token,
+      now: input.now,
+    },
+    true,
+  );
 }

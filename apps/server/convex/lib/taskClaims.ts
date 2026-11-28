@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { resolveSessionConversation } from "./access";
@@ -23,7 +24,7 @@ export type TaskClaimRefusalReason =
   | "token_exhausted"
   | "invalid_request";
 
-type DbCtx = Pick<MutationCtx, "db">;
+type DbCtx = Pick<MutationCtx, "db"> & { scheduler?: MutationCtx["scheduler"] };
 
 export function taskClaimError(
   reason: TaskClaimRefusalReason,
@@ -87,6 +88,7 @@ export async function assertHeldTaskClaim(
     holder: Id<"users">;
     token: number;
     conversationId?: Id<"conversations">;
+    now?: number;
   },
 ): Promise<{ token: number; remainingMs: number }> {
   const res = await withHeldClaim(
@@ -95,6 +97,7 @@ export async function assertHeldTaskClaim(
       resource: { kind: "task", id: input.taskId },
       holder: input.holder,
       token: input.token,
+      now: input.now,
       ...(input.conversationId ? { conversationId: input.conversationId } : {}),
     },
     () => true,
@@ -118,12 +121,15 @@ export async function renewTaskClaim(
     holder: Id<"users">;
     token: number;
     conversationId?: Id<"conversations">;
+    now?: number;
   },
 ): Promise<{ token: number; leaseUntil: number; remainingMs: number }> {
+  const now = input.now ?? Date.now();
   const res = await renew(ctx, {
     resource: { kind: "task", id: input.taskId },
     holder: input.holder,
     token: input.token,
+    now,
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   });
   if (res.status !== "held") {
@@ -134,7 +140,7 @@ export async function renewTaskClaim(
   const held = res as { token: number; remainingMs: number };
   return {
     token: held.token,
-    leaseUntil: Date.now() + held.remainingMs,
+    leaseUntil: now + held.remainingMs,
     remainingMs: held.remainingMs,
   };
 }
@@ -147,12 +153,14 @@ export async function releaseTaskClaim(
     holder: Id<"users">;
     token: number;
     conversationId?: Id<"conversations">;
+    now?: number;
   },
 ): Promise<{ token: number }> {
   const res = await release(ctx, {
     resource: { kind: "task", id: input.taskId },
     holder: input.holder,
     token: input.token,
+    now: input.now,
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   });
   if (res.status !== "cleared") {
@@ -173,15 +181,49 @@ export async function releaseTaskClaimIfHeld(
 
 export async function releaseSessionTaskClaim(
   ctx: DbCtx,
-  conv: Pick<Doc<"conversations">, "_id" | "active_task_id"> | null | undefined,
+  conv:
+    | (Pick<Doc<"conversations">, "_id" | "active_task_id" | "user_id"> & {
+        owner_user_id?: Id<"users">;
+      })
+    | null
+    | undefined,
+  expectedHolder?: Id<"users">,
 ): Promise<void> {
   if (!conv?.active_task_id) return;
   const row = await findClaim(ctx.db, {
     kind: "task",
     id: conv.active_task_id,
   });
-  if (row && row.holder !== undefined && row.task?.conversation_id === conv._id)
+  const holderId = expectedHolder ?? conv.owner_user_id ?? conv.user_id;
+  if (
+    row &&
+    row.holder !== undefined &&
+    String(row.holder) === String(holderId) &&
+    row.task?.conversation_id === conv._id
+  ) {
     await clearClaim(ctx, row);
+  }
+}
+
+export async function resolveOwnedClaimConversation(
+  ctx: DbCtx,
+  holder: Id<"users">,
+  rawConversationId?: string,
+): Promise<Doc<"conversations"> | null> {
+  if (!rawConversationId) return null;
+  const conv = await resolveSessionConversation(ctx, holder, rawConversationId);
+  if (!conv) {
+    throw taskClaimError("wrong_holder", 0, "Conversation not found");
+  }
+  const ownerId = (conv as any).owner_user_id ?? conv.user_id;
+  if (String(ownerId) !== String(holder)) {
+    throw taskClaimError(
+      "wrong_holder",
+      0,
+      "Conversation belongs to another user",
+    );
+  }
+  return conv;
 }
 
 export async function assertTaskWriteWithoutToken(
@@ -196,32 +238,23 @@ export async function assertTaskWriteWithoutToken(
   const row = await findClaim(ctx.db, { kind: "task", id: input.task._id });
   if (!row) return;
   const now = input.now ?? Date.now();
-  if (row.holder !== undefined && row.lease_until > now) {
-    if (row.holder !== input.holder) {
+  if (row.holder !== undefined) {
+    if (row.lease_until <= now) {
       throw taskClaimError(
-        "wrong_holder",
+        "expired",
         row.token,
-        refusalMessage("wrong_holder", input.task.short_id),
+        refusalMessage("expired", input.task.short_id),
       );
     }
     if (
-      input.conversationId !== undefined &&
+      row.holder !== input.holder ||
+      input.conversationId === undefined ||
       row.task?.conversation_id !== input.conversationId
     ) {
       throw taskClaimError(
         "wrong_holder",
         row.token,
         refusalMessage("wrong_holder", input.task.short_id),
-      );
-    }
-    return;
-  }
-  if (row.holder !== undefined && row.lease_until <= now) {
-    if (input.conversationId !== undefined) {
-      throw taskClaimError(
-        "expired",
-        row.token,
-        refusalMessage("expired", input.task.short_id),
       );
     }
     return;
@@ -236,6 +269,97 @@ export async function assertTaskWriteWithoutToken(
       row.token,
       refusalMessage("free", input.task.short_id),
     );
+  }
+}
+
+export async function assertTaskWriteClaim(
+  ctx: DbCtx,
+  input: {
+    task: Pick<Doc<"tasks">, "_id" | "short_id" | "status">;
+    holder: Id<"users">;
+    claimToken?: number;
+    conversationId?: Id<"conversations">;
+    now?: number;
+  },
+): Promise<void> {
+  if (!taskClaimsEnabled()) return;
+  if (input.claimToken !== undefined) {
+    await assertHeldTaskClaim(ctx, {
+      taskId: input.task._id,
+      shortId: input.task.short_id,
+      holder: input.holder,
+      token: input.claimToken,
+      conversationId: input.conversationId,
+      now: input.now,
+    });
+    return;
+  }
+  await assertTaskWriteWithoutToken(ctx, {
+    task: input.task,
+    holder: input.holder,
+    conversationId: input.conversationId,
+    now: input.now,
+  });
+}
+
+export async function assertTaskMutationClaim(
+  ctx: DbCtx,
+  task: Pick<Doc<"tasks">, "_id" | "short_id" | "status">,
+  holder: Id<"users">,
+  args: { claim_token?: number; conversation_id?: string },
+  now: number,
+  releaseOnPass?: () => Promise<void>,
+): Promise<Id<"conversations"> | undefined> {
+  if (!taskClaimsEnabled()) return undefined;
+  const conv = await resolveOwnedClaimConversation(
+    ctx,
+    holder,
+    args.conversation_id,
+  );
+  await assertTaskWriteClaim(ctx, {
+    task,
+    holder,
+    claimToken: args.claim_token,
+    conversationId: conv?._id,
+    now,
+  });
+  if (releaseOnPass) {
+    await releaseTaskClaimIfHeld(ctx, task._id);
+    await releaseOnPass();
+  }
+  return conv?._id;
+}
+
+export async function resolveTaskUpdateConv(
+  ctx: DbCtx,
+  userId: Id<"users">,
+  rawConversationId?: string,
+): Promise<Doc<"conversations"> | null> {
+  if (!rawConversationId) return null;
+  return taskClaimsEnabled()
+    ? await resolveOwnedClaimConversation(ctx, userId, rawConversationId)
+    : await resolveSessionConversation(ctx, userId, rawConversationId);
+}
+
+export async function revokeWebTaskClaim(
+  ctx: DbCtx,
+  taskId: Id<"tasks">,
+  nextStatus?: string,
+  reviewVerdict?: string,
+  releaseBound?: () => Promise<void>,
+): Promise<void> {
+  if (!taskClaimsEnabled()) return;
+  if (nextStatus !== undefined || reviewVerdict) {
+    await releaseTaskClaimIfHeld(ctx, taskId);
+  }
+  if (
+    releaseBound &&
+    (nextStatus === "done" ||
+      nextStatus === "dropped" ||
+      nextStatus === "open" ||
+      nextStatus === "backlog")
+  ) {
+    await releaseBound();
   }
 }
 
@@ -288,50 +412,23 @@ export async function claimTaskWithLease<Released>(
     existing.holder !== undefined &&
     existing.lease_until > now;
 
-  if (isLive && existing.holder === input.holder && sameSession) {
-    if (matchesRetry) {
-      if (
-        input.conv &&
-        String(input.conv.active_task_id ?? "") !== String(input.task._id)
-      ) {
-        await releaseSessionTaskClaim(ctx, input.conv);
-        await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
-      }
-      return {
-        released: [],
-        claimToken: existing.token,
-        leaseUntil: existing.lease_until,
-      };
-    }
-    const renewed = await renew(ctx, {
-      resource: { kind: "task", id: input.task._id },
-      holder: input.holder,
-      token: existing.token,
-      ...(input.conv ? { conversationId: input.conv._id } : {}),
-    });
-    if (renewed.status !== "held") {
-      throw taskClaimError(
-        "stale_token",
-        existing.token,
-        refusalMessage("stale_token", input.task.short_id),
-      );
-    }
+  if (isLive && existing && matchesRetry) {
     if (
       input.conv &&
       String(input.conv.active_task_id ?? "") !== String(input.task._id)
     ) {
-      await releaseSessionTaskClaim(ctx, input.conv);
+      await releaseSessionTaskClaim(ctx, input.conv, input.holder);
       await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
     }
     return {
       released: [],
-      claimToken: renewed.token,
-      leaseUntil: Date.now() + renewed.remainingMs,
+      claimToken: existing.token,
+      leaseUntil: existing.lease_until,
     };
   }
 
   const released: Released[] = [];
-  if (isLive && existing.holder !== undefined) {
+  if (isLive && existing && existing.holder !== undefined) {
     const prevConv = existing.task?.conversation_id
       ? await ctx.db.get(existing.task.conversation_id)
       : null;
@@ -347,7 +444,7 @@ export async function claimTaskWithLease<Released>(
         existing.lease_until - now,
       );
     }
-    if (prevConv) {
+    if (prevConv && String(prevConv._id) !== String(input.conv?._id ?? "")) {
       if (input.ownerRefOf) released.push(input.ownerRefOf(prevConv, true));
       if (String(prevConv.active_task_id ?? "") === String(input.task._id)) {
         await ctx.db.patch(prevConv._id, { active_task_id: undefined });
@@ -357,6 +454,7 @@ export async function claimTaskWithLease<Released>(
       resource: { kind: "task", id: input.task._id },
       targetHolder: existing.holder,
       token: existing.token,
+      now,
     });
     if (revoked.status !== "cleared") {
       throw taskClaimError(
@@ -383,6 +481,7 @@ export async function claimTaskWithLease<Released>(
     kind: "task",
     id: input.task._id,
     holder: input.holder,
+    now,
     requestId: input.requestId ?? crypto.randomUUID(),
     expectedToken: currentToken,
     purpose:
@@ -427,14 +526,23 @@ export async function claimTaskWithLease<Released>(
     input.conv &&
     String(input.conv.active_task_id ?? "") !== String(input.task._id)
   ) {
-    await releaseSessionTaskClaim(ctx, input.conv);
+    await releaseSessionTaskClaim(ctx, input.conv, input.holder);
     await ctx.db.patch(input.conv._id, { active_task_id: input.task._id });
   }
+
+  await ctx.scheduler?.runAfter(
+    res.remainingMs,
+    (internal as any).taskClaims.expire,
+    {
+      task_id: input.task._id,
+      token: res.token,
+    },
+  );
 
   return {
     released,
     claimToken: res.token,
-    leaseUntil: Date.now() + res.remainingMs,
+    leaseUntil: now + res.remainingMs,
   };
 }
 
@@ -452,6 +560,7 @@ export async function handleTaskUpdateClaim(
     take?: boolean;
     now: number;
     claimStarted?: boolean;
+    checkLegacyBound?: () => Promise<unknown[]>;
     releaseBound: () => Promise<void>;
   },
 ): Promise<{ claimToken: number; leaseUntil: number } | null> {
@@ -463,52 +572,39 @@ export async function handleTaskUpdateClaim(
     const res = await claimTaskWithLease(ctx, {
       task,
       holder,
-      conv: null,
+      conv,
       take: input.take === true,
       now,
       expectedToken: claimToken,
       requestId: input.requestId,
       purpose: input.purpose,
+      checkLegacyBound: input.checkLegacyBound,
     });
     return { claimToken: res.claimToken, leaseUntil: res.leaseUntil };
   }
+  await assertTaskWriteClaim(ctx, {
+    task,
+    holder,
+    claimToken,
+    conversationId: conv?._id,
+    now,
+  });
   const releasesClaim =
     nextStatus === "done" ||
     nextStatus === "dropped" ||
     nextStatus === "in_review" ||
-    (nextStatus === "open" && task.status === "in_progress");
-  if (claimToken !== undefined) {
-    await assertHeldTaskClaim(ctx, {
-      taskId: task._id,
-      shortId: task.short_id,
-      holder,
-      token: claimToken,
-      conversationId: conv?._id,
-    });
-    if (releasesClaim) {
-      await releaseTaskClaimIfHeld(ctx, task._id);
-      if (
-        nextStatus === "open" ||
-        nextStatus === "done" ||
-        nextStatus === "dropped"
-      ) {
-        await input.releaseBound();
-      }
-    }
-    return null;
-  }
-  if (!reviewVerdict && releasesClaim) {
-    await assertTaskWriteWithoutToken(ctx, {
-      task,
-      holder,
-      conversationId: conv?._id,
-      now,
-    });
+    nextStatus === "open" ||
+    reviewVerdict === "approve" ||
+    reviewVerdict === "changes" ||
+    reviewVerdict === "reject";
+  if (releasesClaim) {
     await releaseTaskClaimIfHeld(ctx, task._id);
     if (
       nextStatus === "open" ||
       nextStatus === "done" ||
-      nextStatus === "dropped"
+      nextStatus === "dropped" ||
+      reviewVerdict === "approve" ||
+      reviewVerdict === "reject"
     ) {
       await input.releaseBound();
     }
@@ -521,10 +617,8 @@ async function resolveClaimConversationId(
   userId: Id<"users">,
   rawConversationId?: string,
 ): Promise<Id<"conversations"> | undefined> {
-  if (!rawConversationId) return undefined;
-  const conv = await resolveSessionConversation(ctx, userId, rawConversationId);
-  if (!conv) throw taskClaimError("wrong_holder", 0, "Conversation not found");
-  return conv._id;
+  return (await resolveOwnedClaimConversation(ctx, userId, rawConversationId))
+    ?._id;
 }
 
 export async function renewTaskHeartbeat(
@@ -576,6 +670,37 @@ export async function renewTaskHeartbeat(
     lease_until: renewed.leaseUntil,
     remaining_ms: renewed.remainingMs,
   };
+}
+
+export async function renewLiveConversationTaskClaim(
+  ctx: DbCtx,
+  holder: Id<"users">,
+  conversationId: Id<"conversations">,
+  now: number,
+): Promise<void> {
+  if (!taskClaimsEnabled()) return;
+  const conv = await ctx.db.get(conversationId);
+  if (!conv?.active_task_id) return;
+  const row = await findClaim(ctx.db, {
+    kind: "task",
+    id: conv.active_task_id,
+  });
+  if (
+    !row ||
+    row.holder === undefined ||
+    String(row.holder) !== String(holder) ||
+    row.task?.conversation_id !== conversationId ||
+    row.lease_until <= now
+  ) {
+    return;
+  }
+  await renewTaskClaim(ctx, {
+    taskId: conv.active_task_id,
+    holder,
+    token: row.token,
+    conversationId,
+    now,
+  });
 }
 
 export async function releaseTaskWithClaim(

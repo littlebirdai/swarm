@@ -19,7 +19,9 @@ import { api, internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessTask, resolveSessionConversation } from "./lib/access";
-import { effectiveTasksForReadiness, readinessLookups } from "./lib/taskGraph";
+import { taskClaimsEnabled } from "./lib/claims";
+import { resolveOwnedClaimConversation } from "./lib/taskClaims";
+import { readinessLookups } from "./lib/taskGraph";
 import {
   assigneeNamesFor,
   heldError,
@@ -47,6 +49,8 @@ export type ClaimResult = {
     title: string | null;
     live: boolean;
   }>;
+  claim_token?: number;
+  lease_until?: number;
   /** Candidates refused at claim time, with the reason. */
   skipped: Array<{ short_id: string; reason: string }>;
   /** More claimable rows exist past the candidates tried: narrow the filters. */
@@ -96,7 +100,9 @@ async function claimantOf(
   conversationId: string | undefined,
 ): Promise<Claimant> {
   const conv = conversationId
-    ? await resolveSessionConversation(ctx, userId, conversationId)
+    ? taskClaimsEnabled()
+      ? await resolveOwnedClaimConversation(ctx, userId, conversationId)
+      : await resolveSessionConversation(ctx, userId, conversationId)
     : null;
   // A session the server cannot find yet would claim as nobody: the start
   // drops an unresolvable link, so the task would leave the queue unowned.
@@ -212,14 +218,11 @@ export const claimNextReady = internalMutation({
     for (const row of rows)
       if (row && (await canAccessTask(ctx, auth.userId, row)))
         visible.push(row);
-    const [lookupsFor, effective] = await Promise.all([
-      readinessLookups(ctx, visible),
-      effectiveTasksForReadiness(ctx, visible),
-    ]);
+    const lookupsFor = await readinessLookups(ctx, visible);
     const skipped: ClaimResult["skipped"] = [];
     for (let i = 0; i < visible.length; i++) {
       const task = visible[i];
-      const verdict = readinessOf(effective[i], {
+      const verdict = readinessOf(task, {
         ...lookupsFor(task),
         viewer: claimant.userId,
         viewerSession: claimant.session,
@@ -251,6 +254,12 @@ export const claimNextReady = internalMutation({
           plan_id: started.plan_id,
           assigned_role: started.assigned_role,
           released_owners: started.released_owners,
+          ...(started.claim_token !== undefined
+            ? {
+                claim_token: started.claim_token,
+                lease_until: started.lease_until,
+              }
+            : {}),
           skipped,
         };
       } catch (err) {

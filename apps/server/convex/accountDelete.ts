@@ -10,6 +10,7 @@ import {
 } from "./lib/terminalWatchRows";
 import { deleteBookmarkWithRevision } from "./bookmarkViewWrites";
 import { nextTerminalControl } from "./lib/claims";
+import { releaseSessionTaskClaim } from "./lib/taskClaims";
 
 // Deleting an account runs in budgeted background passes: an account with a
 // few hundred sessions holds far more rows than one mutation can delete inside
@@ -162,6 +163,7 @@ export async function purgeAccountPass(
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .take(CONVERSATIONS_PER_PASS);
   for (const conv of conversations) {
+    if (conv.active_task_id) await releaseSessionTaskClaim(ctx, conv, userId);
     await ctx.db.delete(conv._id);
     await ctx.scheduler.runAfter(
       0,

@@ -41,17 +41,12 @@ import {
   toConvexAgentType,
 } from "@codecast/agent-clients/agentClients";
 import { inlineForeignText } from "@codecast/fence/fence";
-import {
-  blockersHoldingBack,
-  readinessOf,
-  topologicalOrder,
-} from "@codecast/tasks/graph";
+import { blockersHoldingBack, readinessOf } from "@codecast/tasks/graph";
 import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
 import { isStaleTask } from "@codecast/tasks/frontier";
 import {
   assertDependencyEdges,
   buildDependencyChain,
-  effectiveTasksForReadiness,
   offFrontierReason,
   openBlockersOf,
   orderFrontier,
@@ -65,10 +60,13 @@ import {
 } from "./lib/taskGraph";
 import { taskClaimsEnabled } from "./lib/claims";
 import {
+  assertTaskMutationClaim,
   handleTaskUpdateClaim,
   releaseTaskClaimIfHeld,
   releaseTaskWithClaim,
   renewTaskHeartbeat,
+  resolveTaskUpdateConv,
+  revokeWebTaskClaim,
 } from "./lib/taskClaims";
 import {
   addWaitsAtCreate,
@@ -206,8 +204,11 @@ import {
   changeSessionOf,
   claimTaskOwnership,
   isSessionWorking,
+  legacyBoundReleaser,
+  releaseBoundSessions,
   type TaskOwnerRef,
 } from "./lib/taskOwner";
+export { releaseBoundSessions };
 import { changeGuideInputValidator } from "./lib/changeGuideValidator";
 import { runWorkflowOf } from "./lib/runGraph";
 export { canAccessTask };
@@ -759,11 +760,16 @@ export async function moveTaskStatus(
   // The fake test db patches the row in place: afterStatusMove reads the old status.
   const before = { ...task };
   await patchTask(ctx, task, updates);
-  if (
-    taskClaimsEnabled() &&
-    (next === "done" || next === "dropped" || next === "open")
-  ) {
+  if (taskClaimsEnabled() && next !== "in_progress") {
     await releaseTaskClaimIfHeld(ctx, task._id);
+    if (
+      next === "open" ||
+      next === "done" ||
+      next === "dropped" ||
+      next === "backlog"
+    ) {
+      await releaseBoundSessions(ctx, task, o.conversationId);
+    }
   }
   await afterStatusMove(ctx, before, next, o.actorUserId, o.conversationId);
   return moved;
@@ -1429,33 +1435,6 @@ async function noteMovedPastHold(
     },
     actorId,
   );
-}
-
-/** Release every session bound to a task that just closed, so none is left
- *  on a closed task: the task's linked sessions and `conversationId` (the
- *  closing session, which may not be linked). The binding ended, so a session
- *  held only for it returns to its starter (S35). */
-export async function releaseBoundSessions(
-  ctx: any,
-  task: any,
-  conversationId?: Id<"conversations">,
-): Promise<void> {
-  if (taskClaimsEnabled()) await releaseTaskClaimIfHeld(ctx, task._id);
-  const ids = new Set(
-    [
-      ...(task.conversation_ids ?? []),
-      ...(conversationId ? [conversationId] : []),
-    ].map(String),
-  );
-  for (const convId of ids) {
-    const conv: any = await ctx.db.get(convId as Id<"conversations">);
-    if (!conv || String(conv.active_task_id ?? "") !== String(task._id))
-      continue;
-    await ctx.db.patch(conv._id, { active_task_id: undefined });
-    await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
-      conversation_id: conv._id,
-    });
-  }
 }
 
 /**
@@ -2778,12 +2757,9 @@ async function listTasksCore(
   );
   // Every row carries its verdict and open blockers, so the CLI's "blocked"
   // tag and counts render from the rule, never from a raw blocked_by.
-  const [lookupsOf, effectiveResult] = await Promise.all([
-    lookupsFor ? Promise.resolve(lookupsFor) : readinessLookups(ctx, result),
-    args.ready
-      ? Promise.resolve(result)
-      : effectiveTasksForReadiness(ctx, result, now),
-  ]);
+  const lookupsOf = lookupsFor
+    ? lookupsFor
+    : await readinessLookups(ctx, result);
   const rows = result.map((t: any, i: number) => {
     const { statusOf, parentStatusOf } = lookupsOf(t);
     return {
@@ -2801,7 +2777,7 @@ async function listTasksCore(
       // A ready page holds only rows readyTasks already judged ready.
       ready: args.ready
         ? true
-        : readinessOf(effectiveResult[i], {
+        : readinessOf(t, {
             statusOf,
             parentStatusOf,
             ...readiness,
@@ -3087,9 +3063,11 @@ export const update = mutation({
     // Link conversation if provided. Unresolvable session ref = apply the
     // update without the link, never reject the update itself (see
     // resolveSessionConversation).
-    const conv = args.conversation_id
-      ? await resolveSessionConversation(ctx, auth.userId, args.conversation_id)
-      : null;
+    const conv = await resolveTaskUpdateConv(
+      ctx,
+      auth.userId,
+      args.conversation_id,
+    );
     // A session handing off a task held by a decision (L5): the evidence is
     // recorded and the task stays at its station, where the person's answer
     // moves it. Any other session move of a held task is refused below.
@@ -3433,6 +3411,13 @@ export const update = mutation({
       take: args.take,
       now,
       claimStarted: claimResult !== null,
+      checkLegacyBound: legacyBoundReleaser(
+        ctx,
+        task,
+        conv,
+        args.take === true,
+        now,
+      ),
       releaseBound: () => releaseBoundSessions(ctx, task, conv?._id),
     });
     if (handledClaim) claimResult = handledClaim;
@@ -5559,13 +5544,11 @@ export async function updateTaskAs(
 
   await recordTaskChange(ctx, task._id, byUser(userId), trackFields, now);
 
+  await revokeWebTaskClaim(ctx, task._id, nextStatus, args.review_verdict);
   await patchTask(ctx, task, updates);
-  if (
-    taskClaimsEnabled() &&
-    (nextStatus === "done" || nextStatus === "dropped" || nextStatus === "open")
-  ) {
-    await releaseTaskClaimIfHeld(ctx, task._id);
-  }
+  await revokeWebTaskClaim(ctx, task._id, nextStatus, undefined, () =>
+    releaseBoundSessions(ctx, task),
+  );
   await schedulePushKeptTask(ctx, task, updates);
   if (args.duplicate_of === "")
     await afterDuplicateCleared(ctx, userId, task, nextStatus ?? task.status);
@@ -5786,10 +5769,12 @@ export async function spawnSessionForTask(
   await addConversationToWorkItem(ctx, userId, "task", task, conversationId);
   // The launcher chose this session to do the work: it becomes the task's one
   // owner, and any earlier bound session lets go.
-  await claimTaskOwnership(ctx, await ctx.db.get(conversationId), task, {
-    take: true,
-    now,
-  });
+  const claimed = await claimTaskOwnership(
+    ctx,
+    await ctx.db.get(conversationId),
+    task,
+    { take: true, now },
+  );
   await ctx.scheduler.runAfter(0, internal.sessionOwnership.reconcileHold, {
     conversation_id: conversationId,
   });
@@ -5848,7 +5833,13 @@ export async function spawnSessionForTask(
     await schedulePushComment(ctx, task, commentId);
   }
 
-  return { conversationId, sessionId };
+  return {
+    conversationId,
+    sessionId,
+    ...(claimed.claimToken !== undefined
+      ? { claim_token: claimed.claimToken, lease_until: claimed.leaseUntil }
+      : {}),
+  };
 }
 
 export const assignToAgent = mutation({
@@ -6293,10 +6284,16 @@ export const webPromote = mutation({
   },
 });
 
+const claimRefArgs = {
+  claim_token: v.optional(v.number()),
+  conversation_id: v.optional(v.string()),
+};
+
 export const incrementRetryCount = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
     const { auth, task } = await requireAccessibleTaskByToken(
@@ -6306,6 +6303,7 @@ export const incrementRetryCount = mutation({
     );
 
     const now = Date.now();
+    await assertTaskMutationClaim(ctx, task, auth.userId, args, now);
     const newRetryCount = ((task as any).retry_count || 0) + 1;
     const maxRetries = (task as any).max_retries ?? 3;
 
@@ -6359,6 +6357,7 @@ export const updateExecutionStatus = mutation({
       v.literal("needs_context"),
     ),
     execution_comment: v.optional(v.string()),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
     const { auth, task } = await requireAccessibleTaskByToken(
@@ -6368,6 +6367,7 @@ export const updateExecutionStatus = mutation({
     );
 
     const now = Date.now();
+    await assertTaskMutationClaim(ctx, task, auth.userId, args, now);
     await ctx.db.patch(task._id, {
       execution_status: args.execution_status,
       updated_at: now,
@@ -6516,6 +6516,7 @@ export const scheduleRetry = mutation({
   args: {
     api_token: v.string(),
     short_id: v.string(),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
     const { auth, task } = await requireAccessibleTaskByToken(
@@ -6525,6 +6526,9 @@ export const scheduleRetry = mutation({
     );
 
     const now = Date.now();
+    await assertTaskMutationClaim(ctx, task, auth.userId, args, now, () =>
+      releaseBoundSessions(ctx, task),
+    );
     const newAttemptCount = (task.attempt_count || 0) + 1;
 
     await patchTask(ctx, task, {
@@ -6571,9 +6575,8 @@ async function renewHeartbeatMutation(
     conversationRef: args.conversation_id,
     writeHeartbeat: async () => {
       const updates: any = { last_heartbeat: Date.now() };
-      if (args.progress_pct !== undefined) {
+      if (args.progress_pct !== undefined)
         updates.progress_pct = args.progress_pct;
-      }
       await patchTask(ctx, task, updates);
     },
   });
@@ -6584,8 +6587,7 @@ export const heartbeat = mutation({
     api_token: v.string(),
     short_id: v.string(),
     progress_pct: v.optional(v.number()),
-    claim_token: v.optional(v.number()),
-    conversation_id: v.optional(v.string()),
+    ...claimRefArgs,
   },
   handler: async (ctx, args) => {
     return await renewHeartbeatMutation(ctx, args);
@@ -6601,6 +6603,7 @@ export const renew = mutation({
     progress_pct: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAccessibleTaskByToken(ctx, args.api_token, args.short_id);
     if (!taskClaimsEnabled())
       return { success: false as const, status: "disabled" as const };
     return await renewHeartbeatMutation(ctx, args);
@@ -6615,25 +6618,24 @@ export const release = mutation({
     conversation_id: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (!taskClaimsEnabled())
-      return { success: false as const, status: "disabled" as const };
     const { auth, task } = await requireAccessibleTaskByToken(
       ctx,
       args.api_token,
       args.short_id,
     );
+    if (!taskClaimsEnabled())
+      return { success: false as const, status: "disabled" as const };
     return await releaseTaskWithClaim(ctx, {
       task,
       holder: auth.userId,
       claimToken: args.claim_token,
       conversationRef: args.conversation_id,
-      releaseBound: (conversationId) =>
-        releaseBoundSessions(ctx, task, conversationId),
-      reopen: (conversationId) =>
+      releaseBound: (c) => releaseBoundSessions(ctx, task, c),
+      reopen: (c) =>
         moveTaskStatus(ctx, task, "open", {
           actorUserId: auth.userId,
-          actorType: conversationId ? "agent" : "user",
-          conversationId,
+          actorType: c ? "agent" : "user",
+          conversationId: c,
         }),
     });
   },

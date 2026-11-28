@@ -32,7 +32,6 @@ import {
   type AuthorizedWorkspace,
 } from "./access";
 import { notFound } from "./auth";
-import { findClaim, taskClaimsEnabled } from "./claims";
 import { recordTaskChange, type TaskChangeBy } from "./taskHistory";
 
 type ReadCtx = Pick<QueryCtx, "db">;
@@ -355,44 +354,14 @@ export function buildDependencyChain<T extends CriticalPathNode>(
   };
 }
 
-export async function effectiveTasksForReadiness<T extends Doc<"tasks">>(
-  ctx: ReadCtx,
-  page: T[],
-  now = Date.now(),
-): Promise<T[]> {
-  if (!taskClaimsEnabled() || page.length === 0) return page;
-  const candidates = page.filter(
-    (t) => t.status === "in_progress" || t.status === "open",
-  );
-  if (candidates.length === 0) return page;
-  const claims = await Promise.all(
-    candidates.map((t) => findClaim(ctx.db, { kind: "task", id: t._id })),
-  );
-  const byId = new Map<string, Doc<"claims"> | null>();
-  candidates.forEach((t, i) => byId.set(String(t._id), claims[i]));
-  return page.map((t) => {
-    const claim = byId.get(String(t._id));
-    if (!claim) return t;
-    const live = claim.holder !== undefined && claim.lease_until > now;
-    if (t.status === "in_progress" && !live) {
-      return { ...t, status: "open" as const };
-    }
-    if (t.status === "open" && live) {
-      return { ...t, status: "in_progress" as const };
-    }
-    return t;
-  });
-}
-
 export async function offFrontierReason(
   ctx: ReadCtx,
   task: Doc<"tasks">,
 ): Promise<NotReadyReason | null> {
-  const [effective] = await effectiveTasksForReadiness(ctx, [task]);
-  if (effective.status !== "open") return null;
+  if (task.status !== "open") return null;
   const r = readinessOf(
-    { ...effective, ephemeral: false },
-    { ...(await taskLookups(ctx, effective)), viewer: null },
+    { ...task, ephemeral: false },
+    { ...(await taskLookups(ctx, task)), viewer: null },
   );
   return r.ready || r.reason === "blocked" || r.reason === "superseded"
     ? null
@@ -405,13 +374,10 @@ export async function readyTasks<T extends Doc<"tasks">>(
   page: T[],
   opts: Pick<ReadinessOptions, "viewer" | "viewerSession" | "includeSubtasks">,
 ) {
-  const [lookupsFor, effective] = await Promise.all([
-    readinessLookups(ctx, page),
-    effectiveTasksForReadiness(ctx, page),
-  ]);
+  const lookupsFor = await readinessLookups(ctx, page);
   return {
     ready: page.filter(
-      (t, i) => readinessOf(effective[i], { ...lookupsFor(t), ...opts }).ready,
+      (t) => readinessOf(t, { ...lookupsFor(t), ...opts }).ready,
     ),
     lookupsFor,
   };
