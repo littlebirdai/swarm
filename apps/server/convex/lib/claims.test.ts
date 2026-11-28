@@ -22,12 +22,13 @@ afterEach(() => setSystemTime());
 
 async function setup() {
   const t = serverTest();
-  const { ana, ben, conversation } = await t.run(async ({ db }) => {
+  const { ana, ben, conversation, task } = await t.run(async ({ db }) => {
     const fixtures = fixtureRows(db, "claims");
     const ana = await fixtures.user();
     const ben = await fixtures.user();
     const conversation = await fixtures.conversation(ana);
-    return { ana, ben, conversation };
+    const task = await fixtures.task(ana);
+    return { ana, ben, conversation, task };
   });
   const baton = { kind: "steer", id: conversation } as const;
   const pane = {
@@ -35,6 +36,7 @@ async function setup() {
     id: conversation,
     paneInstance: 1,
   } as const;
+  const taskRes = { kind: "task", id: task } as const;
 
   return {
     t,
@@ -42,6 +44,7 @@ async function setup() {
     ben,
     baton,
     pane,
+    taskRes,
     claimPane: (
       holder = ana,
       requestId = "first",
@@ -576,4 +579,71 @@ test("the final safe token cannot roll over", async () => {
   expect(await f.t.query(({ db }) => readClaimToken(db, f.pane))).toBe(
     Number.MAX_SAFE_INTEGER,
   );
+});
+
+test("task claims fence tokens, renew, expire, and leave steer and terminal claims unaffected", async () => {
+  const f = await setup();
+  await f.t.run((ctx) =>
+    claim(ctx, {
+      ...f.baton,
+      steering: { mode: "contested" },
+      holder: f.ana,
+      requestId: "steer-1",
+      expectedToken: 0,
+    }),
+  );
+  await f.claimPane(f.ana, "term-1", 0);
+
+  expect(
+    await f.t.run((ctx) =>
+      claim(ctx, {
+        ...f.taskRes,
+        holder: f.ana,
+        requestId: "task-1",
+        expectedToken: 0,
+        purpose: "ownership",
+      }),
+    ),
+  ).toEqual({ status: "held", token: 1, remainingMs: 300_000 });
+
+  advance(100_000);
+  expect(
+    await f.t.run((ctx) =>
+      renew(ctx, { resource: f.taskRes, holder: f.ana, token: 1 }),
+    ),
+  ).toEqual({ status: "held", token: 1, remainingMs: 300_000 });
+
+  expect(
+    await f.t.run((ctx) =>
+      renew(ctx, { resource: f.taskRes, holder: f.ana, token: 99 }),
+    ),
+  ).toEqual({ status: "stale_token" });
+
+  advance(400_000);
+  expect(
+    await f.t.run((ctx) =>
+      claim(ctx, {
+        ...f.taskRes,
+        holder: f.ben,
+        requestId: "task-2",
+        expectedToken: 1,
+        purpose: "takeover",
+      }),
+    ),
+  ).toEqual({ status: "held", token: 2, remainingMs: 300_000 });
+
+  expect(
+    await f.t.run((ctx) =>
+      release(ctx, { resource: f.taskRes, holder: f.ana, token: 1 }),
+    ),
+  ).toEqual({ status: "stale_token" });
+  expect(
+    await f.t.run((ctx) =>
+      release(ctx, { resource: f.taskRes, holder: f.ben, token: 2 }),
+    ),
+  ).toEqual({ status: "cleared", token: 2 });
+  expect(await f.t.query(({ db }) => readClaimToken(db, f.taskRes))).toBe(2);
+
+  expect(await f.t.query(({ db }) => readClaimToken(db, f.baton))).toBe(1);
+  expect(await f.t.query(({ db }) => readClaimToken(db, f.pane))).toBe(1);
 });
