@@ -130,6 +130,7 @@ import {
 } from "../lib/hostedApproval";
 import { GROUP_WINDOW_MS } from "@codecast/chat";
 import { useNowWhen } from "../hooks/useCoarseNow";
+import { useGuardedBooleanState } from "../hooks/use-guarded-boolean-state";
 import { isAskTool } from "@codecast/render/toolKinds";
 import { resolveSessionSkills } from "../lib/sessionSkills";
 import { GOAL_COMMAND } from "../lib/builtinCommands";
@@ -709,12 +710,8 @@ const ConversationViewInner = function ConversationView(
     [rawFallbackStickyContent],
   );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [userScrolled, _setUserScrolled] = useState(false);
-  const userScrolledRef = useRef(false);
-  const setUserScrolled = useCallback((v: boolean) => {
-    userScrolledRef.current = v;
-    _setUserScrolled(v);
-  }, []);
+  const [userScrolled, setUserScrolled, userScrolledRef, resetUserScrolled] =
+    useGuardedBooleanState(false);
   // Unsigned share-link visitors stay at the top until they choose the tail
   // (jump-to-end / scroll-to-bottom). End-follow and the size-reconciler pin
   // would otherwise yank them to the latest message as rows measure in.
@@ -726,12 +723,14 @@ const ConversationViewInner = function ConversationView(
     guestStayAtTopRef.current = v;
     _setGuestStayAtTop(v);
   }, []);
-  const [isNearTop, setIsNearTop] = useState(true);
+  const [isNearTop, setIsNearTop, , resetIsNearTop] =
+    useGuardedBooleanState(true);
   // Position twin of isNearTop for the bottom edge (200px band). The jump
   // buttons hide inside these bands — the userScrolled gesture latch alone
   // showed the down arrow on a 2px nudge while still parked at the bottom.
-  const [isNearBottom, setIsNearBottom] = useState(true);
-  const [isScrollable, setIsScrollable] = useState(false);
+  const [isNearBottom, setIsNearBottom, , resetIsNearBottom] =
+    useGuardedBooleanState(true);
+  const [isScrollable, setIsScrollable] = useGuardedBooleanState(false);
   // Guests read in simple view (DashboardLayout's guest branch), so they get
   // its calmer condensed default too — without owning a simple_view pref.
   const resolveDefaultDensity = useCallback(
@@ -1058,11 +1057,10 @@ const ConversationViewInner = function ConversationView(
   const [_trackedConvId, _setTrackedConvId] = useState(stableConvKey);
   if (_trackedConvId !== stableConvKey) {
     _setTrackedConvId(stableConvKey);
-    _setUserScrolled(false);
-    userScrolledRef.current = false;
+    resetUserScrolled(false);
     setGuestStayAtTop(guest && !targetMessageId && !propHighlightQuery);
-    setIsNearTop(true);
-    setIsNearBottom(true);
+    resetIsNearTop(true);
+    resetIsNearBottom(true);
     setDensityState(
       (conversation?._id && DENSITY_BY_CONVERSATION.get(conversation._id)) ||
         resolveDefaultDensity(),
