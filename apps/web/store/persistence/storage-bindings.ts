@@ -1,3 +1,4 @@
+import type { AuthPrincipalTracker } from "@platform/auth/web";
 import {
   cacheEvictionsFor,
   withCacheEvictions,
@@ -11,11 +12,28 @@ export function createLazySqliteStorage(
     CacheStorage,
     "outboxAccountId" | "persistPendingMessageChanges" | "setHydrating"
   >,
+  auth: Pick<AuthPrincipalTracker, "current" | "epoch">,
 ): () => CacheStorage {
+  type QueuedCall = {
+    owner: { principal: string | null; authEpoch: number } | null;
+    run: (storage: CacheStorage) => void;
+  };
   let instance: CacheStorage | null = null;
   let loaded: CacheStorage | null = null;
   let loading: Promise<CacheStorage> | null = null;
-  const queuedSync: Array<(storage: CacheStorage) => void> = [];
+  const queuedSync: QueuedCall[] = [];
+
+  const queueForOwner = (run: QueuedCall["run"]) => {
+    queuedSync.push({
+      owner: { principal: auth.current(), authEpoch: auth.epoch() },
+      run,
+    });
+    void ensureLoaded().catch(() => {});
+  };
+
+  const stillOwned = ({ owner }: QueuedCall) =>
+    owner === null ||
+    (owner.principal === auth.current() && owner.authEpoch === auth.epoch());
 
   const ensureLoaded = (): Promise<CacheStorage> => {
     if (loaded) return Promise.resolve(loaded);
@@ -24,7 +42,9 @@ export function createLazySqliteStorage(
         .then((mod) => {
           const storage = mod.getSqliteCacheStorage();
           const pending = queuedSync.splice(0, queuedSync.length);
-          for (const fn of pending) fn(storage);
+          for (const call of pending) {
+            if (stillOwned(call)) call.run(storage);
+          }
           loaded = storage;
           return storage;
         })
@@ -46,7 +66,10 @@ export function createLazySqliteStorage(
           syncFallback.setHydrating(value);
           if (loaded) loaded.setHydrating(value);
           else {
-            queuedSync.push((storage) => storage.setHydrating(value));
+            queuedSync.push({
+              owner: null,
+              run: (storage) => storage.setHydrating(value),
+            });
             void ensureLoaded().catch(() => {});
           }
         },
@@ -57,12 +80,11 @@ export function createLazySqliteStorage(
             state as Record<string, any>,
           );
           const filtered = withoutEvictionPatches(patches, evictions);
-          queuedSync.push((storage) =>
+          queueForOwner((storage) =>
             withCacheEvictions(evictions, () =>
               storage.writePatches(filtered, state),
             ),
           );
-          void ensureLoaded().catch(() => {});
         },
         async flushPersistence() {
           const storage = await ensureLoaded();
@@ -79,24 +101,22 @@ export function createLazySqliteStorage(
             );
             return;
           }
-          queuedSync.push((storage) =>
+          queueForOwner((storage) =>
             storage.writeConversationMessages(
               conversationId,
               messages,
               pagination,
             ),
           );
-          void ensureLoaded().catch(() => {});
         },
         writeConversationUserMessages(conversationId, messages) {
           if (loaded) {
             loaded.writeConversationUserMessages(conversationId, messages);
             return;
           }
-          queuedSync.push((storage) =>
+          queueForOwner((storage) =>
             storage.writeConversationUserMessages(conversationId, messages),
           );
-          void ensureLoaded().catch(() => {});
         },
         enqueueDispatch: async (entry) =>
           (await ensureLoaded()).enqueueDispatch(entry),
@@ -111,8 +131,13 @@ export function createLazySqliteStorage(
           }
           syncFallback.persistPendingMessageChanges(before, after, ownerId);
         },
-        purgeLocalCache: async (options) =>
-          (await ensureLoaded()).purgeLocalCache(options),
+        async purgeLocalCache(options) {
+          if (!loaded) {
+            const kept = queuedSync.filter(({ owner }) => owner === null);
+            queuedSync.splice(0, queuedSync.length, ...kept);
+          }
+          return (await ensureLoaded()).purgeLocalCache(options);
+        },
         deleteInvalidatedDocDetails: async (ids, current, archive) =>
           (await ensureLoaded()).deleteInvalidatedDocDetails?.(
             ids,

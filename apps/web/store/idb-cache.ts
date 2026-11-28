@@ -1,3 +1,4 @@
+import { authPrincipal } from "../lib/authPrincipal";
 import { setHydrating as setPersistenceHydrating } from "./persistence/hydration";
 import { outboxAccountId as readOutboxAccountId } from "./persistence/outbox";
 import { persistPendingMessageChanges as persistPendingJournal } from "./persistence/pendingInputJournal";
@@ -42,6 +43,7 @@ const lazySqliteStorage = createLazySqliteStorage(
     persistPendingMessageChanges: persistPendingJournal,
     setHydrating: setPersistenceHydrating,
   },
+  authPrincipal,
 );
 
 export const cacheStorage: CacheStorage =

@@ -614,6 +614,7 @@ describe("SQLite cache write direction and review fixes", () => {
         persistPendingMessageChanges: () => {},
         setHydrating: () => {},
       },
+      auth,
     );
     const storage = lazy();
     storage.writePatches([patch("sessions")], { sessions: {} });
