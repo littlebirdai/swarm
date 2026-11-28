@@ -439,11 +439,11 @@ function applyUpdatesToStoreInner(
     if (u.hasValue) {
       if (u.value == null) continue;
       if (u.key === "sessionsProjection") {
-        state.applyReplicatedProjection(u.value as any);
+        if (!opts?.optimistic) state.applyReplicatedProjection(u.value as any);
         continue;
       }
       if (u.key === "scopeRevocations") {
-        state.applyReplicatedScopeRevocations(u.value);
+        if (!opts?.optimistic) state.applyReplicatedScopeRevocations(u.value);
         continue;
       }
 
@@ -683,6 +683,7 @@ export function startSyncReplication(opts: {
         scopeView?.stopFollowing(false);
         setDeferredSharedCacheSource("disk");
         setRole("host");
+        useInboxStore.getState().adoptScopeRevocations(Date.now());
         retention.soon();
       }
     }, SOLO_FALLBACK_MS);
@@ -725,6 +726,7 @@ export function startSyncReplication(opts: {
     if (soloTimer) clearTimeout(soloTimer);
     transport.activateHost();
     scopeView?.startHost();
+    useInboxStore.getState().adoptScopeRevocations(Date.now());
     host = promoteToHost(follower, () =>
       replicationHostFor(selfId, channel, () => useInboxStore.getState()),
     );
