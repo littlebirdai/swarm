@@ -32,6 +32,7 @@ export function createScopeViewTransport(opts: {
   subscribe: (listener: (state: any, prev: any) => void) => () => void;
   onPeerView: (peerId: string, scopes: readonly string[]) => void;
   onClearPeerViews: () => void;
+  onRevoke?: (scopes: readonly string[]) => void;
   heartbeatMs?: number;
   leaseMs?: number;
 }) {
@@ -44,6 +45,7 @@ export function createScopeViewTransport(opts: {
   const peerTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let isFollowing = false;
   let isHost = false;
+  let unsubscribeRevocations: (() => void) | null = null;
 
   const clearPeerTimer = (peerId: string) => {
     const existing = peerTimers.get(peerId);
@@ -108,7 +110,19 @@ export function createScopeViewTransport(opts: {
           from?: unknown;
           updates?: unknown;
           scopeView?: unknown;
+          scopeRevoke?: unknown;
         };
+        if (!isHost && raw.type === "mut" && "scopeRevoke" in raw) {
+          const scopes = sanitizePeerViewScopes(raw.scopeRevoke);
+          if (
+            scopes &&
+            scopes.length > 0 &&
+            typeof raw.from === "string" &&
+            raw.from !== opts.selfId
+          )
+            opts.onRevoke?.(scopes);
+          return;
+        }
         if (isHost) {
           const fromId =
             typeof raw.from === "string" &&
@@ -168,6 +182,7 @@ export function createScopeViewTransport(opts: {
 
   const startFollowing = () => {
     clearAllPeerTimers();
+    stopRevocations();
     isHost = false;
     isFollowing = true;
     lastSentKey = null;
@@ -202,15 +217,38 @@ export function createScopeViewTransport(opts: {
     }
   };
 
+  const stopRevocations = () => {
+    unsubscribeRevocations?.();
+    unsubscribeRevocations = null;
+  };
+
   const startHost = () => {
     stopFollowing(false);
     clearAllPeerTimers();
     isHost = true;
     opts.onClearPeerViews();
+    stopRevocations();
+    unsubscribeRevocations = opts.subscribe((state, prev) => {
+      const denied = state.scopeSubscriptions?.denied;
+      const before = prev.scopeSubscriptions?.denied;
+      if (!isHost || !denied || denied === before) return;
+      const added = Object.keys(denied).filter(
+        (scope) => before?.[scope]?.at !== denied[scope]?.at,
+      );
+      if (added.length === 0) return;
+      const msg: ScopeViewMsg & { scopeRevoke: string[] } = {
+        type: "mut",
+        from: opts.selfId,
+        updates: [],
+        scopeRevoke: added,
+      };
+      opts.channel.post(msg);
+    });
   };
 
   const stop = () => {
     stopFollowing(true);
+    stopRevocations();
     clearAllPeerTimers();
     if (isHost) {
       isHost = false;
@@ -244,5 +282,7 @@ export function scopeViewTransportFor(
     onPeerView: (peerId, scopes) =>
       store.getState().setPeerViewScopes(peerId, scopes),
     onClearPeerViews: () => store.getState().clearPeerViewScopes(),
+    onRevoke: (scopes) =>
+      store.getState().applyReplicatedScopeRevocation(scopes),
   });
 }

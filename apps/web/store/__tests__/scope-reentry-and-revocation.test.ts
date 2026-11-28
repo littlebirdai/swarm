@@ -8,6 +8,7 @@ import {
 } from "../scope-subscriptions";
 import { applyUpdatesToStore } from "../sync-replication";
 import { holdScopeViewTarget } from "../scope-view-targets";
+import { createScopeViewTransport } from "../scope-view-transport";
 import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import {
   catchUp,
@@ -228,6 +229,11 @@ describe("a scope with no cursor", () => {
       if (next.syncLogFloorEpoch !== prev.syncLogFloorEpoch)
         order.push("recut");
       if (
+        next.syncMeta[scopeMetaKey(`project:${P}`)]?.cursor !== undefined &&
+        prev.syncMeta[scopeMetaKey(`project:${P}`)]?.cursor === undefined
+      )
+        order.push("cursor");
+      if (
         next.syncLogScopeStamps[`project:${P}`] !== undefined &&
         prev.syncLogScopeStamps[`project:${P}`] === undefined
       )
@@ -245,7 +251,7 @@ describe("a scope with no cursor", () => {
     off();
     const s = useInboxStore.getState() as any;
     expect(s.syncLogFloorEpoch).toBe(epochBefore + 1);
-    expect(order).toEqual(["recut", "stamp"]);
+    expect(order).toEqual(["recut", "cursor", "stamp"]);
     expect(s.syncMeta[scopeMetaKey(`project:${P}`)].cursor).toBe(12);
     expect(s.syncMeta[scopeMetaKey(`dir:${T}`)].cursor).toBe(9);
     expect(
@@ -256,11 +262,23 @@ describe("a scope with no cursor", () => {
   });
 
   test("one scope caught up on its own with no cursor recuts the floors", async () => {
+    const order: string[] = [];
+    const off = useInboxStore.subscribe((next, prev) => {
+      if (next.syncLogFloorEpoch !== prev.syncLogFloorEpoch)
+        order.push("recut");
+      if (
+        next.syncMeta[scopeMetaKey(`project:${P}`)]?.cursor !== undefined &&
+        prev.syncMeta[scopeMetaKey(`project:${P}`)]?.cursor === undefined
+      )
+        order.push("cursor");
+    });
     await catchUpScope(
       heads(() => ({ heads: [] })),
       { scope_key: `project:${P}`, position: 6, floor: 0 },
       new Set(),
     );
+    off();
+    expect(order).toEqual(["recut", "cursor"]);
     const s = useInboxStore.getState() as any;
     expect(s.syncMeta[scopeMetaKey(`project:${P}`)].cursor).toBe(6);
     expect(s.syncLogFloorEpoch).toBe(1);
@@ -353,6 +371,64 @@ describe("team revocation", () => {
     expect(s.pending[`docs:${dOrphan}`]).toMatchObject({ type: "exclude" });
     expect(s.chatMessages[mTeam]).toBeUndefined();
     expect(s.chatMessages[mOther]).toBeDefined();
+  });
+
+  test("a host sends its revocation and a follower removes a pinned orphan detail", () => {
+    const posted: any[] = [];
+    const hostChannel = {
+      post: (msg: any) => posted.push(msg),
+      onMessage: () => () => {},
+    };
+    const host = createScopeViewTransport({
+      selfId: "host",
+      channel: hostChannel as any,
+      getState: useInboxStore.getState,
+      subscribe: useInboxStore.subscribe,
+      onPeerView: () => {},
+      onClearPeerViews: () => {},
+      heartbeatMs: 0,
+    });
+    host.startHost();
+    useInboxStore.getState().revokeTeamScope(T);
+    host.stop();
+    const revoke = posted.find((m) => Array.isArray(m.scopeRevoke));
+    expect(revoke?.scopeRevoke).toEqual([`dir:${T}`]);
+
+    const dOrphan = cid("dopenonfollower");
+    useInboxStore.setState({
+      syncRole: "follower",
+      docs: {},
+      docDetails: {
+        [dOrphan]: { _id: dOrphan, workspace: `team:${T}`, content: "secret" },
+      },
+    } as any);
+    const release = pinDetailRows("docDetails", [dOrphan]);
+    let deliver: ((msg: any) => void) | undefined;
+    const followerChannel = {
+      post: () => {},
+      onMessage: (cb: (msg: any) => void) => {
+        deliver = cb;
+        return () => {};
+      },
+    };
+    const passed: any[] = [];
+    const follower = createScopeViewTransport({
+      selfId: "follower",
+      channel: followerChannel as any,
+      getState: useInboxStore.getState,
+      subscribe: useInboxStore.subscribe,
+      onPeerView: () => {},
+      onClearPeerViews: () => {},
+      onRevoke: (scopes) =>
+        useInboxStore.getState().applyReplicatedScopeRevocation(scopes),
+      heartbeatMs: 0,
+    });
+    const off = follower.channel.onMessage((m) => passed.push(m));
+    deliver?.(revoke);
+    off();
+    release();
+    expect(passed).toEqual([]);
+    expect(useInboxStore.getState().docDetails[dOrphan]).toBeUndefined();
   });
 
   test("a follower drops a pinned detail row when its parent row is removed", () => {

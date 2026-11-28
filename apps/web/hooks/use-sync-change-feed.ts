@@ -432,9 +432,9 @@ function resetScopeForResync(
   s.clearSyncMeta(metaKey);
   s.clearCrawlMetaForScope(head.scope_key);
   resetTeamResyncCaches(s, head.scope_key, opts.clearedCrawls);
+  if (opts.recutFloors !== false) s.bumpSyncLogFloorEpoch();
   s.recordSyncMeta(metaKey, { cursor: head.position });
   s.retireAckedPending(head.scope_key, head.position);
-  if (opts.recutFloors !== false) s.bumpSyncLogFloorEpoch();
 }
 
 export async function catchUpScope(
@@ -537,9 +537,9 @@ export async function catchUp(
   }
   if (cold.length > 0) {
     const clearedCrawls = new Set<string>();
+    useInboxStore.getState().bumpSyncLogFloorEpoch();
     for (const head of cold)
       resetScopeForResync(head, { recutFloors: false, clearedCrawls });
-    useInboxStore.getState().bumpSyncLogFloorEpoch();
   }
   for (const head of heads) {
     if (isPurgedTeamHead(head.scope_key, purgedTeams)) continue;

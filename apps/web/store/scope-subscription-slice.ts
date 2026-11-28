@@ -188,6 +188,7 @@ export type ScopeSubscriptionSlice = {
   ) => PurgeTarget[];
   clearDeniedScopeSubscriptions: (scopes?: readonly string[]) => void;
   revokeTeamScope: (teamId: string, now?: number) => PurgeTarget[];
+  applyReplicatedScopeRevocation: (scopes: readonly string[]) => void;
   setPeerViewScopes: (peerId: string, scopes: readonly string[]) => void;
   clearPeerViewScopes: () => void;
   _commitScopeReconcile: (
@@ -365,6 +366,23 @@ export function createScopeSubscriptionSlice(
       state.dropTeamFeedCache(teamId);
       return out;
     },
+
+    applyReplicatedScopeRevocation: syncFn(function (
+      this: any,
+      scopes: readonly string[],
+    ) {
+      const revoked = new Set(scopes.filter((s) => isKnownHomeScope(s)));
+      if (revoked.size === 0) return;
+      const userId = this.currentUser?._id
+        ? String(this.currentUser._id)
+        : null;
+      revokeScopeRowsInDraft(
+        this,
+        revoked,
+        Date.now(),
+        userId ? `user:${userId}` : null,
+      );
+    }),
 
     clearDeniedScopeSubscriptions: syncFn(function (
       this: any,
