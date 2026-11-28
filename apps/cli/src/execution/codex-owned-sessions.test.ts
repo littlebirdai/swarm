@@ -236,7 +236,14 @@ test("an unconfirmed child stays quarantined until its provider process is gone"
     );
     const images = spyOn(delivery, "clearImages");
     try {
-      await expect(f.driver.stop(binding)).rejects.toThrow(
+      let failure: unknown;
+      try {
+        await f.driver.stop(binding);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain(
         "cleanup could not be confirmed",
       );
       expect(attemptedDisposal).toHaveBeenCalledTimes(1);

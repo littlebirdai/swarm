@@ -237,9 +237,13 @@ test("a settlement that stays stale for one attempt backs off, then closes the p
       delays.push(delivery.retryDelayMs());
     }
     expect(delays).toEqual([2_000, 4_000, 8_000, 16_000]);
-    await expect(
-      drain(session, new AbortController().signal),
-    ).rejects.toBeInstanceOf(CodexPilotLeaseLost);
+    let failure: unknown;
+    try {
+      await drain(session, new AbortController().signal);
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(CodexPilotLeaseLost);
   } finally {
     await delivery.clearImages();
     await f.dispose();
