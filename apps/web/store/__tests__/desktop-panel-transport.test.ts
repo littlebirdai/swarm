@@ -14,6 +14,7 @@ import {
   replicationHostFor,
 } from "../sync-replication";
 import { useInboxStore } from "../inboxStore";
+import { createScopeViewTransport } from "../scope-view-transport";
 
 test("the scoped snapshot and updates carry only requested keys and preserve their sequence", async () => {
   const name = `test-scope-${crypto.randomUUID()}`;
@@ -228,3 +229,63 @@ test.each(["legacy", "scoped"] as const)(
     }
   },
 );
+
+test("a revocation reaches a panel window on its scoped channel", async () => {
+  const name = `test-scope-${crypto.randomUUID()}`;
+  const legacy = replicationTransport(name, "host");
+  const modern = scopedHostChannel(name, "host", legacy.channel);
+  modern.activate();
+  const host = replicationHostFor("host", modern.channel, () => ({
+    docDetails: {},
+  }));
+  const scope = scopedFollowerChannel(name, "panel", ["docDetails"], () =>
+    replicationTransport(name, "panel"),
+  );
+  const revoked = Promise.withResolvers<readonly string[]>();
+  const panelView = createScopeViewTransport({
+    selfId: "panel",
+    channel: scope.channel,
+    getState: () => ({}),
+    subscribe: () => () => {},
+    onPeerView: () => {},
+    onClearPeerViews: () => {},
+    onRevoke: (scopes) => revoked.resolve(scopes),
+    heartbeatMs: 0,
+  });
+  const ready = Promise.withResolvers<void>();
+  const follower = createReplicationFollower({
+    selfId: "panel",
+    channel: panelView.channel,
+    replicatedKeys: ["docDetails"],
+    isCollectionKey: () => true,
+    applyUpdates() {},
+    onSynced(synced) {
+      if (synced) ready.resolve();
+    },
+  });
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const timeout = (ms: number) =>
+    new Promise<never>((_, reject) => {
+      timers.push(setTimeout(() => reject(new Error("timed out")), ms));
+    });
+  try {
+    await Promise.race([ready.promise, timeout(5000)]);
+    modern.channel.post({
+      type: "mut",
+      from: "host",
+      updates: [],
+      scopeRevoke: ["dir:team1"],
+    } as any);
+    expect(await Promise.race([revoked.promise, timeout(5000)])).toEqual([
+      "dir:team1",
+    ]);
+  } finally {
+    for (const t of timers) clearTimeout(t);
+    follower.stop();
+    panelView.stop();
+    scope.close();
+    host.stop();
+    modern.close();
+    legacy.close();
+  }
+});
