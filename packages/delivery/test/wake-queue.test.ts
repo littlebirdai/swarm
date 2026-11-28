@@ -52,13 +52,13 @@ const wake = (
     }),
   );
 
-const receiptFor = (session: string) =>
+const receiptFor = (session: string, deliveryId = "delivery-1") =>
   Effect.flatMap(SupervisorBus, (bus) =>
     bus.publish({
       kind: "provider.receipt",
       session,
       run: 1,
-      delivery_id: "delivery-1",
+      delivery_id: deliveryId,
       provider_item_id: `late-${session}`,
       turn: "turn-2",
     }),
@@ -90,6 +90,16 @@ function blockingHarness(server: FakeServer, release: Deferred.Deferred<void>) {
             ),
             Effect.as(deliveredFor(req.delivery_id)),
           ),
+    onRecover: (req) =>
+      Effect.succeed(
+        req.session.startsWith("stale-")
+          ? {
+              status: "failed",
+              retryable: false,
+              resolution_evidence: "the provider has no such item",
+            }
+          : { status: "in_doubt", code: "unknown", message: "still uncertain" },
+      ),
   });
   return { harness, entered };
 }
@@ -102,7 +112,7 @@ function fillTheQueue() {
   });
 }
 
-for (const clearing of ["stop", "settle"] as const) {
+for (const clearing of ["stop", "settle", "failure"] as const) {
   it.effect(
     `receipt wakes cleared by ${clearing} never push a live refused receipt wake out`,
     () =>
@@ -133,7 +143,10 @@ for (const clearing of ["stop", "settle"] as const) {
           );
           for (const session of stale) {
             yield* delivery.deliverNext(runFor(session));
-            yield* receiptFor(session);
+            yield* receiptFor(
+              session,
+              clearing === "failure" ? "delivery-other" : "delivery-1",
+            );
             yield* untilTrue(
               () =>
                 logs.includes(
@@ -284,3 +297,81 @@ for (const late of [
       }),
   );
 }
+
+it.effect(
+  "a wake for an older run never adds its send to a queued newer run",
+  () =>
+    Effect.gen(function* () {
+      const release = yield* Deferred.make<void>();
+      const server = makeFakeServer([
+        makePermit({ session: "blocked" }),
+        makePermit({ session: "session-2", run: 2, fencing_token: "lease-2" }),
+      ]);
+      const { harness, entered } = blockingHarness(server, release);
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        yield* Delivery;
+        yield* wake("blocked");
+        yield* untilTrue(() => entered.has("blocked"), "the busy drain");
+        yield* wake("session-2", 2, false);
+        yield* wake("session-2", 1);
+        yield* Deferred.succeed(release, undefined);
+        yield* untilTrue(
+          () => server.permitReads("session-2") > 0,
+          "the session-2 drain",
+        );
+        yield* pause(20);
+        expect(
+          harness.deliveries.filter(({ session }) => session === "session-2"),
+        ).toEqual([]);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        provideDelivery({ maxActiveDrains: 1 }),
+      );
+    }),
+);
+
+it.effect(
+  "a newer run that does not send replaces a sending drain without its send",
+  () =>
+    Effect.gen(function* () {
+      const release = yield* Deferred.make<void>();
+      const server = makeFakeServer([
+        makePermit({ session: "blocked-1" }),
+        makePermit({
+          session: "blocked-1",
+          run: 2,
+          fencing_token: "lease-2",
+          delivery_id: "delivery-2",
+          attempt_id: "attempt-2",
+        }),
+      ]);
+      const { harness, entered } = blockingHarness(server, release);
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        yield* Delivery;
+        yield* wake("blocked-1", 1);
+        yield* untilTrue(() => entered.has("blocked-1"), "the first delivery");
+        yield* wake("blocked-1", 2, false);
+        yield* pause(10);
+        yield* Deferred.succeed(release, undefined);
+        yield* untilTrue(
+          () => server.head("blocked-1")?.permit.delivery_id === "delivery-2",
+          "the first delivery to settle",
+        );
+        yield* untilTrue(
+          () => server.permitReads("blocked-1") >= 2,
+          "the run 2 drain",
+        );
+        yield* pause(20);
+        expect(
+          harness.deliveries.map(({ delivery_id }) => delivery_id),
+        ).toEqual(["delivery-1"]);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        provideDelivery({}),
+      );
+    }),
+);

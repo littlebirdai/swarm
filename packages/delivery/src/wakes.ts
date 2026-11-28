@@ -62,7 +62,10 @@ export function makeWakeScheduler(deps: {
       if (previous?.fiber) {
         yield* Effect.forkIn(Fiber.interrupt(previous.fiber), scope);
       }
-      const options = mergeDrainOptions(previous?.drainOptions, drainOptions);
+      const options =
+        previous?.run.run === run.run
+          ? mergeDrainOptions(previous.drainOptions, drainOptions)
+          : drainOptions;
       const entry: DrainEntry = { run, drainOptions: options };
       activeDrains.set(run.session, entry);
       entry.fiber = yield* Effect.forkIn(
@@ -94,9 +97,13 @@ export function makeWakeScheduler(deps: {
     Effect.suspend(() => {
       const queued = pendingWakes.get(run.session);
       if (queued) {
+        if (run.run < queued.run.run) return Effect.succeed(true);
         pendingWakes.set(run.session, {
-          run: run.run >= queued.run.run ? run : queued.run,
-          drainOptions: mergeDrainOptions(queued.drainOptions, drainOptions),
+          run,
+          drainOptions:
+            run.run === queued.run.run
+              ? mergeDrainOptions(queued.drainOptions, drainOptions)
+              : drainOptions,
         });
         return Effect.succeed(true);
       }

@@ -735,6 +735,7 @@ export class Delivery extends Context.Service<
                 }
               }
             }),
+            { disableYield: true },
           ),
           { startImmediately: true },
         );

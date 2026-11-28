@@ -234,6 +234,7 @@ export function makeSettlement(deps: {
       };
     }
     if (outcome.status !== "in_doubt") {
+      receiptWaits.clear(permit.session);
       yield* clearArtifacts(permit.attempt_id);
     } else if (outcome.retry_after_ms === undefined) {
       receiptWaits.expect(run);

@@ -5,7 +5,7 @@ import {
   type TakeoverFence,
 } from "@codecast/edge-contract";
 import type {
-  BusTimeoutError,
+  BusRequestError,
   BusValidationError,
 } from "@codecast/edge-supervisor/effect";
 import { TaggedError } from "effect/Data";
@@ -35,15 +35,20 @@ export class DeliveryError extends TaggedError("DeliveryError")<{
 
 export function mapBusError(
   operation: DeliveryError["operation"],
-  error: BusValidationError | BusTimeoutError,
+  error: BusRequestError | BusValidationError,
 ): DeliveryError {
+  const code =
+    error._tag === "BusTimeoutError"
+      ? "bus_timeout"
+      : error._tag === "BusUnavailableError"
+        ? `bus_${error.reason}`
+        : "bus_validation_failed";
   return new DeliveryError({
     operation,
-    code:
-      error._tag === "BusTimeoutError"
-        ? "bus_timeout"
-        : "bus_validation_failed",
-    retryable: error._tag === "BusTimeoutError",
+    code,
+    retryable:
+      error._tag === "BusTimeoutError" ||
+      (error._tag === "BusUnavailableError" && error.reason === "overloaded"),
     cause: error,
   });
 }

@@ -8,6 +8,7 @@ export function makeReceiptWaits() {
   const refused = new Map<string, PermitsNextRequest>();
   return {
     expect: (run: PermitsNextRequest) => {
+      refused.delete(run.session);
       setBoundedMap(awaiting, run.session, run);
     },
     awaiting: (session: string) => awaiting.get(session),

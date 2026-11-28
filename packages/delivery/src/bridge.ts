@@ -225,6 +225,7 @@ export function deliveryBridgeLayer(
                 break;
             }
           }),
+          { disableYield: true },
         ),
         { startImmediately: true },
       );

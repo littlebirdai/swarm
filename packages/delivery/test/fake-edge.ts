@@ -467,6 +467,7 @@ export function makeTestHarness(
             }
           }
         }),
+        { disableYield: true },
       ),
       { startImmediately: true },
     );
