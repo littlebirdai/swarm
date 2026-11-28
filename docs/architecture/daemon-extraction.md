@@ -30,7 +30,11 @@ Every delivery cycle runs `start`, input preparation (`edge.blob.get`), `provide
 
 A permit that reports `state: "started"` settles from the receipt journal or from `provider.recover`, and never calls `edge.delivery.start` again. A permit that reports `state: "new"` always calls `edge.delivery.start` first, because the server accepts an `applied` settlement only from a started or ambiguous attempt. A steer permit records its handover in the steer journal before recovery. A replayed new steer permit whose attempt is already a recorded handover goes to recovery and is never sent again.
 
-The bus loops of the delivery service, the delivery bridge, and the edge link never wait for a slow handler. They start each handler in its own fiber, and a pool limits the number of handlers that run at the same time and how long each one runs. A request over the limit gets a retryable `busy` reply at once. When a `provider.deliver` request times out, the service sends `provider.deliver.cancel`, and the bridge aborts the provider call.
+The bus loops of the delivery service, the delivery bridge, and the edge link never wait for a slow handler. They start each handler in its own fiber, and a pool limits the number of handlers that run at the same time and how long each one runs. The bridge has one pool for edge calls and a separate pool for provider calls, so slow provider calls cannot block settlement. A request over the limit gets a retryable `busy` reply at once. A busy `provider.recover` is a retryable step and does not settle the delivery in doubt.
+
+The bus loop of the delivery service is the only reader of `provider.deliver.result`. It gives each result to the step that waits for it. When a `provider.deliver` request times out, the service sends `provider.deliver.cancel`, and the bridge aborts the provider call. A result that arrives after the time limit settles the delivery the same way as a provider receipt.
+
+A wake over the drain limit waits in a bounded queue and starts when a drain ends. A takeover acknowledgement waits until every covered handover has settled, and a `stale` acknowledgement is a pending step, not a takeover.
 
 The service layer builds the bus first, then the bridge, then the delivery service. Disposal runs in the opposite order, so the bridge answers the settlement of a step that is still running.
 
