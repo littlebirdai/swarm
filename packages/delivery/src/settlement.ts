@@ -6,8 +6,6 @@ import type {
   TakeoverFence,
 } from "@codecast/edge-contract";
 import type {
-  BusTimeoutError,
-  BusValidationError,
   ProviderRecoverOutcome,
   SupervisorBus,
 } from "@codecast/edge-supervisor/effect";
@@ -15,6 +13,7 @@ import * as Effect from "effect/Effect";
 import {
   DeliveryError,
   covers,
+  mapBusError,
   permitIdentity,
   requestId,
   setBoundedMap,
@@ -46,20 +45,6 @@ export function makeSettlement(deps: {
     attemptKey,
     awaitingReceiptRuns,
   } = deps;
-
-  const mapBusError = (
-    operation: DeliveryError["operation"],
-    error: BusValidationError | BusTimeoutError,
-  ) =>
-    new DeliveryError({
-      operation,
-      code:
-        error._tag === "BusTimeoutError"
-          ? "bus_timeout"
-          : "bus_validation_failed",
-      retryable: error._tag === "BusTimeoutError",
-      cause: error,
-    });
 
   const clearArtifacts = (attemptId: string) =>
     options.clearArtifacts
@@ -149,7 +134,12 @@ export function makeSettlement(deps: {
       });
     }
     if (settled.receipt.status === "stale") {
-      return { status: "lease_stale" };
+      return {
+        status: "lease_stale",
+        stage: "settle",
+        delivery_id: permit.delivery_id,
+        attempt_id: permit.attempt_id,
+      };
     }
     yield* journals.forgetReceipt(permit.session, permit.delivery_id);
     yield* clearArtifacts(permit.attempt_id);
@@ -232,7 +222,12 @@ export function makeSettlement(deps: {
     }
     const receiptStatus: SettlementReceiptStatus = settled.receipt.status;
     if (receiptStatus === "stale") {
-      return { status: "lease_stale" };
+      return {
+        status: "lease_stale",
+        stage: "settle",
+        delivery_id: permit.delivery_id,
+        attempt_id: permit.attempt_id,
+      };
     }
     if (outcome.status !== "in_doubt") {
       yield* clearArtifacts(permit.attempt_id);

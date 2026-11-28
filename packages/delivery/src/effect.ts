@@ -3,10 +3,7 @@ import {
   type PermitsNextRequest,
 } from "@codecast/edge-contract";
 import {
-  BusTimeoutError,
-  BusValidationError,
   SupervisorBus,
-  type ProviderDeliverInput,
   type ProviderDeliverOutcome,
 } from "@codecast/edge-supervisor/effect";
 import * as Context from "effect/Context";
@@ -17,10 +14,11 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
 import * as Schedule from "effect/Schedule";
-import * as Semaphore from "effect/Semaphore";
+import { makeInputPreparation } from "./inputs";
 import {
   DeliveryError,
   makeJournalStore,
+  mapBusError,
   permitIdentity,
   requestId,
   sameAttempt,
@@ -28,15 +26,19 @@ import {
   setBoundedMap,
   toHandover,
 } from "./journals";
+import { makeSessionLocks } from "./session-locks";
 import { makeSettlement } from "./settlement";
 import type {
   DeliveryOptions,
   DeliveryPermit,
+  DeliveryReceipt,
   DeliveryStepOutcome,
   DrainOptions,
 } from "./types";
 
 export { DeliveryError } from "./journals";
+
+const MAX_ACTIVE_DRAINS = 1024;
 
 class RetryableDrainStep extends TaggedError("RetryableDrainStep")<{
   readonly outcome: DeliveryStepOutcome;
@@ -59,6 +61,21 @@ function shouldRetryOutcome(outcome: DeliveryStepOutcome): boolean {
   }
   return false;
 }
+
+function retryBusTimeout(
+  error: DeliveryError,
+): Effect.Effect<DeliveryStepOutcome, DeliveryError> {
+  if (error.code !== "bus_timeout") return Effect.fail(error);
+  return Effect.succeed({
+    status: "retry_scheduled",
+    retryable: true,
+    code: "bus_timeout",
+  });
+}
+
+type DrainEntry = {
+  fiber?: Fiber.Fiber<DeliveryStepOutcome>;
+};
 
 export class Delivery extends Context.Service<
   Delivery,
@@ -86,23 +103,15 @@ export class Delivery extends Context.Service<
         const scope = yield* Effect.scope;
         const subscription = yield* bus.subscribe();
 
-        const sessionLocks = new Map<string, Semaphore.Semaphore>();
+        const locks = makeSessionLocks();
         const activeAttempts = new Set<string>();
         const activeDeliveries = new Set<string>();
-        const activeDrains = new Map<
-          string,
-          Fiber.Fiber<DeliveryStepOutcome, DeliveryError>
-        >();
+        const activeDrains = new Map<string, DrainEntry>();
         const awaitingReceiptRuns = new Map<string, PermitsNextRequest>();
-
-        const lockFor = (session: string) => {
-          let lock = sessionLocks.get(session);
-          if (!lock) {
-            lock = Semaphore.makeUnsafe(1);
-            setBoundedMap(sessionLocks, session, lock);
-          }
-          return lock;
-        };
+        const timedOutDeliveries = new Map<
+          string,
+          { session: string; run: number; delivery_id: string }
+        >();
 
         const attemptKey = (
           run: Pick<PermitsNextRequest, "session" | "run">,
@@ -114,20 +123,6 @@ export class Delivery extends Context.Service<
           deliveryId: string,
         ) => JSON.stringify([run.session, run.run, deliveryId]);
 
-        const mapBusError = (
-          operation: DeliveryError["operation"],
-          error: BusValidationError | BusTimeoutError,
-        ) =>
-          new DeliveryError({
-            operation,
-            code:
-              error._tag === "BusTimeoutError"
-                ? "bus_timeout"
-                : "bus_validation_failed",
-            retryable: error._tag === "BusTimeoutError",
-            cause: error,
-          });
-
         const journals = makeJournalStore(options);
         const settlement = makeSettlement({
           bus,
@@ -137,93 +132,52 @@ export class Delivery extends Context.Service<
           attemptKey,
           awaitingReceiptRuns,
         });
+        const prepareInputs = makeInputPreparation(bus, options);
 
-        const prepareInputs = Effect.fnUntraced(function* (
+        const inLayerScope = <A, E>(effect: Effect.Effect<A, E>) =>
+          Effect.forkIn(effect, scope, { startImmediately: true }).pipe(
+            Effect.flatMap((fiber) =>
+              Fiber.join(fiber).pipe(
+                Effect.onInterrupt(() => Fiber.interrupt(fiber)),
+              ),
+            ),
+          );
+
+        const exclusive = (
+          run: PermitsNextRequest,
+          permit: Pick<DeliveryPermit, "attempt_id" | "delivery_id">,
+          step: Effect.Effect<DeliveryStepOutcome, DeliveryError>,
+        ) => {
+          const aKey = attemptKey(run, permit.attempt_id);
+          const dKey = deliveryKey(run, permit.delivery_id);
+          return Effect.sync(() => {
+            activeAttempts.add(aKey);
+            activeDeliveries.add(dKey);
+          }).pipe(
+            Effect.flatMap(() => Effect.uninterruptible(step)),
+            Effect.ensuring(
+              Effect.sync(() => {
+                activeAttempts.delete(aKey);
+                activeDeliveries.delete(dKey);
+              }),
+            ),
+          );
+        };
+
+        const recoverPermit = Effect.fnUntraced(function* (
+          run: PermitsNextRequest,
           permit: DeliveryPermit,
-          parts: DeliveryPermit["input"],
-        ) {
-          const prepared: ProviderDeliverInput[] = [];
-          for (const part of parts) {
-            if (part.type === "text") {
-              const text = options.prepareText
-                ? yield* Effect.tryPromise({
-                    try: (signal) =>
-                      options.prepareText!(part.text, permit, signal),
-                    catch: (cause) =>
-                      new DeliveryError({
-                        operation: "blobs.get",
-                        code: "input_preparation_failed",
-                        retryable: true,
-                        cause,
-                      }),
-                  })
-                : part.text;
-              prepared.push({ type: "text", text });
-              continue;
-            }
-            const reqId = requestId();
-            const blobReply = yield* bus
-              .request(
-                {
-                  kind: "edge.blob.get",
-                  request_id: reqId,
-                  request: {
-                    v: 1,
-                    session: permit.session,
-                    run: permit.run,
-                    fencing_token: permit.fencing_token,
-                    attempt_id: permit.attempt_id,
-                    blob_id: part.blob_id,
-                  },
-                },
-                "edge.blob.get.result",
-                (reply) => reply.request_id === reqId,
-              )
-              .pipe(
-                Effect.mapError((error) => mapBusError("blobs.get", error)),
-              );
-            if (!blobReply.ok) {
-              return yield* new DeliveryError({
-                operation: "blobs.get",
-                code: blobReply.code,
-                retryable: blobReply.retryable,
-                retry_after_ms: blobReply.retry_after_ms,
-              });
-            }
-            if (blobReply.content_type !== part.content_type) {
-              return yield* new DeliveryError({
-                operation: "blobs.get",
-                code: "blob_content_type_mismatch",
-                retryable: false,
-              });
-            }
-            if (!options.saveBlob) {
-              return yield* new DeliveryError({
-                operation: "blobs.get",
-                code: "blob_storage_unavailable",
-                retryable: true,
-              });
-            }
-            const localPath = yield* Effect.tryPromise({
-              try: (signal) =>
-                options.saveBlob!(
-                  permit,
-                  prepared.length,
-                  blobReply.content_type,
-                  blobReply.bytes,
-                  signal,
-                ),
-              catch: (cause) =>
-                new DeliveryError({
-                  operation: "blobs.get",
-                  code: "blob_save_failed",
-                  retryable: true,
-                  cause,
-                }),
-            });
-            prepared.push({ type: "local-image", path: localPath });
+        ): Effect.fn.Return<DeliveryStepOutcome, DeliveryError> {
+          if (permit.intent !== "steer") {
+            return yield* settlement.recoverStarted(
+              run,
+              permitIdentity(permit),
+            );
           }
-          return prepared;
+          const hand = toHandover(permit);
+          const journal = yield* journals.loadSteer(run);
+          yield* journals.recordHandover(run, journal, hand);
+          return yield* settlement.recoverStarted(run, hand);
         });
 
         const runNewDelivery = Effect.fnUntraced(function* (
@@ -277,12 +231,7 @@ export class Delivery extends Context.Service<
             });
           }
           if (started.status === "already_started") {
-            return yield* settlement.recoverStarted(
-              run,
-              permit.intent === "steer"
-                ? toHandover(permit)
-                : permitIdentity(permit),
-            );
+            return yield* recoverPermit(run, permit);
           }
 
           const existingReceipt = yield* journals.findReceipt(
@@ -365,17 +314,31 @@ export class Delivery extends Context.Service<
                 reply.attempt_id === permit.attempt_id,
             )
             .pipe(
-              Effect.catchTag("BusTimeoutError", () => {
-                const timedOut: { readonly outcome: ProviderDeliverOutcome } = {
-                  outcome: {
-                    status: "in_doubt",
-                    reason: "unknown",
-                    code: "provider_timeout",
-                    message: "Provider delivery timed out",
-                  },
-                };
-                return Effect.succeed(timedOut);
-              }),
+              Effect.catchTag("BusTimeoutError", () =>
+                Effect.gen(function* () {
+                  setBoundedMap(timedOutDeliveries, deliverReqId, {
+                    session: permit.session,
+                    run: permit.run,
+                    delivery_id: permit.delivery_id,
+                  });
+                  yield* bus
+                    .publish({
+                      kind: "provider.deliver.cancel",
+                      request_id: deliverReqId,
+                    })
+                    .pipe(Effect.catch(() => Effect.void));
+                  const timedOut: { readonly outcome: ProviderDeliverOutcome } =
+                    {
+                      outcome: {
+                        status: "in_doubt",
+                        reason: "unknown",
+                        code: "provider_timeout",
+                        message: "Provider delivery timed out",
+                      },
+                    };
+                  return timedOut;
+                }),
+              ),
               Effect.mapError((error) => mapBusError("bus", error)),
             );
 
@@ -421,166 +384,155 @@ export class Delivery extends Context.Service<
           });
         });
 
+        const selectStep = Effect.fnUntraced(function* (
+          run: PermitsNextRequest,
+          drainOptions: DrainOptions,
+        ): Effect.fn.Return<DeliveryStepOutcome, DeliveryError> {
+          const reqId = requestId();
+          const permitsReply = yield* bus
+            .request(
+              {
+                kind: "edge.permits.next",
+                request_id: reqId,
+                request: { ...run },
+              },
+              "edge.permits.next.result",
+              (reply) => reply.request_id === reqId,
+            )
+            .pipe(
+              Effect.mapError((error) => mapBusError("permits.next", error)),
+            );
+          if (!permitsReply.ok) {
+            if (permitsReply.retryable) {
+              return {
+                status: "retry_scheduled",
+                retryable: true,
+                code: permitsReply.code,
+                retry_after_ms: permitsReply.retry_after_ms,
+              };
+            }
+            return yield* new DeliveryError({
+              operation: "permits.next",
+              code: permitsReply.code,
+            });
+          }
+
+          const permit = permitsReply.response;
+          if (permit.status === "stale") {
+            return { status: "lease_stale", stage: "permits" };
+          }
+          if (permit.status === "empty") {
+            if (options.steerJournal) yield* journals.loadPrunedSteer(run);
+            return { status: "empty" };
+          }
+          if (!sameLease(run, permit)) {
+            return yield* new DeliveryError({
+              operation: "permits.next",
+              code: "delivery_lease_mismatch",
+            });
+          }
+          if (permit.status === "takeover_fence") {
+            if (options.allowTakeover === false) {
+              return yield* new DeliveryError({
+                operation: "permits.next",
+                code: "takeover_unsupported",
+              });
+            }
+            return yield* settlement.receiveTakeoverFence(run, permit);
+          }
+
+          if (
+            activeAttempts.has(attemptKey(run, permit.attempt_id)) ||
+            activeDeliveries.has(deliveryKey(run, permit.delivery_id))
+          ) {
+            return { status: "pending" };
+          }
+
+          if (permit.state === "started") {
+            return yield* exclusive(run, permit, recoverPermit(run, permit));
+          }
+
+          const steerJournal =
+            permit.intent === "steer"
+              ? yield* journals.loadPrunedSteer(run)
+              : undefined;
+          if (
+            steerJournal?.handovers.some(
+              (hand) => hand.attempt_id === permit.attempt_id,
+            )
+          ) {
+            return yield* exclusive(run, permit, recoverPermit(run, permit));
+          }
+
+          const existingReceipt = yield* journals.findReceipt(
+            permit.session,
+            permit.delivery_id,
+          );
+          if (existingReceipt) {
+            return yield* exclusive(run, permit, runNewDelivery(run, permit));
+          }
+
+          if (
+            drainOptions.sendNew === false ||
+            (options.canSendNew && !options.canSendNew(permit))
+          ) {
+            return { status: "held" };
+          }
+
+          if (permit.intent === "steer" && steerJournal) {
+            if (journals.isBlockedByFence(steerJournal, toHandover(permit))) {
+              return { status: "fenced" };
+            }
+            const turn = journals.observedTurn(run);
+            if (!matchesExpected(permit.expected, turn)) {
+              return yield* exclusive(
+                run,
+                permit,
+                settlement.settleNonApplied(run, permit, {
+                  status: "stale",
+                  observed: turn,
+                }),
+              );
+            }
+          }
+
+          return yield* exclusive(run, permit, runNewDelivery(run, permit));
+        });
+
+        const replayRecordedReceipt = Effect.fnUntraced(function* (
+          run: PermitsNextRequest,
+          deliveryId: string,
+        ) {
+          const receipt = yield* journals
+            .findReceipt(run.session, deliveryId)
+            .pipe(Effect.catch(() => Effect.succeed(undefined)));
+          if (!receipt) return;
+          yield* bus
+            .publish({
+              kind: "provider.receipt",
+              run: run.run,
+              ...receipt,
+              session: run.session,
+            })
+            .pipe(Effect.catch(() => Effect.void));
+        });
+
         const deliverNext = Effect.fn("Delivery.deliverNext")(function* (
           run: PermitsNextRequest,
           drainOptions: DrainOptions = {},
         ): Effect.fn.Return<DeliveryStepOutcome, DeliveryError> {
-          return yield* lockFor(run.session).withPermit(
-            Effect.gen(function* () {
-              const reqId = requestId();
-              const permitsReply = yield* bus
-                .request(
-                  {
-                    kind: "edge.permits.next",
-                    request_id: reqId,
-                    request: { ...run },
-                  },
-                  "edge.permits.next.result",
-                  (reply) => reply.request_id === reqId,
-                )
-                .pipe(
-                  Effect.mapError((error) =>
-                    mapBusError("permits.next", error),
-                  ),
-                );
-              if (!permitsReply.ok) {
-                if (permitsReply.retryable) {
-                  return {
-                    status: "retry_scheduled" as const,
-                    retryable: true,
-                    code: permitsReply.code,
-                    retry_after_ms: permitsReply.retry_after_ms,
-                  };
-                }
-                return yield* new DeliveryError({
-                  operation: "permits.next",
-                  code: permitsReply.code,
-                });
-              }
-
-              const permit = permitsReply.response;
-              if (permit.status === "stale")
-                return { status: "lease_stale" as const };
-              if (permit.status === "empty") {
-                if (options.steerJournal) yield* journals.loadPrunedSteer(run);
-                return { status: "empty" as const };
-              }
-              if (!sameLease(run, permit)) {
-                return yield* new DeliveryError({
-                  operation: "permits.next",
-                  code: "delivery_lease_mismatch",
-                });
-              }
-              if (permit.status === "takeover_fence") {
-                if (options.allowTakeover === false) {
-                  return yield* new DeliveryError({
-                    operation: "permits.next",
-                    code: "takeover_unsupported",
-                  });
-                }
-                return yield* settlement.receiveTakeoverFence(run, permit);
-              }
-
-              const aKey = attemptKey(run, permit.attempt_id);
-              const dKey = deliveryKey(run, permit.delivery_id);
-              if (activeAttempts.has(aKey) || activeDeliveries.has(dKey)) {
-                const pending: DeliveryStepOutcome = { status: "pending" };
-                return pending;
-              }
-
-              const existingReceipt = yield* journals.findReceipt(
-                permit.session,
-                permit.delivery_id,
-              );
-              if (existingReceipt) {
-                activeAttempts.add(aKey);
-                activeDeliveries.add(dKey);
-                return yield* Effect.uninterruptible(
-                  settlement.settleApplied(
-                    run,
-                    permit,
-                    existingReceipt,
-                    permit.state === "started" ? "delivered" : "duplicate",
-                  ),
-                ).pipe(
-                  Effect.ensuring(
-                    Effect.sync(() => {
-                      activeAttempts.delete(aKey);
-                      activeDeliveries.delete(dKey);
-                    }),
-                  ),
-                );
-              }
-
-              if (permit.state === "started") {
-                activeAttempts.add(aKey);
-                activeDeliveries.add(dKey);
-                return yield* Effect.uninterruptible(
-                  settlement.recoverStarted(
-                    run,
-                    permit.intent === "steer"
-                      ? toHandover(permit)
-                      : permitIdentity(permit),
-                  ),
-                ).pipe(
-                  Effect.ensuring(
-                    Effect.sync(() => {
-                      activeAttempts.delete(aKey);
-                      activeDeliveries.delete(dKey);
-                    }),
-                  ),
-                );
-              }
-
-              if (
-                drainOptions.sendNew === false ||
-                (options.canSendNew && !options.canSendNew(permit))
-              ) {
-                const held: DeliveryStepOutcome = { status: "held" };
-                return held;
-              }
-
-              if (permit.intent === "steer") {
-                const steerJournal = yield* journals.loadPrunedSteer(run);
-                const hand = toHandover(permit);
-                if (journals.isBlockedByFence(steerJournal, hand)) {
-                  const fenced: DeliveryStepOutcome = { status: "fenced" };
-                  return fenced;
-                }
-                const turn = journals.observedTurn(run);
-                if (!matchesExpected(permit.expected, turn)) {
-                  activeAttempts.add(aKey);
-                  activeDeliveries.add(dKey);
-                  return yield* Effect.uninterruptible(
-                    settlement.settleNonApplied(run, permit, {
-                      status: "stale",
-                      observed: turn,
-                    }),
-                  ).pipe(
-                    Effect.ensuring(
-                      Effect.sync(() => {
-                        activeAttempts.delete(aKey);
-                        activeDeliveries.delete(dKey);
-                      }),
-                    ),
-                  );
-                }
-              }
-
-              activeAttempts.add(aKey);
-              activeDeliveries.add(dKey);
-              return yield* Effect.uninterruptible(
-                runNewDelivery(run, permit),
-              ).pipe(
-                Effect.ensuring(
-                  Effect.sync(() => {
-                    activeAttempts.delete(aKey);
-                    activeDeliveries.delete(dKey);
-                  }),
-                ),
-              );
-            }),
+          const outcome = yield* inLayerScope(
+            locks
+              .withSessionLock(run.session, selectStep(run, drainOptions))
+              .pipe(Effect.catch(retryBusTimeout)),
           );
+          if (
+            outcome.status === "in_doubt" &&
+            outcome.retry_after_ms === undefined
+          ) {
+            yield* replayRecordedReceipt(run, outcome.delivery_id);
+          }
+          return outcome;
         });
 
         const drain = Effect.fn("Delivery.drain")(function* (
@@ -642,15 +594,28 @@ export class Delivery extends Context.Service<
           return lastOutcome;
         });
 
+        const interruptInBackground = (entry: DrainEntry | undefined) =>
+          entry?.fiber
+            ? Effect.forkIn(Fiber.interrupt(entry.fiber), scope).pipe(
+                Effect.asVoid,
+              )
+            : Effect.void;
+
         const triggerWake = Effect.fnUntraced(function* (
           run: PermitsNextRequest,
           drainOptions: DrainOptions,
         ) {
           const previous = activeDrains.get(run.session);
-          if (previous) {
-            yield* Fiber.interrupt(previous);
+          if (!previous && activeDrains.size >= MAX_ACTIVE_DRAINS) {
+            options.log?.(
+              `[delivery] wake dropped for ${run.session}: too many active drains`,
+            );
+            return;
           }
-          const fiber = yield* Effect.forkIn(
+          yield* interruptInBackground(previous);
+          const entry: DrainEntry = {};
+          activeDrains.set(run.session, entry);
+          entry.fiber = yield* Effect.forkIn(
             drain(run, drainOptions).pipe(
               Effect.catch((error) =>
                 Effect.sync(() => {
@@ -661,7 +626,7 @@ export class Delivery extends Context.Service<
               ),
               Effect.ensuring(
                 Effect.sync(() => {
-                  if (activeDrains.get(run.session) === fiber) {
+                  if (activeDrains.get(run.session) === entry) {
                     activeDrains.delete(run.session);
                   }
                 }),
@@ -670,7 +635,21 @@ export class Delivery extends Context.Service<
             scope,
             { startImmediately: true },
           );
-          activeDrains.set(run.session, fiber);
+        });
+
+        const acceptReceipt = Effect.fnUntraced(function* (
+          session: string,
+          run: number,
+          receipt: DeliveryReceipt,
+        ) {
+          yield* journals
+            .saveReceipt(session, receipt)
+            .pipe(Effect.catch(() => Effect.void));
+          const pendingRun = awaitingReceiptRuns.get(session);
+          if (pendingRun && pendingRun.run === run) {
+            awaitingReceiptRuns.delete(session);
+            yield* triggerWake(pendingRun, { sendNew: false });
+          }
         });
 
         yield* Effect.forkScoped(
@@ -692,24 +671,36 @@ export class Delivery extends Context.Service<
                 }
                 case "delivery.stop": {
                   awaitingReceiptRuns.delete(message.session);
-                  const fiber = activeDrains.get(message.session);
-                  if (fiber) {
-                    yield* Fiber.interrupt(fiber);
-                  }
+                  yield* interruptInBackground(
+                    activeDrains.get(message.session),
+                  );
                   break;
                 }
                 case "provider.receipt": {
-                  yield* journals
-                    .saveReceipt(message.session, {
+                  yield* Effect.forkIn(
+                    acceptReceipt(message.session, message.run, {
                       delivery_id: message.delivery_id,
                       provider_item_id: message.provider_item_id,
                       turn: message.turn,
-                    })
-                    .pipe(Effect.catch(() => Effect.void));
-                  const pendingRun = awaitingReceiptRuns.get(message.session);
-                  if (pendingRun && pendingRun.run === message.run) {
-                    awaitingReceiptRuns.delete(message.session);
-                    yield* triggerWake(pendingRun, {});
+                    }),
+                    scope,
+                  );
+                  break;
+                }
+                case "provider.deliver.result": {
+                  const late = timedOutDeliveries.get(message.request_id);
+                  if (!late) break;
+                  timedOutDeliveries.delete(message.request_id);
+                  const { outcome } = message;
+                  if (
+                    (outcome.status === "delivered" ||
+                      outcome.status === "duplicate") &&
+                    outcome.receipt.delivery_id === late.delivery_id
+                  ) {
+                    yield* Effect.forkIn(
+                      acceptReceipt(late.session, late.run, outcome.receipt),
+                      scope,
+                    );
                   }
                   break;
                 }

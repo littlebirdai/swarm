@@ -4,6 +4,10 @@ import {
   type PermitsNextRequest,
   type TakeoverFence,
 } from "@codecast/edge-contract";
+import type {
+  BusTimeoutError,
+  BusValidationError,
+} from "@codecast/edge-supervisor/effect";
 import { TaggedError } from "effect/Data";
 import * as Effect from "effect/Effect";
 import type {
@@ -28,6 +32,21 @@ export class DeliveryError extends TaggedError("DeliveryError")<{
   readonly retry_after_ms?: number;
   readonly cause?: unknown;
 }> {}
+
+export function mapBusError(
+  operation: DeliveryError["operation"],
+  error: BusValidationError | BusTimeoutError,
+): DeliveryError {
+  return new DeliveryError({
+    operation,
+    code:
+      error._tag === "BusTimeoutError"
+        ? "bus_timeout"
+        : "bus_validation_failed",
+    retryable: error._tag === "BusTimeoutError",
+    cause: error,
+  });
+}
 
 export const emptySteerJournal: DeliverySteerJournal = {
   fences: [],

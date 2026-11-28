@@ -15,6 +15,7 @@ import type {
 import type {
   BusMessage,
   BusMessageOf,
+  HandlerLimits,
   DeliveryReceipt,
   EdgeBlobResult,
   EdgeBusResult,
@@ -150,7 +151,13 @@ export type DeliveryStepOutcome =
   | { readonly status: "fenced" }
   | { readonly status: "empty" }
   | { readonly status: "held" }
-  | { readonly status: "lease_stale" }
+  | { readonly status: "lease_stale"; readonly stage: "permits" }
+  | {
+      readonly status: "lease_stale";
+      readonly stage: "settle";
+      readonly delivery_id: string;
+      readonly attempt_id: string;
+    }
   | {
       readonly status: "retry_scheduled";
       readonly retryable: boolean;
@@ -223,6 +230,7 @@ export type DeliveryBridge = {
 
 export type DeliveryServiceOptions = DeliveryOptions & {
   readonly bridge?: DeliveryBridge;
+  readonly bridgeLimits?: HandlerLimits;
 };
 
 export type DrainOptions = {

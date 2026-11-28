@@ -24,15 +24,21 @@ export type {
   TakeoverReceiptStatus,
 } from "./types";
 
+export function deliveryServiceLayer(options: DeliveryServiceOptions = {}) {
+  const { bridge, bridgeLimits, ...deliveryOptions } = options;
+  return Delivery.layer(deliveryOptions).pipe(
+    Layer.provideMerge(
+      deliveryBridgeLayer(bridge, bridgeLimits).pipe(
+        Layer.provideMerge(SupervisorBus.layer),
+      ),
+    ),
+  );
+}
+
 export function createDeliveryService(
   options: DeliveryServiceOptions = {},
 ): DeliveryFacade {
-  const { bridge, ...deliveryOptions } = options;
-  const serviceLayer = Layer.mergeAll(
-    Delivery.layer(deliveryOptions),
-    deliveryBridgeLayer(bridge),
-  ).pipe(Layer.provideMerge(SupervisorBus.layer));
-  const facade = makeFacade(serviceLayer);
+  const facade = makeFacade(deliveryServiceLayer(options));
   return {
     deliverNext: (run, drainOptions, signal) =>
       facade.run(
