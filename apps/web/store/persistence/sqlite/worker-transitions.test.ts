@@ -231,6 +231,7 @@ describe("SQLite epoch transitions", () => {
 
       expect(client.isMemoryFallback()).toBe(false);
       expect(epochStore.read()?.generation).toBe(2);
+      expect(tap.events).not.toContain("g2:terminate");
     } finally {
       client.close();
     }

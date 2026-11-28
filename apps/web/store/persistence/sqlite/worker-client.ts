@@ -21,6 +21,7 @@ import {
   rotatedEpochToRetry,
   sameAccountEpoch,
 } from "./hydrated-epoch";
+import { createWriteBuffer } from "./write-buffer";
 import {
   findArchiveRestores,
   findPendingArchives,
@@ -58,6 +59,7 @@ export type SqliteWorkerClientDeps = {
   opfsSupported: () => boolean;
   journal: JournalBridge;
   workerTimeoutMs?: number;
+  drainTimeoutMs?: number;
   now?: () => number;
   createId?: () => string;
   onFallbackToMemory?: (reason: string) => void;
@@ -96,6 +98,7 @@ export function createSqliteWorkerClient(
     opfsSupported,
     journal,
     workerTimeoutMs = SQLITE_WORKER_TIMEOUT_MS,
+    drainTimeoutMs,
     now = () => Date.now(),
     createId = () => crypto.randomUUID(),
     onFallbackToMemory,
@@ -108,7 +111,9 @@ export function createSqliteWorkerClient(
   const docDetailWorkspaces = new Map<string, string | undefined>();
   const inFlightWrites = new Set<Promise<void>>();
 
-  let pendingBatch: PendingWriteBatch | null = null;
+  const buffer = createWriteBuffer(() =>
+    accountKeyOf(connection.activeEpoch()),
+  );
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   let hydratedEpoch: CacheEpoch | null = null;
 
@@ -138,7 +143,7 @@ export function createSqliteWorkerClient(
       clearTimeout(flushTimer);
       flushTimer = null;
     }
-    pendingBatch = null;
+    buffer.clear();
   };
 
   const trackWrite = (promise: Promise<void>) => {
@@ -170,25 +175,9 @@ export function createSqliteWorkerClient(
     connection.handleEpochFailure(epoch, `flush-${code}`);
   };
 
-  const ensurePendingBatch = (principal: string): PendingWriteBatch => {
-    if (pendingBatch && pendingBatch.principal !== principal) {
-      clearPendingBatch();
-    }
-    if (!pendingBatch) {
-      pendingBatch = {
-        principal,
-        accountKey: accountKeyOf(connection.currentEpoch()),
-        patches: [],
-        state: {},
-        evictions: new Map(),
-        conversations: new Map(),
-      };
-    }
-    return pendingBatch;
-  };
-
-  const writeBatchToMemory = (batch: PendingWriteBatch, principal: string) => {
-    if (closed || auth.current() !== principal) return;
+  const writeBatchToMemory = (batch: PendingWriteBatch) => {
+    if (closed || auth.current() !== batch.principal || !buffer.holds(batch))
+      return;
     if (batch.patches.length) memory.writePatches(batch.patches, batch.state);
     for (const [conversationId, entry] of batch.conversations) {
       if (entry.messages) {
@@ -212,22 +201,19 @@ export function createSqliteWorkerClient(
       clearTimeout(flushTimer);
       flushTimer = null;
     }
-    const batch = pendingBatch;
-    pendingBatch = null;
-    if (!batch || closed || opfsMissing) {
-      return Promise.resolve();
-    }
     const principal = auth.current();
-    if (principal === null || batch.principal !== principal) {
+    if (closed || opfsMissing || principal === null) {
+      buffer.clear();
       return Promise.resolve();
     }
     const epoch = closingEpoch ?? connection.ensureActiveEpoch(principal, true);
+    const batch = buffer.take();
+    if (!batch || batch.principal !== principal) return Promise.resolve();
     if (!epoch) {
-      if (opfsMissing) writeBatchToMemory(batch, principal);
+      if (opfsMissing) writeBatchToMemory(batch);
       return Promise.resolve();
     }
-    if (batch.accountKey !== null && batch.accountKey !== accountKeyOf(epoch))
-      return Promise.resolve();
+    if (batch.accountKey !== accountKeyOf(epoch)) return Promise.resolve();
     const built = buildFlushPayload({
       batch,
       knownIds,
@@ -246,7 +232,7 @@ export function createSqliteWorkerClient(
       .catch((error) => {
         if (sameEpoch(connection.activeEpoch(), epoch)) resetShadowState();
         if (opfsMissing) {
-          writeBatchToMemory(batch, principal);
+          writeBatchToMemory(batch);
           return;
         }
         if (
@@ -266,11 +252,14 @@ export function createSqliteWorkerClient(
     clientId: createId(),
     auth,
     schemaVersion,
-    epochStore,
+    epochStore: opfsMissing
+      ? { read: () => epochStore.read(), write: (e) => epochStore.write(e) }
+      : epochStore,
     locks,
     channelTransport,
     spawnWorker,
     workerTimeoutMs,
+    drainTimeoutMs,
     now,
     createId,
     onOpfsMissing: (reason) => {
@@ -278,18 +267,14 @@ export function createSqliteWorkerClient(
         opfsMissing = true;
         onFallbackToMemory?.(reason);
       }
+      const buffered = buffer.take();
+      if (buffered) writeBatchToMemory(buffered);
     },
     onEpochChange: (epoch) => {
       resetShadowState();
       if (hydratedEpoch && epoch && !sameAccountEpoch(hydratedEpoch, epoch))
         hydratedEpoch = null;
-      if (
-        epoch &&
-        pendingBatch &&
-        pendingBatch.accountKey !== null &&
-        pendingBatch.accountKey !== accountKeyOf(epoch)
-      )
-        clearPendingBatch();
+      buffer.followEpoch(epoch);
     },
     onBeforeClose: (epoch) => {
       void flushBatchNow(epoch);
@@ -469,7 +454,7 @@ export function createSqliteWorkerClient(
         return pendingWrite;
       }
 
-      const batch = ensurePendingBatch(principal);
+      const batch = buffer.ensure(principal);
       batch.patches.push(...patches);
       for (const patch of patches) {
         const root = patch.path[0];
@@ -512,10 +497,9 @@ export function createSqliteWorkerClient(
         return null;
       }
 
-      const buffered =
-        pendingBatch && pendingBatch.principal === principal
-          ? pendingBatch.conversations.get(conversationId)
-          : undefined;
+      const buffered = buffer
+        .current(principal)
+        ?.conversations.get(conversationId);
       if (buffered?.messages) {
         return {
           messages: [...buffered.messages.rows],
@@ -566,7 +550,7 @@ export function createSqliteWorkerClient(
         memory.writeConversationMessages(conversationId, messages, pagination);
         return;
       }
-      const batch = ensurePendingBatch(principal);
+      const batch = buffer.ensure(principal);
       const prev = batch.conversations.get(conversationId);
       batch.conversations.set(conversationId, {
         messages: { rows: messages, pagination },
@@ -583,7 +567,7 @@ export function createSqliteWorkerClient(
         memory.writeConversationUserMessages(conversationId, messages);
         return;
       }
-      const batch = ensurePendingBatch(principal);
+      const batch = buffer.ensure(principal);
       const prev = batch.conversations.get(conversationId);
       batch.conversations.set(conversationId, {
         messages: prev?.messages,
@@ -600,8 +584,9 @@ export function createSqliteWorkerClient(
       if (closed || auth.current() !== owner) return [];
       const confirmed = ids.filter((id) => !restores.has(id) && current(id));
       if (!confirmed.length) return [];
-      if (pendingBatch?.principal === owner)
-        dropBatchDocDetails(pendingBatch, confirmed);
+      const buffered = buffer.current(owner);
+      if (buffered) dropBatchDocDetails(buffered, confirmed);
+      const scope = buffer.scope();
       if (opfsMissing) {
         return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
       }
@@ -621,7 +606,8 @@ export function createSqliteWorkerClient(
         return deleted;
       } catch (error) {
         if (opfsMissing) {
-          if (closed || auth.current() !== owner) return [];
+          if (closed || auth.current() !== owner || scope !== buffer.scope())
+            return [];
           return memory.deleteInvalidatedDocDetails?.(confirmed, current) ?? [];
         }
         if (
@@ -700,6 +686,7 @@ export function createSqliteWorkerClient(
     },
 
     async purgeLocalCache(options) {
+      if (closed) return;
       const keep = options?.keepPendingInputFor ?? null;
       recordCacheEvent("purge", {
         engine: opfsMissing ? "memory" : "sqlite-worker",
@@ -708,6 +695,7 @@ export function createSqliteWorkerClient(
         ...options?.detail,
       });
       clearPendingBatch();
+      buffer.purge();
       resetShadowState();
       hydratedEpoch = null;
       await memory.purgeLocalCache(options);

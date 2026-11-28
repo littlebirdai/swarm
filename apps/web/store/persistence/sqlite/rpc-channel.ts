@@ -31,6 +31,7 @@ export const RETRIABLE_OPS = new Set<SqliteWorkerOp>([
 
 export type PendingWaiter = {
   id: string;
+  epoch: CacheEpoch;
   epochId: string;
   principal: string | null;
   op: SqliteWorkerOp;
@@ -60,6 +61,7 @@ export type RpcChannelState = {
   };
   clearKnownWorker: () => void;
   onTimeout: (epoch: CacheEpoch, reason: string) => void;
+  onWriteLost: (epoch: CacheEpoch, reason: string) => void;
 };
 
 export function createRpcChannelManager(deps: RpcChannelState) {
@@ -71,6 +73,7 @@ export function createRpcChannelManager(deps: RpcChannelState) {
     getState,
     clearKnownWorker,
     onTimeout,
+    onWriteLost,
   } = deps;
 
   const readyWaiters = new Set<() => void>();
@@ -102,10 +105,15 @@ export function createRpcChannelManager(deps: RpcChannelState) {
     waiter.reject(error);
   };
 
+  const loseWrite = (waiter: PendingWaiter, reason: string) => {
+    settleReject(waiter.id, new WorkerRpcError("closed", reason));
+    onWriteLost(waiter.epoch, reason);
+  };
+
   const rejectWritesForEpoch = (targetEpochId: string, reason: string) => {
-    for (const [id, waiter] of pendingRequests) {
+    for (const waiter of [...pendingRequests.values()]) {
       if (waiter.epochId !== targetEpochId || waiter.retriable) continue;
-      settleReject(id, new WorkerRpcError("closed", reason));
+      loseWrite(waiter, reason);
     }
   };
 
@@ -243,10 +251,7 @@ export function createRpcChannelManager(deps: RpcChannelState) {
           waiter.targetWorkerId !== null &&
           waiter.targetWorkerId !== newWorkerId
         ) {
-          settleReject(
-            waiter.id,
-            new WorkerRpcError("closed", "Worker replaced during write"),
-          );
+          loseWrite(waiter, "Worker replaced during write");
         }
         continue;
       }
@@ -338,6 +343,7 @@ export function createRpcChannelManager(deps: RpcChannelState) {
       }, remaining);
       waiter = {
         id: reqId,
+        epoch,
         epochId: id,
         principal,
         op,

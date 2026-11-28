@@ -24,6 +24,7 @@ export const metaKeys = new Set(
 export type PendingWriteBatch = {
   principal: string;
   accountKey: string | null;
+  scope: number;
   patches: Patch[];
   state: Record<string, any>;
   evictions: Map<string, Set<string>>;

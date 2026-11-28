@@ -68,6 +68,7 @@ function holdingSpawner(inner: WorkerSpawner) {
     held: [] as unknown[],
     deliver: null as ((data: unknown) => void) | null,
     swallowAll: false,
+    swallowed: 0,
     holdClosing: false,
     events: [] as string[],
     release() {
@@ -91,7 +92,10 @@ function holdingSpawner(inner: WorkerSpawner) {
     const worker = inner(epoch, deliver, onError);
     return {
       postMessage(message: unknown) {
-        if (control.swallowAll) return;
+        if (control.swallowAll) {
+          control.swallowed++;
+          return;
+        }
         const request = message as { type?: string; op?: string; id?: string };
         if (request?.type === "request" && request.op === control.holdOp) {
           control.heldId = request.id ?? null;
@@ -320,17 +324,17 @@ describe("SQLite epoch scope", () => {
         channelTransport,
         spawnWorker: spawner,
         workerTimeoutMs: 50,
+        drainTimeoutMs: 1000,
       }),
     );
     await client.loadCache(["sessions"]);
     await waitUntil(() => client.holdsLock(), 1000, "owner holds the lock");
     control.swallowAll = true;
     const hung = client.loadConversationMessages("conversation");
-    await delay(5);
+    await waitUntil(() => control.swallowed > 0, 1000, "request sent");
     client.close();
 
     expect(await hung).toBeNull();
-    await delay(250);
     expect(epochStore.read()?.generation).toBe(1);
   });
 
@@ -344,7 +348,7 @@ describe("SQLite epoch scope", () => {
     );
     const shared = { epochStore, locks, channelTransport };
     const client = createSqliteWorkerClient(
-      options(dir, { ...shared, spawnWorker: spawner }),
+      options(dir, { ...shared, spawnWorker: spawner, drainTimeoutMs: 10_000 }),
     );
     await client.loadCache(["sessions", "syncMeta"]);
     await waitUntil(() => client.holdsLock(), 1000, "owner holds the lock");
@@ -357,6 +361,8 @@ describe("SQLite epoch scope", () => {
     client.close();
     await client.flushPersistence();
     control.events.push("flushed");
+    expect(control.events).toEqual(["flushed"]);
+    control.release();
     await waitUntil(
       () => control.events.includes("terminated"),
       1000,

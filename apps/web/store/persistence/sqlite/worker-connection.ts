@@ -38,6 +38,7 @@ export type WorkerConnectionDeps = {
   channelTransport: ChannelTransport | null;
   spawnWorker: WorkerSpawner;
   workerTimeoutMs: number;
+  drainTimeoutMs?: number;
   now: () => number;
   createId: () => string;
   onOpfsMissing: (reason: string) => void;
@@ -84,6 +85,7 @@ export function createWorkerConnection(
     onOpfsMissing,
     onEpochChange,
     onBeforeClose,
+    drainTimeoutMs = GRACEFUL_CLOSE_TIMEOUT_MS,
   } = deps;
 
   let closed = false;
@@ -123,10 +125,11 @@ export function createWorkerConnection(
       knownWorkerId = null;
     },
     onTimeout: (epoch, reason) => rotateToNextGeneration(epoch, reason),
+    onWriteLost: (epoch, reason) => rotateToNextGeneration(epoch, reason),
   });
 
   const drains = createWorkerDrains({
-    timeoutMs: GRACEFUL_CLOSE_TIMEOUT_MS,
+    timeoutMs: drainTimeoutMs,
     onDrained: (drain) => {
       rpc.rejectEpoch(drain.epochId, "Epoch changed");
       rpc.notifyReadyWaiters();
@@ -136,11 +139,13 @@ export function createWorkerConnection(
   const disableSqlite = (reason: string) => {
     if (disabled || closed) return;
     disabled = true;
+    unsubscribeEpochStore?.();
     transitions.run(
       () => {
+        if (closed) return;
         teardownEpoch(false);
-        onEpochChange?.(null);
         onOpfsMissing(reason);
+        onEpochChange?.(null);
       },
       { essential: true },
     );
@@ -276,19 +281,20 @@ export function createWorkerConnection(
       return;
     }
     teardownEpoch(false);
-    onEpochChange?.(null);
     const next = nextGenerationEpoch(expected, reason, now());
     const target = advanceEpochIfMatches(expected, next);
     if (
       target &&
       !closed &&
       !disabled &&
+      target.schemaVersion === schemaVersion &&
       target.principal !== null &&
       target.principal === auth.current() &&
       !target.failed
     ) {
       attachToEpoch(target);
     }
+    if (!activeEpoch) onEpochChange?.(null);
   }
 
   const handleEpochFailure = (failedEpoch: CacheEpoch, reason: string) => {
@@ -341,11 +347,13 @@ export function createWorkerConnection(
       return;
     }
     if (msg.type === "worker-closing") {
-      clearKnownWorkerIfMatches(msg.workerId);
-      if (source === "owner" && ownedWorkerId === msg.workerId) {
-        ownedWorkerId = null;
-        ownedWorkerReady = false;
+      if (ownedWorkerId === msg.workerId) {
+        if (source === "owner")
+          handleEpochFailure(activeEpoch, "owner-worker-closed");
+        return;
       }
+      if (ownedWorker || knownWorkerId !== msg.workerId) return;
+      clearKnownWorkerIfMatches(msg.workerId);
       rpc.redispatchForWorkerChange(msg.epochId, null);
       rpc.sendDiscover(msg.epochId);
       return;
@@ -530,6 +538,12 @@ export function createWorkerConnection(
     }
     const target = resolution.epoch;
     if (!target) return null;
+    if (
+      activeEpoch &&
+      target.principal === activeEpoch.principal &&
+      compareEpochOrder(target, activeEpoch) < 0
+    )
+      return activeEpoch;
     if (resolution.action === "create") {
       if (!createIfMissing && target.principal !== null) return null;
       if (!writeEpochOrDisable(target)) return null;
