@@ -21,8 +21,19 @@ export type ScopeCandidates = {
 
 export type ScopeScopedCollection = "tasks" | "docs" | "plans" | "chatMessages";
 
+export type ScopeViewTargetKind =
+  | "project"
+  | "task"
+  | "doc"
+  | "plan"
+  | "channel";
+
+export type ScopeViewTarget = { kind: ScopeViewTargetKind; id: string };
+
+export const SCOPE_VIEW_TARGET_OWNERS_MAX = 16;
+
 export type PurgeTarget = {
-  collection: ScopeScopedCollection;
+  collection: ScopeScopedCollection | "projects";
   id: string;
   scope: string;
 };
@@ -48,6 +59,7 @@ export type ScopeStoreInput = {
   }>;
   tabs?: Array<{ id?: string; path?: string | null; layout?: any }>;
   activeTabId?: string | null;
+  scopeViewTargets?: Record<string, ScopeViewTarget[]>;
   tasks?: Record<string, any>;
   docs?: Record<string, any>;
   docDetails?: Record<string, any>;
@@ -195,6 +207,32 @@ export function activeTabPaths(state: ScopeStoreInput): string[] {
   return tabPathsForTab(tab);
 }
 
+const VIEW_TARGET_SEGMENT: Record<ScopeViewTargetKind, string> = {
+  project: "projects",
+  task: "tasks",
+  doc: "docs",
+  plan: "plans",
+  channel: "chat",
+};
+
+export function viewTargetPaths(state: ScopeStoreInput): string[] {
+  const owners = state.scopeViewTargets;
+  if (!owners) return [];
+  const paths: string[] = [];
+  for (const owner in owners) {
+    for (const target of owners[owner] ?? []) {
+      const segment = target && VIEW_TARGET_SEGMENT[target.kind];
+      if (!segment || typeof target.id !== "string" || !target.id) continue;
+      paths.push(`/${segment}/${encodeURIComponent(target.id)}`);
+    }
+  }
+  return paths;
+}
+
+export function activeViewPaths(state: ScopeStoreInput): string[] {
+  return [...activeTabPaths(state), ...viewTargetPaths(state)];
+}
+
 export function findEntityRow(
   primary: Record<string, any> | undefined,
   ref: string,
@@ -237,7 +275,7 @@ export function extractViewScopes(
 ): string[] {
   const viewSet = new Set<string>();
   const projects = state.projects;
-  for (const path of paths ?? activeTabPaths(state)) {
+  for (const path of paths ?? activeViewPaths(state)) {
     const projRef = matchRouteParam(path, "projects");
     if (projRef) {
       const pid = resolveProjectId(projects, projRef);
@@ -404,7 +442,14 @@ export function extractScopeCandidates(
     }
   }
 
-  const viewSet = new Set<string>(extractViewScopes(state, opts?.activePaths));
+  const viewSet = new Set<string>(
+    extractViewScopes(
+      state,
+      opts?.activePaths
+        ? [...opts.activePaths, ...viewTargetPaths(state)]
+        : undefined,
+    ),
+  );
   const peerViews = state.scopeSubscriptions?.peerViews;
   if (peerViews) {
     for (const peerId in peerViews) {
@@ -594,6 +639,21 @@ export function purgeUnheldScopeRowsInDraft(
   return targets;
 }
 
+const DETAIL_OF_PARENT: Record<string, string> = {
+  docs: "docDetails",
+  tasks: "taskComments",
+};
+
+function revokedTeamScope(
+  row: any,
+  revokedScopes: ReadonlySet<string>,
+): string | null {
+  const ws = row?.workspace;
+  if (typeof ws !== "string" || !ws.startsWith("team:")) return null;
+  const dir = `dir:${ws.slice(5)}`;
+  return revokedScopes.has(dir) ? dir : null;
+}
+
 export function revokeScopeRowsInDraft(
   draft: any,
   revokedScopes: ReadonlySet<string>,
@@ -602,22 +662,22 @@ export function revokeScopeRowsInDraft(
 ): PurgeTarget[] {
   const targets: PurgeTarget[] = [];
   if (revokedScopes.size === 0) return targets;
-  for (const collection of SCOPE_SCOPED_COLLECTIONS) {
+  for (const collection of [...SCOPE_SCOPED_COLLECTIONS, "projects"] as const) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (!rows) continue;
     for (const id of Object.keys(rows)) {
       if (!isConvexId(id) || isStubId(id)) continue;
       const row = rows[id];
       if (!row || typeof row !== "object") continue;
-      const scope = rowHomeScope(collection, row);
-      if (!scope || !revokedScopes.has(scope) || scope === userScope) continue;
+      const home =
+        collection === "projects" ? null : rowHomeScope(collection, row);
+      const scope =
+        revokedTeamScope(row, revokedScopes) ??
+        (home && revokedScopes.has(home) ? home : null);
+      if (!scope || scope === userScope) continue;
       delete rows[id];
-      if (collection === "docs" && draft.docDetails?.[id]) {
-        delete draft.docDetails[id];
-      }
-      if (collection === "tasks" && draft.taskComments?.[id]) {
-        delete draft.taskComments[id];
-      }
+      const detailKey = DETAIL_OF_PARENT[collection];
+      if (detailKey && draft[detailKey]?.[id]) delete draft[detailKey][id];
       if (draft.pending) {
         draft.pending[`${collection}:${id}`] = {
           type: "exclude",
@@ -629,4 +689,17 @@ export function revokeScopeRowsInDraft(
     }
   }
   return targets;
+}
+
+export function dropDetailsOfRemovedParents(
+  draft: any,
+  key: string,
+  removedIds: readonly string[],
+): void {
+  const detailKey = DETAIL_OF_PARENT[key];
+  const details = detailKey ? draft[detailKey] : undefined;
+  if (!details) return;
+  for (const id of removedIds) {
+    if (details[id] !== undefined) delete details[id];
+  }
 }

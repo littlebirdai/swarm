@@ -80,7 +80,7 @@ describe("dropTeamFeedCache", () => {
   });
 
   it("rides the viewer's own revocation of the team scope", () => {
-    useInboxStore.getState().purgeTeamScopeRows(TEAM);
+    useInboxStore.getState().revokeTeamScope(TEAM);
     expect(Object.keys(useInboxStore.getState().feedConversations)).toEqual([
       `${OTHER}|`,
     ]);

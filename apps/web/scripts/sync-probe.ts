@@ -106,33 +106,37 @@ export async function runLocalProbe(samples: number, timeoutMs: number) {
         const position = await waitForDelivery(sample + 2, signal);
         start("getHeads");
         let rangeStarted = false;
-        await catchUp({
-          query: async (
-            reference: FunctionReference<"query">,
-            args: Record<string, unknown>,
-          ) => {
-            signal.throwIfAborted();
-            const name = getFunctionName(reference);
-            if (name === "syncLog:getRange" && !rangeStarted) {
-              start("getRange");
-              rangeStarted = true;
-            }
-            const response = await owner.query(reference, args);
-            signal.throwIfAborted();
-            queryReads.push({ name, response });
-            if (name === "syncLog:getHeads") {
-              const head = (
-                response as FunctionReturnType<typeof api.syncLog.getHeads>
-              ).heads.find((entry) => entry.scope_key === scopeKey);
-              if (head?.position !== position || position <= cursor)
-                throw new Error(
-                  "Probe delivery did not advance the personal head",
-                );
-            }
-            if (name === "syncLog:getRange") start("apply");
-            return response;
+        await catchUp(
+          {
+            query: async (
+              reference: FunctionReference<"query">,
+              args: Record<string, unknown>,
+            ) => {
+              signal.throwIfAborted();
+              const name = getFunctionName(reference);
+              if (name === "syncLog:getRange" && !rangeStarted) {
+                start("getRange");
+                rangeStarted = true;
+              }
+              const response = await owner.query(reference, args);
+              signal.throwIfAborted();
+              queryReads.push({ name, response });
+              if (name === "syncLog:getHeads") {
+                const head = (
+                  response as FunctionReturnType<typeof api.syncLog.getHeads>
+                ).heads.find((entry) => entry.scope_key === scopeKey);
+                if (head?.position !== position || position <= cursor)
+                  throw new Error(
+                    "Probe delivery did not advance the personal head",
+                  );
+              }
+              if (name === "syncLog:getRange") start("apply");
+              return response;
+            },
           },
-        });
+          undefined,
+          { scopes: [scopeKey] },
+        );
         signal.throwIfAborted();
         flushSyncPublishes();
         const state = useInboxStore.getState();

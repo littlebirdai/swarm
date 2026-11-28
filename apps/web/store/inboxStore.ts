@@ -754,6 +754,7 @@ import {
 } from "../lib/railFolderFilter";
 import {
   createScopeSubscriptionSlice,
+  dropDetailsOfRemovedParents,
   type ScopeSubscriptionSlice,
 } from "./scope-subscriptions";
 export type { ThreadsCursor } from "./threadTypes";
@@ -8682,9 +8683,6 @@ export interface InboxStoreState
   ) => void;
   /** A follower's own write echoed by the host: its locks on these cells (and on every field of these rows) forget the host rows they recorded before. */
   forgetLockSeen: (keys: string[], rowPrefixes?: string[]) => void;
-  // Scope lifecycle (D5): purge a revoked team's rows from the workspace-scoped
-  // collections and drop its log cursor.
-  purgeTeamScopeRows: (teamId: string) => void;
   clearSyncMeta: (key: string) => void;
   clearCrawlMetaForScope: (scopeKey: string) => void;
   // Sync-log cargo (sync-log-cargo E6): merge a patch's fields onto an existing
@@ -8725,9 +8723,6 @@ export interface InboxStoreState
   // relaunch it. Keyed by scope, not watermark key, so a first crawl that has
   // written no watermark yet is superseded too. Ephemeral.
   crawlResets: Record<string, number>;
-  // Lift the excludes purgeTeamScopeRows planted for one scope (a rejoin): the
-  // recut floor's rows would otherwise be dropped by every delta merge.
-  liftScopeExcludes: (scopeKey: string) => void;
 
   // -- Generic sync --
   syncTable: (field: string, incoming: any, opts?: SyncOpts) => void;
@@ -13337,6 +13332,11 @@ const inboxStoreConfig = (set: any, get: any) => ({
       if (holdsUnsentComment(table[id])) continue;
       if (table[id] !== undefined) delete table[id];
     }
+    dropDetailsOfRemovedParents(
+      this,
+      key,
+      ids.filter((id) => table[id] === undefined),
+    );
   }),
 
   setLiveInboxIds: sync(function (this: Draft, ids: string[]) {
@@ -15343,33 +15343,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
     }
   }),
 
-  // Scope revocation (design D5): the log said this user left a team. Purge the
-  // workspace-scoped collections' rows for that team (access is gone; keeping
-  // them renders data the server would no longer serve) and plant excludes so
-  // the durable IDB rows delete too. Conversations are owner-scoped and
-  // untouched. The caller drops the scope's log cursor separately.
-  purgeTeamScopeRows: sync(function (this: Draft, teamId: string) {
-    const wsKey = `team:${teamId}`;
-    const now = Date.now();
-    for (const coll of ["tasks", "docs", "plans", "projects"] as const) {
-      const rows = (this as any)[coll] as Record<string, any> | undefined;
-      if (!rows) continue;
-      for (const [id, row] of Object.entries(rows)) {
-        if (row?.workspace === wsKey) {
-          delete rows[id];
-          // Tagged with the scope so a rejoin can lift exactly these
-          // (liftScopeExcludes); the rows are gone, so nothing else can name them.
-          this.pending[`${coll}:${id}`] = {
-            type: "exclude",
-            ts: now,
-            scope: wsKey,
-          };
-        }
-      }
-    }
-    dropTeamFeedCacheIn(this, teamId);
-  }),
-
   // A `member`/`scope_removed` row in the team's scope: the departed user's
   // rows leave the team feed cache for that team. Keyed by the runner
   // (user_id), the same key the server's team scan uses, so a role's seat row
@@ -15391,15 +15364,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
     dropTeamFeedCacheIn(this, teamId);
   }),
 
-  liftScopeExcludes: sync(function (this: Draft, scopeKey: string) {
-    for (const [key, entry] of Object.entries(this.pending)) {
-      if (
-        (entry as any)?.type === "exclude" &&
-        (entry as any).scope === scopeKey
-      )
-        delete this.pending[key];
-    }
-  }),
   ...createScopeSubscriptionSlice(sync, get),
 
   // Drop a syncMeta key outright (recordSyncMeta only advances). Used for log

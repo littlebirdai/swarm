@@ -28,6 +28,7 @@ import {
   useTaskComments,
 } from "@codecast/web/hooks/useSyncTasks";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
+import { useScopeViewTarget } from "@codecast/web/hooks/use-scope-view-target";
 import { useRepoObject } from "@codecast/web/hooks/useRepoObject";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
@@ -51,6 +52,7 @@ type TaskPriority = keyof typeof PRIORITY_CONFIG;
 export default function TaskDetailScreen() {
   const Theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
+  useScopeViewTarget("task", id);
   const router = useRouter();
   const tasks = useInboxStore((s) => s.tasks);
   const updateTask = useInboxStore((s) => s.updateTask);

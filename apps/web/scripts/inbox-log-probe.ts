@@ -115,16 +115,20 @@ for (let i = 0; i <= samples; i++) {
     applyInboxListPayload(split.hot);
   }
   await query(api.conversations.sessionsLiveness, { split: true }, true);
-  const heads = await query(api.syncLog.getHeads, {}, true);
-  await catchUp({
-    query: (
-      reference: FunctionReference<"query">,
-      args: Record<string, unknown>,
-    ) =>
-      getFunctionName(reference) === getFunctionName(api.syncLog.getHeads)
-        ? Promise.resolve(heads)
-        : query(reference, args),
-  });
+  const heads = await query(api.syncLog.getHeads, { scopes: [scope] }, true);
+  await catchUp(
+    {
+      query: (
+        reference: FunctionReference<"query">,
+        args: Record<string, unknown>,
+      ) =>
+        getFunctionName(reference) === getFunctionName(api.syncLog.getHeads)
+          ? Promise.resolve(heads)
+          : query(reference, args),
+    },
+    undefined,
+    { scopes: [scope] },
+  );
   flushSyncPublishes();
   assert.equal(useInboxStore.getState().sessions[id]?.title, title);
   measured = true;

@@ -111,6 +111,7 @@ test("account switch reconciles before runAll, scopeInputsSig stays compact, and
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: 1,
@@ -240,6 +241,7 @@ test("whileWindowVisible pauses grace timer when hidden and handles project/dir 
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: 1,
@@ -371,6 +373,7 @@ test("unpin evicts immediately and hidden host reconciles follower peerViews", a
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: 1,

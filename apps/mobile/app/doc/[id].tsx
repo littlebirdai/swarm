@@ -17,6 +17,7 @@ import { Mono, uiFace } from "@/constants/fonts";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
 import { useSyncDocDetail } from "@codecast/web/hooks/use-sync-docs";
+import { useScopeViewTarget } from "@codecast/web/hooks/use-scope-view-target";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { isConvexId } from "@codecast/web/store/inboxStore";
 import { DOC_TYPE_CONFIG } from "@/components/DocItem";
@@ -29,6 +30,7 @@ export default function DocDetailScreen() {
   const Theme = useTheme();
   const textSize = useTextSize();
   const { id, share } = useLocalSearchParams<{ id: string; share?: string }>();
+  useScopeViewTarget("doc", id);
   const router = useRouter();
   // The one row, not the collection: a whole-collection subscription would
   // repaint this page on every doc sync across the workspace.

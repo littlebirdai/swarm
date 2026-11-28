@@ -82,6 +82,7 @@ test("useSyncChangeFeed always runs scoped without flag and revokes unauthorized
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: 1,
@@ -170,6 +171,7 @@ test("team bootstrap floor opens when dir:<teamId> is stamped", async () => {
         backend.set(
           api.syncLog.getHeads,
           ({ scopes }: { scopes?: string[] }) => ({
+            authenticated: true,
             heads: (scopes ?? []).map((scope_key) => ({
               scope_key,
               position: 1,
@@ -242,6 +244,7 @@ test("chunks head subscriptions by 16, wakes dirty chunk, and sweeps chunk with 
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: positions[scope_key] ?? 0,
@@ -305,6 +308,7 @@ test("chunks head subscriptions by 16, wakes dirty chunk, and sweeps chunk with 
   await act(async () => {
     positions = { ...positions, "project:p15": 2 };
     backend.set(api.syncLog.getHeads, ({ scopes }: { scopes?: string[] }) => ({
+      authenticated: true,
       heads: (scopes ?? []).map((scope_key) => ({
         scope_key,
         position: positions[scope_key] ?? 0,
@@ -330,6 +334,7 @@ test("chunks head subscriptions by 16, wakes dirty chunk, and sweeps chunk with 
   expect(chunk1.length).toBeGreaterThan(0);
   await act(async () => {
     backend.set(api.syncLog.getHeads, ({ scopes }: { scopes?: string[] }) => ({
+      authenticated: true,
       heads: (scopes ?? [])
         .filter((s) => !chunk1.includes(s))
         .map((scope_key) => ({ scope_key, position: 1, floor: 0 })),
@@ -390,6 +395,7 @@ test("grace expires on visible window after 60 s, evicts without excludes, and h
       backend.set(
         api.syncLog.getHeads,
         ({ scopes }: { scopes?: string[] }) => ({
+          authenticated: true,
           heads: (scopes ?? []).map((scope_key) => ({
             scope_key,
             position: 1,

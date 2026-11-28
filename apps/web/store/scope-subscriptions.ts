@@ -3,6 +3,7 @@ import {
   activeTabPaths,
   computeEvictionsForPurge,
   computePurgeSet,
+  dropDetailsOfRemovedParents,
   extractScopeCandidates,
   extractViewScopes,
   findEntityRow,
@@ -15,6 +16,8 @@ import {
   type ScopePurgeOptions,
   type ScopeScopedCollection,
   type ScopeStoreInput,
+  type ScopeViewTarget,
+  type ScopeViewTargetKind,
 } from "./scope-subscription-candidates";
 import {
   createScopeSubscriptionSlice,
@@ -27,6 +30,7 @@ export {
   activeTabPaths,
   computeEvictionsForPurge,
   computePurgeSet,
+  dropDetailsOfRemovedParents,
   createScopeSubscriptionSlice,
   extractScopeCandidates,
   extractViewScopes,
@@ -42,6 +46,8 @@ export {
   type ScopeScopedCollection,
   type ScopeStoreInput,
   type ScopeSubscriptionSlice,
+  type ScopeViewTarget,
+  type ScopeViewTargetKind,
 };
 
 export const SCOPE_SUBSCRIPTION_BUDGET = 64;

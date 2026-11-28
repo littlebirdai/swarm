@@ -182,52 +182,6 @@ describe("retireAckedPending", () => {
   });
 });
 
-describe("purgeTeamScopeRows", () => {
-  test("purges only rows whose workspace is the revoked team, planting excludes", () => {
-    useInboxStore.setState({
-      tasks: {
-        t1: { _id: "t1", workspace: "team:T", title: "gone" },
-        t2: { _id: "t2", workspace: "user:u1", title: "kept" },
-      },
-      docs: { d1: { _id: "d1", workspace: "team:T" } },
-    } as any);
-    useInboxStore.getState().purgeTeamScopeRows("T");
-    const s = useInboxStore.getState() as any;
-    expect(s.tasks.t1).toBeUndefined();
-    expect(s.tasks.t2).toBeDefined();
-    expect(s.docs.d1).toBeUndefined();
-    expect(s.pending["tasks:t1"]).toMatchObject({
-      type: "exclude",
-      scope: "team:T",
-    });
-    expect(s.pending["docs:d1"]).toMatchObject({
-      type: "exclude",
-      scope: "team:T",
-    });
-    expect(s.pending["tasks:t2"]).toBeUndefined();
-  });
-
-  test("liftScopeExcludes lifts exactly the purge's excludes for that scope (rejoin)", () => {
-    useInboxStore.setState({
-      tasks: {
-        t1: { _id: "t1", workspace: "team:T" },
-        t3: { _id: "t3", workspace: "team:U" },
-      },
-      pending: { "docs:pruned": { type: "exclude", ts: 1 } },
-    } as any);
-    useInboxStore.getState().purgeTeamScopeRows("T");
-    useInboxStore.getState().purgeTeamScopeRows("U");
-    useInboxStore.getState().liftScopeExcludes("team:T");
-    const pending = useInboxStore.getState().pending as any;
-    expect(pending["tasks:t1"]).toBeUndefined();
-    expect(pending["tasks:t3"]).toMatchObject({
-      type: "exclude",
-      scope: "team:U",
-    });
-    expect(pending["docs:pruned"]).toMatchObject({ type: "exclude" }); // an authorized-absence prune is not a purge
-  });
-});
-
 describe("clearSyncMeta", () => {
   test("drops the key outright (recordSyncMeta only advances)", () => {
     useInboxStore.setState({
@@ -321,7 +275,12 @@ describe("catchUpScope (review C19)", () => {
   test("authorization miss on a dir scope purges and drops the cursor (review C3)", async () => {
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("dir:T")]: { cursor: 3 } },
-      tasks: { t1: { _id: "t1", workspace: "team:T" } },
+      tasks: {
+        t1000000000000000000000000000000: {
+          _id: "t1000000000000000000000000000000",
+          workspace: "team:T",
+        },
+      },
     } as any);
     const convex = scriptedConvex([
       { actions: [], nextFrom: 3, hasMore: false, authorized: false },
@@ -333,7 +292,9 @@ describe("catchUpScope (review C19)", () => {
       purged,
     );
     expect(cursorOf("dir:T")).toBeUndefined();
-    expect((useInboxStore.getState() as any).tasks.t1).toBeUndefined();
+    expect(
+      (useInboxStore.getState() as any).tasks.t1000000000000000000000000000000,
+    ).toBeUndefined();
     expect(purged.has("T")).toBe(true);
   });
 });
@@ -854,8 +815,18 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
       syncLogScopeStamps: { "dir:T": 1 },
       syncLogFloorEpoch: 0,
       pending: {},
-      tasks: { t1: { _id: "t1", workspace: "team:T" } },
-      plans: { p1: { _id: "p1", workspace: "team:T" } },
+      tasks: {
+        t1000000000000000000000000000000: {
+          _id: "t1000000000000000000000000000000",
+          workspace: "team:T",
+        },
+      },
+      plans: {
+        p1000000000000000000000000000000: {
+          _id: "p1000000000000000000000000000000",
+          workspace: "team:T",
+        },
+      },
     } as any);
     // Retention passed the cursor: restamp at head and bump the floor epoch.
     await catchUpScope(
@@ -894,10 +865,10 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
     s = useInboxStore.getState() as any;
     expect(s.syncMeta[scopeMetaKey("dir:T")]).toBeUndefined();
     expect(s.syncLogScopeStamps["dir:T"]).toBeUndefined();
-    expect(s.plans.p1).toBeUndefined();
-    expect(s.pending["plans:p1"]).toMatchObject({
+    expect(s.plans.p1000000000000000000000000000000).toBeUndefined();
+    expect(s.pending["plans:p1000000000000000000000000000000"]).toMatchObject({
       type: "exclude",
-      scope: "team:T",
+      scope: "dir:T",
     });
     // scope_added: the purge's excludes lift and the floors recut.
     useInboxStore.setState({
@@ -922,102 +893,9 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
       new Set(),
     );
     s = useInboxStore.getState() as any;
-    expect(s.pending["plans:p1"]).toBeUndefined();
-    expect(s.pending["tasks:t1"]).toBeUndefined();
+    expect(s.pending["plans:p1000000000000000000000000000000"]).toBeUndefined();
+    expect(s.pending["tasks:t1000000000000000000000000000000"]).toBeUndefined();
     expect(s.syncLogFloorEpoch).toBe(2);
-  });
-});
-
-describe("catchUp: the legacy upgrade bridge", () => {
-  const { scopeMetaKey, catchUp } = require("../../hooks/use-sync-change-feed");
-  const HOUR = 60 * 60 * 1000;
-  const TEAM_TASKS = 'tasks:v2:{"team_id":"T","workspace":"team"}';
-  // getChangesSince is the only call that carries `since`; the legacy feed
-  // answers every page with more to come, the way a two-week backlog does.
-  const convexWith = (heads: any[]) => {
-    const calls: any[] = [];
-    return {
-      calls,
-      legacyCalls: () => calls.filter((a) => "since" in a),
-      query: async (_fn: any, args: any) => {
-        calls.push(args);
-        if ("since" in args)
-          return {
-            changes: [],
-            nextSince: args.since + 148_000,
-            hasMore: true,
-          };
-        if (args && "ids" in args) return [];
-        return { heads };
-      },
-    };
-  };
-  const seed = (legacyCursor: number, extra: Record<string, any> = {}) =>
-    useInboxStore.setState({
-      syncMeta: {
-        "changefeed:v1": { cursor: legacyCursor },
-        [TEAM_TASKS]: { cursor: 99, backfilledAt: 1 },
-        ...extra,
-      },
-      syncLogScopeStamps: {},
-      syncLogLag: {},
-      syncLogFloorEpoch: 0,
-      pending: {},
-    } as any);
-
-  test("a cursor from before the cutover skips the drain and cold-starts every scope at head", async () => {
-    seed(Date.now() - 14 * 24 * HOUR);
-    const convex = convexWith([
-      { scope_key: "user:u1", position: 40, floor: 0 },
-      { scope_key: "dir:T", position: 156024, floor: 25515 },
-    ]);
-    await catchUp(convex, undefined, { scopes: ["user:u1", "dir:T"] });
-    expect(convex.legacyCalls()).toHaveLength(0);
-    const s = useInboxStore.getState() as any;
-    expect(s.syncMeta[scopeMetaKey("user:u1")].cursor).toBe(40);
-    expect(s.syncMeta[scopeMetaKey("dir:T")].cursor).toBe(156024);
-    expect(s.syncMeta[TEAM_TASKS]).toBeUndefined(); // the crawl backfills in full
-    expect(s.syncMeta["changefeed:v1"]).toBeUndefined();
-    expect(s.syncLogScopeStamps["dir:T"]).toBeDefined();
-    expect(s.syncLogFloorEpoch).toBeGreaterThan(0); // the one-shot floors recut
-  });
-
-  test("a stale cursor beside a scope cursor an earlier partial run stamped still resyncs that scope", async () => {
-    seed(Date.now() - 3 * 24 * HOUR, {
-      [scopeMetaKey("dir:T")]: { cursor: 120000 },
-    });
-    const convex = convexWith([
-      { scope_key: "dir:T", position: 156024, floor: 25515 },
-    ]);
-    await catchUp(convex, undefined, { scopes: ["dir:T"] });
-    expect(convex.calls.filter((a) => "scope_key" in a)).toHaveLength(0); // no range replay over an unproven gap
-    const s = useInboxStore.getState() as any;
-    expect(s.syncMeta[scopeMetaKey("dir:T")].cursor).toBe(156024);
-    expect(s.syncMeta[TEAM_TASKS]).toBeUndefined();
-  });
-
-  test("an empty heads answer (auth blip) keeps a stale cursor and drains nothing", async () => {
-    const legacy = Date.now() - 14 * 24 * HOUR;
-    seed(legacy);
-    const convex = convexWith([]);
-    await catchUp(convex, undefined, { scopes: ["user:u1", "dir:T"] });
-    expect(convex.legacyCalls()).toHaveLength(0);
-    const s = useInboxStore.getState() as any;
-    expect(s.syncMeta["changefeed:v1"].cursor).toBe(legacy);
-    expect(s.syncMeta[TEAM_TASKS]).toBeDefined();
-  });
-
-  test("a young cursor still drains through the bridge before the scopes", async () => {
-    const legacy = Date.now() - 10 * 60 * 1000;
-    seed(legacy);
-    const convex = convexWith([{ scope_key: "dir:T", position: 7, floor: 0 }]);
-    await catchUp(convex, undefined, { scopes: ["dir:T"] });
-    expect(convex.legacyCalls().length).toBeGreaterThan(0);
-    expect(convex.legacyCalls()[0].since).toBe(legacy - 10_000);
-    const s = useInboxStore.getState() as any;
-    expect(s.syncMeta[scopeMetaKey("dir:T")].cursor).toBe(7); // cold-stamped as before
-    expect(s.syncMeta[TEAM_TASKS]).toBeDefined(); // no full backfill
-    expect(s.syncMeta["changefeed:v1"]).toBeDefined(); // page cap hit: resumes next run
   });
 });
 

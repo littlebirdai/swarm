@@ -61,6 +61,7 @@ import {
 } from "@/components/chat/MessageRow";
 import { threadRootOf } from "@codecast/web/components/chat/chatTypes";
 import { channelDisplayName } from "@codecast/web/lib/chatViews";
+import { useScopeViewTarget } from "@codecast/web/hooks/use-scope-view-target";
 import { type MentionCandidate } from "@/components/chat/MentionStrip";
 import { useSessionIdentityLookup } from "@/components/identity";
 import { ChatComposerBar } from "@/components/chat/ChatComposerBar";
@@ -95,6 +96,7 @@ export default function ChatChannelScreen() {
   // is gone and its forwarding address is the real room.
   const superseded = useSupersededChannelId(id);
   const channelId = (superseded ?? id) as string;
+  useScopeViewTarget("channel", channelId);
   const router = useRouter();
 
   // LOCAL FIRST. Everything this screen draws is read from the store, which

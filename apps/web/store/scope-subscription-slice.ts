@@ -6,7 +6,10 @@ import {
   isKnownHomeScope,
   purgeUnheldScopeRowsInDraft,
   revokeScopeRowsInDraft,
+  SCOPE_VIEW_TARGET_OWNERS_MAX,
   type PurgeTarget,
+  type ScopeViewTarget,
+  type ScopeViewTargetKind,
 } from "./scope-subscription-candidates";
 import {
   SCOPE_HEADS_CHUNK_COUNT,
@@ -141,8 +144,45 @@ function denyScopesInDraft(
   return revokeScopeRowsInDraft(draft, denySet, now, userScope);
 }
 
+const VIEW_TARGET_KINDS: ReadonlySet<ScopeViewTargetKind> = new Set([
+  "project",
+  "task",
+  "doc",
+  "plan",
+  "channel",
+]);
+
+function cleanViewTargets(
+  targets: readonly ScopeViewTarget[],
+): ScopeViewTarget[] {
+  const seen = new Set<string>();
+  const out: ScopeViewTarget[] = [];
+  for (const target of targets) {
+    if (!target || !VIEW_TARGET_KINDS.has(target.kind)) continue;
+    if (typeof target.id !== "string" || target.id.length === 0) continue;
+    const key = `${target.kind}:${target.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind: target.kind, id: target.id });
+  }
+  return out;
+}
+
+function sameViewTargets(
+  a: readonly ScopeViewTarget[] | undefined,
+  b: readonly ScopeViewTarget[],
+): boolean {
+  if (!a || a.length !== b.length) return false;
+  return a.every((t, i) => t.kind === b[i].kind && t.id === b[i].id);
+}
+
 export type ScopeSubscriptionSlice = {
   scopeSubscriptions: ScopeSubscriptionState;
+  scopeViewTargets: Record<string, ScopeViewTarget[]>;
+  setScopeViewTargets: (
+    owner: string,
+    targets: readonly ScopeViewTarget[],
+  ) => void;
   reconcileScopeSubscriptions: (
     now?: number,
     activePaths?: string[],
@@ -155,6 +195,7 @@ export type ScopeSubscriptionSlice = {
     now?: number,
   ) => PurgeTarget[];
   clearDeniedScopeSubscriptions: (scopes?: readonly string[]) => void;
+  revokeTeamScope: (teamId: string, now?: number) => PurgeTarget[];
   setPeerViewScopes: (peerId: string, scopes: readonly string[]) => void;
   clearPeerViewScopes: () => void;
   _commitScopeReconcile: (
@@ -177,6 +218,34 @@ export function createScopeSubscriptionSlice(
 
   return {
     scopeSubscriptions: initialScopeSubscriptionState(),
+    scopeViewTargets: {},
+
+    setScopeViewTargets: syncFn(function (
+      this: any,
+      owner: string,
+      targets: readonly ScopeViewTarget[],
+    ) {
+      if (!owner) return;
+      const prev: Record<string, ScopeViewTarget[]> =
+        this.scopeViewTargets ?? {};
+      const clean = cleanViewTargets(targets);
+      if (clean.length === 0) {
+        if (!(owner in prev)) return;
+        const next = { ...prev };
+        delete next[owner];
+        this.scopeViewTargets = next;
+        return;
+      }
+      if (sameViewTargets(prev[owner], clean)) return;
+      const next: Record<string, ScopeViewTarget[]> = {};
+      const others = Object.keys(prev).filter((k) => k !== owner);
+      const keep = others.slice(
+        Math.max(0, others.length - (SCOPE_VIEW_TARGET_OWNERS_MAX - 1)),
+      );
+      for (const k of keep) next[k] = prev[k];
+      next[owner] = clean;
+      this.scopeViewTargets = next;
+    }),
 
     _commitScopeReconcile: syncFn(function (
       this: any,
@@ -290,6 +359,14 @@ export function createScopeSubscriptionSlice(
       const denySet = new Set(scopes.filter((s) => s && s !== userScope));
       if (denySet.size === 0) return [];
       return state._commitScopeDeny([...denySet], now);
+    },
+
+    revokeTeamScope(this: any, teamId: string, now = Date.now()) {
+      if (!teamId) return [];
+      const state = readState(this);
+      const out = state._commitScopeDeny([`dir:${teamId}`], now);
+      state.dropTeamFeedCache(teamId);
+      return out;
     },
 
     clearDeniedScopeSubscriptions: syncFn(function (

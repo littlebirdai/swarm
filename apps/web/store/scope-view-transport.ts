@@ -1,6 +1,5 @@
 import type { ReplicationChannel, ReplicationMessage } from "@platform/engine";
 import {
-  activeTabPaths,
   extractViewScopes,
   isKnownHomeScope,
   type ScopeStoreInput,
@@ -80,7 +79,7 @@ export function createScopeViewTransport(opts: {
   const sendCurrentView = (force = false) => {
     if (!isFollowing) return;
     const state = opts.getState();
-    const scopes = extractViewScopes(state, activeTabPaths(state))
+    const scopes = extractViewScopes(state)
       .filter((s) => isKnownHomeScope(s))
       .sort()
       .slice(0, SCOPE_SUBSCRIPTION_BUDGET);
@@ -183,7 +182,8 @@ export function createScopeViewTransport(opts: {
           state.tasks === prev.tasks &&
           state.docs === prev.docs &&
           state.docDetails === prev.docDetails &&
-          state.plans === prev.plans
+          state.plans === prev.plans &&
+          state.scopeViewTargets === prev.scopeViewTargets
         ) {
           return;
         }

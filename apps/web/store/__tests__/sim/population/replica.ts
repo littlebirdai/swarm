@@ -105,13 +105,11 @@ export function populationReplica(
     async poll() {
       const { heads }: { heads: Head[] } = await meter.query(
         api.syncLog.getHeads,
-        subscribedScopes ? { scopes: subscribedScopes } : {},
+        { scopes: subscribedScopes },
       );
-      if (subscribedScopes) {
-        const returned = new Set(heads.map((h) => h.scope_key));
-        for (const requested of subscribedScopes) {
-          if (!returned.has(requested)) refused.add(requested);
-        }
+      const returned = new Set(heads.map((h) => h.scope_key));
+      for (const requested of subscribedScopes) {
+        if (!returned.has(requested)) refused.add(requested);
       }
       await runInWindow(window, async () => {
         const purgedTeams = new Set<string>();

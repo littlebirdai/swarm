@@ -139,14 +139,23 @@ export async function cursorLag(
   world: InvariantWorld,
   w: InvariantWindow,
 ): Promise<{ message: string; held: boolean }[]> {
-  const res: any = await asUser(world, userOf(w)).query("syncLog:getHeads", {});
-  const heads = new Map<string, number>(
-    (res?.heads ?? []).map((h: any) => [h.scope_key, h.position]),
-  );
   const meta = w.store.getState().syncMeta as Record<
     string,
     { cursor?: number }
   >;
+  const prefix = syncLogScopeMetaKey("");
+  const scopes = new Set(
+    Object.keys((w.store.getState() as any).scopeSubscriptions?.active ?? {}),
+  );
+  for (const [k, v] of Object.entries(meta))
+    if (k.startsWith(prefix) && v?.cursor !== undefined)
+      scopes.add(k.slice(prefix.length));
+  const res: any = await asUser(world, userOf(w)).query("syncLog:getHeads", {
+    scopes: [...scopes],
+  });
+  const heads = new Map<string, number>(
+    (res?.heads ?? []).map((h: any) => [h.scope_key, h.position]),
+  );
   const out: { message: string; held: boolean }[] = [];
   for (const [scope, head] of heads) {
     const cursor = meta[syncLogScopeMetaKey(scope)]?.cursor;
@@ -156,7 +165,6 @@ export async function cursorLag(
         held: true,
       });
   }
-  const prefix = syncLogScopeMetaKey("");
   for (const [k, v] of Object.entries(meta)) {
     if (!k.startsWith(prefix) || v?.cursor === undefined) continue;
     const scope = k.slice(prefix.length);
