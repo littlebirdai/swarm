@@ -11,6 +11,7 @@ import { readDurableAuthValue } from "../lib/durableAuthStorage";
 import { AUTH_JWT_STORAGE_KEY } from "../lib/localAuth";
 import { purgeLocalCache } from "./idb-cache";
 import { clearProtectedInboxMemory, rebootPersistence } from "./inboxStore";
+import { registerTestReopen } from "./persistence/db";
 import { stopSyncReplication } from "./sync-replication";
 
 export function onAuthPrincipalChange({
@@ -70,3 +71,9 @@ export function installAuthPrincipalBoundary(): () => void {
   };
   return installed;
 }
+
+export function uninstallAuthPrincipalBoundary(): void {
+  installed?.();
+}
+
+registerTestReopen(uninstallAuthPrincipalBoundary);

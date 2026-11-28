@@ -3,7 +3,7 @@ import { captureException } from "@sentry/react";
 import Dexie from "dexie";
 import { MESSAGE_PAGE_SIZE, persistedMessageTail } from "../cacheRetention";
 import { sameValue } from "../sameValue";
-import { db, type ConversationMessageRow } from "./db";
+import { bindWindowFlush, db, type ConversationMessageRow } from "./db";
 import { _hydrating, takeBootReadPhase } from "./hydration";
 import { diffMessageTail } from "./messageTailDiff";
 import { persistenceOwned } from "./ownership";
@@ -245,12 +245,7 @@ export function flushConversationMessages() {
   _flushMessageWrites(true);
 }
 
-if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", flushConversationMessages);
-  window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flushConversationMessages();
-  });
-}
+bindWindowFlush(flushConversationMessages);
 
 async function _loadUserMessages(
   convId: string,

@@ -7,7 +7,6 @@ import type {
   DeliveryReceiptRecord,
   ProviderEvent,
 } from "@codecast/provider-contract";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -211,11 +210,9 @@ it.effect("an accepted provider item commits before emitting one receipt", () =>
       ),
     );
     const delivery = yield* Effect.forkChild(session.steer(steer));
-    expect(
-      yield* Effect.promise(() =>
-        waitFor(() => fake.observed().length === 1, 2500, 5),
-      ),
-    ).toBe(true);
+    yield* Effect.promise(() =>
+      fake.waitObserved((items) => items.length === 1),
+    );
     const clientId = fake.observed()[0]?.message.params?.clientUserMessageId;
     expect(clientId).toBe("codecast-delivery:delivery");
     yield* Effect.promise(() =>
@@ -467,11 +464,9 @@ it.effect(
           expected: { ...steer.expected, turn },
         }),
       );
-      expect(
-        yield* Effect.promise(() =>
-          waitFor(() => fake.observed().length === 2, 2500, 5),
-        ),
-      ).toBe(true);
+      yield* Effect.promise(() =>
+        fake.waitObserved((items) => items.length === 2),
+      );
       yield* userItem(
         fake,
         "only-started",

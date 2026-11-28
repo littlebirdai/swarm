@@ -30,6 +30,7 @@ function record(action: string, message: object) {
     join(directory, "effects"),
     JSON.stringify({ action, message }) + "\n",
   );
+  process.send?.({ type: "observed" });
 }
 
 function burst(method: string) {
@@ -169,7 +170,8 @@ inbox.on("line", (line) => {
       return;
   }
   if (typeof id === "string" && id.startsWith("barrier:")) {
-    writeFileSync(join(directory, id), "");
+    if (process.send) process.send({ type: "barrier", id });
+    else writeFileSync(join(directory, id), "");
   } else if (id === "hold-write" && error) {
     writeFileSync(join(directory, "hold-drained"), "");
   } else if (result) {
@@ -179,47 +181,62 @@ inbox.on("line", (line) => {
   }
 });
 
-watch(directory, () => {
-  for (const name of readdirSync(directory)
-    .filter((file) => file.endsWith(".command"))
-    .sort()) {
-    const path = join(directory, name);
-    const command = JSON.parse(readFileSync(path, "utf8"));
-    unlinkSync(path);
-    if (command.exit) process.exit(0);
-    if (command.closeStdout) closeSync(1);
-    if (command.stderr) process.stderr.write(command.stderr + "\n");
-    if (command.largeFrames) largeFrames(command.largeFrames);
-    if (command.fill) {
-      for (let index = 0; index <= 32; index++)
-        send({
-          method: "thread/name/updated",
-          params: { threadId, threadName: String(index), fixtureBuffer: index },
-        });
-    }
-    if (typeof command.holdLiveness === "boolean")
-      holdLiveness = command.holdLiveness;
-    if (command.frame) send(command.frame);
-    if (command.raw) process.stdout.write(command.raw + "\n");
-    if (command.rejectStart) {
-      const id = held.get("turn/start");
-      send({ id, error: { code: -32000, message: "Delayed refusal" } });
-    }
-    if (command.rejectSteer) {
+function handleCommand(command: any) {
+  if (!command || typeof command !== "object") return;
+  if (command.exit) process.exit(0);
+  if (command.closeStdout) closeSync(1);
+  if (command.stderr) process.stderr.write(command.stderr + "\n");
+  if (command.largeFrames) largeFrames(command.largeFrames);
+  if (command.fill) {
+    for (let index = 0; index <= 32; index++)
       send({
-        id: held.get("turn/steer"),
-        error: { code: -32000, message: "Delayed steer refusal" },
+        method: "thread/name/updated",
+        params: { threadId, threadName: String(index), fixtureBuffer: index },
       });
-    }
-    if (command.ackStart) {
-      send({
-        id: held.get("turn/start"),
-        result: { turn: { id: turnId, status: "inProgress", items: [] } },
-      });
-    }
-    if (command.barrier)
-      send({ id: command.barrier, method: "fixture/barrier" });
   }
-});
+  if (typeof command.holdLiveness === "boolean")
+    holdLiveness = command.holdLiveness;
+  if (command.frame) send(command.frame);
+  if (command.raw) process.stdout.write(command.raw + "\n");
+  if (command.rejectStart) {
+    const id = held.get("turn/start");
+    send({ id, error: { code: -32000, message: "Delayed refusal" } });
+  }
+  if (command.rejectSteer) {
+    send({
+      id: held.get("turn/steer"),
+      error: { code: -32000, message: "Delayed steer refusal" },
+    });
+  }
+  if (command.ackStart) {
+    send({
+      id: held.get("turn/start"),
+      result: { turn: { id: turnId, status: "inProgress", items: [] } },
+    });
+  }
+  if (command.barrier) send({ id: command.barrier, method: "fixture/barrier" });
+}
+
+if (process.send) {
+  process.on("message", handleCommand);
+} else {
+  const drainCommands = () => {
+    for (const name of readdirSync(directory)
+      .filter((entry) => entry.endsWith(".command"))
+      .sort()) {
+      const file = join(directory, name);
+      let raw: string;
+      try {
+        raw = readFileSync(file, "utf8");
+        unlinkSync(file);
+      } catch {
+        continue;
+      }
+      handleCommand(JSON.parse(raw));
+    }
+  };
+  watch(directory, drainCommands);
+  drainCommands();
+}
 
 writeFileSync(join(directory, "pid"), String(process.pid));

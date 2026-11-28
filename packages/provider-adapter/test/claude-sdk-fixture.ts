@@ -1,5 +1,5 @@
 import {
-  commands,
+  ipcCommands,
   fixtureAdapter,
   readWrites,
   fixtureHooks,
@@ -9,7 +9,6 @@ import {
   type Intercept,
 } from "./provider-fixture";
 import { expect } from "bun:test";
-import type { ProviderOwnedSession } from "../src";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,7 +21,6 @@ import type {
   ProviderEffect,
   ProviderFixture,
 } from "@codecast/provider-contract/test";
-import { waitFor } from "@codecast/test-helpers/waitFor";
 import { createProviderAdapter, type RawProviderFrame } from "../src";
 
 export const scope = { session: "claude-fixture", run: 1, afterSeq: 10 };
@@ -100,11 +98,21 @@ export function fixture(env: Record<string, string> = {}) {
   let running = false;
   let started = false;
   let fault: Error | undefined;
-  let session: ProviderOwnedSession | undefined;
+  let session: import("../src").ProviderOwnedSession | undefined;
   let intercept: Intercept | undefined;
-  const command = commands(directory);
+  const rawListeners = new Set<() => void>();
+  const processFixture = hooks.attach(
+    directory,
+    async () => {
+      rawListeners.clear();
+      gate.release();
+      await client.dispose();
+    },
+    !!env.FIXTURE_DENY_KILL,
+  );
+  const channel = ipcCommands(processFixture);
   const send = (entry: object) => {
-    void command(entry, false);
+    void channel.send(entry, false);
   };
   const gate = writeGate('"request_id":"hold-write"', () =>
     send({
@@ -129,33 +137,43 @@ export function fixture(env: Record<string, string> = {}) {
       if (frame.line === "fixture defect" && fault) throw fault;
       raw.push(frame);
       if (frame.line.includes('"model":"full"')) blocked.resolve();
+      for (const listener of [...rawListeners]) listener();
     },
   };
   const client = createProviderAdapter(options);
   const spec = { ...scope, ...fence, cwd: directory };
   const observed = () => readWrites<Write>(writesPath);
-  const processFixture = hooks.attach(
-    directory,
-    async () => {
-      gate.release();
-      await client.dispose();
-    },
-    !!env.FIXTURE_DENY_KILL,
-  );
   processFixture.spawn((child) =>
     interceptInput(child, (data, write) =>
       gate.intercept(data, write, intercept),
     ),
   );
 
-  async function retained(needle: string) {
-    expect(
-      await waitFor(
-        () => raw.some(({ line }) => line.includes(needle)),
-        2500,
-        5,
-      ),
-    ).toBe(true);
+  function waitRaw(
+    ready: () => boolean,
+    label = "raw frame",
+    timeoutMs?: number,
+  ) {
+    if (ready()) return Promise.resolve();
+    return processFixture.wait<void>(
+      label,
+      (resolve) => {
+        const check = () => {
+          if (ready()) resolve();
+        };
+        rawListeners.add(check);
+        return () => rawListeners.delete(check);
+      },
+      timeoutMs,
+    );
+  }
+
+  function retained(needle: string, timeoutMs?: number) {
+    return waitRaw(
+      () => raw.some(({ line }) => line.includes(needle)),
+      `retained frame containing ${needle}`,
+      timeoutMs,
+    );
   }
 
   const eventFrame = (index: number, gen = generation) => ({
@@ -179,6 +197,7 @@ export function fixture(env: Record<string, string> = {}) {
       () => {
         running = false;
       },
+      channel.waitObserved,
     ),
     mode: "own",
     scope,
@@ -220,9 +239,10 @@ export function fixture(env: Record<string, string> = {}) {
           },
         ],
       });
-      expect(
-        await waitFor(() => session?.getCheckpoint() === checkpoint, 2500, 5),
-      ).toBe(true);
+      await waitRaw(
+        () => session?.getCheckpoint() === checkpoint,
+        `checkpoint ${checkpoint}`,
+      );
       return checkpoint;
     },
     async sendEvent(index) {
@@ -278,14 +298,20 @@ export function fixture(env: Record<string, string> = {}) {
       raw.find(({ line }) => line.includes(needle))?.disposition,
     raw,
     retained,
+    waitRaw,
     observed,
     options,
     eventFrame,
-    async wrote(count: number) {
-      expect(await waitFor(() => observed().length === count, 2500, 5)).toBe(
-        true,
+    wrote: async (count: number, timeoutMs?: number) => {
+      await channel.waitObserved(
+        () => observed().length >= count,
+        `observed writes (${count})`,
+        timeoutMs,
       );
+      expect(observed()).toHaveLength(count);
     },
+    waitRelease: (target = 1, timeoutMs?: number) =>
+      processFixture.waitRelease(target, timeoutMs),
     interceptWrite: (write: Intercept) => {
       intercept = write;
     },

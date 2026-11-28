@@ -234,10 +234,16 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   function _cacheOwnerForTests(): string | null {
     return boundOwner;
   }
+  function reset(): void {
+    ownership = null;
+    boundOwner = null;
+  }
+
   return {
     ensureCacheOwnership,
     persistenceOwned,
     writeOwnerStamp,
+    reset,
     _cacheOwnerForTests,
   };
 }

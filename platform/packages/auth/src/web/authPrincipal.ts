@@ -65,13 +65,34 @@ export function createAuthPrincipalTracker(opts: {
   nativeStorageArea?: unknown;
 }): AuthPrincipalTracker {
   const { jwtKey } = opts;
-  const local = opts.localStorage === undefined
-    ? (typeof localStorage !== "undefined" ? localStorage : null)
-    : opts.localStorage;
-  const target = opts.eventTarget === undefined
-    ? (typeof window !== "undefined" ? (window as unknown as StorageEventTarget) : null)
-    : opts.eventTarget;
-  const nativeArea = opts.nativeStorageArea === undefined ? local : opts.nativeStorageArea;
+  const getLocal = () => {
+    try {
+      return opts.localStorage === undefined
+        ? (typeof localStorage !== "undefined" ? localStorage : null)
+        : opts.localStorage;
+    } catch {
+      return null;
+    }
+  };
+  let boundTarget: StorageEventTarget | null = null;
+  let disposed = false;
+  function currentTarget(): StorageEventTarget | null {
+    try {
+      return opts.eventTarget === undefined
+        ? (typeof window !== "undefined" ? (window as unknown as StorageEventTarget) : null)
+        : opts.eventTarget;
+    } catch {
+      return null;
+    }
+  }
+  function syncTarget(): void {
+    if (disposed) return;
+    const nextTarget = currentTarget();
+    if (nextTarget === boundTarget) return;
+    boundTarget?.removeEventListener("storage", onStorage);
+    boundTarget = nextTarget;
+    boundTarget?.addEventListener("storage", onStorage);
+  }
 
   const listeners = new Set<(change: AuthPrincipalChange) => void>();
   let epoch = 0;
@@ -86,7 +107,7 @@ export function createAuthPrincipalTracker(opts: {
   let warnedToken: string | null = null;
 
   function readLocal(): string | null {
-    try { return local?.getItem(jwtKey) ?? null; } catch { return null; }
+    try { return getLocal()?.getItem(jwtKey) ?? null; } catch { return null; }
   }
 
   // The principal a token names, or null when it does not parse.
@@ -134,11 +155,12 @@ export function createAuthPrincipalTracker(opts: {
   principal = principalFor(readLocal());
 
   const onStorage = (event: StorageEventLike) => {
+    const nativeArea = opts.nativeStorageArea === undefined ? getLocal() : opts.nativeStorageArea;
     if (nativeArea && event.storageArea !== undefined && event.storageArea !== nativeArea) return;
     if (event.key !== null && event.key !== jwtKey) return;
     recompute();
   };
-  target?.addEventListener("storage", onStorage);
+  syncTarget();
   const unsubscribeWrites = opts.subscribeWrites((key) => {
     if (key !== null && key !== jwtKey) return;
     recompute();
@@ -178,13 +200,18 @@ export function createAuthPrincipalTracker(opts: {
       }
       return principal ?? found;
     },
-    check: recompute,
+    check: () => {
+      syncTarget();
+      recompute();
+    },
     subscribe: (listener) => {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
     dispose: () => {
-      target?.removeEventListener("storage", onStorage);
+      disposed = true;
+      boundTarget?.removeEventListener("storage", onStorage);
+      boundTarget = null;
       unsubscribeWrites();
       listeners.clear();
     },

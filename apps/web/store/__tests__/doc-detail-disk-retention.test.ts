@@ -1,7 +1,11 @@
 import { expect, jest, spyOn, test } from "bun:test";
 import Dexie from "dexie";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
-import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import {
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "./fixtures/signedInPrincipal";
+import { authPrincipal } from "../../lib/authPrincipal";
 import { pinDetailRows } from "../../lib/detail-rows";
 import { replaceGlobals } from "../../test-helpers/globals";
 import {
@@ -40,6 +44,8 @@ const detail = (n: number, now: number) => ({
 });
 
 async function openStore(indexedDB = new IDBFactory()) {
+  installSignedInPrincipal();
+  authPrincipal.check();
   await _reopenForTests({ indexedDB, IDBKeyRange });
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
   await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");

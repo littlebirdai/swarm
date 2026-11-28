@@ -2,7 +2,10 @@
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { registerTimedDocReplicationCases } from "./fixtures/timed-doc-replication-cases";
 import { registerArchiveFallbackCases } from "./fixtures/archive-fallback-cases";
-import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import {
+  installSignedInPrincipal,
+  TEST_PRINCIPAL,
+} from "./fixtures/signedInPrincipal";
 import {
   afterAll,
   afterEach,
@@ -33,6 +36,7 @@ const savedGlobals = {
 globals.window = dom.window;
 globals.document = dom.window.document;
 
+const { authPrincipal } = await import("../../lib/authPrincipal");
 const { _reopenForTests, COLLECTION_TABLES, db } =
   await import("../persistence/db");
 const { writeOwnerStamp } = await import("../persistence/ownership");
@@ -83,6 +87,8 @@ async function waitFor(condition: () => boolean) {
 }
 
 async function openCache() {
+  installSignedInPrincipal();
+  authPrincipal.check();
   resetCollectionWrites();
   await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
   await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });

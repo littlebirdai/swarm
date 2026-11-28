@@ -12,8 +12,7 @@ import {
 import { storageTimings } from "./storage-timings";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
-export const PERSISTENCE_AVAILABLE =
-  typeof window !== "undefined" && !DOCS_SHOTS;
+export let PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
 
 export type ConversationMessageRow = {
   convId: string;
@@ -111,7 +110,10 @@ export function setUpgradeBlockedListener(
 ) {
   upgradeBlockedListener = fn;
 }
-if (PERSISTENCE_AVAILABLE) {
+let dbEventsAttached = false;
+function attachDbEvents(): void {
+  if (!PERSISTENCE_AVAILABLE || dbEventsAttached) return;
+  dbEventsAttached = true;
   db.on("blocked", (ev: any) => {
     console.warn(
       `[idbCache] codecast-store upgrade to schema v${CACHE_SCHEMA_VERSION} is blocked by another Codecast tab still on schema v${Math.ceil((ev?.oldVersion ?? 0) / 10)} — close or reload other tabs`,
@@ -163,6 +165,7 @@ if (PERSISTENCE_AVAILABLE) {
     );
   });
 }
+attachDbEvents();
 
 const COLLECTION_STORE_KEYS = Object.keys(WEB_COLLECTION_INDEXES);
 export const COLLECTION_TABLES: Record<
@@ -188,6 +191,40 @@ if (MISSING_COLLECTION_TABLES.length > 0) {
   );
 }
 
+const testReopenListeners: Array<() => void> = [];
+
+export function registerTestReopen(fn: () => void): void {
+  testReopenListeners.push(fn);
+}
+
+export function bindWindowFlush(flush: () => void): void {
+  let boundWindow: Window | null = null;
+  const onVisibilityChange = () => {
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+    )
+      flush();
+  };
+  const rebind = () => {
+    if (boundWindow && typeof boundWindow.removeEventListener === "function") {
+      boundWindow.removeEventListener("pagehide", flush);
+      boundWindow.removeEventListener("visibilitychange", onVisibilityChange);
+    }
+    boundWindow = null;
+    if (
+      typeof window === "undefined" ||
+      typeof window.addEventListener !== "function"
+    )
+      return;
+    boundWindow = window;
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("visibilitychange", onVisibilityChange);
+  };
+  rebind();
+  registerTestReopen(rebind);
+}
+
 // Test hook: Dexie copies the IndexedDB API into the instance at construction
 // and remembers a failed open, so a test running after another file already
 // touched the singleton (no IndexedDB in the process then) must hand the
@@ -196,6 +233,12 @@ export function _reopenForTests(deps: {
   indexedDB: unknown;
   IDBKeyRange: unknown;
 }): Promise<unknown> {
+  PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
+  attachDbEvents();
+  closeExpected = null;
+  cacheServed = false;
+  purgeInProgress = false;
+  for (const listener of testReopenListeners) listener();
   Object.assign((db as any)._deps, deps);
   db.close();
   return db.open();

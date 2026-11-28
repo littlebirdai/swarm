@@ -378,9 +378,7 @@ it.effect("interrupt cancels pending permissions for the named turn", () =>
           expect(await opened.session.interrupt(interrupt)).toEqual(
             controlOutcome,
           );
-          expect(
-            await waitFor(() => fake.observed().length === 3, 2500, 5),
-          ).toBe(true);
+          await fake.waitObserved((items) => items.length === 3);
           expect(fake.observed().slice(1)).toMatchObject([
             {
               action: "answer",

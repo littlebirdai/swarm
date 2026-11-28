@@ -111,9 +111,7 @@ it.effect("a rejected write can still have a late prompt reply", () =>
         reason: "unknown",
         code: "write-failed",
       });
-      expect(await waitFor(() => fake.observed().length === 1, 2500, 5)).toBe(
-        true,
-      );
+      await fake.waitObserved((items) => items.length === 1);
       await fake.wrote({ complete: true });
       const events = session.events[Symbol.asyncIterator]();
       expect(await events.next()).toMatchObject({
@@ -264,9 +262,7 @@ it.effect(
             readFileSync(join(fake.directory, "unsupported-seen"), "utf8"),
           ),
         ).toMatchObject({ code: -32601 });
-        expect(await waitFor(() => fake.observed().length > 1, 2500, 5)).toBe(
-          true,
-        );
+        await fake.waitObserved((items) => items.length > 1);
         expect(fake.observed().map(({ message }) => message.id)).toEqual([
           "permission",
           "second",
@@ -310,9 +306,7 @@ it.effect(
           status: "stale",
           observed: { kind: "turn", turn: "1:1" },
         });
-        expect(await waitFor(() => fake.observed().length > 0, 2500, 5)).toBe(
-          true,
-        );
+        await fake.waitObserved((items) => items.length > 0);
         await fake.contract.processExit();
         const events = session.events[Symbol.asyncIterator]();
         const kinds = [];
@@ -380,11 +374,9 @@ it.effect(
       ]();
       const sending = yield* Effect.forkChild(session.steer(steer));
       try {
-        expect(
-          yield* Effect.promise(() =>
-            waitFor(() => fake.observed().length === 1, 2500, 5),
-          ),
-        ).toBe(true);
+        yield* Effect.promise(() =>
+          fake.waitObserved((items) => items.length === 1),
+        );
         const queued = yield* Effect.forkChild(session.interrupt(interrupt), {
           startImmediately: true,
         });

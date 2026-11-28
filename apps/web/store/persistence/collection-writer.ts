@@ -4,6 +4,7 @@ import type { Patch } from "mutative";
 import { writePendingEntries } from "./pending-entries";
 import { partitionSessionRetention } from "../cacheRetention";
 import {
+  _resetSnapshotLedger,
   createCoalescedWriter,
   deleteAllowed,
   diffCollection,
@@ -20,7 +21,12 @@ import {
   holdLivenessSyncMeta,
   resetLivenessLane,
 } from "./idb-liveness-lane";
-import { COLLECTION_TABLES, db } from "./db";
+import {
+  bindWindowFlush,
+  COLLECTION_TABLES,
+  db,
+  registerTestReopen,
+} from "./db";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
@@ -68,17 +74,10 @@ connectLivenessLane({
   flushMeta: () => metaWriter.flush(),
 });
 
-if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", () => {
-    metaWriter.flush();
-    flushLivenessWrites();
-  });
-  window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "hidden") return;
-    metaWriter.flush();
-    flushLivenessWrites();
-  });
-}
+bindWindowFlush(() => {
+  metaWriter.flush();
+  flushLivenessWrites();
+});
 export function writePatchesToIDB(patches: Patch[], state: any) {
   if (_hydrating || !persistenceOwned()) return;
 
@@ -290,3 +289,5 @@ export function resetCollectionWrites() {
   lastPersisted.clear();
   conversationRetentionDrops = new Set();
 }
+
+registerTestReopen(_resetSnapshotLedger);

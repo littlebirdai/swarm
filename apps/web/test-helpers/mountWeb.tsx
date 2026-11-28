@@ -169,6 +169,12 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
       settleSessionViewAsk("reset");
       clearProtectedInboxMemory();
       _resetRememberedResults();
+      const current = useInboxStore.getState() as StoreState & {
+        _setOutbox?: (e: null, r: null, l: null) => void;
+        _setIDBWrite?: (w: null) => void;
+      };
+      current._setOutbox?.(null, null, null);
+      current._setIDBWrite?.(null);
     };
     const restoreFrame = replaceGlobals({ requestAnimationFrame: undefined });
     try {

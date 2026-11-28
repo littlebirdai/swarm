@@ -1,5 +1,5 @@
 import {
-  commands,
+  ipcCommands,
   fixtureAdapter,
   readWrites,
   fixtureHooks,
@@ -125,10 +125,6 @@ export function fixture(env: Record<string, string> = {}) {
   let running = false;
   let bootstrap = 0;
   let session: ProviderOwnedSession | undefined;
-  const wrote = commands(directory);
-  const gate = writeGate('"id":"hold-write"', () => {
-    void wrote({ frame: { id: "hold-write", method: "fixture/hold" } }, false);
-  });
   const options = {
     provider: { agent: "codex", version: "0.153.4" },
     command: [process.execPath, executable, directory] as const,
@@ -150,6 +146,11 @@ export function fixture(env: Record<string, string> = {}) {
   const owned = hooks.attach(directory, async () => {
     gate.release();
     await client.dispose();
+  });
+  const channel = ipcCommands(owned);
+  const wrote = channel.send;
+  const gate = writeGate('"id":"hold-write"', () => {
+    void wrote({ frame: { id: "hold-write", method: "fixture/hold" } }, false);
   });
   owned.spawn((child) => {
     if (
@@ -195,6 +196,7 @@ export function fixture(env: Record<string, string> = {}) {
       () => {
         running = false;
       },
+      channel.waitObserved,
     ),
     mode: "own",
     scope,
@@ -270,6 +272,11 @@ export function fixture(env: Record<string, string> = {}) {
     raw,
     spec,
     wrote,
+    waitObserved: (check: (items: Observed[]) => boolean = () => true) =>
+      channel.waitObserved(
+        () => check(observed()),
+        "app-server observed effect",
+      ),
     full: blocked.promise,
   };
 }

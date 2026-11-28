@@ -9,6 +9,7 @@
 // dispatches for the next one, and a token rotated for the same user changes
 // nothing.
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import "fake-indexeddb/auto";
 import { JSDOM } from "jsdom";
 
@@ -16,6 +17,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://codecast.test",
   pretendToBeVisual: true,
 });
+const savedGlobals: Array<[string, PropertyDescriptor | undefined]> = [];
 for (const key of [
   "window",
   "document",
@@ -30,6 +32,7 @@ for (const key of [
   "sessionStorage",
   "BroadcastChannel",
 ]) {
+  savedGlobals.push([key, Object.getOwnPropertyDescriptor(globalThis, key)]);
   const value = (dom.window as any)[key];
   if (value !== undefined)
     Object.defineProperty(globalThis, key, {
@@ -38,6 +41,10 @@ for (const key of [
       writable: true,
     });
 }
+const savedActEnv = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "IS_REACT_ACT_ENVIRONMENT",
+);
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 // The profile relay. A browser fires a storage event in every OTHER window of
@@ -94,8 +101,12 @@ type Root = import("react-dom/client").Root;
 const { useAuthActions, useAuthToken } = await import("@convex-dev/auth/react");
 const { CodecastAuthRoot } = await import("../authRoot");
 const { AUTH_JWT_STORAGE_KEY, CONVEX_URL } = await import("../localAuth");
+const { authPrincipal } = await import("../authPrincipal");
+const { _reopenForTests } = await import("../../store/persistence/db");
 const { useInboxStore, ensureHydrated } =
   await import("../../store/inboxStore");
+const { installAuthPrincipalBoundary, uninstallAuthPrincipalBoundary } =
+  await import("../../store/principalBoundary");
 const store = useInboxStore;
 
 function b64url(value: object): string {
@@ -197,6 +208,19 @@ const inboxRows = () => Object.keys(store.getState().sessions).length;
 const tA1 = issue("userA", "sA1");
 let roots: Root[] = [];
 beforeEach(async () => {
+  Object.defineProperty(globalThis, "window", {
+    value: dom.window,
+    configurable: true,
+    writable: true,
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    value: dom.window.localStorage,
+    configurable: true,
+    writable: true,
+  });
+  await _reopenForTests({ indexedDB, IDBKeyRange });
+  authPrincipal.check();
+  installAuthPrincipalBoundary();
   for (const r of roots) act(() => r.unmount());
   roots = [];
   timeline.length = 0;
@@ -218,6 +242,16 @@ afterAll(async () => {
   await flush();
   for (let i = 0; i < 500 && !store.getState().clientStateInitialized; i++)
     await new Promise((r) => setTimeout(r, 10));
+  (store.getState() as any)._setOutbox?.(null, null, null);
+  (store.getState() as any)._setIDBWrite?.(null);
+  uninstallAuthPrincipalBoundary();
+  for (const [key, descriptor] of savedGlobals) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+    else delete (globalThis as Record<string, unknown>)[key];
+  }
+  if (savedActEnv)
+    Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", savedActEnv);
+  else delete (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
 });
 
 async function twoWindowsSignedInAsA() {
@@ -307,7 +341,7 @@ describe("logout and account change across windows", () => {
   test("a cache read still in flight at the boundary lands nowhere", async () => {
     await twoWindowsSignedInAsA();
     const { default: Dexie } = await import("dexie");
-    const db = new Dexie("codecast-store");
+    const db = new Dexie("codecast-store", { indexedDB, IDBKeyRange });
     await db.open();
     const now = Date.now();
     await db.table("conversationMessageMeta").put({

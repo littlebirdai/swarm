@@ -11,18 +11,12 @@ import type {
 import * as Effect from "effect/Effect";
 import type { ProviderAdapterClient, ProviderOwnedSession } from "../src";
 import { afterEach, beforeEach, expect, spyOn } from "bun:test";
-import {
-  existsSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { waitFor } from "@codecast/test-helpers/waitFor";
 
 const originalSpawn = Bun.spawn;
 export const originalKill = process.kill.bind(process);
+const DEFAULT_WAIT_MS = 2500;
 const denied = Object.assign(new Error("fixture kill denied"), {
   code: "EPERM",
 });
@@ -34,8 +28,14 @@ export type Intercept = (
 ) => ReturnType<Write>;
 
 export function fixtureHooks(executable: string) {
-  const fixtures = new Map<string, (child: Child) => void>();
-  const groups = new Map<number, { calls: number; fail: boolean }>();
+  const fixtures = new Map<
+    string,
+    { onSpawn: (child: Child) => void; onIpc: (message: unknown) => void }
+  >();
+  const groups = new Map<
+    number,
+    { calls: number; fail: boolean; notify: () => void }
+  >();
   const cleanups: (() => Promise<void>)[] = [];
 
   return {
@@ -44,21 +44,34 @@ export function fixtureHooks(executable: string) {
         spyOn(Bun, "spawn").mockImplementation(((
           ...args: Parameters<typeof Bun.spawn>
         ) => {
-          const child = Reflect.apply(originalSpawn, Bun, args) as Child;
           const config = args[0];
-          if (
+          const match =
             config &&
             "cmd" in config &&
             Array.isArray(config.cmd) &&
             config.cmd[1] === executable
-          )
-            fixtures.get(config.cmd[2]!)?.(child);
+              ? fixtures.get(config.cmd[2]!)
+              : undefined;
+          const child = Reflect.apply(
+            originalSpawn,
+            Bun,
+            match
+              ? [
+                  {
+                    ...config,
+                    ipc: (message: unknown) => match.onIpc(message),
+                  },
+                ]
+              : args,
+          ) as Child;
+          match?.onSpawn(child);
           return child;
         }) as typeof Bun.spawn);
         spyOn(process, "kill").mockImplementation((pid, signal) => {
           const group = groups.get(-pid);
           if (group) {
             group.calls++;
+            group.notify();
             if (group.fail) throw denied;
           }
           return originalKill(pid, signal);
@@ -77,11 +90,107 @@ export function fixtureHooks(executable: string) {
     },
     attach(directory: string, dispose: () => Promise<void>, denyKill = false) {
       let pid = 0;
-      let group: { calls: number; fail: boolean } | undefined;
+      let child: Child | undefined;
+      let group:
+        | { calls: number; fail: boolean; notify: () => void }
+        | undefined;
+      let intercept: ((child: Child) => void) | undefined;
+      let aborted: Error | null = null;
+      let generation = 0;
+      const ipcListeners = new Set<(message: unknown) => void>();
+      const releaseListeners = new Set<() => void>();
+      const abortListeners = new Set<(error: Error) => void>();
+      function abort(reason: string) {
+        if (aborted) return;
+        aborted = new Error(reason);
+        for (const listener of [...abortListeners]) listener(aborted);
+        abortListeners.clear();
+      }
+      function wait<T>(
+        label: string,
+        subscribe: (
+          resolve: (value: T) => void,
+          onCleanup: (fn: () => void) => void,
+        ) => (() => void) | void,
+        timeoutMs = DEFAULT_WAIT_MS,
+      ): Promise<T> {
+        if (aborted)
+          return Promise.reject(
+            new Error(`${label} aborted: ${aborted.message}`),
+          );
+        return new Promise<T>((resolve, reject) => {
+          let done = false;
+          let cleanup: (() => void) | undefined;
+          let unsubscribe: (() => void) | undefined;
+          const finish = (complete: () => void) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            abortListeners.delete(onAbort);
+            (unsubscribe ?? cleanup)?.();
+            complete();
+          };
+          const onAbort = (error: Error) =>
+            finish(() =>
+              reject(new Error(`${label} aborted: ${error.message}`)),
+            );
+          const timer = setTimeout(
+            () =>
+              finish(() =>
+                reject(
+                  new Error(
+                    `Timed out waiting for ${label} after ${timeoutMs}ms`,
+                  ),
+                ),
+              ),
+            timeoutMs,
+          );
+          abortListeners.add(onAbort);
+          try {
+            const returned = subscribe(
+              (value) => finish(() => resolve(value)),
+              (fn) => {
+                cleanup = fn;
+              },
+            );
+            if (returned) unsubscribe = returned;
+          } catch (error) {
+            finish(() => reject(error));
+          }
+        });
+      }
+      fixtures.set(directory, {
+        onSpawn(spawned) {
+          const spawnGeneration = ++generation;
+          aborted = null;
+          child = spawned;
+          pid = spawned.pid;
+          group = {
+            calls: 0,
+            fail: denyKill,
+            notify() {
+              for (const listener of [...releaseListeners]) listener();
+            },
+          };
+          groups.set(pid, group);
+          void spawned.exited.then((code) => {
+            if (generation === spawnGeneration)
+              abort(`fixture child exited (${code})`);
+          });
+          intercept?.(spawned);
+        },
+        onIpc(message) {
+          for (const listener of [...ipcListeners]) listener(message);
+        },
+      });
       cleanups.push(async () => {
         try {
           await dispose();
         } finally {
+          generation++;
+          abort("fixture disposed");
+          ipcListeners.clear();
+          releaseListeners.clear();
           if (pid && group?.fail) {
             try {
               originalKill(-pid, "SIGKILL");
@@ -100,13 +209,33 @@ export function fixtureHooks(executable: string) {
         }
       });
       return {
-        spawn(intercept: (child: Child) => void) {
-          fixtures.set(directory, (child) => {
-            pid = child.pid;
-            group = { calls: 0, fail: denyKill };
-            groups.set(pid, group);
-            intercept(child);
-          });
+        spawn(onSpawn: (child: Child) => void) {
+          intercept = onSpawn;
+        },
+        send(command: object) {
+          if (aborted)
+            throw new Error(`Fixture send aborted: ${aborted.message}`);
+          if (!child) throw new Error("Fixture child is not spawned");
+          child.send(command);
+        },
+        onIpc(listener: (message: unknown) => void) {
+          ipcListeners.add(listener);
+          return () => ipcListeners.delete(listener);
+        },
+        wait,
+        waitRelease(target = 1, timeoutMs?: number) {
+          if ((group?.calls ?? 0) >= target) return Promise.resolve();
+          return wait<void>(
+            `release (${target})`,
+            (resolve) => {
+              const check = () => {
+                if ((group?.calls ?? 0) >= target) resolve();
+              };
+              releaseListeners.add(check);
+              return () => releaseListeners.delete(check);
+            },
+            timeoutMs,
+          );
         },
         failClose() {
           if (!group) throw new Error("No fixture group");
@@ -132,21 +261,62 @@ export function interceptInput(child: Child, intercept: Intercept) {
   }
 }
 
-export function commands(directory: string) {
+export function ipcCommands(
+  attachHandle: ReturnType<ReturnType<typeof fixtureHooks>["attach"]>,
+) {
   let counter = 0;
-  return async (command: object, barrier = true) => {
-    const index = String(++counter).padStart(6, "0");
-    const name = `barrier:${index}`;
-    const temp = join(directory, `${index}.tmp`);
-    writeFileSync(
-      temp,
-      JSON.stringify({ ...command, ...(barrier ? { barrier: name } : {}) }),
-    );
-    renameSync(temp, join(directory, `${index}.command`));
-    if (barrier)
-      expect(
-        await waitFor(() => existsSync(join(directory, name)), 2500, 5),
-      ).toBe(true);
+  const barriers = new Map<string, () => void>();
+  const observedWaiters = new Set<() => void>();
+  attachHandle.onIpc((message) => {
+    if (!message || typeof message !== "object") return;
+    const payload = message as { type?: unknown; id?: unknown };
+    if (payload.type === "barrier" && typeof payload.id === "string") {
+      const resolve = barriers.get(payload.id);
+      if (resolve) {
+        barriers.delete(payload.id);
+        resolve();
+      }
+      return;
+    }
+    if (payload.type === "observed") {
+      for (const notify of [...observedWaiters]) notify();
+    }
+  });
+  return {
+    async send(command: object, barrier = true, timeoutMs?: number) {
+      if (!barrier) {
+        attachHandle.send(command);
+        return;
+      }
+      const id = `barrier:${String(++counter).padStart(6, "0")}`;
+      await attachHandle.wait<void>(
+        id,
+        (resolve, onCleanup) => {
+          onCleanup(() => barriers.delete(id));
+          barriers.set(id, resolve);
+          attachHandle.send({ ...command, barrier: id });
+        },
+        timeoutMs,
+      );
+    },
+    waitObserved(
+      ready: () => boolean,
+      label = "observed effect",
+      timeoutMs?: number,
+    ) {
+      if (ready()) return Promise.resolve();
+      return attachHandle.wait<void>(
+        label,
+        (resolve) => {
+          const check = () => {
+            if (ready()) resolve();
+          };
+          observedWaiters.add(check);
+          return () => observedWaiters.delete(check);
+        },
+        timeoutMs,
+      );
+    },
   };
 }
 
@@ -247,6 +417,7 @@ export function fixtureAdapter(
   tracks: readonly ("steer" | "interrupt" | "answer")[],
   opened: (session: ProviderOwnedSession) => void,
   closed: () => void,
+  waitObserved?: (ready: () => boolean) => Promise<void>,
 ) {
   function attach(result: Awaited<ReturnType<ProviderAdapterClient["start"]>>) {
     if (result.status !== "opened") return result;
@@ -262,8 +433,10 @@ export function fixtureAdapter(
         tracks.includes(kind) &&
         result.status === "in-doubt" &&
         result.reason === "best-effort"
-      )
-        expect(await waitFor(() => count() > before, 2500, 5)).toBe(true);
+      ) {
+        if (waitObserved) await waitObserved(() => count() > before);
+        else expect(await waitFor(() => count() > before, 2500, 5)).toBe(true);
+      }
       return result;
     }
     return {

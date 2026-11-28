@@ -12,7 +12,7 @@ import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { writePatchesToIDB, _resetPersistedShadow } from "../idb-cache";
 import { setHydrating } from "../persistence/hydration";
-import { noteSnapshotSync } from "../idb-collection-diff";
+import { _resetSnapshotLedger, noteSnapshotSync } from "../idb-collection-diff";
 import { measureIndexedDB } from "../../perf/measure-indexeddb";
 
 const TEST_PRINCIPAL = "indexed-boot-owner";
@@ -113,6 +113,7 @@ test("an older deferred snapshot does not erase the shadow of a newer durable ro
     release.resolve();
     stale.mockRestore();
     _resetPersistedShadow();
+    _resetSnapshotLedger();
     db.close();
     restore();
     if (before === undefined) delete process.env.VITE_DEFERRED_CACHE_BOOT;
