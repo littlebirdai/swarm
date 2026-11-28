@@ -104,8 +104,7 @@ export function startDaemonTranscriptUplink(
   },
 ) {
   const { convexUrl, account, readConfig, logError } = options;
-  if (process.env.CODECAST_EDGE_TRANSCRIPT_UPLINK_V1 !== "1" || !account)
-    return undefined;
+  if (!account) return undefined;
   const opening = import("./daemon-transcript-uplink.js").then(
     ({ openTranscriptUplink }) =>
       openTranscriptUplink(sync, {
