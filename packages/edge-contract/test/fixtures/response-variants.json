@@ -154,5 +154,19 @@
       "v": 1,
       "status": "stale"
     }
+  ],
+  "relay-grant": [
+    {
+      "v": 1,
+      "status": "stale"
+    },
+    {
+      "v": 1,
+      "status": "unavailable"
+    },
+    {
+      "v": 1,
+      "status": "rate_limited"
+    }
   ]
 }

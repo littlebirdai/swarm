@@ -70,19 +70,20 @@ here: each one opens with a dated status line that says what shipped and what re
 
 ### Work, decisions and integrations
 
-| Doc                                                              |                                                                       |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Pull requests](architecture/pull-requests.md)                   | PRs in sync with GitHub, and the owning session that wakes on reviews |
-| [Issue sync](architecture/issue-sync.md)                         | Linear and GitHub issues as tasks, both ways                          |
-| [Decisions as documents](architecture/decisions-as-documents.md) | Decision cards, stacks and routing                                    |
-| [Notification delivery](architecture/notification-delivery.md)   | One notification per event across windows, desktop and daemon         |
-| [Live Activity](architecture/live-activity.md)                   | iOS Lock Screen Live Activity                                         |
-| [Slack chat mirror](architecture/slack-chat-mirror.md)           | Team chat mirrored to Slack                                           |
-| [External data](architecture/external-data.md)                   | Sources, events, replays, metrics and app connectors                  |
-| [Task graph](architecture/task-graph.md)                         | Blockers, waits, links and readiness                                  |
-| [Ship](architecture/ship.md)                                     | One Ship control for landing a change                                 |
-| [Shipping a shared checkout](architecture/ship-checkout.md)      | Landing one change from a checkout many agents edit                   |
-| [Deploys](architecture/deploys.md)                               | Deploys as a stage of the line and an object of their own             |
+| Doc                                                                      |                                                                       |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [Pull requests](architecture/pull-requests.md)                           | PRs in sync with GitHub, and the owning session that wakes on reviews |
+| [Issue sync](architecture/issue-sync.md)                                 | Linear and GitHub issues as tasks, both ways                          |
+| [Decisions as documents](architecture/decisions-as-documents.md)         | Decision cards, stacks and routing                                    |
+| [Notification delivery](architecture/notification-delivery.md)           | One notification per event across windows, desktop and daemon         |
+| [Live Activity](architecture/live-activity.md)                           | iOS Lock Screen Live Activity                                         |
+| [Slack chat mirror](architecture/slack-chat-mirror.md)                   | Team chat mirrored to Slack                                           |
+| [External data](architecture/external-data.md)                           | Sources, events, replays, metrics and app connectors                  |
+| [Task graph](architecture/task-graph.md)                                 | Blockers, waits, links and readiness                                  |
+| [Ship](architecture/ship.md)                                             | One Ship control for landing a change                                 |
+| [Shipping a shared checkout](architecture/ship-checkout.md)              | Landing one change from a checkout many agents edit                   |
+| [Deploys](architecture/deploys.md)                                       | Deploys as a stage of the line and an object of their own             |
+| [Previous-version contracts](architecture/previous-version-contracts.md) | N-1 wire contract fixtures, guards, and release baseline refresh      |
 
 ### The line
 

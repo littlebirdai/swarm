@@ -12,8 +12,14 @@ import { setupRunLease } from "./run-lease.testkit";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 
+type BindingCapability = NonNullable<
+  Doc<"execution_bindings">["capabilities"]
+>[number];
+
 export const observed = { id: "turn", run: 1, start_event_seq: 7 };
-export async function steerDeliveryFixture() {
+export async function steerDeliveryFixture(options?: {
+  capabilities?: readonly BindingCapability[];
+}) {
   const f = await setupRunLease();
   const grant = await f.claim("steer-run");
   if (grant.status !== "granted") throw new Error("Expected run lease");
@@ -28,7 +34,10 @@ export async function steerDeliveryFixture() {
     const binding = (await db.get(f.binding))!;
     await db.patch(f.conversation, { owner_user_id: other });
     await db.patch(f.binding, {
-      capabilities: [...binding.required_capabilities, STEER_BATON_CAPABILITY],
+      capabilities: [
+        ...binding.required_capabilities,
+        ...(options?.capabilities ?? [STEER_BATON_CAPABILITY]),
+      ],
     });
     const row = await db.query("run_turn_projections").unique();
     if (!row) throw new Error("Expected initial projection");

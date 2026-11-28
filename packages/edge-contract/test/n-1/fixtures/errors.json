@@ -1,0 +1,40 @@
+[
+  {
+    "v": 1,
+    "status": "error",
+    "code": "rate_limited",
+    "retryable": true,
+    "retry_after_ms": 500
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "too_large",
+    "retryable": false
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "unauthorized",
+    "retryable": false
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "unavailable",
+    "retryable": true
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "invalid",
+    "retryable": false
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "not_found",
+    "retryable": true,
+    "retry_after_ms": 250
+  }
+]

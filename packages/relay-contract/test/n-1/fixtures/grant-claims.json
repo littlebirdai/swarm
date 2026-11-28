@@ -1,0 +1,49 @@
+[
+  {
+    "v": 1,
+    "audience": "cell-A",
+    "subject": {
+      "kind": "user",
+      "id": "user-1"
+    },
+    "issued_at_ms": 1795453200000,
+    "grant_seq": 1,
+    "expires_at_ms": 1795453260000,
+    "grants": [
+      {
+        "kind": "session",
+        "id": "session-1",
+        "publish": [
+          "presence",
+          "draft_cursor",
+          "reading_cursor",
+          "baton_heartbeat"
+        ]
+      }
+    ]
+  },
+  {
+    "v": 1,
+    "audience": "cell-A",
+    "subject": {
+      "kind": "machine",
+      "id": "machine-1"
+    },
+    "issued_at_ms": 1795453200000,
+    "grant_seq": 2,
+    "expires_at_ms": 1795453260000,
+    "grants": [
+      {
+        "kind": "session",
+        "id": "session-1",
+        "run": 3,
+        "publish": ["session_liveness"]
+      },
+      {
+        "kind": "machine",
+        "id": "machine-1",
+        "publish": ["machine_liveness"]
+      }
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "request": {
+    "v": 1,
+    "session": "session-1",
+    "run": 3,
+    "fencing_token": "claim-token-1",
+    "attempt_id": "attempt-1",
+    "blob_id": "blob-1"
+  },
+  "not_found": {
+    "v": 1,
+    "status": "error",
+    "code": "not_found",
+    "retryable": false
+  }
+}
