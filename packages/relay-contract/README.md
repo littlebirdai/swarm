@@ -102,20 +102,17 @@ and capabilities before it sends a versioned frame.
 
 Machine connections can negotiate `session_liveness` and `machine_liveness`.
 
-Relays support wire versions N and N−1 when both exist. Today only v1 exists.
+Relays support only the current wire version (`v1`). Swarm keeps no backward
+compatibility with older relays or previous releases.
 `negotiateRelayVersion` returns the highest shared positive safe integer,
 or `null` if there is none. Each versioned frame carries the selected `v`.
-A new client field, frame variant, or field meaning requires a new version.
 
-Signed claims have their own N and N−1 rule. Today the relay only accepts
-claims v1. The kernel must issue a claims version that the destination relay
-supports. When v2 exists, the relay will use the specified schema for each
-accepted version. The parser reads `v` before it reads fields from a
-specific version. A valid but unsupported version gives
-`unsupported_version`, even if the remaining fields are unfamiliar.
-The relay refuses the entire token. On an open connection, this gives
-`unsupported_grant_version`. Malformed claims, unknown fields in a
-supported version, and unknown publish names give `invalid_token`.
+Signed claims use `v1` only. The relay reads `v` before it reads fields from the
+claims payload. A valid but unsupported version gives `unsupported_version`, even
+if the remaining fields are unfamiliar. The relay refuses the entire token. On
+an open connection, this gives `unsupported_grant_version`. Malformed claims,
+unknown fields in a supported version, and unknown publish names give
+`invalid_token`.
 
 All parsers accept JSON text and return a typed `invalid_input` error for
 non-text input. Client frames and signed claims reject unknown fields.
