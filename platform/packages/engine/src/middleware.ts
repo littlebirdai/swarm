@@ -1011,6 +1011,28 @@ export function mutativeMiddleware(
     // later live send of any of them goes behind the row (as if it named it in
     // `after`), so the drain cannot land the older value last.
     const parkedCells = new Map<string, ReadonlySet<string>>();
+    const activeOutboxRowsById = new Map<string, Set<string>>();
+    const extractOutboxRowKeys = (
+      entry: Pick<OutboxEntry, "action" | "args" | "patches" | "locks">,
+      rawPatches?: readonly Patch[],
+    ): Set<string> => {
+      const out = new Set<string>();
+      for (const lock of entry.locks ?? []) {
+        if (lock.storeKey && lock.recordId) out.add(`${lock.storeKey}:${lock.recordId}`);
+      }
+      for (const [table, rows] of Object.entries((entry.patches ?? {}) as Record<string, any>)) {
+        if (!rows || typeof rows !== "object") continue;
+        for (const rowId of Object.keys(rows)) out.add(`${table}:${rowId}`);
+      }
+      for (const p of rawPatches ?? []) {
+        const path = p.path as (string | number)[];
+        if (path.length >= 2) out.add(`${String(path[0])}:${String(path[1])}`);
+      }
+      for (const key of platformConfig.outboxProtectedRows?.(entry) ?? []) {
+        if (key) out.add(key);
+      }
+      return out;
+    };
     const cellsOf = (grouped: Record<string, Record<string, Record<string, any>>> | undefined) => {
       const cells = new Set<string>();
       for (const [table, rows] of Object.entries(grouped ?? {})) {
@@ -1157,6 +1179,7 @@ export function mutativeMiddleware(
       if (draining) retiredSinceDrainLoad.add(id);
       parkedOutboxIds.delete(id);
       parkedCells.delete(id);
+      activeOutboxRowsById.delete(id);
       try {
         // Wait for the row to exist (or for its write to have failed) before
         // deleting it, so the delete can't lose the race with its own commit.
@@ -1506,6 +1529,11 @@ export function mutativeMiddleware(
         // that window's later writes and revert them on the server.
         const loaded = (await capturedLoad()).filter((entry) => !ownedByAnotherLiveWindow(entry, outboxOwner, live));
         assertDispatchCurrent(captured);
+        for (const entry of loaded) {
+          if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+          const keys = extractOutboxRowKeys(entry);
+          if (keys.size > 0) activeOutboxRowsById.set(entry.id, keys);
+        }
         // Coalesce across reloads: rows written by a previous page load can
         // hold several generations of the same key. Keep the newest per key,
         // delete the rest without dispatching them.
@@ -1694,11 +1722,15 @@ export function mutativeMiddleware(
         // begin enqueueing while this drain is in flight.
         const remaining = await capturedLoad();
         assertDispatchCurrent(captured);
-        // A parked row this drain delivered (or dropped) holds nothing back now.
+        const still = new Set(remaining.map((entry) => entry.id));
         if (parkedOutboxIds.size > 0) {
-          const still = new Set(remaining.map((entry) => entry.id));
           for (const id of parkedOutboxIds) if (!still.has(id)) parkedOutboxIds.delete(id);
           for (const id of parkedCells.keys()) if (!parkedOutboxIds.has(id)) parkedCells.delete(id);
+        }
+        for (const id of activeOutboxRowsById.keys()) {
+          if (!still.has(id) && !inFlightOutboxIds.has(id) && !liveSends.has(id)) {
+            activeOutboxRowsById.delete(id);
+          }
         }
         bootOutboxDrained = remaining.length === 0 &&
           pendingOutboxEnqueues === 0 &&
@@ -1792,9 +1824,15 @@ export function mutativeMiddleware(
             enqueueCompleted = true;
           })
         : null;
+      const touchedRows = extractOutboxRowKeys(entry, patches);
+      if (touchedRows.size > 0) activeOutboxRowsById.set(outboxId, touchedRows);
       // Mark handled: consumers below attach their own handlers, but none
       // may exist yet when a storage failure rejects this promise.
-      enqueued?.catch(() => {});
+      enqueued?.catch(() => {
+        if (!inFlightOutboxIds.has(outboxId) && !liveSends.has(outboxId)) {
+          activeOutboxRowsById.delete(outboxId);
+        }
+      });
       if (capturedDispatch) {
         const send = () => dispatchWithRetry(
           capturedDispatch.fn,
@@ -1873,7 +1911,12 @@ export function mutativeMiddleware(
           },
         );
         liveSends.set(outboxId, { settled, retrying: false, waiting: !!waiting, overtaken: false, receipt: usesReceiptEnvelope, writes });
-        void settled.then(() => liveSends.delete(outboxId));
+        void settled.then((outcome) => {
+          liveSends.delete(outboxId);
+          if (!enqueued || outcome !== "parked") {
+            if (outcome !== "parked" && !enqueued) activeOutboxRowsById.delete(outboxId);
+          }
+        });
         const enqueueDurable = () =>
           enqueued ? enqueued.then(() => true, () => false) : Promise.resolve(false);
         if (usesReceiptEnvelope && receiptWaiter) {
@@ -1993,14 +2036,17 @@ export function mutativeMiddleware(
         // returns, before the drain has loaded this row, follows it the way
         // it follows a row a failed live send parked, so the drain delivers
         // both in ts order. The drain's end (or a failed enqueue) clears it.
-        if (enqueued) {
-          parkedOutboxIds.add(outboxId);
-          if (writes.size > 0) parkedCells.set(outboxId, writes);
-          enqueued.catch(() => {
-            parkedOutboxIds.delete(outboxId);
-            parkedCells.delete(outboxId);
-          });
-        }
+      if (enqueued) {
+        parkedOutboxIds.add(outboxId);
+        if (writes.size > 0) parkedCells.set(outboxId, writes);
+        enqueued.catch(() => {
+          parkedOutboxIds.delete(outboxId);
+          parkedCells.delete(outboxId);
+          activeOutboxRowsById.delete(outboxId);
+        });
+      } else {
+        activeOutboxRowsById.delete(outboxId);
+      }
         console.warn(`[sync] dispatch not wired; ${enqueued ? `enqueueing "${key}" for later delivery` : `"${key}" was dropped (no outbox)`}`);
         if (!enqueued) {
           if (platformConfig.rollbackDroppedOutboxEntry?.(entry)) {
@@ -2288,12 +2334,14 @@ export function mutativeMiddleware(
       outboxEnqueueFn = enqueue;
       outboxRemoveFn = remove;
       outboxLoadFn = load;
+      if (load === null) activeOutboxRowsById.clear();
       markOutboxDirty();
     };
 
     wrapped._clearRuntimeBindings = () => {
       dispatchEpoch++;
       inFlightOutboxIds.clear();
+      activeOutboxRowsById.clear();
       dispatchBinding = null;
       idbWriteFn = null;
       outboxEnqueueFn = null;
@@ -2343,6 +2391,14 @@ export function mutativeMiddleware(
         retryDelays,
         () => assertDispatchCurrent(captured),
       );
+    };
+
+    wrapped._protectedOutboxRows = () => {
+      const rows = new Set<string>();
+      for (const set of activeOutboxRowsById.values()) {
+        for (const key of set) rows.add(key);
+      }
+      return rows;
     };
 
     // Police raw setState (writes from outside action()/sync()): the guarded

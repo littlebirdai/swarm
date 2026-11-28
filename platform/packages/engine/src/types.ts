@@ -471,6 +471,9 @@ export type PlatformConfig = {
   // Repeated writes that rewrite the same logical value each time. Only
   // register actions whose args carry the COMPLETE new value for the key.
   outboxAccountId?: () => string | null;
+  outboxProtectedRows?: (
+    entry: Pick<OutboxEntry, "action" | "args" | "patches" | "locks">,
+  ) => string[];
   rollbackDroppedOutboxEntry?: (entry: OutboxEntry) => boolean;
   onDroppedOutboxEntry?: (
     entry: OutboxEntry,
@@ -559,4 +562,5 @@ export type PlatformStoreInternals = {
   _setStorageHealth: (fn: ((healthy: boolean, elapsedMs: number) => void) | null) => void;
   _setActionTee: (fn: ((actionName: string, patches: any[], state: any, meta?: ActionTeeMeta) => void) | null) => void;
   _dispatch: (action: string, args: any, patches?: any, result?: any) => Promise<any>;
+  _protectedOutboxRows?: () => Set<string>;
 };
