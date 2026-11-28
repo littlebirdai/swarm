@@ -29,7 +29,10 @@ function isInstallOpfsCall(node: ts.CallExpression): boolean {
   return false;
 }
 
-function hasPreserveOnInitFailureTrue(arg: ts.Expression | undefined): boolean {
+function hasBooleanPropTrue(
+  arg: ts.Expression | undefined,
+  propName: string,
+): boolean {
   if (!arg || !ts.isObjectLiteralExpression(arg)) return false;
   return arg.properties.some((prop) => {
     if (!ts.isPropertyAssignment(prop)) return false;
@@ -39,8 +42,7 @@ function hasPreserveOnInitFailureTrue(arg: ts.Expression | undefined): boolean {
         ? prop.name.text
         : null;
     return (
-      name === "preserveOnInitFailure" &&
-      prop.initializer.kind === ts.SyntaxKind.TrueKeyword
+      name === propName && prop.initializer.kind === ts.SyntaxKind.TrueKeyword
     );
   });
 }
@@ -63,7 +65,12 @@ function findInvalidCalls(
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && isInstallOpfsCall(node)) {
       total++;
-      if (!hasPreserveOnInitFailureTrue(node.arguments[0])) invalid++;
+      const arg = node.arguments[0];
+      if (
+        !hasBooleanPropTrue(arg, "preserveOnInitFailure") ||
+        !hasBooleanPropTrue(arg, "forceReinitIfPreviouslyFailed")
+      )
+        invalid++;
     }
     ts.forEachChild(node, visit);
   };
@@ -71,7 +78,7 @@ function findInvalidCalls(
   return { total, invalid };
 }
 
-test("every installOpfsSAHPoolVfs call in apps/web passes an object literal with preserveOnInitFailure: true", () => {
+test("every installOpfsSAHPoolVfs call in apps/web sets preserveOnInitFailure and forceReinitIfPreviouslyFailed", () => {
   const webRoot = resolve(import.meta.dir, "../../..");
   const files = collectSourceFiles(webRoot);
   let callCount = 0;
@@ -87,5 +94,11 @@ test("every installOpfsSAHPoolVfs call in apps/web passes an object literal with
   expect(callCount).toBeGreaterThanOrEqual(2);
   expect(
     findInvalidCalls(`sqlite.installOpfsSAHPoolVfs(opts);`, "bad.ts").invalid,
+  ).toBe(1);
+  expect(
+    findInvalidCalls(
+      `sqlite.installOpfsSAHPoolVfs({ preserveOnInitFailure: true });`,
+      "bad-missing-force.ts",
+    ).invalid,
   ).toBe(1);
 });

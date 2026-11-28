@@ -115,18 +115,30 @@ export type OpenedWasmDatabase = {
   removeStorage(): Promise<void>;
 };
 
-async function openPoolOnce(
+type SahPoolStatic = Omit<Sqlite3Static, "installOpfsSAHPoolVfs"> & {
+  installOpfsSAHPoolVfs(
+    options?: Parameters<Sqlite3Static["installOpfsSAHPoolVfs"]>[0] & {
+      forceReinitIfPreviouslyFailed?: boolean;
+    },
+  ): Promise<SAHPoolUtil>;
+};
+
+export async function openPoolOnce(
   sqlite3: Sqlite3Static,
   epoch: CacheEpoch,
   onWriteError?: (error: unknown) => void,
 ): Promise<OpenedWasmDatabase> {
-  const pool: SAHPoolUtil = await sqlite3.installOpfsSAHPoolVfs({
+  const pool: SAHPoolUtil = await (
+    sqlite3 as unknown as SahPoolStatic
+  ).installOpfsSAHPoolVfs({
     name: epochVfsName(epoch),
     directory: epochDirectory(epoch),
     preserveOnInitFailure: true,
+    forceReinitIfPreviouslyFailed: true,
   });
   let db: Database;
   try {
+    if (pool.isPaused()) await pool.unpauseVfs();
     db = new pool.OpfsSAHPoolDb(SQLITE_DB_FILENAME);
     db.exec("PRAGMA journal_mode=TRUNCATE; PRAGMA synchronous=NORMAL;");
   } catch (error) {

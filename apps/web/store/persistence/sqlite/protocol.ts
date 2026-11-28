@@ -57,10 +57,9 @@ export function compareEpochOrder(
   a: Pick<CacheEpoch, "schemaVersion" | "accountEpoch" | "generation">,
   b: Pick<CacheEpoch, "schemaVersion" | "accountEpoch" | "generation">,
 ): number {
-  if (a.schemaVersion !== b.schemaVersion)
-    return a.schemaVersion - b.schemaVersion;
   if (a.accountEpoch !== b.accountEpoch) return a.accountEpoch - b.accountEpoch;
-  return a.generation - b.generation;
+  if (a.generation !== b.generation) return a.generation - b.generation;
+  return a.schemaVersion - b.schemaVersion;
 }
 
 export function epochVfsName(epoch: CacheEpoch): string {
@@ -284,6 +283,21 @@ export type SqliteWritePatchPayload = {
   patches: Patch[];
   state: Record<string, unknown>;
   snapshotDrops?: Record<string, string[]>;
+  evictions?: Record<string, string[]>;
+};
+
+export type SqliteFlushConversation = {
+  conversationId: string;
+  messages?: { rows: unknown[]; pagination: unknown };
+  userMessages?: unknown[];
+};
+
+export type SqliteFlushBatchPayload = {
+  patches?: Patch[];
+  state?: Record<string, unknown>;
+  snapshotDrops?: Record<string, string[]>;
+  evictions?: Record<string, string[]>;
+  conversations?: SqliteFlushConversation[];
 };
 
 export type SqliteWorkerPayloads = {
@@ -294,6 +308,7 @@ export type SqliteWorkerPayloads = {
   };
   loadPaintCache: Record<string, never>;
   writePatches: SqliteWritePatchPayload;
+  flushBatch: SqliteFlushBatchPayload;
   loadConversationMessages: { conversationId: string };
   writeConversationMessages: {
     conversationId: string;
@@ -314,6 +329,7 @@ export type SqliteWorkerResults = {
   loadCache: Record<string, any> | null;
   loadPaintCache: Record<string, any> | null;
   writePatches: void;
+  flushBatch: void;
   loadConversationMessages: CachedConversation | null;
   writeConversationMessages: void;
   writeConversationUserMessages: void;

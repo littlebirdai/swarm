@@ -35,7 +35,9 @@ import {
   NAVIGATION_ROUTE,
 } from "./vite.pwa";
 
-const appShell = precacheScope();
+const appShell = precacheScope({
+  includeWorkers: process.env.VITE_SQLITE_CACHE === "1",
+});
 
 /**
  * Build identity for drivers (window.__CODECAST_BUILD) and for the running app
@@ -201,7 +203,7 @@ export default defineConfig(({ mode, command }) => ({
           // first use. Their names change with their content, so a cached one
           // is never stale.
           {
-            urlPattern: /\/assets\/[^/]+\.(?:js|css|woff2)$/,
+            urlPattern: /\/assets\/[^/]+\.(?:js|css|woff2|wasm)$/,
             handler: "CacheFirst",
             options: {
               cacheName: "assets",
@@ -239,6 +241,10 @@ export default defineConfig(({ mode, command }) => ({
     }),
   ],
   resolve: sharedResolve,
+  worker: {
+    plugins: () =>
+      process.env.VITE_SQLITE_CACHE === "1" ? [appShell.workerPlugin] : [],
+  },
   // Dev only: the same plugins as postcss.config.mjs, with Tailwind built in a
   // worker so a slow rebuild never blocks the server's thread. Production
   // builds read postcss.config.mjs as is.

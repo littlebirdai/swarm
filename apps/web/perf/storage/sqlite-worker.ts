@@ -63,6 +63,7 @@ export const operations = {
       directory: "/storage-bench",
       initialCapacity: 8,
       preserveOnInitFailure: true,
+      forceReinitIfPreviouslyFailed: true,
     });
     db = new pool.OpfsSAHPoolDb("/cache.sqlite3");
     const journal = db.selectValue("PRAGMA journal_mode=DELETE");
