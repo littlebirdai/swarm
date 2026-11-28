@@ -33,6 +33,7 @@ export {
   CommandReceiptRejectedError,
   OutboxGaveUpError,
   DispatchNotWiredError,
+  CommitGateVetoError,
   StaleDispatchBindingError,
   UnsupportedOutboxOperationSchemaError,
   MAX_OUTBOX_BOOT_ATTEMPTS,

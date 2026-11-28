@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   action,
   asyncAction,
+  CommitGateVetoError,
   DispatchNotWiredError,
   groupPatchesByTable,
   isPermanentDispatchError,
@@ -1041,26 +1042,69 @@ describe("activeOutboxRowsById (_protectedOutboxRows)", () => {
 });
 
 describe("commitGate", () => {
-  it("lets the config drop rows from a commit while the dispatch keeps the write", async () => {
-    const GATED: PlatformConfig = {
-      ...CONFIG,
-      commitGate: ({ nextState }) => {
-        if (nextState.items?.[OTHER_ID]?.title !== "blocked") return null;
-        const items = { ...nextState.items };
-        delete items[OTHER_ID];
-        return {
-          nextState: { ...nextState, items },
-          patches: [{ op: "remove", path: ["items", OTHER_ID] }],
-        };
-      },
-    };
-    const h = makeHarness({ config: GATED });
+  const gateConfig = (blocked: (row: any) => boolean): PlatformConfig => ({
+    ...CONFIG,
+    commitGate: ({ nextState, patches }) => {
+      const ids = new Set<string>();
+      for (const p of patches) {
+        if (p.path[0] !== "items" || p.path.length < 2) continue;
+        const id = String(p.path[1]);
+        const row = nextState.items?.[id];
+        if (row && blocked(row)) ids.add(id);
+      }
+      if (ids.size === 0) return null;
+      const items = { ...nextState.items };
+      const pending = { ...nextState.pending };
+      for (const id of ids) {
+        delete items[id];
+        pending[`items:${id}`] = { type: "exclude", ts: 1, scope: "dir:T" };
+      }
+      return {
+        nextState: { ...nextState, items, pending },
+        patches: [
+          ...[...ids].map((id) => ({ op: "remove" as const, path: ["items", id] })),
+          { op: "replace" as const, path: ["pending"], value: pending },
+        ],
+      };
+    },
+  });
+
+  it("removes a gated row, keeps its scoped exclude, plants no lock and sends nothing", async () => {
+    const h = makeHarness({ config: gateConfig((row) => row.title === "blocked") });
     h.wrapped.seedRow(OTHER_ID, { title: "x" });
-    expect(h.state.items[OTHER_ID]?.title).toBe("x");
     h.wrapped.rename(OTHER_ID, "blocked");
     expect(h.state.items[OTHER_ID]).toBeUndefined();
-    await waitFor(() => h.outbox.size === 2);
-    const rename = [...h.outbox.values()].find((e) => e.action === "rename")!;
-    expect(rename.patches).toEqual({ item_rows: { [OTHER_ID]: { title: "blocked" } } });
+    expect(h.state.pending[`items:${OTHER_ID}`]).toEqual({ type: "exclude", ts: 1, scope: "dir:T" });
+    expect(h.state.pending[`items:${OTHER_ID}:title`]).toBeUndefined();
+    await waitFor(() => h.outbox.size === 1);
+    await sleep(10);
+    expect([...h.outbox.values()].map((e) => e.action)).toEqual(["seedRow"]);
+  });
+
+  it("rejects a receipt create the gate removed and queues nothing", async () => {
+    const h = makeHarness({ config: gateConfig((row) => row._id === "stub-blocked") });
+    const result = h.wrapped.createThing("stub-blocked");
+    await expect(result).rejects.toBeInstanceOf(CommitGateVetoError);
+    await sleep(10);
+    expect(h.outbox.size).toBe(0);
+    expect(h.state.items["stub-blocked"]).toBeUndefined();
+  });
+
+  it("runs a refused write's rollback through the gate", async () => {
+    let gateOn = false;
+    const h = makeHarness({ config: gateConfig((row) => gateOn && row.title === "server") });
+    h.wireDispatch(async () => ({}));
+    h.wrapped.seedRow(SERVER_ID, { title: "server" });
+    await waitFor(() => h.outbox.size === 0);
+    const teed: any[][] = [];
+    (h.wrapped as any)._setActionTee((_name: string, patches: any[]) => teed.push(patches));
+    h.wireDispatch(async () => {
+      gateOn = true;
+      throw new Error("Uncaught Error: not yours");
+    });
+    h.wrapped.rename(SERVER_ID, "refused");
+    await waitFor(() => h.state.pending[`items:${SERVER_ID}:title`] === undefined);
+    expect(h.state.items[SERVER_ID]).toBeUndefined();
+    expect(teed.flat()).toContainEqual({ op: "remove", path: ["items", SERVER_ID] });
   });
 });

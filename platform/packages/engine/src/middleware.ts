@@ -65,6 +65,14 @@ export class DispatchNotWiredError extends Error {
   }
 }
 
+// An action whose own rows the commit gate removed: the write was not sent.
+export class CommitGateVetoError extends Error {
+  constructor(action: string) {
+    super(`"${action}" writes into a scope this account can no longer write to`);
+    this.name = "CommitGateVetoError";
+  }
+}
+
 // A dispatch held back because an earlier write it must follow is parked in
 // the outbox after a failed send. It stays parked too, and the next drain
 // delivers both in their causal (ts) order. Pending, not failed.
@@ -1279,6 +1287,35 @@ export function mutativeMiddleware(
 
     // `droppedOutboxId`: an overtaken send dropped on failure, whose history
     // moves only if a rollback later steps back past it (droppedSendOf).
+    // The config's commit gate over one commit: the state and patches to
+    // commit, and the rows it removed (whose own writes are not sent).
+    const gateCommit = (state: any, nextState: any, patches: Patch[]) => {
+      const gated = platformConfig.commitGate?.({ state, nextState, patches });
+      const removals = (gated?.patches ?? []).filter((p) => p.op === "remove" && p.path.length === 2);
+      const removedRows = new Set(removals.map((p) => `${String(p.path[0])}\u0000${String(p.path[1])}`));
+      const rowOf = (p: Patch) => (p.path.length >= 2 ? `${String(p.path[0])}\u0000${String(p.path[1])}` : null);
+      const isRemoved = (p: Patch) => {
+        const row = rowOf(p);
+        return row !== null && removedRows.has(row);
+      };
+      const excludes: Record<string, unknown> = {};
+      for (const p of removals) {
+        const k = `${String(p.path[0])}:${String(p.path[1])}`;
+        const entry = gated?.nextState.pending?.[k];
+        if (entry) excludes[k] = entry;
+      }
+      return {
+        nextState: gated ? gated.nextState : nextState,
+        patches: gated ? [...patches, ...gated.patches] : patches,
+        removals,
+        removed: (storeKey: string, id: string) => removedRows.has(`${storeKey}\u0000${id}`),
+        touches: (own: Patch[]) => removedRows.size > 0 && own.some(isRemoved),
+        without: (own: Patch[]) => (removedRows.size > 0 ? own.filter((p) => !isRemoved(p)) : own),
+        withExcludes: (pending: Record<string, any>) =>
+          removedRows.size > 0 ? { ...pending, ...excludes } : pending,
+      };
+    };
+
     const releaseRefusedLocks = (actionName: string, locks: ActionFieldLock[], outboxId?: string, droppedOutboxId?: string) => {
       // The undo history names its entries by the dispatch that carried them.
       if (outboxId) markUndoOutboxRefused(outboxId);
@@ -1313,9 +1350,10 @@ export function mutativeMiddleware(
           patches.push({ op: "replace", path: [storeKey], value: slice });
         }
       }
-      set({ ...state, ...next }, true);
+      const gate = gateCommit(state, { ...state, ...next }, patches);
+      set(gate.nextState, true);
       if (idbWriteFn) {
-        void Promise.resolve(idbWriteFn(patches, get())).catch((error) => {
+        void Promise.resolve(idbWriteFn(gate.patches, get())).catch((error) => {
           console.error(`[local-first] failed to persist refused "${actionName}" rollback`, error);
         });
       }
@@ -1323,8 +1361,8 @@ export function mutativeMiddleware(
       // mirrored lock the server will never echo. Offer the rollback the same
       // way, field by field, naming the refused locks so the host can release
       // its mirror instead of locking the restored value.
-      const fieldLocks = locks.filter((l) => !l.membership && l.recordId !== "");
-      if (actionTeeFn && fieldLocks.length > 0) {
+      const fieldLocks = locks.filter((l) => !l.membership && l.recordId !== "" && !gate.removed(l.storeKey, l.recordId));
+      if (actionTeeFn && (fieldLocks.length > 0 || gate.removals.length > 0)) {
         const after = get();
         const rollback: Patch[] = fieldLocks.map((l) => ({
           op: "replace" as const,
@@ -1332,7 +1370,7 @@ export function mutativeMiddleware(
           value: (after as any)[l.storeKey]?.[l.recordId]?.[l.field],
         }));
         try {
-          actionTeeFn(actionName, rollback, after, { refused: fieldLocks });
+          actionTeeFn(actionName, [...rollback, ...gate.removals], after, { refused: fieldLocks });
         } catch (error) {
           console.error(`[local-first] replication tee failed (refused ${actionName})`, error);
         }
@@ -2183,11 +2221,10 @@ export function mutativeMiddleware(
         }
         if (opts?.vet && !opts.vet({ state, nextState, patches })) return undefined;
         const dispatchPatches = patches;
-        const gated = platformConfig.commitGate?.({ state, nextState, patches });
-        if (gated) {
-          nextState = gated.nextState;
-          patches = [...patches, ...gated.patches];
-        }
+        const gate = gateCommit(state, nextState, patches);
+        nextState = gate.nextState;
+        patches = gate.patches;
+        const vetoed = (isAct || isAsyncAct) && gate.touches(dispatchPatches);
 
         // Auto-generate pending entries for synced collections so local-first
         // writes are protected from server sync overwrites.
@@ -2195,14 +2232,15 @@ export function mutativeMiddleware(
         let finalPatches: Patch[] = patches;
         let fieldLocks: ActionFieldLock[] = [];
         if (isAct || isAsyncAct) {
-          const newPending = generateAutoPending(
-            patches,
+          const ownPending = generateAutoPending(
+            gate.without(dispatchPatches),
             nextState.pending ?? {},
             maps.isProtectedSyncCollection,
             hideAckFields,
             maps.isUnprotectedField,
             { kindOf: syncKindOf, rowKeyOf: syncRowKeyOf, prevState: state, nextState },
           );
+          const newPending = ownPending && gate.withExcludes(ownPending);
           if (newPending) {
             fieldLocks = collectActionFieldLocks(state.pending ?? {}, newPending, state, syncRowKeyOf);
             finalState = { ...nextState, pending: newPending };
@@ -2244,6 +2282,11 @@ export function mutativeMiddleware(
           } catch (error) {
             console.error(`[local-first] replication tee failed (action=${key})`, error);
           }
+        }
+
+        if (vetoed) {
+          const veto = new CommitGateVetoError(key);
+          return isAsyncAct ? Promise.reject(veto) : returnValue;
         }
 
         if (isAct || isAsyncAct) {
