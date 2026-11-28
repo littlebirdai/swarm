@@ -5,6 +5,7 @@ import {
   base64urlDecode,
   base64urlEncode,
 } from "@codecast/connectors/codecastSignature";
+import { TRANSCRIPT_APPEND_OPERATION } from "@codecast/edge-contract";
 import { presentToken } from "@platform/auth/tokenFormat";
 import * as previousEdge from "../../../packages/edge-contract/test/n-1/schema";
 import { parseRelayGrantClaims as parsePreviousRelayGrantClaims } from "../../../packages/relay-contract/test/n-1/schema";
@@ -90,7 +91,7 @@ function extractRegisteredEdgeRoutes(source: string): Set<string> {
     const raw = match[1] ?? match[2] ?? match[3]!;
     const resolved = raw.replace(
       /\$\{TRANSCRIPT_APPEND_OPERATION\}/g,
-      previousEdge.TRANSCRIPT_APPEND_OPERATION,
+      TRANSCRIPT_APPEND_OPERATION,
     );
     if (!resolved.includes("${")) {
       registered.add(resolved);

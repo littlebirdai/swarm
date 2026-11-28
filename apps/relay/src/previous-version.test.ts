@@ -129,12 +129,16 @@ function createSocketQueue(url: URL) {
 
   function close() {
     closing = true;
+    failQueue(new Error("WebSocket closed"));
     ws.close();
   }
 
+  const ready = withTimeout(open.promise, "websocket open");
+  ready.catch(() => undefined);
+
   return {
     ws,
-    ready: withTimeout(open.promise, "websocket open"),
+    ready,
     send,
     take,
     close,
