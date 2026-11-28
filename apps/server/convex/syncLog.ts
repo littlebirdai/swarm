@@ -706,7 +706,7 @@ export const getHeads = query({
   args: { scopes: v.array(v.string()) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { authenticated: false, heads: [] };
+    if (!userId) return { heads: [], unauthenticated: true as const };
     const { scopes } = await resolveHeadsScopes(ctx, userId, args.scopes);
     const heads: Array<{
       scope_key: SyncScopeKey;
@@ -721,7 +721,7 @@ export const getHeads = query({
         floor: head?.floor ?? 0,
       });
     }
-    return { authenticated: true, heads };
+    return { heads };
   },
 });
 

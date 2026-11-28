@@ -401,7 +401,7 @@ describe("interest scopes never widen workspace access", () => {
     const unauthHeads = await t.query(api.syncLog.getHeads, {
       scopes: [`dir:${setup.teamA}`, `channel:${setup.agentsChan}`],
     });
-    expect(unauthHeads).toEqual({ authenticated: false, heads: [] });
+    expect(unauthHeads).toEqual({ heads: [], unauthenticated: true });
     const unauthRange = await t.query(api.syncLog.getRange, {
       scope_key: `dir:${setup.teamA}`,
       from: 0,
@@ -418,7 +418,7 @@ describe("interest scopes never widen workspace access", () => {
         `channel:${setup.agentsChan}`,
       ],
     });
-    expect(deduped.authenticated).toBe(true);
+    expect("unauthenticated" in deduped).toBe(false);
     expect(deduped.heads.map((h) => h.scope_key)).toEqual([
       `dir:${setup.teamA}`,
       `channel:${setup.agentsChan}`,

@@ -35,7 +35,7 @@ test("the host reads one positioned snapshot and retries only on recovery", asyn
         clock: true,
         setup(backend, state) {
           useInboxStore.setState({ syncRole: "host" });
-          backend.set(api.syncLog.getHeads, { authenticated: true, heads: [] });
+          backend.set(api.syncLog.getHeads, { heads: [] });
           state.syncTable("currentUser", { _id: "viewer" });
           state.syncTable("sessions", [{ ...row, title: "Current" }]);
           state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
@@ -87,7 +87,7 @@ test("the flag-off host still subscribes and an opted-in follower opens no inbox
       clock: true,
       setup(backend) {
         useInboxStore.setState({ syncRole: "host" });
-        backend.set(api.syncLog.getHeads, { authenticated: true, heads: [] });
+        backend.set(api.syncLog.getHeads, { heads: [] });
         backend.set(list, { sessions: [], hidden_count: 0, truncated: [] });
       },
     },
@@ -115,7 +115,6 @@ const range = api.syncLog.getRange;
 const byIds = api.conversations.getInboxSessionsByIds;
 
 const headAt = (position: number) => ({
-  authenticated: true,
   heads: [{ scope_key: scope, position, floor: 0 }],
 });
 
@@ -303,7 +302,6 @@ test("a replay gap starts a new snapshot before the old request finishes", async
       state.syncTable("currentUser", { _id: "viewer" });
       state.recordSyncMeta(scopeMetaKey(scope), { cursor: 4 });
       backend.set(api.syncLog.getHeads, {
-        authenticated: true,
         heads: [{ scope_key: scope, position: 4, floor: 0 }],
       });
       backend.set(list, ({ _probe }) => {
@@ -323,7 +321,6 @@ test("a replay gap starts a new snapshot before the old request finishes", async
   expect(reads()).toHaveLength(1);
   await act(async () =>
     backend.set(api.syncLog.getHeads, {
-      authenticated: true,
       heads: [{ scope_key: scope, position: 8, floor: 7 }],
     }),
   );
@@ -470,7 +467,6 @@ test("changing accounts cancels the old replay and discards its late reply", asy
   expect(syncInflightCount()).toBe(2);
   await act(async () => {
     ui.backend.set(heads, {
-      authenticated: true,
       heads: [{ scope_key: newScope, position: 4, floor: 0 }],
     });
     ui.backend.set(list, {

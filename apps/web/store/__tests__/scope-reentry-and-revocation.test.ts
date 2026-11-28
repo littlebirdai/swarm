@@ -134,7 +134,7 @@ describe("heads answers", () => {
       syncMeta: { [scopeMetaKey(`project:${P}`)]: { cursor: 4 } },
     } as any);
     await catchUp(
-      heads(() => ({ authenticated: false, heads: [] })),
+      heads(() => ({ heads: [], unauthenticated: true })),
       undefined,
       { scopes: [`project:${P}`] },
     );
@@ -151,7 +151,7 @@ describe("heads answers", () => {
       syncMeta: { [scopeMetaKey(`project:${P}`)]: { cursor: 4 } },
     } as any);
     await catchUp(
-      heads(() => ({ authenticated: true, heads: [] })),
+      heads(() => ({ heads: [] })),
       undefined,
       { scopes: [`project:${P}`] },
     );
@@ -208,7 +208,6 @@ describe("a scope with no cursor", () => {
     });
     await catchUp(
       heads((scopes) => ({
-        authenticated: true,
         heads: scopes.map((scope_key) => ({
           scope_key,
           position: scope_key === `project:${P}` ? 12 : 9,
@@ -226,7 +225,7 @@ describe("a scope with no cursor", () => {
 
   test("one scope caught up on its own with no cursor recuts the floors", async () => {
     await catchUpScope(
-      heads(() => ({ authenticated: true, heads: [] })),
+      heads(() => ({ heads: [] })),
       { scope_key: `project:${P}`, position: 6, floor: 0 },
       new Set(),
     );
@@ -245,7 +244,6 @@ describe("a scope with no cursor", () => {
     } as any);
     await catchUp(
       heads((scopes) => ({
-        authenticated: true,
         heads: scopes.map((scope_key) => ({
           scope_key,
           position: 3,

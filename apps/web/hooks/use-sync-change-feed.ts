@@ -554,7 +554,7 @@ export async function catchUp(
     if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
       stampCatchUpScope(s, head.scope_key);
   }
-  if (res.authenticated === true)
+  if (res.unauthenticated !== true)
     sweepAfterHeads(useInboxStore.getState(), heads, scopeList);
 }
 
