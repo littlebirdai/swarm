@@ -119,11 +119,6 @@ import {
 import {
   useInboxStore,
   useTrackedStore,
-  selectSessionRailOpen,
-  selectCommentRailOpen,
-  selectSessionRailUserClosed,
-  selectNavCollapsed,
-  selectNavHidden,
   bucketProjectPath,
   ownCheckoutPath,
   projectAxisKeys,
@@ -134,6 +129,13 @@ import {
   resolveInboxHome,
   isModernFocused,
 } from "../store/inboxStore";
+import {
+  selectSessionRailOpen,
+  selectCommentRailOpen,
+  selectSessionRailUserClosed,
+  selectNavCollapsed,
+  selectNavHidden,
+} from "../store/slices/workspace-slice";
 import { newConversationAgentType } from "../lib/defaultAgent";
 import { ConnectToast } from "./simple/ConnectToast";
 import { pathOnMyMachines, savedDefaultProject } from "../lib/machinePicker";

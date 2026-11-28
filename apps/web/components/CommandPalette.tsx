@@ -91,9 +91,9 @@ import {
   projectOfFromState,
   getProjectName,
   RecentVisit,
-  selectSessionRailOpen,
   sessionRowFromSummary,
 } from "../store/inboxStore";
+import { selectSessionRailOpen } from "../store/slices/workspace-slice";
 import { projectChipLabel } from "../store/workProjects";
 import {
   resolveRecentVisits,

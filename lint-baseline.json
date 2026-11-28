@@ -12677,7 +12677,7 @@
     "swarm/no-comments": 36
   },
   "apps/server/convex/taskWrite.guard.test.ts": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 25
   },
   "apps/server/convex/tasks.assignHandoff.test.ts": {
     "swarm/no-comments": 6
@@ -27576,7 +27576,7 @@
     "swarm/no-comments": 96
   },
   "apps/web/store/__tests__/inbox-store.test.ts": {
-    "swarm/no-comments": 613
+    "swarm/no-comments": 602
   },
   "apps/web/store/__tests__/inboxConvergenceSim.test.ts": {
     "swarm/no-comments": 63
@@ -28008,6 +28008,9 @@
   "apps/web/store/__tests__/syncTransaction.test.ts": {
     "swarm/no-comments": 12
   },
+  "apps/web/store/__tests__/tab-frames.test.ts": {
+    "swarm/no-comments": 7
+  },
   "apps/web/store/__tests__/tabActionOutbox.guard.test.ts": {
     "swarm/no-comments": 10
   },
@@ -28262,7 +28265,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 4928
+    "swarm/no-comments": 4823
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4

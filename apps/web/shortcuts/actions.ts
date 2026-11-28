@@ -11,12 +11,11 @@ import { useOpenSession } from "../hooks/useOpenSession";
 import { goBackInTrail } from "../hooks/useNavTrail";
 import { isModernStyle } from "../lib/visualStyle";
 import { usePathname, useRouter } from "next/navigation";
+import { useInboxStore, type InboxWalk } from "../store/inboxStore";
 import {
-  useInboxStore,
   selectCommentRailOpen,
   selectNavCollapsed,
-  type InboxWalk,
-} from "../store/inboxStore";
+} from "../store/slices/workspace-slice";
 import { useInboxSelection } from "../lib/inboxSelection";
 import { isInboxRoute, isInboxSessionView } from "../lib/inboxRouting";
 import { overlayConversationId } from "../store/workspace";

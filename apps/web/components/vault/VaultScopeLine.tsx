@@ -14,11 +14,8 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, Cloud, FileText, Laptop } from "lucide-react";
-import {
-  getProjectName,
-  useInboxStore,
-  selectSessionRailOpen,
-} from "../../store/inboxStore";
+import { getProjectName, useInboxStore } from "../../store/inboxStore";
+import { selectSessionRailOpen } from "../../store/slices/workspace-slice";
 import { shortenVaultRoot } from "../../lib/vault/projectVault";
 import {
   describeVaultScope,

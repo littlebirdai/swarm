@@ -151,32 +151,11 @@ import {
 } from "@platform/engine";
 import {
   adoptWorkspaceSnapshot,
-  createWorkspace,
-  serializeWorkspace,
-  hydrateWorkspace,
   autoAllowed as wsAutoAllowedPure,
-  isSessionRailOpen,
-  isCommentRailOpen,
   SESSION_LIST_PANE,
-  TERMINAL_PANE,
   type PersistedWorkspace,
-  showPane,
-  hidePane,
-  togglePane,
-  setPresentation as wsSetPresentationPure,
-  setSize as wsSetSizePure,
   type WorkspaceState,
-  type SlotId,
-  type Pane,
-  type Presentation,
 } from "./workspace";
-import {
-  applyWorkbench as applyWorkbenchPure,
-  captureWorkbench,
-  chipFilterOf,
-  resolveWorkbenchFilter,
-  type WorkbenchSnapshot,
-} from "./workbench";
 import {
   declareViewNav,
   freshHomeLaunchPending,
@@ -581,7 +560,6 @@ import {
 } from "./stageSplit";
 import { divertSessionOpen } from "../lib/openIntent";
 import type { PalettePick } from "../lib/palettePick";
-import type { TourRun } from "../tours/types";
 export { isConvexId };
 
 // Canonical entity-derivation helpers live in lib/liveEntities. Re-exported here
@@ -595,10 +573,6 @@ export {
 import { deriveDocDisplayTitle, isForeignSession } from "../lib/liveEntities";
 import { feedCoverMetaKey } from "../lib/feedCatchup";
 import { tickCoarseClocks } from "../hooks/useCoarseNow";
-import {
-  DEFAULT_SETTINGS_SECTION,
-  type SettingsSectionId,
-} from "../lib/settingsSections";
 import { activeWorkspaceKey } from "../lib/workspaceScope";
 import type {
   AgentChainSpec,
@@ -686,17 +660,20 @@ import {
   createAgentConnectionsSlice,
   type AgentConnectionsSliceActions,
 } from "./agentConnectionsSlice";
-import {
-  createComposeSlice,
-  type ComposeInstance,
-  type ComposeSliceState,
-} from "./composeSlice";
+import { createComposeSlice, type ComposeSliceState } from "./composeSlice";
 import {
   CALLS_SYNC_OPTS,
   createCallsSlice,
   rejectDeleteCallRecording,
   type CallsSlice,
 } from "./slices/calls-slice";
+import {
+  createWorkspaceSlice,
+  persistWorkspace,
+  readCriticalUiPrefs,
+  writeCriticalUiPrefs,
+  type WorkspaceSlice,
+} from "./slices/workspace-slice";
 // Re-exported so chat surfaces import their selectors from the store, like every
 // other view does, instead of reaching into the slice file.
 export {
@@ -753,128 +730,6 @@ import {
   type FolderActivity,
 } from "../lib/railFolderFilter";
 export type { ThreadsCursor } from "./threadTypes";
-
-// Critical UI prefs mirrored to localStorage so they're available
-// synchronously at module load — avoids a layout flash between first paint
-// and IDB hydration. The IDB-backed clientState remains the source of truth
-// across tabs; localStorage is just a sync-readable cache for first-paint
-// values that affect layout. Keep this set TINY — every key here adds
-// localStorage churn on every change.
-// pinned_surfaces joins the critical set for the same reason sidebar_collapsed
-// is here: it decides the ARRANGEMENT at first paint. Seeded from localStorage
-// synchronously, a pinned split renders as a split immediately instead of
-// flashing a peek overlay until the server clientState arrives.
-const CRITICAL_UI_KEYS = [
-  "sidebar_collapsed",
-  "zen_mode",
-  "inbox_shortcuts_hidden",
-  "inbox_flat_view",
-  "workspace",
-  "nav_sections",
-] as const;
-const CRITICAL_PREFS_LS_KEY = "codecast-critical-ui";
-
-function readCriticalUiPrefs(): Record<string, any> {
-  // Guard on localStorage itself (not window): React Native may define `window`
-  // without a DOM Storage, and SSR has neither.
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(CRITICAL_PREFS_LS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    const out: Record<string, any> = {};
-    for (const k of CRITICAL_UI_KEYS) {
-      if (parsed[k] !== undefined) out[k] = parsed[k];
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-function writeCriticalUiPrefs(partial: Record<string, any>) {
-  if (typeof localStorage === "undefined") return;
-  let toWrite: Record<string, any> | null = null;
-  for (const k of CRITICAL_UI_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(partial, k)) {
-      if (!toWrite) toWrite = {};
-      toWrite[k] = partial[k];
-    }
-  }
-  if (!toWrite) return;
-  try {
-    const existing = JSON.parse(
-      localStorage.getItem(CRITICAL_PREFS_LS_KEY) || "{}",
-    );
-    localStorage.setItem(
-      CRITICAL_PREFS_LS_KEY,
-      JSON.stringify({ ...existing, ...toWrite }),
-    );
-  } catch {}
-}
-
-// The arrangement (not its contents) is a durable preference: mirror it into
-// the ui bag on every slot mutation so it survives reload and rides the same
-// per-device sync as the other layout prefs. In CRITICAL_UI_KEYS, so the shell
-// paints the right arrangement immediately instead of flashing a default.
-function persistWorkspace(draft: any) {
-  // A detached tab window keeps its own in-memory arrangement but never
-  // persists it — the ui bag and device key are the MAIN window's layout, and
-  // a breakout window writing them would reshape every other window's frame.
-  if (
-    typeof window !== "undefined" &&
-    (window as any).__CODECAST_ELECTRON__?.isTabWindow === true
-  )
-    return;
-  const ws = draft.workspace as WorkspaceState;
-  if (!draft.clientState) draft.clientState = {};
-  if (!draft.clientState.ui) draft.clientState.ui = {};
-  // Shared slots follow the user like any layout pref…
-  draft.clientState.ui.workspace = serializeWorkspace(ws, "shared");
-  writeCriticalUiPrefs({ workspace: draft.clientState.ui.workspace });
-  // …device slots never leave this browser profile (SLOT_PERSISTENCE).
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(
-        DEVICE_WORKSPACE_KEY,
-        JSON.stringify(serializeWorkspace(ws, "device")),
-      );
-    }
-  } catch {}
-}
-
-const DEVICE_WORKSPACE_KEY = "codecast-device-workspace";
-
-function readDeviceWorkspace(): any {
-  try {
-    if (typeof localStorage === "undefined") return null;
-    const raw = localStorage.getItem(DEVICE_WORKSPACE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-// Region "is it open" questions are now selectors over slot state, not stored
-// booleans — one source of truth for the right edge.
-/** Nav is folded to its hover-peek edge (the old ui.sidebar_collapsed). */
-export const selectNavCollapsed = (s: { workspace: WorkspaceState }) =>
-  s.workspace.nav.presentation === "collapsed";
-/** The app sidebar is off screen: folded to its edge, or zen mode with the
- *  nav not pinned open. Surfaces that stand in for it (the chat page's own
- *  rail) show exactly when this holds. */
-export const selectNavHidden = (s: {
-  workspace: WorkspaceState;
-  zenNavOpen: boolean;
-  clientState: { ui?: { zen_mode?: boolean } | null };
-}) => (s.clientState.ui?.zen_mode ? !s.zenNavOpen : selectNavCollapsed(s));
-
-export const selectSessionRailOpen = (s: { workspace: WorkspaceState }) =>
-  isSessionRailOpen(s.workspace);
-export const selectCommentRailOpen = (s: { workspace: WorkspaceState }) =>
-  isCommentRailOpen(s.workspace);
-export const selectSessionRailUserClosed = (s: { workspace: WorkspaceState }) =>
-  !wsAutoAllowedPure(s.workspace, "context", SESSION_LIST_PANE);
 
 export function getProjectName(gitRoot?: string, projectPath?: string): string {
   const path = gitRoot || projectPath;
@@ -2511,11 +2366,6 @@ import type {
   ClientTips,
 } from "./clientPrefsTypes";
 import { showsModern } from "../lib/modernStyle";
-
-/** What the header slide-over shows (components/anchor/AnchorPanel). */
-export type AnchorPanelTarget =
-  | { kind: "anchor"; id: string }
-  | { kind: "session"; id: string };
 
 export type ClientUI = {
   theme?: "light" | "dark";
@@ -7876,6 +7726,7 @@ export interface InboxStoreState
     AgentConnectionsSliceActions,
     ComposeSliceState,
     CallsSlice,
+    WorkspaceSlice,
     Omit<
       RegisteredCollectionSlots,
       keyof (ChatSliceState & OrgSliceState & SteerComposerStore & CallsSlice)
@@ -9621,110 +9472,6 @@ export interface InboxStoreState
   // requested. Local + persisted, never synced (the server's pending_api_error
   // only clears when the agent actually resumes and its output syncs back).
   blockedReviveRequestedAt: Record<string, number>;
-
-  // -- Shortcuts panel --
-  shortcutsPanelOpen: boolean;
-  toggleShortcutsPanel: () => void;
-  /** A navigation waiting for the user to pick WHICH split pane it opens in
-   *  (components/stage/StagePickLayer). Ephemeral gesture — raw set. */
-  stagePick: { path: string; title?: string } | null;
-  setStagePick: (pick: { path: string; title?: string } | null) => void;
-  // The tour that is running (tours/): which one, which step, and whether a
-  // person asked for it (a replay) or it started itself. Ephemeral modal
-  // state; whether a tour has been SEEN is durable, in clientState.tips
-  // (tours/seen.ts). The Tours panel lists every tour.
-  tour: TourRun | null;
-  setTour: (run: TourRun | null) => void;
-  toursPanelOpen: boolean;
-  setToursPanelOpen: (open: boolean) => void;
-  // The global anchor panel: a slide-over holding one anchor's conversation,
-  // reachable from every page. Ephemeral (a modal toggle, never persisted).
-  // `anchorId` is the LAST anchor shown, so re-opening lands where you were.
-  // `target` is what the panel shows: a standing agent by its anchors row, or
-  // any pinned session by its conversation (org-staffing.md S30); null means
-  // the first header pin. It is the LAST target shown, so re-opening lands
-  // where you were.
-  anchorPanel: { open: boolean; target: AnchorPanelTarget | null };
-  openAnchorPanel: (target?: AnchorPanelTarget | null) => void;
-  closeAnchorPanel: () => void;
-  toggleAnchorPanel: () => void;
-
-  // -- Settings modal --
-  settingsModalSection: SettingsSectionId | null;
-  openSettingsModal: (section?: SettingsSectionId) => void;
-  closeSettingsModal: () => void;
-
-  // -- The people wall, over the main window --
-  // The same wall the people window shows, thrown over whatever you were doing
-  // for as long as it takes to hold one face. Ephemeral (a modal toggle, never
-  // persisted): which window you are in is not a preference.
-  peopleWallOpen: boolean;
-  // -- The wide leaf (components/org/OrgPage, components/stage) --
-  // The stage leaf that takes its tab's width while it is mounted: its
-  // sibling panes and the session rail fold to a thin rail, and come back when
-  // the leaf leaves or the rail is clicked. `leafId` is null for a plain
-  // (unsplit) tab. Ephemeral, per window (never persisted or replicated): the
-  // arrangement underneath is not rewritten, so leaving restores it exactly.
-  stageWide: { tabId: string; leafId: string | null } | null;
-  setStageWide: (wide: { tabId: string; leafId: string | null } | null) => void;
-  // -- Saved-account sign-in dialog (components/ProfileSignInDialog) --
-  // Window level, not inside the hover panel that opens it: the sign-in
-  // happens in a browser, and the panel closes the moment the pointer leaves.
-  // Ephemeral (a modal toggle, never persisted).
-  profileSignIn: { deviceId: string; profile: string; start?: boolean } | null;
-  openProfileSignIn: (target: {
-    deviceId: string;
-    profile: string;
-    start?: boolean;
-  }) => void;
-  closeProfileSignIn: () => void;
-  closePeopleWall: () => void;
-  togglePeopleWall: () => void;
-
-  // -- Side panel --
-  // -- Workspace slots (see store/workspace.ts + WORKSPACE_SLOTS.md) --
-  // The layout as data: fixed slots, at most one pane each. Regions migrate
-  // onto this one at a time; the legacy flags below disappear as they land.
-  workspace: WorkspaceState;
-  wsShow: (
-    slot: SlotId,
-    pane: Pane,
-    opts?: { presentation?: Presentation },
-  ) => void;
-  wsHide: (slot: SlotId, opts?: { remember?: boolean }) => void;
-  wsToggle: (slot: SlotId, pane: Pane) => void;
-  wsSetPresentation: (slot: SlotId, presentation: Presentation) => void;
-  /** Restore a saved arrangement wholesale — every slot, plus zen and the chip
-   *  filter. `id` stamps which saved workbench this is, so the rail can keep it
-   *  highlighted (and offer "update") while you adjust panels away from it.
-   *  `pathname` is the surface the switch LANDS on, so a filter that evicts the
-   *  focused session moves whichever pointer that surface highlights. */
-  applyWorkbench: (
-    snap: WorkbenchSnapshot,
-    id?: string,
-    pathname?: string | null,
-  ) => void;
-  /** The saved workbench the chrome was last switched to. Ephemeral bookkeeping
-   *  for the rail's highlight/update affordance — cleared on plain boots. */
-  activeWorkbenchId: string | null;
-  /** Name the current arrangement and persist it as a saved view. */
-  saveWorkbench: (name: string, path?: string) => any;
-  /** Overwrite a saved workbench with the CURRENT arrangement — the way an
-   *  existing workbench is adjusted: switch to it, move panels, update. */
-  updateWorkbench: (id: string, path?: string) => void;
-  setNavCollapsed: (collapsed: boolean) => void;
-  /** Zen hides the sidebar; this opens it anyway until zen is left. Ephemeral. */
-  zenNavOpen: boolean;
-  setZenNavOpen: (open: boolean) => void;
-  setDockOpen: (open: boolean) => void;
-  wsSetSize: (slot: SlotId, size: number) => void;
-
-  sidePanelSessionId: string | null;
-  openSidePanel: (sessionId: string) => void;
-  closeSidePanel: () => void;
-  clearSidePanelSession: () => void;
-  toggleSidePanel: () => void;
-  selectPanelSession: (sessionId: string | null) => void;
 
   // -- Task / Doc mutations (action + side effect) --
   updateTaskStatus: (
@@ -20582,313 +20329,13 @@ const inboxStoreConfig = (set: any, get: any) => ({
     set({ sessionsWithQueuedMessages: next });
   },
 
-  // SIDE PANEL
+  // WORKSPACE & LAYOUT
   // =====================
 
-  shortcutsPanelOpen: false,
-  toggleShortcutsPanel: () =>
-    set({ shortcutsPanelOpen: !get().shortcutsPanelOpen }),
-  stagePick: null,
-  setStagePick: (pick: { path: string; title?: string } | null) =>
-    set({ stagePick: pick }),
-  tour: null,
-  setTour: (run: TourRun | null) => set({ tour: run }),
-  toursPanelOpen: false,
-  setToursPanelOpen: (open: boolean) => set({ toursPanelOpen: open }),
-  anchorPanel: { open: false, target: null },
-  openAnchorPanel: (target?: AnchorPanelTarget | null) =>
-    set({
-      anchorPanel: {
-        open: true,
-        target: target === undefined ? get().anchorPanel.target : target,
-      },
-    }),
-  closeAnchorPanel: () =>
-    set({ anchorPanel: { ...get().anchorPanel, open: false } }),
-  toggleAnchorPanel: () =>
-    set({
-      anchorPanel: { ...get().anchorPanel, open: !get().anchorPanel.open },
-    }),
-
-  settingsModalSection: null,
-  openSettingsModal: (section?: SettingsSectionId) => {
-    // Settings sits below the compose layer, so a modal compose (the place
-    // "share yours" opens it from) folds to its dock title bar first.
-    const modal = (get().composes as ComposeInstance[]).find(
-      (c) => c.mode === "modal",
-    );
-    if (modal) {
-      get().dockCompose(modal.id);
-      get().setComposeCollapsed(modal.id, true);
-    }
-    set({ settingsModalSection: section ?? DEFAULT_SETTINGS_SECTION });
-  },
-  closeSettingsModal: () => set({ settingsModalSection: null }),
-
-  peopleWallOpen: false,
-  stageWide: null,
-  setStageWide: (wide: { tabId: string; leafId: string | null } | null) =>
-    set({ stageWide: wide }),
-  profileSignIn: null,
-  openProfileSignIn: (target: {
-    deviceId: string;
-    profile: string;
-    start?: boolean;
-  }) => set({ profileSignIn: target }),
-  closeProfileSignIn: () => set({ profileSignIn: null }),
-  closePeopleWall: () => set({ peopleWallOpen: false }),
-  togglePeopleWall: () => set({ peopleWallOpen: !get().peopleWallOpen }),
-
-  // The workspace slots (nav | context | dock…). The stage itself is no
-  // longer one of them: side by side lives in the tab's split layout
-  // (store/stageSplit), and the secondary slot's one remaining use is the
-  // fleet board's transient drill-in overlay, owned by the board.
-  workspace: (() => {
-    const prefs = readCriticalUiPrefs() as any;
-    const device = readDeviceWorkspace();
-    const ws = hydrateWorkspace(prefs.workspace, device);
-    // One-time inheritance from the terminal's own key, so an existing user's
-    // dock opens exactly as they left it before the dock became a slot.
-    if (!device) {
-      try {
-        const raw =
-          typeof localStorage !== "undefined"
-            ? localStorage.getItem("cast_term_panel")
-            : null;
-        const legacy = raw ? JSON.parse(raw) : null;
-        if (legacy?.open)
-          ws.dock = {
-            pane: { kind: "terminal" },
-            presentation: "split",
-            size: legacy.height,
-          };
-        else if (typeof legacy?.height === "number")
-          ws.dock = { ...ws.dock, size: legacy.height };
-      } catch {}
-    }
-    // First boot after the migration: inherit the old sidebar pref so the nav
-    // opens exactly as the user left it.
-    if (!prefs.workspace && prefs.sidebar_collapsed)
-      ws.nav.presentation = "collapsed";
-    return ws;
-  })(),
-
-  wsShow: action(function (
-    this: Draft,
-    slot: SlotId,
-    pane: Pane,
-    opts?: { presentation?: Presentation },
-  ) {
-    this.workspace = showPane(
-      this.workspace as WorkspaceState,
-      slot,
-      pane,
-      opts,
-    );
-    persistWorkspace(this);
-  }),
-  wsHide: action(function (
-    this: Draft,
-    slot: SlotId,
-    opts?: { remember?: boolean },
-  ) {
-    this.workspace = hidePane(this.workspace as WorkspaceState, slot, opts);
-    persistWorkspace(this);
-  }),
-  wsToggle: action(function (this: Draft, slot: SlotId, pane: Pane) {
-    this.workspace = togglePane(this.workspace as WorkspaceState, slot, pane);
-    persistWorkspace(this);
-  }),
-  wsSetPresentation: action(function (
-    this: Draft,
-    slot: SlotId,
-    presentation: Presentation,
-  ) {
-    this.workspace = wsSetPresentationPure(
-      this.workspace as WorkspaceState,
-      slot,
-      presentation,
-    );
-    persistWorkspace(this);
-  }),
-  // One action owns "is the nav folded", so the header button, the shortcut and
-  // the drag-to-zero handler can't drift apart.
-  // The dock is a slot like any other; SLOT_PERSISTENCE says its arrangement
-  // stays on this device, so no component needs its own storage to say so.
-  setDockOpen: (open: boolean) => {
-    const st = get();
-    if (open) st.wsShow("dock", TERMINAL_PANE);
-    else st.wsHide("dock", { remember: true });
-  },
-
-  zenNavOpen: false,
-  setZenNavOpen: (open: boolean) => set({ zenNavOpen: open }),
-
-  setNavCollapsed: action(function (this: Draft, collapsed: boolean) {
-    this.workspace = wsSetPresentationPure(
-      this.workspace as WorkspaceState,
-      "nav",
-      collapsed ? "collapsed" : "split",
-    );
-    persistWorkspace(this);
-  }),
-
-  wsSetSize: action(function (this: Draft, slot: SlotId, size: number) {
-    this.workspace = wsSetSizePure(
-      this.workspace as WorkspaceState,
-      slot,
-      size,
-    );
-    persistWorkspace(this);
-  }),
-
-  // Switch to a workbench: the WHOLE chrome — every slot, every size, zen —
-  // restores in one draft, so the frame changes in a single paint. Subjects are
-  // re-derived from where you are (the comments pane gets the conversation on
-  // screen); a device that cannot host a terminal never inherits one.
-  activeWorkbenchId: null,
-
-  applyWorkbench: action(function (
-    this: Draft,
-    snap: WorkbenchSnapshot,
-    id?: string,
-    pathname?: string | null,
-  ) {
-    const conversationId =
-      this.currentSessionId ?? this.viewingDismissedId ?? null;
-    const allowTerminal =
-      typeof window === "undefined" || window.innerWidth >= 768;
-    this.workspace = applyWorkbenchPure(
-      this.workspace as WorkspaceState,
-      snap,
-      { conversationId, allowTerminal },
-    );
-    this.activeWorkbenchId = id ?? null;
-    persistWorkspace(this);
-    const zen = snap.zen ?? false;
-    if (!this.clientState.ui) this.clientState.ui = {} as ClientUI;
-    if ((this.clientState.ui.zen_mode ?? false) !== zen) {
-      this.clientState.ui.zen_mode = zen;
-      writeCriticalUiPrefs({ zen_mode: zen });
-      this.zenNavOpen = false;
-    }
-    // The sidebar's pinned sections ride along with the panes. Assigned whole,
-    // including with nothing: a layout saved with no pins (or an older save,
-    // from before this field) hands every section back to its route default.
-    const sections = snap.navSections ?? {};
-    if (
-      JSON.stringify(this.clientState.ui.nav_sections ?? {}) !==
-      JSON.stringify(sections)
-    ) {
-      this.clientState.ui.nav_sections = { ...sections };
-      writeCriticalUiPrefs({ nav_sections: this.clientState.ui.nav_sections });
-    }
-    // The chip rides along with the panes. Both axes are assigned together
-    // rather than through the single-axis setters, whose "don't clobber the
-    // other axis's exclude" guards exist for one-chip clicks; here the whole
-    // filter is being replaced at once — including with nothing, which is what
-    // a layout saved with a clear chip (or an older save, from before this
-    // field) means.
-    const prev = snapshotInboxViewFromDraft(this);
-    const want = resolveWorkbenchFilter(snap.filter, this.buckets);
-    this.activeBucketFilter = want.bucket;
-    // Layouts capture the head chip only — a shift-built list doesn't ride.
-    this.extraBucketFilters = [];
-    this.extraProjectFilters = [];
-    this.activeProjectFilter = want.project;
-    this.activeProjectPath = want.projectPath;
-    this.chipFilterExclude = want.exclude;
-    const next = snapshotInboxViewFromDraft(this);
-    if (sameInboxView(prev, next)) return;
-    pushInboxViewHistory(prev, next);
-    // The landing surface is passed in: a layout can change surface, and the
-    // active tab still shows the one being left.
-    evictFocusOutsideOrderInDraft(
-      this,
-      sessionFocusKind(pathname, this.currentConversation?.source),
-    );
-  }),
-
-  // Save and update reuse the saved-view pipeline wholesale (optimistic stub,
-  // outbox, share/delete); a workbench is just a view whose page is the
-  // workspace. Update IS the adjust gesture: arrange the chrome, overwrite.
-  saveWorkbench: (name: string, path?: string) => {
-    const st = get();
-    const snap = captureWorkbench(st.workspace as WorkspaceState, {
-      zen: st.clientState.ui?.zen_mode ?? false,
-      path,
-      filter: chipFilterOf(st),
-      navSections: st.clientState.ui?.nav_sections,
-    });
-    return st.createSavedView({ name, page: "workspace", prefs: snap });
-  },
-
-  updateWorkbench: (id: string, path?: string) => {
-    const st = get();
-    const prev = (st.savedViews as Record<string, SavedViewRow>)[id]?.prefs as
-      | WorkbenchSnapshot
-      | undefined;
-    const snap = captureWorkbench(st.workspace as WorkspaceState, {
-      zen: st.clientState.ui?.zen_mode ?? false,
-      // Keep the workbench's surface unless the caller states a new one — an
-      // update from a different page shouldn't silently retarget the switch.
-      path: path ?? prev?.path,
-      filter: chipFilterOf(st),
-      navSections: st.clientState.ui?.nav_sections,
-    });
-    st.updateSavedView(id, { prefs: snap });
-  },
-
-  sidePanelSessionId: null,
-
-  openSidePanel: action(function (this: Draft, sessionId: string) {
-    this.sidePanelSessionId = sessionId;
-    this.workspace = showPane(
-      this.workspace as WorkspaceState,
-      "context",
-      SESSION_LIST_PANE,
-    );
-    persistWorkspace(this);
-  }),
-
-  closeSidePanel: action(function (this: Draft) {
-    this.sidePanelSessionId = null;
-    this.workspace = hidePane(this.workspace as WorkspaceState, "context", {
-      remember: true,
-    });
-    persistWorkspace(this);
-  }),
-
-  clearSidePanelSession: action(function (this: Draft) {
-    this.sidePanelSessionId = null;
-  }),
-
-  toggleSidePanel: action(function (this: Draft) {
-    const ws = this.workspace as WorkspaceState;
-    if (isSessionRailOpen(ws)) {
-      this.workspace = hidePane(ws, "context", { remember: true });
-    } else {
-      this.workspace = showPane(ws, "context", SESSION_LIST_PANE);
-      this.sidePanelSessionId =
-        this.sidePanelSessionId ?? this.currentSessionId ?? null;
-    }
-    persistWorkspace(this);
-  }),
-
-  selectPanelSession: action(function (this: Draft, sessionId: string | null) {
-    // Clicking the session that's already open in the right panel exits it — the
-    // same click that peeks a session beside the page dismisses it on a repeat.
-    // Mirrors the panel's close button (which calls selectPanelSession(null));
-    // we leave sidePanelOpen alone so the session-list rail stays as it was.
-    if (sessionId && sessionId === this.sidePanelSessionId) {
-      this.sidePanelSessionId = null;
-      return;
-    }
-    // The side panel is a genuine way of viewing a session (used by the Tab
-    // switcher off the inbox page), so record it. Its "previous" is the panel's
-    // own session, not the main currentSessionId.
-    if (sessionId) recordSessionView(this, sessionId, this.sidePanelSessionId);
-    this.sidePanelSessionId = sessionId;
+  ...createWorkspaceSlice(set, get, {
+    snapshotInboxViewFromDraft,
+    evictFocusOutsideOrderInDraft,
+    recordSessionView,
   }),
 
   // =====================

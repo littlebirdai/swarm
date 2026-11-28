@@ -83,10 +83,10 @@ import { useSwitchWorkspace } from "../../hooks/useSwitchWorkspace";
 import {
   useInboxStore,
   selectChannelReadMarker,
-  selectNavHidden,
   type ChatNotifyLevel,
   type ChatRailScope,
 } from "../../store/inboxStore";
+import { selectNavHidden } from "../../store/slices/workspace-slice";
 import { windowOrgTree } from "../../store/orgSlice";
 import { useAuthGate } from "@platform/auth/web";
 import { useLocalAuth } from "../../lib/localAuth";
