@@ -1,5 +1,5 @@
 import "./test-helpers/isolatedTmuxServer.js";
-import { afterEach, expect, spyOn, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,13 +13,15 @@ import {
   runHibernationPass,
   sessionParkStateForTests,
   setActiveConfigForTests,
+  setEdgeMachineForTests,
   setSyncServiceForTests,
   trackSessionPaneForTests,
   type HibernationPassIo,
 } from "./daemon.js";
-import * as edgeLinkModule from "./daemon-edge-link.js";
+import type { MachineSupervisor } from "@codecast/edge-supervisor";
 import { sampleParkingMemory } from "./memory-parking.js";
 import { buildShimScript } from "./test-helpers/fakeClaudeShim.js";
+import { strictStub } from "./test-helpers/strictStub.js";
 import {
   spawnHarness,
   waitFor,
@@ -30,9 +32,6 @@ import type { SyncService } from "./syncService.js";
 
 const harnesses: Harness[] = [];
 const roots: string[] = [];
-const fetchTarget: {
-  fetch(...args: Parameters<typeof fetch>): ReturnType<typeof fetch>;
-} = globalThis;
 
 const alive = (h: Harness) =>
   tmuxRun(["has-session", "-t", `=${h.tmuxSession}`]).status === 0;
@@ -106,7 +105,7 @@ afterEach(async () => {
 });
 
 test.skipIf(!hasTmux())(
-  "live parking follows the flag, edge budget, prompt and safety interlock",
+  "live parking follows the edge budget, prompt and safety interlock",
   async () => {
     const f = await fixture();
     cacheSessionProcess(
@@ -117,27 +116,7 @@ test.skipIf(!hasTmux())(
     const roots = new Map([[f.id, { pid: f.pid }]]);
     const before = (await sampleParkingMemory(1, roots))?.usedBytes;
     expect(before).toBeGreaterThan(0);
-    let budget = 10 ** 12;
-    const fetchMock = spyOn(fetchTarget, "fetch").mockImplementation(async () =>
-      Response.json({
-        status: "ok",
-        version: 1,
-        policy: {
-          revision: 1,
-          heartbeat_interval_ms: 30_000,
-          uplink_interval_ms: 250,
-          limits: {
-            max_batch_events: 100,
-            max_batch_bytes: 512_000,
-            max_blob_bytes: 1024,
-          },
-          capabilities: ["heartbeat"],
-          parking: { agent_rss_budget_bytes: budget },
-        },
-      }),
-    );
-    const link = edgeLinkModule.createDaemonEdgeLink();
-    const saved = process.env.CODECAST_MEMORY_PARKING_V1;
+    let budget: number | undefined = 10 ** 12;
     const queries: unknown[] = [];
     let networkDown = false;
     let permitted = true;
@@ -185,42 +164,25 @@ test.skipIf(!hasTmux())(
       }),
     } as unknown as SyncService);
     setActiveConfigForTests({ auth_token: "fixture-token" });
-    internals.setEdgeLink(
-      Promise.resolve({
-        ...edgeLinkModule,
-        memoryParkingBudget: link.memoryParkingBudget,
+    setEdgeMachineForTests(
+      strictStub<MachineSupervisor>("edge machine", {
+        memoryParkingBudget: async () => budget,
+        ensureSessionHeartbeat: async () => {},
+        stopSessionHeartbeat: async () => {},
+        close: async () => {},
       }),
     );
-    const hello = (boot: string) =>
-      link.tick(
-        {
-          siteUrl: "https://edge.invalid",
-          bearer: "fixture-token",
-          machine: "fixture-machine",
-          boot,
-        },
-        { memory_total_bytes: 100, memory_available_bytes: 60, live_agents: 1 },
-        [],
-        () => {},
-      );
     const pass = () => runHibernationPass(f.io, true);
     try {
-      await hello("boot-high");
-      expect(link.memoryParkingBudget()).toBe(budget);
-      delete process.env.CODECAST_MEMORY_PARKING_V1;
-      expect(await pass()).toBe(0);
-      process.env.CODECAST_MEMORY_PARKING_V1 = "1";
       expect(await pass()).toBe(0);
       expect(listed).toBe(0);
       expect(queries).toEqual([]);
 
-      budget = 1;
-      await hello("boot-low");
-      expect(link.memoryParkingBudget()).toBe(1);
-      delete process.env.CODECAST_MEMORY_PARKING_V1;
+      budget = undefined;
       expect(await pass()).toBe(0);
       expect(listed).toBe(0);
-      process.env.CODECAST_MEMORY_PARKING_V1 = "1";
+
+      budget = 1;
       internals.openPermissionDialogs.add(f.id);
       expect(await pass()).toBe(0);
       expect(listed).toBe(1);
@@ -265,12 +227,8 @@ test.skipIf(!hasTmux())(
       expect((await sampleParkingMemory(1, roots))?.usedBytes).toBe(0);
     } finally {
       internals.openPermissionDialogs.delete(f.id);
-      internals.setEdgeLink(undefined);
+      setEdgeMachineForTests(undefined);
       setActiveConfigForTests(null);
-      fetchMock.mockRestore();
-      await link.close();
-      if (saved === undefined) delete process.env.CODECAST_MEMORY_PARKING_V1;
-      else process.env.CODECAST_MEMORY_PARKING_V1 = saved;
     }
   },
   30_000,
@@ -295,7 +253,6 @@ test.skipIf(!hasTmux())(
         "#{pane_pid}",
       ]).stdout.trim(),
     );
-    const saved = process.env.CODECAST_MEMORY_PARKING_V1;
     let catalogReads = 0;
     setSyncServiceForTests({
       listManagedSessions: async () => {
@@ -306,10 +263,6 @@ test.skipIf(!hasTmux())(
       updateSessionAgentStatus: async () => true,
     } as unknown as SyncService);
     try {
-      delete process.env.CODECAST_MEMORY_PARKING_V1;
-      await reconcileSessionLiveness("linux");
-      expect(catalogReads).toBe(0);
-      process.env.CODECAST_MEMORY_PARKING_V1 = "1";
       await reconcileSessionLiveness("linux");
       expect(catalogReads).toBe(1);
       expect(internals.agentProcessPid(id)).toBe(pid);
@@ -331,8 +284,7 @@ test.skipIf(!hasTmux())(
       ).toBe(true);
       expect(internals.agentProcessPid(id)).toBe(pid);
     } finally {
-      if (saved === undefined) delete process.env.CODECAST_MEMORY_PARKING_V1;
-      else process.env.CODECAST_MEMORY_PARKING_V1 = saved;
+      setSyncServiceForTests(null);
     }
   },
   15_000,

@@ -8,6 +8,7 @@ import {
   type HelloRequest,
 } from "@codecast/edge-contract";
 import * as Cause from "effect/Cause";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -45,10 +46,18 @@ export class Machine extends Context.Service<
       source?: "transcript",
     ): Effect.Effect<void>;
     stopSessionHeartbeat(sessionId: string | undefined): Effect.Effect<void>;
-    armHeartbeatFlush(): Effect.Effect<void>;
     flushHeartbeats(): Effect.Effect<void>;
+    memoryParkingBudget(): Effect.Effect<number | undefined>;
   }
 >()("@codecast/edge-supervisor/Machine") {}
+
+type ParkingPolicy = {
+  budget: number | undefined;
+  intervalMs: number;
+  confirmedAt: number;
+};
+
+type ParkingCell = { current: ParkingPolicy | undefined };
 
 function sameLink(current: LinkSettings, next: LinkSettings) {
   return (
@@ -80,6 +89,7 @@ function supervise<A, E, R>(
 
 const runLink = Effect.fn("Machine.link")(function* (
   settings: () => LinkSettings,
+  parking: ParkingCell,
   fetchBlob?: EdgeBlobFetcher,
 ) {
   const client = yield* EdgeClient;
@@ -89,6 +99,12 @@ const runLink = Effect.fn("Machine.link")(function* (
       () => Effect.never,
     ),
   );
+  const policy: ParkingPolicy = {
+    budget: welcome.policy.parking?.agent_rss_budget_bytes,
+    intervalMs: welcome.policy.heartbeat_interval_ms,
+    confirmedAt: yield* Clock.currentTimeMillis,
+  };
+  parking.current = policy;
   yield* attachEdgeLinkToBus(fetchBlob);
   const heartbeat = Effect.fn("Machine.heartbeat")(function* () {
     for (;;) {
@@ -100,7 +116,11 @@ const runLink = Effect.fn("Machine.link")(function* (
         boot,
         capacity,
       });
-      if (response.policy_revision !== welcome.policy.revision) return;
+      if (response.policy_revision !== welcome.policy.revision) {
+        if (parking.current === policy) parking.current = undefined;
+        return;
+      }
+      policy.confirmedAt = yield* Clock.currentTimeMillis;
     }
   });
   const fiber = yield* Effect.forkScoped(heartbeat());
@@ -136,6 +156,7 @@ export function MachineLive(
       const heartbeatFlush = yield* HeartbeatFlush;
       const bus = yield* SupervisorBus;
       const connectionLock = yield* Semaphore.make(1);
+      const parking: ParkingCell = { current: undefined };
       let link: Link | undefined;
       yield* Effect.forkIn(
         supervise(
@@ -156,10 +177,11 @@ export function MachineLive(
           return;
         }
         if (link) yield* Fiber.interrupt(link.fiber);
+        parking.current = undefined;
         const snapshot = { settings };
         const run = Effect.suspend(() =>
           Effect.scoped(
-            runLink(() => snapshot.settings, options.fetchBlob).pipe(
+            runLink(() => snapshot.settings, parking, options.fetchBlob).pipe(
               Effect.provide(
                 EdgeClient.layer({ transport: transport(snapshot.settings) }),
               ),
@@ -180,8 +202,14 @@ export function MachineLive(
           connectionLock.withPermit(Effect.uninterruptible(connect(settings))),
         ensureSessionHeartbeat: heartbeatFlush.ensureSession,
         stopSessionHeartbeat: heartbeatFlush.stopSession,
-        armHeartbeatFlush: heartbeatFlush.arm,
         flushHeartbeats: heartbeatFlush.flushNow,
+        memoryParkingBudget: () =>
+          Effect.map(Clock.currentTimeMillis, (now) => {
+            const policy = parking.current;
+            return policy && now - policy.confirmedAt < 2 * policy.intervalMs
+              ? policy.budget
+              : undefined;
+          }),
       });
     }),
   ).pipe(Layer.provide(heartbeatFlushLayer), Layer.provideMerge(busLayer));

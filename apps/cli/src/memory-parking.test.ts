@@ -236,7 +236,7 @@ test("the maintenance tick runs a memory-only pass between scheduled reaps", asy
     daemon.indexOf("async function runHeartbeatMaintenance(") + 4000,
   );
   expect(maintenance).toMatch(
-    /if \(memoryParking\.enabled\(\) && tick % REAP_EVERY_N_FLUSHES !== 0\)\s+await runHibernationPass\(\{\}, true\)/,
+    /if \(tick % REAP_EVERY_N_FLUSHES !== 0\)\s+await runHibernationPass\(\{\}, true\)/,
   );
 });
 

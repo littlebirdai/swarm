@@ -2,22 +2,19 @@ import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { buildBootGraph, staticImportSpecifiers } from "./bench/bootGraph.js";
 
-test("the supervisor is absent from the CLI startup graph and loads only after opt-in", async () => {
+test("the supervisor is absent from the CLI startup graph and loads once after the hook server starts", async () => {
   const daemonPath = new URL("./daemon.ts", import.meta.url);
   const daemon = await Bun.file(daemonPath).text();
   const load = 'import("@codecast/edge-supervisor").then(';
-  const optedIn = daemon.match(
-    /^  if \(process\.env\.CODECAST_EDGE_SUPERVISOR_V1 === "1"\) \{([^]*?)^  \}/m,
-  );
-  expect(optedIn).not.toBeNull();
-  expect(optedIn?.[1]).toContain(load);
   expect(daemon.split(load)).toHaveLength(2);
-  expect(optedIn?.index).toBeGreaterThan(
+  expect(daemon.indexOf(load)).toBeGreaterThan(
     daemon.indexOf("hookServer = startHookServer("),
   );
-  expect(staticImportSpecifiers(daemon)).not.toContain(
-    "@codecast/edge-supervisor",
-  );
+  expect(
+    staticImportSpecifiers(daemon).filter((specifier) =>
+      /@codecast\/edge-(?:client|contract|supervisor)/.test(specifier),
+    ),
+  ).toEqual([]);
   const graph = buildBootGraph(
     fileURLToPath(new URL("./index.ts", import.meta.url)),
   );

@@ -412,3 +412,90 @@ it.effect(
       );
     }),
 );
+
+it.effect(
+  "a parking budget follows the current hello and expires without a confirmed heartbeat",
+  () =>
+    Effect.gen(function* () {
+      let heartbeats = 0;
+      const parked = {
+        status: 200,
+        body: {
+          ...welcome().body,
+          policy: {
+            ...welcome().body.policy,
+            parking: { agent_rss_budget_bytes: 512 },
+          },
+        },
+      };
+      yield* Effect.gen(function* () {
+        const machine = yield* Machine;
+        expect(yield* machine.memoryParkingBudget()).toBeUndefined();
+        yield* machine.connect(link);
+        yield* adjust(0);
+        expect(yield* machine.memoryParkingBudget()).toBe(512);
+        yield* adjust(1_000);
+        expect(heartbeats).toBe(1);
+        yield* adjust(1_999);
+        expect(heartbeats).toBe(2);
+        expect(yield* machine.memoryParkingBudget()).toBe(512);
+        yield* adjust(1);
+        expect(yield* machine.memoryParkingBudget()).toBeUndefined();
+      }).pipe(
+        Effect.provide(
+          MachineLive(
+            { log: () => {} },
+            {
+              transport: () => async (operation) => {
+                if (operation === "hello") return parked;
+                heartbeats++;
+                if (heartbeats === 1) return heartbeat();
+                return new Promise<never>(() => {});
+              },
+            },
+          ),
+        ),
+      );
+    }),
+);
+
+it.effect(
+  "a policy revision change clears the parking budget before the next hello answers",
+  () =>
+    Effect.gen(function* () {
+      let hellos = 0;
+      yield* Effect.gen(function* () {
+        const machine = yield* Machine;
+        yield* machine.connect(link);
+        yield* adjust(0);
+        expect(yield* machine.memoryParkingBudget()).toBe(512);
+        yield* adjust(1_000);
+        expect(hellos).toBe(2);
+        expect(yield* machine.memoryParkingBudget()).toBeUndefined();
+      }).pipe(
+        Effect.provide(
+          MachineLive(
+            { log: () => {} },
+            {
+              transport: () => async (operation) => {
+                if (operation !== "hello") return heartbeat(2);
+                hellos++;
+                if (hellos > 1) return new Promise<never>(() => {});
+                const body = welcome().body;
+                return {
+                  status: 200,
+                  body: {
+                    ...body,
+                    policy: {
+                      ...body.policy,
+                      parking: { agent_rss_budget_bytes: 512 },
+                    },
+                  },
+                };
+              },
+            },
+          ),
+        ),
+      );
+    }),
+);

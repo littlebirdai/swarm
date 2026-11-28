@@ -41,8 +41,8 @@ export interface MachineSupervisor {
     source?: "transcript",
   ): Promise<void>;
   stopSessionHeartbeat(sessionId: string | undefined): Promise<void>;
-  armHeartbeatFlush(): Promise<void>;
   flushHeartbeats(): Promise<void>;
+  memoryParkingBudget(): Promise<number | undefined>;
   close(): Promise<void>;
 }
 
@@ -111,16 +111,14 @@ export async function startMachine(
           lifetime.signal,
         ),
       ),
-    armHeartbeatFlush: () =>
-      serializeMembership(() =>
-        facade.run(
-          Effect.flatMap(Machine, (service) => service.armHeartbeatFlush()),
-          lifetime.signal,
-        ),
-      ),
     flushHeartbeats: () =>
       facade.run(
         Effect.flatMap(Machine, (service) => service.flushHeartbeats()),
+        lifetime.signal,
+      ),
+    memoryParkingBudget: () =>
+      facade.run(
+        Effect.flatMap(Machine, (service) => service.memoryParkingBudget()),
         lifetime.signal,
       ),
     close: () => {

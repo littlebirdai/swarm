@@ -1,8 +1,9 @@
 import { expect, spyOn, test } from "bun:test";
-import { createDaemonEdgeLink } from "./daemon-edge-link";
+import { startMachine } from "@codecast/edge-supervisor";
 import { hashToken } from "../../server/convex/apiTokens";
 import { serverTest } from "../../server/test-helpers/database.testkit";
 import { fixtureRows } from "../../server/test-helpers/rows.testkit";
+import { pollUntil } from "./test-helpers/pollUntil.js";
 
 const fetchTarget: {
   fetch(...args: Parameters<typeof fetch>): ReturnType<typeof fetch>;
@@ -11,14 +12,12 @@ const fetchTarget: {
 const machine = "edge-test-machine";
 const secret = "edge-test-secret";
 const bearer = `${secret}.${machine}`;
-const capacity = {
-  memory_total_bytes: 1_024,
-  memory_available_bytes: 512,
-  live_agents: 2,
+const serverEnv = {
+  CODECAST_EDGE_V1: "1",
+  CODECAST_EDGE_MEMORY_PARKING_BYTES: "536870912",
 };
-const runtimes = [{ host: "laptop", isolation: "none" }];
 
-test("the daemon facade negotiates and sends heartbeats through the real routes", async () => {
+test("the supervisor negotiates through the real hello route and reports the parking budget", async () => {
   const t = serverTest();
   const tokenHash = await hashToken(secret);
   await t.run(async ({ db }) => {
@@ -32,9 +31,10 @@ test("the daemon facade negotiates and sends heartbeats through the real routes"
       device_id: machine,
     });
   });
-  const flag = process.env.CODECAST_EDGE_V1;
-  process.env.CODECAST_EDGE_V1 = "1";
-  const link = createDaemonEdgeLink();
+  const saved = Object.entries(serverEnv).map(
+    ([key]) => [key, process.env[key]] as const,
+  );
+  Object.assign(process.env, serverEnv);
   const logs: string[] = [];
   const paths: string[] = [];
   const fetchMock = spyOn(fetchTarget, "fetch").mockImplementation(
@@ -44,51 +44,32 @@ test("the daemon facade negotiates and sends heartbeats through the real routes"
       return t.fetch(path, init);
     },
   );
-  const helloAt = 45_000;
-  const heartbeatIntervalMs = 30_000;
-  let monotonicNow = helloAt;
-  const time = spyOn(performance, "now").mockImplementation(() => monotonicNow);
+  const supervisor = await startMachine({ log: (line) => logs.push(line) });
   try {
-    const connection = {
+    expect(await supervisor.memoryParkingBudget()).toBeUndefined();
+    await supervisor.connect({
       siteUrl: "https://edge.invalid",
       bearer,
       machine,
       boot: "e2e",
-    };
-    expect(
-      await link.tick(connection, capacity, runtimes, (message) =>
-        logs.push(message),
-      ),
-    ).toBeUndefined();
-    monotonicNow = helloAt + heartbeatIntervalMs - 2_001;
-    expect(
-      await link.tick(connection, capacity, runtimes, (message) =>
-        logs.push(message),
-      ),
-    ).toBeUndefined();
+      liveAgents: 2,
+      local: true,
+    });
+    await pollUntil(
+      async () => (await supervisor.memoryParkingBudget()) === 536870912,
+      "parking budget from the hello policy",
+    );
     expect(paths).toEqual(["/edge/v1/hello"]);
-    monotonicNow = helloAt + heartbeatIntervalMs;
-    expect(
-      await link.tick(connection, capacity, runtimes, (message) =>
-        logs.push(message),
-      ),
-    ).toBeUndefined();
-    expect(
-      await link.tick(connection, capacity, runtimes, (message) =>
-        logs.push(message),
-      ),
-    ).toBeUndefined();
-    expect(paths).toEqual(["/edge/v1/hello", "/edge/v1/heartbeat"]);
     expect(
       await t.run(({ db }) => db.query("ip_rate_limits").collect()),
-    ).toMatchObject([{ count: 2 }]);
+    ).toMatchObject([{ count: 1 }]);
     expect(await t.run(({ db }) => db.query("devices").collect())).toEqual([]);
     expect(logs).toEqual([]);
   } finally {
-    await link.close();
-    if (flag === undefined) delete process.env.CODECAST_EDGE_V1;
-    else process.env.CODECAST_EDGE_V1 = flag;
-    time.mockRestore();
+    await supervisor.close();
+    for (const [key, value] of saved)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     fetchMock.mockRestore();
   }
 });

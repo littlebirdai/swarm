@@ -96,7 +96,7 @@ export function createHibernationHarness() {
     log: record("log"),
     reaperLog: record("log"),
     stopCodexPermissionPoller: record("poller-stop"),
-    ensureHeartbeatFlushLoop: forbidden("heartbeat-start"),
+    heartbeatSupervisor: { memoryParkingBudget: async () => undefined },
     tmuxExec: forbidden("terminal"),
     killTmuxSessionAndTree: forbidden("kill"),
     tmuxPaneCwd: forbidden("cwd"),
@@ -109,7 +109,7 @@ export function createHibernationHarness() {
     readConversationCache: () => ({}),
     // No hook status files in this world: the status is what the daemon last sent.
     agentStatusOnDisk: () => undefined,
-    memoryParking: { ...memoryParking, enabled: () => false },
+    memoryParking,
     productionHibernationIo: Object.fromEntries(
       [
         "policy",

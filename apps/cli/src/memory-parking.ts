@@ -5,8 +5,6 @@ import { getSubtreePids, indexProcessChildren } from "./resourceMonitor.js";
 import type { SyncService } from "./syncService.js";
 import type { HibernationCandidate } from "./hibernation.js";
 
-export const enabled = () => process.env.CODECAST_MEMORY_PARKING_V1 === "1";
-
 const canParkSession = makeFunctionReference<
   "query",
   { bearer: string; conversation_id: string; session_id: string },

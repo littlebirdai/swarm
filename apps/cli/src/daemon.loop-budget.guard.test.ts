@@ -56,6 +56,7 @@ type Row = {
 };
 
 const D = "daemon.ts";
+const SUPERVISOR_FLUSH = "../../../packages/edge-supervisor/src/heartbeat-flush.ts";
 const MAIN = "async function main(";
 const ROWS: Row[] = [
   {
@@ -372,11 +373,13 @@ const ROWS: Row[] = [
     mustContain: "performReconciliation",
   },
   {
-    file: "heartbeat-flush.ts",
-    name: "flushManagedHeartbeats",
-    kind: "function",
+    file: SUPERVISOR_FLUSH,
+    name: "HeartbeatFlush.tick",
+    kind: "slice",
+    from: 'Effect.fn("HeartbeatFlush.tick")',
+    to: "yield* Effect.forkScoped(",
     minLines: 10,
-    mustContain: "runHeartbeatFlush",
+    mustContain: "runFlush()",
   },
   {
     file: D,
@@ -470,9 +473,11 @@ const ROWS: Row[] = [
     mustContain: "heartbeatManagedSessionsBatch",
   },
   {
-    file: "heartbeat-flush.ts",
-    name: "runHeartbeatFlush",
-    kind: "function",
+    file: SUPERVISOR_FLUSH,
+    name: "HeartbeatFlush.runFlush",
+    kind: "slice",
+    from: 'Effect.fn("HeartbeatFlush.runFlush")',
+    to: 'Effect.fn("HeartbeatFlush.flushNow")',
     minLines: 20,
     mustContain: "sendBatch",
   },

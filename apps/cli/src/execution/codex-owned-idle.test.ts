@@ -6,6 +6,7 @@ import {
   setSyncServiceForTests,
   trackSessionPaneForTests,
 } from "../daemon.js";
+import { startTestHeartbeatSupervisor } from "../test-helpers/heartbeat-supervisor.js";
 import { strictStub } from "../test-helpers/strictStub.js";
 import type { SyncService } from "../syncService.js";
 import { until } from "../../../../tests/codex-driver-parity/peers.js";
@@ -472,6 +473,7 @@ test("relay contact preserves the owned lease and legacy heartbeat during an out
       heartbeatManagedSessionsBatch: write,
     }),
   );
+  let stopSupervisor: (() => Promise<void>) | undefined;
   try {
     f.initial([item(f.pilotRequest)]);
     await f.runtime.start();
@@ -487,6 +489,7 @@ test("relay contact preserves the owned lease and legacy heartbeat during an out
       () => f.actions.includes("edge:renew"),
       "the Convex lease renews",
     );
+    stopSupervisor = await startTestHeartbeatSupervisor();
     await runHeartbeatFlush();
     await f.runtime.processWorkUpdate([]);
     expect(write.mock.calls).toEqual([[[{ session_id: "legacy-pane" }]]]);
@@ -499,6 +502,7 @@ test("relay contact preserves the owned lease and legacy heartbeat during an out
     expect(grant).toHaveBeenCalledTimes(1);
   } finally {
     immediate.mockRestore();
+    await stopSupervisor?.();
     trackSessionPaneForTests("legacy-pane", null);
     setSyncServiceForTests(null);
     timers.restore();

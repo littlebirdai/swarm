@@ -15,6 +15,7 @@ import {
   trackSessionPaneForTests,
   type HibernationPassIo,
 } from "./daemon.js";
+import { withTestHeartbeatSupervisor } from "./test-helpers/heartbeat-supervisor.js";
 import { SyncService, type ConversationLifecycle } from "./syncService.js";
 
 const tracked: string[] = [];
@@ -467,7 +468,7 @@ test("a routine heartbeat preserves a still parked session", async () => {
       return true;
     },
   } as unknown as SyncService);
-  await runHeartbeatFlush();
+  await withTestHeartbeatSupervisor(runHeartbeatFlush);
   expect(sessionParkStateForTests(f.id)).toMatchObject({
     parked: true,
     status: "hibernated",
@@ -496,7 +497,7 @@ test("a wake between heartbeat batches cannot resend the pre-wake parked status"
     },
     updateSessionAgentStatus: async () => true,
   } as unknown as SyncService);
-  await runHeartbeatFlush();
+  await withTestHeartbeatSupervisor(runHeartbeatFlush);
   await flushHibernationStamps();
   const delivered = batches.flat().find((row) => row.session_id === target.id);
   expect(delivered?.agent_status).toBe("connected");

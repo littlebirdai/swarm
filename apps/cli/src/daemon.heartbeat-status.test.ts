@@ -23,10 +23,6 @@ const daemonPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "daemon.ts",
 );
-const heartbeatFlushPath = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "heartbeat-flush.ts",
-);
 const supervisorFlushPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -42,7 +38,6 @@ const syncServicePath = path.join(
   "syncService.ts",
 );
 const daemonSource = fs.readFileSync(daemonPath, "utf8");
-const heartbeatFlushSource = fs.readFileSync(heartbeatFlushPath, "utf8");
 const supervisorFlushSource = fs.readFileSync(supervisorFlushPath, "utf8");
 const syncServiceSource = fs.readFileSync(syncServicePath, "utf8");
 
@@ -69,11 +64,6 @@ describe("heartbeat carries agent_status", () => {
   });
 
   test("the batched flush carries agent_status sourced from lastSentAgentStatus", () => {
-    // The 'stuck working' guard holds only if the batch payload carries each
-    // session's agent_status, read from the local lastSentAgentStatus map (not a
-    // stale or fabricated value). Pin that the send path builds its payload that
-    // way, and that the tick handler actually invokes it (the send lives in
-    // runHeartbeatFlush; flushManagedHeartbeats is the guard shell).
     const hostIdx = daemonSource.indexOf("function createHeartbeatFlushHost");
     expect(hostIdx).toBeGreaterThanOrEqual(0);
     const hostBody = daemonSource.slice(
@@ -83,27 +73,16 @@ describe("heartbeat carries agent_status", () => {
     expect(hostBody).toContain("lastSentAgentStatus.get(sessionId)");
     expect(hostBody).toContain("heartbeatManagedSessionsBatch");
 
-    const tickIdx = heartbeatFlushSource.indexOf(
-      "async function flushManagedHeartbeats",
+    const tickIdx = supervisorFlushSource.indexOf(
+      'Effect.fn("HeartbeatFlush.tick")',
     );
     expect(tickIdx).toBeGreaterThanOrEqual(0);
     expect(
-      heartbeatFlushSource.slice(
+      supervisorFlushSource.slice(
         tickIdx,
-        heartbeatFlushSource.indexOf("\n  }", tickIdx),
+        supervisorFlushSource.indexOf("yield* Effect.forkScoped(", tickIdx),
       ),
-    ).toContain("runHeartbeatFlush()");
-    const idx = heartbeatFlushSource.indexOf(
-      "async function runHeartbeatFlush",
-    );
-    expect(idx).toBeGreaterThanOrEqual(0);
-    const body = heartbeatFlushSource.slice(
-      idx,
-      heartbeatFlushSource.indexOf("\n  }", idx),
-    );
-    expect(body).toContain("host.agentStatus(sessionId)");
-    expect(body).toContain("agent_status: status");
-
+    ).toContain("runFlush()");
     expect(supervisorFlushSource).toContain("host.agentStatus(sessionId)");
     expect(supervisorFlushSource).toContain("agent_status: status");
   });
@@ -163,14 +142,8 @@ describe("heartbeat carries agent_status", () => {
     }
   });
 
-  test("logHeartbeatStatus helper is defined and called in the flush", () => {
-    // Helper must exist so we can diagnose 'stuck in X' from logs.
-    expect(heartbeatFlushSource).toContain("function logHeartbeatStatus(");
-    const calls = [
-      ...heartbeatFlushSource.matchAll(/logHeartbeatStatus\s*\(/g),
-    ];
-    // declaration + at least one call site (the per-session loop in the flush).
-    expect(calls.length).toBeGreaterThanOrEqual(2);
-    expect(supervisorFlushSource).toContain("logStatus(");
+  test("the status log helper is defined and called in the flush", () => {
+    expect(supervisorFlushSource).toContain('Effect.fn("HeartbeatFlush.logStatus")');
+    expect(supervisorFlushSource).toContain("yield* logStatus(sessionId, status)");
   });
 });

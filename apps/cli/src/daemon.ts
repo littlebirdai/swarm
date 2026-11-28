@@ -215,7 +215,7 @@ import type {
   HeartbeatSessionPayload,
   MachineSupervisor,
 } from "@codecast/edge-supervisor";
-import { createHeartbeatSupervisorCoordinator } from "./heartbeat-flush.js";
+import { createEdgeMachineCoordinator } from "./heartbeat-flush.js";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -8192,8 +8192,6 @@ let heartbeatTailnet:
       typeof import("@codecast/machines/peerTransport").heartbeatTailnetField
     >
   | undefined;
-let edgeLink: Promise<typeof import("./daemon-edge-link.js")> | undefined;
-let edgeMachine: Promise<MachineSupervisor | undefined> | undefined;
 async function sendHeartbeat(): Promise<void> {
   if (
     hasActiveCloudWork(
@@ -8391,27 +8389,14 @@ async function sendHeartbeat(): Promise<void> {
       log(`Heartbeat failed: ${response.status} ${text}`);
       return;
     }
-    if (process.env.CODECAST_EDGE_V1 === "1") {
-      const edge = { siteUrl, bearer: config.auth_token, boot: BOOT_ID };
-      if (edgeMachine) {
-        void edgeMachine
-          .then((machine) =>
-            machine?.connect({
-              ...edge,
-              machine: deviceId(),
-              liveAgents: managedHeartbeatSessions.size,
-              local: !isRemoteDevice(),
-            }),
-          )
-          .catch(() => log("[EDGE] Supervisor link failed"));
-      } else {
-        void (edgeLink ??= import("./daemon-edge-link.js"))
-          .then((m) =>
-            m.reportEdgeHeartbeat(edge, managedHeartbeatSessions.size, log),
-          )
-          .catch(() => log("[EDGE] Link failed"));
-      }
-    }
+    heartbeatSupervisor.connect({
+      siteUrl,
+      bearer: config.auth_token,
+      boot: BOOT_ID,
+      machine: deviceId(),
+      liveAgents: managedHeartbeatSessions.size,
+      local: !isRemoteDevice(),
+    });
     resetAuthFailureCount();
     // Same endpoint as the command poll: a beat that lands is proof the
     // backend is reachable, so the outage clock the poll feeds resets here
@@ -26428,26 +26413,10 @@ function createHeartbeatFlushHost() {
       syncServiceRef!.heartbeatManagedSessionsBatch([...payload]),
     onTick: runHeartbeatMaintenance,
     lastLogged: lastHeartbeatLogged,
-    scheduleInterval: (fn: () => void, ms: number) =>
-      outsideTranscriptDeadline(() =>
-        setInterval(() => {
-          fn();
-        }, ms),
-      ),
   };
 }
 
-const heartbeatSupervisor = createHeartbeatSupervisorCoordinator({
-  log,
-  createHost: createHeartbeatFlushHost,
-  getEdgeMachine: () => edgeMachine,
-  setEdgeMachine: (machine) => {
-    edgeMachine = machine;
-  },
-});
-
-const shouldUseEdgeSupervisor = () =>
-  heartbeatSupervisor.shouldUseEdgeSupervisor();
+const heartbeatSupervisor = createEdgeMachineCoordinator({ log });
 
 export const stopManagedSessionHeartbeat = (sessionId: string | undefined) =>
   heartbeatSupervisor.stopSession(sessionId);
@@ -26471,8 +26440,6 @@ function sessionRegistryProcessAlive(sessionId: string): boolean {
   }
 }
 
-const ensureHeartbeatFlushLoop = () => heartbeatSupervisor.ensureLoop();
-
 export const runHeartbeatFlush = () => heartbeatSupervisor.runFlush();
 
 export function heartbeatFlushHostForTests(): HeartbeatFlushHost {
@@ -26480,19 +26447,20 @@ export function heartbeatFlushHostForTests(): HeartbeatFlushHost {
 }
 
 export const setEdgeMachineForTests = (
-  machine: Promise<MachineSupervisor | undefined> | undefined,
-) => heartbeatSupervisor.setEdgeMachineForTests(machine);
+  machine: MachineSupervisor | undefined,
+) => heartbeatSupervisor.setMachineForTests(machine);
+
+export const startEdgeMachineForTests = (
+  open: () => Promise<MachineSupervisor>,
+) => heartbeatSupervisor.start(open);
 
 export const closeEdgeSupervisorForTests = () => heartbeatSupervisor.close();
 
 export const flushHeartbeatMembershipForTests = () =>
   heartbeatSupervisor.flushMembershipForTests();
 
-export const isLegacyHeartbeatFlushLoopRunningForTests = () =>
-  heartbeatSupervisor.isLegacyLoopRunningForTests();
-
-export const stopLegacyHeartbeatFlushLoopForTests = () =>
-  heartbeatSupervisor.stopLegacyLoopForTests();
+export const pendingHeartbeatMembershipForTests = () =>
+  heartbeatSupervisor.pendingForTests();
 
 export async function runBounded<T>(
   items: T[],
@@ -26566,7 +26534,7 @@ async function runHeartbeatMaintenance(): Promise<void> {
   );
 
   if (Number.isFinite(REAP_EVERY_N_FLUSHES)) {
-    if (memoryParking.enabled() && tick % REAP_EVERY_N_FLUSHES !== 0)
+    if (tick % REAP_EVERY_N_FLUSHES !== 0)
       await runHibernationPass({}, true).catch((e) =>
         log(`[HIBERNATE] pass error: ${String(e)}`),
       );
@@ -29258,12 +29226,7 @@ async function parkHibernationTerminal(
   hibernatedSessions.add(sessionId);
   hibernationStampCleared.delete(sessionId);
   lastSentAgentStatus.set(sessionId, "hibernated");
-  if (shouldUseEdgeSupervisor()) {
-    ensureManagedSessionHeartbeat(sessionId);
-  } else {
-    managedHeartbeatSessions.add(sessionId);
-    ensureHeartbeatFlushLoop();
-  }
+  ensureManagedSessionHeartbeat(sessionId);
   if (convId) queueHibernationStamp(sessionId, convId, Date.now());
   reaperLog(
     `HIBERNATED ${tmux} session=${sessionId.slice(0, 8)} conv=${(convId || "?").slice(0, 12)} idle=${idleHours}h`,
@@ -29687,8 +29650,7 @@ export async function runHibernationPass(
   const io: HibernationPassIo = { ...productionHibernationIo, ...overrides };
   const policy = { ...io.policy() };
   if (memoryOnly) policy.maxLive = policy.idleMs = 0;
-  const budget =
-    memoryParking.enabled() && (await edgeLink)?.memoryParkingBudget();
+  const budget = await heartbeatSupervisor.memoryParkingBudget();
   if (budget && !policy.memory)
     policy.memory = await memoryParking.sampleParkingMemory(
       budget,
@@ -31330,7 +31292,7 @@ export async function reconcileSessionLiveness(
 ): Promise<void> {
   if (
     platform !== "darwin" &&
-    !(platform === "linux" && memoryParking.enabled())
+    platform !== "linux"
   )
     return;
   if (!syncServiceRef) return;
@@ -32146,9 +32108,6 @@ export const hibernationConcurrencyForTests = {
   autoResumeSession,
   agentProcessPid,
   openPermissionDialogs,
-  setEdgeLink: (link: typeof edgeLink) => {
-    edgeLink = link;
-  },
   accountLifecycleGate,
   hibernationInFlight,
   hibernationEvidenceJobs,
@@ -32260,9 +32219,7 @@ export function clearHibernationPark(
   resumed = false,
 ): Promise<boolean | null | void> | void {
   const pane =
-    resumed &&
-    memoryParking.enabled() &&
-    !codexOwnedPilot?.ownsThread(sessionId)
+    resumed && !codexOwnedPilot?.ownsThread(sessionId)
       ? resumeSessionCache.get(sessionId)
       : undefined;
   const refresh = pane
@@ -36263,7 +36220,7 @@ async function tmuxAgentLiveness(
     ));
   } catch {}
   const live = classifyTmuxLiveness({ panePid, agent, pane });
-  if (live && sessionId && typeof agent === "number" && memoryParking.enabled())
+  if (live && sessionId && typeof agent === "number")
     cacheSessionProcess(
       sessionId,
       { pid: agent, tty: "", sessionId },
@@ -40061,15 +40018,11 @@ async function main(): Promise<void> {
   // first result for diagnosability.
   // Register this device early + on its own interval, so device presence never
   // depends on later (potentially slow) init steps.
-  if (process.env.CODECAST_EDGE_SUPERVISOR_V1 === "1") {
-    const start = import("@codecast/edge-supervisor").then((m) =>
+  void heartbeatSupervisor.start(() =>
+    import("@codecast/edge-supervisor").then((m) =>
       m.startMachine({ log, heartbeatFlush: createHeartbeatFlushHost() }),
-    );
-    edgeMachine = start.catch(() => {
-      heartbeatSupervisor.noteStartFailure();
-      return undefined;
-    });
-  }
+    ),
+  );
   void sendHeartbeat().catch(() => {});
   setInterval(() => heartbeatTick(), HEARTBEAT_INTERVAL_MS);
 
@@ -44857,7 +44810,6 @@ async function main(): Promise<void> {
   setupCommandSubscription();
   const shutdown = async () => {
     const terminalTypingStopped = stopTerminalTyping?.();
-    await edgeLink?.then((m) => m.closeEdgeConnection()).catch(() => {});
     closeDaemonWorkers();
     stopEvalsBridge();
     void mirrorProcess

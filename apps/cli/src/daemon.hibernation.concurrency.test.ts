@@ -14,6 +14,7 @@ import {
   setSyncServiceForTests,
   trackSessionPaneForTests,
 } from "./daemon.js";
+import { startTestHeartbeatSupervisor } from "./test-helpers/heartbeat-supervisor.js";
 import type { SyncService } from "./syncService.js";
 import { waitFor } from "./test-helpers/messagingHarness.js";
 import { processDeclaredSessionId } from "./sessionProcessMatcher.js";
@@ -246,6 +247,7 @@ test("four hung stamps do not block the fifth session or grow work on repeated h
     },
     heartbeatManagedSessionsBatch: async () => {},
   } as unknown as SyncService);
+  const stopSupervisor = await startTestHeartbeatSupervisor();
   try {
     await runHeartbeatFlush();
     await waitFor(() => seen.length === 5, { timeoutMs: 1000 });
@@ -266,6 +268,7 @@ test("four hung stamps do not block the fifth session or grow work on repeated h
     expect(h.hibernationStampCleared.get(fleet[4])).toBe(fleet[4]);
   } finally {
     gate.resolve();
+    await stopSupervisor();
   }
   await flushHibernationStamps();
 });
