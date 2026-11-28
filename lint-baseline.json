@@ -5658,7 +5658,7 @@
     "swarm/no-comments": 8
   },
   "apps/cli/src/workflow/templates.offline.test.ts": {
-    "swarm/no-comments": 37
+    "swarm/no-comments": 29
   },
   "apps/cli/src/workflow/templates.test.ts": {
     "swarm/no-comments": 58
