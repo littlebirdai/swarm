@@ -30,10 +30,7 @@ export {
   deleteInBatches,
   RETENTION_DELETE_BATCH,
 } from "./persistence/retention";
-export {
-  salvageLocalFirstV2Data,
-  type OutboxEntry,
-} from "./persistence/outbox";
+export type { OutboxEntry } from "./persistence/outbox";
 export type { CachedConversation } from "./persistence/storage";
 
 const lazySqliteStorage = createLazySqliteStorage(

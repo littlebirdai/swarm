@@ -18,18 +18,11 @@ class CacheDB extends Dexie {
     super("codecast-store");
     this.version(CACHE_SCHEMA_VERSION)
       .stores(SYSTEM_TABLES)
-      // Keep this callback on the current version for users who skip releases.
-      .upgrade(async (tx) => {
-        const meta = tx.table("meta");
-        const pending = await meta.get("pending");
-        if (pending) {
-          const rows = Object.entries(pending.value ?? {}).map(
-            ([key, value]) => ({ key, value }),
-          );
-          if (rows.length) await tx.table("pendingEntries").bulkPut(rows);
-          await meta.delete("pending");
-        }
-      });
+      .upgrade((tx) =>
+        Promise.all(
+          Object.keys(SYSTEM_TABLES).map((name) => tx.table(name).clear()),
+        ),
+      );
   }
 }
 

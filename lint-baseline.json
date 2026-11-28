@@ -28036,7 +28036,7 @@
     "swarm/no-comments": 10
   },
   "apps/web/store/idb-cache.native.ts": {
-    "swarm/no-comments": 132
+    "swarm/no-comments": 130
   },
   "apps/web/store/idb-collection-diff.ts": {
     "swarm/no-comments": 40
@@ -28047,11 +28047,8 @@
   "apps/web/store/idbCacheWriteBehind.native.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/store/idbV2Salvage.ts": {
-    "swarm/no-comments": 7
-  },
   "apps/web/store/inbox-hydration.ts": {
-    "swarm/no-comments": 140
+    "swarm/no-comments": 137
   },
   "apps/web/store/inbox-overlay-facts.ts": {
     "swarm/no-comments": 18
@@ -28124,7 +28121,7 @@
     "swarm/no-comments": 49
   },
   "apps/web/store/persistence/db.ts": {
-    "swarm/no-comments": 35
+    "swarm/no-comments": 34
   },
   "apps/web/store/persistence/hydration.ts": {
     "swarm/no-comments": 2
@@ -28133,7 +28130,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/store/persistence/outbox.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 8
   },
   "apps/web/store/persistence/purge.ts": {
     "swarm/no-comments": 12

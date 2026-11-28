@@ -25,7 +25,6 @@ import {
   loadOutbox,
   removeDispatch,
   writePatchesToIDB,
-  salvageLocalFirstV2Data,
   setUpgradeBlockedListener,
   PERSISTENCE_AVAILABLE,
 } from "./idb-cache";
@@ -276,13 +275,6 @@ async function hydrateInboxCacheFromIDB(
   setUpgradeBlockedListener((blocked) =>
     setStorageDegraded(blocked ? "blocked" : false),
   );
-
-  // Salvage any writes parked in the retired local-first v2 databases, then
-  // delete those databases. Runs before the first drain can matter: the drain
-  // re-fires below once salvage lands rows.
-  void salvageLocalFirstV2Data().then((salvaged) => {
-    if (salvaged > 0) (useInboxStore.getState() as any)._drainOutbox?.();
-  });
 
   cacheStorage.setHydrating(true);
   // Native first paint reads only the live inbox rows (no getAllKeys of the
