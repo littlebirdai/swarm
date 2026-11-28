@@ -1016,6 +1016,23 @@ export function mutativeMiddleware(
     const activeOutboxRowsById = new Map<string, Set<string>>();
     const EMPTY_PROTECTED_OUTBOX_ROWS: ReadonlySet<string> = new Set();
     let outboxSeedEpoch = 0;
+    let outboxSeedStarted = false;
+    const seedOutboxProtection = (): void => {
+      if (outboxSeedStarted || outboxLoadFn === null || !protectOutboxRows) return;
+      outboxSeedStarted = true;
+      const seedEpoch = outboxSeedEpoch;
+      const load = outboxLoadFn;
+      void Promise.resolve(load()).then(
+        (entries) => {
+          if (outboxSeedEpoch !== seedEpoch || outboxLoadFn !== load) return;
+          for (const entry of entries) {
+            if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
+            trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
+          }
+        },
+        () => {},
+      );
+    };
     const trackOutboxRows = (id: string, keys: Set<string>): void => {
       if (!protectOutboxRows || keys.size === 0) return;
       if (!activeOutboxRowsById.has(id)) {
@@ -2356,26 +2373,15 @@ export function mutativeMiddleware(
       outboxRemoveFn = remove;
       outboxLoadFn = load;
       outboxSeedEpoch++;
+      outboxSeedStarted = false;
       activeOutboxRowsById.clear();
-      if (load !== null && protectOutboxRows) {
-        const seedEpoch = outboxSeedEpoch;
-        void Promise.resolve(load()).then(
-          (entries) => {
-            if (outboxSeedEpoch !== seedEpoch || outboxLoadFn !== load) return;
-            for (const entry of entries) {
-              if (retiredOutboxIds.has(entry.id) || retiredSinceDrainLoad.has(entry.id)) continue;
-              trackOutboxRows(entry.id, extractOutboxRowKeys(entry));
-            }
-          },
-          () => {},
-        );
-      }
       markOutboxDirty();
     };
 
     wrapped._clearRuntimeBindings = () => {
       dispatchEpoch++;
       outboxSeedEpoch++;
+      outboxSeedStarted = false;
       inFlightOutboxIds.clear();
       activeOutboxRowsById.clear();
       dispatchBinding = null;
@@ -2431,6 +2437,7 @@ export function mutativeMiddleware(
 
     wrapped._protectedOutboxRows = () => {
       if (!protectOutboxRows) return EMPTY_PROTECTED_OUTBOX_ROWS;
+      seedOutboxProtection();
       const rows = new Set<string>();
       for (const set of activeOutboxRowsById.values()) {
         for (const key of set) rows.add(key);
