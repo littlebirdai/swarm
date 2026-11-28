@@ -14,7 +14,7 @@ import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { computePlanProgress } from "@codecast/web/lib/liveEntities";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { useConvexSync } from "@codecast/web/hooks/useConvexSync";
-import { useScopeViewTarget } from "@codecast/web/hooks/use-scope-view-target";
+import { useFocusedScopeViewTarget } from "@/hooks/use-focused-scope-view-target";
 import { ingestPlanDetail } from "@codecast/web/hooks/useSyncPlans";
 import { inActiveWorkspace } from "@codecast/web/lib/workspaceScope";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
@@ -29,7 +29,7 @@ type PlanStatus = keyof typeof PLAN_STATUS_CONFIG;
 export default function PlanDetailScreen() {
   const Theme = useTheme();
   const { id, share } = useLocalSearchParams<{ id: string; share?: string }>();
-  useScopeViewTarget("plan", id);
+  useFocusedScopeViewTarget("plan", id);
   const router = useRouter();
   const plans = useInboxStore((s) => s.plans);
   const tasks = useInboxStore((s) => s.tasks);

@@ -228,7 +228,12 @@ export function createScopeSubscriptionSlice(
         this.scopeViewTargets = next;
         return;
       }
-      if (sameViewTargets(prev[owner], clean)) return;
+      const owners = Object.keys(prev);
+      if (
+        sameViewTargets(prev[owner], clean) &&
+        owners[owners.length - 1] === owner
+      )
+        return;
       const next: Record<string, ScopeViewTarget[]> = {};
       const others = Object.keys(prev).filter((k) => k !== owner);
       const keep = others.slice(

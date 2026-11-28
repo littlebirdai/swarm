@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import { copyToClipboard } from "@/lib/clipboard";
 import { setChatFocus, clearChatFocus } from "@/lib/chatFocus";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusedScopeViewTarget } from "@/hooks/use-focused-scope-view-target";
 import {
   useLocalSearchParams,
   useRouter,
@@ -87,6 +88,7 @@ export default function ChatThreadScreen() {
   const { root, replies } = useThreadMessages(rootId);
   const rootRow = useInboxStore((s) => s.chatMessages[rootId]) as any;
   const channelId = (rootRow?.channel_id ?? channelParam) as string | undefined;
+  useFocusedScopeViewTarget("channel", channelId);
   const channel = useInboxStore((s) =>
     channelId ? s.chatChannels[channelId] : undefined,
   ) as any;

@@ -15,7 +15,7 @@ import {
 } from "@codecast/web/store/inboxStore";
 import { windowOrgTree } from "@codecast/web/store/orgSlice";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
-import { useScopeViewTarget } from "@codecast/web/hooks/use-scope-view-target";
+import { useFocusedScopeViewTarget } from "@/hooks/use-focused-scope-view-target";
 import {
   useInitiatives,
   useSyncInitiatives,
@@ -56,7 +56,7 @@ export default function ProjectScreen() {
   const Theme = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  useScopeViewTarget("project", id);
+  useFocusedScopeViewTarget("project", id);
   const now = useCoarseNow(60_000);
   useSyncInitiatives();
   const loading = useFeedLoading("projects");
