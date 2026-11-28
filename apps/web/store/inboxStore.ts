@@ -752,6 +752,10 @@ import {
   FOLDER_ACTIVE_WINDOW_MS,
   type FolderActivity,
 } from "../lib/railFolderFilter";
+import {
+  createScopeSubscriptionSlice,
+  type ScopeSubscriptionSlice,
+} from "./scope-subscriptions";
 export type { ThreadsCursor } from "./threadTypes";
 
 // Critical UI prefs mirrored to localStorage so they're available
@@ -7873,6 +7877,7 @@ export interface InboxStoreState
     ExpectationsSliceActions,
     OpsSliceActions,
     ReturnType<typeof createReadingAnchorsSlice>,
+    ScopeSubscriptionSlice,
     FencedPromptAnswerActions,
     SteerComposerStore,
     RelayInboxSlice,
@@ -15395,6 +15400,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
         delete this.pending[key];
     }
   }),
+  ...createScopeSubscriptionSlice(sync),
 
   // Drop a syncMeta key outright (recordSyncMeta only advances). Used for log
   // cursor resets: scope revocation and retention resync. A scope cursor's
