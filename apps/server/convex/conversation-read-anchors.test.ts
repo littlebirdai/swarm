@@ -4,18 +4,13 @@ import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-const flag = "CODECAST_SESSION_READ_ANCHORS";
-const env = process.env[flag];
 const anchors = api.conversationReadAnchors;
 
 beforeEach(() => {
-  process.env[flag] = "1";
   jest.useFakeTimers();
   jest.setSystemTime(1000);
 });
 afterEach(() => {
-  if (env === undefined) delete process.env[flag];
-  else process.env[flag] = env;
   jest.useRealTimers();
 });
 
@@ -73,15 +68,6 @@ async function setup() {
     });
   return { t, ...ids, args, reader, rows, begin, get, save };
 }
-
-test("flag off adds no saved anchor", async () => {
-  const f = await setup();
-  delete process.env[flag];
-  expect(await f.begin()).toBeNull();
-  expect(await f.save("old-view", 1)).toBe("unavailable");
-  expect(await f.get()).toBeNull();
-  expect(await f.rows()).toEqual([]);
-});
 
 test("lost exit retains the checkpoint and a newer view and sequence fence delayed saves", async () => {
   const f = await setup();

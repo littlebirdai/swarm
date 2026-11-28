@@ -158,13 +158,11 @@ function createReadingVisit(
 export function useSavedReadingAnchor({
   conversationId,
   userId,
-  enabled,
   restore,
   loadingWindow,
 }: {
   conversationId: Id<"conversations"> | null;
   userId: string | undefined;
-  enabled: boolean;
   loadingWindow?: boolean;
   restore: (
     anchor: SavedReadingAnchor,
@@ -179,8 +177,7 @@ export function useSavedReadingAnchor({
     readVisibility,
     hiddenOnServer,
   );
-  const active =
-    enabled && tabVisible && visible && userId ? conversationId : null;
+  const active = tabVisible && visible && userId ? conversationId : null;
   const mountedKey =
     conversationId && userId ? `${userId}:${conversationId}` : "";
   const key = active ? mountedKey : "";

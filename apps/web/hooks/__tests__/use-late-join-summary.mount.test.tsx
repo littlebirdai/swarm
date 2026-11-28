@@ -1,26 +1,13 @@
-import { afterEach, expect, spyOn, test } from "bun:test";
-import { act, Profiler, StrictMode, useRef } from "react";
+import { expect, spyOn, test } from "bun:test";
+import { act, Profiler, StrictMode } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { getFunctionName } from "convex/server";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
-import {
-  useLateJoinSummary,
-  useLateJoinSummaryController,
-  type LateJoinSummary,
-} from "../use-late-join-summary";
-
-const FLAG = "VITE_LATE_JOIN_SUMMARY";
-const previousFlag = process.env[FLAG];
-
-afterEach(() => {
-  if (previousFlag === undefined) delete process.env[FLAG];
-  else process.env[FLAG] = previousFlag;
-});
+import { useLateJoinSummary, type LateJoinSummary } from "../use-late-join-summary";
 
 const conversationId = "j".repeat(32) as Id<"conversations">;
-const otherConversationId = "k".repeat(32) as Id<"conversations">;
 const anchorMsgId = "m".repeat(32) as Id<"messages">;
 const decisionId = "d".repeat(32) as Id<"session_decisions">;
 
@@ -74,86 +61,6 @@ function HookProbe({
   );
 }
 
-test("controller does not call setState on scroll, markReachedBottom, or visitKey reset when flag is off", async () => {
-  delete process.env[FLAG];
-  let controllerRenders = 0;
-
-  function ControllerProbe({ visitKey }: { visitKey: string }) {
-    const jumpDirectionRef = useRef<"start" | "end" | null>(null);
-    const paginationCooldownRef = useRef(0);
-    const scrollToEdgeRef = useRef<(edge: "top" | "bottom") => void>(() => {});
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const ctrl = useLateJoinSummaryController({
-      conversationId: visitKey as Id<"conversations">,
-      visitKey,
-      guest: false,
-      newSessionPage: false,
-      pendingPermissions: undefined,
-      loadedMessageIds: new Set<string>(),
-      scrollToMessageById: () => {},
-      hasMoreBelow: false,
-      setJumpPending: () => {},
-      setUserScrolled: () => {},
-      setGuestStayAtTop: () => {},
-      jumpDirectionRef,
-      paginationCooldownRef,
-      scrollToEdgeRef,
-      containerRef,
-    });
-    return (
-      <div data-cc-ctrl-probe>
-        <button
-          type="button"
-          data-cc-ctrl-scroll
-          onClick={() => {
-            ctrl.noteScrollPosition(false, false, true, false);
-            ctrl.noteScrollPosition(true, false, true, true);
-            ctrl.markReachedBottom();
-          }}
-        >
-          {ctrl.visible ? "1" : "0"}
-        </button>
-      </div>
-    );
-  }
-
-  const ctrlUi = await mountWeb(
-    <Profiler
-      id="ctrl-flag-off"
-      onRender={() => {
-        controllerRenders += 1;
-      }}
-    >
-      <ControllerProbe visitKey={conversationId} />
-    </Profiler>,
-    { authenticated: true, dispatch: true },
-  );
-  try {
-    controllerRenders = 0;
-    const scrollBtn = ctrlUi.container.querySelector<HTMLButtonElement>(
-      "[data-cc-ctrl-scroll]",
-    );
-    await act(async () => {
-      scrollBtn!.click();
-    });
-    expect(controllerRenders).toBe(0);
-
-    await ctrlUi.rerender(
-      <Profiler
-        id="ctrl-flag-off"
-        onRender={() => {
-          controllerRenders += 1;
-        }}
-      >
-        <ControllerProbe visitKey={otherConversationId} />
-      </Profiler>,
-    );
-    expect(controllerRenders).toBe(1);
-  } finally {
-    await ctrlUi.close();
-  }
-});
-
 function countLateJoinQueries(spy: ReturnType<typeof spyOn>) {
   return spy.mock.calls.filter(
     (call: unknown[]) =>
@@ -162,7 +69,6 @@ function countLateJoinQueries(spy: ReturnType<typeof spyOn>) {
 }
 
 test("survives StrictMode double mount, enabled flicker, aborts cleanly on disable or unmount, and retries once", async () => {
-  process.env[FLAG] = "1";
   let querySpy!: ReturnType<typeof spyOn>;
 
   const strictUi = await mountWeb(

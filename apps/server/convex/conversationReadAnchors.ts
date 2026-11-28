@@ -8,12 +8,10 @@ import {
   canReadAnchor,
   readAnchorMessage,
   readAnchorRow,
-  readAnchorsEnabled,
   saveReadAnchor,
 } from "./lib/conversationReadAnchors";
 
 async function viewer(ctx: QueryCtx, conversationId: Id<"conversations">) {
-  if (!readAnchorsEnabled()) return null;
   const userId = await getAuthUserId(ctx);
   if (!userId || !(await canReadAnchor(ctx, userId, conversationId)))
     return null;

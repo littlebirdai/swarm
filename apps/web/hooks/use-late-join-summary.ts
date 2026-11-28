@@ -9,10 +9,6 @@ export type LateJoinSummary = NonNullable<
   FunctionReturnType<typeof api.lateJoinSummary.get>
 >;
 
-export function isLateJoinSummaryEnabled(): boolean {
-  return import.meta.env.VITE_LATE_JOIN_SUMMARY === "1";
-}
-
 export function hasLateJoinUpdates(
   summary: LateJoinSummary | null | undefined,
 ): summary is LateJoinSummary {
@@ -171,13 +167,12 @@ export function useLateJoinSummaryController({
   scrollToEdgeRef: RefObject<(edge: "top" | "bottom") => void>;
   containerRef: RefObject<HTMLDivElement | null>;
 }) {
-  const enabled = isLateJoinSummaryEnabled();
   const [reachedBottom, setReachedBottom] = useState(false);
   const sawAwayFromBottomRef = useRef(false);
 
   const summaryRaw = useLateJoinSummary(
     conversationId,
-    enabled && !guest && !newSessionPage && !reachedBottom,
+    !guest && !newSessionPage && !reachedBottom,
   );
 
   const summary = useMemo(() => {
@@ -193,15 +188,13 @@ export function useLateJoinSummaryController({
   }, [summaryRaw, pendingPermissions]);
 
   useWatchEffect(() => {
-    if (!enabled) return;
     setReachedBottom(false);
     sawAwayFromBottomRef.current = false;
-  }, [enabled, visitKey]);
+  }, [visitKey]);
 
   const markReachedBottom = useCallback(() => {
-    if (!enabled) return;
     setReachedBottom(true);
-  }, [enabled]);
+  }, []);
 
   const noteScrollPosition = useCallback(
     (
@@ -210,7 +203,6 @@ export function useLateJoinSummaryController({
       noPendingJump: boolean,
       readerMovingDown: boolean,
     ) => {
-      if (!enabled) return;
       if (!isAtBottom || moreBelow) {
         sawAwayFromBottomRef.current = true;
       } else if (
@@ -220,7 +212,7 @@ export function useLateJoinSummaryController({
         setReachedBottom(true);
       }
     },
-    [enabled],
+    [],
   );
 
   const handleJumpAnchor = useCallback(
@@ -284,7 +276,7 @@ export function useLateJoinSummaryController({
   );
 
   return {
-    visible: enabled && !guest && !reachedBottom && hasLateJoinUpdates(summary),
+    visible: !guest && !reachedBottom && hasLateJoinUpdates(summary),
     summary,
     markReachedBottom,
     noteScrollPosition,

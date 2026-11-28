@@ -3577,7 +3577,6 @@ const ConversationViewInner = function ConversationView(
     observeComposerBand(containerRef.current, setMessageInputHeight),
   );
   const observeSavedReading = useSavedReadingAnchor({
-    enabled: import.meta.env.VITE_SESSION_READ_ANCHORS === "1",
     conversationId:
       conversation?._id && isConvexId(conversation._id)
         ? (conversation._id as Id<"conversations">)
