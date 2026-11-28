@@ -113,6 +113,20 @@ export async function codexPilotSettings(
   });
 }
 
+export type OwnedCodexRelayFlags = {
+  liveness: boolean;
+  tokenDeltas: boolean;
+};
+
+export function readOwnedCodexRelayFlags(
+  env: Record<string, string | undefined> = process.env,
+): OwnedCodexRelayFlags {
+  return {
+    liveness: env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
+    tokenDeltas: env.CODECAST_RELAY_TOKEN_DELTAS === "1",
+  };
+}
+
 export function startOwnedCodexRelayContact(
   options: Pick<PilotOptions, "bearer" | "siteUrl" | "log">,
   provider: { readonly agent: string; readonly version: string },
@@ -121,9 +135,10 @@ export function startOwnedCodexRelayContact(
   signal: AbortSignal,
   deadline: () => number,
   onRelay: (relay: ReturnType<typeof startRelayLiveness>) => void,
+  flags: OwnedCodexRelayFlags = { liveness: true, tokenDeltas: false },
 ): void {
   const { bearer, siteUrl, log } = options;
-  if (!bearer) return;
+  if (!bearer || (!flags.liveness && !flags.tokenDeltas)) return;
   const launchRelayPublisher = () => {
     void Promise.all([
       import("@codecast/edge-client"),
@@ -136,6 +151,8 @@ export function startOwnedCodexRelayContact(
             transport: createHttpEdgeTransport(new URL("/edge/v1/", siteUrl), {
               Authorization: `Bearer ${bearer}`,
             }),
+            sessionLiveness: flags.liveness,
+            tokenDeltas: flags.tokenDeltas,
             hello: {
               machine: binding.ownerDeviceId,
               boot: binding.daemonBootId,

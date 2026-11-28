@@ -31,6 +31,7 @@ import type {
 } from "./codex-pilot-display.js";
 import type { CodexPilotEvents } from "./codex-pilot-events.js";
 import type { CodexPilotPromptCards } from "./codex-pilot-prompt-cards.js";
+import { createCodexPilotDeltaPublisher } from "./codex-pilot-token-deltas.js";
 import {
   codexPilotSettings,
   type PilotOptions,
@@ -605,14 +606,33 @@ export async function writeOwnedPilotEvents(deps: {
   delivery: CodexPilotDelivery;
   promptCards: CodexPilotPromptCards;
   display: CodexPilotDisplay;
+  publishDelta?: () =>
+    | ((delta: {
+        session: string;
+        run: number;
+        turn: string;
+        message_id: string;
+        delta_seq: number;
+        text: string;
+      }) => boolean)
+    | undefined;
   onProgress: () => void;
 }): Promise<void> {
   const { syncService, sendAgentStatus } = deps.options.display;
   const { conversationId, runtimeId } = deps.binding;
+  const emitDelta = createCodexPilotDeltaPublisher({
+    enabled: Boolean(deps.publishDelta),
+    run: deps.claim.run,
+    session: conversationId,
+    publish: () => deps.publishDelta?.(),
+  });
   for await (const event of deps.session.events) {
     deps.signal.throwIfAborted();
     deps.onProgress();
-    if (event.kind === "message.delta") continue;
+    if (event.kind === "message.delta") {
+      emitDelta(event);
+      continue;
+    }
     await deps.events.appendEvent(
       deps.claim,
       deps.delivery.attributeTurnStart(event),

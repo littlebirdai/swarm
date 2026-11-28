@@ -25,6 +25,7 @@ import { CodexPilotDisplay } from "./codex-pilot-display.js";
 import {
   checkpointOf,
   codexPilotSettings,
+  readOwnedCodexRelayFlags,
   startOwnedCodexRelayContact,
   type PilotOptions,
 } from "./codex-pilot-settings.js";
@@ -92,7 +93,7 @@ export function createCodexOwnedPilot(
     conversationId,
     options,
     acceptsNewSessions,
-    env.CODECAST_RELAY_LIVENESS_PUBLISH === "1",
+    readOwnedCodexRelayFlags(env),
   );
 }
 
@@ -137,7 +138,7 @@ export class CodexOwnedPilot {
     readonly conversationId: string | undefined,
     private readonly options: PilotOptions,
     readonly acceptsNewSessions = false,
-    private readonly relayEnabled = false,
+    private readonly relayFlags = readOwnedCodexRelayFlags({}),
     private readonly epoch = 1,
     private readonly onClose?: (pilot: CodexOwnedPilot) => void,
     private readonly registry = new ParkedPilotRegistry(),
@@ -226,7 +227,7 @@ export class CodexOwnedPilot {
         conversationId,
         this.options,
         false,
-        this.relayEnabled,
+        this.relayFlags,
         epoch,
         (closed) => {
           this.children.delete(key);
@@ -600,7 +601,6 @@ export class CodexOwnedPilot {
   }
 
   private startRelayContact(claim: ClaimGrant, binding: ReadyBinding): void {
-    if (!this.relayEnabled) return;
     startOwnedCodexRelayContact(
       this.options,
       provider,
@@ -608,9 +608,8 @@ export class CodexOwnedPilot {
       binding,
       this.controller.signal,
       () => this.leaseDeadline,
-      (relay) => {
-        this.relay = relay;
-      },
+      (relay) => (this.relay = relay),
+      this.relayFlags,
     );
   }
 
@@ -662,9 +661,9 @@ export class CodexOwnedPilot {
       delivery: this.delivery,
       promptCards: this.promptCards,
       display: this.display,
-      onProgress: () => {
-        this.streamProgress++;
-      },
+      publishDelta: () =>
+        this.relayFlags.tokenDeltas ? this.relay?.publishDelta : undefined,
+      onProgress: () => (this.streamProgress += 1),
     });
   }
 
