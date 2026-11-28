@@ -424,14 +424,14 @@ type ScopeHead = { scope_key: string; position: number; floor: number };
 
 function resetScopeForResync(
   head: ScopeHead,
-  opts: { recutFloors?: boolean } = {},
+  opts: { recutFloors?: boolean; clearedCrawls?: Set<string> } = {},
 ): void {
   tallyApply(0, 0, 1);
   const metaKey = scopeMetaKey(head.scope_key);
   const s = useInboxStore.getState();
   s.clearSyncMeta(metaKey);
   s.clearCrawlMetaForScope(head.scope_key);
-  resetTeamResyncCaches(s, head.scope_key);
+  resetTeamResyncCaches(s, head.scope_key, opts.clearedCrawls);
   s.recordSyncMeta(metaKey, { cursor: head.position });
   s.retireAckedPending(head.scope_key, head.position);
   if (opts.recutFloors !== false) s.bumpSyncLogFloorEpoch();
@@ -536,7 +536,9 @@ export async function catchUp(
     );
   }
   if (cold.length > 0) {
-    for (const head of cold) resetScopeForResync(head, { recutFloors: false });
+    const clearedCrawls = new Set<string>();
+    for (const head of cold)
+      resetScopeForResync(head, { recutFloors: false, clearedCrawls });
     useInboxStore.getState().bumpSyncLogFloorEpoch();
   }
   for (const head of heads) {

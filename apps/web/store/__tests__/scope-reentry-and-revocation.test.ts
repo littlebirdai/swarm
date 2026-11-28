@@ -7,6 +7,7 @@ import {
   initialScopeSubscriptionState,
 } from "../scope-subscriptions";
 import { applyUpdatesToStore } from "../sync-replication";
+import { holdScopeViewTarget } from "../scope-view-targets";
 import { pinDetailRows, resetDetailPins } from "../../lib/detail-rows";
 import {
   catchUp,
@@ -126,6 +127,32 @@ describe("view targets set by a screen", () => {
   });
 });
 
+describe("view target owners", () => {
+  test("a repeated call promotes its owner so the cap drops an older one", () => {
+    const set = useInboxStore.getState().setScopeViewTargets;
+    set("bottom", [{ kind: "project", id: P }]);
+    for (let i = 0; i < 15; i++)
+      set(`pushed-${i}`, [{ kind: "channel", id: `c${i}` }]);
+    set("bottom", [{ kind: "project", id: P }]);
+    set("pushed-new", [{ kind: "channel", id: "cnew" }]);
+    const owners = Object.keys(useInboxStore.getState().scopeViewTargets);
+    expect(owners).toContain("bottom");
+    expect(owners).not.toContain("pushed-0");
+    expect(owners.length).toBe(16);
+  });
+
+  test("a held target lasts until its release", () => {
+    const release = holdScopeViewTarget("focused", "project", P);
+    expect(useInboxStore.getState().scopeViewTargets.focused).toEqual([
+      { kind: "project", id: P },
+    ]);
+    release();
+    expect(useInboxStore.getState().scopeViewTargets).toEqual({});
+    expect(holdScopeViewTarget("none", "project", undefined)).toBeFunction();
+    expect(useInboxStore.getState().scopeViewTargets).toEqual({});
+  });
+});
+
 describe("heads answers", () => {
   test("an unauthenticated heads answer revokes nothing", async () => {
     const tId = cid("projecttask");
@@ -221,6 +248,11 @@ describe("a scope with no cursor", () => {
     expect(order).toEqual(["recut", "stamp"]);
     expect(s.syncMeta[scopeMetaKey(`project:${P}`)].cursor).toBe(12);
     expect(s.syncMeta[scopeMetaKey(`dir:${T}`)].cursor).toBe(9);
+    expect(
+      s.syncMeta[
+        `tasks:v3:${JSON.stringify({ workspace: "team", team_id: T })}`
+      ],
+    ).toBeUndefined();
   });
 
   test("one scope caught up on its own with no cursor recuts the floors", async () => {
@@ -294,6 +326,33 @@ describe("team revocation", () => {
       scope: `dir:${T}`,
     });
     expect(s.scopeSubscriptions.denied[`dir:${T}`]).toBeDefined();
+  });
+
+  test("removes a team doc detail with no list row and the team's chat messages", () => {
+    const dOrphan = cid("dorphan");
+    const dMine = cid("dmine");
+    const mTeam = cid("mteam");
+    const mOther = cid("mother");
+    useInboxStore.setState({
+      docs: {},
+      docDetails: {
+        [dOrphan]: { _id: dOrphan, workspace: `team:${T}`, content: "secret" },
+        [dMine]: { _id: dMine, workspace: "user:u1", content: "mine" },
+      },
+      chatMessages: {
+        [mTeam]: { _id: mTeam, team_id: T, channel_id: "c1" },
+        [mOther]: { _id: mOther, team_id: "team2", channel_id: "c2" },
+      },
+    } as any);
+    const release = pinDetailRows("docDetails", [dOrphan]);
+    useInboxStore.getState().revokeTeamScope(T);
+    release();
+    const s = useInboxStore.getState() as any;
+    expect(s.docDetails[dOrphan]).toBeUndefined();
+    expect(s.docDetails[dMine]).toBeDefined();
+    expect(s.pending[`docs:${dOrphan}`]).toMatchObject({ type: "exclude" });
+    expect(s.chatMessages[mTeam]).toBeUndefined();
+    expect(s.chatMessages[mOther]).toBeDefined();
   });
 
   test("a follower drops a pinned detail row when its parent row is removed", () => {

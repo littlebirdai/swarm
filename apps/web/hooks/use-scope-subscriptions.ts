@@ -232,11 +232,28 @@ export function applyScopeLifecycleEvent(
   }
 }
 
-export function resetTeamResyncCaches(store: any, scopeKey: string): void {
+function projectTeamId(store: any, scopeKey: string): string | null {
+  if (!scopeKey.startsWith("project:")) return null;
+  const row = findEntityRow(store.projects, scopeKey.slice(8));
+  const ws = row?.workspace;
+  if (typeof ws === "string")
+    return ws.startsWith("team:") ? ws.slice(5) : null;
+  return row?.team_id ? String(row.team_id) : null;
+}
+
+export function resetTeamResyncCaches(
+  store: any,
+  scopeKey: string,
+  clearedCrawls?: Set<string>,
+): void {
   const teamId = teamIdFromScopeKey(scopeKey);
-  if (!teamId) return;
-  store.dropTeamFeedCache(teamId);
-  store.clearCrawlMetaForScope(`dir:${teamId}`);
+  if (teamId) store.dropTeamFeedCache(teamId);
+  const crawlTeam = teamId ?? projectTeamId(store, scopeKey);
+  if (!crawlTeam) return;
+  const crawlScope = `dir:${crawlTeam}`;
+  if (clearedCrawls?.has(crawlScope)) return;
+  clearedCrawls?.add(crawlScope);
+  store.clearCrawlMetaForScope(crawlScope);
 }
 
 export function isPurgedTeamHead(

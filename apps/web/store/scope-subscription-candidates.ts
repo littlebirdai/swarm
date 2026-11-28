@@ -650,14 +650,24 @@ const DETAIL_OF_PARENT: Record<string, string> = {
   tasks: "taskComments",
 };
 
-function revokedTeamScope(
+function rowTeamId(row: any): string | null {
+  const ws = row?.workspace;
+  if (typeof ws === "string")
+    return ws.startsWith("team:") ? ws.slice(5) : null;
+  return row?.team_id ? String(row.team_id) : null;
+}
+
+function revokedScopeOfRow(
+  collection: string,
   row: any,
   revokedScopes: ReadonlySet<string>,
 ): string | null {
-  const ws = row?.workspace;
-  if (typeof ws !== "string" || !ws.startsWith("team:")) return null;
-  const dir = `dir:${ws.slice(5)}`;
-  return revokedScopes.has(dir) ? dir : null;
+  const team = rowTeamId(row);
+  if (team && revokedScopes.has(`dir:${team}`)) return `dir:${team}`;
+  const homeCollection = collection === "docDetails" ? "docs" : collection;
+  if (homeCollection === "projects") return null;
+  const home = rowHomeScope(homeCollection as ScopeScopedCollection, row);
+  return home && revokedScopes.has(home) ? home : null;
 }
 
 export function revokeScopeRowsInDraft(
@@ -668,30 +678,31 @@ export function revokeScopeRowsInDraft(
 ): PurgeTarget[] {
   const targets: PurgeTarget[] = [];
   if (revokedScopes.size === 0) return targets;
-  for (const collection of [...SCOPE_SCOPED_COLLECTIONS, "projects"] as const) {
+  for (const collection of [
+    ...SCOPE_SCOPED_COLLECTIONS,
+    "projects",
+    "docDetails",
+  ] as const) {
     const rows = draft[collection] as Record<string, any> | undefined;
     if (!rows) continue;
     for (const id of Object.keys(rows)) {
       if (!isConvexId(id) || isStubId(id)) continue;
       const row = rows[id];
       if (!row || typeof row !== "object") continue;
-      const home =
-        collection === "projects" ? null : rowHomeScope(collection, row);
-      const scope =
-        revokedTeamScope(row, revokedScopes) ??
-        (home && revokedScopes.has(home) ? home : null);
+      const scope = revokedScopeOfRow(collection, row, revokedScopes);
       if (!scope || scope === userScope) continue;
       delete rows[id];
       const detailKey = DETAIL_OF_PARENT[collection];
       if (detailKey && draft[detailKey]?.[id]) delete draft[detailKey][id];
+      const entity = collection === "docDetails" ? "docs" : collection;
       if (draft.pending) {
-        draft.pending[`${collection}:${id}`] = {
+        draft.pending[`${entity}:${id}`] = {
           type: "exclude",
           ts: now,
           scope,
         };
       }
-      targets.push({ collection, id, scope });
+      if (collection !== "docDetails") targets.push({ collection, id, scope });
     }
   }
   return targets;
