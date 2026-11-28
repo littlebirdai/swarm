@@ -4,6 +4,8 @@ import type {
   DeliveryStartRequest,
   PermitsNextRequest,
   PermitsNextResponse,
+  TakeoverAckRequest,
+  TakeoverFence,
 } from "@codecast/edge-contract";
 import {
   SupervisorBus,
@@ -119,6 +121,11 @@ export function makeFakeServer(permits: readonly DeliveryPermit[] = []) {
   const starts: DeliveryStartRequest[] = [];
   const permitReads = new Map<string, number>();
   const lagging = new Set<string>();
+  const takeovers = new Map<
+    string,
+    { fence: TakeoverFence; state: "pending" | "recorded" }
+  >();
+  const acks: TakeoverAckRequest[] = [];
   let retries = 0;
 
   const enqueue = (permit: DeliveryPermit) => {
@@ -161,6 +168,10 @@ export function makeFakeServer(permits: readonly DeliveryPermit[] = []) {
       request.session,
       (permitReads.get(request.session) ?? 0) + 1,
     );
+    const takeover = takeovers.get(request.session);
+    if (takeover?.state === "pending") {
+      return { ok: true, response: takeover.fence };
+    }
     const head = queues.get(request.session)?.[0];
     if (!head) return { ok: true, response: { v: 1, status: "empty" } };
     if (head.permit.fencing_token !== request.fencing_token) {
@@ -256,6 +267,43 @@ export function makeFakeServer(permits: readonly DeliveryPermit[] = []) {
     return { ok: true as const, response: { v: 1 as const, status } };
   };
 
+  const activeSteer = (session: string) => {
+    const head = queues.get(session)?.[0];
+    return head?.permit.intent === "steer" && head.state !== "claimed";
+  };
+
+  const ackTakeover = (request: TakeoverAckRequest) => {
+    acks.push(structuredClone(request));
+    const takeover = takeovers.get(request.session);
+    const stale = {
+      ok: true as const,
+      response: { v: 1 as const, status: "stale" as const },
+    };
+    if (
+      !takeover ||
+      takeover.fence.fence_id !== request.fence_id ||
+      takeover.fence.turn !== request.turn ||
+      takeover.fence.baton_token !== request.baton_token
+    )
+      return stale;
+    if (takeover.state === "recorded") {
+      return {
+        ok: true as const,
+        response: { v: 1 as const, status: "duplicate" as const },
+      };
+    }
+    if (activeSteer(request.session)) return stale;
+    takeover.state = "recorded";
+    return {
+      ok: true as const,
+      response: { v: 1 as const, status: "recorded" as const },
+    };
+  };
+
+  const fenceTakeover = (fence: TakeoverFence) => {
+    takeovers.set(fence.session, { fence, state: "pending" });
+  };
+
   const startedElsewhere = (session = run.session) => {
     const head = queues.get(session)?.[0];
     if (head) head.state = "delivery-started";
@@ -268,6 +316,9 @@ export function makeFakeServer(permits: readonly DeliveryPermit[] = []) {
     permitsNext,
     start,
     settle,
+    ackTakeover,
+    fenceTakeover,
+    acks,
     settles,
     starts,
     permitReads: (session = run.session) => permitReads.get(session) ?? 0,
@@ -277,6 +328,9 @@ export function makeFakeServer(permits: readonly DeliveryPermit[] = []) {
 
 export type HarnessHandlers = {
   readonly dropReply?: (message: BusMessage) => boolean;
+  readonly settleFailure?: (
+    request: DeliverySettleRequest | DeliveryResolutionRequest,
+  ) => Extract<EdgeBusResult<never>, { ok: false }> | undefined;
   readonly permitsFailure?: () =>
     | Extract<EdgeBusResult<never>, { ok: false }>
     | undefined;
@@ -342,8 +396,18 @@ export function makeTestHarness(
               yield* reply({
                 kind: "edge.delivery.settle.result",
                 request_id: message.request_id,
-                ...server.settle(message.request),
+                ...(handlers.settleFailure?.(message.request) ??
+                  server.settle(message.request)),
               } as BusMessageOf<"edge.delivery.settle.result">);
+              break;
+            }
+            case "edge.takeover.ack": {
+              calls.push(`takeover.ack:${message.request.fence_id}`);
+              yield* reply({
+                kind: "edge.takeover.ack.result",
+                request_id: message.request_id,
+                ...server.ackTakeover(message.request),
+              });
               break;
             }
             case "provider.deliver.cancel": {
@@ -407,12 +471,15 @@ export function makeTestHarness(
 export function fakeServerBridge(
   server: FakeServer,
   deliver: DeliveryBridge["deliver"],
+  recover?: DeliveryBridge["recover"],
 ): DeliveryBridge {
   return {
     permitsNext: async (request) => server.permitsNext(request),
     deliveryStart: async (request) => server.start(request),
     deliverySettle: async (request) => server.settle(request),
+    takeoverAck: async (request) => server.ackTakeover(request),
     deliver,
+    ...(recover ? { recover } : {}),
   };
 }
 

@@ -7,6 +7,7 @@ import type { DeliveryFacade, DeliveryServiceOptions } from "./types";
 
 export type {
   DeliveryBridge,
+  DeliveryBridgeLimits,
   DeliveryFacade,
   DeliveryOptions,
   DeliveryPermit,

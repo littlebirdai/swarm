@@ -186,6 +186,8 @@ export type DeliveryOptions = {
   ) => Promise<string>;
   readonly clearArtifacts?: (attemptId: string) => Promise<void>;
   readonly maxPermitsPerDrain?: number;
+  readonly maxActiveDrains?: number;
+  readonly providerTimeoutMs?: number;
   readonly baseRetryMs?: number;
   readonly maxRetryMs?: number;
   readonly maxRetryAttempts?: number;
@@ -228,9 +230,14 @@ export type DeliveryBridge = {
   ) => Promise<ProviderRecoverOutcome>;
 };
 
+export type DeliveryBridgeLimits = {
+  readonly edge?: HandlerLimits;
+  readonly provider?: HandlerLimits;
+};
+
 export type DeliveryServiceOptions = DeliveryOptions & {
   readonly bridge?: DeliveryBridge;
-  readonly bridgeLimits?: HandlerLimits;
+  readonly bridgeLimits?: DeliveryBridgeLimits;
 };
 
 export type DrainOptions = {

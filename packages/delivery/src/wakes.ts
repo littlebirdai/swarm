@@ -1,0 +1,110 @@
+import type { PermitsNextRequest } from "@codecast/edge-contract";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
+import type * as Scope from "effect/Scope";
+import type { DeliveryError } from "./journals";
+import type { DeliveryStepOutcome, DrainOptions } from "./types";
+
+const MAX_PENDING_WAKES = 1024;
+
+type DrainEntry = {
+  fiber?: Fiber.Fiber<DeliveryStepOutcome>;
+};
+
+type PendingWake = {
+  readonly run: PermitsNextRequest;
+  readonly drainOptions: DrainOptions;
+};
+
+export function makeWakeScheduler(deps: {
+  readonly scope: Scope.Scope;
+  readonly maxActiveDrains: number;
+  readonly drain: (
+    run: PermitsNextRequest,
+    drainOptions: DrainOptions,
+  ) => Effect.Effect<DeliveryStepOutcome, DeliveryError>;
+  readonly log?: (message: string) => void;
+}) {
+  const { scope, maxActiveDrains, drain, log } = deps;
+  const activeDrains = new Map<string, DrainEntry>();
+  const pendingWakes = new Map<string, PendingWake>();
+
+  const startNextPending: Effect.Effect<void> = Effect.suspend(() => {
+    if (activeDrains.size >= maxActiveDrains) return Effect.void;
+    const next = pendingWakes.values().next();
+    if (next.done) return Effect.void;
+    pendingWakes.delete(next.value.run.session);
+    return start(next.value.run, next.value.drainOptions);
+  });
+
+  const start = (
+    run: PermitsNextRequest,
+    drainOptions: DrainOptions,
+  ): Effect.Effect<void> =>
+    Effect.gen(function* () {
+      const previous = activeDrains.get(run.session);
+      if (previous?.fiber) {
+        yield* Effect.forkIn(Fiber.interrupt(previous.fiber), scope);
+      }
+      const entry: DrainEntry = {};
+      activeDrains.set(run.session, entry);
+      entry.fiber = yield* Effect.forkIn(
+        drain(run, drainOptions).pipe(
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              log?.(
+                `[delivery] drain failed for ${run.session}: ${error.code}`,
+              );
+            }).pipe(Effect.as({ status: "empty" } as DeliveryStepOutcome)),
+          ),
+          Effect.onExit((exit) =>
+            Effect.suspend(() => {
+              if (activeDrains.get(run.session) !== entry) return Effect.void;
+              activeDrains.delete(run.session);
+              return Exit.hasInterrupts(exit) ? Effect.void : startNextPending;
+            }),
+          ),
+        ),
+        scope,
+        { startImmediately: true },
+      );
+    });
+
+  const wake = (
+    run: PermitsNextRequest,
+    drainOptions: DrainOptions,
+  ): Effect.Effect<boolean> =>
+    Effect.suspend(() => {
+      if (
+        activeDrains.has(run.session) ||
+        activeDrains.size < maxActiveDrains
+      ) {
+        pendingWakes.delete(run.session);
+        return start(run, drainOptions).pipe(Effect.as(true));
+      }
+      if (
+        pendingWakes.has(run.session) ||
+        pendingWakes.size < MAX_PENDING_WAKES
+      ) {
+        pendingWakes.delete(run.session);
+        pendingWakes.set(run.session, { run, drainOptions });
+        return Effect.succeed(true);
+      }
+      log?.(`[delivery] wake dropped for ${run.session}: too many wakes`);
+      return Effect.succeed(false);
+    });
+
+  const stop = (session: string): Effect.Effect<void> =>
+    Effect.suspend(() => {
+      pendingWakes.delete(session);
+      const fiber = activeDrains.get(session)?.fiber;
+      if (!fiber) return Effect.void;
+      return Effect.forkIn(
+        Fiber.interrupt(fiber).pipe(Effect.andThen(startNextPending)),
+        scope,
+      ).pipe(Effect.asVoid);
+    });
+
+  return { wake, stop };
+}

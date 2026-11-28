@@ -287,3 +287,179 @@ it.effect(
       );
     }),
 );
+
+for (const order of ["answer first", "timeout first"] as const) {
+  it.effect(
+    `a provider result at the instant its request times out still settles the delivery (${order})`,
+    () =>
+      Effect.gen(function* () {
+        const answer = yield* Deferred.make<void>();
+        const server = makeFakeServer([makePermit()]);
+        const harness = makeTestHarness(server, {
+          onDeliver: (req) =>
+            (order === "answer first"
+              ? Deferred.await(answer)
+              : Effect.sleep(1_000)
+            ).pipe(Effect.as(deliveredFor(req.delivery_id))),
+        });
+
+        yield* Effect.gen(function* () {
+          yield* harness.attach;
+          const delivery = yield* Delivery;
+          const settled = yield* watchSettled;
+          yield* Effect.forkChild(
+            Effect.sleep(1_000).pipe(
+              Effect.andThen(Deferred.succeed(answer, undefined)),
+            ),
+            { startImmediately: true },
+          );
+          const step = yield* Effect.forkChild(delivery.deliverNext(run), {
+            startImmediately: true,
+          });
+          yield* within(
+            Effect.repeat(Effect.yieldNow, {
+              until: () => harness.deliveries.length === 1,
+            }),
+            "the provider call",
+          );
+          yield* adjust(1_000);
+          yield* within(Fiber.await(step), "the delivery step");
+          yield* within(
+            settled("session-1", "delivered", "delivery-1"),
+            "delivery-1 to settle as delivered",
+          );
+          expect(server.head()).toBeUndefined();
+          expect(
+            server.settles.filter(({ outcome }) => outcome === "applied"),
+          ).toHaveLength(1);
+        }).pipe(
+          Effect.provide(
+            Layer.provideMerge(
+              Delivery.layer({ providerTimeoutMs: 1_000 }),
+              SupervisorBus.layer,
+            ),
+          ),
+        );
+      }),
+  );
+}
+
+it.effect(
+  "a wake over the drain limit waits for a free drain instead of being dropped",
+  () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const server = makeFakeServer([
+        makePermit(),
+        makePermit({ session: "session-2" }),
+      ]);
+      const harness = makeTestHarness(server, {
+        onDeliver: (req) =>
+          req.session === "session-1"
+            ? Effect.gen(function* () {
+                yield* Deferred.succeed(entered, undefined);
+                yield* Deferred.await(release);
+                return deliveredFor(req.delivery_id);
+              })
+            : Effect.succeed(deliveredFor(req.delivery_id)),
+      });
+
+      yield* Effect.gen(function* () {
+        yield* harness.attach;
+        yield* Delivery;
+        const settled = yield* watchSettled;
+        yield* wake("session-1");
+        yield* within(Deferred.await(entered), "session-1 to deliver");
+        yield* wake("session-2");
+        yield* pause(20);
+        expect(server.permitReads("session-2")).toBe(0);
+
+        yield* Deferred.succeed(release, undefined);
+        yield* within(settled("session-1", "delivered"), "session-1 to settle");
+        yield* within(
+          settled("session-2", "delivered"),
+          "the queued wake for session-2 to run",
+        );
+        expect(harness.deliveries).toHaveLength(2);
+      }).pipe(
+        Effect.ensuring(Deferred.succeed(release, undefined)),
+        Effect.provide(
+          Layer.provideMerge(
+            Delivery.layer({ maxActiveDrains: 1 }),
+            SupervisorBus.layer,
+          ),
+        ),
+      );
+    }),
+);
+
+it.effect(
+  "a busy provider slot neither blocks edge calls nor settles a recovery in doubt",
+  () =>
+    Effect.gen(function* () {
+      const server = makeFakeServer([
+        makePermit(),
+        makePermit({ session: "session-2", state: "started" }),
+      ]);
+      const entered = Promise.withResolvers<void>();
+      const release = Promise.withResolvers<void>();
+      const layerScope = yield* Scope.make();
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => release.resolve()).pipe(
+          Effect.andThen(Scope.close(layerScope, Exit.void)),
+        ),
+      );
+      const context = yield* Layer.buildWithScope(
+        deliveryServiceLayer({
+          bridgeLimits: {
+            edge: { maxConcurrent: 4 },
+            provider: { maxConcurrent: 1 },
+          },
+          bridge: fakeServerBridge(
+            server,
+            async (request) => {
+              entered.resolve();
+              await release.promise;
+              return deliveredFor(request.delivery_id);
+            },
+            async () => ({
+              status: "in_doubt",
+              code: "unknown",
+              message: "still uncertain",
+            }),
+          ),
+        }),
+        layerScope,
+      );
+      yield* Effect.gen(function* () {
+        const delivery = yield* Delivery;
+        const first = yield* Effect.forkChild(delivery.deliverNext(run), {
+          startImmediately: true,
+        });
+        yield* within(
+          Effect.promise(() => entered.promise),
+          "the provider slot to fill",
+        );
+        const busy = yield* within(
+          delivery.deliverNext(runFor("session-2")),
+          "the session-2 step",
+        );
+        expect(busy).toMatchObject({
+          status: "retry_scheduled",
+          code: "delivery_bridge_busy",
+        });
+        expect(server.permitReads("session-2")).toBe(1);
+        expect(server.head("session-2")?.state).toBe("delivery-started");
+        expect(
+          server.settles.filter(({ session }) => session === "session-2"),
+        ).toEqual([]);
+
+        release.resolve();
+        yield* within(Fiber.join(first), "the session-1 step");
+        expect(server.settles).toMatchObject([
+          { session: "session-1", outcome: "applied" },
+        ]);
+      }).pipe(Effect.provide(context));
+    }),
+);

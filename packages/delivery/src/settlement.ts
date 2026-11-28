@@ -26,6 +26,15 @@ import type {
   SettlementReceiptStatus,
 } from "./types";
 
+function settledHandover(step: DeliveryStepOutcome): boolean {
+  return (
+    step.status === "delivered" ||
+    step.status === "duplicate" ||
+    step.status === "stale" ||
+    (step.status === "failed" && !step.retryable)
+  );
+}
+
 export function makeSettlement(deps: {
   readonly bus: SupervisorBus["Service"];
   readonly options: DeliveryOptions;
@@ -331,6 +340,14 @@ export function makeSettlement(deps: {
         Effect.mapError((error) => mapBusError("bus", error)),
       );
 
+    if (reply.outcome.status === "busy") {
+      return {
+        status: "retry_scheduled",
+        retryable: true,
+        code: "delivery_bridge_busy",
+        retry_after_ms: reply.outcome.retry_after_ms,
+      };
+    }
     if (reply.outcome.status === "delivered") {
       if (reply.outcome.receipt.delivery_id !== permit.delivery_id) {
         return yield* settleNonApplied(run, permit, {
@@ -411,9 +428,8 @@ export function makeSettlement(deps: {
         return { status: "pending" };
       }
       const step = yield* recoverStarted(run, hand);
-      if (step.status === "in_doubt" || step.status === "lease_stale") {
-        return { status: "pending" };
-      }
+      if (step.status === "retry_scheduled") return step;
+      if (!settledHandover(step)) return { status: "pending" };
       journal = yield* journals.loadSteer(run);
     }
     if (journals.observedTurn(run).turn !== fence.turn) {
@@ -453,17 +469,17 @@ export function makeSettlement(deps: {
         code: ackReply.code,
       });
     }
-    const confirmed =
-      ackReply.response.status !== "stale" && !old?.acknowledged
-        ? {
-            ...journal,
-            fences: journal.fences.map((item) =>
-              item.fence_id === fence.fence_id
-                ? { ...item, acknowledged: true as const }
-                : item,
-            ),
-          }
-        : journal;
+    if (ackReply.response.status === "stale") return { status: "pending" };
+    const confirmed = !old?.acknowledged
+      ? {
+          ...journal,
+          fences: journal.fences.map((item) =>
+            item.fence_id === fence.fence_id
+              ? { ...item, acknowledged: true as const }
+              : item,
+          ),
+        }
+      : journal;
     const pruned = journals.withoutClosedFences(run, confirmed);
     if (pruned !== journal) yield* journals.saveSteer(run, pruned);
     return { status: "takeover", receipt: ackReply.response };

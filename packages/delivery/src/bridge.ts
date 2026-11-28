@@ -2,12 +2,12 @@ import {
   SupervisorBus,
   makeHandlerPool,
   type BusMessage,
-  type HandlerLimits,
+  type HandlerPool,
 } from "@codecast/edge-supervisor/effect";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
-import type { DeliveryBridge } from "./types";
+import type { DeliveryBridge, DeliveryBridgeLimits } from "./types";
 
 const BUSY_RETRY_MS = 250;
 
@@ -28,14 +28,15 @@ const edgeBusy = {
 
 export function deliveryBridgeLayer(
   bridge: DeliveryBridge | undefined,
-  limits?: HandlerLimits,
+  limits: DeliveryBridgeLimits = {},
 ) {
   if (!bridge) return Layer.empty;
   return Layer.effectDiscard(
     Effect.gen(function* () {
       const bus = yield* SupervisorBus;
       const subscription = yield* bus.subscribe();
-      const pool = makeHandlerPool(limits);
+      const edgePool = makeHandlerPool(limits.edge);
+      const providerPool = makeHandlerPool(limits.provider);
       const cancellable = new Map<string, AbortController>();
 
       const publishQuietly = (message: BusMessage) =>
@@ -47,6 +48,7 @@ export function deliveryBridgeLayer(
         failure: (cause: unknown) => NoInfer<T>,
         busy: NoInfer<T>,
         reply: (value: T) => BusMessage,
+        pool: HandlerPool = edgePool,
         cancelable = false,
       ) => {
         const controller = new AbortController();
@@ -190,6 +192,7 @@ export function deliveryBridgeLayer(
                       attempt_id: message.attempt_id,
                       outcome,
                     }),
+                    providerPool,
                     true,
                   );
                 }
@@ -208,12 +211,7 @@ export function deliveryBridgeLayer(
                       code: "provider_recover_failed",
                       message: causeCode(cause),
                     }),
-                    {
-                      status: "in_doubt" as const,
-                      code: "delivery_bridge_busy",
-                      message: "The delivery bridge is at capacity",
-                      retry_after_ms: BUSY_RETRY_MS,
-                    },
+                    { status: "busy" as const, retry_after_ms: BUSY_RETRY_MS },
                     (outcome) => ({
                       kind: "provider.recover.result",
                       request_id: message.request_id,
@@ -221,6 +219,7 @@ export function deliveryBridgeLayer(
                       attempt_id: message.attempt_id,
                       outcome,
                     }),
+                    providerPool,
                   );
                 }
                 break;
