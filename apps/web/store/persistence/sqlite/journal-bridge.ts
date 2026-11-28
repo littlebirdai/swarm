@@ -1,8 +1,9 @@
 import type { Patch } from "mutative";
 import { authPrincipal } from "../../../lib/authPrincipal";
+import { DOCS_SHOTS } from "../../../lib/docsShots/flag";
 import { expireExcludeTombstones } from "../../cacheRetention";
 import { queuedMessagesFromPending } from "../../pendingMessageJournal";
-import { db, PERSISTENCE_AVAILABLE } from "../db";
+import { db } from "../db";
 import {
   enqueueDispatch,
   loadOutbox,
@@ -52,18 +53,16 @@ export function createIdbJournalBridge(): JournalBridge {
     outboxAccountId,
     persistPendingMessageChanges,
     async loadJournalKeys(keys, context, principal) {
-      if (!PERSISTENCE_AVAILABLE || !principal) return {};
+      if (DOCS_SHOTS) return {};
       const claimed = (context.currentUser as { _id?: string } | undefined)
         ?._id;
-      if (claimed !== undefined && claimed !== principal) return {};
+      if (principal !== null && claimed !== undefined && claimed !== principal)
+        return {};
       const resolved = await authPrincipal.resolve();
       if (resolved !== principal) return {};
 
       const owner = await ensureCacheOwnership(purgeLocalCache);
-      const tokenState = authPrincipal.tokenState();
-      if (tokenState === "unparsable" || tokenState === "unreadable") {
-        return {};
-      }
+      if (!principal) return {};
       const wanted = keys ? new Set(keys) : null;
       const out: Record<string, any> = {};
 
@@ -97,7 +96,7 @@ export function createIdbJournalBridge(): JournalBridge {
       return out;
     },
     async writePendingEntries(patches, pending) {
-      if (!PERSISTENCE_AVAILABLE || !persistenceOwned()) return;
+      if (DOCS_SHOTS || !persistenceOwned()) return;
       const principal = authPrincipal.current();
       if (!principal) return;
       await ensureCacheOwnership(purgeLocalCache);
@@ -106,7 +105,7 @@ export function createIdbJournalBridge(): JournalBridge {
       await writePendingEntries(patches, pending ?? {});
     },
     async purgeJournal(keepPendingInputFor) {
-      if (!PERSISTENCE_AVAILABLE) return;
+      if (DOCS_SHOTS) return;
       await purgeLocalCache({
         keepPendingInputFor,
         reason: "sqlite-journal-purge",

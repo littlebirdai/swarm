@@ -27,6 +27,7 @@ export const RETRIABLE_OPS = new Set<SqliteWorkerOp>([
   "loadCache",
   "loadPaintCache",
   "loadConversationMessages",
+  "readDocDetailRefs",
 ]);
 
 export type PendingWaiter = {

@@ -284,6 +284,11 @@ export function createSqliteCache(
       });
       return Promise.resolve(deleted);
     },
+    readCachedDocDetails() {
+      return read(() => collections.readDocDetailRefs()).then(
+        (rows) => rows ?? [],
+      );
+    },
     async purgeLocalCache(options) {
       if (readOnly) return;
       const owner = options?.keepPendingInputFor ?? null;

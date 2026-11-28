@@ -1,8 +1,12 @@
 import type { Patch } from "mutative";
+import { timedDocCapsEnabled } from "../../cache-eviction";
 import {
   COLLECTION_RETENTION,
+  partitionDocDetailRetention,
   partitionSessionRetention,
+  pendingDocDetailIds,
 } from "../../cacheRetention";
+import { isDetailPinned } from "../../../lib/detail-rows";
 import {
   collectionRowHydrator,
   collectionRowValidator,
@@ -15,6 +19,7 @@ import {
   patchedIds,
 } from "../../idb-collection-diff";
 import { META_KEYS } from "../schema";
+import type { CachedDocDetailRef } from "../storage";
 import { encode, type AfterCommit, type SqliteDriver } from "./schema";
 
 const journalKeys = new Set(["pending", "pendingMessages", "queuedMessages"]);
@@ -115,6 +120,19 @@ export function collectionStorage(db: SqliteDriver) {
         rows.push(row);
       }
       if (!rows.length) continue;
+      const memoryOnlyDocDetails =
+        key === "docDetails" && timedDocCapsEnabled();
+      const protectedIds = memoryOnlyDocDetails
+        ? (() => {
+            const ids = pendingDocDetailIds(
+              (context.pending as Record<string, unknown> | undefined) ?? {},
+            );
+            for (const row of rows) {
+              if (isDetailPinned("docDetails", row._id)) ids.add(row._id);
+            }
+            return ids;
+          })()
+        : undefined;
       const retained =
         key === "sessions" || key === "conversations"
           ? partitionSessionRetention(
@@ -123,13 +141,15 @@ export function collectionStorage(db: SqliteDriver) {
               focus === undefined ? context.lastFocusedConversationId : focus,
               now,
             )
-          : COLLECTION_RETENTION[key]?.(rows, now);
+          : memoryOnlyDocDetails
+            ? partitionDocDetailRetention(rows, now, protectedIds)
+            : COLLECTION_RETENTION[key]?.(rows, now);
       if (afterCommit && retained?.drop.length) {
         if (key === "conversations") {
           afterCommit(() => {
             for (const id of retained.drop) conversationDrops.add(id);
           });
-        } else {
+        } else if (!memoryOnlyDocDetails) {
           for (const id of retained.drop) deleteRow.run(key, id);
         }
       }
@@ -229,12 +249,40 @@ export function collectionStorage(db: SqliteDriver) {
     return [...ids];
   }
 
+  function readDocDetailRefs(): CachedDocDetailRef[] {
+    const refs: CachedDocDetailRef[] = [];
+    for (const { id, value } of readRows.all("docDetails")) {
+      try {
+        const row = JSON.parse(value) as {
+          workspace?: unknown;
+          _cachedAt?: unknown;
+        };
+        refs.push({
+          _id: id,
+          workspace:
+            typeof row.workspace === "string" ? row.workspace : undefined,
+          cachedAt:
+            typeof row._cachedAt === "number" && Number.isFinite(row._cachedAt)
+              ? row._cachedAt
+              : null,
+        });
+      } catch {}
+    }
+    return refs.sort((a, b) => {
+      if (a.cachedAt == null && b.cachedAt == null) return 0;
+      if (a.cachedAt == null) return -1;
+      if (b.cachedAt == null) return 1;
+      return a.cachedAt - b.cachedAt;
+    });
+  }
+
   return {
     getMeta,
     setMeta,
     load,
     write,
     deleteDocDetails,
+    readDocDetailRefs,
     resetRetention: () => conversationDrops.clear(),
   };
 }

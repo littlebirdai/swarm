@@ -2,6 +2,7 @@ import type { AuthPrincipalTracker } from "@platform/auth/web";
 import { recordCacheEvent } from "../../cache-events";
 import {
   cacheEvictionsFor,
+  timedDocCapsEnabled,
   withoutEvictionPatches,
 } from "../../cache-eviction";
 import { clearSnapshotDrops } from "../../idb-collection-diff";
@@ -90,6 +91,7 @@ export function createSqliteWorkerClient(
   const knownIds = new Map<string, Set<string>>();
   const lastPersistedRows = new Map<string, Map<string, unknown>>();
   const lastPersistedMeta = new Map<string, unknown>();
+  const docDetailWorkspaces = new Map<string, string | undefined>();
   const inFlightWrites = new Set<Promise<void>>();
 
   let pendingBatch: PendingWriteBatch | null = null;
@@ -100,10 +102,20 @@ export function createSqliteWorkerClient(
   let opfsMissing = !opfsSupported() || !locks || !channelTransport;
   if (opfsMissing) onFallbackToMemory?.("opfs-unsupported");
 
+  const syncDocDetailWorkspacesFromShadow = () => {
+    const shadow = lastPersistedRows.get("docDetails");
+    if (!shadow) return;
+    for (const [id, row] of shadow) {
+      const ws = (row as { workspace?: unknown } | undefined)?.workspace;
+      docDetailWorkspaces.set(id, typeof ws === "string" ? ws : undefined);
+    }
+  };
+
   const resetShadowState = () => {
     knownIds.clear();
     lastPersistedRows.clear();
     lastPersistedMeta.clear();
+    docDetailWorkspaces.clear();
   };
 
   const clearPendingBatch = () => {
@@ -188,6 +200,7 @@ export function createSqliteWorkerClient(
           return;
         }
         built.commitShadow(knownIds, lastPersistedRows, lastPersistedMeta);
+        syncDocDetailWorkspacesFromShadow();
         for (const key of built.dropKeys) clearSnapshotDrops(key);
       })
       .catch((error) => {
@@ -280,6 +293,46 @@ export function createSqliteWorkerClient(
     return restores;
   };
 
+  const findPendingArchives = async (
+    principal: string,
+  ): Promise<Set<string>> => {
+    const archives = new Set<string>();
+    try {
+      for (const entry of await journal.loadOutbox()) {
+        if (entry.accountId !== undefined && entry.accountId !== principal)
+          continue;
+        const id = Array.isArray(entry.args) ? entry.args[0] : undefined;
+        if (typeof id !== "string") continue;
+        if (entry.action === "archiveDoc") archives.add(id);
+        if (entry.action === "restoreArchivedDoc") archives.delete(id);
+      }
+    } catch {}
+    return archives;
+  };
+
+  const stripPendingArchives = (
+    result: Record<string, any> | null,
+    archives: Set<string> | null,
+  ): Record<string, any> | null => {
+    if (!result || !archives?.size || !result.docDetails) return result;
+    const nextDocDetails: Record<string, any> = {};
+    for (const [id, row] of Object.entries(result.docDetails)) {
+      if (archives.has(id)) {
+        const ws = (row as { workspace?: unknown } | undefined)?.workspace;
+        docDetailWorkspaces.set(id, typeof ws === "string" ? ws : undefined);
+        continue;
+      }
+      nextDocDetails[id] = row;
+    }
+    const copy = { ...result };
+    if (Object.keys(nextDocDetails).length > 0) {
+      copy.docDetails = nextDocDetails;
+    } else {
+      delete copy.docDetails;
+    }
+    return Object.keys(copy).length ? copy : null;
+  };
+
   return {
     enqueueDispatch: journal.enqueueDispatch,
     removeDispatch: journal.removeDispatch,
@@ -300,26 +353,36 @@ export function createSqliteWorkerClient(
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;
 
+      const wantsPendingArchives =
+        principal !== null &&
+        timedDocCapsEnabled() &&
+        (!keys || keys.includes("docDetails"));
+
       if (opfsMissing) {
-        const [memResult, journalResult] = await Promise.all([
+        const [memResult, journalResult, pendingArchives] = await Promise.all([
           memory.loadCache(keys, context),
           journal.loadJournalKeys(keys, context, principal),
+          wantsPendingArchives ? findPendingArchives(principal) : null,
         ]);
         const merged = { ...(memResult ?? {}), ...journalResult };
-        return Object.keys(merged).length ? merged : null;
+        const filtered = stripPendingArchives(
+          Object.keys(merged).length ? merged : null,
+          pendingArchives,
+        );
+        return filtered;
       }
 
       if (principal === null) {
         connection.ensureActiveEpoch(null, false);
+        await journal.loadJournalKeys(keys, context, null);
         return null;
       }
 
       const epoch = connection.ensureActiveEpoch(principal, true);
-      const journalResult = await journal.loadJournalKeys(
-        keys,
-        context,
-        principal,
-      );
+      const [journalResult, pendingArchives] = await Promise.all([
+        journal.loadJournalKeys(keys, context, principal),
+        wantsPendingArchives ? findPendingArchives(principal) : null,
+      ]);
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;
 
@@ -345,11 +408,15 @@ export function createSqliteWorkerClient(
           lastPersistedMeta,
           sqliteResult,
         );
+        syncDocDetailWorkspacesFromShadow();
       } catch (error) {
         if (opfsMissing) {
           const memResult = await memory.loadCache(keys, context);
           const merged = { ...(memResult ?? {}), ...journalResult };
-          return Object.keys(merged).length ? merged : null;
+          return stripPendingArchives(
+            Object.keys(merged).length ? merged : null,
+            pendingArchives,
+          );
         }
         handleWorkerError(epoch, error);
         sqliteResult = null;
@@ -357,7 +424,10 @@ export function createSqliteWorkerClient(
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;
       const merged = { ...(sqliteResult ?? {}), ...journalResult };
-      return Object.keys(merged).length ? merged : null;
+      return stripPendingArchives(
+        Object.keys(merged).length ? merged : null,
+        pendingArchives,
+      );
     },
 
     async loadPaintCache() {
@@ -392,6 +462,7 @@ export function createSqliteWorkerClient(
           lastPersistedMeta,
           result,
         );
+        syncDocDetailWorkspacesFromShadow();
         return result;
       } catch (error) {
         if (opfsMissing) return memory.loadPaintCache();
@@ -460,11 +531,11 @@ export function createSqliteWorkerClient(
 
     async loadConversationMessages(conversationId) {
       if (closed) return null;
+      if (opfsMissing) return memory.loadConversationMessages(conversationId);
       const authEpoch = auth.epoch();
       const principal = await auth.resolve();
       if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
         return null;
-      if (opfsMissing) return memory.loadConversationMessages(conversationId);
       if (principal === null) {
         connection.ensureActiveEpoch(null, false);
         return null;
@@ -575,6 +646,7 @@ export function createSqliteWorkerClient(
         for (const id of deleted) {
           known?.delete(id);
           shadow?.delete(id);
+          docDetailWorkspaces.delete(id);
         }
         return deleted;
       } catch (error) {
@@ -583,6 +655,69 @@ export function createSqliteWorkerClient(
         }
         handleWorkerError(epoch, error);
         return [];
+      }
+    },
+
+    async readCachedDocDetails() {
+      if (closed) return [];
+      const authEpoch = auth.epoch();
+      const principal = await auth.resolve();
+      if (closed || authEpoch !== auth.epoch() || auth.current() !== principal)
+        return [];
+      if (opfsMissing) return memory.readCachedDocDetails?.() ?? [];
+      if (principal === null) {
+        connection.ensureActiveEpoch(null, false);
+        return [];
+      }
+      const epoch = connection.ensureActiveEpoch(principal, true);
+      if (!epoch) return [];
+      try {
+        const refs = await connection.send(
+          epoch,
+          principal,
+          "readDocDetailRefs",
+          {},
+        );
+        if (
+          closed ||
+          authEpoch !== auth.epoch() ||
+          auth.current() !== principal
+        )
+          return [];
+        docDetailWorkspaces.clear();
+        for (const ref of refs) docDetailWorkspaces.set(ref._id, ref.workspace);
+        return refs;
+      } catch (error) {
+        if (opfsMissing) return memory.readCachedDocDetails?.() ?? [];
+        handleWorkerError(epoch, error);
+        return [];
+      }
+    },
+
+    persistedDocDetailWorkspace(id) {
+      if (opfsMissing) return memory.persistedDocDetailWorkspace?.(id);
+      const row = lastPersistedRows.get("docDetails")?.get(id) as
+        | { workspace?: unknown }
+        | undefined;
+      if (row)
+        return typeof row.workspace === "string" ? row.workspace : undefined;
+      return docDetailWorkspaces.get(id);
+    },
+
+    compactPersistedDocDetails(ids) {
+      if (opfsMissing) {
+        memory.compactPersistedDocDetails?.(ids);
+        return;
+      }
+      const shadow = lastPersistedRows.get("docDetails");
+      for (const id of ids) {
+        const row = shadow?.get(id) as { workspace?: unknown } | undefined;
+        const workspace =
+          typeof row?.workspace === "string"
+            ? row.workspace
+            : docDetailWorkspaces.get(id);
+        if (row && shadow) shadow.set(id, { _id: id, workspace });
+        if (workspace !== undefined) docDetailWorkspaces.set(id, workspace);
       }
     },
 

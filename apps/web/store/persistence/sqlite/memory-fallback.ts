@@ -1,10 +1,17 @@
 import type { AuthPrincipalTracker } from "@platform/auth/web";
 import type { Patch } from "mutative";
+import { timedDocCapsEnabled } from "../../cache-eviction";
 import {
   COLLECTION_RETENTION,
+  partitionDocDetailRetention,
   partitionSessionRetention,
+  pendingDocDetailIds,
+  persistedMessageTail,
 } from "../../cacheRetention";
+import { isDetailPinned } from "../../../lib/detail-rows";
 import {
+  collectionRowHydrator,
+  collectionRowValidator,
   HYDRATION_PAINT_KEYS,
   WEB_COLLECTION_INDEXES,
 } from "../../clientSyncRegistry";
@@ -15,7 +22,11 @@ import {
   patchedIds,
 } from "../../idb-collection-diff";
 import { META_KEYS } from "../schema";
-import type { CachedConversation, CacheStorage } from "../storage";
+import type {
+  CachedConversation,
+  CachedDocDetailRef,
+  CacheStorage,
+} from "../storage";
 
 const journalKeys = new Set(["pending", "pendingMessages", "queuedMessages"]);
 const metaKeys = new Set([...META_KEYS].filter((key) => !journalKeys.has(key)));
@@ -78,12 +89,47 @@ export function createMemoryCacheFallback(
       if (!Object.hasOwn(WEB_COLLECTION_INDEXES, key)) continue;
       const map = collections.get(key);
       if (!map || map.size === 0) continue;
-      const rows = [...map.values()] as Array<Record<string, any>>;
+      const valid = collectionRowValidator(key);
+      const rows: Array<Record<string, any>> = [];
+      for (const [id, row] of map) {
+        if (valid && !valid(row)) {
+          map.delete(id);
+          continue;
+        }
+        rows.push(row);
+      }
+      if (!rows.length) continue;
+      const memoryOnlyDocDetails =
+        key === "docDetails" && timedDocCapsEnabled();
+      const protectedIds = memoryOnlyDocDetails
+        ? (() => {
+            const ids = pendingDocDetailIds(
+              (context.pending as Record<string, unknown> | undefined) ?? {},
+            );
+            for (const row of rows) {
+              if (isDetailPinned("docDetails", row._id)) ids.add(row._id);
+            }
+            return ids;
+          })()
+        : undefined;
       const retained =
         key === "sessions" || key === "conversations"
           ? partitionSessionRetention(rows, live, focus, now)
-          : COLLECTION_RETENTION[key]?.(rows, now);
-      const kept = retained?.keep ?? rows;
+          : memoryOnlyDocDetails
+            ? partitionDocDetailRetention(rows, now, protectedIds)
+            : COLLECTION_RETENTION[key]?.(rows, now);
+      if (!memoryOnlyDocDetails && retained?.drop.length) {
+        for (const id of retained.drop) map.delete(id);
+      }
+      const hydrate = collectionRowHydrator(key);
+      const hydrateCtx = {
+        pending: (context.pending as Record<string, any> | undefined) ?? {},
+      };
+      const kept = (retained?.keep ?? rows).map((row) => {
+        const value = hydrate ? hydrate(row, hydrateCtx) : row;
+        if (value !== row) map.set(row._id, value);
+        return value;
+      });
       if (
         kept.length ||
         (key === "conversations" && retained?.keep.length === 0)
@@ -169,8 +215,9 @@ export function createMemoryCacheFallback(
         return;
       boundOwner = principal;
       const prev = conversations.get(conversationId);
+      const tail = persistedMessageTail(messages as any[], pagination);
       const latestTimestamp = (
-        messages as Array<{ timestamp?: number }>
+        tail.messages as Array<{ timestamp?: number }>
       ).reduce(
         (max, m) =>
           typeof m?.timestamp === "number" && Number.isFinite(m.timestamp)
@@ -179,8 +226,8 @@ export function createMemoryCacheFallback(
         0,
       );
       conversations.set(conversationId, {
-        messages: messages as any[],
-        pagination,
+        messages: tail.messages,
+        pagination: tail.pagination,
         latestTimestamp,
         userMessages: prev?.userMessages,
       });
@@ -219,6 +266,37 @@ export function createMemoryCacheFallback(
       }
       return deleted;
     },
+    async readCachedDocDetails() {
+      const authEpoch = auth.epoch();
+      const principal = await auth.resolve();
+      if (authEpoch !== auth.epoch() || auth.current() !== principal) return [];
+      if (!ensureOwner(principal)) return [];
+      const map = collections.get("docDetails");
+      if (!map) return [];
+      const refs: CachedDocDetailRef[] = [];
+      for (const [id, row] of map) {
+        refs.push({
+          _id: id,
+          workspace:
+            typeof row.workspace === "string" ? row.workspace : undefined,
+          cachedAt:
+            typeof row._cachedAt === "number" && Number.isFinite(row._cachedAt)
+              ? row._cachedAt
+              : null,
+        });
+      }
+      return refs.sort((a, b) => {
+        if (a.cachedAt == null && b.cachedAt == null) return 0;
+        if (a.cachedAt == null) return -1;
+        if (b.cachedAt == null) return 1;
+        return a.cachedAt - b.cachedAt;
+      });
+    },
+    persistedDocDetailWorkspace(id) {
+      const row = collections.get("docDetails")?.get(id);
+      return typeof row?.workspace === "string" ? row.workspace : undefined;
+    },
+    compactPersistedDocDetails() {},
     async purgeLocalCache(options) {
       clear(options?.keepPendingInputFor ?? null);
     },

@@ -5,17 +5,6 @@ import {
 } from "../cache-eviction";
 import type { CacheStorage } from "./storage";
 
-export function sqliteCacheEnabled(): boolean {
-  return process.env.VITE_SQLITE_CACHE === "1";
-}
-
-export function selectCacheStorage(
-  dexie: CacheStorage,
-  sqlite: () => CacheStorage,
-): () => CacheStorage {
-  return () => (sqliteCacheEnabled() ? sqlite() : dexie);
-}
-
 export function createLazySqliteStorage(
   loadModule: () => Promise<{ getSqliteCacheStorage(): CacheStorage }>,
   syncFallback: Pick<
@@ -130,6 +119,13 @@ export function createLazySqliteStorage(
             current,
             archive,
           ) ?? [],
+        readCachedDocDetails: async () =>
+          (await ensureLoaded()).readCachedDocDetails?.() ?? [],
+        persistedDocDetailWorkspace: (id) =>
+          loaded?.persistedDocDetailWorkspace?.(id),
+        compactPersistedDocDetails: (ids) => {
+          loaded?.compactPersistedDocDetails?.(ids);
+        },
       };
     }
     return instance;
@@ -149,6 +145,9 @@ export function forwardCacheStorage(
     };
 
   return {
+    compactPersistedDocDetails: (ids) => {
+      getStorage().compactPersistedDocDetails?.(ids);
+    },
     deleteInvalidatedDocDetails: (ids, current, archive) => {
       const storage = getStorage();
       return storage.deleteInvalidatedDocDetails
@@ -167,7 +166,11 @@ export function forwardCacheStorage(
     persistPendingMessageChanges: forward(
       (storage) => storage.persistPendingMessageChanges,
     ),
+    persistedDocDetailWorkspace: (id) =>
+      getStorage().persistedDocDetailWorkspace?.(id),
     purgeLocalCache: forward((storage) => storage.purgeLocalCache),
+    readCachedDocDetails: () =>
+      getStorage().readCachedDocDetails?.() ?? Promise.resolve([]),
     removeDispatch: forward((storage) => storage.removeDispatch),
     setHydrating: forward((storage) => storage.setHydrating),
     writeConversationMessages: forward(

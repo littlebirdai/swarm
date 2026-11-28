@@ -120,6 +120,7 @@ const VALID_OPS = new Set<string>([
   "writeConversationMessages",
   "writeConversationUserMessages",
   "deleteDocDetails",
+  "readDocDetailRefs",
 ]);
 
 function hasValidPatchEnvelope(payload: Record<string, unknown>): boolean {
@@ -140,7 +141,8 @@ function hasValidPatchEnvelope(payload: Record<string, unknown>): boolean {
 
 function hasValidPayload(op: SqliteWorkerOp, payload: unknown): boolean {
   if (!isPlainObject(payload)) return false;
-  if (op === "ping" || op === "loadPaintCache") return true;
+  if (op === "ping" || op === "loadPaintCache" || op === "readDocDetailRefs")
+    return true;
   if (op === "loadCache") {
     if (
       payload.keys !== undefined &&
@@ -357,7 +359,8 @@ export function createSqliteWorkerHost(
     const isRead =
       req.op === "loadCache" ||
       req.op === "loadPaintCache" ||
-      req.op === "loadConversationMessages";
+      req.op === "loadConversationMessages" ||
+      req.op === "readDocDetailRefs";
     if (isRead) {
       const ownerState = readFileOwnerState(readMetaStmt);
       if (ownerState.blocked) {
@@ -391,6 +394,11 @@ export function createSqliteWorkerHost(
         const result = await cache.loadConversationMessages(
           payload.conversationId,
         );
+        respondOk(result);
+        return;
+      }
+      if (req.op === "readDocDetailRefs") {
+        const result = (await cache.readCachedDocDetails?.()) ?? [];
         respondOk(result);
         return;
       }

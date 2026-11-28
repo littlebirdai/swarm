@@ -1,6 +1,6 @@
 import type { AuthTokenState } from "@platform/auth/web";
 import type { Patch } from "mutative";
-import type { CachedConversation } from "../storage";
+import type { CachedConversation, CachedDocDetailRef } from "../storage";
 
 export const SQLITE_WORKER_TIMEOUT_MS = 2500;
 export const SQLITE_LOCK_PREFIX = "codecast-sqlite-lock";
@@ -322,6 +322,7 @@ export type SqliteWorkerPayloads = {
   deleteDocDetails: {
     ids: string[];
   };
+  readDocDetailRefs: Record<string, never>;
 };
 
 export type SqliteWorkerResults = {
@@ -334,6 +335,7 @@ export type SqliteWorkerResults = {
   writeConversationMessages: void;
   writeConversationUserMessages: void;
   deleteDocDetails: string[];
+  readDocDetailRefs: CachedDocDetailRef[];
 };
 
 export type SqliteWorkerOp = keyof SqliteWorkerPayloads;

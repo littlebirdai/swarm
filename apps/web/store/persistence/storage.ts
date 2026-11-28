@@ -10,6 +10,12 @@ export type CachedConversation = {
   userMessages?: any[];
 };
 
+export type CachedDocDetailRef = {
+  _id: string;
+  workspace?: string;
+  cachedAt?: number | null;
+};
+
 export type CacheStorage = {
   loadCache(
     keys?: readonly string[],
@@ -51,4 +57,7 @@ export type CacheStorage = {
     current: (id: string) => boolean,
     archive?: { accountId: string; dispatchedAt: number },
   ): Promise<string[]>;
+  readCachedDocDetails?(): Promise<CachedDocDetailRef[]>;
+  persistedDocDetailWorkspace?(id: string): string | undefined;
+  compactPersistedDocDetails?(ids: readonly string[]): void;
 };
