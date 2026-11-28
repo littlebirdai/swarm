@@ -18,11 +18,12 @@ To add a library, use the steps below.
 3. Set `exports` or `main` to the entry point.
 4. Put the source in `src/` and the tests in `test/`.
 5. Extend `../tsconfig/library.json` in the library's `tsconfig.json`.
-6. Add the library as a `workspace:*` dependency of each workspace that imports it.
-7. Run `bun install` to update the lockfile.
-8. Run `cast check packages` to check the libraries.
+6. Add `pkg-<name> = "packages/<name>/tsconfig.json"` to `.codecast/check.toml`.
+7. Add the library as a `workspace:*` dependency of each workspace that imports it.
+8. Run `bun install` to update the lockfile.
+9. Run `cast check pkg-<name>` to check the library.
 
-`cast check packages` uses `src/` and `test/` as the roots for each library.
+Each `pkg-<name>` program uses `src/` and `test/` as the roots for that library. `cast check packages` checks all libraries together (for CI and full checks).
 
 CI and the source walkers find the new library automatically.
 
@@ -46,7 +47,7 @@ A new copy from the canonical repository will overwrite the changes that Swarm m
 
 ## Typechecking
 
-Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground`, `packages` and `relay`. `cast check` runs all 10, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
+Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground`, `packages`, `relay`, `pkg-agent-clients`, `pkg-agents`, `pkg-analytics`, `pkg-artifacts`, `pkg-async`, `pkg-blame`, `pkg-browser`, `pkg-calls`, `pkg-capabilities`, `pkg-changes`, `pkg-chat`, `pkg-cloud-hosts`, `pkg-comments`, `pkg-connectors`, `pkg-convex-errors`, `pkg-daemon`, `pkg-decisions`, `pkg-deploys`, `pkg-diff`, `pkg-docs`, `pkg-edge-client`, `pkg-edge-contract`, `pkg-edge-supervisor`, `pkg-effect-kit`, `pkg-entities`, `pkg-evals-api`, `pkg-fence`, `pkg-files`, `pkg-flows`, `pkg-goals`, `pkg-hash`, `pkg-hosted-assistant`, `pkg-inbox`, `pkg-ingest`, `pkg-judges`, `pkg-keyboard`, `pkg-line`, `pkg-machines`, `pkg-memory`, `pkg-messages`, `pkg-mods`, `pkg-network`, `pkg-org`, `pkg-org-templates`, `pkg-pages`, `pkg-policy`, `pkg-projects`, `pkg-provider-adapter`, `pkg-provider-contract`, `pkg-provider-keys`, `pkg-pull-requests`, `pkg-ratchet`, `pkg-relay`, `pkg-relay-client`, `pkg-relay-contract`, `pkg-render`, `pkg-replay`, `pkg-search`, `pkg-secrets`, `pkg-session-contract`, `pkg-sessions`, `pkg-ship`, `pkg-signals`, `pkg-snippets`, `pkg-tasks`, `pkg-team`, `pkg-test-helpers`, `pkg-time`, `pkg-triggers`, `pkg-usage` and `pkg-vault`. `cast check` runs all 81, and `cast check pkg-edge-client` or `cast check web` runs one. Check a library under `packages/` by its `pkg-<name>` name (or `cast check packages/<name>`); use `cast check packages` only for CI or a full check of all libraries. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 
